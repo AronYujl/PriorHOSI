@@ -15,4 +15,5 @@ results/
 checkpoint/
 smpl_models/
 t2m_eval/
-data/
+data
+.codegraph/
