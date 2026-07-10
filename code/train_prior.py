@@ -152,6 +152,7 @@ def _worker(rank, world_size, cfg):
         split_unit=cfg.validation.split_unit,
         seed=cfg.validation.split_seed,
     )
+    full_validation_count = len(val_indices)
     if cfg.validation.max_batches > 0:
         val_indices = balanced_subset_indices(
             dataset,
@@ -177,7 +178,9 @@ def _worker(rank, world_size, cfg):
             model,
             device_ids=[rank] if device.type == "cuda" else None,
             broadcast_buffers=False,
-            find_unused_parameters=False,
+            # InfBaGel retains a legacy embedding_output projection that is not
+            # used by the x0 forward path.
+            find_unused_parameters=True,
         )
 
     optimizer = AdamW(
@@ -198,7 +201,8 @@ def _worker(rank, world_size, cfg):
         cfg.validation.fraction, cfg.validation.split_seed,
     )
     data_contract["num_train_windows"] = len(train_indices)
-    data_contract["num_validation_windows"] = len(val_indices)
+    data_contract["num_validation_windows"] = full_validation_count
+    data_contract["num_validation_windows_per_evaluation"] = len(val_indices)
 
     start_epoch = 0
     global_step = 0
@@ -220,7 +224,9 @@ def _worker(rank, world_size, cfg):
             writer = SummaryWriter(str(output_dir / "tensorboard"))
         print(
             f"{cfg.prior_type.upper()} prior: {len(train_indices)} train / "
-            f"{len(val_indices)} validation windows on {world_size} process(es)",
+            f"{full_validation_count} validation windows "
+            f"({len(val_indices)} selected per evaluation) on "
+            f"{world_size} process(es)",
             flush=True,
         )
 

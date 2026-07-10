@@ -1150,11 +1150,14 @@ class Unet(nn.Module):
 
         self.embed_timestep = TimestepEmbedder(self.dim_model, self.positional_encoder)
 
-        self.bps_encoder = nn.Sequential(
-            nn.Linear(in_features=1024*3, out_features=768),
-            nn.ReLU(),
-            nn.Linear(in_features=768, out_features=self.dim_model),
+        if self.load_object_goal:
+            self.bps_encoder = nn.Sequential(
+                nn.Linear(in_features=1024*3, out_features=768),
+                nn.ReLU(),
+                nn.Linear(in_features=768, out_features=self.dim_model),
             )
+        else:
+            self.bps_encoder = None
         
         # add the CFG scale embedding module
         self.cfg_scale_embedding = CFGScaleEmbedding(dim_model)
