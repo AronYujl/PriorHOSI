@@ -1,0 +1,22 @@
+_target_: datasets.infbagel.InfBaGelDataset
+folder: ${oc.env:ROOT_DIR}/data/dataset
+device: ${device}
+batch_size: ${batch_size}
+step: 3
+nb_voxels: [32, 32, 32]
+mesh_grid: [-0.6, 0.6, 0.1, 1.2, -0.6, 0.6]
+train: false
+vis: false
+start_type: stand
+test_scene_name: null
+load_language: true
+load_scene: true
+load_scene_goal: true
+load_pelvis_goal: true
+load_object_goal: false
+use_pi: true
+max_window_size: 16
+use_random_frame_bps: false
+use_object_keypoints: false
+joints_ind: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 25, 28, 40, 43]
+nb_joints: 28

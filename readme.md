@@ -136,6 +136,31 @@ To train with mixed dataset:
 python train_infbagel.py --config-name config_train_infbagel_mix
 ```
 
+### Independent HOI and HSI Priors
+
+The repository also provides causally separated priors for later HOSI model
+composition. The HOI prior uses OMOMO without loading its synthetic scene and
+predicts the full 232-dimensional human-object-contact state. The HSI prior
+uses real LINGO scenes and predicts a 216-dimensional human-only state.
+
+```bash
+python train_prior.py --config-name config_train_hoi_prior
+python train_prior.py --config-name config_train_hsi_prior
+```
+
+Dedicated held-out evaluation:
+
+```bash
+python evaluate_prior.py --config-name config_eval_hoi_prior \
+  checkpoint=../results/priors/hoi_prior/checkpoints/best.pth
+python evaluate_prior.py --config-name config_eval_hsi_prior \
+  checkpoint=../results/priors/hsi_prior/checkpoints/best.pth
+```
+
+The state contracts, leakage-free sequence/scene splits, checkpoint schema,
+metrics, resume commands, and recommended paper ablations are documented in
+[`docs/independent_priors.md`](docs/independent_priors.md).
+
 ### Consistency Model
 
 The consistency model is trained via consistency distillation from a pretrained diffusion model. First train the diffusion model, then set the checkpoint path in `config/config_train_infbagel_cm.yaml`:

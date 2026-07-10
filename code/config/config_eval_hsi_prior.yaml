@@ -1,0 +1,36 @@
+defaults:
+  - dataset: hsi_prior_eval
+  - model:
+      - hsi_prior
+  - sampler:
+      - hsi_prior
+  - _self_
+
+prior_type: hsi
+device: cuda:0
+batch_size: 16
+per_device_batch_size: ${batch_size}
+num_workers: 0
+auto_regre_num: 2
+checkpoint: ???
+output_json: ${oc.env:ROOT_DIR}/results/priors/evaluation/hsi_prior.json
+evaluation_split: validation
+seed: 2027
+noise_seed: 3407
+timesteps: [0, 50, 100, 250, 499]
+max_batches: 128
+
+sampling:
+  enabled: false
+  max_batches: 32
+
+validation:
+  split_unit: scene
+  fraction: 0.1
+  split_seed: 2027
+
+hydra:
+  run:
+    dir: ${oc.env:ROOT_DIR}/results/priors/evaluation
+  job:
+    chdir: false
