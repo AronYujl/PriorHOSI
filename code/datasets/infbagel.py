@@ -36,6 +36,8 @@ class InfBaGelDataset(Dataset):
         self.start_type = start_type
         self.test_scene_name = test_scene_name
         self.max_window_size = max_window_size
+        self.mesh_grid = mesh_grid
+        self.nb_voxels = nb_voxels
 
         self.rest_object_geo_folder = os.path.join(folder, 'rest_object_geo')
         self.global_orient = np.load(os.path.join(folder, 'human_orient.npy'))
@@ -57,8 +59,17 @@ class InfBaGelDataset(Dataset):
         self.ori_sequence_start_idx = np.load(os.path.join(folder, 'start_idx.npy')).astype(np.int64)
         self.ori_sequence_end_idx = np.load(os.path.join(folder, 'end_idx.npy')).astype(np.int64)
 
+        # Sequence/scene names are also required by scene-free HOI training for
+        # object BPS and contact-label lookup.  Previously they were loaded only
+        # with scene occupancy, which made load_scene=False incompatible with
+        # load_object_goal=True.
+        scene_name_path = os.path.join(folder, 'scene_name.pkl')
+        with open(scene_name_path, 'rb') as f:
+            self.scene_name = pkl.load(f)
+
         self.use_random_frame_bps = use_random_frame_bps
         self.use_object_keypoints = use_object_keypoints
+        self.lazy_object_bps = kwargs.get('lazy_object_bps', False)
 
         self.use_pen_loss = kwargs.get('use_pen_loss', False)
 
@@ -68,7 +79,10 @@ class InfBaGelDataset(Dataset):
             # load object data
             self.object_rot_mat = np.load(os.path.join(folder, 'object_rot_mat.npy'))
             self.object_trans = np.load(os.path.join(folder, 'object_trans.npy'))
-            if os.path.exists(os.path.join(folder, 'object_points.npy')):
+            # Dense per-frame object point clouds are only consumed by scene
+            # occupancy construction.  A scene-free HOI prior must not load
+            # this multi-gigabyte array.
+            if self.load_scene and os.path.exists(os.path.join(folder, 'object_points.npy')):
                 self.object_points = np.load(os.path.join(folder, 'object_points.npy'))
             else:
                 self.object_points = None
@@ -138,13 +152,9 @@ class InfBaGelDataset(Dataset):
         self.batch_size = batch_size
 
         if self.load_scene:
-            self.mesh_grid = mesh_grid
-            self.nb_voxels = nb_voxels
             self.scene_occ = []
             self.scene_occ_ref = []
             self.scene_dict = {}
-            with open(os.path.join(folder, 'scene_name.pkl'), 'rb') as f:
-                self.scene_name = pkl.load(f) # list of scene names
             if not self.vis:
                 self.scene_folder = os.path.join(folder, 'Scene')
                 scene_file_list = sorted(os.listdir(self.scene_folder))
@@ -217,11 +227,15 @@ class InfBaGelDataset(Dataset):
             bps_file_list = sorted(os.listdir(self.dest_obj_bps_npy_folder))
             for bid, file in enumerate(bps_file_list):
                 obj_bps_npy_path = os.path.join(self.dest_obj_bps_npy_folder, file)
-                obj_bps_data = torch.from_numpy(np.load(obj_bps_npy_path))# .to(device) # T X 1024 X 3 
-                self.obj_bps_data.append(obj_bps_data)
-                self.bps_dict[file[:-4]] = (start_idx, start_idx + obj_bps_data.shape[0])
-                start_idx += obj_bps_data.shape[0]
-            self.obj_bps_data = torch.cat(self.obj_bps_data, dim=0)
+                if self.lazy_object_bps:
+                    self.bps_dict[file[:-4]] = obj_bps_npy_path
+                else:
+                    obj_bps_data = torch.from_numpy(np.load(obj_bps_npy_path))
+                    self.obj_bps_data.append(obj_bps_data)
+                    self.bps_dict[file[:-4]] = (start_idx, start_idx + obj_bps_data.shape[0])
+                    start_idx += obj_bps_data.shape[0]
+            if not self.lazy_object_bps:
+                self.obj_bps_data = torch.cat(self.obj_bps_data, dim=0)
 
             if self.use_object_keypoints:
                 self.bps_torch = bps_torch()
@@ -357,14 +371,30 @@ class InfBaGelDataset(Dataset):
             assert int(self.end_range[idx]) == int(self.ori_sequence_end_idx[origin_sequence_idx])
             # object_goal[1] = 0. (3-dim position represent final object position)
             if self.scene_name[origin_sequence_idx] in self.bps_dict:
-                bps_start_idx, bps_end_idx = self.bps_dict[self.scene_name[origin_sequence_idx]]
-                obj_bps_data = self.obj_bps_data[bps_start_idx:bps_end_idx]
-                assert obj_bps_data.shape[0] == self.ori_sequence_end_idx[origin_sequence_idx] - self.ori_sequence_start_idx[origin_sequence_idx]
+                bps_entry = self.bps_dict[self.scene_name[origin_sequence_idx]]
+                expected_bps_frames = (
+                    self.ori_sequence_end_idx[origin_sequence_idx]
+                    - self.ori_sequence_start_idx[origin_sequence_idx]
+                )
+                if self.lazy_object_bps:
+                    bps_array = np.load(bps_entry, mmap_mode='r')
+                    assert bps_array.shape[0] == expected_bps_frames
+                    bps_frame_count = bps_array.shape[0]
+                else:
+                    bps_start_idx, bps_end_idx = bps_entry
+                    obj_bps_data = self.obj_bps_data[bps_start_idx:bps_end_idx]
+                    assert obj_bps_data.shape[0] == expected_bps_frames
+                    bps_frame_count = obj_bps_data.shape[0]
                 if self.use_random_frame_bps:
-                    random_sampled_t_idx = random.sample(list(range(obj_bps_data.shape[0])), 1)[0]
+                    random_sampled_t_idx = random.randrange(bps_frame_count)
                 else: # use the first frame of this window for object bps
                     random_sampled_t_idx = start_idx - self.ori_sequence_start_idx[origin_sequence_idx] 
-                obj_bps_data = obj_bps_data[random_sampled_t_idx:random_sampled_t_idx+1] # 1 X 1024 X 3
+                if self.lazy_object_bps:
+                    obj_bps_data = torch.from_numpy(
+                        np.asarray(bps_array[random_sampled_t_idx:random_sampled_t_idx+1]).copy()
+                    )
+                else:
+                    obj_bps_data = obj_bps_data[random_sampled_t_idx:random_sampled_t_idx+1]
                 obj_bps_data = zup_to_yup(obj_bps_data)
                 # bps_set = self.obj_bps + self.object_trans[self.ori_sequence_start_idx[origin_sequence_idx]+random_sampled_t_idx][None,None,:] # 1X1024X3
                 # lhand_point = self.joints[self.ori_sequence_start_idx[origin_sequence_idx]+random_sampled_t_idx][24,:] # 3
@@ -596,6 +626,7 @@ class InfBaGelDataset(Dataset):
     def get_occ_for_points(self, points, obj_points, scene_flag):
         batch_size = points.shape[0]
         seq_len = points.shape[1]
+        points_per_batch = points.reshape(batch_size, -1, 3).shape[1]
         points = points.reshape(-1, 3)
         voxel_size = torch.div(self.scene_grid_torch[3: 6] - self.scene_grid_torch[:3], self.scene_grid_torch[6:]) # 0.02
         voxel = torch.div((points - self.scene_grid_torch[:3]), voxel_size)
@@ -605,8 +636,9 @@ class InfBaGelDataset(Dataset):
         in_bound = torch.logical_and(lb, ub)
         voxel[torch.logical_not(in_bound)] = 0
 
-        self.batch_id = torch.linspace(0, batch_size - 1, batch_size).tile((self.nb_voxels[0]*self.nb_voxels[1]*self.nb_voxels[2], 1)).T \
-            .reshape(-1, 1).to(device=points.device, dtype=torch.long)
+        self.batch_id = torch.arange(
+            batch_size, device=points.device, dtype=torch.long
+        ).repeat_interleave(points_per_batch).reshape(-1, 1)
         
         if self.train:
             voxel = torch.cat([self.batch_id, voxel], dim=1)

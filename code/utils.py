@@ -261,8 +261,10 @@ def init_model(model_cfg, device, eval, load_state_dict=False, need_ddp=True):
                                                               find_unused_parameters=True)
         if load_state_dict:
             # Use strict=False to allow partial loading while recording missing keys
-            checkpoint = torch.load(model_cfg.ckpt)
-            missing_keys, unexpected_keys = model.module.load_state_dict(checkpoint, strict=False)
+            checkpoint = torch.load(model_cfg.ckpt, map_location=device)
+            checkpoint = _extract_model_state(checkpoint)
+            model_to_load = model.module if hasattr(model, 'module') else model
+            missing_keys, unexpected_keys = model_to_load.load_state_dict(checkpoint, strict=False)
 
             if missing_keys:
                 print(f"Missing keys in checkpoint (will use initialized values): {missing_keys}")
@@ -274,8 +276,18 @@ def init_model(model_cfg, device, eval, load_state_dict=False, need_ddp=True):
     return model
 
 
+def _extract_model_state(checkpoint):
+    if isinstance(checkpoint, dict):
+        for key in ('model_state_dict', 'state_dict', 'model'):
+            if isinstance(checkpoint.get(key), dict):
+                return checkpoint[key]
+    return checkpoint
+
+
 def load_state_dict_eval(model, state_dict_path, map_location='cuda:0', device='cuda'):
-    state_dict = torch.load(state_dict_path, map_location=map_location)
+    state_dict = _extract_model_state(
+        torch.load(state_dict_path, map_location=map_location)
+    )
     key_list = [key for key in state_dict.keys()]
     for old_key in key_list:
         new_key = old_key.replace('module.', '')

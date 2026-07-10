@@ -138,7 +138,14 @@ class Sampler:
             mat_for_query[:, :3, 3] = x_orig[:, self.emb_f, target_ind * 3: target_ind * 3 + 3]
             mat_for_query[:, 1, 3] = 0
             query_points = transform_points(self.grid, mat_for_query)
-            occ = self.dataset.get_occ_for_points(query_points, object_points, scene_flag).float()
+            query_object_points = (
+                object_points
+                if self.dataset.load_object_goal and noisy_input.shape[-1] >= 232
+                else None
+            )
+            occ = self.dataset.get_occ_for_points(
+                query_points, query_object_points, scene_flag
+            ).float()
 
             nb_voxels = self.dataset.nb_voxels
             occ = occ.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
@@ -183,28 +190,26 @@ class Sampler:
             occ_list = torch.cat([occ_list, occ], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
-                object_points_temp = object_points.clone()
-                pred_obj_rot_mat_rel = noisy_input[:, :, 219:228].reshape(joints.shape[0], -1, 3, 3)
+                has_object_state = noisy_input.shape[-1] >= 232 and self.dataset.load_object_goal
+                object_points_temp = None
+                if has_object_state:
+                    object_points_temp = object_points.clone()
+                    pred_obj_rot_mat_rel = noisy_input[:, :, 219:228].reshape(joints.shape[0], -1, 3, 3)
+                    pred_obj_rot_mat_rel_aa = transforms.matrix_to_axis_angle(pred_obj_rot_mat_rel)
+                    pred_obj_rot_mat_rel = transforms.axis_angle_to_matrix(pred_obj_rot_mat_rel_aa)
 
-                pred_obj_rot_mat_rel_aa = transforms.matrix_to_axis_angle(pred_obj_rot_mat_rel) # [b, t, 3]
-                # std_per_dim = torch.tensor([0.5, 1.5, 0.5], device=pred_obj_rot_mat_rel_aa.device).view(1, 1, 3)
-                # perturb = torch.randn_like(pred_obj_rot_mat_rel_aa) * std_per_dim
-                # pred_obj_rot_mat_rel_aa = pred_obj_rot_mat_rel_aa + perturb
-                pred_obj_rot_mat_rel = transforms.axis_angle_to_matrix(pred_obj_rot_mat_rel_aa)
+                    obj_rot_mat_ref_temp = obj_rot_mat_ref.unsqueeze(1).repeat(1, pred_obj_rot_mat_rel.shape[1], 1, 1)
+                    pred_obj_rot_mat = pred_obj_rot_mat_rel @ obj_rot_mat_ref_temp
+                    pred_obj_rot_mat = pred_obj_rot_mat @ pred_obj_rot_mat[:, 0:1, :, :].transpose(2, 3)
 
-                obj_rot_mat_ref_temp = obj_rot_mat_ref.unsqueeze(1).repeat(1, pred_obj_rot_mat_rel.shape[1], 1, 1)
-                pred_obj_rot_mat = pred_obj_rot_mat_rel @ obj_rot_mat_ref_temp # [b, t, 3, 3]
-                pred_obj_rot_mat = pred_obj_rot_mat @ pred_obj_rot_mat[:, 0:1, :, :].transpose(2, 3)
+                    pred_obj_trans = noisy_input[:, :, 216:219]
+                    pred_obj_trans = transform_points(self.dataset.denormalize_torch(pred_obj_trans, is_object=True), mat)
+                    pred_obj_trans = pred_obj_trans - pred_obj_trans[:, 0:1, :]
 
-                pred_obj_trans = noisy_input[:, :, 216:219] # [b, t, 3]
-                pred_obj_trans = transform_points(self.dataset.denormalize_torch(pred_obj_trans, is_object=True), mat)
-                pred_obj_trans = pred_obj_trans - pred_obj_trans[:, 0:1, :]
-
-                # perturb = (torch.rand_like(pred_obj_trans) - 0.5) * 0.4  # ∈ [-0.2, 0.2]
-                # pred_obj_trans = pred_obj_trans + perturb
-
-                object_points_temp = object_points_temp.unsqueeze(1).repeat(1, pred_obj_rot_mat.shape[1], 1, 1) # [b, t, 1024, 3]
-                object_points_temp = torch.matmul(pred_obj_rot_mat, object_points_temp.transpose(-2,-1)).transpose(-2,-1) + pred_obj_trans.unsqueeze(-2) # [b, t, 1024, 3]
+                    object_points_temp = object_points_temp.unsqueeze(1).repeat(1, pred_obj_rot_mat.shape[1], 1, 1)
+                    object_points_temp = torch.matmul(
+                        pred_obj_rot_mat, object_points_temp.transpose(-2, -1)
+                    ).transpose(-2, -1) + pred_obj_trans.unsqueeze(-2)
 
                 x_denorm = self.dataset.denormalize_torch(x_start[:, :, :joints.shape[-1]])
                 perturb = (torch.rand_like(x_denorm) - 0.5) * 0.2  # ∈ [-0.1, 0.1]
@@ -225,7 +230,8 @@ class Sampler:
 
                     occ_pos = torch.cat([occ_pos, x_denorm[:, i, [0, 2]][None]], dim=0)
 
-                    occ_temp = self.dataset.get_occ_for_points(query_points, object_points_temp[:, i, :, :], scene_flag)
+                    object_points_i = None if object_points_temp is None else object_points_temp[:, i]
+                    occ_temp = self.dataset.get_occ_for_points(query_points, object_points_i, scene_flag)
 
                     nb_voxels = self.dataset.nb_voxels
                     occ_temp = occ_temp.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
@@ -487,7 +493,12 @@ class Sampler:
             self.grid = self.dataset.create_meshgrid(batch_size=self.batch_size).to(self.device)
 
             query_points = transform_points(self.grid, mat_for_query)
-            occ = self.dataset.get_occ_for_points(query_points, object_points, scene_flag)
+            query_object_points = (
+                object_points
+                if self.dataset.load_object_goal and x.shape[-1] >= 232
+                else None
+            )
+            occ = self.dataset.get_occ_for_points(query_points, query_object_points, scene_flag)
             nb_voxels = self.dataset.nb_voxels
             occ = occ.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
             
@@ -521,7 +532,9 @@ class Sampler:
                                                                                 3].clone()
                 mat_for_query_goal[:, 1, 3] = 0.
                 query_points_goal = transform_points(self.grid, mat_for_query_goal)
-                occ_goal = self.dataset.get_occ_for_points(query_points_goal, object_points, scene_flag)
+                occ_goal = self.dataset.get_occ_for_points(
+                    query_points_goal, query_object_points, scene_flag
+                )
 
                 if object_only:
                     occ_goal[occ_goal == 1] = 0.
@@ -543,7 +556,9 @@ class Sampler:
             occ_list = torch.cat([occ_list, occ], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
-                if self.dataset.vis:
+                has_object_state = x.shape[-1] >= 232 and self.dataset.load_object_goal
+                object_points_temp = None
+                if has_object_state and self.dataset.vis:
                     # object_rot_mat = x0[:, :, 219:228].reshape(x.shape[0], -1, 3, 3)
                     # object_trans_orig = x0[:, :, 216:219] # [b, t, 3]
                     object_rot_mat = x[:, :, 219:228].reshape(x.shape[0], -1, 3, 3)
@@ -556,7 +571,7 @@ class Sampler:
                     obj_rest_verts_seg = load_object_geometry_w_rest_geo(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name])
                     indices = torch.randperm(obj_rest_verts_seg.shape[1])[:1024]
                     object_points_temp = obj_rest_verts_seg[:, indices, :].reshape(1, -1, 1024, 3)
-                else:
+                elif has_object_state:
                     object_points_temp = object_points.clone()
                     pred_obj_rot_mat_rel = x[:, :, 219:228].reshape(x.shape[0], -1, 3, 3)
                     
@@ -587,7 +602,8 @@ class Sampler:
                     
                     occ_pos = torch.cat([occ_pos, x_denorm[:, i, [0, 2]][None]], dim=0)
 
-                    occ_temp = self.dataset.get_occ_for_points(query_points, object_points_temp[:, i, :, :], scene_flag)
+                    object_points_i = None if object_points_temp is None else object_points_temp[:, i]
+                    occ_temp = self.dataset.get_occ_for_points(query_points, object_points_i, scene_flag)
                     
                     if object_only:
                         occ_temp[occ_temp == 1] = 0.
@@ -625,6 +641,8 @@ class Sampler:
 
         else:
             occ = None
+            occ_list = None
+            occ_pos = None
         return occ, occ_list, occ_pos
 
     def cm_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
@@ -781,7 +799,7 @@ class Sampler:
         # generate noise data
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         x_noisy[mask] = x_start[mask] # test
-        if self.is_mix:
+        if self.is_mix and x_start.shape[-1] > 216:
             # mix: keep object dims (216:) as GT for non-object (scene-only) samples
             x_noisy[torch.logical_not(is_object), :, 216:] = x_start[torch.logical_not(is_object), :, 216:]
         # print('x noisy in mask with scale')
@@ -790,6 +808,8 @@ class Sampler:
             occ, occ_list, occ_pos = self._compute_occ(x_noisy, x_start, joints, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref)
         else:
             occ = None
+            occ_list = None
+            occ_pos = None
 
         # use the model to predict noise
         predicted_noise = self.student_model(x_noisy, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos)
@@ -797,18 +817,37 @@ class Sampler:
         # compute the loss
         mask_inv = torch.logical_not(mask)
 
-        loss_jpos = F.mse_loss(x_start[:, :, :84][mask_inv[:, :, :84]], predicted_noise[:, :, :84][mask_inv[:, :, :84]])
-        loss_jrot = F.l1_loss(x_start[:, :, 84:216][mask_inv[:, :, 84:216]], predicted_noise[:, :, 84:216][mask_inv[:, :, 84:216]])
-        
-        loss_otrans = F.mse_loss(x_start[:, :, 216:219][mask_inv[:, :, 216:219]], predicted_noise[:, :, 216:219][mask_inv[:, :, 216:219]])
-        loss_orot = F.l1_loss(x_start[:, :, 219:228][mask_inv[:, :, 219:228]], predicted_noise[:, :, 219:228][mask_inv[:, :, 219:228]])
-        
-        loss_contact = F.l1_loss(x_start[:, :, 228:232][mask_inv[:, :, 228:232]], predicted_noise[:, :, 228:232][mask_inv[:, :, 228:232]])
+        loss_jpos = F.mse_loss(
+            x_start[:, :, :84][mask_inv[:, :, :84]],
+            predicted_noise[:, :, :84][mask_inv[:, :, :84]],
+        )
+        loss_jrot = F.l1_loss(
+            x_start[:, :, 84:216][mask_inv[:, :, 84:216]],
+            predicted_noise[:, :, 84:216][mask_inv[:, :, 84:216]],
+        )
+        loss = loss_jpos + loss_jrot
 
-        loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
+        has_object_state = x_start.shape[-1] >= 232
+        loss_otrans = None
+        loss_orot = None
+        loss_contact = None
+        if has_object_state:
+            loss_otrans = F.mse_loss(
+                x_start[:, :, 216:219][mask_inv[:, :, 216:219]],
+                predicted_noise[:, :, 216:219][mask_inv[:, :, 216:219]],
+            )
+            loss_orot = F.l1_loss(
+                x_start[:, :, 219:228][mask_inv[:, :, 219:228]],
+                predicted_noise[:, :, 219:228][mask_inv[:, :, 219:228]],
+            )
+            loss_contact = F.l1_loss(
+                x_start[:, :, 228:232][mask_inv[:, :, 228:232]],
+                predicted_noise[:, :, 228:232][mask_inv[:, :, 228:232]],
+            )
+            loss = loss + loss_otrans + loss_orot + loss_contact
 
         # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
-        if self.dataset.use_object_keypoints:
+        if has_object_state and self.dataset.use_object_keypoints:
             hand_idx_28 = [20, 21, 25, 27]
             hand_idx_24 = [20, 21, 22, 23]
             foot_idx = [7, 8, 10, 11]
@@ -864,16 +903,16 @@ class Sampler:
             loss_object = None
             loss_fk = None
 
-        if occ_list is not None:
-            del occ_list
-        if occ is not None:
-            del occ
-        if occ_goal is not None:
-            del occ_goal
-        if occ_temp is not None:
-            del occ_temp
-                
-        return dict(loss=loss, loss_object=loss_object, loss_fk=loss_fk)
+        return dict(
+            loss=loss,
+            loss_jpos=loss_jpos,
+            loss_jrot=loss_jrot,
+            loss_otrans=loss_otrans,
+            loss_orot=loss_orot,
+            loss_contact=loss_contact,
+            loss_object=loss_object,
+            loss_fk=loss_fk,
+        )
 
     @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \
@@ -1169,6 +1208,9 @@ class Unet(nn.Module):
         if cond is not None:
             cond = cond.to(dtype=torch.float32)
         timesteps = timesteps.to(dtype=torch.long)
+        pi = pi.to(dtype=torch.long)
+        end_pi = end_pi.to(dtype=torch.long)
+        seq_length = seq_length.to(dtype=torch.long)
         text_emb = text_emb.to(dtype=torch.float32)
         pelvis_goal = pelvis_goal.to(dtype=torch.float32)
         scene_goal = scene_goal.to(dtype=torch.float32)

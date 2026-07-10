@@ -1,0 +1,15 @@
+hsi_prior:
+  _target_: models.infbagel.Sampler
+  device: ${device}
+  mask_ind: 0
+  emb_f: 1
+  batch_size: ${per_device_batch_size}
+  channel: 216
+  auto_regre_num: ${auto_regre_num}
+  timesteps: 500
+  ddim_timesteps: 25
+  cm_timesteps: 16
+  w: 1.0
+  scene_type: occ_temp
+  temp_voxel_num: 3
+  is_mix: true

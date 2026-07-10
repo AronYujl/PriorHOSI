@@ -1,0 +1,12 @@
+hoi_prior:
+  _target_: models.priors.HOIPrior
+  dim_model: 512
+  num_heads: 16
+  num_layers: 8
+  dropout_p: 0.1
+  nb_voxels: ${dataset.nb_voxels}
+  free_p: 0.1
+  load_language: true
+  load_pelvis_goal: true
+  language_feature_dim: 768
+  temp_voxel_num: 0

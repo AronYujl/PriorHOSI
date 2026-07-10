@@ -1,0 +1,51 @@
+defaults:
+  - dataset: hsi_prior
+  - model:
+      - hsi_prior
+  - sampler:
+      - hsi_prior
+  - _self_
+
+prior_type: hsi
+experiment_name: hsi_prior
+output_dir: ${oc.env:ROOT_DIR}/results/priors/${experiment_name}
+device: cuda:0
+seed: 2027
+deterministic: false
+num_gpus: 4
+per_device_batch_size: 32
+num_workers: 2
+epochs: 501
+auto_regre_num: 2
+gradient_accumulation_steps: 1
+amp: true
+tensorboard: true
+log_every_steps: 20
+max_steps_per_epoch: 0
+checkpoint_every_epochs: 20
+resume_from: null
+
+optimizer:
+  lr: 1.0e-4
+  betas: [0.9, 0.999]
+  weight_decay: 1.0e-4
+  grad_clip_norm: 1.0
+
+loss_weights:
+  object_points: 0.0
+  forward_kinematics: 0.0
+
+validation:
+  # HSI validation holds out complete scenes, not windows from seen scenes.
+  split_unit: scene
+  fraction: 0.1
+  split_seed: 2027
+  noise_seed: 3407
+  every_epochs: 5
+  max_batches: 32
+
+hydra:
+  run:
+    dir: ${output_dir}
+  job:
+    chdir: false
