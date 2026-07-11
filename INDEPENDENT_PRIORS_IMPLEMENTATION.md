@@ -171,6 +171,20 @@ HSI validation scene 中的所有 sequence 都不会出现在训练集。
 
 当 validation 配置了最大 batch 数时，不再取文件开头连续的 windows，而是跨 held-out sequence/scene 做 deterministic round-robin 抽样，降低验证集集中在单个 sequence 或 scene 上的偏差。
 
+Validation 还会按 source window index 固定 Dataset 内部的 Python/NumPy
+随机增强，并固定 diffusion timestep 和 Gaussian noise。训练时的随机 `pi`
+抖动及随机 object BPS frame 不受影响。训练内指标包括：
+
+- `validation/total_loss`：实际优化的完整加权目标，用于选择 `best.pth`；
+- `validation/loss`：未加权的 state reconstruction 总和；
+- `validation/loss_jpos`、`validation/loss_jrot`；
+- HOI 的 `validation/loss_otrans`、`loss_orot`、`loss_contact`、
+  `loss_object` 和 `loss_fk`。
+
+其中 HOI 的 checkpoint selection 目标为
+`loss + 50 * loss_object + 50 * loss_fk`；HSI 没有 object/FK 项，所以
+`total_loss` 与基础 `loss` 数值相同。
+
 实现位置：[code/prior_utils.py](code/prior_utils.py)
 
 ### 6.2 训练配置

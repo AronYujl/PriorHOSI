@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.utils.data import Dataset
 
 from models.priors import PRIOR_SPECS
 
@@ -21,6 +22,34 @@ TRAIN_BATCH_KEYS = (
     "global_rot_6d", "contact_label", "rest_human_offsets", "seg_len",
     "end_pi",
 )
+
+
+class DeterministicSubset(Dataset):
+    """Subset whose Python/NumPy data augmentation is stable per source index."""
+
+    def __init__(self, dataset, indices, seed):
+        self.dataset = dataset
+        self.indices = list(indices)
+        self.seed = int(seed)
+
+    def __getitem__(self, item):
+        source_index = int(self.indices[item])
+        digest = hashlib.sha256(
+            f"{self.seed}:{source_index}".encode("utf-8")
+        ).digest()
+        item_seed = int.from_bytes(digest[:4], "big")
+        python_state = random.getstate()
+        numpy_state = np.random.get_state()
+        random.seed(item_seed)
+        np.random.seed(item_seed)
+        try:
+            return self.dataset[source_index]
+        finally:
+            random.setstate(python_state)
+            np.random.set_state(numpy_state)
+
+    def __len__(self):
+        return len(self.indices)
 
 
 def format_duration(seconds):

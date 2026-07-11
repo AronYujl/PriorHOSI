@@ -1,4 +1,5 @@
 import sys
+import random
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from models.infbagel import Sampler  # noqa: E402
 from models.priors import HOIPrior, HOI_PRIOR_SPEC, HSI_PRIOR_SPEC  # noqa: E402
 from datasets.infbagel import sample_progress_start  # noqa: E402
 from prior_utils import (  # noqa: E402
+    DeterministicSubset,
     format_duration,
     balanced_subset_indices,
     build_motion_state,
@@ -47,6 +49,14 @@ class DummyDataset:
     nb_voxels = [4, 4, 4]
 
 
+class RandomDataset:
+    def __getitem__(self, index):
+        return index, random.random(), np.random.rand()
+
+    def __len__(self):
+        return 4
+
+
 class ZeroDenoiser(torch.nn.Module):
     def __init__(self, channels):
         super().__init__()
@@ -58,6 +68,12 @@ class ZeroDenoiser(torch.nn.Module):
 
 
 class IndependentPriorTests(unittest.TestCase):
+    def test_validation_subset_is_deterministic_per_index(self):
+        subset = DeterministicSubset(RandomDataset(), [3, 1], seed=3407)
+        self.assertEqual(subset[0], subset[0])
+        self.assertEqual(subset[1], subset[1])
+        self.assertNotEqual(subset[0], subset[1])
+
     def test_duration_format_is_stable(self):
         self.assertEqual(format_duration(0), "00:00:00")
         self.assertEqual(format_duration(3661), "01:01:01")

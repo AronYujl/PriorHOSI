@@ -28,6 +28,7 @@ from prior_utils import (
     balanced_subset_indices,
     build_motion_state,
     dataset_contract,
+    DeterministicSubset,
     format_duration,
     load_training_checkpoint,
     make_prefix_mask,
@@ -176,7 +177,10 @@ def _validate(trainer, dataloader, cfg, device):
                 component_totals[name] = component_totals.get(name, 0.0) + value.item() * batch_size
                 component_counts[name] = component_counts.get(name, 0) + batch_size
 
-    metrics = {"validation/loss": _distributed_mean(total, count, device)}
+    # Keep the optimized objective separate from loss_dict["loss"], which is
+    # the unweighted state reconstruction term. Otherwise the component loop
+    # silently overwrites the weighted objective used for HOI model selection.
+    metrics = {"validation/total_loss": _distributed_mean(total, count, device)}
     for name in sorted(component_totals):
         metrics[f"validation/{name}"] = _distributed_mean(
             component_totals[name], component_counts[name], device
@@ -186,7 +190,10 @@ def _validate(trainer, dataloader, cfg, device):
 
 
 def _make_loader(dataset, indices, cfg, rank, world_size, train):
-    subset = Subset(dataset, indices)
+    subset = (
+        Subset(dataset, indices)
+        if train else DeterministicSubset(dataset, indices, cfg.validation.noise_seed)
+    )
     sampler = None
     if world_size > 1:
         sampler = DistributedSampler(
@@ -452,7 +459,7 @@ def _worker(rank, world_size, cfg):
                 for name, value in metrics.items():
                     writer.add_scalar(name, value, epoch)
 
-            validation_loss = metrics.get("validation/loss")
+            validation_loss = metrics.get("validation/total_loss")
             if validation_loss is not None and validation_loss < best_validation:
                 best_validation = validation_loss
                 save_checkpoint(
