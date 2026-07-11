@@ -1,0 +1,49 @@
+# State-Compositional Priors: Repository Rules
+
+These rules apply to every file in this repository.
+
+## Locked provenance
+
+- The integration baseline is commit `b9a158f75ab0740c91c9cfc8863a65fa381b014c`.
+- Development belongs on `research/state-compositional-priors` and short-lived
+  `phase/00-eval`, `phase/01-priors`, ... branches.
+- Do not inherit, merge, or cherry-pick `feature/independent-hoi-hsi-priors`.
+- The released InfBaGel checkpoint is a baseline only. It must never initialize
+  HOIPrior, HSIPrior, or the mixer.
+
+## Experiment lifecycle
+
+- Before adding a new direction, update `docs/EXPERIMENT_PLAN.md` and append a
+  hypothesis to `experiments/registry.jsonl`.
+- Training must refuse a dirty worktree. Use `tools/experiment.py start`; do not
+  bypass the check for reportable runs.
+- Name runs `<phase>-<component>-<variant>-s<seed>-<YYYYMMDD>`. Never reuse a run
+  id and never overwrite results.
+- Local JSONL manifests are authoritative. TensorBoard is visualization only.
+- Every manifest records commit/diff state, resolved config and hashes for data,
+  evaluator, checkpoints, dependencies, seed, hardware, timestamps, and metrics.
+- Keep large data, checkpoints, generated motion, and per-sample results out of
+  Git. Track split/task manifests, aggregate tables, failure analyses, and hashes.
+
+## Reproducibility and reporting
+
+- Use the fixed scene-disjoint LINGO split generated with seed 42. Keep mirror,
+  new-locomotion, and action variants in the same scene family and split side.
+- Use the same effective batch and optimizer-update budget across methods.
+- CUDA timing must synchronize before and after measured regions. Report warm
+  generation, planning, and end-to-end latency separately.
+- Screening may use one seed; main-table configurations require at least three
+  training seeds and the registered statistical protocol.
+- Never select best-of-N for one method only. If multi-sampling is used, give all
+  methods the same budget and report both mean and best.
+- Never overwrite a result, omit a preregistered metric, cherry-pick favorable
+  subsets, or suppress a failed/negative run.
+
+## Merge gates
+
+- A logical change includes its config, tests, and documentation in one commit.
+- Run the relevant tests and registry validation before merging.
+- Merge a phase only after its gate in `docs/EXPERIMENT_PLAN.md` is met; then tag
+  the immutable result (for example `exp/p0-baseline-v1`).
+- A failed gate permits only its preregistered diagnostics/fallback. Any new
+  direction requires a dated plan and registry update before code changes.

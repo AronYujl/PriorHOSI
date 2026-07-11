@@ -17,3 +17,11 @@ smpl_models/
 t2m_eval/
 data
 .codegraph/
+
+# Research governance metadata is intentionally small and versioned. Large
+# per-sample outputs remain ignored under results/.
+!experiments/
+!experiments/**/*.json
+!experiments/**/*.jsonl
+!experiments/**/*.csv
+third_party/
