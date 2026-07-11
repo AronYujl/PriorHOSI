@@ -147,10 +147,19 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
         object_rot_mat_all_48 = torch.cat((object_rot_mat_all_48, torch.from_numpy(obj_rot_mat).to(device)), dim=0)
         
         model_name = cfg.ckpt_path.split('/')[-1]
-        # if not os.path.exists(os.path.join('t2m_results_48', cfg.exp_name, model_name[:-4])):
-        #     os.makedirs(os.path.join('t2m_results_48', cfg.exp_name, model_name[:-4]))
-        # np.savez(os.path.join('t2m_results_48', cfg.exp_name, model_name[:-4], f"{seq_name_dict[seg_id_true]}.npz"), seq_name=seq_name_dict[seg_id_true], \
-        #             global_jpos=yup_to_zup(human_jnts_48).cpu().numpy()) # T X 24 X 3
+        if cfg.get('save_chois_eval_npz', False):
+            chois_output_dir = cfg.get('chois_eval_output_dir', 'results/chois_npz/predictions')
+            if not os.path.isabs(chois_output_dir):
+                chois_output_dir = os.path.join(ROOT_DIR, chois_output_dir)
+            os.makedirs(chois_output_dir, exist_ok=True)
+            chois_path = os.path.join(chois_output_dir, f"{seq_name_dict[seg_id_true]}.npz")
+            if os.path.exists(chois_path):
+                raise FileExistsError(f"Refusing to overwrite CHOIS evaluator input: {chois_path}")
+            np.savez(
+                chois_path,
+                seq_name=np.asarray(seq_name_dict[seg_id_true]),
+                global_jpos=yup_to_zup(human_jnts_48).cpu().numpy(),
+            )  # T X 24 X 3, official evaluator Z-up convention
         
         # Save motion parameters for mesh recovery
         if cfg.save_motion_params:

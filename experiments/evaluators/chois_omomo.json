@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "CHOIS official OMOMO text-motion evaluator",
+  "upstream_url": "https://github.com/lijiaman/chois_release.git",
+  "upstream_commit": "8ec585aa0200fd2a890ffb12897bcf69ae719463",
+  "files": {
+    "t2m_eval/final_evaluations.py": "a5e7f64f9924238361d265749be80ff98cbf0e3f544102b6c8be1bf79db49ca3",
+    "evaluation_metrics.py": "e3998e061fc697639e76ebb1a0a60bb36b41496d27804ff20f583d5973f30330"
+  },
+  "input_contract": {
+    "format": "one NPZ per sequence",
+    "required_keys": {
+      "seq_name": "scalar string matching the official OMOMO annotation id",
+      "global_jpos": "float array [T,24,3], in the official evaluator coordinate convention"
+    }
+  },
+  "reported_metrics": ["FID", "R-Precision@1", "R-Precision@2", "R-Precision@3"],
+  "required_external_assets": [
+    "official CHOIS OMOMO text-motion feature checkpoint",
+    "official GloVe vocabulary files",
+    "official processed OMOMO text annotations and t2m_mean_std_jpos.p"
+  ],
+  "release_audit": {
+    "status": "adapter-ready-assets-missing",
+    "notes": "The pinned release uses author-local absolute paths and imports options/train_options.py, which is absent from the release. tools/chois_evaluator.py verifies provenance and input/assets and emits a reproducible run specification; it refuses evaluation until the official missing assets and their hashes are supplied."
+  }
+}

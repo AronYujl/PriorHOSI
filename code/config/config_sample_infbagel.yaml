@@ -40,6 +40,10 @@ add_object_voxel: true
 
 guidance_weight: 1
 
+# Latency protocol: exclude complete episodes from aggregate timing after model
+# construction and synchronize CUDA at every measured boundary.
+timing_warmup_sequences: 5
+
 temp_voxel_num: 3
 
 # Sampling method: consistency -> consistency-model sampling; diffusion -> diffusion-model sampling
@@ -47,6 +51,11 @@ sample_type: consistency
 # Whether to additionally save the .pkl under motion_params_922/ (for mesh recovery)
 save_motion_params: true
 save_results_json: true
+
+# Export the official CHOIS evaluator contract: one NPZ per sequence containing
+# seq_name and Z-up global_jpos [T, 24, 3]. Keep disabled for normal sampling.
+save_chois_eval_npz: false
+chois_eval_output_dir: results/chois_npz/predictions
 
 ckpt_path: "../checkpoint/checkpoint.pth"
 

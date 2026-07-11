@@ -33,6 +33,13 @@ METRIC_NAMES = [
 ]
 
 
+def synchronize_cuda(device):
+    """Synchronize CUDA explicitly at timing boundaries; no-op on CPU."""
+    device = torch.device(device)
+    if device.type == 'cuda' and torch.cuda.is_available():
+        torch.cuda.synchronize(device)
+
+
 def convert_to_serializable(obj):
     """Convert numpy/torch types to JSON-serializable Python types"""
     if isinstance(obj, (np.float32, np.float64, np.float16)):
@@ -413,6 +420,9 @@ def main(cfg: DictConfig) -> None:
     gen_time_list = []
     fps_list = []
     frames_list = []
+    episode_time_list = []
+    timing_warmup_sequences = int(cfg.get('timing_warmup_sequences', 5))
+    timing_sequence_index = 0
 
     skipped_scenes = 0
 
@@ -442,6 +452,8 @@ def main(cfg: DictConfig) -> None:
         scene_metrics = []
 
         for test_idx, test_item in enumerate(tqdm(test_data, desc=f"Processing {scene_name}")):
+            synchronize_cuda(cfg.device)
+            _episode_start_time = time.perf_counter()
             print(f"\n=== Test item {test_idx + 1}/{len(test_data)} ===")
             print(f"Scene: {test_item['scene_name']}, Object: {test_item['object_name']}")
 
@@ -633,9 +645,11 @@ def main(cfg: DictConfig) -> None:
                     'gender': gender
                 }
 
-                _seq_start_time = time.time()
+                synchronize_cuda(cfg.device)
+                _seq_start_time = time.perf_counter()
                 info_dict = sample_step(cfg, step, mat, fixed_points, sampler_body, cond, trajectory, pi, end_pi, seq_length, obj_bps_data, object_points, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref, human_dict, MAT @ mat_T)
-                _seq_end_time = time.time()
+                synchronize_cuda(cfg.device)
+                _seq_end_time = time.perf_counter()
                 _seq_gen_time += _seq_end_time - _seq_start_time
 
                 points = info_dict['points_orig'].clone()
@@ -692,10 +706,19 @@ def main(cfg: DictConfig) -> None:
 
             _num_frames = int(joints.shape[0])
             _seq_fps = _num_frames / _seq_gen_time if _seq_gen_time > 0 else 0.0
-            gen_time_list.append(_seq_gen_time)
-            fps_list.append(_seq_fps)
-            frames_list.append(_num_frames)
-            print(f"Sequence generation time: {_seq_gen_time:.4f}s, frames: {_num_frames}, FPS: {_seq_fps:.3f}")
+            synchronize_cuda(cfg.device)
+            _episode_time = time.perf_counter() - _episode_start_time
+            is_warmup = timing_sequence_index < timing_warmup_sequences
+            timing_sequence_index += 1
+            if not is_warmup:
+                gen_time_list.append(_seq_gen_time)
+                fps_list.append(_seq_fps)
+                frames_list.append(_num_frames)
+                episode_time_list.append(_episode_time)
+            print(
+                f"Sequence generation time: {_seq_gen_time:.4f}s, frames: {_num_frames}, "
+                f"FPS: {_seq_fps:.3f}, end-to-end: {_episode_time:.4f}s, warmup: {is_warmup}"
+            )
 
             print("Computing evaluation metrics...")
             metrics = compute_metrics_for_sample(
@@ -758,7 +781,11 @@ def main(cfg: DictConfig) -> None:
             generation_metrics = {
                 'aits': float(np.mean(gen_time_list)),
                 'avg_fps': float(np.mean(fps_list)),
-                'avg_frames_per_seq': float(np.mean(frames_list))
+                'avg_frames_per_seq': float(np.mean(frames_list)),
+                'avg_end_to_end_episode_seconds': float(np.mean(episode_time_list)),
+                'llm_planning_seconds': None,
+                'warmup_sequences_excluded': timing_warmup_sequences,
+                'timing_cuda_synchronized': True,
             }
 
         evaluation_results = {
@@ -825,6 +852,8 @@ def main(cfg: DictConfig) -> None:
             print(f"AITS (avg inference time per sequence): {generation_metrics['aits']:.4f}s")
             print(f"FPS (avg frame rate): {generation_metrics['avg_fps']:.3f}")
             print(f"Avg frames per sequence: {generation_metrics['avg_frames_per_seq']:.1f}")
+            print(f"End-to-end episode latency: {generation_metrics['avg_end_to_end_episode_seconds']:.4f}s")
+            print("LLM planning latency: N/A (Atomic-HOSI baseline has no LLM planner)")
     else:
         print("No test items successfully processed!")
 
