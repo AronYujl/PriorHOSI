@@ -1,5 +1,8 @@
 # 独立 HOI / HSI Prior 实现改动说明
 
+训练部署、RTX 3090 batch 实测、ETA 与实验记录规范见
+[docs/prior_training_operations.md](docs/prior_training_operations.md)。
+
 ## 1. 改动目标
 
 这次改动把原来由同一个 InfBaGel 模型交替学习 OMOMO 和 LINGO 样本的流程，拆成两个具有明确数据边界和状态空间的扩散 prior：

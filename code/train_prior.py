@@ -2,7 +2,14 @@
 
 import contextlib
 import datetime
+import json
+import math
 import os
+import platform
+import socket
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import hydra
@@ -17,9 +24,11 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.tensorboard import SummaryWriter
 
 from prior_utils import (
+    append_jsonl,
     balanced_subset_indices,
     build_motion_state,
     dataset_contract,
+    format_duration,
     load_training_checkpoint,
     make_prefix_mask,
     move_training_batch,
@@ -30,6 +39,70 @@ from prior_utils import (
 from utils import find_free_port
 
 os.environ.setdefault("ROOT_DIR", str(Path(__file__).resolve().parent.parent))
+
+
+class RunRecorder:
+    def __init__(self, output_dir):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.log_path = self.output_dir / "train.log"
+        self.metrics_path = self.output_dir / "metrics.jsonl"
+
+    def log(self, message):
+        timestamp = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        line = f"[{timestamp}] {message}"
+        print(line, flush=True)
+        with self.log_path.open("a", encoding="utf-8") as stream:
+            stream.write(line + "\n")
+
+    def metric(self, record):
+        append_jsonl(self.metrics_path, record)
+
+
+def _git_commit():
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _write_manifest(path, cfg, data_contract, world_size, train_batches,
+                    updates_per_epoch, start_epoch, start_global_step):
+    manifest = {
+        "schema_version": 1,
+        "started_at": datetime.datetime.now().astimezone().isoformat(),
+        "hostname": socket.gethostname(),
+        "platform": platform.platform(),
+        "command": [sys.executable] + sys.argv,
+        "git_commit": _git_commit(),
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda,
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "gpu_names": [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],
+        "world_size": int(world_size),
+        "per_device_batch_size": int(cfg.per_device_batch_size),
+        "global_micro_batch_size": int(cfg.per_device_batch_size * world_size),
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps),
+        "effective_global_batch_size": int(
+            cfg.per_device_batch_size * world_size * cfg.gradient_accumulation_steps
+        ),
+        "train_batches_per_epoch": int(train_batches),
+        "optimizer_updates_per_epoch": int(updates_per_epoch),
+        "planned_optimizer_updates": int((cfg.epochs - start_epoch) * updates_per_epoch),
+        "start_epoch": int(start_epoch),
+        "start_global_step": int(start_global_step),
+        "data_contract": data_contract,
+        "config": OmegaConf.to_container(cfg, resolve=True),
+    }
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as stream:
+        json.dump(manifest, stream, indent=2, sort_keys=True)
 
 
 def _single_entry(config_group):
@@ -46,6 +119,13 @@ def _distributed_mean(total, count, device):
     if dist.is_initialized():
         dist.all_reduce(stats, op=dist.ReduceOp.SUM)
     return (stats[0] / stats[1].clamp_min(1)).item()
+
+
+def _distributed_max(value, device):
+    result = torch.tensor(float(value), dtype=torch.float64, device=device)
+    if dist.is_initialized():
+        dist.all_reduce(result, op=dist.ReduceOp.MAX)
+    return result.item()
 
 
 def _loss_from_batch(trainer, batch, cfg, device):
@@ -217,22 +297,43 @@ def _worker(rank, world_size, cfg):
     output_dir = Path(cfg.output_dir)
     checkpoint_dir = output_dir / "checkpoints"
     writer = None
+    recorder = None
+    train_batches_per_epoch = len(train_loader)
+    if cfg.max_steps_per_epoch > 0:
+        train_batches_per_epoch = min(train_batches_per_epoch, cfg.max_steps_per_epoch)
+    updates_per_epoch = math.ceil(
+        train_batches_per_epoch / cfg.gradient_accumulation_steps
+    )
+    initial_global_step = global_step
+    planned_run_updates = (cfg.epochs - start_epoch) * updates_per_epoch
     if rank == 0:
         output_dir.mkdir(parents=True, exist_ok=True)
         OmegaConf.save(cfg, output_dir / "resolved_config.yaml", resolve=True)
+        recorder = RunRecorder(output_dir)
+        _write_manifest(
+            output_dir / "run_manifest.json", cfg, data_contract, world_size,
+            train_batches_per_epoch, updates_per_epoch, start_epoch, global_step,
+        )
         if cfg.tensorboard:
             writer = SummaryWriter(str(output_dir / "tensorboard"))
-        print(
+        recorder.log(
             f"{cfg.prior_type.upper()} prior: {len(train_indices)} train / "
             f"{full_validation_count} validation windows "
             f"({len(val_indices)} selected per evaluation) on "
-            f"{world_size} process(es)",
-            flush=True,
+            f"{world_size} process(es); global_batch="
+            f"{cfg.per_device_batch_size * world_size * cfg.gradient_accumulation_steps}; "
+            f"updates_per_epoch={updates_per_epoch}; planned_updates={planned_run_updates}"
         )
 
     best_validation = float("inf")
     optimizer.zero_grad(set_to_none=True)
+    run_started_at = time.monotonic()
+    processed_samples = 0
     for epoch in range(start_epoch, cfg.epochs):
+        epoch_started_at = time.monotonic()
+        epoch_samples = 0
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
         if isinstance(train_loader.sampler, DistributedSampler):
             train_loader.sampler.set_epoch(epoch)
         model.train()
@@ -272,27 +373,81 @@ def _worker(rank, world_size, cfg):
             batch_size = batch["joints"].shape[0]
             epoch_total += loss.item() * batch_size
             epoch_count += batch_size
+            global_batch_samples = batch_size * world_size
+            epoch_samples += global_batch_samples
+            processed_samples += global_batch_samples
 
             if rank == 0 and global_step > 0 and global_step % cfg.log_every_steps == 0 and sync_step:
-                print(
-                    f"epoch={epoch:03d} step={global_step:07d} "
-                    f"loss={loss.item():.6f}",
-                    flush=True,
+                elapsed = time.monotonic() - run_started_at
+                completed_updates = global_step - initial_global_step
+                remaining_updates = max(0, planned_run_updates - completed_updates)
+                eta_seconds = (
+                    elapsed / completed_updates * remaining_updates
+                    if completed_updates > 0 else float("nan")
                 )
+                samples_per_second = processed_samples / max(elapsed, 1e-9)
+                recorder.log(
+                    f"epoch={epoch:03d} step={global_step:07d} "
+                    f"run_step={completed_updates:07d}/{planned_run_updates:07d} "
+                    f"loss={loss.item():.6f} samples/s={samples_per_second:.2f} "
+                    f"elapsed={format_duration(elapsed)} eta={format_duration(eta_seconds)}"
+                )
+                recorder.metric({
+                    "event": "step", "epoch": int(epoch),
+                    "global_step": int(global_step),
+                    "run_step": int(completed_updates),
+                    "loss": float(loss.item()),
+                    "samples_per_second": float(samples_per_second),
+                    "elapsed_seconds": float(elapsed),
+                    "eta_seconds": float(eta_seconds),
+                    "processed_samples": int(processed_samples),
+                })
                 if writer:
                     writer.add_scalar("train/loss_step", loss.item(), global_step)
+                    writer.add_scalar("runtime/samples_per_second", samples_per_second, global_step)
+                    writer.add_scalar("runtime/eta_hours", eta_seconds / 3600, global_step)
                     for name, value in loss_dict.items():
                         if value is not None and torch.is_tensor(value):
                             writer.add_scalar(f"train/{name}_step", value.item(), global_step)
 
+        train_seconds = time.monotonic() - epoch_started_at
         train_loss = _distributed_mean(epoch_total, epoch_count, device)
-        metrics = {"train/loss": train_loss}
+        metrics = {
+            "train/loss": train_loss,
+            "runtime/train_seconds": train_seconds,
+            "runtime/train_samples_per_second": epoch_samples / max(train_seconds, 1e-9),
+        }
+        validation_started_at = time.monotonic()
         if epoch % cfg.validation.every_epochs == 0 or epoch == cfg.epochs - 1:
             metrics.update(_validate(trainer, val_loader, cfg, device))
+        validation_seconds = time.monotonic() - validation_started_at
+        elapsed_seconds = time.monotonic() - run_started_at
+        completed_epochs = epoch - start_epoch + 1
+        remaining_epochs = cfg.epochs - epoch - 1
+        metrics["runtime/validation_seconds"] = validation_seconds
+        metrics["runtime/epoch_seconds"] = time.monotonic() - epoch_started_at
+        metrics["runtime/elapsed_seconds"] = elapsed_seconds
+        metrics["runtime/eta_seconds"] = (
+            elapsed_seconds / completed_epochs * remaining_epochs
+        )
+        if device.type == "cuda":
+            metrics["runtime/peak_memory_allocated_gib"] = _distributed_max(
+                torch.cuda.max_memory_allocated(device) / 2**30, device
+            )
+            metrics["runtime/peak_memory_reserved_gib"] = _distributed_max(
+                torch.cuda.max_memory_reserved(device) / 2**30, device
+            )
 
         if rank == 0:
             summary = " ".join(f"{key}={value:.6f}" for key, value in metrics.items())
-            print(f"epoch={epoch:03d} {summary}", flush=True)
+            recorder.log(
+                f"epoch={epoch:03d} {summary} "
+                f"eta={format_duration(metrics['runtime/eta_seconds'])}"
+            )
+            recorder.metric({
+                "event": "epoch", "epoch": int(epoch),
+                "global_step": int(global_step), **metrics,
+            })
             if writer:
                 for name, value in metrics.items():
                     writer.add_scalar(name, value, epoch)

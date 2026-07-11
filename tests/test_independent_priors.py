@@ -14,6 +14,7 @@ from models.infbagel import Sampler  # noqa: E402
 from models.priors import HOIPrior, HOI_PRIOR_SPEC, HSI_PRIOR_SPEC  # noqa: E402
 from datasets.infbagel import sample_progress_start  # noqa: E402
 from prior_utils import (  # noqa: E402
+    format_duration,
     balanced_subset_indices,
     build_motion_state,
     load_training_checkpoint,
@@ -57,6 +58,11 @@ class ZeroDenoiser(torch.nn.Module):
 
 
 class IndependentPriorTests(unittest.TestCase):
+    def test_duration_format_is_stable(self):
+        self.assertEqual(format_duration(0), "00:00:00")
+        self.assertEqual(format_duration(3661), "01:01:01")
+        self.assertEqual(format_duration(90061), "1d 01:01:01")
+
     def test_progress_start_handles_short_sequences(self):
         self.assertEqual(sample_progress_start(seq_len=15, window_span=48), 0)
         self.assertEqual(sample_progress_start(seq_len=48, window_span=48), 0)

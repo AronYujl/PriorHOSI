@@ -13,7 +13,8 @@ device: cuda:0
 seed: 2027
 deterministic: false
 num_gpus: 4
-per_device_batch_size: 32
+# 4 x RTX 3090 benchmark: global batch 2048, with convergence margin over bs=1024.
+per_device_batch_size: 512
 num_workers: 2
 epochs: 501
 auto_regre_num: 2

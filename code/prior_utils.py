@@ -1,6 +1,7 @@
 """Shared state, split, reproducibility, and checkpoint utilities for priors."""
 
 import hashlib
+import json
 import os
 import random
 from pathlib import Path
@@ -20,6 +21,23 @@ TRAIN_BATCH_KEYS = (
     "global_rot_6d", "contact_label", "rest_human_offsets", "seg_len",
     "end_pi",
 )
+
+
+def format_duration(seconds):
+    seconds = max(0, int(round(float(seconds))))
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if days:
+        return f"{days}d {hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def append_jsonl(path, record):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def get_prior_spec(prior_type):
