@@ -12,6 +12,15 @@ from bps_torch.bps import bps_torch
 import pytorch3d.transforms as transforms
 from scipy.ndimage import distance_transform_edt
 
+
+def sample_progress_start(seq_len, window_span):
+    """Sample a valid progress origin, including sequences no longer than a window."""
+    max_start = int(seq_len) - int(window_span)
+    if max_start <= 0:
+        return 0
+    return np.random.randint(0, max_start)
+
+
 class InfBaGelDataset(Dataset):
     def __init__(self, folder, device, mesh_grid, batch_size, step, nb_voxels, train=True,
                  load_scene=True, load_language=True, load_pelvis_goal=False, load_scene_goal=False,
@@ -347,7 +356,9 @@ class InfBaGelDataset(Dataset):
                 pi = pi + np.random.randint(-5, 5)
                 pi = max(pi, 0)
             if not need_pi:
-                pi = np.random.randint(0, seq_len - self.max_window_size * self.step)
+                pi = sample_progress_start(
+                    seq_len, self.max_window_size * self.step
+                )
                 
 
             if need_pelvis_dir:

@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "code"))
 
 from models.infbagel import Sampler  # noqa: E402
 from models.priors import HOIPrior, HOI_PRIOR_SPEC, HSI_PRIOR_SPEC  # noqa: E402
+from datasets.infbagel import sample_progress_start  # noqa: E402
 from prior_utils import (  # noqa: E402
     balanced_subset_indices,
     build_motion_state,
@@ -56,6 +57,12 @@ class ZeroDenoiser(torch.nn.Module):
 
 
 class IndependentPriorTests(unittest.TestCase):
+    def test_progress_start_handles_short_sequences(self):
+        self.assertEqual(sample_progress_start(seq_len=15, window_span=48), 0)
+        self.assertEqual(sample_progress_start(seq_len=48, window_span=48), 0)
+        for _ in range(20):
+            self.assertIn(sample_progress_start(seq_len=52, window_span=48), range(4))
+
     def test_state_contracts_are_distinct(self):
         batch = make_batch()
         self.assertEqual(build_motion_state(batch, "hoi").shape[-1], 232)
