@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-train-microbatch-audit-s42-20260712",
+  "status": "failed",
+  "git_commit": "da0b301659427eec39f1b811771dd0f4e0424c2b",
+  "seed": 42,
+  "world_size": 8,
+  "gpu": "NVIDIA GeForce RTX 3090 24GB",
+  "effective_batch_size": 1024,
+  "candidates": [
+    {
+      "micro_batch_per_gpu": 32,
+      "gradient_accumulation_steps": 4,
+      "stable": false,
+      "failure": "UnboundLocalError: p_losses referenced undefined occ_goal"
+    },
+    {
+      "micro_batch_per_gpu": 64,
+      "gradient_accumulation_steps": 2,
+      "stable": false,
+      "failure": "UnboundLocalError: p_losses referenced undefined occ_goal"
+    },
+    {
+      "micro_batch_per_gpu": 128,
+      "gradient_accumulation_steps": 1,
+      "stable": false,
+      "failure": "UnboundLocalError: p_losses referenced undefined occ_goal"
+    }
+  ],
+  "selected_micro_batch_per_gpu": null,
+  "artifacts": {
+    "manifest_sha256": "3c1e1b24af82f2e99c3780fedc994a479f46ea3c375e60e8f5594c5a239b7122",
+    "metrics_sha256": "63f8fff68066618a1e2456f6f62d8f9b38936d58a960ab9b1e781a2628e2ded5",
+    "resolved_configs_sha256": "ab4c20a4157bebffe60dd04062dea041e92e4218fcc903a83df7645db077d9b7"
+  },
+  "conclusion": "All candidates reached the real training loss path and failed for the same batch-independent stale cleanup reference; no stability decision was made."
+}
