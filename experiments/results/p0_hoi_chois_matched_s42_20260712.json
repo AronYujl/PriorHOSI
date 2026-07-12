@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-hoi-chois-matched-s42-20260712",
+  "phase": "p0",
+  "status": "completed",
+  "input_protocol": "strict same-ID matched prediction and ground truth",
+  "sample_count": 438,
+  "seed": 42,
+  "metrics": {
+    "FID": 0.9334244584430564,
+    "MatchingScore": 3.82294801565317,
+    "R-Precision@1": 0.17307692307692307,
+    "R-Precision@2": 0.31009615384615385,
+    "R-Precision@3": 0.43509615384615385,
+    "Diversity": 9.148917198181152
+  },
+  "inputs": {
+    "prediction_tree_sha256": "dbc43eb78ac633b769d6bdd32f5e3fdf024b19eb2afa766ae50b5a8be6585386",
+    "ground_truth_tree_sha256": "d439a98ea32f5d67964bc98431fe25bdffc24b63e00b42601c5355445d01742c"
+  },
+  "evaluator": {
+    "chois_commit": "8ec585aa0200fd2a890ffb12897bcf69ae719463",
+    "text_to_motion_commit": "72df96ec453edea2fbe9603b1d58a955eaf71636",
+    "feature_checkpoint_sha256": "a125bc15ffd9772686737111c7501ecee0a2d8571d9aca348ec1195ddef78775",
+    "adapter_sha256": "f864acade1f9d821cd1da9e098d63313e20f0d55cb04675868e5cb106cc45c29"
+  },
+  "artifacts": {
+    "manifest_sha256": "b8144e753597fac340700b36b9a39c30a6caee07c2a90a814c1bca558f4469f3",
+    "metrics_sha256": "952195de83bebf883da651fddf14719eaff829b3030dd78c44963065f1b0982f"
+  },
+  "gate_assessment": "CHOIS FID/R-Precision component passed. Phase 0 still requires an explicit batch-1 HOI timing result and the preregistered training micro-batch decision."
+}
