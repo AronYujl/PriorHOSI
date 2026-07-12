@@ -12,6 +12,9 @@ except ImportError:  # Minimal governance checks run before ML dependencies are 
 from tools import chois_evaluator, experiment, make_lingo_split, run_chois_evaluator
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
 class SplitTests(unittest.TestCase):
     def test_scene_variants_stay_together_and_split_is_deterministic(self):
         records = [
@@ -46,6 +49,12 @@ class SplitTests(unittest.TestCase):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_hydra_guidance_has_no_missing_dataset_interpolation(self):
+        guidance = (REPO_ROOT / "code" / "config" / "guidance" / "pelvis.yaml").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("${dataset.seq_len}", guidance)
+
     def test_run_id_binds_phase_and_seed(self):
         experiment.validate_run_id("p1-hoi-smoke-s42-20260711", "p1", 42)
         with self.assertRaises(experiment.ManifestError):

@@ -157,6 +157,9 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-12：首次 Atomic-HOSI reportable manifest 在 GPU workload 启动前终止，原因是命令
   未记录所需的 `code/` working directory；失败已追加到 registry。manifest schema 增加显式
   workdir 后使用新 run id 重启，禁止覆盖或复用已终止 id。
+- 2026-07-12：Atomic-HOSI r1 在 resolved-config preflight 终止；发现未使用的
+  `guidance.pelvis.seq_len` 引用不存在的 `dataset.seq_len`。移除悬空项并将完整 Hydra resolve
+  设为 GPU workload 前置条件；r1 未启动采样且已按负结果登记。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

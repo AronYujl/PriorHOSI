@@ -36,6 +36,9 @@ These rules apply to every file in this repository.
   check or workload with escalated permissions before diagnosing missing GPUs.
 - Reportable GPU manifests must be created from the same escalated execution
   context as the workload so their hardware snapshot reflects the actual GPUs.
+- Before starting a reportable Hydra GPU workload, generate the fully resolved
+  job config with the exact overrides and archive it beside the manifest. Treat
+  any unresolved interpolation as a preflight failure; do not start the workload.
 - The reproducible target is eight RTX 3090 24GB GPUs. Record any reduced GPU set,
   contention, or hardware substitution in the run manifest and registry.
 
