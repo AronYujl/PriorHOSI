@@ -60,7 +60,18 @@ These rules apply to every file in this repository.
 
 - A logical change includes its config, tests, and documentation in one commit.
 - Run the relevant tests and registry validation before merging.
+- Scope one working session to one phase. Do not begin the next phase in the same
+  session after closing the current phase.
+- If a planned phase cannot reasonably be implemented, verified, and summarized
+  in one session, split it into numbered subphases before implementation. Update
+  `docs/EXPERIMENT_PLAN.md`, branch names, gates, and registry phase/component
+  labels so every subphase has a concrete deliverable and gate.
 - Merge a phase only after its gate in `docs/EXPERIMENT_PLAN.md` is met; then tag
   the immutable result (for example `exp/p0-baseline-v1`).
+- Before merging, write `docs/phase_summaries/PHASE_<N>.md` (or one summary per
+  preregistered subphase). It must record scope, implementation and configuration
+  changes, experiments and results including failures, verification commands,
+  artifacts/hashes, commits/tag, unresolved risks, and the exact next-phase entry
+  point. A new session must read this summary and `docs/EXPERIMENT_PLAN.md` first.
 - A failed gate permits only its preregistered diagnostics/fallback. Any new
   direction requires a dated plan and registry update before code changes.

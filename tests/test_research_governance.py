@@ -49,6 +49,17 @@ class SplitTests(unittest.TestCase):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_phase_handoff_contract_is_tracked(self):
+        agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        plan = (REPO_ROOT / "docs" / "EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
+        summary_contract = (
+            REPO_ROOT / "docs" / "phase_summaries" / "README.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Scope one working session to one phase", agents)
+        self.assertIn("docs/phase_summaries/PHASE_<N>.md", agents)
+        self.assertIn("阶段粒度与交接约定", plan)
+        self.assertIn("exact prerequisites and first action", summary_contract)
+
     def test_hydra_guidance_has_no_missing_dataset_interpolation(self):
         guidance = (REPO_ROOT / "code" / "config" / "guidance" / "pelvis.yaml").read_text(
             encoding="utf-8"

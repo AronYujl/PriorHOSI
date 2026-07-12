@@ -56,6 +56,15 @@ prediction。
 
 ## 3. 分阶段执行与门槛
 
+### 阶段粒度与交接约定
+
+- 一个 Codex session 只实现、验证并关闭一个 phase；关闭后不在同一 session 启动下一 phase。
+- 若某 phase 无法在单 session 内可靠完成，必须在写实现前拆成编号 subphase，并同步更新本计划、
+  分支名、独立 gate 和 registry component；不得仅在执行过程中口头拆分。
+- 每个 phase/subphase 合并前必须写 `docs/phase_summaries/PHASE_<N>.md`，至少包含范围、功能与
+  配置改动、成功和失败实验、验证命令、结果/artifact hashes、commits/tag、遗留风险，以及下一
+  session 的精确入口。新 session 应先读该总结和本完整计划，再继续工作。
+
 ### Phase 0：治理、数据与评测闭环
 
 - 从锁定提交建 `research/state-compositional-priors`；禁止旧 feature。
@@ -182,6 +191,9 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   OMOMO forward/backward 和一次 optimizer update，固定 global effective batch=1024，分别
   使用累积 `{4,2,1}`；每个候选先保存 Hydra resolved config，并记录各 rank peak allocated/
   reserved CUDA memory。审计代码与训练累积语义先提交，随后才允许 clean-worktree GPU run。
+- 2026-07-12：新增阶段粒度与交接治理：一个 session 关闭一个 phase；过大的 phase 必须在实现
+  前拆成有独立 gate 的 subphase；每阶段合并前提交标准化工作总结，供下一 session 与本计划共同
+  作为唯一进度入口。该变更只约束执行治理，不改变研究假设或 Phase 0 指标协议。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
