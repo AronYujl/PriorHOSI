@@ -9,7 +9,7 @@ try:
 except ImportError:  # Minimal governance checks run before ML dependencies are installed.
     np = None
 
-from tools import chois_evaluator, experiment, make_lingo_split
+from tools import chois_evaluator, experiment, make_lingo_split, run_chois_evaluator
 
 
 class SplitTests(unittest.TestCase):
@@ -146,6 +146,30 @@ class ChoisEvaluatorTests(unittest.TestCase):
             }
             result = chois_evaluator.verify_upstream(root, config)
             self.assertEqual(result["commit"], commit)
+
+    def test_text_to_motion_checkout_rejects_unpinned_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "options").mkdir()
+            module = root / "options" / "train_options.py"
+            module.write_text("# parser\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "init"],
+                cwd=root,
+                check=True,
+            )
+            commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+            config = {
+                "upstream_commit": commit,
+                "files": {"options/train_options.py": chois_evaluator.sha256_file(module)},
+            }
+            result = run_chois_evaluator.verify_text_to_motion(root, config)
+            self.assertEqual(result["commit"], commit)
+            module.write_text("changed\n", encoding="utf-8")
+            with self.assertRaises(run_chois_evaluator.AdapterError):
+                run_chois_evaluator.verify_text_to_motion(root, config)
 
 
 if __name__ == "__main__":

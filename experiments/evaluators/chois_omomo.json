@@ -21,7 +21,7 @@
     "official processed OMOMO text annotations and t2m_mean_std_jpos.p"
   ],
   "release_audit": {
-    "status": "adapter-ready-assets-missing",
-    "notes": "The pinned release uses author-local absolute paths and imports options/train_options.py, which is absent from the release. tools/chois_evaluator.py verifies provenance and input/assets and emits a reproducible run specification; it refuses evaluation until the official missing assets and their hashes are supplied."
+    "status": "adapter-regression-passed",
+    "notes": "The pinned release uses author-local absolute paths and imports options/train_options.py, which is absent from the release. tools/run_chois_evaluator.py supplies the parser from the separately pinned EricGuo5513/text-to-motion dependency and passes every data path explicitly, without editing the CHOIS checkout. The official supplied CHOIS result set has 482 sequences while its GT set has 480, so the adapter intentionally preserves the released evaluator's independent-set FID semantics. The 2026-07-12 supplied-result GPU regression produced FID=0.6881585766 and R-Precision@1/2/3=0.1520833333/0.2979166667/0.425; InfBaGel metrics remain pending a clean-worktree reportable run."
   }
 }

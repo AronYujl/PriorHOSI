@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "Text-to-Motion dependency supplying CHOIS's omitted imports",
+  "upstream_url": "https://github.com/EricGuo5513/text-to-motion.git",
+  "upstream_commit": "72df96ec453edea2fbe9603b1d58a955eaf71636",
+  "files": {
+    "options/base_options.py": "6d4e09c7a413ca8f376a48d128a5ea2233ee7576e9c02f8e30ef7368739819ec",
+    "options/train_options.py": "53fdd9173cdb2548fb699008310b70e4aaac311cb59d7cb00b43ac53a3b368fb",
+    "utils/plot_script.py": "f13fce221ebdc8f667099b5b0ee60da49b6afda80f0c93c4a803589dd4721ca0"
+  },
+  "purpose": "Provides the parser imported by CHOIS final_evaluations.py. The adapter imports the parser but does not modify either upstream checkout."
+}
