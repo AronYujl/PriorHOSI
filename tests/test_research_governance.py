@@ -89,6 +89,16 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("effective batch mismatch", trainer)
         self.assertIn("loss / int(cfg.gradient_accumulation_steps)", trainer)
 
+    def test_diffusion_training_loss_has_no_stale_cleanup_variables(self):
+        model = (REPO_ROOT / "code" / "models" / "infbagel.py").read_text(
+            encoding="utf-8"
+        )
+        loss_body = model.split("    def p_losses(", 1)[1].split(
+            "    def p_sample_loop(", 1
+        )[0]
+        self.assertNotIn("occ_goal", loss_body)
+        self.assertNotIn("occ_temp", loss_body)
+
     def test_run_id_binds_phase_and_seed(self):
         experiment.validate_run_id("p1-hoi-smoke-s42-20260711", "p1", 42)
         with self.assertRaises(experiment.ManifestError):
