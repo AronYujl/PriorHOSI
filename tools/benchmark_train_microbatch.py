@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -46,7 +47,8 @@ def main() -> int:
         raise FileExistsError(f"refusing to reuse run directory: {run_dir}")
     run_dir.mkdir(parents=True)
 
-    records: List[Dict[str, Any]] = []
+    jobs: List[Dict[str, Any]] = []
+    preflight_records: List[Dict[str, Any]] = []
     for micro_batch in args.candidates:
         denominator = micro_batch * args.world_size
         if args.effective_batch_size % denominator:
@@ -85,19 +87,66 @@ def main() -> int:
             check=False,
             text=True,
         )
+        resolved_path.write_text(preflight.stdout, encoding="utf-8")
+        preflight_record = {
+            "micro_batch_per_gpu": micro_batch,
+            "gradient_accumulation_steps": accumulation,
+            "effective_batch_size": args.effective_batch_size,
+            "returncode": preflight.returncode,
+            "resolved_config_path": str(resolved_path),
+            "resolved_config_sha256": hashlib.sha256(
+                preflight.stdout.encode("utf-8")
+            ).hexdigest(),
+            "command": command,
+        }
         if preflight.returncode != 0:
-            resolved_path.write_text(preflight.stdout, encoding="utf-8")
-            records.append({
-                "micro_batch_per_gpu": micro_batch,
-                "gradient_accumulation_steps": accumulation,
-                "effective_batch_size": args.effective_batch_size,
-                "returncode": preflight.returncode,
+            preflight_record.update({
                 "stable": False,
                 "failure_reason": "Hydra resolved-config preflight failed",
-                "resolved_config_path": str(resolved_path),
             })
-            continue
-        resolved_path.write_text(preflight.stdout, encoding="utf-8")
+        preflight_records.append(preflight_record)
+        jobs.append({
+            "micro_batch": micro_batch,
+            "accumulation": accumulation,
+            "candidate_dir": candidate_dir,
+            "metrics_path": metrics_path,
+            "log_path": log_path,
+            "resolved_path": resolved_path,
+            "command": command,
+        })
+
+    resolved_archive = run_dir / "resolved_configs.json"
+    atomic_json(resolved_archive, {
+        "schema_version": 1,
+        "all_preflights_passed": all(
+            record["returncode"] == 0 for record in preflight_records
+        ),
+        "jobs": preflight_records,
+    })
+    if any(record["returncode"] != 0 for record in preflight_records):
+        result = {
+            "schema_version": 1,
+            "protocol": "Hydra resolved-config preflight; no GPU workload launched",
+            "seed": args.seed,
+            "world_size": args.world_size,
+            "effective_batch_size": args.effective_batch_size,
+            "candidates": preflight_records,
+            "resolved_configs_path": str(resolved_archive),
+            "selected_micro_batch_per_gpu": None,
+            "all_candidates_stable": False,
+        }
+        atomic_json(args.output, result)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 2
+
+    records: List[Dict[str, Any]] = []
+    for job in jobs:
+        micro_batch = job["micro_batch"]
+        accumulation = job["accumulation"]
+        metrics_path = job["metrics_path"]
+        log_path = job["log_path"]
+        resolved_path = job["resolved_path"]
+        command = job["command"]
         started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         with log_path.open("w", encoding="utf-8") as log:
             completed = subprocess.run(
@@ -136,6 +185,7 @@ def main() -> int:
         "world_size": args.world_size,
         "effective_batch_size": args.effective_batch_size,
         "candidates": records,
+        "resolved_configs_path": str(resolved_archive),
         "selected_micro_batch_per_gpu": max(
             (record["micro_batch_per_gpu"] for record in stable), default=None
         ),

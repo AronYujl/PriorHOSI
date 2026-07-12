@@ -189,8 +189,9 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   并入 Table 5 均值；batch=1 timing 子门槛完成，Phase 0 只剩训练 micro-batch 决策。
 - 2026-07-12：实现预注册的 8 卡训练 micro-batch 审计：候选 `{32,64,128}` 均执行真实
   OMOMO forward/backward 和一次 optimizer update，固定 global effective batch=1024，分别
-  使用累积 `{4,2,1}`；每个候选先保存 Hydra resolved config，并记录各 rank peak allocated/
-  reserved CUDA memory。审计代码与训练累积语义先提交，随后才允许 clean-worktree GPU run。
+  使用累积 `{4,2,1}`；全部候选必须先保存 Hydra resolved config 并形成带哈希的集合，只有所有
+  preflight 成功才启动任一 GPU workload；记录各 rank peak allocated/reserved CUDA memory。
+  审计代码与训练累积语义先提交，随后才允许 clean-worktree GPU run。
 - 2026-07-12：新增阶段粒度与交接治理：一个 session 关闭一个 phase；过大的 phase 必须在实现
   前拆成有独立 gate 的 subphase；每阶段合并前提交标准化工作总结，供下一 session 与本计划共同
   作为唯一进度入口。该变更只约束执行治理，不改变研究假设或 Phase 0 指标协议。
