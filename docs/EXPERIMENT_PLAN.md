@@ -1,6 +1,6 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：预注册；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
+状态：Phase 0 已通过；Phase 1A 待启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
 
@@ -80,14 +80,57 @@ prediction。
 通过：Atomic-HOSI 在论文/复现容差内；HOI 全指标可重复；data/evaluator/checkpoint hash
 完整。缺数据、官方 evaluator checkpoint 或真实 GPU 运行时不得宣称通过。
 
-### Phase 1：独立专家
+Phase 0 gate 决定：通过。469-case Atomic-HOSI、完整 HOI 原生/CHOIS 指标、batch=1 timing、
+数据/evaluator/checkpoint hashes、LINGO split 与 8 卡 micro-batch 决策均已形成可复现闭环。
+训练锁定为每卡 micro-batch 128、8 卡、accumulation 1、global effective batch 1024；Phase 1
+不得因专家或方法不同修改有效 batch。完整证据见 `docs/phase_summaries/PHASE_0.md`。
 
-HOIPrior 与 HSIPrior 不共享可学习权重。HSI 排除手持动态物体片段，只保留 locomotion、
-静态交互和无物体动作，并用 scene-disjoint validation。先 smoke/短预算，再完整训练；
-统一按 optimizer updates 和有效样本量计预算。检查 normalization 越界、文本覆盖、短序列、
-scene leakage 和不确定性。门槛：关键原生域指标至少达到对应单模型 baseline 的 95%，无
-系统性 contact/penetration/FID 退化。失败先审计表示、坐标、mask、normalization 和 split，
-不得用 InfBaGel 权重绕过。
+### Phase 1：独立专家（拆分为 1A–1D）
+
+Phase 1 原范围包含两套数据契约、两次从零完整训练、两套原生域评测与最终联合验收，无法在
+单 session 内可靠实现和验证，因此在任何 Phase 1 代码前拆为以下 subphase。registry 的
+`phase` 仍使用 `p1`，run component 和分支分别标识 `data`、`hoi`、`hsi`、`gate`；每个
+subphase 独立总结为 `PHASE_1A.md` 等文件。
+
+#### Phase 1A：数据契约、表示与专家脚手架
+
+在 `phase/01a-data` 上固化 OMOMO-only HOI 与过滤后的 LINGO HSI dataset/config contract，
+实现通道 mask、相同 232 维表示、normalization/坐标审计和从零初始化断言；HSI 排除手持动态
+物体窗口，只保留 locomotion、静态交互和无物体动作，并严格使用 scene-disjoint split。
+执行 CPU/unit test、单卡最小 batch 和 8 卡各一次 smoke update，不做筛选性完整训练。
+
+门槛：数据计数/filter/split hashes 固定，无 scene-family leakage；两专家无共享可学习参数且
+均拒绝 released InfBaGel checkpoint 初始化；smoke loss 有限、通道 mask 正确、resolved config
+和 manifest 完整。通过后总结并 tag `exp/p1a-data-v1`。
+
+#### Phase 1B：HOIPrior 从零训练与原生域评测
+
+在 `phase/01b-hoi` 上只训练 HOIPrior。按预注册 optimizer-update/有效样本预算先 smoke 后短预算
+筛选，再对锁定配置执行完整训练；运行 HOI 原生指标与 CHOIS FID/R-Precision，并审计
+normalization 越界、文本覆盖、短序列、contact/penetration 与不确定性。
+
+门槛：HOI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 contact、penetration、
+FID 退化；失败只检查表示、坐标、mask、normalization 与数据契约。通过后总结并 tag
+`exp/p1b-hoi-v1`，不得用 released checkpoint 绕过失败。
+
+#### Phase 1C：HSIPrior 从零训练与原生域评测
+
+在 `phase/01c-hsi` 上只训练 HSIPrior，沿用 1A 锁定过滤/split 和与 1B 相同 effective batch、
+optimizer-update/有效样本预算规则。先短预算再完整训练，运行 LINGO/DIMOS 原生域指标并审计
+normalization、文本、短序列、人景 penetration、FS、目标误差和不确定性。
+
+门槛：HSI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 penetration/FS/FID
+退化且 validation 无 scene-family leakage。通过后总结并 tag `exp/p1c-hsi-v1`。
+
+#### Phase 1D：独立专家联合审计与 Phase 1 gate
+
+在 `phase/01d-gate` 上不新增模型方向，仅汇总至少三 seed 的最终专家结果，验证 checkpoint
+provenance、参数不共享、训练预算/effective batch 一致性、完整 hash 和统计协议；补做预注册的
+失败分层与专家不确定性对比，形成进入组合前的不可变 expert contract。
+
+门槛：1B/1C 均通过各自 95% 原生域门槛，且不存在系统性 contact/penetration/FID 退化；否则
+Phase 1 不合入，不进入 Phase 2。通过后写 `PHASE_1D.md`，合入研究分支并 tag
+`exp/p1-priors-v1`。
 
 ### Phase 2：固定组合可行性
 
@@ -200,6 +243,13 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   未定义而失败；失败 manifest/日志已按原样登记，未选择 batch。该问题与 batch 大小无关，按
   Phase 0 训练路径诊断已仅移除无效的 `occ_goal/occ_temp` 清理引用并增加静态回归测试；须以
   新 run id `r1` 从干净修复提交重跑，不覆盖首次失败。
+- 2026-07-13：修复后的 r1 audit 在 8×RTX 3090 上全部完成真实 optimizer update；每卡
+  micro-batch 32/64/128 分别使用 accumulation 4/2/1，最大 reserved 显存为 2.881/4.855/
+  6.713 GB。按预注册选择最大稳定值 128，并锁定 global effective batch 1024。至此 Phase 0
+  全部门槛通过。
+- 2026-07-13：在 Phase 1 实现前将其拆为 1A 数据/脚手架、1B HOIPrior、1C HSIPrior、1D
+  联合验收，以满足单 session 单 phase/subphase 的交接约束；研究假设、数据范围和最终 95%
+  原生域门槛不变，只增加各 subphase 的独立 deliverable、gate、summary 和 tag。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

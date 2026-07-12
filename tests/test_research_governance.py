@@ -59,6 +59,17 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("docs/phase_summaries/PHASE_<N>.md", agents)
         self.assertIn("阶段粒度与交接约定", plan)
         self.assertIn("exact prerequisites and first action", summary_contract)
+        phase_zero = (
+            REPO_ROOT / "docs" / "phase_summaries" / "PHASE_0.md"
+        ).read_text(encoding="utf-8")
+        for required_section in (
+            "Scope and gate decision",
+            "Failed and negative runs retained",
+            "Verification",
+            "Artifacts and hashes",
+            "Exact next-session entry point",
+        ):
+            self.assertIn(required_section, phase_zero)
 
     def test_hydra_guidance_has_no_missing_dataset_interpolation(self):
         guidance = (REPO_ROOT / "code" / "config" / "guidance" / "pelvis.yaml").read_text(

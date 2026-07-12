@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-train-microbatch-audit-r1-s42-20260712",
+  "status": "completed",
+  "git_commit": "7f89b6391394b53020f020bfc7466af27e3b5dab",
+  "seed": 42,
+  "world_size": 8,
+  "gpu": "NVIDIA GeForce RTX 3090 24GB",
+  "effective_batch_size": 1024,
+  "candidates": [
+    {
+      "micro_batch_per_gpu": 32,
+      "gradient_accumulation_steps": 4,
+      "optimizer_updates": 1,
+      "last_loss": 505.84967041015625,
+      "max_peak_memory_allocated_bytes": 2486255104,
+      "max_peak_memory_reserved_bytes": 2881486848,
+      "stable": true
+    },
+    {
+      "micro_batch_per_gpu": 64,
+      "gradient_accumulation_steps": 2,
+      "optimizer_updates": 1,
+      "last_loss": 526.64208984375,
+      "max_peak_memory_allocated_bytes": 3395570688,
+      "max_peak_memory_reserved_bytes": 4854906880,
+      "stable": true
+    },
+    {
+      "micro_batch_per_gpu": 128,
+      "gradient_accumulation_steps": 1,
+      "optimizer_updates": 1,
+      "last_loss": 542.0694580078125,
+      "max_peak_memory_allocated_bytes": 5061941248,
+      "max_peak_memory_reserved_bytes": 6712983552,
+      "stable": true
+    }
+  ],
+  "selected_micro_batch_per_gpu": 128,
+  "selected_gradient_accumulation_steps": 1,
+  "artifacts": {
+    "manifest_sha256": "f84303242976c3790a67b78f8a52284ce17da6dee2a70ca8771c415bd2b537a6",
+    "metrics_sha256": "ba61dc0d089cf4ca2f4bdefc3646f3dc5994f8b72b3289c9e3806e32a98211eb",
+    "resolved_configs_sha256": "0e4756dec679eb44abe6e89999308b900778afd46fd3fb507ad304abfec59e97",
+    "omomo_train_sha256": "bfa7f32259ab524b06c395c2b622fd122ce156d9cf3d94ef193f1028dd9b7fdf"
+  },
+  "gate_assessment": "Passed: select the largest stable candidate, per-GPU micro-batch 128, and lock global effective batch 1024."
+}
