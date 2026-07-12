@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-hoi-batch1-timing-r1-s42-20260712",
+  "phase": "p0",
+  "status": "completed",
+  "seed": 42,
+  "sample_count": 1,
+  "windows": 3,
+  "warmup_batches_excluded": 1,
+  "generated_frames": 126,
+  "generation_seconds": 7.087099004536867,
+  "batch1_fps": 17.778783663010778,
+  "end_to_end_seconds_including_metrics": 23.819983452558517,
+  "timing_cuda_synchronized": true,
+  "hardware": "RTX 3090 24GB",
+  "artifacts": {
+    "manifest_sha256": "f420395ea895f040cc1df4c4255caffb7f1407cbcd076bcd4fe1bf190ed9deb5",
+    "aggregate_metrics_sha256": "41654a2aa0ae62909b04f040e525b4bc565118774910441b0e1a5794137a848a",
+    "resolved_config_sha256": "8d02517bfbc29b00d6a056a05ce590c4562175083b5332df4ff601c75882a7b6"
+  },
+  "notes": "Timing-only deterministic prefix subset. Single-sample quality metrics are not used as Table 5 aggregate quality results."
+}
