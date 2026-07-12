@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-hoi-table5-baseline-s42-20260712",
+  "phase": "p0",
+  "status": "completed",
+  "git_commit": "c358fa4",
+  "sample_count": 438,
+  "windows_per_sample": 3,
+  "seed": 42,
+  "metrics": {
+    "object_goal_error_cm": 3.0372438952326775,
+    "pelvis_goal_error_cm": 3.9230965077877045,
+    "feet_height": 0.04112287983298302,
+    "foot_sliding": 0.33336322153742476,
+    "contact_accuracy": 0.8020946582590419,
+    "contact_precision": 0.790809602353939,
+    "contact_recall": 0.7275875037410999,
+    "contact_f1": 0.7272576950146546,
+    "contact_percent": 0.5983184750308039,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 11.997593194246292,
+    "translation_difference": 8.208845555782318,
+    "object_translation_difference": 15.72564612054545,
+    "object_rotation_difference": 1.0202497641505308,
+    "hand_object_penetration": 0.1624019806288998,
+    "hand_penetration_ratio": 0.13285978138446808,
+    "human_object_penetration": 2.589266609805965,
+    "human_penetration_ratio": 0.13763920962810516
+  },
+  "generation": {
+    "batch_size": 438,
+    "generated_frames": 55188,
+    "generation_seconds": 171.09633477777243,
+    "throughput_fps": 322.5551270381136,
+    "end_to_end_seconds": 296.86555127054453,
+    "warmup_batches_excluded": 1,
+    "timing_cuda_synchronized": true,
+    "note": "Throughput at batch 438; not a batch-1 latency/FPS measurement."
+  },
+  "chois_export": {
+    "prediction_count": 438,
+    "ground_truth_count": 438,
+    "frames_per_sequence": 126,
+    "prediction_tree_sha256": "dbc43eb78ac633b769d6bdd32f5e3fdf024b19eb2afa766ae50b5a8be6585386",
+    "ground_truth_tree_sha256": "d439a98ea32f5d67964bc98431fe25bdffc24b63e00b42601c5355445d01742c",
+    "strict_same_id_validation": "passed"
+  },
+  "artifacts": {
+    "manifest_sha256": "e4b0828a45a5213c18a4d5ada00558cd3dbede757a3a1be3c6355a33c748a0c8",
+    "aggregate_metrics_sha256": "e5f8e949c0e111f27ed7ea931b1a6ab6395254ec61235601bcca567f0d872ee1",
+    "resolved_config_sha256": "1c0c82579e10e9d3759d1d884106da799182b9bbdb32f0b21a1c76316b04d7a5",
+    "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198"
+  },
+  "gate_assessment": "Native HOI metrics and matched export passed; CHOIS FID/R-Precision pending."
+}
