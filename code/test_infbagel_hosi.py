@@ -33,6 +33,18 @@ METRIC_NAMES = [
 ]
 
 
+def seed_everything(seed):
+    """Seed every RNG used by sampling and metric vertex subsampling."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    if hasattr(torch.backends, 'cudnn'):
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 def synchronize_cuda(device):
     """Synchronize CUDA explicitly at timing boundaries; no-op on CPU."""
     device = torch.device(device)
@@ -193,7 +205,7 @@ def load_scene_sdf_data(scene_sdf_root):
     scene_sdf = {}
     scene_sdf_json = {}
 
-    for file in os.listdir(scene_sdf_root):
+    for file in sorted(os.listdir(scene_sdf_root)):
         if not file.endswith('.npy'):
             continue
         scene_name = file.split('.')[0]
@@ -370,6 +382,7 @@ def compute_metrics_for_sample(points_all, obj_trans, obj_rot, test_item,
 def main(cfg: DictConfig) -> None:
     cfg.vis = True
     device = cfg.device
+    seed_everything(int(cfg.seed))
 
     # Per-gender SMPL-X models (batch_size=1), created once and reused across all sequences.
     smplx_model_cache = {}
@@ -379,7 +392,7 @@ def main(cfg: DictConfig) -> None:
     obj_rest_verts = {}
     obj_vert_normals = {}
     obj_faces = {}
-    for file in os.listdir(rest_verts_root):
+    for file in sorted(os.listdir(rest_verts_root)):
         if not file.endswith('.ply'):
             continue
         obj_name = file.split('.')[0]
@@ -395,7 +408,7 @@ def main(cfg: DictConfig) -> None:
     object_sdf_root = os.path.join(ROOT_DIR, 'data', 'object', 'rest_object_sdf_256_npy_files')
     obj_sdf = {}
     obj_sdf_json = {}
-    for file in os.listdir(object_sdf_root):
+    for file in sorted(os.listdir(object_sdf_root)):
         if not file.endswith('.npy'):
             continue
         obj_name = file.split('.')[0]
@@ -408,13 +421,16 @@ def main(cfg: DictConfig) -> None:
     scene_sdf, scene_sdf_json = load_scene_sdf_data(scene_sdf_root)
 
     model_name = os.path.splitext(cfg.ckpt_path.split('/')[-1])[0]
-    base_output_dir = f'hosi_results/{cfg.exp_name}'
-    os.makedirs(base_output_dir, exist_ok=True)
+    base_output_dir = os.path.abspath(str(cfg.hosi_output_dir))
+    if cfg.save_results_json:
+        if os.path.exists(base_output_dir):
+            raise FileExistsError(f"Refusing to overwrite HOSI evaluation output: {base_output_dir}")
+        os.makedirs(base_output_dir, exist_ok=False)
 
     model_body = init_model(cfg.model.infbagel, device=device, eval=True)
 
     json_data_dir = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data')
-    scene_files = [f for f in os.listdir(json_data_dir) if f.endswith('.json')]
+    scene_files = sorted(f for f in os.listdir(json_data_dir) if f.endswith('.json'))
 
     all_scenes_metrics = []
     gen_time_list = []
@@ -781,6 +797,9 @@ def main(cfg: DictConfig) -> None:
             generation_metrics = {
                 'aits': float(np.mean(gen_time_list)),
                 'avg_fps': float(np.mean(fps_list)),
+                'aggregate_fps': float(np.sum(frames_list) / np.sum(gen_time_list)),
+                'total_generation_seconds': float(np.sum(gen_time_list)),
+                'timed_sequence_count': len(gen_time_list),
                 'avg_frames_per_seq': float(np.mean(frames_list)),
                 'avg_end_to_end_episode_seconds': float(np.mean(episode_time_list)),
                 'llm_planning_seconds': None,
@@ -790,6 +809,8 @@ def main(cfg: DictConfig) -> None:
 
         evaluation_results = {
             'model_name': model_name,
+            'seed': int(cfg.seed),
+            'scene_order': scene_files,
             'individual_metrics': all_scenes_metrics,
             'statistics': statistics,
             'summary': {
@@ -822,6 +843,15 @@ def main(cfg: DictConfig) -> None:
             overall_eval_path = os.path.join(base_output_dir, 'overall_evaluation_summary.json')
             with open(overall_eval_path, 'w') as f:
                 json.dump(evaluation_results, f, indent=2, default=convert_to_serializable)
+            aggregate_eval_path = os.path.join(base_output_dir, 'aggregate_metrics.json')
+            aggregate_results = {
+                'model_name': evaluation_results['model_name'],
+                'seed': evaluation_results['seed'],
+                'statistics': evaluation_results['statistics'],
+                'summary': evaluation_results['summary'],
+            }
+            with open(aggregate_eval_path, 'x') as f:
+                json.dump(aggregate_results, f, indent=2, default=convert_to_serializable)
             print(f"\nAll results saved to: {base_output_dir}")
 
         print(f"Total evaluated: {len(all_scenes_metrics)} samples")

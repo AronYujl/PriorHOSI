@@ -51,6 +51,21 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaises(experiment.ManifestError):
             experiment.validate_run_id("p1-hoi-smoke-s7-20260711", "p1", 42)
 
+    def test_manifest_cli_records_overrides_and_resolved_config(self):
+        parser = experiment.build_parser()
+        start = parser.parse_args([
+            "start", "--id", "p0-test-smoke-s42-20260712", "--phase", "p0",
+            "--seed", "42", "--config", "config.yaml", "--override", "device=cuda:0",
+            "--command", "python evaluate.py",
+        ])
+        self.assertEqual(start.override, ["device=cuda:0"])
+        self.assertEqual(start.run_command, "python evaluate.py")
+        finish = parser.parse_args([
+            "finish", "--manifest", "manifest.json", "--metrics", "metrics.json",
+            "--status", "completed", "--resolved-config", "resolved.yaml",
+        ])
+        self.assertEqual(finish.resolved_config, "resolved.yaml")
+
     def test_directory_hash_depends_on_names_and_content(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

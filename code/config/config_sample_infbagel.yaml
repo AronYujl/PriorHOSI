@@ -9,6 +9,7 @@ defaults:
       - pelvis
 
 exp_name: infbagel
+seed: 42
 train: false
 load_state_dict: true
 batch_size: 1
@@ -51,6 +52,7 @@ sample_type: consistency
 # Whether to additionally save the .pkl under motion_params_922/ (for mesh recovery)
 save_motion_params: true
 save_results_json: true
+hosi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 
 # Export the official CHOIS evaluator contract: one NPZ per sequence containing
 # seq_name and Z-up global_jpos [T, 24, 3]. Keep disabled for normal sampling.

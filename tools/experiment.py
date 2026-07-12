@@ -235,7 +235,9 @@ def command_start(args: argparse.Namespace) -> None:
             "path": os.path.relpath(config_path.resolve(), repo),
             "sha256": sha256_file(config_path),
             "content": config_path.read_text(encoding="utf-8"),
+            "overrides": list(args.override),
         },
+        "command": args.run_command,
         "assets": parse_assets(args.asset, repo),
         "hardware": hardware_snapshot(repo),
         "dependencies": dependency_snapshot(repo),
@@ -257,6 +259,13 @@ def command_finish(args: argparse.Namespace) -> None:
     if current["dirty"]:
         raise ManifestError("worktree became dirty during the run")
     metrics = load_json(Path(args.metrics).resolve())
+    if args.resolved_config:
+        resolved_config = Path(args.resolved_config).resolve()
+        if not resolved_config.is_file():
+            raise ManifestError(f"resolved config is not a file: {resolved_config}")
+        manifest["config"]["resolved_path"] = os.path.relpath(resolved_config, repo)
+        manifest["config"]["resolved_sha256"] = sha256_file(resolved_config)
+        manifest["config"]["resolved_content"] = resolved_config.read_text(encoding="utf-8")
     manifest["status"] = args.status
     manifest["ended_at"] = utc_now()
     manifest["metrics"] = metrics
@@ -391,6 +400,8 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--seed", type=int, required=True)
     start.add_argument("--config", required=True)
     start.add_argument("--asset", action="append", default=[], metavar="ROLE=PATH")
+    start.add_argument("--override", action="append", default=[], metavar="KEY=VALUE")
+    start.add_argument("--command", dest="run_command")
     start.add_argument("--output")
     start.set_defaults(func=command_start)
 
@@ -398,6 +409,7 @@ def build_parser() -> argparse.ArgumentParser:
     finish.add_argument("--manifest", required=True)
     finish.add_argument("--metrics", required=True)
     finish.add_argument("--status", choices=sorted(TERMINAL_STATUSES), required=True)
+    finish.add_argument("--resolved-config")
     finish.set_defaults(func=command_finish)
 
     register = subparsers.add_parser("register", help="append a sealed run to registry")
