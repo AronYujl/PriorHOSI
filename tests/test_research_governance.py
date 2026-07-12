@@ -63,6 +63,8 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("hoi_sequence_limit: null", config)
         self.assertIn("hoi_timing_warmup: true", config)
         self.assertIn("chois_eval_ground_truth_dir:", config)
+        evaluator = (REPO_ROOT / "code" / "test_infbagel_hoi.py").read_text(encoding="utf-8")
+        self.assertIn("for seg_id_true in range(len(seq_name_dict)):", evaluator)
 
     def test_run_id_binds_phase_and_seed(self):
         experiment.validate_run_id("p1-hoi-smoke-s42-20260711", "p1", 42)

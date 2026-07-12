@@ -63,17 +63,13 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
     object_sdf_root = os.path.join(ROOT_DIR, 'data', 'object', 'rest_object_sdf_256_npy_files')
     obj_sdf = {}
     obj_sdf_json = {}
-    for file in os.listdir(object_sdf_root):
+    for file in sorted(os.listdir(object_sdf_root)):
         if not file.endswith('.npy'):
             continue
         obj_name = file.split('.')[0]
         sdf_path = os.path.join(object_sdf_root, file)
         obj_sdf[obj_name] = np.load(sdf_path)
         obj_sdf_json[obj_name] = json.load(open(os.path.join(object_sdf_root, f'{file[:-4]}.json'), 'r'))
-    
-    # seg_len = pkl.load(open(os.path.join(ROOT_DIR, 'data', 'test', 'seq_len.pkl'), 'rb'))
-    seg_id_dict = pkl.load(open(os.path.join(ROOT_DIR, 'data', 'test', 'seq_id.pkl'), 'rb'))
-    seg_id_dict = [0] + list(seg_id_dict.values())
     
     with open(os.path.join(SMPL_DIR, 'MANO_SMPLX_vertex_ids.pkl'), 'rb') as f:
         idxs_data = pkl.load(f)
@@ -105,9 +101,7 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
     human_pen_ratio_list = []
 
     sum_len = 0
-    seg_id_true = 0
-    for seg_id in range(0, len(seg_id_dict)-1):
-    # for seg_id in range(250, 300): # debug
+    for seg_id_true in range(len(seq_name_dict)):
         obj_name = seq_name_dict[seg_id_true].split('_')[1]
 
         points_orig_seg = points_orig[seg_id_true][:3].reshape(-1, cfg.max_window_size, 3*(cfg.dataset.nb_joints))
@@ -256,8 +250,7 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
 
             # print(f'scene_name: {seq_name_dict[seg_id_true]}, hand_pen_loss: {hand_pen_loss}, hand_pen_ratio: {hand_pen_ratio}, human_pen_loss: {human_pen_loss}, human_pen_ratio: {human_pen_ratio}')
 
-        seg_id_true += 1
-    
+
     hand_pen_loss = np.array(hand_pen_loss_list).mean()
     hand_pen_ratio = np.array(hand_pen_ratio_list).mean()
     human_pen_loss = np.array(human_pen_loss_list).mean()
