@@ -25,6 +25,19 @@ These rules apply to every file in this repository.
 - Keep large data, checkpoints, generated motion, and per-sample results out of
   Git. Track split/task manifests, aggregate tables, failure analyses, and hashes.
 
+## Execution environment
+
+- Run project Python commands with the existing `infbagel` environment, preferably
+  `/data/yujinlun/anaconda3/envs/infbagel/bin/python`. Do not silently fall back to
+  the system Python or create a replacement environment.
+- GPU/driver access can be hidden by the Codex sandbox. If `nvidia-smi` fails or
+  `torch.cuda.is_available()` is false in a sandboxed command, rerun the relevant
+  check or workload with escalated permissions before diagnosing missing GPUs.
+- Reportable GPU manifests must be created from the same escalated execution
+  context as the workload so their hardware snapshot reflects the actual GPUs.
+- The reproducible target is eight RTX 3090 24GB GPUs. Record any reduced GPU set,
+  contention, or hardware substitution in the run manifest and registry.
+
 ## Reproducibility and reporting
 
 - Use the fixed scene-disjoint LINGO split generated with seed 42. Keep mirror,

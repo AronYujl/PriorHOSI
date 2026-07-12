@@ -147,6 +147,13 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-11：审计 CHOIS commit `8ec585a`。release 中 evaluator 使用作者绝对路径且缺少
   `options/train_options.py` 与官方 feature checkpoint；接入采取严格 provenance/input/asset
   校验，资产不完整时失败，不用自训练或替代网络冒充官方指标。
+- 2026-07-12：CHOIS 缺失依赖通过单独锁定的 `text-to-motion` commit 和显式路径 adapter
+  补齐；官方 supplied predictions 对 GT 的 GPU 回归得到 FID 0.6881585766、R-Precision@1/2/3
+  0.1520833333/0.2979166667/0.4250，完整哈希见 registry。该结果只验证 evaluator，不替代
+  InfBaGel HOI 输出评测。
+- 2026-07-12：确认 Codex 普通沙箱会隐藏 NVIDIA driver；提权后 8×RTX 3090 24GB 全部可见，
+  `infbagel` 环境 PyTorch 1.13.1+cu117 可访问 8 卡。后续 GPU 命令须优先使用该环境，并在
+  沙箱报告 CUDA 不可用时提权复核，不能将权限问题记录为硬件缺失。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
