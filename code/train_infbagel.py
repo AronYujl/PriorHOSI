@@ -8,6 +8,11 @@ from constants import *
 import os
 from torch.utils.tensorboard import SummaryWriter
 import datetime
+import json
+import random
+from pathlib import Path
+
+import numpy as np
 
 os.environ['ROOT_DIR'] = '..'
 os.environ['HYDRA_FULL_ERROR'] = '1'
@@ -47,6 +52,10 @@ def train_ddp(rank, world_size, cfg):
 
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
     cfg.device = f"cuda:{rank}"
+    random.seed(int(cfg.seed) + rank)
+    np.random.seed(int(cfg.seed) + rank)
+    torch.manual_seed(int(cfg.seed) + rank)
+    torch.cuda.manual_seed_all(int(cfg.seed) + rank)
     print(f'Training on {device}', flush=True)
     print('Initializing Distributed', flush=True)
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -78,9 +87,17 @@ def train_ddp(rank, world_size, cfg):
 
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
-    sampler = DistributedSampler(infbagel_dataset)
+    expected_effective_batch = int(cfg.batch_size) * world_size * int(cfg.gradient_accumulation_steps)
+    if expected_effective_batch != int(cfg.effective_batch_size):
+        raise ValueError(
+            f'effective batch mismatch: {cfg.batch_size} x {world_size} x '
+            f'{cfg.gradient_accumulation_steps} = {expected_effective_batch}, '
+            f'configured {cfg.effective_batch_size}'
+        )
+
+    sampler = DistributedSampler(infbagel_dataset, seed=int(cfg.seed))
     dataloader = DataLoader(infbagel_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
-                            sampler=sampler, pin_memory=True, persistent_workers=True)
+                            sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0)
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
@@ -91,6 +108,13 @@ def train_ddp(rank, world_size, cfg):
     if cfg.use_tensorboard and rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(cfg.exp_dir, 'tensorboard_logs'))
 
+    optimizer_updates = 0
+    micro_steps = 0
+    last_loss = None
+    stop_training = False
+    torch.cuda.reset_peak_memory_stats(device)
+    optimizer.zero_grad(set_to_none=True)
+
     for epoch in range(cfg.start_epoch, cfg.epochs):
         print(f'Start epoch {epoch}', flush=True)
         sampler.set_epoch(epoch)
@@ -98,7 +122,7 @@ def train_ddp(rank, world_size, cfg):
         step = 0
         for batch in dataloader:
             step += 1
-            optimizer.zero_grad()
+            micro_steps += 1
 
             # async H2D copy for the training tensors (DataLoader sets pin_memory=True)
             b = {k: batch[k].to(device, non_blocking=True) for k in TRAIN_BATCH_KEYS}
@@ -116,7 +140,8 @@ def train_ddp(rank, world_size, cfg):
 
             global_rot_6d = b['global_rot_6d'].reshape(b['global_rot_6d'].shape[0], b['global_rot_6d'].shape[1], -1)
 
-            t = torch.randint(0, trainer.timesteps, (cfg.batch_size,), device=device).long()
+            local_batch_size = joints.shape[0]
+            t = torch.randint(0, trainer.timesteps, (local_batch_size,), device=device).long()
             x_start = torch.cat([joints, global_rot_6d, object_trans, object_rot_mat.reshape(object_rot_mat.shape[0], object_rot_mat.shape[1], -1), contact_label], dim=-1) # 84 + 132 + 3 + 9 + 4
             with torch.no_grad():
                 mask, _, _ = get_mask(x_start, -1, p=1., fixed_frame=cfg.auto_regre_num)
@@ -161,10 +186,22 @@ def train_ddp(rank, world_size, cfg):
                             writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
                             writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
 
-            loss.backward()
-            optimizer.step()
+            last_loss = float(loss.detach().item())
+            is_accumulation_boundary = micro_steps % int(cfg.gradient_accumulation_steps) == 0
+            # Keep DDP synchronization on every micro-step. This is slightly
+            # slower than wrapping the entire forward/backward in no_sync(),
+            # but preserves simple, identical semantics for both objectives.
+            (loss / int(cfg.gradient_accumulation_steps)).backward()
 
-        if rank == 0 and epoch % cfg.ckpt_interval == 0:
+            if is_accumulation_boundary:
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                optimizer_updates += 1
+                if cfg.max_optimizer_updates is not None and optimizer_updates >= int(cfg.max_optimizer_updates):
+                    stop_training = True
+                    break
+
+        if rank == 0 and cfg.save_checkpoints and epoch % cfg.ckpt_interval == 0:
             print(f'Saving checkpoint', flush=True)
             ckpt_folder = os.path.join(cfg.exp_dir, 'checkpoints')
             os.makedirs(ckpt_folder, exist_ok=True)
@@ -174,6 +211,49 @@ def train_ddp(rank, world_size, cfg):
 
         print('Clearing cache', flush=True)
         torch.cuda.empty_cache()
+        if stop_training:
+            break
+
+    torch.cuda.synchronize(device)
+    local_peaks = torch.tensor(
+        [torch.cuda.max_memory_allocated(device), torch.cuda.max_memory_reserved(device)],
+        dtype=torch.float64,
+        device=device,
+    )
+    gathered_peaks = [torch.zeros_like(local_peaks) for _ in range(world_size)]
+    torch.distributed.all_gather(gathered_peaks, local_peaks)
+
+    if rank == 0 and cfg.benchmark_metrics_path is not None:
+        metrics_path = Path(str(cfg.benchmark_metrics_path))
+        if not metrics_path.is_absolute():
+            metrics_path = Path.cwd() / metrics_path
+        if metrics_path.exists():
+            raise FileExistsError(f'refusing to overwrite benchmark metrics: {metrics_path}')
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        peak_values = [value.cpu().tolist() for value in gathered_peaks]
+        metrics = {
+            'schema_version': 1,
+            'status': 'stable',
+            'seed': int(cfg.seed),
+            'world_size': world_size,
+            'micro_batch_per_gpu': int(cfg.batch_size),
+            'gradient_accumulation_steps': int(cfg.gradient_accumulation_steps),
+            'effective_batch_size': expected_effective_batch,
+            'optimizer_updates': optimizer_updates,
+            'micro_steps': micro_steps,
+            'last_loss': last_loss,
+            'peak_memory_allocated_bytes_by_rank': [int(value[0]) for value in peak_values],
+            'peak_memory_reserved_bytes_by_rank': [int(value[1]) for value in peak_values],
+            'max_peak_memory_allocated_bytes': int(max(value[0] for value in peak_values)),
+            'max_peak_memory_reserved_bytes': int(max(value[1] for value in peak_values)),
+        }
+        temporary_path = metrics_path.with_suffix(metrics_path.suffix + '.tmp')
+        temporary_path.write_text(json.dumps(metrics, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        os.replace(temporary_path, metrics_path)
+
+    if cfg.use_tensorboard and rank == 0:
+        writer.close()
+    torch.distributed.destroy_process_group()
 
 
 def get_mask(x_start, ind, p, fixed_frame=0, mask_y=True):

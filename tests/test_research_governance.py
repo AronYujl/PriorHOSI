@@ -66,6 +66,18 @@ class ManifestTests(unittest.TestCase):
         evaluator = (REPO_ROOT / "code" / "test_infbagel_hoi.py").read_text(encoding="utf-8")
         self.assertIn("for seg_id_true in range(len(seq_name_dict)):", evaluator)
 
+    def test_training_effective_batch_contract_is_configured(self):
+        config = (REPO_ROOT / "code" / "config" / "config_train_infbagel.yaml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("batch_size: 128", config)
+        self.assertIn("effective_batch_size: 1024", config)
+        self.assertIn("gradient_accumulation_steps: 1", config)
+        self.assertIn("num_gpus: 8", config)
+        trainer = (REPO_ROOT / "code" / "train_infbagel.py").read_text(encoding="utf-8")
+        self.assertIn("effective batch mismatch", trainer)
+        self.assertIn("loss / int(cfg.gradient_accumulation_steps)", trainer)
+
     def test_run_id_binds_phase_and_seed(self):
         experiment.validate_run_id("p1-hoi-smoke-s42-20260711", "p1", 42)
         with self.assertRaises(experiment.ManifestError):

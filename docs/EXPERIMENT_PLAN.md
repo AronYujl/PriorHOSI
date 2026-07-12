@@ -178,6 +178,10 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-12：修复后的 HOI batch=1 timing 在 RTX 3090 上完成；排除 1 个 warm-up batch 后，
   3 windows/126 帧纯生成耗时 7.0871 s，即 17.779 FPS，CUDA 边界均同步。单样本质量指标不
   并入 Table 5 均值；batch=1 timing 子门槛完成，Phase 0 只剩训练 micro-batch 决策。
+- 2026-07-12：实现预注册的 8 卡训练 micro-batch 审计：候选 `{32,64,128}` 均执行真实
+  OMOMO forward/backward 和一次 optimizer update，固定 global effective batch=1024，分别
+  使用累积 `{4,2,1}`；每个候选先保存 Hydra resolved config，并记录各 rank peak allocated/
+  reserved CUDA memory。审计代码与训练累积语义先提交，随后才允许 clean-worktree GPU run。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

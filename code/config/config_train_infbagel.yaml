@@ -9,20 +9,30 @@ defaults:
   - _self_
 
 exp_name: infbagel
+seed: 42
 sample_type: diffusion
 train: true
 load_state_dict: false
-batch_size: 512
+# Per-GPU micro-batch. Phase 0 selects this from {32, 64, 128}; later
+# reportable methods keep effective_batch_size fixed via accumulation.
+batch_size: 128
+effective_batch_size: 1024
+gradient_accumulation_steps: 1
 lr: 0.0001
 epochs: 501
 device: cuda:0
 use_tensorboard: true
 ckpt_interval: 20
+save_checkpoints: true
+# Null means full training. The micro-batch audit sets one optimizer update and
+# writes per-rank peak-memory metrics without producing a checkpoint.
+max_optimizer_updates: null
+benchmark_metrics_path: null
 exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1
 
-num_gpus: 4
+num_gpus: 8
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16
