@@ -21,6 +21,7 @@ data
 # Research governance metadata is intentionally small and versioned. Large
 # per-sample outputs remain ignored under results/.
 !experiments/
+!experiments/results/
 !experiments/**/*.json
 !experiments/**/*.jsonl
 !experiments/**/*.csv

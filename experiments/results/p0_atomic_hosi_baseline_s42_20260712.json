@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p0-atomic-hosi-baseline-r2-s42-20260712",
+  "phase": "p0",
+  "status": "completed",
+  "git_commit": "06086f44242edc8d118b6da81f017bb6cacf6aaa",
+  "sample_count": 469,
+  "scene_count": 67,
+  "seed": 42,
+  "metrics": {
+    "completion_rate": 0.8166311300639659,
+    "pelvis_goal_error_cm": 4.6858812286853615,
+    "object_goal_error_cm": 8.128904487177142,
+    "foot_sliding": 0.13839880085449816,
+    "contact": 0.7804926785664832,
+    "warm_generation_fps_mean": 25.646821246070896,
+    "warm_generation_fps_aggregate": 25.37946985844082,
+    "end_to_end_episode_seconds": 8.194163668519368
+  },
+  "locked_reference": {
+    "completion_rate": 0.8209,
+    "pelvis_goal_error_cm": 4.57,
+    "object_goal_error_cm": 8.17,
+    "foot_sliding": 0.14,
+    "contact": 0.781,
+    "fps": 23.34
+  },
+  "delta_from_reference": {
+    "completion_rate_percentage_points": -0.42688699360341076,
+    "pelvis_goal_error_cm": 0.11588122868536166,
+    "object_goal_error_cm": -0.04109551282285762,
+    "foot_sliding": -0.001601199145501853,
+    "contact": -0.0005073214335168388,
+    "warm_generation_fps_mean": 2.3068212460708957
+  },
+  "artifacts": {
+    "manifest_sha256": "2ff106655912d56a6f9ab5b622f5d2ef2456982b8a413a4642fad4f0638b948b",
+    "aggregate_metrics_sha256": "451219c115e98ccd5d3d6d7994943966f6ab1f3678aacbd5e7d443820cdaa7ce",
+    "per_sample_summary_sha256": "5510583e077f2346941d8a1d29085b1f44639183dcdc1f185f5372c04b4aa158",
+    "resolved_config_sha256": "3f14221e85af8743268e6cdcb5d5e8bc87e08991240e2dd062d6d95961cb19af",
+    "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198"
+  },
+  "gate_assessment": "Atomic-HOSI reproduction component passed; full Phase 0 remains pending reportable HOI metrics including CHOIS FID/R-Precision.",
+  "notes": "The released checkpoint reports missing scene-goal embedding keys and ignored hand-goal embedding keys through the existing compatibility loader. The warning was retained and the run completed without runtime errors."
+}
