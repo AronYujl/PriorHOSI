@@ -1,6 +1,8 @@
 import os
 import pickle as pkl
 import pickle
+import random
+import time
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
@@ -9,6 +11,33 @@ import trimesh
 
 from utils import *
 from constants import *
+
+
+def seed_everything(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    if hasattr(torch.backends, 'cudnn'):
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
+def synchronize_cuda(device):
+    device = torch.device(device)
+    if device.type == 'cuda' and torch.cuda.is_available():
+        torch.cuda.synchronize(device)
+
+
+def convert_to_serializable(value):
+    if isinstance(value, (np.floating, np.integer)):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if torch.is_tensor(value):
+        return value.detach().cpu().tolist()
+    raise TypeError(f"Object of type {type(value)} is not JSON serializable")
 from datasets.infbagel import InfBaGelDataset
 from guidance_loss import *
 import json
@@ -148,18 +177,24 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
         
         model_name = cfg.ckpt_path.split('/')[-1]
         if cfg.get('save_chois_eval_npz', False):
-            chois_output_dir = cfg.get('chois_eval_output_dir', 'results/chois_npz/predictions')
-            if not os.path.isabs(chois_output_dir):
-                chois_output_dir = os.path.join(ROOT_DIR, chois_output_dir)
-            os.makedirs(chois_output_dir, exist_ok=True)
+            chois_output_dir = os.path.abspath(str(cfg.chois_eval_output_dir))
+            chois_ground_truth_dir = os.path.abspath(str(cfg.chois_eval_ground_truth_dir))
             chois_path = os.path.join(chois_output_dir, f"{seq_name_dict[seg_id_true]}.npz")
+            chois_gt_path = os.path.join(chois_ground_truth_dir, f"{seq_name_dict[seg_id_true]}.npz")
             if os.path.exists(chois_path):
                 raise FileExistsError(f"Refusing to overwrite CHOIS evaluator input: {chois_path}")
+            if os.path.exists(chois_gt_path):
+                raise FileExistsError(f"Refusing to overwrite CHOIS evaluator GT: {chois_gt_path}")
             np.savez(
                 chois_path,
                 seq_name=np.asarray(seq_name_dict[seg_id_true]),
                 global_jpos=yup_to_zup(human_jnts_48).cpu().numpy(),
             )  # T X 24 X 3, official evaluator Z-up convention
+            np.savez(
+                chois_gt_path,
+                seq_name=np.asarray(seq_name_dict[seg_id_true]),
+                global_jpos=yup_to_zup(points_gt_orig_seg).cpu().numpy(),
+            )
         
         # Save motion parameters for mesh recovery
         if cfg.save_motion_params:
@@ -355,6 +390,9 @@ def get_mat(cfg, points):
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def test(cfg: DictConfig) -> None:
     device = cfg.device
+    seed_everything(int(cfg.seed))
+    synchronize_cuda(device)
+    end_to_end_start = time.perf_counter()
 
     seg_id_dict = pkl.load(open(os.path.join(ROOT_DIR, 'data', 'test', 'seq_id.pkl'), 'rb'))
     seg_id_dict = [0] + list(seg_id_dict.values())
@@ -362,7 +400,7 @@ def test(cfg: DictConfig) -> None:
     rest_verts_root = os.path.join(ROOT_DIR, 'data', 'object', 'rest_object_geo')
     obj_rest_verts = {}
     obj_vert_normals = {}
-    for file in os.listdir(rest_verts_root):
+    for file in sorted(os.listdir(rest_verts_root)):
         if not file.endswith('.ply'):
             continue
         obj_name = file.split('.')[0]
@@ -376,7 +414,7 @@ def test(cfg: DictConfig) -> None:
     object_sdf_root = os.path.join(ROOT_DIR, 'data', 'object', 'rest_object_sdf_256_npy_files')
     obj_sdf = {}
     obj_sdf_json = {}
-    for file in os.listdir(object_sdf_root):
+    for file in sorted(os.listdir(object_sdf_root)):
         if not file.endswith('.npy'):
             continue
         obj_name = file.split('.')[0]
@@ -385,7 +423,22 @@ def test(cfg: DictConfig) -> None:
         obj_sdf_json[obj_name] = json.load(open(os.path.join(object_sdf_root, f'{file[:-4]}.json'), 'r'))
         
     sample_len = len(seg_id_dict)-1
-    sample_len = 438
+    if sample_len != int(cfg.hoi_expected_sequences):
+        raise ValueError(
+            f"Expected {cfg.hoi_expected_sequences} HOI sequences, found {sample_len}"
+        )
+
+    output_dir = os.path.abspath(str(cfg.hoi_output_dir))
+    if os.path.exists(output_dir):
+        raise FileExistsError(f"Refusing to overwrite HOI evaluation output: {output_dir}")
+    os.makedirs(output_dir, exist_ok=False)
+    if cfg.get('save_chois_eval_npz', False):
+        prediction_dir = os.path.abspath(str(cfg.chois_eval_output_dir))
+        ground_truth_dir = os.path.abspath(str(cfg.chois_eval_ground_truth_dir))
+        for path in (prediction_dir, ground_truth_dir):
+            if os.path.exists(path):
+                raise FileExistsError(f"Refusing to overwrite CHOIS export directory: {path}")
+            os.makedirs(path, exist_ok=False)
 
     # only evaluate the single ckpt specified by cfg.ckpt_path (no longer iterate over the checkpoint directory)
     model_name = cfg.ckpt_path.split('/')[-1]
@@ -662,6 +715,28 @@ def test(cfg: DictConfig) -> None:
     first_object_trans_batch = torch.stack(first_object_trans_batch) # 534 X 1 X 3
 
     batch_size = object_points_batch.shape[0]
+
+    if cfg.get('hoi_timing_warmup', True):
+        warmup_human = {
+            'rest_human_offsets': rest_human_offsets_all[:1, :cfg.max_window_size],
+            'transl': transl_batch[:1],
+            'betas': betas_batch[:1],
+            'gender': gender_all[:1],
+        }
+        sample_step(
+            cfg, mat_batch[:1], fixed_points_batch[:1], sampler_body,
+            scene_flag_batch[:1], text_clip_embedding_batch[:1], pelvis_goal_batch[:1, 0],
+            scene_goal_batch[:1], object_goal_batch[:1], need_scene_batch[:1],
+            need_pelvis_dir_batch[:1], pi_batch[:1, 0], end_pi_batch[:1, 0],
+            seq_length_batch[:1, 0], need_pi_batch[:1], is_loco_batch[:1],
+            is_object_batch[:1], obj_bps_data_first_step_batch[:1], object_points_batch[:1],
+            obj_rest_verts, obj_vert_normals, {0: seq_name_dict[0]},
+            obj_rot_mat_ref_first_step_batch[:1], warmup_human,
+        )
+        synchronize_cuda(device)
+        seed_everything(int(cfg.seed))
+
+    generation_seconds = 0.0
     
     for step in range(0, max_len):
         print(f"step: {step}")
@@ -710,7 +785,11 @@ def test(cfg: DictConfig) -> None:
 
         human_dict = {'rest_human_offsets': rest_human_offsets_all[:, :cfg.max_window_size], 'transl': transl_batch, 'betas': betas_batch, 'gender': gender_all}
         
+        synchronize_cuda(device)
+        generation_start = time.perf_counter()
         info_dict = sample_step(cfg, mat_batch, fixed_points_batch, sampler_body, scene_flag_batch, text_clip_embedding_batch, pelvis_goal_batch[:,step], scene_goal_batch, object_goal_batch, need_scene_batch, need_pelvis_dir_batch, pi_batch[:,step], end_pi_batch[:,step], seq_length_batch[:,step], need_pi_batch, is_loco_batch, is_object_batch, obj_bps_data_first_step_batch, object_points_batch, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref_first_step_batch, human_dict)
+        synchronize_cuda(device)
+        generation_seconds += time.perf_counter() - generation_start
         
         points = info_dict['points_orig'].clone() # 534 X T X 3*28
         obj_trans = info_dict['obj_trans_orig'].clone() # 534 X T X 3
@@ -735,6 +814,34 @@ def test(cfg: DictConfig) -> None:
     
     # aggregate and save evaluation metrics
     metrics_summary = summarize_metrics(all_metrics)
+
+    generated_frames = sample_len * max_len * (cfg.max_window_size - cfg.auto_regre_num) * cfg.interp_s
+    synchronize_cuda(device)
+    end_to_end_seconds = time.perf_counter() - end_to_end_start
+    evaluation_result = {
+        'schema_version': 1,
+        'model_name': model_name,
+        'seed': int(cfg.seed),
+        'sample_count': sample_len,
+        'windows_per_sample': max_len,
+        'metrics': metrics_summary,
+        'generation_metrics': {
+            'warmup_batches_excluded': 1 if cfg.get('hoi_timing_warmup', True) else 0,
+            'generated_frames': generated_frames,
+            'generation_seconds': generation_seconds,
+            'fps': generated_frames / generation_seconds,
+            'end_to_end_seconds': end_to_end_seconds,
+            'timing_cuda_synchronized': True,
+        },
+        'chois_export': {
+            'enabled': bool(cfg.get('save_chois_eval_npz', False)),
+            'prediction_dir': str(cfg.chois_eval_output_dir),
+            'ground_truth_dir': str(cfg.chois_eval_ground_truth_dir),
+        },
+    }
+    metrics_path = os.path.join(output_dir, 'aggregate_metrics.json')
+    with open(metrics_path, 'x') as handle:
+        json.dump(evaluation_result, handle, indent=2, default=convert_to_serializable)
     
     # if not os.path.exists(os.path.join('results', cfg.exp_name)):
     #     os.makedirs(os.path.join('results', cfg.exp_name))

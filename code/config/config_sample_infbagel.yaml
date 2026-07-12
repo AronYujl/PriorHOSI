@@ -53,11 +53,15 @@ sample_type: consistency
 save_motion_params: true
 save_results_json: true
 hosi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
+hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
+hoi_expected_sequences: 438
+hoi_timing_warmup: true
 
 # Export the official CHOIS evaluator contract: one NPZ per sequence containing
 # seq_name and Z-up global_jpos [T, 24, 3]. Keep disabled for normal sampling.
 save_chois_eval_npz: false
-chois_eval_output_dir: results/chois_npz/predictions
+chois_eval_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/chois/predictions
+chois_eval_ground_truth_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/chois/ground_truth
 
 ckpt_path: "../checkpoint/checkpoint.pth"
 

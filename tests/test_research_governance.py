@@ -55,6 +55,14 @@ class ManifestTests(unittest.TestCase):
         )
         self.assertNotIn("${dataset.seq_len}", guidance)
 
+    def test_hoi_evaluation_contract_is_configured(self):
+        config = (REPO_ROOT / "code" / "config" / "config_sample_infbagel.yaml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("hoi_expected_sequences: 438", config)
+        self.assertIn("hoi_timing_warmup: true", config)
+        self.assertIn("chois_eval_ground_truth_dir:", config)
+
     def test_run_id_binds_phase_and_seed(self):
         experiment.validate_run_id("p1-hoi-smoke-s42-20260711", "p1", 42)
         with self.assertRaises(experiment.ManifestError):
