@@ -56,10 +56,11 @@ class ManifestTests(unittest.TestCase):
         start = parser.parse_args([
             "start", "--id", "p0-test-smoke-s42-20260712", "--phase", "p0",
             "--seed", "42", "--config", "config.yaml", "--override", "device=cuda:0",
-            "--command", "python evaluate.py",
+            "--command", "python evaluate.py", "--workdir", "code",
         ])
         self.assertEqual(start.override, ["device=cuda:0"])
         self.assertEqual(start.run_command, "python evaluate.py")
+        self.assertEqual(start.workdir, "code")
         finish = parser.parse_args([
             "finish", "--manifest", "manifest.json", "--metrics", "metrics.json",
             "--status", "completed", "--resolved-config", "resolved.yaml",

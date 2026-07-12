@@ -154,6 +154,9 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-12：确认 Codex 普通沙箱会隐藏 NVIDIA driver；提权后 8×RTX 3090 24GB 全部可见，
   `infbagel` 环境 PyTorch 1.13.1+cu117 可访问 8 卡。后续 GPU 命令须优先使用该环境，并在
   沙箱报告 CUDA 不可用时提权复核，不能将权限问题记录为硬件缺失。
+- 2026-07-12：首次 Atomic-HOSI reportable manifest 在 GPU workload 启动前终止，原因是命令
+  未记录所需的 `code/` working directory；失败已追加到 registry。manifest schema 增加显式
+  workdir 后使用新 run id 重启，禁止覆盖或复用已终止 id。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

@@ -21,7 +21,8 @@ These rules apply to every file in this repository.
   id and never overwrite results.
 - Local JSONL manifests are authoritative. TensorBoard is visualization only.
 - Every manifest records commit/diff state, resolved config and hashes for data,
-  evaluator, checkpoints, dependencies, seed, hardware, timestamps, and metrics.
+  evaluator, checkpoints, dependencies, seed, hardware, command working directory,
+  timestamps, and metrics.
 - Keep large data, checkpoints, generated motion, and per-sample results out of
   Git. Track split/task manifests, aggregate tables, failure analyses, and hashes.
 

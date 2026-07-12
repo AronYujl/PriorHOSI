@@ -222,6 +222,11 @@ def command_start(args: argparse.Namespace) -> None:
     )
     if not output.is_absolute():
         output = repo / output
+    run_workdir = Path(args.workdir) if args.workdir else repo
+    if not run_workdir.is_absolute():
+        run_workdir = repo / run_workdir
+    if not run_workdir.is_dir():
+        raise ManifestError(f"run working directory does not exist: {run_workdir}")
     manifest: Dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "experiment_id": args.id,
@@ -238,6 +243,7 @@ def command_start(args: argparse.Namespace) -> None:
             "overrides": list(args.override),
         },
         "command": args.run_command,
+        "working_directory": os.path.relpath(run_workdir.resolve(), repo),
         "assets": parse_assets(args.asset, repo),
         "hardware": hardware_snapshot(repo),
         "dependencies": dependency_snapshot(repo),
@@ -402,6 +408,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--asset", action="append", default=[], metavar="ROLE=PATH")
     start.add_argument("--override", action="append", default=[], metavar="KEY=VALUE")
     start.add_argument("--command", dest="run_command")
+    start.add_argument("--workdir", default=".")
     start.add_argument("--output")
     start.set_defaults(func=command_start)
 
