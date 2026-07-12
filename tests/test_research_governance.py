@@ -60,6 +60,7 @@ class ManifestTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("hoi_expected_sequences: 438", config)
+        self.assertIn("hoi_sequence_limit: null", config)
         self.assertIn("hoi_timing_warmup: true", config)
         self.assertIn("chois_eval_ground_truth_dir:", config)
 

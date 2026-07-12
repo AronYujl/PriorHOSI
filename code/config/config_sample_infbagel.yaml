@@ -55,6 +55,7 @@ save_results_json: true
 hosi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hoi_expected_sequences: 438
+hoi_sequence_limit: null
 hoi_timing_warmup: true
 
 # Export the official CHOIS evaluator contract: one NPZ per sequence containing

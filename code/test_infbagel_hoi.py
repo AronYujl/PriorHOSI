@@ -422,11 +422,18 @@ def test(cfg: DictConfig) -> None:
         obj_sdf[obj_name] = np.load(sdf_path)
         obj_sdf_json[obj_name] = json.load(open(os.path.join(object_sdf_root, f'{file[:-4]}.json'), 'r'))
         
-    sample_len = len(seg_id_dict)-1
-    if sample_len != int(cfg.hoi_expected_sequences):
+    dataset_sequence_count = len(seg_id_dict) - 1
+    if dataset_sequence_count != int(cfg.hoi_expected_sequences):
         raise ValueError(
-            f"Expected {cfg.hoi_expected_sequences} HOI sequences, found {sample_len}"
+            f"Expected {cfg.hoi_expected_sequences} HOI sequences, found {dataset_sequence_count}"
         )
+    sequence_limit = cfg.get('hoi_sequence_limit')
+    if sequence_limit is not None:
+        sequence_limit = int(sequence_limit)
+        if sequence_limit <= 0 or sequence_limit > dataset_sequence_count:
+            raise ValueError(f"Invalid hoi_sequence_limit: {sequence_limit}")
+        seg_id_dict = seg_id_dict[:sequence_limit + 1]
+    sample_len = len(seg_id_dict) - 1
 
     output_dir = os.path.abspath(str(cfg.hoi_output_dir))
     if os.path.exists(output_dir):
@@ -823,6 +830,8 @@ def test(cfg: DictConfig) -> None:
         'model_name': model_name,
         'seed': int(cfg.seed),
         'sample_count': sample_len,
+        'dataset_sequence_count': dataset_sequence_count,
+        'is_timing_subset': sample_len != dataset_sequence_count,
         'windows_per_sample': max_len,
         'metrics': metrics_summary,
         'generation_metrics': {
