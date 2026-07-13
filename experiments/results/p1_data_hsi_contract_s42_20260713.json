@@ -1,0 +1,193 @@
+{
+  "contract": {
+    "diffusion_steps": 500,
+    "expert": "hsi",
+    "filter_rule": "left_hand_inter_frame == -1 and right_hand_inter_frame == -1; then reject seq_length <= 48 as invalid for the 48-source-frame/16-output-frame contract",
+    "frame_stride": 3,
+    "history_frames": 2,
+    "normalization": "data/dataset/norm.npy, byte-identical to OMOMO normalization; never recompute",
+    "object_condition": "forbidden supervision: object pose/contact fixed empty and loss-masked",
+    "scene_condition": "required: real LINGO occupancy plus text/pelvis/static-interaction goals",
+    "source": "real LINGO scene-motion only",
+    "split": "experiments/splits/lingo_scene_disjoint_seed42.json",
+    "window_frames": 16
+  },
+  "contract_sha256": "f3177a0e250a0beea3ca9738cd131f7f0df3a94beb2035a41970f7ee1ec2ccb4",
+  "counts": {
+    "dynamic_object_filter_retained_windows": 1939898,
+    "excluded_dynamic_object_windows": 336075,
+    "excluded_short_sequence_windows": 21856,
+    "raw_sequences": 19450,
+    "raw_windows": 2275973,
+    "retained_windows": 1918042,
+    "scene_families": 76,
+    "scenes": 111
+  },
+  "empty_supervision": {
+    "contact": true,
+    "loss_masked": true,
+    "object_rotation": true,
+    "object_translation": true
+  },
+  "expert": "hsi",
+  "filter": {
+    "all_retained_satisfy_dynamic_object_rule": true,
+    "all_retained_satisfy_short_sequence_rule": true,
+    "dynamic_object_rule": "left_hand_inter_frame == -1 and right_hand_inter_frame == -1",
+    "short_sequence_diagnosis": "source windows are 48 frames but 21,819 cross their declared sequence end; the legacy mixed loader also rejects seq_length <= 48",
+    "short_sequence_rule": "seq_length > 48"
+  },
+  "finite_values": {
+    "clip_features.npy": {
+      "dtype": "float64",
+      "nonfinite_values": 0,
+      "shape": [
+        2485,
+        768
+      ],
+      "values": 1908480
+    },
+    "human_joints_aligned.npy": {
+      "dtype": "float64",
+      "nonfinite_values": 0,
+      "shape": [
+        2915752,
+        28,
+        3
+      ],
+      "values": 244923168
+    },
+    "human_orient.npy": {
+      "dtype": "float64",
+      "nonfinite_values": 0,
+      "shape": [
+        2915752,
+        3
+      ],
+      "values": 8747256
+    },
+    "human_pose.npy": {
+      "dtype": "float64",
+      "nonfinite_values": 0,
+      "shape": [
+        2915752,
+        63
+      ],
+      "values": 183692376
+    }
+  },
+  "normalization": {
+    "bounds": {
+      "audited_windows": 100000,
+      "object_outside_count": 0,
+      "object_outside_rate": null,
+      "object_values": 0,
+      "position_maximum_absolute_normalized": 1.0814190633463652,
+      "position_nonfinite_count": 0,
+      "position_outside_count": 256214,
+      "position_outside_rate": 0.0019063541666666667,
+      "position_values": 134400000,
+      "selection": "deterministic-even",
+      "total_eligible_windows": 1918042
+    },
+    "matches_omomo_norm": true,
+    "omomo_norm_sha256": "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969",
+    "source": "data/dataset/norm.npy"
+  },
+  "partitions": {
+    "train": {
+      "referenced_sequences": 15752,
+      "retained_windows": 1740706,
+      "scene_count": 91,
+      "scene_family_count": 61,
+      "short_sequence_windows": 0,
+      "text": {
+        "coverage_rate": 1.0,
+        "empty_instructions": 0,
+        "missing_feature_instructions": [],
+        "unique_instructions": 119,
+        "windows": 1740706
+      }
+    },
+    "validation": {
+      "referenced_sequences": 1690,
+      "retained_windows": 177336,
+      "scene_count": 20,
+      "scene_family_count": 15,
+      "short_sequence_windows": 0,
+      "text": {
+        "coverage_rate": 1.0,
+        "empty_instructions": 0,
+        "missing_feature_instructions": [],
+        "unique_instructions": 61,
+        "windows": 177336
+      }
+    }
+  },
+  "representation": {
+    "coordinate_system": "Y-up, window-local XZ origin, initial-root-yaw aligned",
+    "diffusion_steps": 500,
+    "dimension": 232,
+    "fields": [
+      {
+        "name": "joint_positions",
+        "semantics": "28 joints x XYZ, OMOMO min/max normalized",
+        "start": 0,
+        "stop": 84
+      },
+      {
+        "name": "joint_rotations_6d",
+        "semantics": "22 global joint rotations x continuous 6D",
+        "start": 84,
+        "stop": 216
+      },
+      {
+        "name": "object_translation",
+        "semantics": "dynamic-object XYZ, OMOMO object min/max normalized",
+        "start": 216,
+        "stop": 219
+      },
+      {
+        "name": "object_rotation",
+        "semantics": "3x3 object rotation relative to the BPS reference frame",
+        "start": 219,
+        "stop": 228
+      },
+      {
+        "name": "contact",
+        "semantics": "four human-object contact labels",
+        "start": 228,
+        "stop": 232
+      }
+    ],
+    "history_frames": 2,
+    "hsi_active_indices": [
+      0,
+      216
+    ],
+    "hsi_empty_fields": [
+      "object_translation",
+      "object_rotation",
+      "contact"
+    ],
+    "window_frames": 16
+  },
+  "schema_version": 1,
+  "source_hashes": {
+    "data/dataset/clip_features.npy": "9207595b1c27d62aaa885882f6656b31121cb3106c0539106fcad570ae72f15c",
+    "data/dataset/end_idx.npy": "a49727a962381f076f29bb682405228543d68397393407ca8b65e76c613316ee",
+    "data/dataset/human_joints_aligned.npy": "c0c2e1cc45a184819b60aa55df3c07cbc32ae3cf76b22067537c89f1983050a9",
+    "data/dataset/human_orient.npy": "851fb813b2fa766f50cbae00a6e32574db1460e6424b7d8b918970e7e7a7dd47",
+    "data/dataset/human_pose.npy": "6503087e3416dd311e1aa9f09ec4dbe454356c07a9f6920f12c889894de999b6",
+    "data/dataset/language_motion_dict/language_motion_dict__inter_and_loco__16.pkl": "969e52780921626ba1cb17847b7cad53108737a3f457df29da33cef7320b4ebc",
+    "data/dataset/norm.npy": "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969",
+    "data/dataset/start_idx.npy": "400e1cc5c00d7c8c24fc17a43d30fa4a45b8df998ae1f226f28ffdeb83082275",
+    "experiments/splits/lingo_scene_disjoint_seed42.json": "38677db82cb58071f146ffa679fba53a8bf3799d252f3a5b68eae975468a9ace"
+  },
+  "split": {
+    "algorithm": "scene-family-disjoint-v1",
+    "scene_family_leakage": [],
+    "scene_leakage": [],
+    "seed": 42
+  }
+}

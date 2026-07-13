@@ -1,0 +1,273 @@
+{
+  "contract": {
+    "diffusion_steps": 500,
+    "expert": "hoi",
+    "filter_rule": "no LINGO samples; retain OMOMO windows",
+    "frame_stride": 3,
+    "history_frames": 2,
+    "normalization": "data/train/norm.npy (existing OMOMO normalization; never recompute)",
+    "object_condition": "required: dynamic object BPS/pose/contact and full OMOMO instruction",
+    "scene_condition": "forbidden: dataset and model API expose no scene input",
+    "source": "scene-free fields from real OMOMO only",
+    "split": "official processed OMOMO train and test/validation roots",
+    "window_frames": 16
+  },
+  "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+  "expert": "hoi",
+  "partitions": {
+    "train": {
+      "dynamic_object_windows": 597868,
+      "finite_values": {
+        "clip_features.npy": {
+          "dtype": "float64",
+          "nonfinite_values": 0,
+          "shape": [
+            4304,
+            1,
+            768
+          ],
+          "values": 3305472
+        },
+        "human_joints_aligned.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            804460,
+            28,
+            3
+          ],
+          "values": 67574640
+        },
+        "human_orient.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            804460,
+            3
+          ],
+          "values": 2413380
+        },
+        "human_pose.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            804460,
+            63
+          ],
+          "values": 50680980
+        },
+        "object_rot_mat.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            804460,
+            3,
+            3
+          ],
+          "values": 7240140
+        },
+        "object_trans.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            804460,
+            3
+          ],
+          "values": 2413380
+        }
+      },
+      "missing_bps_sequences": [],
+      "missing_contact_sequences": [],
+      "normalization": {
+        "audited_windows": 100000,
+        "object_outside_count": 48,
+        "object_outside_rate": 1e-05,
+        "object_values": 4800000,
+        "position_maximum_absolute_normalized": 1.0643402642379782,
+        "position_nonfinite_count": 0,
+        "position_outside_count": 25,
+        "position_outside_rate": 1.8601190476190477e-07,
+        "position_values": 134400000,
+        "selection": "deterministic-even",
+        "total_eligible_windows": 597868
+      },
+      "raw_sequences": 4304,
+      "raw_windows": 597868,
+      "referenced_sequences": 4304,
+      "retained_windows": 597868,
+      "short_sequence_windows": 0,
+      "text": {
+        "coverage_rate": 1.0,
+        "empty_instructions": 0,
+        "missing_feature_instructions": [],
+        "unique_instructions": 103,
+        "windows": 597868
+      }
+    },
+    "validation": {
+      "dynamic_object_windows": 1314,
+      "finite_values": {
+        "clip_features.npy": {
+          "dtype": "float64",
+          "nonfinite_values": 0,
+          "shape": [
+            4304,
+            1,
+            768
+          ],
+          "values": 3305472
+        },
+        "human_joints_aligned.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            83559,
+            28,
+            3
+          ],
+          "values": 7018956
+        },
+        "human_orient.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            83559,
+            3
+          ],
+          "values": 250677
+        },
+        "human_pose.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            83559,
+            63
+          ],
+          "values": 5264217
+        },
+        "object_rot_mat.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            83559,
+            3,
+            3
+          ],
+          "values": 752031
+        },
+        "object_trans.npy": {
+          "dtype": "float32",
+          "nonfinite_values": 0,
+          "shape": [
+            83559,
+            3
+          ],
+          "values": 250677
+        }
+      },
+      "missing_bps_sequences": [],
+      "missing_contact_sequences": [],
+      "normalization": {
+        "audited_windows": 1314,
+        "object_outside_count": 0,
+        "object_outside_rate": 0.0,
+        "object_values": 63072,
+        "position_maximum_absolute_normalized": 0.9425821946616094,
+        "position_nonfinite_count": 0,
+        "position_outside_count": 0,
+        "position_outside_rate": 0.0,
+        "position_values": 1766016,
+        "selection": "all",
+        "total_eligible_windows": 1314
+      },
+      "raw_sequences": 482,
+      "raw_windows": 1314,
+      "referenced_sequences": 438,
+      "retained_windows": 1314,
+      "short_sequence_windows": 0,
+      "text": {
+        "coverage_rate": 1.0,
+        "empty_instructions": 0,
+        "missing_feature_instructions": [],
+        "unique_instructions": 88,
+        "windows": 1314
+      }
+    }
+  },
+  "representation": {
+    "coordinate_system": "Y-up, window-local XZ origin, initial-root-yaw aligned",
+    "diffusion_steps": 500,
+    "dimension": 232,
+    "fields": [
+      {
+        "name": "joint_positions",
+        "semantics": "28 joints x XYZ, OMOMO min/max normalized",
+        "start": 0,
+        "stop": 84
+      },
+      {
+        "name": "joint_rotations_6d",
+        "semantics": "22 global joint rotations x continuous 6D",
+        "start": 84,
+        "stop": 216
+      },
+      {
+        "name": "object_translation",
+        "semantics": "dynamic-object XYZ, OMOMO object min/max normalized",
+        "start": 216,
+        "stop": 219
+      },
+      {
+        "name": "object_rotation",
+        "semantics": "3x3 object rotation relative to the BPS reference frame",
+        "start": 219,
+        "stop": 228
+      },
+      {
+        "name": "contact",
+        "semantics": "four human-object contact labels",
+        "start": 228,
+        "stop": 232
+      }
+    ],
+    "history_frames": 2,
+    "hsi_active_indices": [
+      0,
+      216
+    ],
+    "hsi_empty_fields": [
+      "object_translation",
+      "object_rotation",
+      "contact"
+    ],
+    "window_frames": 16
+  },
+  "scene_supervision": {
+    "dataset_loaded": false,
+    "loss_uses_scene": false,
+    "model_api_accepts_scene": false
+  },
+  "schema_version": 1,
+  "source_hashes": {
+    "data/test/clip_features.npy": "97cf6661b0d50f0117f4319076d5662779de34f89943e81a3ce1f565f730b4bd",
+    "data/test/end_idx.npy": "1c8e1010048f542a82dd213484ec0fbeb13018dbad8c642899545c1b95743a35",
+    "data/test/human_joints_aligned.npy": "52905d77ca1ea171cb481729ba047bf0e37d88245846c8d14cc12fc392bdc3d2",
+    "data/test/human_orient.npy": "4bc7a8d69c96ec10b944ee33ec7bef42bb17cb413ee8fcdc818a10b96c91d62c",
+    "data/test/human_pose.npy": "c6bcde0233e52a39b3a458bcbd1bdb7c93d926d13a78713824ff082fdce37e8a",
+    "data/test/language_motion_dict/language_motion_dict__inter_and_loco__16.pkl": "03c89579bd49ed5a972d674e70667d5536c03480d4343d017199b954e86b37f5",
+    "data/test/norm.npy": "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969",
+    "data/test/object_rot_mat.npy": "c8bcf4b536664858d64e4dc0cac0c2c636e4b29c214333d2c6ca9eb87e6171f3",
+    "data/test/object_trans.npy": "169b7cdaddf6d5647f042ccff3e625b163998526b0030e4a0346bfd4924846ef",
+    "data/test/start_idx.npy": "2d9ba9bffe4ef44df9500edf1dae43bf97eea8958d3bfc3c54a95b4353f76ebd",
+    "data/train/clip_features.npy": "97cf6661b0d50f0117f4319076d5662779de34f89943e81a3ce1f565f730b4bd",
+    "data/train/end_idx.npy": "52d8e995473295eea1ad6d5799aaf2297b072ca0800deee89809aaaefd7279fa",
+    "data/train/human_joints_aligned.npy": "e43458a904f071213682f5caf6c442d973491db14f7d00f0c59fffe745df4d1d",
+    "data/train/human_orient.npy": "f5ef6507a60a6a16cfdadb4f46586f8f47802e97d45453f1fe667bb8e803759f",
+    "data/train/human_pose.npy": "99a3e88d2836aacedd7dcf19029b10642423795bf09a1533e25c7c5a7274248f",
+    "data/train/language_motion_dict/language_motion_dict__inter_and_loco__16.pkl": "5eae4881d840085c67a06195cc7d0814d454ab0e8f79dc61ae3193b770eebf37",
+    "data/train/norm.npy": "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969",
+    "data/train/object_rot_mat.npy": "278961b3a3275e858d0fe7800fc7fdb5bc6b10673847c1907a4dc53fbeeee46f",
+    "data/train/object_trans.npy": "71ab17a3d209b42d75d350c85d366ae2d6c98c7d0acdb64dfc48dbb355a5b5c8",
+    "data/train/start_idx.npy": "c7ff1597f2857a17926de8999ad1ed3b40a311cdac6f19b649c5f4a60ba92d3a"
+  }
+}
