@@ -101,6 +101,7 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "betas": [float(cfg.beta1), float(cfg.beta2)],
         "gradient_clip_norm": float(cfg.gradient_clip_norm),
         "ema_decay": float(cfg.ema_decay),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
@@ -256,6 +257,7 @@ def _save_checkpoint(
     *,
     processed_windows: int,
     optimizer_updates: int,
+    amp_overflow_skips: int,
     epoch: int,
     batches_consumed_in_epoch: int,
     checkpoint_hashes: List[Dict[str, object]],
@@ -279,6 +281,7 @@ def _save_checkpoint(
             "processed_windows": processed_windows,
             "processed_frames": processed_windows * REPRESENTATION.window_frames,
             "optimizer_updates": optimizer_updates,
+            "amp_overflow_skips": amp_overflow_skips,
             "epoch": epoch,
             "batches_consumed_in_epoch": batches_consumed_in_epoch,
             "world_size": world_size,
@@ -345,6 +348,7 @@ def _load_resume(
     return {
         "processed_windows": int(checkpoint["processed_windows"]),
         "optimizer_updates": int(checkpoint["optimizer_updates"]),
+        "amp_overflow_skips": int(checkpoint.get("amp_overflow_skips", 0)),
         "epoch": int(checkpoint["epoch"]),
         "batches_consumed_in_epoch": int(checkpoint["batches_consumed_in_epoch"]),
     }
@@ -377,6 +381,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         raise ValueError("HOIPrior history_frames contract mismatch")
     if int(cfg.diffusion_steps) != REPRESENTATION.diffusion_steps:
         raise ValueError("HOIPrior diffusion_steps contract mismatch")
+    if int(cfg.max_consecutive_amp_overflows) < 0:
+        raise ValueError("max_consecutive_amp_overflows must be non-negative")
     if _model_config(cfg) != {"dim_model": 512, "num_heads": 16, "num_layers": 8}:
         raise ValueError("HOIPrior architecture must remain 512-wide, 16-head, 8-layer")
     if cfg.init_checkpoint not in (None, "", False):
@@ -443,13 +449,20 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     minimum = torch.as_tensor(norm[0], device=device, dtype=torch.float32)
     maximum = torch.as_tensor(norm[1], device=device, dtype=torch.float32)
 
-    state = {"processed_windows": 0, "optimizer_updates": 0, "epoch": 0, "batches_consumed_in_epoch": 0}
+    state = {
+        "processed_windows": 0,
+        "optimizer_updates": 0,
+        "amp_overflow_skips": 0,
+        "epoch": 0,
+        "batches_consumed_in_epoch": 0,
+    }
     resumed_from = None
     if cfg.resume_checkpoint not in (None, "", False):
         state = _load_resume(rank, cfg, model, ema, optimizer, scheduler, scaler)
         resumed_from = str(Path(str(cfg.resume_checkpoint)).resolve())
     processed_windows = state["processed_windows"]
     optimizer_updates = state["optimizer_updates"]
+    amp_overflow_skips = state["amp_overflow_skips"]
     start_epoch = state["epoch"]
     resume_batches = state["batches_consumed_in_epoch"]
 
@@ -459,6 +472,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     compute_update_seconds: List[float] = []
     loss_sums = {key: 0.0 for key in LOSS_KEYS}
     loss_observations = 0
+    pending_loss_sums = {key: 0.0 for key in LOSS_KEYS}
+    pending_loss_observations = 0
+    consecutive_amp_overflows = 0
+    initial_grad_scale = float(scaler.get_scale())
     validation_records: List[Dict[str, object]] = []
     checkpoint_hashes: List[Dict[str, object]] = []
     optimizer.zero_grad(set_to_none=True)
@@ -488,8 +505,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     raise FloatingPointError(f"non-finite HOIPrior loss at update {optimizer_updates}")
                 scaler.scale(loss).backward()
             for key in LOSS_KEYS:
-                loss_sums[key] += float(losses[key].detach())
-            loss_observations += 1
+                pending_loss_sums[key] += float(losses[key].detach())
+            pending_loss_observations += 1
             micro_in_accumulation += 1
             batches_consumed = batch_index + 1
             if not boundary:
@@ -497,8 +514,35 @@ def _worker(rank: int, cfg: DictConfig) -> None:
 
             scaler.unscale_(optimizer)
             key_gradient = model.module.network.motion_input.weight.grad
-            if key_gradient is None or not torch.isfinite(key_gradient).all() or not torch.any(key_gradient != 0):
-                raise FloatingPointError("missing or invalid key HOIPrior gradient")
+            if key_gradient is None:
+                raise FloatingPointError("missing key HOIPrior gradient")
+            local_nonfinite = torch.tensor(
+                int(any(
+                    parameter.grad is not None and not torch.isfinite(parameter.grad).all()
+                    for parameter in model.parameters()
+                )),
+                dtype=torch.int32,
+                device=device,
+            )
+            torch.distributed.all_reduce(local_nonfinite, op=torch.distributed.ReduceOp.MAX)
+            if int(local_nonfinite.item()):
+                if not bool(cfg.amp):
+                    raise FloatingPointError("non-finite HOIPrior gradient with AMP disabled")
+                amp_overflow_skips += 1
+                consecutive_amp_overflows += 1
+                scaler.update(new_scale=float(scaler.get_scale()) * 0.5)
+                optimizer.zero_grad(set_to_none=True)
+                pending_loss_sums = {key: 0.0 for key in LOSS_KEYS}
+                pending_loss_observations = 0
+                micro_in_accumulation = 0
+                group_start = None
+                if consecutive_amp_overflows > int(cfg.max_consecutive_amp_overflows):
+                    raise FloatingPointError(
+                        f"AMP gradient overflow persisted for {consecutive_amp_overflows} groups"
+                    )
+                continue
+            if not torch.any(key_gradient != 0):
+                raise FloatingPointError("zero key HOIPrior gradient")
             gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(cfg.gradient_clip_norm))
             if not torch.isfinite(gradient_norm):
                 raise FloatingPointError("non-finite HOIPrior gradient norm")
@@ -509,6 +553,12 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             _ema_update(ema, model.module, float(cfg.ema_decay))
             optimizer_updates += 1
             processed_windows += effective
+            for key in LOSS_KEYS:
+                loss_sums[key] += pending_loss_sums[key]
+                pending_loss_sums[key] = 0.0
+            loss_observations += pending_loss_observations
+            pending_loss_observations = 0
+            consecutive_amp_overflows = 0
             micro_in_accumulation = 0
             if group_start is not None:
                 torch.cuda.synchronize(device)
@@ -531,6 +581,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
                     processed_windows=processed_windows,
                     optimizer_updates=optimizer_updates,
+                    amp_overflow_skips=amp_overflow_skips,
                     epoch=epoch,
                     batches_consumed_in_epoch=batches_consumed,
                     checkpoint_hashes=checkpoint_hashes,
@@ -543,6 +594,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                         rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
                         processed_windows=processed_windows,
                         optimizer_updates=optimizer_updates,
+                        amp_overflow_skips=amp_overflow_skips,
                         epoch=epoch,
                         batches_consumed_in_epoch=batches_consumed,
                         checkpoint_hashes=checkpoint_hashes,
@@ -568,6 +620,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
             processed_windows=processed_windows,
             optimizer_updates=optimizer_updates,
+            amp_overflow_skips=amp_overflow_skips,
             epoch=epoch,
             batches_consumed_in_epoch=batches_consumed,
             checkpoint_hashes=checkpoint_hashes,
@@ -586,6 +639,9 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             wall_seconds,
             sum(compute_update_seconds),
             len(compute_update_seconds),
+            amp_overflow_skips,
+            initial_grad_scale,
+            float(scaler.get_scale()),
         ],
         dtype=torch.float64,
         device=device,
@@ -610,6 +666,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             "processed_windows": processed_windows,
             "processed_frames": processed_windows * REPRESENTATION.window_frames,
             "optimizer_updates": optimizer_updates,
+            "amp_overflow_skips": amp_overflow_skips,
             "terminal_checkpoint": str(terminal_checkpoint),
             "terminal_checkpoint_sha256": _sha256(terminal_checkpoint),
             "resume_checkpoint": resumed_from,
@@ -638,6 +695,9 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "epochs_equivalent": processed_windows / len(train_dataset),
                 "parameter_count": sum(parameter.numel() for parameter in model.module.parameters()),
                 "key_gradient_present": True,
+                "amp_overflow_skips_by_rank": [int(value[5]) for value in values],
+                "initial_grad_scale_by_rank": [value[6] for value in values],
+                "final_grad_scale_by_rank": [value[7] for value in values],
                 "loss_finite": all(math.isfinite(value) for value in averaged_losses.values()),
                 "mean_training_losses": averaged_losses,
                 "validation": validation_records,

@@ -186,6 +186,15 @@ GPU workload 前锁定：
   penetration `2.5893`（ratio `0.1376`）、FID `0.93342`、R-Precision@1/2/3
   `0.17308/0.31010/0.43510`。任一缺失、非有限或无法解释的系统性退化均使 gate 失败。
 
+2026-07-13 容量审计 `p1-hoi-memory-capacity-s42-20260713` 的四个候选均在首个有限 loss 的
+backward 后失败、均非 OOM，原因是 trainer 在 AMP 初始 scale 下发现非有限梯度时先行抛错，
+使 GradScaler 无机会执行其动态降 scale。该 immutable failed run 保留且不作容量选择。允许的
+优化诊断仅限：四个 rank 同步丢弃发生 overflow 的未提交 accumulation group、统一将 scale
+减半，不计入 processed windows 或 optimizer update；连续最多允许 16 次 overflow，之后仍
+非有限则 fail fast。必须记录累计 overflow 次数与初/终 scale，并在后续有限、非零关键梯度和
+真实 optimizer update 后才报告 stable。使用全新 run ID 原样重跑四个已注册候选，不改变
+micro-batch、accumulation、预算、LR、headroom 或选择规则。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

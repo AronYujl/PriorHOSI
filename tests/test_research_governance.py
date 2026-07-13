@@ -157,6 +157,9 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("init_checkpoint is forbidden", trainer)
         self.assertIn("resume checkpoint training contract mismatch", trainer)
         self.assertIn("resume checkpoint Git commit mismatch", trainer)
+        self.assertIn("max_consecutive_amp_overflows: 16", train_config)
+        self.assertIn("amp_overflow_skips_by_rank", trainer)
+        self.assertIn("scaler.update(new_scale=float(scaler.get_scale()) * 0.5)", trainer)
 
     def test_phase_1b_capacity_audit_keeps_all_preregistered_candidates(self):
         source = (REPO_ROOT / "tools/audit_hoi_capacity.py").read_text(encoding="utf-8")
