@@ -48,12 +48,12 @@ These rules apply to every file in this repository.
   new-locomotion, and action variants in the same scene family and split side.
 - Select training resources independently for HOIPrior and HSIPrior: use the
   largest stable per-GPU micro-batch compatible with the selected conventional
-  effective-batch tier on the allocated 8-GPU or 4-GPU RTX 3090 server, while
-  leaving documented memory headroom. Do not require the two experts to
-  use the same micro-batch, GPU count, or effective batch.
-- Formal expert-training effective batch must use a conventional power-of-two
-  tier. The default registered candidates are `{512, 1024, 2048}`; values such
-  as `1536` are forbidden. A larger tier requires a dated plan/registry update.
+  effective-batch tier on the assigned server, while leaving documented memory
+  headroom. HOIPrior is assigned to 4×RTX 3090; HSIPrior is assigned to 8×RTX
+  3090. Do not require the experts to use the same micro-batch or effective batch.
+- Formal expert-training effective batch must use a registered conventional
+  tier. The default candidates are `{512, 1024, 2048, 3072}`; values such as
+  `1536` are forbidden. Any additional tier requires a dated plan/registry update.
 - Keep effective batch and processed-window/frame budget fixed within a given
   expert's controlled comparisons. Across HOI and HSI, use processed windows or
   frames as the primary budget and record optimizer updates as a derived count.

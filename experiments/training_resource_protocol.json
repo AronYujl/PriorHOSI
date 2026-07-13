@@ -1,11 +1,15 @@
 {
   "schema_version": 1,
   "effective_batch": {
-    "default_candidates": [512, 1024, 2048],
-    "extended_rule": "power_of_two_with_dated_plan_and_registry_amendment",
+    "default_candidates": [512, 1024, 2048, 3072],
+    "extended_rule": "additional_tier_requires_dated_plan_and_registry_amendment",
     "forbidden_examples": [1536]
   },
   "selection_scope": "independent_per_expert",
+  "hardware_assignment": {
+    "hoi": {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090", "phase": "1B"},
+    "hsi": {"gpu_count": 8, "gpu_name": "NVIDIA GeForce RTX 3090", "phase": "1C"}
+  },
   "hardware_pools": [
     {"gpu_count": 8, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24},
     {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24}
@@ -16,6 +20,7 @@
   "required_secondary_records": ["epochs", "optimizer_updates"],
   "batch_coupled_hyperparameters": ["learning_rate", "warmup"],
   "comparison_invariant": "fixed_within_each_expert_not_across_hoi_and_hsi",
+  "memory_audit_phase": {"hoi": "1B", "hsi": "1C"},
   "required_resource_records": [
     "visible_and_allocated_gpus",
     "peak_allocated_memory_by_rank",

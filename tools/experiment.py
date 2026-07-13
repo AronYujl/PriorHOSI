@@ -365,14 +365,19 @@ def validate_training_resource_protocol(path: Path) -> None:
     if protocol.get("schema_version") != 1:
         raise ManifestError(f"unexpected training-resource schema: {path}")
     candidates = protocol.get("effective_batch", {}).get("default_candidates")
-    if candidates != [512, 1024, 2048]:
-        raise ManifestError(f"default effective-batch tiers must be 512/1024/2048: {path}")
+    if candidates != [512, 1024, 2048, 3072]:
+        raise ManifestError(f"default effective-batch tiers must be 512/1024/2048/3072: {path}")
     for value in candidates:
         validate_effective_batch(value, protocol)
     if 1536 not in protocol.get("effective_batch", {}).get("forbidden_examples", []):
         raise ManifestError(f"protocol must explicitly forbid effective batch 1536: {path}")
     if protocol.get("selection_scope") != "independent_per_expert":
         raise ManifestError(f"training resources must be selected independently per expert: {path}")
+    assignment = protocol.get("hardware_assignment", {})
+    if assignment.get("hoi", {}).get("gpu_count") != 4 or assignment.get("hsi", {}).get("gpu_count") != 8:
+        raise ManifestError(f"HOI/HSI hardware assignment must be 4/8 GPUs: {path}")
+    if protocol.get("memory_audit_phase") != {"hoi": "1B", "hsi": "1C"}:
+        raise ManifestError(f"memory audits must remain in Phase 1B/1C: {path}")
     if protocol.get("primary_budget_units") != ["processed_windows", "processed_frames"]:
         raise ManifestError(f"unexpected primary training budget units: {path}")
 

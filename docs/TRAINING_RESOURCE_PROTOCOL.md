@@ -6,9 +6,9 @@ Phase 0 and Phase 1A. Those immutable results remain valid smoke evidence.
 ## Objective
 
 Train the strongest HOIPrior and HSIPrior independently. Batch size is not a
-controlled variable across these different data domains. The larger-memory
-expert may use the 8×RTX 3090 server while the smaller expert trains
-concurrently on the 4×RTX 3090 server.
+controlled variable across these different data domains. HSIPrior is assigned
+to the 8×RTX 3090 server and HOIPrior to the 4×RTX 3090 server so they can train
+concurrently.
 
 ## Batch selection
 
@@ -18,9 +18,9 @@ For each expert independently:
    with a candidate effective-batch tier on its allocated server, while retaining
    documented memory headroom and checking a multi-update stability soak, not
    only one update.
-2. Select formal effective batch from `{512, 1024, 2048}`. Values such as 1536
-   are invalid. A larger tier must be a power of two and requires a dated plan
-   and registry amendment before execution.
+2. Select formal effective batch from `{512, 1024, 2048, 3072}`. Values such as
+   1536 are invalid. Any additional tier requires a dated plan and registry
+   amendment before execution.
 3. Prefer accumulation 1. Increase accumulation only to reach the selected tier
    or for a preregistered optimization reason.
 4. Jointly select/preregister learning rate and warmup with effective batch;
@@ -34,6 +34,14 @@ Thus the selected micro-batch must divide the selected effective batch after
 multiplication by world size. Unused headroom should first support the intended
 model/conditioning capacity or data pipeline; it must not be converted into a
 nonstandard effective batch.
+
+Memory and throughput auditing remains part of each expert-training phase:
+Phase 1B audits HOI on four GPUs, and Phase 1C audits HSI on eight GPUs before
+their respective reportable training starts. Phase 1A does not freeze the final
+training micro-batch or run a cross-topology capacity audit.
+
+With accumulation 1, the top registered tier corresponds to micro-batch 768 on
+four GPUs and 384 on eight GPUs. These are candidates, not assumed-stable values.
 
 ## Budgets and comparisons
 

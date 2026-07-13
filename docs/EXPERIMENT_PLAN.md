@@ -90,11 +90,11 @@ effective batch 1024。该结果继续作为历史 smoke/容量证据；2026-07-
 ### Phase 1 正式训练资源协议（2026-07-13 修订）
 
 - 目标是分别训练出能力最强的 HOIPrior 和 HSIPrior，而不是把 batch 当作跨域受控变量。
-- HOI/HSI 分别在实际分配的 8×3090 或 4×3090 服务器上审计与候选 effective-batch 档位整除
-  兼容的最大稳定 per-GPU micro-batch；
+- 服务器分配固定为 HOIPrior 使用 4×3090、HSIPrior 使用 8×3090。两者分别在 Phase 1B/1C
+  内审计与候选 effective-batch 档位整除兼容的最大稳定 per-GPU micro-batch；
   记录峰值显存、预留余量、吞吐、GPU 数和并行训练造成的 CPU/磁盘/GPU contention。
-- 正式 effective batch 默认候选只允许 `{512,1024,2048}`。更大值必须仍为 2 的幂且先做
-  dated plan/registry amendment；禁止 `1536` 等非 2 的幂中间值。
+- 正式 effective batch 默认候选只允许 `{512,1024,2048,3072}`。其他档位必须先做 dated
+  plan/registry amendment；禁止 `1536` 等未登记中间值。
 - 优先 accumulation 1 和充分利用显存的最大稳定 micro-batch；仅为达到选定 effective-batch
   档位或预注册的优化理由使用 accumulation。effective batch 改变时联合预注册 LR/warmup。
 - 公平性在同一专家内部实施：其架构、损失和消融对照固定 hardware/effective batch/数据预算。
@@ -125,7 +125,8 @@ subphase 独立总结为 `PHASE_1A.md` 等文件。
 
 #### Phase 1B：HOIPrior 从零训练与原生域评测
 
-在 `phase/01b-hoi` 上只训练 HOIPrior。先在分配服务器上审计显存并从 `{512,1024,2048}` 选择
+在 `phase/01b-hoi` 上只训练 HOIPrior，并固定使用 4×RTX 3090 服务器。先审计显存并从
+`{512,1024,2048,3072}` 选择
 正式 effective batch，同时联合预注册 LR/warmup 和 processed-window/frame 预算；先 smoke 后短预算
 筛选，再对锁定配置执行完整训练；运行 HOI 原生指标与 CHOIS FID/R-Precision，并审计
 normalization 越界、文本覆盖、短序列、contact/penetration 与不确定性。
@@ -136,8 +137,8 @@ FID 退化；失败只检查表示、坐标、mask、normalization 与数据契�
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
-在 `phase/01c-hsi` 上只训练 HSIPrior，沿用 1A 锁定过滤/split，但独立于 1B 选择服务器、
-micro-batch 和 `{512,1024,2048}` 中的 effective batch。以 processed windows/frames 锁定 HSI
+在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
+在该服务器上独立审计 micro-batch 和 `{512,1024,2048,3072}` 中的 effective batch。以 processed windows/frames 锁定 HSI
 内部预算，联合预注册 LR/warmup；先短预算再完整训练，运行 LINGO/DIMOS 原生域指标并审计
 normalization、文本、短序列、人景 penetration、FS、目标误差和不确定性。
 
@@ -292,6 +293,9 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   `{512,1024,2048}` 选择，禁止 1536 等非 2 的幂值。公平性改为同一专家内部锁定协议，跨专家
   预算以 processed windows/frames 报告，optimizer updates 作为派生计数。该修订在 Phase 1B
   启动前完成，不重写 `exp/p1a-data-v1`。
+- 2026-07-13：资源安排进一步固定为 HSIPrior 使用 8×3090、HOIPrior 使用 4×3090，并将 3072
+  加入正式 effective-batch 候选。显存审计和具体 micro-batch/accumulation 选择分别留在 Phase
+  1B/1C 内完成，不新增或重开 Phase 1A resource gate；`exp/p1a-data-v1` 保持不可变。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
