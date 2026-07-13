@@ -154,8 +154,13 @@ rsync -avP -e 'ssh -i /home/yujinlun/.ssh/id_ed25519_infbagel_8gpu -o Identities
 mkdir -p "$HOME/data/envs/infbagel"
 tar -xzf "$HOME/data/transfer/infbagel-linux-x86_64.tar.gz" \
   -C "$HOME/data/envs/infbagel"
-"$HOME/data/envs/infbagel/bin/conda-unpack"
-export INFBAGEL_PYTHON="$HOME/data/envs/infbagel/bin/python"
+export INFBAGEL_PREFIX="$HOME/data/envs/infbagel"
+export PATH="$INFBAGEL_PREFIX/bin:$PATH"
+hash -r
+command -v python
+python --version
+conda-unpack
+export INFBAGEL_PYTHON="$INFBAGEL_PREFIX/bin/python"
 "$INFBAGEL_PYTHON" -c \
   'import torch,pytorch3d; print(torch.__version__, torch.version.cuda, pytorch3d.__version__); print(torch.cuda.is_available(), torch.cuda.device_count())'
 ```
