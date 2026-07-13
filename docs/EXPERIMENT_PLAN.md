@@ -250,6 +250,13 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-13：在 Phase 1 实现前将其拆为 1A 数据/脚手架、1B HOIPrior、1C HSIPrior、1D
   联合验收，以满足单 session 单 phase/subphase 的交接约束；研究假设、数据范围和最终 95%
   原生域门槛不变，只增加各 subphase 的独立 deliverable、gate、summary 和 tag。
+- 2026-07-13：Phase 1A 预注册假设：集中式 232 维 schema（84 人体位置、132 人体旋转、
+  3 物体平移、9 物体旋转、4 contact）与显式域 mask，可以在不改变作者 OMOMO
+  normalization/坐标语义的前提下，使无场景 OMOMO HOI 和 seed-42 scene-family-disjoint、
+  无手持物体 LINGO HSI 分别完成从零初始化的真实 forward/backward；HSI 的 16 个
+  object/contact 输出维度不参与 loss/梯度，HOI API 不接受 scene supervision，两套专家参数
+  对象及 storage 完全独立，任何 released checkpoint 初始化请求立即失败。1A 仅执行数据审计、
+  单卡功能 smoke 与 8 卡 global-effective-batch=1024 的一次 optimizer update，不进行训练筛选。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
