@@ -140,6 +140,8 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(phase_1b["memory_audit"]["selected_micro_batch_per_gpu"], 768)
         self.assertEqual(phase_1b["memory_audit"]["selected_effective_batch_size"], 3072)
         self.assertEqual(phase_1b["screening"]["optimizer_updates_per_candidate"], 1024)
+        self.assertEqual(phase_1b["screening"]["validation_cadence_updates"], 1024)
+        self.assertEqual(phase_1b["screening"]["checkpoint_cadence_updates"], 1024)
         self.assertEqual(phase_1b["formal_training"]["seeds"], [42, 123, 314])
         self.assertEqual(phase_1b["formal_training"]["processed_windows_per_seed"], 61440000)
         self.assertEqual(phase_1b["formal_training"]["optimizer_updates_per_seed"], 20000)

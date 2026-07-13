@@ -463,6 +463,13 @@ def validate_training_resource_protocol(path: Path) -> None:
         raise ManifestError(f"unexpected Phase 1B screening validation protocol: {path}")
     if screening.get("optimizer_updates_per_candidate") != 1024:
         raise ManifestError(f"unexpected Phase 1B screening update budget: {path}")
+    if (
+        screening.get("validation_cadence_windows") != 3145728
+        or screening.get("validation_cadence_updates") != 1024
+        or screening.get("checkpoint_cadence_windows") != 3145728
+        or screening.get("checkpoint_cadence_updates") != 1024
+    ):
+        raise ManifestError(f"unexpected Phase 1B screening cadence: {path}")
     formal = phase_1b.get("formal_training", {})
     if formal.get("seeds") != [42, 123, 314]:
         raise ManifestError(f"Phase 1B requires exactly three preregistered seeds: {path}")

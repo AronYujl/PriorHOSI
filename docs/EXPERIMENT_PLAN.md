@@ -203,6 +203,8 @@ scale 8 后完成全部 48/24/12/8 个真实 update，无 OOM、loss/关键梯�
 per-GPU micro-batch 768、accumulation 1、effective batch 3,072，每卡最小 headroom
 21,229,666,304 bytes。由此筛选每候选固定 1,024 updates，A/B warmup 分别为 256/512 updates；
 正式训练每 seed 固定 20,000 updates，validation/checkpoint cadence 分别为 1,000/2,000 updates。
+筛选的 validation 和 checkpoint 均只在固定预算末端执行，即 3,145,728 windows / 第 1,024
+个 update；每次 terminal validation 固定覆盖 32,768 windows。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 

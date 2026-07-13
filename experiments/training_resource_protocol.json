@@ -74,6 +74,10 @@
       "processed_frames_per_candidate": 50331648,
       "optimizer_updates_per_candidate": 1024,
       "validation_windows": 32768,
+      "validation_cadence_windows": 3145728,
+      "validation_cadence_updates": 1024,
+      "checkpoint_cadence_windows": 3145728,
+      "checkpoint_cadence_updates": 1024,
       "candidates": [
         {"name": "lr1e-4-warm786432", "peak_learning_rate": 0.0001, "warmup_windows": 786432, "warmup_updates": 256},
         {"name": "lr3e-4-warm1572864", "peak_learning_rate": 0.0003, "warmup_windows": 1572864, "warmup_updates": 512}
