@@ -137,8 +137,12 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(phase_1b["model"]["dimension"], 232)
         self.assertFalse(phase_1b["model"]["scene_condition"])
         self.assertEqual(phase_1b["memory_audit"]["micro_batch_candidates"], [128, 256, 512, 768])
+        self.assertEqual(phase_1b["memory_audit"]["selected_micro_batch_per_gpu"], 768)
+        self.assertEqual(phase_1b["memory_audit"]["selected_effective_batch_size"], 3072)
+        self.assertEqual(phase_1b["screening"]["optimizer_updates_per_candidate"], 1024)
         self.assertEqual(phase_1b["formal_training"]["seeds"], [42, 123, 314])
         self.assertEqual(phase_1b["formal_training"]["processed_windows_per_seed"], 61440000)
+        self.assertEqual(phase_1b["formal_training"]["optimizer_updates_per_seed"], 20000)
 
     def test_phase_1b_training_and_evaluation_paths_are_scene_free(self):
         train_config = (REPO_ROOT / "code/config/config_train_hoi_prior.yaml").read_text(encoding="utf-8")

@@ -450,11 +450,19 @@ def validate_training_resource_protocol(path: Path) -> None:
         "128": 512, "256": 1024, "512": 2048, "768": 3072,
     }:
         raise ManifestError(f"invalid Phase 1B batch mapping: {path}")
+    if (
+        audit.get("selected_micro_batch_per_gpu") != 768
+        or audit.get("selected_effective_batch_size") != 3072
+        or audit.get("selected_gradient_accumulation_steps") != 1
+    ):
+        raise ManifestError(f"unexpected Phase 1B selected training resources: {path}")
     screening = phase_1b.get("screening", {})
     if screening.get("processed_windows_per_candidate") != 3145728:
         raise ManifestError(f"unexpected Phase 1B screening budget: {path}")
     if screening.get("validation_windows") != 32768 or screening.get("seed") != 42:
         raise ManifestError(f"unexpected Phase 1B screening validation protocol: {path}")
+    if screening.get("optimizer_updates_per_candidate") != 1024:
+        raise ManifestError(f"unexpected Phase 1B screening update budget: {path}")
     formal = phase_1b.get("formal_training", {})
     if formal.get("seeds") != [42, 123, 314]:
         raise ManifestError(f"Phase 1B requires exactly three preregistered seeds: {path}")
@@ -462,6 +470,8 @@ def validate_training_resource_protocol(path: Path) -> None:
         raise ManifestError(f"unexpected Phase 1B formal window budget: {path}")
     if formal.get("processed_frames_per_seed") != 983040000:
         raise ManifestError(f"unexpected Phase 1B formal frame budget: {path}")
+    if formal.get("optimizer_updates_per_seed") != 20000:
+        raise ManifestError(f"unexpected Phase 1B formal update budget: {path}")
 
 
 def command_register(args: argparse.Namespace) -> None:

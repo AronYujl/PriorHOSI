@@ -60,16 +60,23 @@
       "learning_rate": 0.0001,
       "warmup_windows": 0,
       "minimum_headroom": "max(2 GiB, 10 percent of device memory)",
-      "selection": "largest stable candidate satisfying headroom with no external GPU contention"
+      "selection": "largest stable candidate satisfying headroom with no external GPU contention",
+      "completed_run": "p1-hoi-memory-capacity-r2-s42-20260713",
+      "selected_micro_batch_per_gpu": 768,
+      "selected_effective_batch_size": 3072,
+      "selected_gradient_accumulation_steps": 1,
+      "selected_minimum_headroom_bytes": 21229666304,
+      "selected_throughput_windows_per_second": 738.7615869908122
     },
     "screening": {
       "seed": 42,
       "processed_windows_per_candidate": 3145728,
       "processed_frames_per_candidate": 50331648,
+      "optimizer_updates_per_candidate": 1024,
       "validation_windows": 32768,
       "candidates": [
-        {"name": "lr1e-4-warm786432", "peak_learning_rate": 0.0001, "warmup_windows": 786432},
-        {"name": "lr3e-4-warm1572864", "peak_learning_rate": 0.0003, "warmup_windows": 1572864}
+        {"name": "lr1e-4-warm786432", "peak_learning_rate": 0.0001, "warmup_windows": 786432, "warmup_updates": 256},
+        {"name": "lr3e-4-warm1572864", "peak_learning_rate": 0.0003, "warmup_windows": 1572864, "warmup_updates": 512}
       ],
       "selection": "lowest finite internal-validation total loss; contact/FK diagnostic; lower LR breaks ties"
     },
@@ -77,8 +84,11 @@
       "seeds": [42, 123, 314],
       "processed_windows_per_seed": 61440000,
       "processed_frames_per_seed": 983040000,
+      "optimizer_updates_per_seed": 20000,
       "validation_cadence_windows": 3072000,
+      "validation_cadence_updates": 1000,
       "checkpoint_cadence_windows": 6144000,
+      "checkpoint_cadence_updates": 2000,
       "checkpoint_selection": "fixed-budget terminal EMA weights",
       "resume_validation": "separate interrupted-and-resumed smoke before formal training"
     },

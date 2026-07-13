@@ -195,6 +195,15 @@ backward 后失败、均非 OOM，原因是 trainer 在 AMP 初始 scale 下发�
 真实 optimizer update 后才报告 stable。使用全新 run ID 原样重跑四个已注册候选，不改变
 micro-batch、accumulation、预算、LR、headroom 或选择规则。
 
+容量重跑 `p1-hoi-memory-capacity-r2-s42-20260713` 在无 contention 的 4×RTX 3090 上完成。
+mb128/256/512/768 的每卡 peak reserved 分别为 1,287,651,328 / 1,855,979,520 /
+2,973,761,536 / 4,066,377,728 bytes，吞吐分别为 820.240 / 840.080 / 782.590 /
+738.762 windows/s；每个候选均在初始 scale 65,536 下同步跳过 13 个 overflow group、降至
+scale 8 后完成全部 48/24/12/8 个真实 update，无 OOM、loss/关键梯度有限。按预注册规则锁定
+per-GPU micro-batch 768、accumulation 1、effective batch 3,072，每卡最小 headroom
+21,229,666,304 bytes。由此筛选每候选固定 1,024 updates，A/B warmup 分别为 256/512 updates；
+正式训练每 seed 固定 20,000 updates，validation/checkpoint cadence 分别为 1,000/2,000 updates。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
