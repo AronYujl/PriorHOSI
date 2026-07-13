@@ -1,0 +1,16 @@
+phase: p1
+subphase: 1A
+seed: 42
+repo_root: ${oc.env:ROOT_DIR}
+expert: null
+max_normalization_windows: 100000
+output: null
+contracts:
+  representation_dimension: 232
+  window_frames: 16
+  history_frames: 2
+  diffusion_steps: 500
+  hsi_dynamic_object_filter: left_hand_inter_frame == -1 and right_hand_inter_frame == -1
+  hsi_sequence_validity_filter: seq_length > 48
+  split: experiments/splits/lingo_scene_disjoint_seed42.json
+  normalization: existing OMOMO norm.npy; never recompute
