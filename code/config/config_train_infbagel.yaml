@@ -13,8 +13,9 @@ seed: 42
 sample_type: diffusion
 train: true
 load_state_dict: false
-# Per-GPU micro-batch. Phase 0 selects this from {32, 64, 128}; later
-# reportable methods keep effective_batch_size fixed via accumulation.
+# Historical Phase 0 default. Formal HOI/HSI training must independently select
+# a registered power-of-two effective-batch tier from the training-resource
+# protocol; this default is not a cross-expert constraint.
 batch_size: 128
 effective_batch_size: 1024
 gradient_accumulation_steps: 1

@@ -1,6 +1,6 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：Phase 0 已通过；Phase 1A 待启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
+状态：Phase 0、Phase 1A 已通过；Phase 1B 待启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
 
@@ -82,8 +82,28 @@ prediction。
 
 Phase 0 gate 决定：通过。469-case Atomic-HOSI、完整 HOI 原生/CHOIS 指标、batch=1 timing、
 数据/evaluator/checkpoint hashes、LINGO split 与 8 卡 micro-batch 决策均已形成可复现闭环。
-训练锁定为每卡 micro-batch 128、8 卡、accumulation 1、global effective batch 1024；Phase 1
-不得因专家或方法不同修改有效 batch。完整证据见 `docs/phase_summaries/PHASE_0.md`。
+Phase 0 当时锁定的 smoke 配置为每卡 micro-batch 128、8 卡、accumulation 1、global
+effective batch 1024。该结果继续作为历史 smoke/容量证据；2026-07-13 的训练资源协议修订
+不追溯修改 Phase 0，但覆盖其对 Phase 1 正式训练的跨专家约束。完整历史证据见
+`docs/phase_summaries/PHASE_0.md`。
+
+### Phase 1 正式训练资源协议（2026-07-13 修订）
+
+- 目标是分别训练出能力最强的 HOIPrior 和 HSIPrior，而不是把 batch 当作跨域受控变量。
+- HOI/HSI 分别在实际分配的 8×3090 或 4×3090 服务器上审计与候选 effective-batch 档位整除
+  兼容的最大稳定 per-GPU micro-batch；
+  记录峰值显存、预留余量、吞吐、GPU 数和并行训练造成的 CPU/磁盘/GPU contention。
+- 正式 effective batch 默认候选只允许 `{512,1024,2048}`。更大值必须仍为 2 的幂且先做
+  dated plan/registry amendment；禁止 `1536` 等非 2 的幂中间值。
+- 优先 accumulation 1 和充分利用显存的最大稳定 micro-batch；仅为达到选定 effective-batch
+  档位或预注册的优化理由使用 accumulation。effective batch 改变时联合预注册 LR/warmup。
+- 公平性在同一专家内部实施：其架构、损失和消融对照固定 hardware/effective batch/数据预算。
+  HOI 与 HSI 之间不要求相同 micro-batch、GPU 数、effective batch 或 optimizer-update 数。
+- 训练预算以 processed windows/frames（并报告 epochs）为主；optimizer updates 必须记录，
+  但只作为 effective batch 推导出的计数，不作为 HOI/HSI 跨域相等约束。
+- 机器可验证的权威协议为 `experiments/training_resource_protocol.json`；Phase 1B/1C 必须在各自
+  实现和 reportable training 前登记最终 hardware、micro-batch、accumulation、effective batch、
+  LR/warmup 与 processed-window/frame budget。
 
 ### Phase 1：独立专家（拆分为 1A–1D）
 
@@ -105,7 +125,8 @@ subphase 独立总结为 `PHASE_1A.md` 等文件。
 
 #### Phase 1B：HOIPrior 从零训练与原生域评测
 
-在 `phase/01b-hoi` 上只训练 HOIPrior。按预注册 optimizer-update/有效样本预算先 smoke 后短预算
+在 `phase/01b-hoi` 上只训练 HOIPrior。先在分配服务器上审计显存并从 `{512,1024,2048}` 选择
+正式 effective batch，同时联合预注册 LR/warmup 和 processed-window/frame 预算；先 smoke 后短预算
 筛选，再对锁定配置执行完整训练；运行 HOI 原生指标与 CHOIS FID/R-Precision，并审计
 normalization 越界、文本覆盖、短序列、contact/penetration 与不确定性。
 
@@ -115,8 +136,9 @@ FID 退化；失败只检查表示、坐标、mask、normalization 与数据契�
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
-在 `phase/01c-hsi` 上只训练 HSIPrior，沿用 1A 锁定过滤/split 和与 1B 相同 effective batch、
-optimizer-update/有效样本预算规则。先短预算再完整训练，运行 LINGO/DIMOS 原生域指标并审计
+在 `phase/01c-hsi` 上只训练 HSIPrior，沿用 1A 锁定过滤/split，但独立于 1B 选择服务器、
+micro-batch 和 `{512,1024,2048}` 中的 effective batch。以 processed windows/frames 锁定 HSI
+内部预算，联合预注册 LR/warmup；先短预算再完整训练，运行 LINGO/DIMOS 原生域指标并审计
 normalization、文本、短序列、人景 penetration、FS、目标误差和不确定性。
 
 门槛：HSI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 penetration/FS/FID
@@ -125,7 +147,8 @@ normalization、文本、短序列、人景 penetration、FS、目标误差和�
 #### Phase 1D：独立专家联合审计与 Phase 1 gate
 
 在 `phase/01d-gate` 上不新增模型方向，仅汇总至少三 seed 的最终专家结果，验证 checkpoint
-provenance、参数不共享、训练预算/effective batch 一致性、完整 hash 和统计协议；补做预注册的
+provenance、参数不共享、各专家内部训练预算/effective batch 一致性、processed-window/frame
+预算、完整 hash 和统计协议；补做预注册的
 失败分层与专家不确定性对比，形成进入组合前的不可变 expert contract。
 
 门槛：1B/1C 均通过各自 95% 原生域门槛，且不存在系统性 contact/penetration/FID 退化；否则
@@ -263,6 +286,12 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   1,918,042 windows（train/validation 1,740,706/177,336），无 scene-family leakage。固定 OMOMO
   normalization 的 100,000-window 确定性抽查越界率为 0.1906%、最大绝对 normalized 值 1.0814，
   无 NaN/Inf；记录为轻微分布尾部，不重算 normalization。
+- 2026-07-13：按研究目标修订 Phase 1 正式训练资源协议。Phase 0/1A 的 effective-batch=1024
+  smoke 结果保持历史不可变，但不再约束 HOI 与 HSI 使用相同 batch/GPU 数。两专家分别在
+  8×3090 或 4×3090 服务器上最大化与候选档位兼容的稳定 micro-batch；正式 effective batch 默认仅从
+  `{512,1024,2048}` 选择，禁止 1536 等非 2 的幂值。公平性改为同一专家内部锁定协议，跨专家
+  预算以 processed windows/frames 报告，optimizer updates 作为派生计数。该修订在 Phase 1B
+  启动前完成，不重写 `exp/p1a-data-v1`。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

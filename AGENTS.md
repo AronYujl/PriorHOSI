@@ -46,7 +46,21 @@ These rules apply to every file in this repository.
 
 - Use the fixed scene-disjoint LINGO split generated with seed 42. Keep mirror,
   new-locomotion, and action variants in the same scene family and split side.
-- Use the same effective batch and optimizer-update budget across methods.
+- Select training resources independently for HOIPrior and HSIPrior: use the
+  largest stable per-GPU micro-batch compatible with the selected conventional
+  effective-batch tier on the allocated 8-GPU or 4-GPU RTX 3090 server, while
+  leaving documented memory headroom. Do not require the two experts to
+  use the same micro-batch, GPU count, or effective batch.
+- Formal expert-training effective batch must use a conventional power-of-two
+  tier. The default registered candidates are `{512, 1024, 2048}`; values such
+  as `1536` are forbidden. A larger tier requires a dated plan/registry update.
+- Keep effective batch and processed-window/frame budget fixed within a given
+  expert's controlled comparisons. Across HOI and HSI, use processed windows or
+  frames as the primary budget and record optimizer updates as a derived count.
+- Prefer gradient accumulation 1 for throughput. Use accumulation only to reach
+  the selected conventional effective-batch tier or when a preregistered
+  optimization study justifies it. Jointly preregister learning rate and warmup
+  when changing effective batch.
 - CUDA timing must synchronize before and after measured regions. Report warm
   generation, planning, and end-to-end latency separately.
 - Screening may use one seed; main-table configurations require at least three

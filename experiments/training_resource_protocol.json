@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "effective_batch": {
+    "default_candidates": [512, 1024, 2048],
+    "extended_rule": "power_of_two_with_dated_plan_and_registry_amendment",
+    "forbidden_examples": [1536]
+  },
+  "selection_scope": "independent_per_expert",
+  "hardware_pools": [
+    {"gpu_count": 8, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24},
+    {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24}
+  ],
+  "micro_batch_rule": "largest_stable_per_gpu_compatible_with_selected_tier_and_documented_headroom",
+  "gradient_accumulation_preference": 1,
+  "primary_budget_units": ["processed_windows", "processed_frames"],
+  "required_secondary_records": ["epochs", "optimizer_updates"],
+  "batch_coupled_hyperparameters": ["learning_rate", "warmup"],
+  "comparison_invariant": "fixed_within_each_expert_not_across_hoi_and_hsi",
+  "required_resource_records": [
+    "visible_and_allocated_gpus",
+    "peak_allocated_memory_by_rank",
+    "peak_reserved_memory_by_rank",
+    "memory_headroom",
+    "throughput",
+    "concurrent_workload_or_io_contention"
+  ]
+}

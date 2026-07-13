@@ -344,6 +344,39 @@ def validate_evaluator_config(path: Path) -> None:
         raise ManifestError(f"invalid evaluator file hashes: {path}")
 
 
+def validate_effective_batch(value: int, protocol: Mapping[str, Any], allow_extended: bool = False) -> None:
+    batch = protocol.get("effective_batch", {})
+    candidates = batch.get("default_candidates", [])
+    forbidden = batch.get("forbidden_examples", [])
+    if value in forbidden:
+        raise ManifestError(f"forbidden non-power-of-two effective batch: {value}")
+    if value in candidates:
+        return
+    is_power_of_two = isinstance(value, int) and value > 0 and value & (value - 1) == 0
+    if not allow_extended or not is_power_of_two:
+        raise ManifestError(
+            f"effective batch {value} is not a default tier {candidates}; "
+            "extended tiers require a power of two plus a dated amendment"
+        )
+
+
+def validate_training_resource_protocol(path: Path) -> None:
+    protocol = load_json(path)
+    if protocol.get("schema_version") != 1:
+        raise ManifestError(f"unexpected training-resource schema: {path}")
+    candidates = protocol.get("effective_batch", {}).get("default_candidates")
+    if candidates != [512, 1024, 2048]:
+        raise ManifestError(f"default effective-batch tiers must be 512/1024/2048: {path}")
+    for value in candidates:
+        validate_effective_batch(value, protocol)
+    if 1536 not in protocol.get("effective_batch", {}).get("forbidden_examples", []):
+        raise ManifestError(f"protocol must explicitly forbid effective batch 1536: {path}")
+    if protocol.get("selection_scope") != "independent_per_expert":
+        raise ManifestError(f"training resources must be selected independently per expert: {path}")
+    if protocol.get("primary_budget_units") != ["processed_windows", "processed_frames"]:
+        raise ManifestError(f"unexpected primary training budget units: {path}")
+
+
 def command_register(args: argparse.Namespace) -> None:
     repo = find_repo_root(Path.cwd())
     manifest = load_json(Path(args.manifest).resolve())
@@ -390,9 +423,13 @@ def command_validate(args: argparse.Namespace) -> None:
     evaluator_paths = sorted((repo / "experiments" / "evaluators").glob("*.json"))
     for path in evaluator_paths:
         validate_evaluator_config(path)
+    training_protocol_paths = sorted((repo / "experiments").glob("training_resource_protocol.json"))
+    for path in training_protocol_paths:
+        validate_training_resource_protocol(path)
     print(
         f"valid research metadata: {count} registry records, "
-        f"{len(split_paths)} splits, {len(evaluator_paths)} evaluators"
+        f"{len(split_paths)} splits, {len(evaluator_paths)} evaluators, "
+        f"{len(training_protocol_paths)} training protocols"
     )
 
 
