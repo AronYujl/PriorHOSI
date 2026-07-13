@@ -170,6 +170,14 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_REPLICATES, 10000)
         self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_SEED, 42)
 
+    def test_phase_1b_live_worker_preflight_is_non_overwritable_and_idle_aware(self):
+        source = (REPO_ROOT / "tools/capture_hoi_worker_preflight.py").read_text(encoding="utf-8")
+        self.assertIn("reportable_workload_started", source)
+        self.assertIn("four_gpu_idle", source)
+        self.assertIn("forbidden_snapshot_entries", source)
+        self.assertIn("refusing to overwrite", source)
+        self.assertIn("EXPECTED_CHOIS_CHECKPOINT_SHA256", source)
+
     def test_multi_server_worker_contract_is_documented(self):
         rules = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         guide = (REPO_ROOT / "docs" / "MULTI_SERVER_TRAINING.md").read_text(encoding="utf-8")
