@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1A",
+  "seed": 42,
+  "status": "completed",
+  "initialization": "random",
+  "released_checkpoint_used": false,
+  "hardware": {
+    "gpu_count": 8,
+    "gpu_name": "NVIDIA GeForce RTX 3090",
+    "memory_mib_each": 24576
+  },
+  "single_gpu": {
+    "hoi": {
+      "micro_batch": 2,
+      "effective_batch": 2,
+      "optimizer_updates": 1,
+      "loss": 1.4608994722366333,
+      "parameter_count": 3918888,
+      "max_reserved_bytes": 102760448,
+      "metrics_sha256": "c46a1e4d1574fef0c590013d51f1b75ec713d341c9e2b893f84cdbd7873a4e47"
+    },
+    "hsi": {
+      "micro_batch": 2,
+      "effective_batch": 2,
+      "optimizer_updates": 1,
+      "loss": 1.3078948259353638,
+      "masked_object_contact_output_gradient_max": 0.0,
+      "parameter_count": 3591208,
+      "max_reserved_bytes": 77594624,
+      "metrics_sha256": "fe370b8ffb88d5ef6017db0a2e3fb2fa0185b0616b267e039daa00ffd4b54f8b"
+    }
+  },
+  "eight_gpu": {
+    "protocol": {
+      "micro_batch_per_gpu": 128,
+      "world_size": 8,
+      "gradient_accumulation_steps": 1,
+      "effective_batch_size": 1024,
+      "optimizer_updates": 1
+    },
+    "hoi": {
+      "loss_by_rank": [1.3776764869689941, 1.38325834274292, 1.3764500617980957, 1.3892265558242798, 1.383143663406372, 1.3756635189056396, 1.363620400428772, 1.387175440788269],
+      "loss_finite": true,
+      "key_gradient_present": true,
+      "parameter_count": 3918888,
+      "max_allocated_bytes": 215601152,
+      "max_reserved_bytes": 266338304,
+      "metrics_sha256": "e9ad82fc4b170a6b17a2d5c3a8dcb4d520684f1ec83404860cfa691cc0048980",
+      "resolved_config_sha256": "654bf6ba2e5854e1cd3988f4cf4de317c469de98adbf01cd2f59d915b10a9231"
+    },
+    "hsi": {
+      "loss_by_rank": [1.3565231561660767, 1.3573250770568848, 1.355946660041809, 1.3411527872085571, 1.3791669607162476, 1.371415376663208, 1.357974648475647, 1.3627653121948242],
+      "loss_finite": true,
+      "key_gradient_present": true,
+      "masked_object_contact_output_gradient_max_by_rank": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      "parameter_count": 3591208,
+      "max_allocated_bytes": 213859840,
+      "max_reserved_bytes": 274726912,
+      "metrics_sha256": "09926913b51ca99ab7675be9e8f87068f12af574b2bc82da12bdd0c9f789fbe2",
+      "resolved_config_sha256": "80a75fd8c07defc9832dc641ff9ff61ae9a06ea65c36bc1194c4f961e9c370aa"
+    }
+  },
+  "manifest_sha256": {
+    "hoi_single": "46875483e0c2f2e83215e4002877178af15ee81665a0112b75b67f2edc0fa63a",
+    "hsi_single": "514c0473e2e77fe3421c77acb8bffe554bfbc07ea8874db8eee069c94926f3aa",
+    "hoi_eight_gpu": "0ee5cc04728a588275732a64ea251a3f246a21122aaead96c3344a37cd6d4a74",
+    "hsi_eight_gpu": "1e26748a13b3864d1372e0782868f424b5aaf0acbe42cd3662762b42c1dcea0c"
+  }
+}
