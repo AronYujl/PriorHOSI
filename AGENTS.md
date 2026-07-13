@@ -48,6 +48,18 @@ These rules apply to every file in this repository.
   environment, datasets, staging, and results live below
   `/home/yujinlun/data`; Windows is only a public-key/bootstrap client, not a
   bulk-data relay.
+- Interactive control from the authority/Codex side uses the worker-initiated,
+  loopback-only reverse SSH endpoint `127.0.0.1:22214` on the 8-GPU host. Keep
+  the tunnel key restricted to that `permitlisten`, verify the worker host key,
+  and never enable `GatewayPorts` or expose the endpoint on a LAN interface.
+  This control channel does not change transfer ownership: Git/data/artifact
+  bulk transfers remain worker-initiated, and remote commands must not edit the
+  worker source checkout during a reportable run.
+- Do not make a long reportable workload depend on an interactive SSH channel.
+  Launch it in a worker-owned persistent session, keep its manifest and logs on
+  the worker, and use the reverse channel only to start, inspect, or capture
+  output. A tunnel interruption is an access event, not permission to restart,
+  reuse a run id, or overwrite an existing result.
 - Keep `ROOT_DIR` equal to the current checkout root. Provide the worker's
   OMOMO-only snapshot through the checkout-local `data` link (or a subsequently
   tested explicit data-root configuration). Do not copy LINGO `data/dataset` or

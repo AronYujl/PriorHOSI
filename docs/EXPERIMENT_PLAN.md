@@ -324,6 +324,11 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   role 下 32 tests 为 30 pass/2 个真实 LINGO 文件测试 skip；空闲 GPU 0 完成 batch-2 随机初始化
   真实 forward/backward，loss 1.460899、峰值 reserved 102,760,448 bytes。该 non-reportable smoke
   不作显存容量或 batch 决策；GPU 2 当时有外部进程，Phase 1B 四卡 audit 前仍须四卡空闲或登记竞争。
+- 2026-07-13：为 Codex/权威端增加由 worker 主动建立的 loopback-only reverse SSH control plane；
+  八卡端只监听 `127.0.0.1:22214`，worker host key 必须独立核验，禁止 `GatewayPorts` 或 LAN 暴露。
+  该通道已捕获 `node01` Git/GPU 状态并在 GPU 0 完成最小 CUDA 张量验证；它仅用于启动、观察和
+  获取输出，不改变 Git/rsync 仍由 worker 主动发起的所有权，也不允许长训练依赖 SSH 存活或把
+  终端输出当作唯一实验记录。该运维修订不启动 Phase 1B。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

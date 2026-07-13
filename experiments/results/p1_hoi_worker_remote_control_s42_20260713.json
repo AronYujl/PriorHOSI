@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "artifact_type": "infrastructure_preflight",
+  "experiment_id": "p1-hoi-worker-control-amendment-s42-20260713",
+  "phase": "p1",
+  "status": "passed",
+  "reportable_experiment": false,
+  "phase_1b_started": false,
+  "observed_at": "2026-07-13T15:49:29+08:00",
+  "authority": {
+    "address": "10.184.17.253",
+    "role": "development_integration_and_remote_control",
+    "control_endpoint": "127.0.0.1:22214"
+  },
+  "worker": {
+    "address": "10.181.9.214",
+    "hostname": "node01",
+    "role": "phase_1b_hoi_execution",
+    "repository": "/home/yujinlun/data/work/InfBaGel-release",
+    "git_head": "55cf5f3b0342e8016818ba39e78d62e3f206bc2a",
+    "worktree_clean": true
+  },
+  "connectivity": {
+    "direct_authority_to_worker_tcp22": "timeout",
+    "transport_initiator": "worker",
+    "reverse_forward": "127.0.0.1:22214:127.0.0.1:22",
+    "authority_listen_scope": "loopback_only",
+    "gateway_ports_enabled": false,
+    "bulk_transfer_ownership_changed": false
+  },
+  "security": {
+    "tunnel_key_fingerprint": "SHA256:suZTlJWMnttrXYB9DJ30qCyXz0EyYzRv/fJEqpHCXaM",
+    "tunnel_key_options": [
+      "command=/bin/false",
+      "from=10.181.9.214",
+      "restrict",
+      "port-forwarding",
+      "permitlisten=127.0.0.1:22214"
+    ],
+    "control_key_source_restriction": "127.0.0.1",
+    "worker_host_fingerprints": {
+      "ed25519": "SHA256:Tkd/zHVWRLW8twkFGpOqhUEm8HmLvvWhu7nOXH+mbhg",
+      "ecdsa": "SHA256:QMxWJAEvJkaWUnjcMw9EIPq1vaaaZperbqTmrpZurok"
+    },
+    "strict_host_key_checking": true,
+    "dedicated_known_hosts": "/home/yujinlun/.ssh/known_hosts_infbagel_4gpu"
+  },
+  "persistence": {
+    "manager": "systemd_user",
+    "unit": "/home/yujinlun/.config/systemd/user/infbagel-reverse-ssh.service",
+    "unit_sha256": "5cda615c19cb70032b64a8d5313a88413bb465852e6418269e001ad3597260ab",
+    "enabled": true,
+    "linger": true,
+    "active_state": "active",
+    "sub_state": "running",
+    "restart_policy": "always_after_5_seconds",
+    "forced_restart_transport_exit": 255,
+    "forced_restart_transport_exit_expected": true,
+    "reconnected_probe_attempt": 2
+  },
+  "remote_execution": {
+    "ssh_alias": "infbagel-4gpu",
+    "terminal_output_captured": true,
+    "cuda_available": true,
+    "cuda_probe_visible_gpu_count": 1,
+    "cuda_probe_device": "NVIDIA GeForce RTX 3090",
+    "cuda_probe_physical_gpu": 0,
+    "cuda_tensor_result": 357389824.0,
+    "gpu_inventory_count": 4
+  },
+  "current_contention": {
+    "gpu": 2,
+    "memory_used_mib": 3556,
+    "utilization_percent": 19,
+    "disposition": "must_be_idle_or_registered_before_phase_1b_reportable_memory_audit"
+  },
+  "governance": {
+    "long_workload_depends_on_ssh_session": false,
+    "worker_manifest_and_log_are_authoritative_during_run": true,
+    "run_id_reuse_after_tunnel_interruption": false,
+    "source_checkout_remote_edit_allowed_during_reportable_run": false
+  },
+  "conclusion": "The worker-initiated loopback-only reverse SSH control plane passed host-key verification, restricted-key restart, persistent service reconnection, remote Git inspection, and remote CUDA execution. This is infrastructure evidence only and does not start Phase 1B or select a training batch."
+}

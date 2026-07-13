@@ -134,6 +134,11 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("/home/yujinlun/data", guide)
         self.assertIn("worker initiates all server-to-server", rules)
         self.assertIn("id_ed25519_infbagel_8gpu", guide)
+        self.assertIn("127.0.0.1:22214", rules)
+        self.assertIn("id_ed25519_infbagel_reverse_tunnel", guide)
+        self.assertIn("infbagel-reverse-ssh.service", guide)
+        self.assertIn("Tkd/zHVWRLW8twkFGpOqhUEm8HmLvvWhu7nOXH+mbhg", guide)
+        self.assertIn("GatewayPorts", guide)
         self.assertIn("INFBAGEL_WORKER_EXPERT=hoi", guide)
         self.assertIn("smpl_models", rules)
         self.assertIn("current research HEAD", handoff)
@@ -156,6 +161,24 @@ class ManifestTests(unittest.TestCase):
             preflight["returned_artifacts"]["sha256"],
             "1afab7ce2383d820ef16f481f4dae7bd18f94d9fb5675d3fb5ca00dab3f56d38",
         )
+
+        remote_control = json.loads((
+            REPO_ROOT / "experiments" / "results" /
+            "p1_hoi_worker_remote_control_s42_20260713.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(remote_control["status"], "passed")
+        self.assertFalse(remote_control["reportable_experiment"])
+        self.assertFalse(remote_control["phase_1b_started"])
+        self.assertEqual(
+            remote_control["connectivity"]["authority_listen_scope"],
+            "loopback_only",
+        )
+        self.assertFalse(remote_control["connectivity"]["gateway_ports_enabled"])
+        self.assertTrue(remote_control["persistence"]["enabled"])
+        self.assertTrue(remote_control["persistence"]["linger"])
+        self.assertTrue(remote_control["remote_execution"]["cuda_available"])
+        self.assertEqual(remote_control["worker"]["git_head"],
+                         "55cf5f3b0342e8016818ba39e78d62e3f206bc2a")
 
     def test_diffusion_training_loss_has_no_stale_cleanup_variables(self):
         model = (REPO_ROOT / "code" / "models" / "infbagel.py").read_text(
