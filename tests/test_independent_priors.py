@@ -126,6 +126,10 @@ class ExpertTests(unittest.TestCase):
         config = (REPO / "code/config/config_prior_resource.yaml").read_text()
         for expected in ("dim_model: 512", "num_heads: 16", "num_layers: 8", "scene_grid_size: 32"):
             self.assertIn(expected, config)
+        self.assertIn("num_workers: 0", config)
+        trainer = (REPO / "code/train_prior_smoke.py").read_text()
+        self.assertIn("invalid all-rank resource metrics", trainer)
+        self.assertIn('"all_ranks_validated": True', trainer)
 
 
 if __name__ == "__main__":

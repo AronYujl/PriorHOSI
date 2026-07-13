@@ -134,6 +134,18 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         if metrics_path.exists():
             raise FileExistsError(f"refusing to overwrite {metrics_path}")
         values = [entry.cpu().tolist() for entry in gathered]
+        expected_windows_per_rank = int(cfg.batch_size) * micro_steps
+        invalid_ranks = [
+            index for index, value in enumerate(values)
+            if int(value[4]) != expected_windows_per_rank
+            or value[2] <= 0 or value[3] <= 0 or value[5] <= 0
+            or not np.isfinite(value[0])
+        ]
+        if invalid_ranks:
+            raise RuntimeError(
+                f"invalid all-rank resource metrics for ranks {invalid_ranks}; "
+                f"expected {expected_windows_per_rank} processed windows per rank"
+            )
         metrics = {
             "schema_version": 1, "status": "stable", "expert": str(cfg.expert), "seed": int(cfg.seed),
             "world_size": world_size, "micro_batch_per_gpu": int(cfg.batch_size),
@@ -148,6 +160,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             "max_peak_memory_allocated_bytes": int(max(value[2] for value in values)),
             "max_peak_memory_reserved_bytes": int(max(value[3] for value in values)),
             "processed_windows_by_rank": [int(value[4]) for value in values],
+            "all_ranks_validated": True,
             "elapsed_seconds_by_rank": [value[5] for value in values],
             "aggregate_windows_per_second": sum(value[4] for value in values) / max(value[5] for value in values),
             "aggregate_frames_per_second": REPRESENTATION.window_frames * sum(value[4] for value in values) / max(value[5] for value in values),

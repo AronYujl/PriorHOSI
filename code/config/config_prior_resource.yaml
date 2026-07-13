@@ -6,7 +6,7 @@ num_gpus: 8
 batch_size: 128
 effective_batch_size: 1024
 gradient_accumulation_steps: 1
-num_workers: 2
+num_workers: 0
 dataset_limit: 0
 partition: train
 optimizer_updates: 1
