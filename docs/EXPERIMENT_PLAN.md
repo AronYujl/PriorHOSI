@@ -145,6 +145,47 @@ Git commit 发布，数据只从不可变 snapshot 读取，运行中的 worktre
 FID 退化；失败只检查表示、坐标、mask、normalization 与数据契约。通过后总结并 tag
 `exp/p1b-hoi-v1`，不得用 released checkpoint 绕过失败。
 
+2026-07-13 Phase 1B 执行预注册如下；以下预算、候选和选择规则在任何 Phase 1B 实现或
+GPU workload 前锁定：
+
+- 数据仍严格来自 Phase 1A hash 锁定的 scene-free OMOMO。训练根中的 4,304 条 sequence
+  以 `SHA256("42:" + sequence_name)` 排序，固定前 5%（216 条）作为 Phase 1B 内部
+  sequence-disjoint validation，其余只用于训练；官方 438-sequence OMOMO test 不参与
+  筛选或 checkpoint 选择，只在正式配置锁定后做原生域最终评测。划分必须形成 tracked
+  manifest 并记录 Phase 1A source/contract hash。
+- HOIPrior 固定为只接收 noisy 232-D motion、timestep、完整 instruction embedding、动态物体
+  BPS、object goal 与 `pi/end_pi/seq_length` 的 8-layer、512-width、16-head Transformer
+  clean-motion predictor；无 scene argument、scene encoder 或 scene loss。窗口/历史/diffusion
+  固定为 16/2/500。目标函数固定为五个 representation field 的显式重建项，加手/足 FK、
+  速度和 object-goal consistency；训练使用 AdamW、AMP、gradient clipping 与 EMA，不比较
+  新架构或新损失方向。
+- 4×RTX 3090 容量审计依次保留 per-GPU micro-batch `{128,256,512,768}` 的全部成功、OOM、
+  failed/aborted 结果；accumulation 均为 1，对应 effective batch
+  `{512,1024,2048,3072}`。每个候选处理 24,576 windows（393,216 frames），完成相应数量的
+  真实 forward/backward/optimizer updates。候选只有在 loss/关键梯度有限、四卡无外部
+  contention，且每卡至少保留 `max(2 GiB, 10%)` 显存 headroom 时才可选；选择满足该条件的
+  最大 micro-batch。容量审计 LR 为 `1e-4`、无 warmup，只作容量/吞吐证据。
+- 锁定 effective batch 后，seed 42 短预算只比较两个优化候选：A 为 peak LR `1e-4`、
+  warmup 786,432 windows；B 为 peak LR `3e-4`、warmup 1,572,864 windows。每个候选固定处理
+  3,145,728 windows（50,331,648 frames），其 optimizer updates 由选定 effective batch
+  推导；validation 固定 32,768 windows。以预先固定的内部 validation total loss 为主、
+  contact/FK 分项为诊断，有限且最低者胜；相等时选较低 LR。官方 test 不参与选择。
+- 正式训练 seeds 固定为 `{42,123,314}`。每 seed 固定处理 61,440,000 windows
+  （983,040,000 frames），validation cadence 为每 3,072,000 windows，checkpoint cadence
+  为每 6,144,000 windows；最终 checkpoint 由固定预算末端 EMA 权重确定，不按官方 test
+  cherry-pick。每个 seed 的 optimizer updates、epochs、峰值显存、吞吐、wall time 均记录。
+  checkpoint/resume 先在独立 smoke 中实际中断续训验证，正式 run 仍保留相同 resume 能力。
+- 三个正式 checkpoint 各以对应 seed 做一次完整 438-sequence×3-window autoregressive
+  native/CHOIS 评测。主结果报告三 seed mean、sample SD 和 Student-t 95% CI，并对 438 个
+  matched sequence 做 10,000 次 paired bootstrap（seed 42）作为 per-sequence 不确定性。
+  同时报告 normalization 越界、NaN/Inf、短序列、文本覆盖、contact、hand/human penetration、
+  FS、FID、Matching Score、R-Precision@1/2/3 和 Diversity。
+- 95% gate 作用于三 seed mean。higher-is-better 指标须 `>=0.95×baseline`；lower-is-better
+  指标须 `<=baseline/0.95`。锁定 baseline 为 Phase 0 的 object/pelvis trajectory error
+  `3.037/3.923 cm`、FS `0.3334`、contact P/R/F1 `0.7908/0.7276/0.7273`、human-object
+  penetration `2.5893`（ratio `0.1376`）、FID `0.93342`、R-Precision@1/2/3
+  `0.17308/0.31010/0.43510`。任一缺失、非有限或无法解释的系统性退化均使 gate 失败。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
@@ -329,6 +370,11 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   该通道已捕获 `node01` Git/GPU 状态并在 GPU 0 完成最小 CUDA 张量验证；它仅用于启动、观察和
   获取输出，不改变 Git/rsync 仍由 worker 主动发起的所有权，也不允许长训练依赖 SSH 存活或把
   终端输出当作唯一实验记录。该运维修订不启动 Phase 1B。
+- 2026-07-13：Phase 1B 在任何实现/GPU workload 前锁定 scene-free HOI Transformer、内部
+  sequence-disjoint validation、四档容量审计及 headroom 判据、两个 LR/warmup 短预算候选、
+  61,440,000-window 三 seed 正式预算、checkpoint/evaluation cadence、native/CHOIS 统计协议和
+  95% baseline 判据。官方 438-sequence test 只在配置锁定后使用；released checkpoint 仍只作
+  baseline，绝不初始化或恢复 HOIPrior。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

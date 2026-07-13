@@ -28,5 +28,66 @@
     "memory_headroom",
     "throughput",
     "concurrent_workload_or_io_contention"
-  ]
+  ],
+  "phase_1b_preregistration": {
+    "status": "locked_before_implementation_and_gpu_workload",
+    "expert": "hoi",
+    "hardware": {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24},
+    "model": {
+      "prediction": "clean_motion_x0",
+      "dimension": 232,
+      "window_frames": 16,
+      "history_frames": 2,
+      "diffusion_steps": 500,
+      "dim_model": 512,
+      "num_heads": 16,
+      "num_layers": 8,
+      "scene_condition": false,
+      "initialization": "random_only"
+    },
+    "internal_validation": {
+      "source": "Phase 1A locked OMOMO train",
+      "algorithm": "sort sequence names by SHA256('42:' + sequence_name); first 5 percent validation",
+      "validation_sequences": 216,
+      "official_test_used_for_selection": false
+    },
+    "memory_audit": {
+      "micro_batch_candidates": [128, 256, 512, 768],
+      "gradient_accumulation_steps": 1,
+      "effective_batch_by_micro_batch": {"128": 512, "256": 1024, "512": 2048, "768": 3072},
+      "processed_windows_per_candidate": 24576,
+      "processed_frames_per_candidate": 393216,
+      "learning_rate": 0.0001,
+      "warmup_windows": 0,
+      "minimum_headroom": "max(2 GiB, 10 percent of device memory)",
+      "selection": "largest stable candidate satisfying headroom with no external GPU contention"
+    },
+    "screening": {
+      "seed": 42,
+      "processed_windows_per_candidate": 3145728,
+      "processed_frames_per_candidate": 50331648,
+      "validation_windows": 32768,
+      "candidates": [
+        {"name": "lr1e-4-warm786432", "peak_learning_rate": 0.0001, "warmup_windows": 786432},
+        {"name": "lr3e-4-warm1572864", "peak_learning_rate": 0.0003, "warmup_windows": 1572864}
+      ],
+      "selection": "lowest finite internal-validation total loss; contact/FK diagnostic; lower LR breaks ties"
+    },
+    "formal_training": {
+      "seeds": [42, 123, 314],
+      "processed_windows_per_seed": 61440000,
+      "processed_frames_per_seed": 983040000,
+      "validation_cadence_windows": 3072000,
+      "checkpoint_cadence_windows": 6144000,
+      "checkpoint_selection": "fixed-budget terminal EMA weights",
+      "resume_validation": "separate interrupted-and-resumed smoke before formal training"
+    },
+    "statistics": {
+      "training_seed_summary": "mean, sample standard deviation, Student-t 95 percent confidence interval",
+      "paired_sequence_bootstrap_replicates": 10000,
+      "paired_sequence_bootstrap_seed": 42,
+      "higher_is_better_gate": "mean >= 0.95 * baseline",
+      "lower_is_better_gate": "mean <= baseline / 0.95"
+    }
+  }
 }
