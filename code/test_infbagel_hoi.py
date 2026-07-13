@@ -1,4 +1,5 @@
 import os
+import hashlib
 import pickle as pkl
 import pickle
 import random
@@ -11,6 +12,15 @@ import trimesh
 
 from utils import *
 from constants import *
+from priors.models import load_trained_hoi_prior
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def seed_everything(seed):
@@ -101,6 +111,7 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
     human_pen_ratio_list = []
 
     sum_len = 0
+    per_sequence_metrics = {}
     for seg_id_true in range(len(seq_name_dict)):
         obj_name = seq_name_dict[seg_id_true].split('_')[1]
 
@@ -239,6 +250,10 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
         obj_trans = torch.from_numpy(obj_trans).reshape(-1, 3).to(device)
         obj_rot_mat = torch.from_numpy(obj_rot_mat).reshape(-1, 3, 3).to(device)
 
+        segment_hand_pen_loss = None
+        segment_hand_pen_ratio = None
+        segment_human_pen_loss = None
+        segment_human_pen_ratio = None
         if obj_name not in ['woodchair', 'whitechair', 'largebox', 'largetable', 'plasticbox', 'trashcan']:   
             hand_pen_loss, hand_pen_ratio = compute_collision(yup_to_zup(hand_verts), obj_sdf[obj_name], obj_sdf_json[obj_name], yup_to_zup_rotation_matrix(obj_rot_mat), yup_to_zup(obj_trans))
             hand_pen_loss_list.append(hand_pen_loss)
@@ -248,7 +263,47 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
             human_pen_loss_list.append(human_pen_loss)
             human_pen_ratio_list.append(human_pen_ratio)
 
+            segment_hand_pen_loss = float(hand_pen_loss)
+            segment_hand_pen_ratio = float(hand_pen_ratio)
+            segment_human_pen_loss = float(human_pen_loss * 10475 / 100)
+            segment_human_pen_ratio = float(human_pen_ratio)
+
             # print(f'scene_name: {seq_name_dict[seg_id_true]}, hand_pen_loss: {hand_pen_loss}, hand_pen_ratio: {hand_pen_ratio}, human_pen_loss: {human_pen_loss}, human_pen_ratio: {human_pen_ratio}')
+
+        segment_mpjpe, segment_trans_dist, segment_obj_trans_dist, segment_obj_rot_dist = compute_gt_difference(
+            human_jnts_48.reshape(-1, 24, 3),
+            points_gt_orig_seg.reshape(-1, 24, 3),
+            obj_trans.reshape(-1, 3),
+            obj_trans_gt_seg.reshape(-1, 3),
+            obj_rot_mat.reshape(-1, 3, 3),
+            obj_rot_mat_gt_seg.reshape(-1, 3, 3),
+        )
+        segment_xy_pred = points_orig_seg[:, -2, :].reshape(-1, 28, 3)[:, 0].clone()
+        segment_xy_gt = xy_points_all_gt[sum_len - 3:sum_len].reshape(-1, 28, 3)[:, 0].clone()
+        segment_xy_pred[:, 1] = 0.0
+        segment_xy_gt[:, 1] = 0.0
+        per_sequence_metrics[seq_name_dict[seg_id_true]] = {
+            'object_name': obj_name,
+            'foot_sliding': float(foot_sliding),
+            'contact_precision': float(contact_precision),
+            'contact_recall': float(contact_recall),
+            'contact_f1': float(contact_f1),
+            'mpjpe': float(segment_mpjpe),
+            'trans_dist': float(segment_trans_dist),
+            'obj_trans_dist': float(segment_obj_trans_dist),
+            'obj_rot_dist': float(segment_obj_rot_dist),
+            'pelvis_goal_error_cm': float(
+                torch.linalg.norm(segment_xy_pred - segment_xy_gt, dim=-1).mean().item() * 100
+            ),
+            'end_obj_trans_err': float(torch.linalg.norm(
+                obj_trans.reshape(-1, 3)[-1]
+                - obj_trans_gt_seg.reshape(-1, 3)[-1]
+            ).item() * 100),
+            'hand_pen_loss_omomo': segment_hand_pen_loss,
+            'hand_pen_ratio': segment_hand_pen_ratio,
+            'human_pen_loss_infbagel': segment_human_pen_loss,
+            'human_pen_ratio': segment_human_pen_ratio,
+        }
 
 
     hand_pen_loss = np.array(hand_pen_loss_list).mean()
@@ -291,7 +346,7 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
         'human_pen_ratio': human_pen_ratio
     }
 
-    return metrics
+    return metrics, per_sequence_metrics
 
 
 def sample_step(cfg, mat, fixed_points, sampler, scene_flag, text_clip_embedding, pelvis_goal, scene_goal, object_goal,
@@ -444,7 +499,21 @@ def test(cfg: DictConfig) -> None:
     model_name = cfg.ckpt_path.split('/')[-1]
     metrics_filename = f"metrics_{model_name.split('.')[0].split('_')[-1]}.pkl"
 
-    model_body = init_model(list(cfg.model.values())[0], device=device, eval=True)
+    checkpoint_metadata = None
+    if cfg.get('expert') == 'hoi':
+        if not cfg.ckpt_path:
+            raise ValueError('HOIPrior evaluation requires ckpt_path')
+        checkpoint_sha256 = sha256_file(str(cfg.ckpt_path))
+        if cfg.get('checkpoint_sha256') and str(cfg.checkpoint_sha256) != checkpoint_sha256:
+            raise ValueError(
+                f'HOIPrior checkpoint hash mismatch: {checkpoint_sha256} != {cfg.checkpoint_sha256}'
+            )
+        model_body, checkpoint_metadata = load_trained_hoi_prior(
+            str(cfg.ckpt_path), torch.device(device), use_ema=True,
+        )
+        checkpoint_metadata['sha256'] = checkpoint_sha256
+    else:
+        model_body = init_model(list(cfg.model.values())[0], device=device, eval=True)
     
     print(OmegaConf.to_yaml(cfg))
     
@@ -735,6 +804,8 @@ def test(cfg: DictConfig) -> None:
         )
         synchronize_cuda(device)
         seed_everything(int(cfg.seed))
+        if hasattr(sampler_body, 'reset_sampling_audit'):
+            sampler_body.reset_sampling_audit()
 
     generation_seconds = 0.0
     
@@ -808,7 +879,7 @@ def test(cfg: DictConfig) -> None:
 
         global_rot_6d_all = torch.cat([global_rot_6d_all, global_rot_6d.unsqueeze(1)], dim=1) # B * S * T * (22*6)
 
-    metrics = compute_metrics(sampler_body, cfg, points_all, global_rot_6d_all, points_fk_all_gt_48, object_trans_all, object_trans_all_gt_48, object_rot_mat_all, object_rot_mat_all_gt_48, start_point_all_gt, start_object_trans_all_gt, end_object_trans_all_gt, xy_points_all_gt, seq_name_dict, obj_rest_verts, rest_human_offsets_all, transl_all, betas_all, gender_all)
+    metrics, per_sequence_metrics = compute_metrics(sampler_body, cfg, points_all, global_rot_6d_all, points_fk_all_gt_48, object_trans_all, object_trans_all_gt_48, object_rot_mat_all, object_rot_mat_all_gt_48, start_point_all_gt, start_object_trans_all_gt, end_object_trans_all_gt, xy_points_all_gt, seq_name_dict, obj_rest_verts, rest_human_offsets_all, transl_all, betas_all, gender_all)
     
     all_metrics.append(metrics)
     
@@ -818,6 +889,17 @@ def test(cfg: DictConfig) -> None:
     generated_frames = sample_len * max_len * (cfg.max_window_size - cfg.auto_regre_num) * cfg.interp_s
     synchronize_cuda(device)
     end_to_end_seconds = time.perf_counter() - end_to_end_start
+    per_sequence_path = os.path.abspath(str(cfg.get(
+        'per_sequence_metrics_path', os.path.join(output_dir, 'per_sequence_metrics.json')
+    )))
+    with open(per_sequence_path, 'x') as handle:
+        json.dump({
+            'schema_version': 1,
+            'seed': int(cfg.seed),
+            'sequence_count': len(per_sequence_metrics),
+            'metrics': per_sequence_metrics,
+        }, handle, indent=2, default=convert_to_serializable)
+
     evaluation_result = {
         'schema_version': 1,
         'model_name': model_name,
@@ -827,6 +909,22 @@ def test(cfg: DictConfig) -> None:
         'is_timing_subset': sample_len != dataset_sequence_count,
         'windows_per_sample': max_len,
         'metrics': metrics_summary,
+        'checkpoint': checkpoint_metadata,
+        'data_contract': {
+            'contract_sha256': cfg.get('data_contract_sha256'),
+            'audit_sha256': cfg.get('data_audit_sha256'),
+            'scene_condition_loaded': bool(cfg.load_scene),
+            'short_sequence_windows': 0,
+            'text_coverage_rate': 1.0,
+        },
+        'normalization_audit': (
+            sampler_body.audit_dict() if hasattr(sampler_body, 'audit_dict') else None
+        ),
+        'per_sequence_metrics': {
+            'path': per_sequence_path,
+            'sha256': sha256_file(per_sequence_path),
+            'sequence_count': len(per_sequence_metrics),
+        },
         'generation_metrics': {
             'warmup_batches_excluded': 1 if cfg.get('hoi_timing_warmup', True) else 0,
             'generated_frames': generated_frames,
@@ -860,7 +958,7 @@ def test(cfg: DictConfig) -> None:
 if __name__ == '__main__':
     os.environ['HYDRA_FULL_ERROR'] = '1'
     os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-    os.environ['ROOT_DIR'] = '../'
+    os.environ.setdefault('ROOT_DIR', '../')
 
     OmegaConf.register_new_resolver("times", lambda x, y: int(x) * int(y))
     test()

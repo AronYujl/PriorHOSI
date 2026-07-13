@@ -66,6 +66,10 @@ class InfBaGelDataset(Dataset):
         self.parents_24 = get_smpl_parents(use_joints24=True) # 24
         if self.load_object_goal:
             # load object data
+            # Object sequence ids are required even for the scene-free HOIPrior
+            # evaluator.  Loading this metadata must not imply loading Scene*.
+            with open(os.path.join(folder, 'scene_name.pkl'), 'rb') as f:
+                self.scene_name = pkl.load(f)
             self.object_rot_mat = np.load(os.path.join(folder, 'object_rot_mat.npy'))
             self.object_trans = np.load(os.path.join(folder, 'object_trans.npy'))
             if os.path.exists(os.path.join(folder, 'object_points.npy')):
@@ -143,8 +147,9 @@ class InfBaGelDataset(Dataset):
             self.scene_occ = []
             self.scene_occ_ref = []
             self.scene_dict = {}
-            with open(os.path.join(folder, 'scene_name.pkl'), 'rb') as f:
-                self.scene_name = pkl.load(f) # list of scene names
+            if not hasattr(self, 'scene_name'):
+                with open(os.path.join(folder, 'scene_name.pkl'), 'rb') as f:
+                    self.scene_name = pkl.load(f) # list of scene names
             if not self.vis:
                 self.scene_folder = os.path.join(folder, 'Scene')
                 scene_file_list = sorted(os.listdir(self.scene_folder))

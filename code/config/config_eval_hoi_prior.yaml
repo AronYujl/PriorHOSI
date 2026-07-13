@@ -1,0 +1,54 @@
+defaults:
+  - _self_
+  - dataset: omomo_test
+  - guidance:
+      - pelvis
+  - sampler: hoi_prior
+
+expert: hoi
+exp_name: null
+seed: 42
+train: false
+batch_size: 1
+device: cuda:0
+
+interp_s: 3
+num_gpus: 1
+num_workers: 4
+max_window_size: 16
+start_type: stand
+
+load_language: true
+load_scene: false
+use_pi: true
+load_scene_goal: false
+load_pelvis_goal: true
+load_object_goal: true
+auto_regre_num: 2
+
+use_object_keypoints: false
+use_random_frame_bps: false
+add_object_voxel: false
+sample_type: diffusion
+save_motion_params: false
+save_results_json: true
+hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
+hoi_expected_sequences: 438
+hoi_sequence_limit: null
+hoi_timing_warmup: true
+
+save_chois_eval_npz: true
+chois_eval_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/chois/predictions
+chois_eval_ground_truth_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/chois/ground_truth
+per_sequence_metrics_path: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation/per_sequence_metrics.json
+
+ckpt_path: null
+checkpoint_sha256: null
+data_contract_sha256: a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf
+data_audit_sha256: 1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f
+vis: false
+
+exp_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/hydra
+hydra:
+  run:
+    dir: ${exp_dir}

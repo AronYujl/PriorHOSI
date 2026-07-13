@@ -4,7 +4,7 @@ import json
 import pickle
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -52,12 +52,28 @@ def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, p
 
 class PriorWindowDataset(Dataset):
     """Loads only fields authorized by the selected expert contract."""
-    def __init__(self, repo_root: str, expert: str, partition: str = "train", limit: int = 0) -> None:
+    def __init__(
+        self,
+        repo_root: str,
+        expert: str,
+        partition: str = "train",
+        limit: int = 0,
+        split_manifest: Optional[str] = None,
+    ) -> None:
         self.repo = Path(repo_root).resolve()
         self.expert = expert
+        self.partition = partition
         if expert not in {"hoi", "hsi"}:
             raise ValueError(expert)
-        self.root = self.repo / ("data/train" if expert == "hoi" else "data/dataset")
+        if expert == "hoi":
+            if partition in {"validation", "test"}:
+                self.root = self.repo / "data/test"
+            elif partition in {"train", "internal_validation"}:
+                self.root = self.repo / "data/train"
+            else:
+                raise ValueError(f"unknown HOI partition: {partition}")
+        else:
+            self.root = self.repo / "data/dataset"
         language_path = self.root / "language_motion_dict/language_motion_dict__inter_and_loco__16.pkl"
         with language_path.open("rb") as handle:
             self.language = pickle.load(handle)
@@ -75,8 +91,15 @@ class PriorWindowDataset(Dataset):
             sequence_ends = np.load(self.root / "end_idx.npy", mmap_mode="r")
             valid_length = (sequence_ends[self.sequence_ids] - sequence_starts[self.sequence_ids]) > 48
             indices = indices[keep & valid_length & (sides == partition)]
-        elif partition != "train":
-            raise ValueError("HOI smoke dataset uses the official train root")
+        elif split_manifest:
+            split_path = Path(split_manifest)
+            if not split_path.is_absolute():
+                split_path = self.repo / split_path
+            split = json.loads(split_path.read_text(encoding="utf-8"))
+            if split.get("algorithm") != "omomo-sequence-sha256-seed42-v1":
+                raise ValueError(f"unexpected HOI split algorithm: {split_path}")
+            selected = set(int(value) for value in split[partition]["sequence_indices"])
+            indices = indices[np.isin(self.sequence_ids, list(selected))]
         self.indices = indices[:limit] if limit else indices
         self.joints = np.load(self.root / "human_joints_aligned.npy", mmap_mode="r")
         self.orient = np.load(self.root / "human_orient.npy", mmap_mode="r")
@@ -92,6 +115,7 @@ class PriorWindowDataset(Dataset):
             self.object_trans = np.load(self.root / "object_trans.npy", mmap_mode="r")
             self.object_rot = np.load(self.root / "object_rot_mat.npy", mmap_mode="r")
             self.object_minimum, self.object_maximum = self.norm[2].astype(np.float32), self.norm[3].astype(np.float32)
+            self.rest_human_offsets = np.load(self.root / "rest_human_offsets_aligned.npy", mmap_mode="r")
 
     def _load_pickle(self, relative: str):
         with (self.root / relative).open("rb") as handle:
@@ -149,7 +173,14 @@ class PriorWindowDataset(Dataset):
             offset = start - int(self.seq_starts[sequence])
             object_bps = zup_to_yup(np.asarray(self._bps(sequence_name)[offset], dtype=np.float32).copy())
             representation[:, 228:232] = np.asarray(self._contact(sequence_name)[offset:offset + 48:3], dtype=np.float32)
-            goals[6:9] = representation[-1, 216:219]
+            if not bool(self.language["need_object"][index]):
+                raise ValueError(f"HOI window {index} does not contain a dynamic object")
+            goal_frame = int(self.language["end_range"][index]) - 4
+            goal_frame = min(max(goal_frame, int(self.seq_starts[sequence])), int(self.seq_ends[sequence]) - 1)
+            goal_trans = (np.asarray(self.object_trans[goal_frame], dtype=np.float32) - initial) @ shift.T
+            goals[6:9] = -1.0 + 2.0 * (
+                goal_trans - self.object_minimum
+            ) / (self.object_maximum - self.object_minimum)
         else:
             scene = self._scene(sequence_name)
             goals[:3] = joints[-1, :3]
@@ -171,6 +202,11 @@ class PriorWindowDataset(Dataset):
         }
         if self.expert == "hoi":
             result["object_bps"] = torch.from_numpy(object_bps)
+            result["rest_human_offsets"] = torch.from_numpy(
+                np.array(self.rest_human_offsets[sequence], dtype=np.float32, copy=True)
+            )
+            result["sequence_index"] = torch.tensor(sequence, dtype=torch.long)
+            result["window_index"] = torch.tensor(index, dtype=torch.long)
         else:
             result["scene_condition"] = torch.from_numpy(scene)
         return result

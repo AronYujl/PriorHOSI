@@ -10,6 +10,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -133,9 +134,13 @@ def hardware_snapshot(repo: Path) -> Dict[str, Any]:
         "machine": platform.machine(),
         "cpu_count": os.cpu_count(),
     }
+    disk = shutil.disk_usage(repo)
+    info["repository_filesystem"] = {
+        "path": str(repo), "total_bytes": disk.total, "used_bytes": disk.used, "free_bytes": disk.free,
+    }
     query = [
         "nvidia-smi",
-        "--query-gpu=index,name,uuid,memory.total,driver_version",
+        "--query-gpu=index,name,uuid,memory.total,memory.used,memory.free,utilization.gpu,temperature.gpu,pstate,driver_version",
         "--format=csv,noheader,nounits",
     ]
     try:
@@ -144,6 +149,24 @@ def hardware_snapshot(repo: Path) -> Dict[str, Any]:
         info["gpus"] = []
     else:
         info["gpus"] = [line.strip() for line in output.splitlines() if line.strip()]
+    process_query = [
+        "nvidia-smi", "--query-compute-apps=gpu_uuid,pid,process_name,used_memory",
+        "--format=csv,noheader,nounits",
+    ]
+    try:
+        processes = run_command(process_query, repo)
+    except (ManifestError, FileNotFoundError):
+        info["gpu_compute_processes"] = []
+    else:
+        info["gpu_compute_processes"] = [line.strip() for line in processes.splitlines() if line.strip()]
+    try:
+        clock = run_command(
+            ["timedatectl", "show", "-p", "Timezone", "-p", "NTPSynchronized", "-p", "LocalRTC"], repo,
+        )
+    except (ManifestError, FileNotFoundError):
+        info["clock"] = None
+    else:
+        info["clock"] = clock.splitlines()
     return info
 
 
@@ -264,7 +287,8 @@ def command_finish(args: argparse.Namespace) -> None:
         raise ManifestError("HEAD changed during the run")
     if current["dirty"]:
         raise ManifestError("worktree became dirty during the run")
-    metrics = load_json(Path(args.metrics).resolve())
+    metrics_path = Path(args.metrics).resolve()
+    metrics = load_json(metrics_path)
     if args.resolved_config:
         resolved_config = Path(args.resolved_config).resolve()
         if not resolved_config.is_file():
@@ -275,6 +299,11 @@ def command_finish(args: argparse.Namespace) -> None:
     manifest["status"] = args.status
     manifest["ended_at"] = utc_now()
     manifest["metrics"] = metrics
+    manifest["metrics_file"] = {
+        "path": os.path.relpath(metrics_path, repo),
+        "sha256": sha256_file(metrics_path),
+        "bytes": metrics_path.stat().st_size,
+    }
     manifest["final_git"] = current
     atomic_write_json(manifest_path, manifest, overwrite=True)
     print(manifest_path)
@@ -318,7 +347,27 @@ def validate_registry(path: Path) -> int:
 
 def validate_split(path: Path) -> None:
     split = load_json(path)
-    if split.get("algorithm") != "scene-family-disjoint-v1":
+    algorithm = split.get("algorithm")
+    if algorithm == "omomo-sequence-sha256-seed42-v1":
+        if split.get("seed") != 42 or split.get("validation_ratio") != 0.05 or split.get("rounding") != "ceil":
+            raise ManifestError(f"HOI split must use seed 42, ratio 0.05, and ceil: {path}")
+        train = split.get("train", {})
+        validation = split.get("internal_validation", {})
+        train_indices = train.get("sequence_indices", [])
+        validation_indices = validation.get("sequence_indices", [])
+        if set(train_indices) & set(validation_indices):
+            raise ManifestError(f"HOI sequence leakage: {path}")
+        if len(train_indices) != train.get("sequence_count") or len(validation_indices) != 216:
+            raise ManifestError(f"invalid HOI split counts: {path}")
+        if len(train_indices) + len(validation_indices) != 4304:
+            raise ManifestError(f"HOI split must assign all 4,304 sequences: {path}")
+        if split.get("official_test_used_for_selection") is not False:
+            raise ManifestError(f"official HOI test may not be used for selection: {path}")
+        hashes = split.get("source_hashes", {})
+        if not hashes or any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in hashes.values()):
+            raise ManifestError(f"invalid HOI split source hashes: {path}")
+        return
+    if algorithm != "scene-family-disjoint-v1":
         raise ManifestError(f"unexpected split algorithm: {path}")
     if split.get("seed") != 42 or split.get("validation_ratio") != 0.2:
         raise ManifestError(f"LINGO split must use seed 42 and ratio 0.2: {path}")
@@ -380,6 +429,39 @@ def validate_training_resource_protocol(path: Path) -> None:
         raise ManifestError(f"memory audits must remain in Phase 1B/1C: {path}")
     if protocol.get("primary_budget_units") != ["processed_windows", "processed_frames"]:
         raise ManifestError(f"unexpected primary training budget units: {path}")
+    phase_1b = protocol.get("phase_1b_preregistration", {})
+    if phase_1b.get("status") != "locked_before_implementation_and_gpu_workload":
+        raise ManifestError(f"Phase 1B resource protocol is not locked: {path}")
+    model = phase_1b.get("model", {})
+    required_model = {
+        "prediction": "clean_motion_x0", "dimension": 232, "window_frames": 16,
+        "history_frames": 2, "diffusion_steps": 500, "dim_model": 512,
+        "num_heads": 16, "num_layers": 8, "scene_condition": False,
+        "initialization": "random_only",
+    }
+    if model != required_model:
+        raise ManifestError(f"unexpected Phase 1B model preregistration: {path}")
+    audit = phase_1b.get("memory_audit", {})
+    if audit.get("micro_batch_candidates") != [128, 256, 512, 768]:
+        raise ManifestError(f"unexpected Phase 1B memory candidates: {path}")
+    if audit.get("gradient_accumulation_steps") != 1:
+        raise ManifestError(f"Phase 1B memory audit must prefer accumulation one: {path}")
+    if audit.get("effective_batch_by_micro_batch") != {
+        "128": 512, "256": 1024, "512": 2048, "768": 3072,
+    }:
+        raise ManifestError(f"invalid Phase 1B batch mapping: {path}")
+    screening = phase_1b.get("screening", {})
+    if screening.get("processed_windows_per_candidate") != 3145728:
+        raise ManifestError(f"unexpected Phase 1B screening budget: {path}")
+    if screening.get("validation_windows") != 32768 or screening.get("seed") != 42:
+        raise ManifestError(f"unexpected Phase 1B screening validation protocol: {path}")
+    formal = phase_1b.get("formal_training", {})
+    if formal.get("seeds") != [42, 123, 314]:
+        raise ManifestError(f"Phase 1B requires exactly three preregistered seeds: {path}")
+    if formal.get("processed_windows_per_seed") != 61440000:
+        raise ManifestError(f"unexpected Phase 1B formal window budget: {path}")
+    if formal.get("processed_frames_per_seed") != 983040000:
+        raise ManifestError(f"unexpected Phase 1B formal frame budget: {path}")
 
 
 def command_register(args: argparse.Namespace) -> None:

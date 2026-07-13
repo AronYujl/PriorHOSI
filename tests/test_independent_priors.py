@@ -2,6 +2,7 @@ import inspect
 import json
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,8 +14,14 @@ sys.path.insert(0, str(REPO / "code"))
 
 from priors.contracts import HOI_CONTRACT, HSI_CONTRACT, validate_contract_paths
 from priors.data import PriorWindowDataset, hsi_filter, partition_for_scenes
-from priors.models import HSIPrior, HOIPrior, assert_parameter_independence, build_expert
+from priors.diffusion import GaussianDiffusion, normalize_progress
+from priors.losses import hoi_training_losses
+from priors.models import (
+    HSIPrior, HOIPrior, assert_parameter_independence, build_expert,
+    load_trained_hoi_prior,
+)
 from priors.representation import REPRESENTATION, masked_reconstruction_loss
+from datasets.utils import get_smpl_parents
 
 
 WORKER_EXPERT = os.environ.get("INFBAGEL_WORKER_EXPERT")
@@ -79,7 +86,32 @@ class ContractTests(unittest.TestCase):
     def test_real_hoi_item_exposes_only_authorized_conditions(self):
         hoi = PriorWindowDataset(str(REPO), "hoi", limit=1)[0]
         self.assertIn("object_bps", hoi)
+        self.assertIn("rest_human_offsets", hoi)
         self.assertNotIn("scene_condition", hoi)
+
+    def test_locked_hoi_train_validation_split_has_no_sequence_leakage(self):
+        split_path = REPO / "experiments/splits/omomo_hoi_train_validation_seed42.json"
+        split = json.loads(split_path.read_text(encoding="utf-8"))
+        self.assertEqual(split["algorithm"], "omomo-sequence-sha256-seed42-v1")
+        self.assertEqual(split["internal_validation"]["sequence_count"], 216)
+        self.assertEqual(split["train"]["sequence_count"], 4088)
+        self.assertEqual(split["internal_validation"]["window_count"], 29382)
+        self.assertEqual(split["train"]["window_count"], 568486)
+        train = set(split["train"]["sequence_indices"])
+        validation = set(split["internal_validation"]["sequence_indices"])
+        self.assertFalse(train & validation)
+        self.assertEqual(train | validation, set(range(4304)))
+        self.assertFalse(split["official_test_used_for_selection"])
+
+    def test_real_hoi_partitions_match_locked_window_counts(self):
+        split = "experiments/splits/omomo_hoi_train_validation_seed42.json"
+        train = PriorWindowDataset(str(REPO), "hoi", partition="train", split_manifest=split)
+        validation = PriorWindowDataset(
+            str(REPO), "hoi", partition="internal_validation", split_manifest=split,
+        )
+        self.assertEqual(len(train), 568486)
+        self.assertEqual(len(validation), 29382)
+        self.assertFalse(set(train.sequence_ids[train.indices]) & set(validation.sequence_ids[validation.indices]))
 
     @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
     def test_real_hsi_item_exposes_only_authorized_conditions(self):
@@ -112,6 +144,13 @@ class ExpertTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "randomly initialized"):
                 build_expert(expert, init_checkpoint="checkpoint/checkpoint.pth")
 
+    def test_released_checkpoint_schema_is_rejected_by_evaluation_loader(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "released.pth"
+            torch.save({"model": {"legacy": torch.zeros(1)}}, path)
+            with self.assertRaisesRegex(ValueError, "not a Phase 1B"):
+                load_trained_hoi_prior(str(path), torch.device("cpu"))
+
     def test_cpu_forward_backward_for_both_expert_apis(self):
         batch = 2
         x = torch.randn(batch, 16, 232)
@@ -127,6 +166,36 @@ class ExpertTests(unittest.TestCase):
         masked_reconstruction_loss(hsi_prediction, x, "hsi").backward()
         self.assertTrue(any(parameter.grad is not None for parameter in hoi.parameters()))
         self.assertTrue(any(parameter.grad is not None for parameter in hsi.parameters()))
+
+
+class HOITrainingTests(unittest.TestCase):
+    def test_diffusion_keeps_two_history_frames_exactly_fixed(self):
+        clean = torch.randn(3, 16, 232)
+        steps = torch.tensor([0, 249, 499])
+        noisy = GaussianDiffusion().q_sample(clean, steps, torch.randn_like(clean))
+        torch.testing.assert_close(noisy[:, :2], clean[:, :2], rtol=0, atol=0)
+        self.assertGreater(float((noisy[:, 2:] - clean[:, 2:]).abs().max()), 0.0)
+
+    def test_progress_condition_preserves_pi_end_pi_and_length_semantics(self):
+        progress = normalize_progress(torch.tensor([[12.0, 60.0, 120.0]]))
+        torch.testing.assert_close(progress[0, :2], torch.tensor([0.1, 0.5]))
+        self.assertAlmostEqual(float(progress[0, 2]), float(np.log1p(120.0) / 10.0), places=6)
+
+    def test_preregistered_hoi_losses_are_finite_and_backpropagate(self):
+        prediction = torch.randn(2, 16, 232, requires_grad=True)
+        target = torch.randn_like(prediction)
+        goals = torch.randn(2, 9)
+        offsets = torch.zeros(2, 24, 3)
+        parents = torch.as_tensor(get_smpl_parents(use_joints24=True), dtype=torch.long)
+        losses = hoi_training_losses(
+            prediction, target, goals, offsets, parents,
+            torch.full((3,), -2.0), torch.full((3,), 2.0),
+        )
+        self.assertTrue(all(torch.isfinite(value) for value in losses.values()))
+        losses["total"].backward()
+        self.assertIsNotNone(prediction.grad)
+        self.assertGreater(float(prediction.grad[:, 2:].abs().max()), 0.0)
+        self.assertEqual(float(prediction.grad[:, :2].abs().max()), 0.0)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,13 @@
-"""Independent randomly initialized HOI and HSI expert scaffolds."""
+"""Independent randomly initialized HOI and HSI experts.
+
+The HOI network is deliberately scene-free.  Its condition tokens mirror the
+capacity of the released single-model Transformer while exposing only the
+Phase 1A HOI contract: language/progress, dynamic-object BPS, and object goal.
+"""
 
 import math
-from typing import Iterable, Optional
+from pathlib import Path
+from typing import Dict, Iterable, Optional, Tuple
 
 import torch
 from torch import nn
@@ -38,24 +44,78 @@ class _PriorNetwork(nn.Module):
         return self.output(self.transformer(token))
 
 
+class _HOICleanMotionNetwork(nn.Module):
+    """Condition-token Transformer that predicts the clean 232-D window."""
+
+    def __init__(self, dim_model: int, num_heads: int, num_layers: int, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
+        self.text = nn.Sequential(
+            nn.Linear(768, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+        )
+        self.bps = nn.Sequential(
+            nn.Linear(1024 * 3, 768), nn.SiLU(), nn.Linear(768, dim_model),
+        )
+        self.goal_progress = nn.Sequential(
+            nn.Linear(12, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+        )
+        self.time = nn.Sequential(
+            nn.Linear(dim_model, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+        )
+        layer = nn.TransformerEncoderLayer(
+            d_model=dim_model,
+            nhead=num_heads,
+            dim_feedforward=dim_model * 4,
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+        self.position = nn.Parameter(torch.zeros(1, REPRESENTATION.window_frames + 4, dim_model))
+        nn.init.normal_(self.position, std=0.02)
+        self.output_norm = nn.LayerNorm(dim_model)
+        self.output = nn.Linear(dim_model, REPRESENTATION.dimension)
+        self.dim_model = dim_model
+
+    def forward(
+        self,
+        noisy: torch.Tensor,
+        timesteps: torch.Tensor,
+        text_embedding: torch.Tensor,
+        object_bps: torch.Tensor,
+        goals: torch.Tensor,
+        progress: torch.Tensor,
+    ) -> torch.Tensor:
+        if noisy.ndim != 3 or noisy.shape[1:] != (
+            REPRESENTATION.window_frames, REPRESENTATION.dimension,
+        ):
+            raise ValueError(f"expected noisy [B,16,232], got {tuple(noisy.shape)}")
+        if text_embedding.ndim == 3 and text_embedding.shape[1] == 1:
+            text_embedding = text_embedding[:, 0]
+        conditions = torch.stack((
+            self.time(_time_embedding(timesteps, self.dim_model)),
+            self.text(text_embedding),
+            self.bps(object_bps.reshape(object_bps.shape[0], -1)),
+            self.goal_progress(torch.cat((goals, progress), dim=-1)),
+        ), dim=1)
+        motion = self.motion_input(noisy)
+        tokens = torch.cat((conditions, motion), dim=1) + self.position
+        encoded = self.transformer(tokens)
+        return self.output(self.output_norm(encoded[:, -REPRESENTATION.window_frames:]))
+
+
 class HOIPrior(nn.Module):
     """HOI API intentionally has no scene argument or scene encoder."""
     def __init__(self, dim_model: int = 256, num_heads: int = 8, num_layers: int = 4) -> None:
         super().__init__()
-        self.text = nn.Linear(768, 128)
-        self.bps = nn.Linear(1024 * 3, 128)
-        self.goal_progress = nn.Linear(12, 64)
-        self.network = _PriorNetwork(320, dim_model, num_heads, num_layers)
+        self.network = _HOICleanMotionNetwork(dim_model, num_heads, num_layers)
 
     def forward(
         self, noisy: torch.Tensor, timesteps: torch.Tensor, text_embedding: torch.Tensor,
         object_bps: torch.Tensor, goals: torch.Tensor, progress: torch.Tensor,
     ) -> torch.Tensor:
-        condition = torch.cat((
-            self.text(text_embedding), self.bps(object_bps.flatten(1)),
-            self.goal_progress(torch.cat((goals, progress), dim=-1)),
-        ), dim=-1)
-        return self.network(noisy, timesteps, condition)
+        return self.network(noisy, timesteps, text_embedding, object_bps, goals, progress)
 
 
 class HSIPrior(nn.Module):
@@ -91,6 +151,50 @@ def build_expert(
     if expert == "hsi":
         return HSIPrior(dim_model, num_heads, num_layers)
     raise ValueError(f"unknown expert: {expert}")
+
+
+def load_trained_hoi_prior(
+    checkpoint_path: str, device: torch.device, *, use_ema: bool = True,
+) -> Tuple[HOIPrior, Dict[str, object]]:
+    """Strictly load a Phase 1B checkpoint for evaluation or same-run resume.
+
+    Released InfBaGel state dictionaries do not carry this checkpoint schema and
+    are rejected before any parameter is loaded.
+    """
+    path = Path(checkpoint_path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    checkpoint = torch.load(str(path), map_location="cpu")
+    if not isinstance(checkpoint, dict) or checkpoint.get("checkpoint_type") != "hoi_prior_phase1b":
+        raise ValueError("checkpoint is not a Phase 1B HOIPrior checkpoint; released InfBaGel initialization is forbidden")
+    if checkpoint.get("expert") != "hoi" or checkpoint.get("initialization") != "random":
+        raise ValueError("invalid HOIPrior checkpoint provenance")
+    model_config = checkpoint.get("model_config")
+    if not isinstance(model_config, dict):
+        raise ValueError("HOIPrior checkpoint is missing model_config")
+    model = build_expert(
+        "hoi",
+        init_checkpoint=None,
+        dim_model=int(model_config["dim_model"]),
+        num_heads=int(model_config["num_heads"]),
+        num_layers=int(model_config["num_layers"]),
+    )
+    state_key = "ema_model" if use_ema else "model"
+    state = checkpoint.get(state_key)
+    if not isinstance(state, dict):
+        raise ValueError(f"HOIPrior checkpoint is missing {state_key} weights")
+    model.load_state_dict(state, strict=True)
+    model.to(device).eval()
+    metadata = {
+        key: checkpoint.get(key) for key in (
+            "schema_version", "checkpoint_type", "expert", "initialization", "run_id",
+            "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
+            "model_config", "data_contract_sha256", "split_sha256",
+        )
+    }
+    metadata["weights"] = state_key
+    metadata["path"] = str(path)
+    return model, metadata
 
 
 def assert_parameter_independence(first: nn.Module, second: nn.Module) -> None:

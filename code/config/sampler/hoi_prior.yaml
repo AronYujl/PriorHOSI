@@ -1,0 +1,5 @@
+pelvis:
+  _target_: priors.diffusion.HOIPriorSampler
+  device: ${device}
+  auto_regre_num: ${auto_regre_num}
+  timesteps: 500

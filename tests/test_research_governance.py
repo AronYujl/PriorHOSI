@@ -9,7 +9,10 @@ try:
 except ImportError:  # Minimal governance checks run before ML dependencies are installed.
     np = None
 
-from tools import chois_evaluator, experiment, make_lingo_split, run_chois_evaluator
+from tools import (
+    chois_evaluator, experiment, make_hoi_split, make_lingo_split, run_chois_evaluator,
+    summarize_hoi_phase1b,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +49,16 @@ class SplitTests(unittest.TestCase):
         ]
         with self.assertRaises(make_lingo_split.SplitError):
             make_lingo_split.build_split(records, 42, 0.2, {})
+
+    def test_hoi_split_generator_reproduces_locked_manifest(self):
+        generated = make_hoi_split.build_split(REPO_ROOT)
+        tracked = json.loads((
+            REPO_ROOT / "experiments/splits/omomo_hoi_train_validation_seed42.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(generated, tracked)
+        experiment.validate_split(
+            REPO_ROOT / "experiments/splits/omomo_hoi_train_validation_seed42.json"
+        )
 
 
 class ManifestTests(unittest.TestCase):
@@ -118,6 +131,44 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(protocol["hardware_assignment"]["hoi"]["gpu_count"], 4)
         self.assertEqual(protocol["hardware_assignment"]["hsi"]["gpu_count"], 8)
         self.assertEqual(protocol["memory_audit_phase"], {"hoi": "1B", "hsi": "1C"})
+        experiment.validate_training_resource_protocol(protocol_path)
+
+        phase_1b = protocol["phase_1b_preregistration"]
+        self.assertEqual(phase_1b["model"]["dimension"], 232)
+        self.assertFalse(phase_1b["model"]["scene_condition"])
+        self.assertEqual(phase_1b["memory_audit"]["micro_batch_candidates"], [128, 256, 512, 768])
+        self.assertEqual(phase_1b["formal_training"]["seeds"], [42, 123, 314])
+        self.assertEqual(phase_1b["formal_training"]["processed_windows_per_seed"], 61440000)
+
+    def test_phase_1b_training_and_evaluation_paths_are_scene_free(self):
+        train_config = (REPO_ROOT / "code/config/config_train_hoi_prior.yaml").read_text(encoding="utf-8")
+        eval_config = (REPO_ROOT / "code/config/config_eval_hoi_prior.yaml").read_text(encoding="utf-8")
+        sampler_config = (REPO_ROOT / "code/config/sampler/hoi_prior.yaml").read_text(encoding="utf-8")
+        trainer = (REPO_ROOT / "code/train_hoi_prior.py").read_text(encoding="utf-8")
+        model = (REPO_ROOT / "code/priors/models.py").read_text(encoding="utf-8")
+        self.assertIn("dim_model: 512", train_config)
+        self.assertIn("num_heads: 16", train_config)
+        self.assertIn("num_layers: 8", train_config)
+        self.assertIn("diffusion_steps: 500", train_config)
+        self.assertIn("load_scene: false", eval_config)
+        self.assertIn("_target_: priors.diffusion.HOIPriorSampler", sampler_config)
+        hoi_body = model.split("class HOIPrior", 1)[1].split("class HSIPrior", 1)[0]
+        self.assertNotIn("scene_condition:", hoi_body)
+        self.assertIn("init_checkpoint is forbidden", trainer)
+
+    def test_phase_1b_capacity_audit_keeps_all_preregistered_candidates(self):
+        source = (REPO_ROOT / "tools/audit_hoi_capacity.py").read_text(encoding="utf-8")
+        self.assertIn("CANDIDATES = ((128, 512), (256, 1024), (512, 2048), (768, 3072))", source)
+        self.assertIn("PROCESSED_WINDOWS = 24576", source)
+        self.assertIn("all_failures_and_ooms_retained", source)
+
+    def test_phase_1b_statistics_protocol_is_locked(self):
+        summary = summarize_hoi_phase1b.seed_summary([1.0, 2.0, 3.0])
+        self.assertEqual(summary["mean"], 2.0)
+        self.assertEqual(summary["sample_standard_deviation"], 1.0)
+        self.assertEqual(summarize_hoi_phase1b.SEEDS, (42, 123, 314))
+        self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_REPLICATES, 10000)
+        self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_SEED, 42)
 
     def test_multi_server_worker_contract_is_documented(self):
         rules = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")

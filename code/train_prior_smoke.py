@@ -101,7 +101,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         if str(cfg.expert) == "hsi":
             masked_gradient_max = max(masked_gradient_max, float(prediction.grad[:, :, 216:].abs().max()))
         if micro_steps % int(cfg.gradient_accumulation_steps) == 0:
-            key_gradient = model.module.network.input.weight.grad
+            key_gradient = (
+                model.module.network.motion_input.weight.grad
+                if str(cfg.expert) == "hoi"
+                else model.module.network.input.weight.grad
+            )
             if key_gradient is None or not torch.isfinite(key_gradient).all() or not torch.any(key_gradient != 0):
                 raise FloatingPointError("missing or invalid key gradient")
             optimizer.step()
