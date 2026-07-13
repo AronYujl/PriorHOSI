@@ -71,6 +71,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     ).to(device)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
     optimizer = Adam(model.parameters(), lr=float(cfg.learning_rate))
+    scaler = torch.cuda.amp.GradScaler(enabled=bool(cfg.amp))
     optimizer.zero_grad(set_to_none=True)
     torch.cuda.reset_peak_memory_stats(device)
     losses = []
@@ -89,19 +90,20 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         progress = torch.cat((raw_progress[:, :2] / denominator, torch.log1p(denominator) / 10.0), dim=-1)
         timesteps = torch.randint(0, REPRESENTATION.diffusion_steps, (clean.shape[0],), device=device)
         noisy = _diffuse(clean, timesteps, torch.randn_like(clean))
-        if str(cfg.expert) == "hoi":
-            prediction = model(
-                noisy, timesteps, text, batch["object_bps"].to(device, non_blocking=True), goals, progress,
-            )
-        else:
-            prediction = model(
-                noisy, timesteps, text, batch["scene_condition"].to(device, non_blocking=True), goals, progress,
-            )
-        prediction.retain_grad()
-        loss = masked_reconstruction_loss(prediction, clean, str(cfg.expert))
+        with torch.cuda.amp.autocast(enabled=bool(cfg.amp)):
+            if str(cfg.expert) == "hoi":
+                prediction = model(
+                    noisy, timesteps, text, batch["object_bps"].to(device, non_blocking=True), goals, progress,
+                )
+            else:
+                prediction = model(
+                    noisy, timesteps, text, batch["scene_condition"].to(device, non_blocking=True), goals, progress,
+                )
+            prediction.retain_grad()
+            loss = masked_reconstruction_loss(prediction, clean, str(cfg.expert))
         if not torch.isfinite(loss):
             raise FloatingPointError(f"non-finite {cfg.expert} loss")
-        (loss / int(cfg.gradient_accumulation_steps)).backward()
+        scaler.scale(loss / int(cfg.gradient_accumulation_steps)).backward()
         losses.append(float(loss.detach()))
         micro_steps += 1
         if str(cfg.expert) == "hsi":
@@ -110,7 +112,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             key_gradient = model.module.network.input.weight.grad
             if key_gradient is None or not torch.isfinite(key_gradient).all() or not torch.any(key_gradient != 0):
                 raise FloatingPointError("missing or invalid key gradient")
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad(set_to_none=True)
             updates += 1
             if updates >= int(cfg.optimizer_updates):
@@ -149,6 +152,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             "aggregate_windows_per_second": sum(value[4] for value in values) / max(value[5] for value in values),
             "aggregate_frames_per_second": REPRESENTATION.window_frames * sum(value[4] for value in values) / max(value[5] for value in values),
             "scene_grid_size": int(cfg.scene_grid_size),
+            "amp": bool(cfg.amp),
             "representation": REPRESENTATION.as_dict(),
             "initialization": "random",
         }

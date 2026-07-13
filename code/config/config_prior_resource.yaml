@@ -11,6 +11,7 @@ dataset_limit: 0
 partition: train
 optimizer_updates: 1
 learning_rate: 0.0001
+amp: true
 window_frames: 16
 history_frames: 2
 diffusion_steps: 500
