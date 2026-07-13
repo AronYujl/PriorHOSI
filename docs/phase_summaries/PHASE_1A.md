@@ -185,11 +185,24 @@ and tagged `exp/p1a-data-v1`; no Phase 1B branch or workload is created here.
 ## Exact Phase 1B entry point (new session only)
 
 1. Read this summary and the complete `docs/EXPERIMENT_PLAN.md`.
-2. Verify `exp/p1a-data-v1` points to the clean Phase 1A closure commit on
-   `research/state-compositional-priors`.
-3. Create `phase/01b-hoi` from that tag. Do not use or copy commits/weights from
+2. Read `docs/MULTI_SERVER_TRAINING.md`; verify `exp/p1a-data-v1` peels to the
+   immutable Phase 1A closure and verify the clean current
+   `research/state-compositional-priors` HEAD contains the post-1A resource and
+   server-topology amendments.
+3. Create `phase/01b-hoi` from the clean current research HEAD, not directly from
+   the older Phase 1A tag. Do not use or copy commits/weights from
    `feature/independent-hoi-hsi-priors`.
 4. Before any new implementation/training direction, append the Phase 1B
    hypothesis and exact optimizer-update budget/config to the plan and registry.
-5. Use only the locked HOI contract/hash above, random initialization, micro
-   batch 128 × 8 GPUs × accumulation 1, and global effective batch 1024.
+5. Implement and test the full scene-free HOIPrior training/evaluation path on
+   the authoritative host; publish only a clean committed revision to the
+   4-GPU worker at `10.181.9.214`.
+6. Before the first reportable workload, complete and archive the worker
+   preflight and immutable OMOMO-only data verification described in the
+   multi-server guide. Random initialization and released-checkpoint rejection
+   remain mandatory.
+7. On four RTX 3090 GPUs, perform the preregistered Phase 1B memory audit and
+   choose the largest stable compatible micro-batch plus effective batch from
+   `{512,1024,2048,3072}`. Jointly preregister accumulation, LR/warmup, and the
+   processed-window/frame budget; the Phase 1A 8-GPU batch-1024 smoke is
+   historical evidence, not the Phase 1B training setting.

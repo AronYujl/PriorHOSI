@@ -28,9 +28,28 @@ These rules apply to every file in this repository.
 
 ## Execution environment
 
-- Run project Python commands with the existing `infbagel` environment, preferably
+- Run project Python commands with the machine-local, verified `infbagel`
+  environment. Set `INFBAGEL_PYTHON` to its absolute interpreter path and invoke
+  `"$INFBAGEL_PYTHON"`; on the 8-GPU development server the canonical value is
   `/data/yujinlun/anaconda3/envs/infbagel/bin/python`. Do not silently fall back to
-  the system Python or create a replacement environment.
+  the system Python or create an unverified replacement environment.
+- The 8-GPU server `10.184.17.253` is the authoritative development/integration
+  host and the Phase 1C HSIPrior host. The 4-GPU server `10.181.9.214` is a
+  Phase 1B HOIPrior execution worker. Host-local repository, environment, data,
+  and output paths may differ, but every reportable run must use an identical
+  committed Git object and verified input hashes.
+- Publish committed code from the authoritative host to the worker with Git and
+  transfer immutable data snapshots separately. Never bidirectionally `rsync` a
+  live worktree, registry, checkpoint directory, or running result directory.
+  The worker must not edit source while a reportable workload is running.
+- Keep `ROOT_DIR` equal to the current checkout root. Provide the worker's
+  OMOMO-only snapshot through the checkout-local `data` link (or a subsequently
+  tested explicit data-root configuration). Do not copy LINGO `data/dataset` or
+  synthesized OMOMO `Scene*` assets into the HOI worker snapshot.
+- Follow `docs/MULTI_SERVER_TRAINING.md` for provisioning, immutable data
+  verification, code publication, artifact recovery, and concurrent-run
+  ownership. A reportable remote run may start only after its machine preflight
+  has been archived beside the manifest.
 - GPU/driver access can be hidden by the Codex sandbox. If `nvidia-smi` fails or
   `torch.cuda.is_available()` is false in a sandboxed command, rerun the relevant
   check or workload with escalated permissions before diagnosing missing GPUs.

@@ -119,6 +119,21 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(protocol["hardware_assignment"]["hsi"]["gpu_count"], 8)
         self.assertEqual(protocol["memory_audit_phase"], {"hoi": "1B", "hsi": "1C"})
 
+    def test_multi_server_worker_contract_is_documented(self):
+        rules = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        guide = (REPO_ROOT / "docs" / "MULTI_SERVER_TRAINING.md").read_text(encoding="utf-8")
+        handoff = (
+            REPO_ROOT / "docs" / "phase_summaries" / "PHASE_1A.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("10.184.17.253", rules)
+        self.assertIn("10.181.9.214", rules)
+        self.assertIn("Never bidirectionally `rsync`", rules)
+        self.assertIn("OMOMO-only immutable snapshot", guide)
+        self.assertIn("data/dataset", guide)
+        self.assertIn("conda-pack", guide)
+        self.assertIn("current research HEAD", handoff)
+        self.assertIn("4-GPU worker", handoff)
+
     def test_diffusion_training_loss_has_no_stale_cleanup_variables(self):
         model = (REPO_ROOT / "code" / "models" / "infbagel.py").read_text(
             encoding="utf-8"

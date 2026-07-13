@@ -131,6 +131,13 @@ subphase 独立总结为 `PHASE_1A.md` 等文件。
 筛选，再对锁定配置执行完整训练；运行 HOI 原生指标与 CHOIS FID/R-Precision，并审计
 normalization 越界、文本覆盖、短序列、contact/penetration 与不确定性。
 
+Phase 1B 的执行 worker 固定为 `10.181.9.214`，但 `10.184.17.253` 仍是代码、计划和 registry
+的权威开发/集成端。首个 reportable workload 前必须按 `docs/MULTI_SERVER_TRAINING.md` 完成并归档
+worker preflight：精确 Git commit、4 卡型号/显存/驱动、机器本地 Python 与依赖快照、可写空间、
+OMOMO-only 数据快照及 Phase 1A source hashes、`ROOT_DIR`/工作目录、时钟与 SSH/回收路径。代码只以
+Git commit 发布，数据只从不可变 snapshot 读取，运行中的 worktree/results/checkpoints/registry
+禁止双向同步。四卡机不得接收 LINGO `data/dataset` 或 synthesized-OMOMO `Scene*` 监督资产。
+
 门槛：HOI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 contact、penetration、
 FID 退化；失败只检查表示、坐标、mask、normalization 与数据契约。通过后总结并 tag
 `exp/p1b-hoi-v1`，不得用 released checkpoint 绕过失败。
@@ -296,6 +303,10 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 - 2026-07-13：资源安排进一步固定为 HSIPrior 使用 8×3090、HOIPrior 使用 4×3090，并将 3072
   加入正式 effective-batch 候选。显存审计和具体 micro-batch/accumulation 选择分别留在 Phase
   1B/1C 内完成，不新增或重开 Phase 1A resource gate；`exp/p1a-data-v1` 保持不可变。
+- 2026-07-13：固定双服务器执行拓扑：`10.184.17.253` 作为权威开发/集成端和 Phase 1C HSI
+  主机，`10.181.9.214` 作为只执行已提交代码的 Phase 1B HOI worker。新增 Git 单向发布、不可变
+  OMOMO-only 数据 snapshot、环境复制/验证、artifact 回收和 append-only registry 单写者协议；
+  该运维修订不启动 Phase 1B，也不改变其研究假设、gate 或 batch 候选。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
