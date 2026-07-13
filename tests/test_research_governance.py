@@ -142,9 +142,11 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(phase_1b["screening"]["optimizer_updates_per_candidate"], 1024)
         self.assertEqual(phase_1b["screening"]["validation_cadence_updates"], 1024)
         self.assertEqual(phase_1b["screening"]["checkpoint_cadence_updates"], 1024)
-        self.assertEqual(phase_1b["formal_training"]["seeds"], [42, 123, 314])
+        self.assertEqual(phase_1b["formal_training"]["seeds"], [42])
         self.assertEqual(phase_1b["formal_training"]["processed_windows_per_seed"], 61440000)
         self.assertEqual(phase_1b["formal_training"]["optimizer_updates_per_seed"], 20000)
+        self.assertEqual(phase_1b["formal_training"]["learning_rate"], 0.0003)
+        self.assertEqual(phase_1b["formal_training"]["warmup_windows"], 1572864)
 
     def test_phase_1b_training_and_evaluation_paths_are_scene_free(self):
         train_config = (REPO_ROOT / "code/config/config_train_hoi_prior.yaml").read_text(encoding="utf-8")
@@ -174,10 +176,11 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("all_failures_and_ooms_retained", source)
 
     def test_phase_1b_statistics_protocol_is_locked(self):
-        summary = summarize_hoi_phase1b.seed_summary([1.0, 2.0, 3.0])
+        summary = summarize_hoi_phase1b.seed_summary([2.0])
         self.assertEqual(summary["mean"], 2.0)
-        self.assertEqual(summary["sample_standard_deviation"], 1.0)
-        self.assertEqual(summarize_hoi_phase1b.SEEDS, (42, 123, 314))
+        self.assertEqual(summary["point_estimate"], 2.0)
+        self.assertNotIn("student_t_95_ci", summary)
+        self.assertEqual(summarize_hoi_phase1b.SEEDS, (42,))
         self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_REPLICATES, 10000)
         self.assertEqual(summarize_hoi_phase1b.BOOTSTRAP_SEED, 42)
 
@@ -198,6 +201,7 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("10.184.17.253", rules)
         self.assertIn("10.181.9.214", rules)
         self.assertIn("Never bidirectionally `rsync`", rules)
+        self.assertIn("All screening, training, main-table, and evaluation experiments use seed 42", rules)
         self.assertIn("OMOMO-only immutable snapshot", guide)
         self.assertIn("data/dataset", guide)
         self.assertIn("conda-pack", guide)

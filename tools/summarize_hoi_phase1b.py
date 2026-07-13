@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize the preregistered three-seed Phase 1B HOI gate."""
+"""Summarize the preregistered single-seed-42 Phase 1B HOI gate."""
 
 from __future__ import annotations
 
@@ -8,15 +8,13 @@ import hashlib
 import json
 import math
 import os
-import statistics
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Sequence, Tuple
+from typing import Dict, Iterable, Mapping, Sequence
 
 import numpy as np
 
 
-SEEDS = (42, 123, 314)
-T_95_DF2 = 4.302652729911275
+SEEDS = (42,)
 BOOTSTRAP_REPLICATES = 10000
 BOOTSTRAP_SEED = 42
 
@@ -102,23 +100,19 @@ def parse_seed_paths(values: Sequence[str], label: str) -> Dict[int, Path]:
 
 def seed_summary(values: Iterable[float]) -> dict:
     samples = [float(value) for value in values]
-    if len(samples) != 3 or not all(math.isfinite(value) for value in samples):
-        raise ValueError(f"three finite seed values required, got {samples}")
-    mean = statistics.fmean(samples)
-    standard_deviation = statistics.stdev(samples)
-    half_width = T_95_DF2 * standard_deviation / math.sqrt(3)
+    if len(samples) != 1 or not all(math.isfinite(value) for value in samples):
+        raise ValueError(f"one finite seed-42 value required, got {samples}")
     return {
         "values_by_seed": {str(seed): samples[index] for index, seed in enumerate(SEEDS)},
-        "mean": mean,
-        "sample_standard_deviation": standard_deviation,
-        "student_t_95_ci": [mean - half_width, mean + half_width],
+        "point_estimate": samples[0],
+        "mean": samples[0],
     }
 
 
 def paired_sequence_bootstrap(per_sequence: Mapping[int, dict]) -> dict:
     identifiers = [set(per_sequence[seed]["metrics"]) for seed in SEEDS]
     if any(ids != identifiers[0] for ids in identifiers[1:]) or len(identifiers[0]) != 438:
-        raise ValueError("per-sequence inputs must contain the same 438 sequence IDs for all seeds")
+        raise ValueError("per-sequence input must contain 438 sequence IDs for seed 42")
     ordered = sorted(identifiers[0])
     rng = np.random.default_rng(BOOTSTRAP_SEED)
     sampled_indices = rng.integers(0, len(ordered), size=(BOOTSTRAP_REPLICATES, len(ordered)))
@@ -258,10 +252,10 @@ def main() -> int:
         "expert": "hoi",
         "seeds": list(SEEDS),
         "statistics_protocol": {
-            "seed_summary": "mean, sample standard deviation, Student-t 95 percent CI with df=2",
+            "seed_summary": "seed-42 point estimate; no cross-seed confidence interval",
             "paired_sequence_bootstrap_replicates": BOOTSTRAP_REPLICATES,
             "paired_sequence_bootstrap_seed": BOOTSTRAP_SEED,
-            "gate": "higher mean >= 0.95*baseline; lower mean <= baseline/0.95",
+            "gate": "higher seed-42 point estimate >= 0.95*baseline; lower point estimate <= baseline/0.95",
         },
         "training": training,
         "metric_summaries": summaries,

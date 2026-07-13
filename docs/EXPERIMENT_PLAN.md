@@ -170,17 +170,17 @@ GPU workload 前锁定：
   3,145,728 windows（50,331,648 frames），其 optimizer updates 由选定 effective batch
   推导；validation 固定 32,768 windows。以预先固定的内部 validation total loss 为主、
   contact/FK 分项为诊断，有限且最低者胜；相等时选较低 LR。官方 test 不参与选择。
-- 正式训练 seeds 固定为 `{42,123,314}`。每 seed 固定处理 61,440,000 windows
+- 正式训练 seed 固定为 `42`，不再运行 seed 123/314。固定处理 61,440,000 windows
   （983,040,000 frames），validation cadence 为每 3,072,000 windows，checkpoint cadence
   为每 6,144,000 windows；最终 checkpoint 由固定预算末端 EMA 权重确定，不按官方 test
   cherry-pick。每个 seed 的 optimizer updates、epochs、峰值显存、吞吐、wall time 均记录。
   checkpoint/resume 先在独立 smoke 中实际中断续训验证，正式 run 仍保留相同 resume 能力。
-- 三个正式 checkpoint 各以对应 seed 做一次完整 438-sequence×3-window autoregressive
-  native/CHOIS 评测。主结果报告三 seed mean、sample SD 和 Student-t 95% CI，并对 438 个
-  matched sequence 做 10,000 次 paired bootstrap（seed 42）作为 per-sequence 不确定性。
+- seed 42 正式 checkpoint 做一次完整 438-sequence×3-window autoregressive native/CHOIS
+  评测。主结果报告 seed-42 point estimate，不报告跨 seed SD/Student-t CI；对 438 个 matched
+  sequence 做 10,000 次 bootstrap（seed 42）作为 per-sequence 不确定性。
   同时报告 normalization 越界、NaN/Inf、短序列、文本覆盖、contact、hand/human penetration、
   FS、FID、Matching Score、R-Precision@1/2/3 和 Diversity。
-- 95% gate 作用于三 seed mean。higher-is-better 指标须 `>=0.95×baseline`；lower-is-better
+- 95% gate 作用于 seed-42 point estimate。higher-is-better 指标须 `>=0.95×baseline`；lower-is-better
   指标须 `<=baseline/0.95`。锁定 baseline 为 Phase 0 的 object/pelvis trajectory error
   `3.037/3.923 cm`、FS `0.3334`、contact P/R/F1 `0.7908/0.7276/0.7273`、human-object
   penetration `2.5893`（ratio `0.1376`）、FID `0.93342`、R-Precision@1/2/3
@@ -206,6 +206,17 @@ per-GPU micro-batch 768、accumulation 1、effective batch 3,072，每卡最小 
 筛选的 validation 和 checkpoint 均只在固定预算末端执行，即 3,145,728 windows / 第 1,024
 个 update；每次 terminal validation 固定覆盖 32,768 windows。
 
+筛选在同一 commit `800a9fd1e2ec5fcdad1f05d855609e8960aaafd9` 完成。候选 A/B 的
+terminal validation total 为 182.709418 / 166.539836，FK 为 3.615757 / 3.293625；contact
+accuracy 为 0.570313 / 0.570430。按预注册规则锁定 B：peak LR `3e-4`、warmup 1,572,864
+windows（512 updates）。两者均在用户明确允许且 manifest 已记录的 GPU0 外部 contention 下
+完成，选择不使用 throughput 或官方 test。
+
+2026-07-13 用户将全研究实验统计协议修订为 single-seed-42：Phase 1B 及未来所有 phase 的
+screening、training、main-table、evaluation 只运行 seed 42，不再运行额外训练 seed，也不报告
+跨 seed SD/Student-t CI；仍保留按样本/序列的注册 bootstrap/permutation 不确定性。该修订只
+改变重复 seed 数和相应统计汇总，不改变数据、模型、训练预算、指标或 95% gate 阈值。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
@@ -218,7 +229,7 @@ normalization、文本、短序列、人景 penetration、FS、目标误差和�
 
 #### Phase 1D：独立专家联合审计与 Phase 1 gate
 
-在 `phase/01d-gate` 上不新增模型方向，仅汇总至少三 seed 的最终专家结果，验证 checkpoint
+在 `phase/01d-gate` 上不新增模型方向，仅汇总 single-seed-42 的最终专家结果，验证 checkpoint
 provenance、参数不共享、各专家内部训练预算/effective batch 一致性、processed-window/frame
 预算、完整 hash 和统计协议；补做预注册的
 失败分层与专家不确定性对比，形成进入组合前的不可变 expert contract。
@@ -283,8 +294,8 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 原 joint、2× joint、双 joint ensemble；LINGO scheduler+守卫；HOSIG（同采样预算）；HOI
 子表 CHOIS 及协议兼容的 DecHOI/ROG/ViHOI。无代码或输入不兼容者只引用公开同协议结果。
 
-组件、数据和推理消融按预注册表执行。主表至少 3 个训练 seed；生成指标重复采样给均值和
-95% CI；同任务/seed 用 paired bootstrap 或 permutation，并校正主要多重比较。按物体、模式、
+组件、数据和推理消融按预注册表执行。所有 phase 只使用训练 seed 42；生成指标的重复采样给
+均值和 95% CI；同任务/seed 用 paired bootstrap 或 permutation，并校正主要多重比较。按物体、模式、
 路径长度、拥挤度和失败阶段分层报告。
 
 ## 5. 变更日志与 fallback
@@ -392,7 +403,7 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   终端输出当作唯一实验记录。该运维修订不启动 Phase 1B。
 - 2026-07-13：Phase 1B 在任何实现/GPU workload 前锁定 scene-free HOI Transformer、内部
   sequence-disjoint validation、四档容量审计及 headroom 判据、两个 LR/warmup 短预算候选、
-  61,440,000-window 三 seed 正式预算、checkpoint/evaluation cadence、native/CHOIS 统计协议和
+  61,440,000-window 正式预算、checkpoint/evaluation cadence、native/CHOIS 统计协议和
   95% baseline 判据。官方 438-sequence test 只在配置锁定后使用；released checkpoint 仍只作
   baseline，绝不初始化或恢复 HOIPrior。
 

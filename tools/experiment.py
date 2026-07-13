@@ -464,6 +464,11 @@ def validate_training_resource_protocol(path: Path) -> None:
     if screening.get("optimizer_updates_per_candidate") != 1024:
         raise ManifestError(f"unexpected Phase 1B screening update budget: {path}")
     if (
+        screening.get("selected_candidate") != "lr3e-4-warm1572864"
+        or screening.get("selected_run") != "p1-hoi-screen-lr3e4-s42-20260713"
+    ):
+        raise ManifestError(f"unexpected Phase 1B screening selection: {path}")
+    if (
         screening.get("validation_cadence_windows") != 3145728
         or screening.get("validation_cadence_updates") != 1024
         or screening.get("checkpoint_cadence_windows") != 3145728
@@ -471,14 +476,20 @@ def validate_training_resource_protocol(path: Path) -> None:
     ):
         raise ManifestError(f"unexpected Phase 1B screening cadence: {path}")
     formal = phase_1b.get("formal_training", {})
-    if formal.get("seeds") != [42, 123, 314]:
-        raise ManifestError(f"Phase 1B requires exactly three preregistered seeds: {path}")
+    if formal.get("seeds") != [42]:
+        raise ManifestError(f"Phase 1B requires the global single seed 42: {path}")
     if formal.get("processed_windows_per_seed") != 61440000:
         raise ManifestError(f"unexpected Phase 1B formal window budget: {path}")
     if formal.get("processed_frames_per_seed") != 983040000:
         raise ManifestError(f"unexpected Phase 1B formal frame budget: {path}")
     if formal.get("optimizer_updates_per_seed") != 20000:
         raise ManifestError(f"unexpected Phase 1B formal update budget: {path}")
+    if (
+        formal.get("learning_rate") != 0.0003
+        or formal.get("warmup_windows") != 1572864
+        or formal.get("warmup_updates") != 512
+    ):
+        raise ManifestError(f"unexpected Phase 1B selected optimization: {path}")
 
 
 def command_register(args: argparse.Namespace) -> None:

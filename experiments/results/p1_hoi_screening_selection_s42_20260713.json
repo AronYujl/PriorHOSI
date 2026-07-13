@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "expert": "hoi",
+  "status": "selected",
+  "seed": 42,
+  "git_commit": "800a9fd1e2ec5fcdad1f05d855609e8960aaafd9",
+  "fixed_protocol": {
+    "micro_batch_per_gpu": 768,
+    "world_size": 4,
+    "gradient_accumulation_steps": 1,
+    "effective_batch_size": 3072,
+    "processed_windows": 3145728,
+    "processed_frames": 50331648,
+    "optimizer_updates": 1024,
+    "validation_windows": 32768,
+    "external_contention_recorded": true
+  },
+  "candidates": {
+    "A": {
+      "run_id": "p1-hoi-screen-lr1e4-r1-s42-20260713",
+      "learning_rate": 0.0001,
+      "warmup_windows": 786432,
+      "warmup_updates": 256,
+      "terminal_validation_total": 182.7094182483852,
+      "terminal_validation_fk": 3.615756830695318,
+      "terminal_validation_contact_accuracy": 0.5703130526526365,
+      "wall_seconds": 690.6950710290112,
+      "throughput_windows_per_second": 4554.43817676798,
+      "manifest_sha256": "b6768f1d5edc2adb3adf589a4d129d0153b7b96ec1e862a6e0303f953fdcd41f",
+      "metrics_sha256": "e70d1ceea80179720a65e099f97ddce861934408b447c2bf2d84381f1dbb65d3"
+    },
+    "B": {
+      "run_id": "p1-hoi-screen-lr3e4-s42-20260713",
+      "learning_rate": 0.0003,
+      "warmup_windows": 1572864,
+      "warmup_updates": 512,
+      "terminal_validation_total": 166.5398360993713,
+      "terminal_validation_fk": 3.293625275371596,
+      "terminal_validation_contact_accuracy": 0.5704296805488411,
+      "wall_seconds": 642.5127525370044,
+      "throughput_windows_per_second": 4895.977531307952,
+      "manifest_sha256": "8f613f2cd0a16b92535b72d919a22ac382cdc722fb380e04a29d09ae9a3015ca",
+      "metrics_sha256": "634969f227446d78d1afe43897228a727ed6aa3d03a78a3060dd44df6600378e"
+    }
+  },
+  "selection_rule": "lowest finite terminal internal-validation total; contact/FK diagnostic; lower learning rate breaks an exact tie",
+  "selected_candidate": "B",
+  "official_test_used_for_selection": false
+}

@@ -105,8 +105,9 @@ These rules apply to every file in this repository.
   when changing effective batch.
 - CUDA timing must synchronize before and after measured regions. Report warm
   generation, planning, and end-to-end latency separately.
-- Screening may use one seed; main-table configurations require at least three
-  training seeds and the registered statistical protocol.
+- All screening, training, main-table, and evaluation experiments use seed 42
+  only. Report point estimates and registered sample/sequence-level uncertainty;
+  do not require additional training seeds or claim cross-seed confidence intervals.
 - Never select best-of-N for one method only. If multi-sampling is used, give all
   methods the same budget and report both mean and best.
 - Never overwrite a result, omit a preregistered metric, cherry-pick favorable

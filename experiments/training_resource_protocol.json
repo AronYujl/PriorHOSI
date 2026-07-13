@@ -82,13 +82,19 @@
         {"name": "lr1e-4-warm786432", "peak_learning_rate": 0.0001, "warmup_windows": 786432, "warmup_updates": 256},
         {"name": "lr3e-4-warm1572864", "peak_learning_rate": 0.0003, "warmup_windows": 1572864, "warmup_updates": 512}
       ],
-      "selection": "lowest finite internal-validation total loss; contact/FK diagnostic; lower LR breaks ties"
+      "selection": "lowest finite internal-validation total loss; contact/FK diagnostic; lower LR breaks ties",
+      "selected_candidate": "lr3e-4-warm1572864",
+      "selected_run": "p1-hoi-screen-lr3e4-s42-20260713",
+      "selected_terminal_validation_total": 166.5398360993713
     },
     "formal_training": {
-      "seeds": [42, 123, 314],
+      "seeds": [42],
       "processed_windows_per_seed": 61440000,
       "processed_frames_per_seed": 983040000,
       "optimizer_updates_per_seed": 20000,
+      "learning_rate": 0.0003,
+      "warmup_windows": 1572864,
+      "warmup_updates": 512,
       "validation_cadence_windows": 3072000,
       "validation_cadence_updates": 1000,
       "checkpoint_cadence_windows": 6144000,
@@ -97,11 +103,12 @@
       "resume_validation": "separate interrupted-and-resumed smoke before formal training"
     },
     "statistics": {
-      "training_seed_summary": "mean, sample standard deviation, Student-t 95 percent confidence interval",
+      "training_seed_summary": "seed-42 point estimate only; no cross-seed confidence interval",
+      "global_seed_rule": "all phases use seed 42 only",
       "paired_sequence_bootstrap_replicates": 10000,
       "paired_sequence_bootstrap_seed": 42,
-      "higher_is_better_gate": "mean >= 0.95 * baseline",
-      "lower_is_better_gate": "mean <= baseline / 0.95"
+      "higher_is_better_gate": "seed-42 point estimate >= 0.95 * baseline",
+      "lower_is_better_gate": "seed-42 point estimate <= baseline / 0.95"
     }
   }
 }
