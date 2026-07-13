@@ -137,6 +137,9 @@ worker preflight：精确 Git commit、4 卡型号/显存/驱动、机器本地 
 OMOMO-only 数据快照及 Phase 1A source hashes、`ROOT_DIR`/工作目录、时钟与 SSH/回收路径。代码只以
 Git commit 发布，数据只从不可变 snapshot 读取，运行中的 worktree/results/checkpoints/registry
 禁止双向同步。四卡机不得接收 LINGO `data/dataset` 或 synthesized-OMOMO `Scene*` 监督资产。
+四卡机固定使用 `/home/yujinlun/data`；因八卡机到四卡机 TCP/22 被网络策略阻断、反向端口可达，
+所有服务器间 Git/rsync 由四卡机使用 source-restricted 专用密钥主动发起。Windows 只用于首次
+复制公钥文本，不作为大文件中转或实验 artifact 权威副本。
 
 门槛：HOI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 contact、penetration、
 FID 退化；失败只检查表示、坐标、mask、normalization 与数据契约。通过后总结并 tag
@@ -307,6 +310,11 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   主机，`10.181.9.214` 作为只执行已提交代码的 Phase 1B HOI worker。新增 Git 单向发布、不可变
   OMOMO-only 数据 snapshot、环境复制/验证、artifact 回收和 append-only registry 单写者协议；
   该运维修订不启动 Phase 1B，也不改变其研究假设、gate 或 batch 候选。
+- 2026-07-13：四卡 worker 实测为 Ubuntu 20.04/glibc 2.31、4×RTX 3090 24GB、driver
+  580.126.09、125 GiB RAM、`/home` 可用 4.0 TiB，时钟/NTP 正常；与八卡机 OS/glibc 兼容。
+  八卡机到 worker 的 TCP/22 超时，但 worker 到八卡机 TCP/22 可达，因此将 transport 固定为
+  worker 主动 pull/push，并把 worker 根目录固定为 `/home/yujinlun/data`。首次检查时 GPU 2 有
+  外部进程占用约 3.5 GiB；Phase 1B reportable 运行前必须清空四卡或显式登记 contention。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

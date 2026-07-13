@@ -9,12 +9,25 @@ training inputs or reportable artifacts.
 The worker is not provisioned merely by copying the repository directory. It
 needs a committed Git revision, a verified Linux environment, an immutable
 OMOMO-only data snapshot, evaluator assets, and an explicit return path for
-manifests/checkpoints/logs. Do not start Phase 1B until Steps 1-7 pass.
+manifests/checkpoints/logs. Do not start Phase 1B until Steps 1-8 pass.
+
+Connectivity was measured on 2026-07-13: ICMP works both ways, inbound TCP/22
+from the 8-GPU host to the worker times out, and TCP/22 from the worker to the
+8-GPU host succeeds. Therefore every server-to-server transfer is initiated by
+the worker. Windows is used only to copy the worker's public key text during
+bootstrap; it must not relay bulk datasets, environments, or run artifacts.
 
 ## 1. Collect the four-GPU machine facts
 
-Run the following on `10.181.9.214` and retain the output. Replace
-`<FOUR_USER>` below with the actual account name.
+The worker account is `yujinlun`, its home is `/home/yujinlun`, and project
+storage is rooted at `/home/yujinlun/data`. The recorded preflight is Ubuntu
+20.04.6, kernel 5.15, glibc 2.31, Python 3.8.10, 125 GiB RAM, synchronized NTP,
+4.0 TiB free and 235 million free inodes under `/home`. It has four RTX 3090
+24GB GPUs with driver 580.126.09. The authoritative host is also Ubuntu 20.04.6
+with glibc 2.31, so a verified `conda-pack` relocation is appropriate.
+
+The following commands remain the reproducible preflight and must be archived
+again beside the first reportable Phase 1B manifest:
 
 ```bash
 id
@@ -30,10 +43,10 @@ command -v git rsync tar sha256sum
 python3 --version
 ```
 
-Also confirm whether the 8-GPU host can SSH directly to `<FOUR_USER>@10.181.9.214`
-and whether the four-GPU host can reach GitHub/Conda. Do not share passwords or
-private keys in chat. A dedicated SSH key may be installed in the worker's
-`~/.ssh/authorized_keys`; retain the private key only on the initiating host.
+At the initial check, GPU 2 had an unrelated Python process using about 3.5 GiB
+and 35% utilization. All four GPUs must be idle for the reportable memory audit
+and training, or the contention must be recorded and the affected run cannot be
+used as the clean capacity decision.
 
 Reserve substantially more than the roughly 14-16 GiB initial HOI training
 snapshot: evaluation assets, the unpacked environment (currently about 9 GiB),
@@ -43,56 +56,80 @@ multiple retained runs.
 
 ## 2. Use a fixed worker layout
 
-Recommended paths, all below the worker account's `/home`:
+Fixed paths, all below the worker account's existing `~/data` directory:
 
 ```text
-/home/<FOUR_USER>/git/InfBaGel-release.git          # bare transfer repository
-/home/<FOUR_USER>/work/InfBaGel-release             # clean execution checkout
-/home/<FOUR_USER>/envs/infbagel                     # relocated packed environment
-/home/<FOUR_USER>/datasets/InfBaGel-p1b-omomo-v1    # immutable data snapshot
-/home/<FOUR_USER>/transfer                          # staging only
+/home/yujinlun/data/work/InfBaGel-release             # clean execution checkout
+/home/yujinlun/data/envs/infbagel                     # relocated packed environment
+/home/yujinlun/data/datasets/InfBaGel-p1b-omomo-v1    # immutable data snapshot
+/home/yujinlun/data/transfer                          # staging only
+/home/yujinlun/data/results                           # optional checkpoint backup root
 ```
 
 In the checkout, `data` is a local symlink to the immutable snapshot. Never
 copy the absolute `/data/...` symlink from the 8-GPU host.
 
-## 3. Publish code with Git, not rsync
+## 3. Establish worker-to-authority SSH
 
-After direct SSH from the authoritative host works, initialize a bare repository
-once on the worker:
-
-```bash
-ssh <FOUR_USER>@10.181.9.214 \
-  'mkdir -p "$HOME/git" "$HOME/work" "$HOME/transfer" && git init --bare "$HOME/git/InfBaGel-release.git"'
-```
-
-On the 8-GPU host, add a narrowly named remote and publish the current research
-branch and immutable Phase 1A tag:
+The authoritative host intentionally rejects passwords. Create a dedicated key
+on the worker; do not reuse or transmit its private half:
 
 ```bash
-git remote add hoi-worker \
-  <FOUR_USER>@10.181.9.214:/home/<FOUR_USER>/git/InfBaGel-release.git
-git push hoi-worker research/state-compositional-priors
-git push hoi-worker exp/p1a-data-v1
+install -d -m 700 "$HOME/.ssh"
+ssh-keygen -t ed25519 -a 100 -N '' \
+  -f "$HOME/.ssh/id_ed25519_infbagel_8gpu" \
+  -C 'node01-hoi-worker-to-10.184.17.253'
+cat "$HOME/.ssh/id_ed25519_infbagel_8gpu.pub"
 ```
 
-Clone locally on the worker. Phase 1B implementation is performed and committed
-on the authoritative host; only then is its exact `phase/01b-hoi` revision pushed
-and checked out on the worker.
+Copy only that one `.pub` line through the Windows clipboard. On the 8-GPU host,
+append it to `~/.ssh/authorized_keys` with the restrictions below, replacing
+`<WORKER_PUBLIC_KEY_LINE>` with the complete `ssh-ed25519 ...` line:
 
 ```bash
-ssh <FOUR_USER>@10.181.9.214 \
-  'git clone --branch research/state-compositional-priors \
-     "$HOME/git/InfBaGel-release.git" "$HOME/work/InfBaGel-release"'
-git push hoi-worker phase/01b-hoi
-ssh <FOUR_USER>@10.181.9.214 \
-  'cd "$HOME/work/InfBaGel-release" && git fetch origin && git switch phase/01b-hoi'
+install -d -m 700 "$HOME/.ssh"
+touch "$HOME/.ssh/authorized_keys"
+chmod 600 "$HOME/.ssh/authorized_keys"
+WORKER_KEY='<WORKER_PUBLIC_KEY_LINE>'
+ENTRY="from=\"10.181.9.214\",restrict $WORKER_KEY"
+grep -qxF "$ENTRY" "$HOME/.ssh/authorized_keys" || \
+  printf '%s\n' "$ENTRY" >> "$HOME/.ssh/authorized_keys"
+unset WORKER_KEY ENTRY
 ```
 
-Before every reportable run, the two hosts must print the same `git rev-parse
-HEAD`, and the worker worktree must be clean. Never force-push a run commit.
+The ECDSA host fingerprint independently verified on the authoritative host is
+`SHA256:TAndo0bQIctobfT4jyGeuPBnLRNbxgbuVtho2JBz35A`. On the worker, test the
+dedicated key explicitly:
 
-## 4. Replicate the verified environment
+```bash
+ssh -i "$HOME/.ssh/id_ed25519_infbagel_8gpu" \
+  -o IdentitiesOnly=yes yujinlun@10.184.17.253 'hostname; pwd'
+```
+
+An empty passphrase is intentional only for this restricted automation key. If
+local policy requires a passphrase, use `ssh-agent` and document its lifecycle.
+Do not add a forced command: Git, rsync, and hash checks require remote exec.
+
+## 4. Pull committed code with Git
+
+Phase 1B implementation is performed and committed on the authoritative host.
+The worker reads that repository directly; no worker bare repository and no
+source-tree rsync are needed:
+
+```bash
+mkdir -p "$HOME/data/work" "$HOME/data/transfer"
+GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519_infbagel_8gpu -o IdentitiesOnly=yes" \
+  git clone --branch research/state-compositional-priors \
+  yujinlun@10.184.17.253:/data/yujinlun/InfBaGel-release \
+  "$HOME/data/work/InfBaGel-release"
+```
+
+After `phase/01b-hoi` exists on the authority, the worker fetches and switches
+to it using the same `GIT_SSH_COMMAND`. Before every reportable run, both hosts
+must print the same `git rev-parse HEAD`, and the worker worktree must be clean.
+Never commit source changes or force-push from the worker.
+
+## 5. Replicate the verified environment
 
 The current authoritative environment is Python 3.8, PyTorch 1.13.1+cu117, and
 PyTorch3D 0.7.8. `requirements.txt` alone is insufficient because it does not
@@ -106,18 +143,19 @@ On the 8-GPU host:
 conda-pack -p /data/yujinlun/anaconda3/envs/infbagel \
   -o /tmp/infbagel-linux-x86_64.tar.gz
 sha256sum /tmp/infbagel-linux-x86_64.tar.gz
-rsync -avP /tmp/infbagel-linux-x86_64.tar.gz \
-  <FOUR_USER>@10.181.9.214:/home/<FOUR_USER>/transfer/
 ```
 
-On the worker:
+Then pull from the worker:
 
 ```bash
-mkdir -p "$HOME/envs/infbagel"
-tar -xzf "$HOME/transfer/infbagel-linux-x86_64.tar.gz" \
-  -C "$HOME/envs/infbagel"
-"$HOME/envs/infbagel/bin/conda-unpack"
-export INFBAGEL_PYTHON="$HOME/envs/infbagel/bin/python"
+rsync -avP -e 'ssh -i /home/yujinlun/.ssh/id_ed25519_infbagel_8gpu -o IdentitiesOnly=yes' \
+  yujinlun@10.184.17.253:/tmp/infbagel-linux-x86_64.tar.gz \
+  "$HOME/data/transfer/"
+mkdir -p "$HOME/data/envs/infbagel"
+tar -xzf "$HOME/data/transfer/infbagel-linux-x86_64.tar.gz" \
+  -C "$HOME/data/envs/infbagel"
+"$HOME/data/envs/infbagel/bin/conda-unpack"
+export INFBAGEL_PYTHON="$HOME/data/envs/infbagel/bin/python"
 "$INFBAGEL_PYTHON" -c \
   'import torch,pytorch3d; print(torch.__version__, torch.version.cuda, pytorch3d.__version__); print(torch.cuda.is_available(), torch.cuda.device_count())'
 ```
@@ -127,7 +165,7 @@ Record the tarball SHA-256, interpreter path, import output, `pip freeze`, and
 extension fails, stop and build a separately pinned environment; do not fall
 back to system Python or silently reinstall newer packages.
 
-## 5. Transfer an OMOMO-only immutable snapshot
+## 6. Transfer an OMOMO-only immutable snapshot
 
 For Phase 1B, do not transfer `data/dataset` (LINGO), `data/hosi_test`, or any
 `data/train/Scene*` / `data/test/Scene*` synthesized-scene directory. The initial
@@ -138,10 +176,9 @@ Phase 1B may add a missing scene-free asset only by recording its path and hash.
 Create the destination once:
 
 ```bash
-ssh <FOUR_USER>@10.181.9.214 \
-  'mkdir -p "$HOME/datasets/InfBaGel-p1b-omomo-v1/data/train" \
-             "$HOME/datasets/InfBaGel-p1b-omomo-v1/data/test" \
-             "$HOME/datasets/InfBaGel-p1b-omomo-v1/data/object"'
+mkdir -p "$HOME/data/datasets/InfBaGel-p1b-omomo-v1/data/train" \
+         "$HOME/data/datasets/InfBaGel-p1b-omomo-v1/data/test" \
+         "$HOME/data/datasets/InfBaGel-p1b-omomo-v1/data/object"
 ```
 
 Use `rsync -aH --partial --info=progress2` for the required top-level files and
@@ -164,8 +201,8 @@ After the first transfer, repeat the same rsync command with `--checksum
 --dry-run`; it must report no differences. Then link the snapshot:
 
 ```bash
-cd "$HOME/work/InfBaGel-release"
-ln -s "$HOME/datasets/InfBaGel-p1b-omomo-v1/data" data
+cd "$HOME/data/work/InfBaGel-release"
+ln -s "$HOME/data/datasets/InfBaGel-p1b-omomo-v1/data" data
 ```
 
 Run the Phase 1A HOI audit on the worker and compare every `source_hashes` entry
@@ -175,7 +212,7 @@ under an ignored preflight run directory; do not overwrite the tracked aggregate
 The expected tracked aggregate SHA-256 is
 `1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f`.
 
-## 6. Transfer evaluation-only dependencies
+## 7. Transfer evaluation-only dependencies
 
 Full Phase 1B evaluation also needs the pinned CHOIS evaluator assets and SMPL
 models. Transfer these separately after their existing hashes/commits are
@@ -190,13 +227,13 @@ smpl_models/                                        about 2.2 GiB
 These assets may evaluate HOIPrior outputs; they must never initialize HOIPrior.
 Do not transfer `checkpoint/checkpoint.pth` as a training initializer.
 
-## 7. Worker preflight before Phase 1B runs
+## 8. Worker preflight before Phase 1B runs
 
 In the worker checkout:
 
 ```bash
 export ROOT_DIR="$(git rev-parse --show-toplevel)"
-export INFBAGEL_PYTHON="$HOME/envs/infbagel/bin/python"
+export INFBAGEL_PYTHON="$HOME/data/envs/infbagel/bin/python"
 test -L data
 git status --short
 git rev-parse HEAD
@@ -210,7 +247,7 @@ audit comparison, and a one-GPU import/forward smoke. The actual four-GPU memory
 audit remains Phase 1B work and must use `tools/experiment.py start/finish/register`
 from a clean worktree.
 
-## 8. Artifact ownership and return flow
+## 9. Artifact ownership and return flow
 
 Each run id has one writer. While a worker run is active:
 
@@ -231,12 +268,12 @@ result directories, and machine roles. Integration remains sequential: fetch a
 completed worker branch, verify its manifests/hashes/tests on the authoritative
 host, and merge only after that phase gate passes.
 
-## Information still required before remote provisioning
+## Remaining provisioning checks
 
-- the four-GPU account name and exact `$HOME`;
-- SSH reachability from `10.184.17.253` to `10.181.9.214` and desired key policy;
-- OS, kernel, NVIDIA driver, four exact GPU records, RAM, free disk/inodes;
-- whether Conda/GitHub access is available on the worker;
-- whether training outputs need a second storage location beyond `/home`.
+- install and test the dedicated worker-to-authority public key;
+- confirm whether the worker can reach GitHub/Conda (not required for the
+  preferred packed-environment path, but useful for recovery);
+- decide whether checkpoints need a second storage location beyond `/home`;
+- confirm all four GPUs are idle before reportable capacity/training runs.
 
 Passwords, private keys, and tokens are never required in the repository or chat.

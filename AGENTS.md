@@ -42,6 +42,12 @@ These rules apply to every file in this repository.
   transfer immutable data snapshots separately. Never bidirectionally `rsync` a
   live worktree, registry, checkpoint directory, or running result directory.
   The worker must not edit source while a reportable workload is running.
+- Because inbound TCP/22 from the 8-GPU host to the 4-GPU worker is blocked, the
+  worker initiates all server-to-server Git/rsync transfers over a dedicated,
+  source-restricted SSH key to `10.184.17.253`. Its machine-local repository,
+  environment, datasets, staging, and results live below
+  `/home/yujinlun/data`; Windows is only a public-key/bootstrap client, not a
+  bulk-data relay.
 - Keep `ROOT_DIR` equal to the current checkout root. Provide the worker's
   OMOMO-only snapshot through the checkout-local `data` link (or a subsequently
   tested explicit data-root configuration). Do not copy LINGO `data/dataset` or
