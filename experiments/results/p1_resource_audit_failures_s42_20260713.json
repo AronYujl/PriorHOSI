@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1A-resource",
+  "status": "failed",
+  "gate_passed": false,
+  "formal_effective_batch_candidate": 3072,
+  "formal_architecture": {
+    "dim_model": 512,
+    "num_heads": 16,
+    "num_layers": 8,
+    "scene_grid_size": 32,
+    "hoi_parameters": 26377000,
+    "hsi_parameters": 26277736,
+    "amp": true,
+    "initialization": "random"
+  },
+  "attempts": [
+    {
+      "id": "p1-resource-hoi-w8-eb3072-s42-20260713",
+      "status": "failed",
+      "reason": "DataLoader worker abort corrupted rank-1 metrics; result rejected despite exit code 0.",
+      "manifest_sha256": "94e2a59f9f330b86e802a0755f12ea62948e96e4e4690ea8c22e669347ec8077"
+    },
+    {
+      "id": "p1-resource-hoi-w8-eb3072-r1-s42-20260713",
+      "status": "failed",
+      "reason": "Real random BPS/rotation preparation did not produce the first batch after more than ten minutes; GPUs stayed near 717 MiB and 0% utilization.",
+      "manifest_sha256": "8272cd371f6c7c61b4663cc958040e5143a319426fca37f195a1656d233b30b2"
+    }
+  ],
+  "aborted_manifests_sha256": {
+    "p1-resource-hoi-w4-eb3072-s42-20260713": "a953eda6c965f4a4e73aefd4d14014719730281e30ecdfb17e3b64ae9db5701f",
+    "p1-resource-hsi-w8-eb3072-s42-20260713": "954d2f302fda164646210cb04988d9bee48823d43da821e894023f61774304f9",
+    "p1-resource-hsi-w4-eb3072-s42-20260713": "1892ef6d46f8364f73055e7e9ad47c40635c3e7587285c7eac8e76310eb4d0e8",
+    "p1-resource-hoi-w4-eb3072-r1-s42-20260713": "07836312a10eac0d2c826d0f9a1fd6d34439731506280d6294efad2e99ed0cbf",
+    "p1-resource-hsi-w8-eb3072-r1-s42-20260713": "ec7ab854d2d5c8d9f20407320980809a264b4c27cc68c5f541f114dfede6ae9c",
+    "p1-resource-hsi-w4-eb3072-r1-s42-20260713": "35822b0f49d4786fcdbca1b326dc8dfae58e604a1b435f935421bc9d0c14ad98"
+  },
+  "next_allowed_diagnostic": "Build a content-hashed prepacked audit batch/cache from the locked data contract; measure pipeline throughput separately from 4/8-GPU capacity replay."
+}

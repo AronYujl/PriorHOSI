@@ -312,6 +312,14 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   batch 3072。Phase 1B/1C 在 gate 前保持阻塞；审计必须基于锁定研究分支独立实现的正式架构和
   loss，而不是 lightweight scaffold 或 `results/priors/benchmarks/` 中外部 provenance 产物。
   HOI/HSI 各审计 8/4 卡拓扑，选定配置执行至少 30 updates 后才决定服务器与 batch。
+- 2026-07-13：Phase 1A-resource 首次 EB3072 审计未通过。初次 HOI 8×384 workload 虽返回 0，
+  但 DataLoader worker abort 导致 rank 1 的 windows/显存为零，aggregate 判为损坏并登记失败；
+  其余三项 pre-workload aborted。r1 增加 all-rank 强校验并禁用 worker fork 后，HOI 8×384 在
+  超过十分钟内仍未生成首个 batch，8 卡均约 717 MiB/0% utilization，确认随机 BPS/rotation
+  准备是 CPU/I/O blocker，终止并登记失败，其余三项再次 pre-workload aborted。下一步仅允许
+  构建由锁定数据契约生成、带内容 hash 的预打包 audit batch/cache，并把数据管线吞吐与纯容量
+  replay 分开报告；在新 id 成功完成 4/8 卡及 30-update soak 前，resource gate 不通过且不得
+  进入 Phase 1B/1C。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
