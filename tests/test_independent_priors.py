@@ -151,6 +151,25 @@ class ExpertTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not a Phase 1B"):
                 load_trained_hoi_prior(str(path), torch.device("cpu"))
 
+    def test_phase_1b_checkpoint_loads_strict_ema_weights(self):
+        model = build_expert("hoi", dim_model=32, num_heads=4, num_layers=1)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "hoi.pth"
+            torch.save({
+                "schema_version": 1,
+                "checkpoint_type": "hoi_prior_phase1b",
+                "expert": "hoi",
+                "initialization": "random",
+                "model_config": {"dim_model": 32, "num_heads": 4, "num_layers": 1},
+                "model": model.state_dict(),
+                "ema_model": model.state_dict(),
+            }, path)
+            loaded, metadata = load_trained_hoi_prior(str(path), torch.device("cpu"))
+            self.assertIsInstance(loaded, HOIPrior)
+            self.assertEqual(metadata["weights"], "ema_model")
+            for expected, actual in zip(model.parameters(), loaded.parameters()):
+                torch.testing.assert_close(expected, actual)
+
     def test_cpu_forward_backward_for_both_expert_apis(self):
         batch = 2
         x = torch.randn(batch, 16, 232)

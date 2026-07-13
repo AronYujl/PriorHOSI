@@ -155,6 +155,8 @@ class ManifestTests(unittest.TestCase):
         hoi_body = model.split("class HOIPrior", 1)[1].split("class HSIPrior", 1)[0]
         self.assertNotIn("scene_condition:", hoi_body)
         self.assertIn("init_checkpoint is forbidden", trainer)
+        self.assertIn("resume checkpoint training contract mismatch", trainer)
+        self.assertIn("resume checkpoint Git commit mismatch", trainer)
 
     def test_phase_1b_capacity_audit_keeps_all_preregistered_candidates(self):
         source = (REPO_ROOT / "tools/audit_hoi_capacity.py").read_text(encoding="utf-8")

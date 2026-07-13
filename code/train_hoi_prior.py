@@ -81,6 +81,35 @@ def _model_config(cfg: DictConfig) -> Dict[str, int]:
     }
 
 
+def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
+    """Critical immutable fields for an exact same-run resume."""
+    split = Path(str(cfg.split_manifest)).resolve()
+    return {
+        "model_config": _model_config(cfg),
+        "batch_size": int(cfg.batch_size),
+        "num_gpus": int(cfg.num_gpus),
+        "effective_batch_size": int(cfg.effective_batch_size),
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps),
+        "max_processed_windows": int(cfg.max_processed_windows),
+        "validation_windows": int(cfg.validation_windows),
+        "validation_interval_windows": int(cfg.validation_interval_windows),
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows),
+        "learning_rate": float(cfg.learning_rate),
+        "warmup_windows": int(cfg.warmup_windows),
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio),
+        "weight_decay": float(cfg.weight_decay),
+        "betas": [float(cfg.beta1), float(cfg.beta2)],
+        "gradient_clip_norm": float(cfg.gradient_clip_norm),
+        "ema_decay": float(cfg.ema_decay),
+        "fk_weight": float(cfg.fk_weight),
+        "velocity_weight": float(cfg.velocity_weight),
+        "goal_weight": float(cfg.goal_weight),
+        "amp": bool(cfg.amp),
+        "data_contract_sha256": str(cfg.data_contract_sha256),
+        "split_sha256": _sha256(split),
+    }
+
+
 def _lr_lambda(update: int, total_updates: int, warmup_updates: int, minimum_ratio: float) -> float:
     if warmup_updates and update < warmup_updates:
         return max((update + 1) / warmup_updates, 1.0 / warmup_updates)
@@ -255,6 +284,7 @@ def _save_checkpoint(
             "world_size": world_size,
             "effective_batch_size": int(cfg.effective_batch_size),
             "model_config": _model_config(cfg),
+            "resume_contract": _resume_contract(cfg),
             "data_contract_sha256": str(cfg.data_contract_sha256),
             "split_sha256": _sha256(Path(str(cfg.split_manifest)).resolve()),
             "model": model.module.state_dict(),
@@ -288,6 +318,13 @@ def _load_resume(
     checkpoint = torch.load(path, map_location=f"cuda:{rank}")
     if checkpoint.get("checkpoint_type") != "hoi_prior_phase1b":
         raise ValueError("resume checkpoint is not a Phase 1B HOIPrior checkpoint")
+    current_commit = _git_commit(Path(str(cfg.repo_root)).resolve())
+    if checkpoint.get("git_commit") != current_commit:
+        raise ValueError(
+            f"resume checkpoint Git commit mismatch: {checkpoint.get('git_commit')} != {current_commit}"
+        )
+    if checkpoint.get("resume_contract") != _resume_contract(cfg):
+        raise ValueError("resume checkpoint training contract mismatch")
     for key, expected in (
         ("run_id", str(cfg.run_id)),
         ("seed", int(cfg.seed)),
