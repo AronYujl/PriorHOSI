@@ -18,7 +18,7 @@ For each expert independently:
    with a candidate effective-batch tier on its allocated server, while retaining
    documented memory headroom and checking a multi-update stability soak, not
    only one update.
-2. Select formal effective batch from `{512, 1024, 2048}`. Values such as 1536
+2. Select formal effective batch from `{512, 1024, 2048, 3072}`. Values such as 1536
    are invalid. A larger tier must be a power of two and requires a dated plan
    and registry amendment before execution.
 3. Prefer accumulation 1. Increase accumulation only to reach the selected tier
@@ -34,6 +34,28 @@ Thus the selected micro-batch must divide the selected effective batch after
 multiplication by world size. Unused headroom should first support the intended
 model/conditioning capacity or data pipeline; it must not be converted into a
 nonstandard effective batch.
+
+For accumulation 1, the conventional topology-aligned micro-batches are:
+
+| GPUs | EB 512 | EB 1024 | EB 2048 | EB 3072 |
+|---:|---:|---:|---:|---:|
+| 8 | 64 | 128 | 256 | 384 |
+| 4 | 128 | 256 | 512 | 768 |
+
+Smaller compatible micro-batches may reach the same tier with integer gradient
+accumulation. The resource audit reports all compatible choices rather than
+inventing a nonregistered effective batch.
+
+## Phase 1A resource gate
+
+Resource selection is part of Phase 1A, before expert training. The addendum
+must freeze the exact formal HOI and HSI model/loss/config shapes, then audit
+each on 8-GPU and 4-GPU topologies. Each candidate performs a real data
+forward/backward; the selected configuration additionally completes at least
+30 optimizer updates to expose fragmentation and transient peaks. Results record
+peak memory, headroom, throughput, data-loading contention, and every failed/OOM
+candidate. Lightweight scaffolds and checkpoints or manifests without locked
+research-branch provenance cannot satisfy this gate.
 
 ## Budgets and comparisons
 

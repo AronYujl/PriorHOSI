@@ -52,7 +52,7 @@ These rules apply to every file in this repository.
   leaving documented memory headroom. Do not require the two experts to
   use the same micro-batch, GPU count, or effective batch.
 - Formal expert-training effective batch must use a conventional power-of-two
-  tier. The default registered candidates are `{512, 1024, 2048}`; values such
+  tier. The default registered candidates are `{512, 1024, 2048, 3072}`; values such
   as `1536` are forbidden. A larger tier requires a dated plan/registry update.
 - Keep effective batch and processed-window/frame budget fixed within a given
   expert's controlled comparisons. Across HOI and HSI, use processed windows or
@@ -61,6 +61,10 @@ These rules apply to every file in this repository.
   the selected conventional effective-batch tier or when a preregistered
   optimization study justifies it. Jointly preregister learning rate and warmup
   when changing effective batch.
+- Phase 1B/1C may not start until the Phase 1A resource addendum freezes the
+  formal expert architectures and audits both 8-GPU and 4-GPU topologies. A
+  capacity result from a lightweight scaffold or an untracked/foreign-provenance
+  checkpoint is not valid resource evidence.
 - CUDA timing must synchronize before and after measured regions. Report warm
   generation, planning, and end-to-end latency separately.
 - Screening may use one seed; main-table configurations require at least three

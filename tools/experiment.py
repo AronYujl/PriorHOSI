@@ -365,8 +365,8 @@ def validate_training_resource_protocol(path: Path) -> None:
     if protocol.get("schema_version") != 1:
         raise ManifestError(f"unexpected training-resource schema: {path}")
     candidates = protocol.get("effective_batch", {}).get("default_candidates")
-    if candidates != [512, 1024, 2048]:
-        raise ManifestError(f"default effective-batch tiers must be 512/1024/2048: {path}")
+    if candidates != [512, 1024, 2048, 3072]:
+        raise ManifestError(f"default effective-batch tiers must be 512/1024/2048/3072: {path}")
     for value in candidates:
         validate_effective_batch(value, protocol)
     if 1536 not in protocol.get("effective_batch", {}).get("forbidden_examples", []):
@@ -375,6 +375,11 @@ def validate_training_resource_protocol(path: Path) -> None:
         raise ManifestError(f"training resources must be selected independently per expert: {path}")
     if protocol.get("primary_budget_units") != ["processed_windows", "processed_frames"]:
         raise ManifestError(f"unexpected primary training budget units: {path}")
+    gate = protocol.get("phase_1a_resource_gate", {})
+    if gate.get("required_world_sizes") != [8, 4] or gate.get("minimum_selected_configuration_optimizer_updates", 0) < 30:
+        raise ManifestError(f"Phase 1A resource gate must audit 8/4 GPUs with a 30-update soak: {path}")
+    if gate.get("lightweight_scaffold_is_sufficient") is not False:
+        raise ManifestError(f"lightweight scaffold cannot satisfy formal resource audit: {path}")
 
 
 def command_register(args: argparse.Namespace) -> None:

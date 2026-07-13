@@ -102,19 +102,21 @@ class ManifestTests(unittest.TestCase):
 
         protocol_path = REPO_ROOT / "experiments" / "training_resource_protocol.json"
         protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
-        self.assertEqual(protocol["effective_batch"]["default_candidates"], [512, 1024, 2048])
+        self.assertEqual(protocol["effective_batch"]["default_candidates"], [512, 1024, 2048, 3072])
         self.assertEqual(protocol["selection_scope"], "independent_per_expert")
         self.assertEqual(protocol["primary_budget_units"], ["processed_windows", "processed_frames"])
-        for value in (512, 1024, 2048):
+        for value in (512, 1024, 2048, 3072):
             experiment.validate_effective_batch(value, protocol)
         with self.assertRaises(experiment.ManifestError):
             experiment.validate_effective_batch(1536, protocol)
         experiment.validate_effective_batch(4096, protocol, allow_extended=True)
 
         rules = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`{512, 1024, 2048}`", rules)
+        self.assertIn("`{512, 1024, 2048, 3072}`", rules)
         self.assertIn("as `1536` are forbidden", rules)
         self.assertIn("processed windows or", rules)
+        self.assertEqual(protocol["phase_1a_resource_gate"]["required_world_sizes"], [8, 4])
+        self.assertGreaterEqual(protocol["phase_1a_resource_gate"]["minimum_selected_configuration_optimizer_updates"], 30)
 
     def test_diffusion_training_loss_has_no_stale_cleanup_variables(self):
         model = (REPO_ROOT / "code" / "models" / "infbagel.py").read_text(

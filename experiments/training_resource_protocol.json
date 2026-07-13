@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "effective_batch": {
-    "default_candidates": [512, 1024, 2048],
+    "default_candidates": [512, 1024, 2048, 3072],
     "extended_rule": "power_of_two_with_dated_plan_and_registry_amendment",
     "forbidden_examples": [1536]
   },
@@ -23,5 +23,12 @@
     "memory_headroom",
     "throughput",
     "concurrent_workload_or_io_contention"
-  ]
+  ],
+  "phase_1a_resource_gate": {
+    "formal_architecture_frozen_before_audit": true,
+    "required_world_sizes": [8, 4],
+    "minimum_selected_configuration_optimizer_updates": 30,
+    "lightweight_scaffold_is_sufficient": false,
+    "foreign_or_untracked_checkpoint_evidence_is_sufficient": false
+  }
 }
