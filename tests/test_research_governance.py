@@ -134,6 +134,8 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("/home/yujinlun/data", guide)
         self.assertIn("worker initiates all server-to-server", rules)
         self.assertIn("id_ed25519_infbagel_8gpu", guide)
+        self.assertIn("INFBAGEL_WORKER_EXPERT=hoi", guide)
+        self.assertIn("smpl_models", rules)
         self.assertIn("current research HEAD", handoff)
         self.assertIn("4-GPU worker", handoff)
 

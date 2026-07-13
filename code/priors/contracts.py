@@ -2,7 +2,7 @@
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -45,12 +45,12 @@ HSI_CONTRACT = DatasetContract(
 )
 
 
-def validate_contract_paths(repo: Path) -> None:
-    required = (
-        repo / "data/train/norm.npy",
-        repo / "data/dataset/norm.npy",
-        repo / HSI_CONTRACT.split,
-    )
+def validate_contract_paths(repo: Path, expert: Optional[str] = None) -> None:
+    if expert not in {None, "hoi", "hsi"}:
+        raise ValueError(f"unknown expert contract: {expert}")
+    required = [repo / "data/train/norm.npy"]
+    if expert in {None, "hsi"}:
+        required.extend((repo / "data/dataset/norm.npy", repo / HSI_CONTRACT.split))
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise FileNotFoundError(f"missing contract assets: {missing}")

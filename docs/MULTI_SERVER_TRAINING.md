@@ -229,6 +229,12 @@ third_party/chois_omomo_evaluator_assets/           about 6.2 GiB
 smpl_models/                                        about 2.2 GiB
 ```
 
+`smpl_models` is required before the HOI dataset can derive its kinematic
+parent table, so sync it before unit tests or a forward smoke. It is a static
+kinematic asset, not scene supervision. The CHOIS assets may wait until native
+evaluation is implemented, but must be present before the Phase 1B evaluation
+gate.
+
 These assets may evaluate HOIPrior outputs; they must never initialize HOIPrior.
 Do not transfer `checkpoint/checkpoint.pth` as a training initializer.
 
@@ -239,6 +245,7 @@ In the worker checkout:
 ```bash
 export ROOT_DIR="$(git rev-parse --show-toplevel)"
 export INFBAGEL_PYTHON="$HOME/data/envs/infbagel/bin/python"
+export INFBAGEL_WORKER_EXPERT=hoi
 test -L data
 git status --short
 git rev-parse HEAD
@@ -251,6 +258,10 @@ Also archive hostname, time, `nvidia-smi`, `df -h`, environment hashes, data
 audit comparison, and a one-GPU import/forward smoke. The actual four-GPU memory
 audit remains Phase 1B work and must use `tools/experiment.py start/finish/register`
 from a clean worktree.
+
+With `INFBAGEL_WORKER_EXPERT=hoi`, only tests that require real LINGO files may
+be skipped. HSI representation/mask/model API tests still run, and HOI real-data
+tests must pass. Never satisfy the suite by copying `data/dataset` to this worker.
 
 ## 9. Artifact ownership and return flow
 

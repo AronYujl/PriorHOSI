@@ -52,6 +52,11 @@ These rules apply to every file in this repository.
   OMOMO-only snapshot through the checkout-local `data` link (or a subsequently
   tested explicit data-root configuration). Do not copy LINGO `data/dataset` or
   synthesized OMOMO `Scene*` assets into the HOI worker snapshot.
+- Set `INFBAGEL_WORKER_EXPERT=hoi` when validating the HOI-only worker. This may
+  skip only tests that load real LINGO files; representation, HSI mask/model API,
+  HOI real-data, governance, and checkpoint-rejection tests must still run.
+  `smpl_models` is a required code-independent kinematic asset for HOI loading,
+  not scene supervision, and must be hash-verified on the worker.
 - Follow `docs/MULTI_SERVER_TRAINING.md` for provisioning, immutable data
   verification, code publication, artifact recovery, and concurrent-run
   ownership. A reportable remote run may start only after its machine preflight

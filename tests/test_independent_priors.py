@@ -1,5 +1,6 @@
 import inspect
 import json
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -14,6 +15,11 @@ from priors.contracts import HOI_CONTRACT, HSI_CONTRACT, validate_contract_paths
 from priors.data import PriorWindowDataset, hsi_filter, partition_for_scenes
 from priors.models import HSIPrior, HOIPrior, assert_parameter_independence, build_expert
 from priors.representation import REPRESENTATION, masked_reconstruction_loss
+
+
+WORKER_EXPERT = os.environ.get("INFBAGEL_WORKER_EXPERT")
+if WORKER_EXPERT not in {None, "hoi", "hsi"}:
+    raise ValueError(f"invalid INFBAGEL_WORKER_EXPERT: {WORKER_EXPERT}")
 
 
 class RepresentationTests(unittest.TestCase):
@@ -57,19 +63,26 @@ class ContractTests(unittest.TestCase):
         sides = partition_for_scenes(split, scenes)
         np.testing.assert_array_equal(sides, np.asarray(["train", "train", "validation", "validation"], dtype=object))
 
+    @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
     def test_author_replaced_lingo_normalization_is_omomo_normalization(self):
         validate_contract_paths(REPO)
         np.testing.assert_array_equal(np.load(REPO / "data/dataset/norm.npy"), np.load(REPO / "data/train/norm.npy"))
         self.assertIn("never recompute", HSI_CONTRACT.normalization)
 
+    def test_hoi_worker_contract_paths_require_no_lingo_assets(self):
+        validate_contract_paths(REPO, expert="hoi")
+
     def test_hoi_contract_forbids_scene_and_hsi_forbids_object_supervision(self):
         self.assertIn("forbidden", HOI_CONTRACT.scene_condition)
         self.assertIn("forbidden", HSI_CONTRACT.object_condition)
 
-    def test_real_domain_items_expose_only_authorized_conditions(self):
+    def test_real_hoi_item_exposes_only_authorized_conditions(self):
         hoi = PriorWindowDataset(str(REPO), "hoi", limit=1)[0]
         self.assertIn("object_bps", hoi)
         self.assertNotIn("scene_condition", hoi)
+
+    @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
+    def test_real_hsi_item_exposes_only_authorized_conditions(self):
         hsi = PriorWindowDataset(str(REPO), "hsi", limit=1)[0]
         self.assertIn("scene_condition", hsi)
         self.assertNotIn("object_bps", hsi)
