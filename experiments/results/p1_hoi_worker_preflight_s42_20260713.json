@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "scope": "non-reportable Phase 1B HOI worker provisioning",
+  "reportable_experiment": false,
+  "phase_1b_started": false,
+  "capacity_or_batch_decision": false,
+  "seed": 42,
+  "authority": {
+    "address": "10.184.17.253",
+    "role": "development, integration, registry and artifact authority"
+  },
+  "worker": {
+    "address": "10.181.9.214",
+    "hostname": "node01",
+    "user": "yujinlun",
+    "root": "/home/yujinlun/data",
+    "os": "Ubuntu 20.04.6 LTS",
+    "kernel": "5.15.0-139-generic",
+    "ram_gib": 125,
+    "home_available_tib": 4.0,
+    "gpu_count": 4,
+    "gpu_name": "NVIDIA GeForce RTX 3090",
+    "gpu_memory_bytes": [25296044032, 25295519744, 25296044032, 25296044032],
+    "driver": "580.126.09"
+  },
+  "transport": {
+    "initiator": "worker",
+    "authentication": "dedicated source-restricted Ed25519 key",
+    "artifact_return_checksum_passed": true
+  },
+  "code": {
+    "branch": "research/state-compositional-priors",
+    "commit": "22b8c9251bbb68dbd23b1bdf7131fc4603461e87",
+    "phase_1a_tag_peeled_commit": "abc928405dfef471b10eea3877f71f0c776b6e8a",
+    "worker_worktree_clean": true
+  },
+  "environment": {
+    "method": "conda-pack relocation followed by conda-unpack",
+    "archive_bytes": 5212894255,
+    "archive_sha256": "a55b65a834d7e565110e1701987e8b05f097d0f55be9ad943b30891a4bc3fc05",
+    "python": "3.8.20",
+    "torch": "1.13.1+cu117",
+    "runtime_cuda": "11.7",
+    "pytorch3d": "0.7.8",
+    "cuda_available": true,
+    "visible_gpu_count": 4
+  },
+  "data": {
+    "snapshot": "/home/yujinlun/data/datasets/InfBaGel-p1b-omomo-v1/data",
+    "train_du": "10G",
+    "test_du": "1.2G",
+    "object_du": "1.8G",
+    "full_rsync_checksum_passed": true,
+    "checksum_difference_bytes": 0,
+    "audit_path": "results/preflight/hoi-worker-20260713/hoi_audit.json",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "source_hash_count": 20,
+    "scene_supervision": {
+      "dataset_loaded": false,
+      "model_api_accepts_scene": false,
+      "loss_uses_scene": false
+    },
+    "excluded_paths_verified_absent": [
+      "data/dataset",
+      "data/hosi_test",
+      "data/train/Scene",
+      "data/train/Scene__",
+      "data/train/Scene_bit",
+      "data/test/Scene",
+      "data/test/Scene_vis"
+    ]
+  },
+  "smpl_models": {
+    "transferred_bytes": 2357866442,
+    "full_rsync_checksum_passed": true,
+    "checksum_difference_bytes": 0,
+    "smplh_kintree_sha256": "d2aab34943f6e60ac0b560eb43db1083f42ea94afcd45094f521f56a1b82dfe8"
+  },
+  "tests": {
+    "discovered": 32,
+    "passed": 30,
+    "skipped": 2,
+    "skip_scope": [
+      "real LINGO normalization file equality",
+      "real LINGO dataset item loading"
+    ],
+    "registry_records": 23,
+    "split_count": 1,
+    "evaluator_count": 2,
+    "training_protocol_count": 1,
+    "py_compile_passed": true,
+    "git_diff_check_passed": true
+  },
+  "single_gpu_smoke": {
+    "reportable": false,
+    "purpose": "worker provisioning only",
+    "physical_gpu_index": 0,
+    "gpu_uuid": "GPU-f3726725-efbc-86cf-ceed-a59cf7126873",
+    "gpu_preflight_memory_mib": 67,
+    "gpu_preflight_utilization_percent": 0,
+    "cuda_visible_devices": "0",
+    "resolved_config_sha256": "d0cc461caa7b64a1281d4b277b9de66496d84660acb859215ebbd15926e1de3e",
+    "metrics_sha256": "c46a1e4d1574fef0c590013d51f1b75ec713d341c9e2b893f84cdbd7873a4e47",
+    "train_log_sha256": "c5681e0e615bafe89e4a9a6b94c10d981c54a94bdf0d1a85877dfbb85212a6c2",
+    "world_size": 1,
+    "micro_batch_per_gpu": 2,
+    "gradient_accumulation_steps": 1,
+    "effective_batch_size": 2,
+    "optimizer_updates": 1,
+    "loss": 1.4608994722366333,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "initialization": "random",
+    "parameter_count": 3918888,
+    "peak_allocated_bytes": 82230784,
+    "peak_reserved_bytes": 102760448
+  },
+  "contention": {
+    "unselected_gpu_index": 2,
+    "observed_external_process_memory_mib": 3506,
+    "observed_external_gpu_utilization_percent": 93,
+    "affected_smoke": false,
+    "phase_1b_requirement": "all four GPUs idle or contention explicitly registered before reportable capacity audit"
+  },
+  "returned_artifacts": {
+    "authority_path": "/data/yujinlun/InfBaGel-worker-staging/hoi-worker-20260713",
+    "kind": "directory",
+    "files": 10,
+    "bytes": 16620,
+    "sha256": "1afab7ce2383d820ef16f481f4dae7bd18f94d9fb5675d3fb5ca00dab3f56d38"
+  },
+  "diagnostics_retained": [
+    "conda-unpack initially required the relocated environment bin directory on PATH",
+    "an existing valid audit was protected from overwrite",
+    "the first comparison snippet was corrected for Python 3.8 syntax",
+    "the first full suite exposed absent forbidden LINGO data and missing required SMPL kinematics before GPU execution"
+  ],
+  "next_action": "In a new session, create phase/01b-hoi from the clean current research HEAD, preregister Phase 1B, then run the four-idle-GPU memory audit before any reportable training."
+}

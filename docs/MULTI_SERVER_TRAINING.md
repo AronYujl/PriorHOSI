@@ -293,3 +293,25 @@ host, and merge only after that phase gate passes.
 - confirm all four GPUs are idle before reportable capacity/training runs.
 
 Passwords, private keys, and tokens are never required in the repository or chat.
+
+## Provisioning closure (2026-07-13)
+
+The HOI worker provisioning gate passed on authority commit `22b8c925` without
+starting Phase 1B. The worker matched the Phase 1A HOI audit byte-for-byte,
+passed full rsync checksums for the scene-free data snapshot and SMPL assets,
+passed 30 role-applicable tests with only the two real-LINGO file tests skipped,
+and completed one isolated real GPU-0 forward/backward update from random
+initialization. Loss was `1.4608994722`; peak allocated/reserved memory was
+`82,230,784/102,760,448` bytes. This is provisioning evidence only, not a
+capacity audit or batch decision.
+
+The returned immutable evidence tree is staged at
+`/data/yujinlun/InfBaGel-worker-staging/hoi-worker-20260713` with SHA-256
+`1afab7ce2383d820ef16f481f4dae7bd18f94d9fb5675d3fb5ca00dab3f56d38`.
+The tracked aggregate is
+`experiments/results/p1_hoi_worker_preflight_s42_20260713.json`.
+
+GPU 2 was occupied by an unrelated process during provisioning, while the smoke
+was isolated to idle physical GPU 0. The Phase 1B reportable four-GPU capacity
+audit must wait for all four GPUs to be idle or register the contention; it may
+not treat this one-GPU smoke as capacity evidence.

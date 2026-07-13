@@ -197,10 +197,11 @@ and tagged `exp/p1a-data-v1`; no Phase 1B branch or workload is created here.
 5. Implement and test the full scene-free HOIPrior training/evaluation path on
    the authoritative host; publish only a clean committed revision to the
    4-GPU worker at `10.181.9.214`.
-6. Before the first reportable workload, complete and archive the worker
-   preflight and immutable OMOMO-only data verification described in the
-   multi-server guide. Random initialization and released-checkpoint rejection
-   remain mandatory.
+6. Verify the completed worker-preflight aggregate
+   `experiments/results/p1_hoi_worker_preflight_s42_20260713.json` and returned
+   tree hash recorded in the multi-server guide. Repeat provisioning only if
+   code, environment, data, or hardware changes. Random initialization and
+   released-checkpoint rejection remain mandatory.
 7. On four RTX 3090 GPUs, perform the preregistered Phase 1B memory audit and
    choose the largest stable compatible micro-batch plus effective batch from
    `{512,1024,2048,3072}`. Jointly preregister accumulation, LR/warmup, and the

@@ -139,6 +139,24 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("current research HEAD", handoff)
         self.assertIn("4-GPU worker", handoff)
 
+        preflight = json.loads((
+            REPO_ROOT / "experiments" / "results" /
+            "p1_hoi_worker_preflight_s42_20260713.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(preflight["status"], "passed")
+        self.assertFalse(preflight["reportable_experiment"])
+        self.assertFalse(preflight["phase_1b_started"])
+        self.assertFalse(preflight["capacity_or_batch_decision"])
+        self.assertTrue(preflight["data"]["full_rsync_checksum_passed"])
+        self.assertFalse(preflight["data"]["scene_supervision"]["dataset_loaded"])
+        self.assertEqual(preflight["tests"]["skipped"], 2)
+        self.assertTrue(preflight["single_gpu_smoke"]["loss_finite"])
+        self.assertEqual(preflight["single_gpu_smoke"]["initialization"], "random")
+        self.assertEqual(
+            preflight["returned_artifacts"]["sha256"],
+            "1afab7ce2383d820ef16f481f4dae7bd18f94d9fb5675d3fb5ca00dab3f56d38",
+        )
+
     def test_diffusion_training_loss_has_no_stale_cleanup_variables(self):
         model = (REPO_ROOT / "code" / "models" / "infbagel.py").read_text(
             encoding="utf-8"

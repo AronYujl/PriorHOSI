@@ -319,6 +319,11 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   的 LINGO norm，HOI FK 数据路径需要尚未同步的 `smpl_models`。不复制 LINGO；以显式
   `INFBAGEL_WORKER_EXPERT=hoi` 仅跳过真实 LINGO 文件测试，同时继续运行 HSI schema/mask/API
   测试，并将 `smpl_models` 纳入 hash-verified HOI worker 资产。该诊断未启动 GPU workload。
+- 2026-07-13：四卡 HOI worker provisioning 关闭通过：代码 commit/tag、packed environment、
+  scene-free OMOMO snapshot、SMPL、全量 rsync checksum 和 Phase 1A audit hashes 均一致；worker
+  role 下 32 tests 为 30 pass/2 个真实 LINGO 文件测试 skip；空闲 GPU 0 完成 batch-2 随机初始化
+  真实 forward/backward，loss 1.460899、峰值 reserved 102,760,448 bytes。该 non-reportable smoke
+  不作显存容量或 batch 决策；GPU 2 当时有外部进程，Phase 1B 四卡 audit 前仍须四卡空闲或登记竞争。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
