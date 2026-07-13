@@ -60,10 +60,20 @@ class HOIPrior(nn.Module):
 
 class HSIPrior(nn.Module):
     """HSI consumes real scene occupancy features and exposes no object condition."""
-    def __init__(self, dim_model: int = 256, num_heads: int = 8, num_layers: int = 4) -> None:
+    def __init__(self, dim_model: int = 256, num_heads: int = 8, num_layers: int = 4,
+                 scene_grid_size: int = 8) -> None:
         super().__init__()
         self.text = nn.Linear(768, 128)
-        self.scene = nn.Linear(8 * 8 * 8, 128)
+        if scene_grid_size == 8:
+            self.scene = nn.Sequential(nn.Flatten(), nn.Linear(8 * 8 * 8, 128))
+        else:
+            self.scene = nn.Sequential(
+                nn.Unflatten(1, (1, scene_grid_size, scene_grid_size, scene_grid_size)),
+                nn.Conv3d(1, 32, 3, stride=2, padding=1), nn.SiLU(),
+                nn.Conv3d(32, 64, 3, stride=2, padding=1), nn.SiLU(),
+                nn.Conv3d(64, 128, 3, stride=2, padding=1), nn.SiLU(),
+                nn.AdaptiveAvgPool3d(1), nn.Flatten(), nn.Linear(128, 128),
+            )
         self.goal_progress = nn.Linear(12, 64)
         self.network = _PriorNetwork(320, dim_model, num_heads, num_layers)
 
@@ -80,7 +90,7 @@ class HSIPrior(nn.Module):
 
 def build_expert(
     expert: str, *, init_checkpoint: Optional[str] = None, dim_model: int = 256,
-    num_heads: int = 8, num_layers: int = 4,
+    num_heads: int = 8, num_layers: int = 4, scene_grid_size: int = 8,
 ) -> nn.Module:
     if init_checkpoint not in (None, "", False):
         raise ValueError(
@@ -89,7 +99,7 @@ def build_expert(
     if expert == "hoi":
         return HOIPrior(dim_model, num_heads, num_layers)
     if expert == "hsi":
-        return HSIPrior(dim_model, num_heads, num_layers)
+        return HSIPrior(dim_model, num_heads, num_layers, scene_grid_size)
     raise ValueError(f"unknown expert: {expert}")
 
 

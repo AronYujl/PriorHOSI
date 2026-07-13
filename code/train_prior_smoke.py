@@ -4,6 +4,7 @@ import json
 import os
 import random
 import socket
+import time
 from pathlib import Path
 
 import hydra
@@ -56,6 +57,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         raise ValueError("diffusion schedule contract mismatch")
     dataset = PriorWindowDataset(
         str(cfg.repo_root), str(cfg.expert), partition=str(cfg.partition), limit=int(cfg.dataset_limit),
+        scene_grid_size=int(cfg.scene_grid_size),
     )
     sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, seed=int(cfg.seed))
     loader = DataLoader(
@@ -65,6 +67,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     model = build_expert(
         str(cfg.expert), init_checkpoint=cfg.init_checkpoint, dim_model=int(cfg.dim_model),
         num_heads=int(cfg.num_heads), num_layers=int(cfg.num_layers),
+        scene_grid_size=int(cfg.scene_grid_size),
     ).to(device)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
     optimizer = Adam(model.parameters(), lr=float(cfg.learning_rate))
@@ -74,8 +77,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     masked_gradient_max = 0.0
     updates = 0
     micro_steps = 0
+    processed_windows = 0
+    started = time.perf_counter()
     for batch in loader:
         clean = batch["x"].to(device, non_blocking=True)
+        processed_windows += int(clean.shape[0])
         text = batch["text_embedding"].to(device, non_blocking=True)
         goals = batch["goals"].to(device, non_blocking=True)
         raw_progress = batch["progress"].to(device, non_blocking=True)
@@ -110,10 +116,12 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             if updates >= int(cfg.optimizer_updates):
                 break
     torch.cuda.synchronize(device)
+    elapsed = time.perf_counter() - started
     if updates != int(cfg.optimizer_updates):
         raise RuntimeError(f"completed {updates} optimizer updates, expected {cfg.optimizer_updates}")
     local = torch.tensor(
-        [losses[-1], masked_gradient_max, torch.cuda.max_memory_allocated(device), torch.cuda.max_memory_reserved(device)],
+        [losses[-1], masked_gradient_max, torch.cuda.max_memory_allocated(device),
+         torch.cuda.max_memory_reserved(device), processed_windows, elapsed],
         dtype=torch.float64, device=device,
     )
     gathered = [torch.zeros_like(local) for _ in range(world_size)]
@@ -136,6 +144,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             "peak_memory_reserved_bytes_by_rank": [int(value[3]) for value in values],
             "max_peak_memory_allocated_bytes": int(max(value[2] for value in values)),
             "max_peak_memory_reserved_bytes": int(max(value[3] for value in values)),
+            "processed_windows_by_rank": [int(value[4]) for value in values],
+            "elapsed_seconds_by_rank": [value[5] for value in values],
+            "aggregate_windows_per_second": sum(value[4] for value in values) / max(value[5] for value in values),
+            "aggregate_frames_per_second": REPRESENTATION.window_frames * sum(value[4] for value in values) / max(value[5] for value in values),
+            "scene_grid_size": int(cfg.scene_grid_size),
             "representation": REPRESENTATION.as_dict(),
             "initialization": "random",
         }

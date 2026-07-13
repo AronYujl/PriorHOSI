@@ -52,9 +52,11 @@ def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, p
 
 class PriorWindowDataset(Dataset):
     """Loads only fields authorized by the selected expert contract."""
-    def __init__(self, repo_root: str, expert: str, partition: str = "train", limit: int = 0) -> None:
+    def __init__(self, repo_root: str, expert: str, partition: str = "train", limit: int = 0,
+                 scene_grid_size: int = 8) -> None:
         self.repo = Path(repo_root).resolve()
         self.expert = expert
+        self.scene_grid_size = int(scene_grid_size)
         if expert not in {"hoi", "hsi"}:
             raise ValueError(expert)
         self.root = self.repo / ("data/train" if expert == "hoi" else "data/dataset")
@@ -112,9 +114,10 @@ class PriorWindowDataset(Dataset):
     @lru_cache(maxsize=16)
     def _scene(self, scene_name: str) -> np.ndarray:
         occupancy = np.load(self.root / "Scene" / f"{scene_name}.npy", mmap_mode="r")
-        x = np.linspace(0, occupancy.shape[0] - 1, 8).round().astype(int)
-        y = np.linspace(0, occupancy.shape[1] - 1, 8).round().astype(int)
-        z = np.linspace(0, occupancy.shape[2] - 1, 8).round().astype(int)
+        size = self.scene_grid_size
+        x = np.linspace(0, occupancy.shape[0] - 1, size).round().astype(int)
+        y = np.linspace(0, occupancy.shape[1] - 1, size).round().astype(int)
+        z = np.linspace(0, occupancy.shape[2] - 1, size).round().astype(int)
         return np.asarray(occupancy[np.ix_(x, y, z)], dtype=np.float32)
 
     def __getitem__(self, item: int) -> Dict[str, torch.Tensor]:
@@ -139,7 +142,7 @@ class PriorWindowDataset(Dataset):
         sequence = int(self.sequence_ids[index])
         sequence_name = str(self.scene_names[sequence] if self.expert == "hoi" else self.scene_names[start])
         object_bps = np.zeros((1024, 3), dtype=np.float32)
-        scene = np.zeros((8, 8, 8), dtype=np.float32)
+        scene = np.zeros((self.scene_grid_size,) * 3, dtype=np.float32)
         goals = np.zeros(9, dtype=np.float32)
         if self.expert == "hoi":
             trans = (np.asarray(self.object_trans[frames], dtype=np.float32) - initial) @ shift.T

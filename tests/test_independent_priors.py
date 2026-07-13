@@ -115,6 +115,18 @@ class ExpertTests(unittest.TestCase):
         self.assertTrue(any(parameter.grad is not None for parameter in hoi.parameters()))
         self.assertTrue(any(parameter.grad is not None for parameter in hsi.parameters()))
 
+    def test_formal_resource_architectures_are_domain_specific_and_frozen_size(self):
+        hoi = build_expert("hoi", dim_model=512, num_heads=16, num_layers=8, scene_grid_size=32)
+        hsi = build_expert("hsi", dim_model=512, num_heads=16, num_layers=8, scene_grid_size=32)
+        assert_parameter_independence(hoi, hsi)
+        self.assertGreater(sum(parameter.numel() for parameter in hoi.parameters()), 25_000_000)
+        self.assertGreater(sum(parameter.numel() for parameter in hsi.parameters()), 25_000_000)
+        self.assertFalse(any("scene" in name for name, _ in hoi.named_parameters()))
+        self.assertTrue(any("scene" in name for name, _ in hsi.named_parameters()))
+        config = (REPO / "code/config/config_prior_resource.yaml").read_text()
+        for expected in ("dim_model: 512", "num_heads: 16", "num_layers: 8", "scene_grid_size: 32"):
+            self.assertIn(expected, config)
+
 
 if __name__ == "__main__":
     unittest.main()
