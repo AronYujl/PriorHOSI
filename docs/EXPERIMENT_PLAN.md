@@ -213,6 +213,18 @@ NumPy `float64`，而锁定 BPS 点为 `float32`，混合 dtype 进入 `torch.bm
 BPS tensor 的 device/dtype，并新增 mixed-dtype 回归测试；不得改变 checkpoint、数据、模型、
 采样步数、序列数或指标。修复提交发布到 worker 后，以新 run ID 原样重跑完整协议。
 
+2026-07-14 Phase 1B seed-42 gate 决定：失败。`p1-hoi-eval-native-r1-s42-20260714`
+完成 438 sequences×3 windows，所有指标有限，scene 未加载、文本覆盖 100%、短序列为 0、
+人体位置 normalization 越界为 0，物体越界为 4/63,072；但 object/pelvis goal error 为
+`32.963/46.163 cm`、FS 为 `0.4817`、contact P/R/F1 为
+`0.6476/0.1823/0.2561`。锁定 CHOIS evaluator 得到 FID `32.2125`、R-Precision@1/2/3
+`0.0769/0.1587/0.2236`。只有 human-object penetration `1.1209`（ratio `0.0762`）通过
+95% 阈值；penetration 的 per-sequence bootstrap 仅覆盖 181 条，是既有 evaluator 明确排除
+woodchair/whitechair/largebox/largetable/plasticbox/trashcan 的协议结果，不是缺失 run。
+完整 gate 与 seed-42 sequence bootstrap 在
+`experiments/results/p1_hoi_phase1b_gate_s42_20260714.json`。不得 merge、创建
+`exp/p1b-hoi-v1` 或开始 Phase 1C；新的训练/采样方向必须在后续 Phase 1B session 先预注册。
+
 筛选在同一 commit `800a9fd1e2ec5fcdad1f05d855609e8960aaafd9` 完成。候选 A/B 的
 terminal validation total 为 182.709418 / 166.539836，FK 为 3.615757 / 3.293625；contact
 accuracy 为 0.570313 / 0.570430。按预注册规则锁定 B：peak LR `3e-4`、warmup 1,572,864
