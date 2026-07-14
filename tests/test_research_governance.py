@@ -148,6 +148,52 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(phase_1b["formal_training"]["learning_rate"], 0.0003)
         self.assertEqual(phase_1b["formal_training"]["warmup_windows"], 1572864)
 
+        remediation = protocol["phase_1b_remediation_preregistration"]
+        self.assertEqual(remediation["seed"], 42)
+        self.assertEqual(remediation["planning_evidence"]["hoi_train_windows"], 597868)
+        self.assertEqual(
+            remediation["planning_evidence"]["hoi_train_need_pelvis_windows"],
+            597868,
+        )
+        self.assertFalse(remediation["diagnostics"]["official_test_used_for_selection"])
+        self.assertEqual(remediation["diagnostics"]["rollout_sequences"], 128)
+        self.assertEqual(
+            remediation["diagnostics"]["existing_checkpoint_weight_variants"],
+            ["online", "ema_0.9999"],
+        )
+        self.assertEqual(
+            remediation["representation_repairs"]["object_goal_loss_mask"],
+            "end_pi == seq_length",
+        )
+        self.assertEqual(
+            remediation["representation_repairs"]["pelvis_goal_legacy_replay_max_abs"],
+            0.00001,
+        )
+        self.assertEqual(
+            remediation["representation_repairs"]["loss_weights"]["object_surface"],
+            50.0,
+        )
+        candidates = remediation["screening"]["candidates"]
+        self.assertEqual([item["effective_batch_size"] for item in candidates], [1024, 3072])
+        self.assertEqual([item["optimizer_updates"] for item in candidates], [6000, 2000])
+        self.assertEqual(
+            remediation["screening"]["checkpoint_weight_variants"],
+            ["online", "ema_0.999", "ema_0.9999"],
+        )
+        self.assertEqual(remediation["conditional_geometry_fallback"]["maximum_candidates"], 1)
+        self.assertTrue(
+            remediation["conditional_geometry_fallback"]["must_pass_full_d2_eligibility"]
+        )
+        self.assertEqual(
+            remediation["conditional_geometry_fallback"]["contact_geometry_channels"],
+            [0, 1],
+        )
+        self.assertFalse(remediation["formal_training"]["screening_checkpoint_initialization"])
+        self.assertEqual(
+            remediation["formal_training"]["official_test_runs_after_lock"],
+            {"native": 1, "chois": 1},
+        )
+
     def test_phase_1b_training_and_evaluation_paths_are_scene_free(self):
         train_config = (REPO_ROOT / "code/config/config_train_hoi_prior.yaml").read_text(encoding="utf-8")
         eval_config = (REPO_ROOT / "code/config/config_eval_hoi_prior.yaml").read_text(encoding="utf-8")

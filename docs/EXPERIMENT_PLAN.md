@@ -1,6 +1,6 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：Phase 0、Phase 1A 已通过；Phase 1B 待启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
+状态：Phase 0、Phase 1A 已通过；Phase 1B 首次训练已稳定完成但能力 gate 失败，现已预注册修复重试；Phase 1C 未启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
 
@@ -142,7 +142,7 @@ Git commit 发布，数据只从不可变 snapshot 读取，运行中的 worktre
 复制公钥文本，不作为大文件中转或实验 artifact 权威副本。
 
 门槛：HOI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 contact、penetration、
-FID 退化；失败只检查表示、坐标、mask、normalization 与数据契约。通过后总结并 tag
+FID 退化；首次失败后的修改只允许按下文 dated remediation 预注册逐项实施。通过后总结并 tag
 `exp/p1b-hoi-v1`，不得用 released checkpoint 绕过失败。
 
 2026-07-13 Phase 1B 执行预注册如下；以下预算、候选和选择规则在任何 Phase 1B 实现或
@@ -237,12 +237,126 @@ screening、training、main-table、evaluation 只运行 seed 42，不再运行�
 跨 seed SD/Student-t CI；仍保留按样本/序列的注册 bootstrap/permutation 不确定性。该修订只
 改变重复 seed 数和相应统计汇总，不改变数据、模型、训练预算、指标或 95% gate 阈值。
 
+##### 2026-07-14 Phase 1B 修复重试预注册
+
+首次失败的形态是“teacher-forced validation 持续下降，但三窗口自回归生成全面退化”，因此
+不先扩大网络或加入新的推理模块。对当前数据和代码的只读审查给出六项可检验证据：
+
+- OMOMO train 的 `597,868/597,868` 个 HOI 窗口都标记 `need_pelvis_dir=true`，baseline 也启用
+  pelvis endpoint condition；当前 HOIPrior dataset 却令 `goals[:3]` 恒为零，sampler 还显式丢弃
+  evaluator 传入的 `pelvis_goal`。窗口首末 pelvis 的 XZ 位移均值为 `0.423 m`、中位数
+  `0.346 m`、95 分位 `1.062 m`，`98.99%` 大于 1 cm；这不是可忽略的零条件，且直接对应失败的
+  `46.163 cm` pelvis goal error。模型已有 9-D goal 输入槽，恢复该条件无需改变 API 或容量。
+- 当前 `object_goal` consistency 对每个训练窗口的最后输出帧都施加序列最终目标。确定性抽取
+  100,000 个训练窗口时，窗口末端与目标帧的物体位置平均相差 `61.716 cm`、中位数
+  `39.151 cm`，只有 `0.718%` 的窗口末端与目标帧重合；该项与窗口内真实轨迹重建形成冲突。
+- dataset 将物体旋转表示为相对“当前窗口首帧”参考的矩阵，而现有三窗口 evaluator/sampler
+  在后续窗口仍沿用第一窗口参考。按 42/84 source-frame handoff 审查，参考错位的平均旋转
+  geodesic 为 `0.995 rad`、95 分位为 `2.800 rad`。
+- 训练为每个窗口读取其当前 BPS；推理第 2/3 窗口仍使用第一窗口 BPS。训练快照中相隔 42
+  source frames 的 BPS RMS 变化均值为 `0.0876`、95 分位为 `0.2214`，不能视为常量。
+- 正式训练只做随机 timestep 的 teacher-forced x0 validation；它既不检查从纯噪声生成，也不
+  检查窗口交接。`EMA=0.9999` 在 20,000 updates 后仍含约 `13.53%` 的初始权重贡献，且没有
+  与 online/较快 EMA 在内部 rollout 上比较。
+- 锁定 baseline 的训练路径以 `loss_w_obj_pts=50` 对变换后的物体表面点做物理空间重建；当前
+  HOIPrior 虽已保留相同 rest-object 资产与 FK=50，却只回归归一化的平移/旋转矩阵元素，没有
+  物体表面项。这是接口不变、已有资产可复用的几何归纳偏置缺口，不需要扩大网络。
+
+这些证据优先支持“共享状态/条件契约与优化选择错误”，尚不支持模型容量不足。修复保持
+8-layer、512-width、16-head、232-D clean-x0、16/2/500、完整 instruction 和 scene-free API
+不变；不引入 CFG 双前向、cross-attention 重写、额外 latent、scene/SDF guidance、mixer、
+released checkpoint 初始化或更大网络。训练期几何辅助若被触发也不得改变 expert 的输入输出
+接口，因此后续 HSIPrior 和 Mixer 不需要 HOI 专用 adapter。
+
+修复重试仍在 `phase/01b-hoi` 完成，按以下顺序设置不可跳过的内部 gate。预计诊断、两项短预算
+筛选、一次约 3–4.5 小时正式训练和完整评测可在一个后续 Phase 1B session 可靠完成，因此目前
+不拆新 subphase；任一内部 gate 失败即停止，不以扩大模型替代诊断，也不开始 Phase 1C。
+
+1. **D0：既有 checkpoint 的无重训诊断。** 只用 Phase 1A 锁定 train/internal-validation，
+   official 438 test 不参与。以
+   `SHA256("42:hoi-remediation:" + sequence_name)` 固定选择 128 条可形成连续三窗口的内部
+   validation sequence；另在 timestep `{0,1,10,50,100,250,499}` 各取 512 个固定窗口。
+   对 terminal checkpoint 的 online、EMA-0.9999 权重分别报告逐 field x0 error、现有非零
+   text/BPS/object-goal 的 permutation sensitivity、单窗口 GT-history 生成、三窗口
+   GT-history/rebased rollout 和全生成 history rollout；pelvis condition 在既有路径中的 100%
+   缺失作为 structural failure 单独报告。必须把第 1/2/3 窗口误差分开，不能再以
+   teacher-forced total loss 代理生成。
+2. **D1：统一且可组合的 `WindowStateCodec`。** dataset、训练验证、sampler、evaluator 以及未来
+   HSI/Mixer 只调用同一套 encode/decode/rebase。GT 的 encode→decode、相邻窗口 GT handoff 和
+   global→local→global 最大绝对误差须 `<=1e-5`，旋转 geodesic 须 `<=1e-4 rad`。每个新窗口以
+   第一帧 history 的全局物体旋转为参考，使用
+   `R_rel(t)=R_global(t) R_ref^T`；decode/handoff 时将 9-D 输出投影至 `SO(3)` 后恢复全局旋转。
+   BPS 必须用当前已生成物体 pose、不可变 `rest_object_geo` 和 hash-verified `code/bps.pt` 固定
+   basis 按训练同一算法重算；GT replay 与存储 BPS 的最大绝对误差须 `<=1e-4`，不得读取未来
+   GT BPS，也不得用第一窗口
+   BPS 冒充后续窗口条件。若无法复现该 BPS contract，Phase 1B 在训练前阻塞并重新预注册，
+   不静默换成另一种 object feature。
+   同一 codec 还须把每个 OMOMO 窗口最后 source frame 的 pelvis XZ endpoint 按 baseline 语义
+   变换到当前 window-local frame，按 baseline 保持 raw metres 写入既有 `goals[:3]`（Y 固定为
+   0，不套用 position min/max normalization）；`goals[6:9]` 继续承载
+   序列最终 object goal。sampler 不再丢弃 `pelvis_goal`，且 GT replay 与 legacy OMOMO loader 的
+   XZ 最大绝对误差须 `<=1e-5`。这只填充既有 9-D goal slot，不增加 condition token、模型参数
+   或 232-D 输出字段，也不改写 Phase 1A 的已关闭 artifact/gate。
+3. **D1 的目标/损失修正。** `object_goal` 仍是序列最终外部目标和模型 condition，但 direct
+   consistency 只在 `end_pi == seq_length` 的 terminal window 施加；其他窗口只接受真实轨迹
+   reconstruction、FK、object-surface 和 velocity 监督。目标、history、BPS、object rotation
+   和 progress 均由 codec 在当前窗口坐标下生成。两个核心候选都恢复 baseline 已有的物体表面重建：将不可变
+   rest-object points 以预测/GT 物体 pose 变换到同一物理坐标，对非 history 帧施加
+   `object_surface_weight=50`。保持 `fk_weight=50`、`velocity_weight=0.1`、terminal
+   `goal_weight=1`，不改变 232-D field reconstruction 权重。
+4. **D2：固定 processed-window 的两档核心筛选。** 两个候选都从随机权重开始，seed 42，处理
+   `6,144,000` windows（`98,304,000` frames），每 `3,072,000` windows 做一次 32,768-window
+   teacher-forced validation，并在预算末端运行 D0 固定 128-sequence internal rollout：
+
+   | 候选 | micro/GPU × 4 | accum | effective batch | peak LR | warmup windows | updates |
+   |---|---:|---:|---:|---:|---:|---:|
+   | R-1024 | 256 × 4 | 1 | 1,024 | `1e-4` | 1,572,864 | 6,000 |
+   | R-3072 | 768 × 4 | 1 | 3,072 | `3e-4` | 1,572,864 | 2,000 |
+
+   容量审计只证明 3,072 可运行，不再自动决定质量最优档位。每个候选在同一次训练中保存
+   online、EMA-0.999 和 EMA-0.9999 三种 terminal 权重，不增加训练数据或测试预算。相对既有
+   失败 checkpoint 在同一内部 rollout 上，合格候选必须同时满足：object/pelvis goal error
+   各 `<=0.70×`，physical contact F1 至少增加 `0.10`，MPJPE 和 FS 均不超过 `1.10×`，所有
+   指标有限；matched text/BPS/pelvis-goal/object-goal condition 的误差还必须以 paired bootstrap
+   显著低于独立 permutation。若多个权重/档位合格，先最小化 object/pelvis error ratio 的几何
+   均值，再最大化 contact F1；2% 内仍相等时选择 effective batch 1,024。official test、CHOIS 和 throughput
+   均不得用于该选择。若没有核心候选合格且不满足下述 D2-G 的唯一触发条件，则停止 Phase 1B
+   并先做新的 dated amendment，不选择“相对最好但未合格”的配置进入正式训练。
+5. **D2-G：唯一的条件式几何 fallback。** 只有 codec/condition gate 已通过、最佳核心候选的
+   object/pelvis ratio 均 `<=0.70`，且 finite、MPJPE、FS 和 condition permutation 等其余 D2
+   条件全部合格、唯独 contact F1 未达门槛时，才在已选 batch/LR 上追加一个同为 `6,144,000`
+   windows 的随机初始化候选。它保持 232-D 输出不变并继承核心候选的 object-surface/FK loss，
+   只额外以既有语义中的前两路 GT 手部 contact channel 对应左右手—物体表面距离加入
+   `contact_geometry_weight=10`；后两路稀疏 channel 仍只按原 232-D label 重建，不假设其为手部。
+   fallback 必须重新通过完整 D2 门槛；若仍未过，停止 Phase 1B 并先做新的 dated amendment，
+   不继续堆叠 loss 或模型模块。
+6. **D3：正式重训。** 用 D2 锁定的 config 从随机权重重新训练，禁止从筛选 checkpoint 续训。
+   seed 仍只为 42；预算仍为 `61,440,000` windows / `983,040,000` frames。若选择 batch 1,024，
+   派生为 60,000 updates、warmup 1,536 updates、validation/checkpoint cadence 3,000/6,000
+   updates；若选择 batch 3,072，则仍为 20,000、512、1,000/2,000 updates。terminal 权重类型
+   由相同 internal rollout 规则锁定，不按 official test 或中间 checkpoint cherry-pick。
+7. **D4：一次正式 gate。** 配置和 terminal checkpoint 锁定后才运行一次完整 438-sequence
+   native export 与一次 pinned CHOIS；继续使用 seed-42 point estimate、10,000 sequence
+   bootstrap 和原 95% gate。若任一 gate 失败，保留全部结果并停止；只有全部通过才写
+   `PHASE_1B.md`、merge 和创建 `exp/p1b-hoi-v1`。
+
+稳定运行的交接规则：reportable 训练必须在 detached worker session 中启动。完成 resolved
+config/preflight、初始稳定区间、有限 loss/gradient、显存 headroom 和首个可恢复 checkpoint
+验证后，不要求 Codex 持续轮询；应报告实测吞吐与剩余时间并结束当前交互，等待用户发送
+“继续”后再检查完成状态。该规则只节约监控，不降低 checkpoint、manifest 或失败登记要求。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
 在该服务器上独立审计 micro-batch 和 `{512,1024,2048,3072}` 中的 effective batch。以 processed windows/frames 锁定 HSI
 内部预算，联合预注册 LR/warmup；先短预算再完整训练，运行 LINGO/DIMOS 原生域指标并审计
 normalization、文本、短序列、人景 penetration、FS、目标误差和不确定性。
+
+Phase 1C 不得复制首次 Phase 1B“容量最大即正式 batch、teacher-forced loss 即模型选择”的错误：
+容量只给出可行上限，正式档位必须在固定 processed-window 预算下以 LINGO internal native
+rollout 选择。HSI 必须复用 Phase 1B D1 的 `WindowStateCodec` 人体字段、history/progress 与
+global/local handoff；其 object/contact mask 保持 Phase 1A 不变，不引入 HOI 专用 BPS 或几何
+loss。具体 batch/LR/warmup 仍须在 Phase 1C 开始前另行预注册，本次不创建分支或运行实验。
 
 门槛：HSI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性 penetration/FS/FID
 退化且 validation 无 scene-family leakage。通过后总结并 tag `exp/p1c-hsi-v1`。
@@ -252,7 +366,9 @@ normalization、文本、短序列、人景 penetration、FS、目标误差和�
 在 `phase/01d-gate` 上不新增模型方向，仅汇总 single-seed-42 的最终专家结果，验证 checkpoint
 provenance、参数不共享、各专家内部训练预算/effective batch 一致性、processed-window/frame
 预算、完整 hash 和统计协议；补做预注册的
-失败分层与专家不确定性对比，形成进入组合前的不可变 expert contract。
+失败分层与专家不确定性对比，形成进入组合前的不可变 expert contract。联合 contract 还必须
+证明两专家接受同一 232-D history、输出同一当前窗口坐标下的 clean x0、使用同一 codec 完成
+global/local round-trip，并且组合不需要任何可学习或 expert-specific coordinate adapter。
 
 门槛：1B/1C 均通过各自 95% 原生域门槛，且不存在系统性 contact/penetration/FID 退化；否则
 Phase 1 不合入，不进入 Phase 2。通过后写 `PHASE_1D.md`，合入研究分支并 tag
@@ -264,7 +380,9 @@ Phase 1 不合入，不进入 Phase 2。通过后写 `PHASE_1D.md`，合入研�
 门控。比较顺序路由、全局固定、时间、身体组、时空权重。TRANSPORT 默认 HSI 主导
 root/下肢，HOI 主导手臂/手/物体。相对顺序路由，人景穿透至少约降 10%，task success 和
 contact 各下降不超过 2 个百分点，才进入可学习 Mixer。失败检查 normalization、noise、
-timestep、root trajectory 与进度对齐，必要时测解析式 product-of-experts。
+timestep、root trajectory 与进度对齐，必要时测解析式 product-of-experts。两专家预测必须先由
+统一 `WindowStateCodec` 表达在同一 frame 后再门控，且只在组合完成后统一 decode/rebase；
+若 Phase 2 需要 HOI/HSI 各自的学习式坐标修补器，视为 Phase 1 expert contract 未通过。
 
 ### Phase 3：状态/风险感知 Mixer
 
@@ -426,6 +544,14 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   61,440,000-window 正式预算、checkpoint/evaluation cadence、native/CHOIS 统计协议和
   95% baseline 判据。官方 438-sequence test 只在配置锁定后使用；released checkpoint 仍只作
   baseline，绝不初始化或恢复 HOIPrior。
+- 2026-07-14：Phase 1B 首次 seed-42 正式训练虽稳定完成，但 native/CHOIS 能力 gate 失败；在
+  不扩大模型、不引入 CFG/scene/SDF/mixer 的前提下预注册修复重试。先用既有 checkpoint 做
+  多 timestep 与三窗口 rollout 诊断，再恢复被遗漏的 pelvis endpoint condition、统一窗口状态
+  codec、逐窗口旋转/BPS 重基准并将物体目标约束限于真实 terminal window；随后以相同
+  processed-window 预算比较 effective batch
+  1024/3072，最多允许一次不改变专家接口的几何 contact fallback。正式重训仍只用 seed 42、
+  scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
+  同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。

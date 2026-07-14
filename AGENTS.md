@@ -60,6 +60,14 @@ These rules apply to every file in this repository.
   the worker, and use the reverse channel only to start, inspect, or capture
   output. A tunnel interruption is an access event, not permission to restart,
   reuse a run id, or overwrite an existing result.
+- Once a detached long run has passed resolved-config/preflight checks, produced
+  finite losses and required gradients through its initial stability interval,
+  stayed within the registered memory headroom, and demonstrated a resumable
+  checkpoint, continuous Codex polling is not required. Report the measured
+  throughput and remaining-time estimate, yield to the user, and inspect the
+  persistent run again only after the user asks to continue or a separately
+  configured failure notification arrives. This changes monitoring cadence, not
+  manifest, failure-retention, checkpoint, or completion requirements.
 - Keep `ROOT_DIR` equal to the current checkout root. Provide the worker's
   OMOMO-only snapshot through the checkout-local `data` link (or a subsequently
   tested explicit data-root configuration). Do not copy LINGO `data/dataset` or

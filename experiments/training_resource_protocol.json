@@ -15,6 +15,7 @@
     {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090", "memory_gib_each": 24}
   ],
   "micro_batch_rule": "largest_stable_per_gpu_compatible_with_selected_tier_and_documented_headroom",
+  "formal_quality_selection_rule": "capacity establishes feasible tiers only; after a failed capability gate, a dated fixed-processed-window native-rollout screen selects the formal tier without official-test access",
   "gradient_accumulation_preference": 1,
   "primary_budget_units": ["processed_windows", "processed_frames"],
   "required_secondary_records": ["epochs", "optimizer_updates"],
@@ -109,6 +110,128 @@
       "paired_sequence_bootstrap_seed": 42,
       "higher_is_better_gate": "seed-42 point estimate >= 0.95 * baseline",
       "lower_is_better_gate": "seed-42 point estimate <= baseline / 0.95"
+    }
+  },
+  "phase_1b_remediation_preregistration": {
+    "status": "locked_before_remediation_implementation_or_gpu_workload",
+    "date": "2026-07-14",
+    "seed": 42,
+    "trigger": {
+      "failed_gate_path": "experiments/results/p1_hoi_phase1b_gate_s42_20260714.json",
+      "failed_gate_sha256": "77fda0bff85a4c5d44cf3e47cd9e3f6951554bae4cde38a01ebbf56c5f38b251",
+      "failed_metrics": 10,
+      "passed_metrics": 2
+    },
+    "scope": {
+      "branch": "phase/01b-hoi",
+      "hardware": {"gpu_count": 4, "gpu_name": "NVIDIA GeForce RTX 3090"},
+      "architecture_unchanged": {"dimension": 232, "window_frames": 16, "history_frames": 2, "diffusion_steps": 500, "dim_model": 512, "num_heads": 16, "num_layers": 8},
+      "scene_condition": false,
+      "initialization": "random_only",
+      "forbidden": ["released_checkpoint_initialization", "larger_model", "classifier_free_guidance", "scene_or_sdf_guidance", "mixer", "expert_specific_learned_coordinate_adapter"]
+    },
+    "planning_evidence": {
+      "hoi_train_windows": 597868,
+      "hoi_train_need_pelvis_windows": 597868,
+      "current_pelvis_goal_slot_nonzero_windows": 0,
+      "pelvis_endpoint_xz_distance_mean_m": 0.42296873366345766,
+      "pelvis_endpoint_xz_distance_median_m": 0.34643031174426764,
+      "pelvis_endpoint_xz_distance_p95_m": 1.0616398515532497,
+      "pelvis_endpoint_xz_distance_gt_1cm_fraction": 0.9898539476941398,
+      "goal_endpoint_audit_windows": 100000,
+      "goal_endpoint_mean_distance_cm": 61.715721130371094,
+      "goal_endpoint_median_distance_cm": 39.151214599609375,
+      "goal_frame_exact_fraction": 0.00718,
+      "object_rotation_reference_mismatch_mean_rad": 0.9952452495663756,
+      "object_rotation_reference_mismatch_p95_rad": 2.7997589823077806,
+      "bps_shift_source_frames": 42,
+      "bps_shift_rms_mean": 0.0875938722466387,
+      "bps_shift_rms_p95": 0.22136922234693016,
+      "ema_0_9999_initial_weight_fraction_after_20000_updates": 0.13532174948276004,
+      "released_baseline_object_surface_weight": 50.0,
+      "current_failed_prior_object_surface_weight": 0.0
+    },
+    "diagnostics": {
+      "official_test_used_for_selection": false,
+      "sequence_selection": "first 128 eligible internal-validation sequences sorted by SHA256('42:hoi-remediation:' + sequence_name)",
+      "rollout_sequences": 128,
+      "rollout_windows_per_sequence": 3,
+      "teacher_forced_timesteps": [0, 1, 10, 50, 100, 250, 499],
+      "teacher_forced_windows_per_timestep": 512,
+      "existing_checkpoint_weight_variants": ["online", "ema_0.9999"],
+      "required_reports": ["fieldwise_x0_error", "existing_path_pelvis_condition_coverage", "matched_vs_permuted_text_bps_object_goal", "single_window_gt_history", "three_window_gt_rebased_history", "three_window_generated_history", "per_window_error_growth"]
+    },
+    "representation_repairs": {
+      "shared_codec": "one WindowStateCodec for dataset, training, sampler, evaluator, future HSI and mixer",
+      "roundtrip_max_abs": 0.00001,
+      "roundtrip_rotation_geodesic_rad": 0.0001,
+      "object_rotation_reference": "first history frame of every current window; R_rel(t)=R_global(t)@R_ref.T",
+      "object_rotation_decode": "project 9D matrix to SO(3) before global decode and handoff",
+      "bps": "recompute in every current window from generated object pose, immutable rest_object_geo and hash-verified code/bps.pt fixed basis without future GT",
+      "bps_gt_replay_max_abs": 0.0001,
+      "bps_contract_failure_action": "stop before training and make a new dated amendment",
+      "pelvis_goal_condition": "every HOI window uses its final source-frame pelvis XZ endpoint in raw metres in the current window-local frame via existing goals[:3], with Y fixed to zero and no position min/max normalization",
+      "pelvis_goal_legacy_replay_max_abs": 0.00001,
+      "object_goal_loss_mask": "end_pi == seq_length",
+      "object_surface_loss": "transform immutable rest-object points with predicted and GT object poses in the same physical frame; compare non-history frames",
+      "loss_weights": {"fk": 50.0, "object_surface": 50.0, "velocity": 0.1, "terminal_object_goal": 1.0}
+    },
+    "screening": {
+      "processed_windows_per_candidate": 6144000,
+      "processed_frames_per_candidate": 98304000,
+      "teacher_forced_validation_windows": 32768,
+      "validation_cadence_windows": 3072000,
+      "checkpoint_cadence_windows": 6144000,
+      "checkpoint_weight_variants": ["online", "ema_0.999", "ema_0.9999"],
+      "candidates": [
+        {"name": "R-1024", "micro_batch_per_gpu": 256, "gpu_count": 4, "gradient_accumulation_steps": 1, "effective_batch_size": 1024, "peak_learning_rate": 0.0001, "warmup_windows": 1572864, "warmup_updates": 1536, "optimizer_updates": 6000},
+        {"name": "R-3072", "micro_batch_per_gpu": 768, "gpu_count": 4, "gradient_accumulation_steps": 1, "effective_batch_size": 3072, "peak_learning_rate": 0.0003, "warmup_windows": 1572864, "warmup_updates": 512, "optimizer_updates": 2000}
+      ],
+      "eligibility_relative_to_failed_checkpoint_on_same_internal_rollout": {
+        "object_goal_error_ratio_max": 0.7,
+        "pelvis_goal_error_ratio_max": 0.7,
+        "contact_f1_absolute_gain_min": 0.1,
+        "mpjpe_ratio_max": 1.1,
+        "foot_sliding_ratio_max": 1.1,
+        "condition_permutation_paired_bootstrap": "matched error lower than independently permuted text, BPS, pelvis goal and object goal with 95 percent lower bound above zero",
+        "finite_required": true
+      },
+      "selection": "eligible first; minimize geometric mean of object/pelvis error ratios; then maximize contact F1; within two percent choose effective batch 1024",
+      "no_eligible_candidate_action": "apply the single registered D2-G fallback only when its exact trigger holds; otherwise stop Phase 1B and require a new dated amendment; never promote the least-bad ineligible candidate",
+      "official_test_and_chois_forbidden_for_selection": true
+    },
+    "conditional_geometry_fallback": {
+      "maximum_candidates": 1,
+      "trigger": "all D2 eligibility conditions pass, including object and pelvis ratios both <=0.70, except contact F1",
+      "same_selected_batch_lr_and_budget": true,
+      "random_initialization": true,
+      "object_surface_weight": 50.0,
+      "object_surface_inherited_from_core": true,
+      "contact_geometry_channels": [0, 1],
+      "contact_geometry_weight": 10.0,
+      "fk_weight": 50.0,
+      "external_interface_unchanged": true,
+      "must_pass_full_d2_eligibility": true,
+      "failure_action": "stop Phase 1B and require a new dated amendment"
+    },
+    "formal_training": {
+      "seeds": [42],
+      "processed_windows": 61440000,
+      "processed_frames": 983040000,
+      "warmup_windows": 1572864,
+      "validation_cadence_windows": 3072000,
+      "checkpoint_cadence_windows": 6144000,
+      "candidate_derived_updates": {
+        "R-1024": {"optimizer_updates": 60000, "warmup_updates": 1536, "validation_cadence_updates": 3000, "checkpoint_cadence_updates": 6000},
+        "R-3072": {"optimizer_updates": 20000, "warmup_updates": 512, "validation_cadence_updates": 1000, "checkpoint_cadence_updates": 2000}
+      },
+      "screening_checkpoint_initialization": false,
+      "terminal_weight_selection": "locked by the same internal rollout rule among online, EMA-0.999 and EMA-0.9999",
+      "official_test_runs_after_lock": {"native": 1, "chois": 1}
+    },
+    "stable_run_handoff": {
+      "requires": ["detached_session", "resolved_config", "finite_initial_losses_and_gradients", "registered_memory_headroom", "resumable_checkpoint"],
+      "action": "report measured throughput and ETA, yield, and wait for the user to request continuation instead of continuous polling"
     }
   }
 }

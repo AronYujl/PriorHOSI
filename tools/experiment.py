@@ -491,6 +491,124 @@ def validate_training_resource_protocol(path: Path) -> None:
     ):
         raise ManifestError(f"unexpected Phase 1B selected optimization: {path}")
 
+    remediation = protocol.get("phase_1b_remediation_preregistration", {})
+    if remediation.get("status") != "locked_before_remediation_implementation_or_gpu_workload":
+        raise ManifestError(f"Phase 1B remediation protocol is not locked: {path}")
+    if remediation.get("date") != "2026-07-14" or remediation.get("seed") != 42:
+        raise ManifestError(f"unexpected Phase 1B remediation date/seed: {path}")
+    trigger = remediation.get("trigger", {})
+    if trigger.get("failed_gate_sha256") != (
+        "77fda0bff85a4c5d44cf3e47cd9e3f6951554bae4cde38a01ebbf56c5f38b251"
+    ):
+        raise ManifestError(f"Phase 1B remediation must reference the immutable failed gate: {path}")
+    planning_evidence = remediation.get("planning_evidence", {})
+    if (
+        planning_evidence.get("hoi_train_windows") != 597868
+        or planning_evidence.get("hoi_train_need_pelvis_windows") != 597868
+        or planning_evidence.get("current_pelvis_goal_slot_nonzero_windows") != 0
+        or planning_evidence.get("released_baseline_object_surface_weight") != 50.0
+        or planning_evidence.get("current_failed_prior_object_surface_weight") != 0.0
+    ):
+        raise ManifestError(f"unexpected Phase 1B planning evidence: {path}")
+    scope = remediation.get("scope", {})
+    expected_architecture = {
+        "dimension": 232, "window_frames": 16, "history_frames": 2,
+        "diffusion_steps": 500, "dim_model": 512, "num_heads": 16,
+        "num_layers": 8,
+    }
+    if scope.get("architecture_unchanged") != expected_architecture:
+        raise ManifestError(f"Phase 1B remediation may not change the architecture: {path}")
+    if scope.get("scene_condition") is not False or scope.get("initialization") != "random_only":
+        raise ManifestError(f"Phase 1B remediation violated scene/init scope: {path}")
+    diagnostics = remediation.get("diagnostics", {})
+    if diagnostics.get("official_test_used_for_selection") is not False:
+        raise ManifestError(f"official HOI test may not select remediation changes: {path}")
+    if diagnostics.get("rollout_sequences") != 128 or diagnostics.get("rollout_windows_per_sequence") != 3:
+        raise ManifestError(f"unexpected Phase 1B remediation rollout protocol: {path}")
+    if diagnostics.get("teacher_forced_timesteps") != [0, 1, 10, 50, 100, 250, 499]:
+        raise ManifestError(f"unexpected Phase 1B timestep diagnostic: {path}")
+    if diagnostics.get("existing_checkpoint_weight_variants") != ["online", "ema_0.9999"]:
+        raise ManifestError(f"unexpected Phase 1B existing checkpoint variants: {path}")
+    repairs = remediation.get("representation_repairs", {})
+    if (
+        repairs.get("pelvis_goal_legacy_replay_max_abs") != 0.00001
+        or "existing goals[:3]" not in repairs.get("pelvis_goal_condition", "")
+    ):
+        raise ManifestError(f"Phase 1B must restore the existing pelvis-goal slot: {path}")
+    if repairs.get("object_goal_loss_mask") != "end_pi == seq_length":
+        raise ManifestError(f"Phase 1B goal loss must be terminal-only: {path}")
+    if repairs.get("bps_gt_replay_max_abs") != 0.0001:
+        raise ManifestError(f"unexpected Phase 1B BPS replay tolerance: {path}")
+    if repairs.get("loss_weights") != {
+        "fk": 50.0, "object_surface": 50.0, "velocity": 0.1,
+        "terminal_object_goal": 1.0,
+    }:
+        raise ManifestError(f"unexpected Phase 1B remediation loss weights: {path}")
+    remediation_screen = remediation.get("screening", {})
+    if (
+        remediation_screen.get("processed_windows_per_candidate") != 6144000
+        or remediation_screen.get("processed_frames_per_candidate") != 98304000
+        or remediation_screen.get("official_test_and_chois_forbidden_for_selection") is not True
+        or remediation_screen.get("no_eligible_candidate_action") != (
+            "apply the single registered D2-G fallback only when its exact trigger holds; "
+            "otherwise stop Phase 1B and require a new dated amendment; never promote the "
+            "least-bad ineligible candidate"
+        )
+    ):
+        raise ManifestError(f"unexpected Phase 1B remediation screening budget: {path}")
+    if remediation_screen.get("checkpoint_weight_variants") != [
+        "online", "ema_0.999", "ema_0.9999",
+    ]:
+        raise ManifestError(f"unexpected Phase 1B screening checkpoint variants: {path}")
+    expected_candidates = [
+        {
+            "name": "R-1024", "micro_batch_per_gpu": 256, "gpu_count": 4,
+            "gradient_accumulation_steps": 1, "effective_batch_size": 1024,
+            "peak_learning_rate": 0.0001, "warmup_windows": 1572864,
+            "warmup_updates": 1536, "optimizer_updates": 6000,
+        },
+        {
+            "name": "R-3072", "micro_batch_per_gpu": 768, "gpu_count": 4,
+            "gradient_accumulation_steps": 1, "effective_batch_size": 3072,
+            "peak_learning_rate": 0.0003, "warmup_windows": 1572864,
+            "warmup_updates": 512, "optimizer_updates": 2000,
+        },
+    ]
+    if remediation_screen.get("candidates") != expected_candidates:
+        raise ManifestError(f"unexpected Phase 1B remediation candidates: {path}")
+    for candidate in expected_candidates:
+        validate_effective_batch(candidate["effective_batch_size"], protocol)
+        effective = (
+            candidate["micro_batch_per_gpu"] * candidate["gpu_count"]
+            * candidate["gradient_accumulation_steps"]
+        )
+        if effective != candidate["effective_batch_size"]:
+            raise ManifestError(f"invalid remediation effective batch: {candidate}")
+        if remediation_screen["processed_windows_per_candidate"] // effective != candidate["optimizer_updates"]:
+            raise ManifestError(f"invalid remediation optimizer-update budget: {candidate}")
+    fallback = remediation.get("conditional_geometry_fallback", {})
+    if (
+        fallback.get("maximum_candidates") != 1
+        or fallback.get("external_interface_unchanged") is not True
+        or fallback.get("must_pass_full_d2_eligibility") is not True
+        or fallback.get("object_surface_inherited_from_core") is not True
+        or fallback.get("contact_geometry_channels") != [0, 1]
+        or fallback.get("trigger") != (
+            "all D2 eligibility conditions pass, including object and pelvis ratios both "
+            "<=0.70, except contact F1"
+        )
+    ):
+        raise ManifestError(f"Phase 1B geometry fallback must be single and interface-preserving: {path}")
+    remediation_formal = remediation.get("formal_training", {})
+    if (
+        remediation_formal.get("seeds") != [42]
+        or remediation_formal.get("processed_windows") != 61440000
+        or remediation_formal.get("processed_frames") != 983040000
+        or remediation_formal.get("screening_checkpoint_initialization") is not False
+        or remediation_formal.get("official_test_runs_after_lock") != {"native": 1, "chois": 1}
+    ):
+        raise ManifestError(f"unexpected Phase 1B remediation formal protocol: {path}")
+
 
 def command_register(args: argparse.Namespace) -> None:
     repo = find_repo_root(Path.cwd())
