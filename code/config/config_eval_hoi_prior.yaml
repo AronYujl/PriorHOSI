@@ -43,6 +43,7 @@ chois_eval_ground_truth_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/
 per_sequence_metrics_path: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation/per_sequence_metrics.json
 
 ckpt_path: null
+checkpoint_weight_variant: ema_0.9999
 checkpoint_sha256: null
 data_contract_sha256: a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf
 data_audit_sha256: 1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f

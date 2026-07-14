@@ -4,6 +4,7 @@ import pickle as pkl
 import pickle
 import random
 import time
+from pathlib import Path
 import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
@@ -14,6 +15,7 @@ from utils import *
 from constants import *
 from priors.models import load_trained_hoi_prior
 from priors.representation import transform_object_points_for_next_window
+from priors.window_codec import WindowStateCodec, project_to_so3
 
 
 def sha256_file(path):
@@ -49,6 +51,22 @@ def convert_to_serializable(value):
     if torch.is_tensor(value):
         return value.detach().cpu().tolist()
     raise TypeError(f"Object of type {type(value)} is not JSON serializable")
+
+
+def recompute_rollout_bps(codec, references, rest_vertices, sequence_names, chunk_size=8):
+    """Recompute each condition from current generated pose without future GT."""
+    result = torch.empty(references.shape[0], 1024, 3, device=references.device, dtype=references.dtype)
+    by_object = {}
+    for row in range(references.shape[0]):
+        by_object.setdefault(sequence_names[row].split('_')[1], []).append(row)
+    for object_name, rows in by_object.items():
+        rest = rest_vertices[object_name]
+        for offset in range(0, len(rows), chunk_size):
+            selected = rows[offset:offset + chunk_size]
+            rotations = references[selected]
+            vertices = rest[None].expand(len(selected), -1, -1)
+            result[selected] = codec.recompute_bps(vertices, rotations)
+    return result
 from datasets.infbagel import InfBaGelDataset
 from guidance_loss import *
 import json
@@ -510,7 +528,8 @@ def test(cfg: DictConfig) -> None:
                 f'HOIPrior checkpoint hash mismatch: {checkpoint_sha256} != {cfg.checkpoint_sha256}'
             )
         model_body, checkpoint_metadata = load_trained_hoi_prior(
-            str(cfg.ckpt_path), torch.device(device), use_ema=True,
+            str(cfg.ckpt_path), torch.device(device),
+            weight_variant=str(cfg.checkpoint_weight_variant),
         )
         checkpoint_metadata['sha256'] = checkpoint_sha256
     else:
@@ -520,6 +539,11 @@ def test(cfg: DictConfig) -> None:
     
     # initialize the dataset
     synhsi_dataset = InfBaGelDataset(**cfg.dataset)
+    window_codec = WindowStateCodec(
+        synhsi_dataset.min_torch, synhsi_dataset.max_torch,
+        synhsi_dataset.obj_min_torch, synhsi_dataset.obj_max_torch,
+        bps_path=Path(ROOT_DIR) / 'code/bps.pt',
+    )
 
     sampler_body = hydra.utils.instantiate(cfg.sampler.pelvis)
     sampler_body.set_dataset_and_model(synhsi_dataset, model_body)
@@ -813,47 +837,29 @@ def test(cfg: DictConfig) -> None:
     for step in range(0, max_len):
         print(f"step: {step}")
         if step != 0:
-            rel_object_trans = obj_trans[:, -cfg.auto_regre_num, :].reshape(batch_size, 1, 3) - first_object_trans_batch # 534 X 1 X 3
-            rel_object_rot_mat = obj_rot_mat[:,-cfg.auto_regre_num,:].reshape(batch_size, 3, 3)
-            object_points_batch = transform_object_points_for_next_window(
-                first_object_points_batch, rel_object_rot_mat, rel_object_trans,
-            ) # 534 X 1024 X 3
-
-            mat = get_mat(cfg, points)
-
-            global_rot_6d = global_rot_6d.reshape(sample_len, cfg.max_window_size, 22, 6)
-
-            init_global_rot_mat = transforms.rotation_6d_to_matrix(global_rot_6d[:, -cfg.auto_regre_num, 0, :]).reshape(batch_size, 3, 3)
-            init_global_orient = transforms.matrix_to_axis_angle(init_global_rot_mat).cpu().numpy() # 534 X 3
-            init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
-            shift_euler = np.zeros_like(init_global_orient_euler)
-            shift_euler[:, 2] = -init_global_orient_euler[:, 2]
-            shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix() # 534 X 3 X 3
-
-            global_jrot_mat = transforms.rotation_6d_to_matrix(global_rot_6d)
-            global_jrot_mat = torch.from_numpy(shift_rot_matrix).float()[:, None, None].to(device) @ global_jrot_mat
-
-            mat[:, :3, :3] = torch.from_numpy(np.linalg.inv(shift_rot_matrix)).float().to(device)
-            init_joints = points.reshape(batch_size, cfg.max_window_size, -1, 3)[:, -cfg.auto_regre_num, 0, :].float().clone()
-            # init_joints[:, 1] = 0. # B X 3
-            mat[:, 0, 3] = init_joints[:, 0]
-            mat[:, 2, 3] = init_joints[:, 2]
-
-            fixed_points = points[:, -cfg.auto_regre_num:].reshape(batch_size, cfg.auto_regre_num, cfg.dataset.nb_joints*3).clone()
-            fixed_points = sampler_body.dataset.normalize_torch(transform_points(fixed_points, torch.inverse(mat)))
-
-            obj_fixed = obj_trans[:, -cfg.auto_regre_num:].reshape(batch_size, cfg.auto_regre_num, -1).clone()
-            obj_fixed = sampler_body.dataset.normalize_torch(transform_points(obj_fixed, torch.inverse(mat)), is_object=True)
-            obj_rot_fixed = obj_rot_mat[:, -cfg.auto_regre_num:].reshape(batch_size, cfg.auto_regre_num, -1).clone()
-
-            fixed_contact_label = contact_label[:, -cfg.auto_regre_num:].reshape(batch_size, cfg.auto_regre_num, -1).clone()
-            
-            global_rot_6d = transforms.matrix_to_rotation_6d(global_jrot_mat).reshape(sample_len, cfg.max_window_size, 22*6)
-
-            global_rot_6d_fixed = global_rot_6d[:, -cfg.auto_regre_num:].reshape(batch_size, cfg.auto_regre_num, -1)
-
-            fixed_points_batch = torch.cat([fixed_points, global_rot_6d_fixed, obj_fixed, obj_rot_fixed, fixed_contact_label], dim=-1) # 84 + 3 + 9 + 4
-            mat_batch = mat
+            history_joints = points.reshape(batch_size, cfg.max_window_size, 28, 3)[:, -cfg.auto_regre_num:]
+            history_human_rotation = transforms.rotation_6d_to_matrix(
+                global_rot_6d.reshape(batch_size, cfg.max_window_size, 22, 6)
+            )[:, -cfg.auto_regre_num:]
+            history_object_translation = obj_trans[:, -cfg.auto_regre_num:]
+            history_object_rotation = project_to_so3(
+                object_rot_mat_global.reshape(batch_size, cfg.max_window_size, 3, 3)
+            )[:, -cfg.auto_regre_num:]
+            history_contact = contact_label[:, -cfg.auto_regre_num:]
+            fixed_points_batch, current_frame = window_codec.encode(
+                history_joints, history_human_rotation,
+                global_object_translation=history_object_translation,
+                global_object_rotation=history_object_rotation,
+                contact=history_contact,
+            )
+            mat_batch = torch.eye(4, device=device, dtype=fixed_points_batch.dtype)[None].repeat(batch_size, 1, 1)
+            mat_batch[:, :3, :3] = current_frame.world_to_local.transpose(-1, -2)
+            mat_batch[:, :3, 3] = current_frame.origin
+            obj_rot_mat_ref_first_step_batch = current_frame.object_reference[:, None]
+            current_bps = recompute_rollout_bps(
+                window_codec, current_frame.object_reference, obj_rest_verts, seq_name_dict,
+            )
+            obj_bps_data_first_step_batch = current_bps[:, None, None]
 
         human_dict = {'rest_human_offsets': rest_human_offsets_all[:, :cfg.max_window_size], 'transl': transl_batch, 'betas': betas_batch, 'gender': gender_all}
         
@@ -869,7 +875,12 @@ def test(cfg: DictConfig) -> None:
         contact_label = info_dict['contact_label'].clone() # 534 X T X 4
         global_rot_6d = info_dict['global_rot_6d'].clone() # 534 X T X 22*6
 
-        object_rot_mat_global = (obj_rot_mat.reshape(sample_len, cfg.max_window_size, 3, 3) @ obj_rot_mat_ref_first_step_batch).reshape(sample_len, cfg.max_window_size, 9)
+        object_rot_mat_global = project_to_so3(
+            obj_rot_mat.reshape(sample_len, cfg.max_window_size, 3, 3)
+        ) @ obj_rot_mat_ref_first_step_batch
+        object_rot_mat_global = project_to_so3(object_rot_mat_global).reshape(
+            sample_len, cfg.max_window_size, 9,
+        )
         points_all = torch.cat([points_all, points.unsqueeze(1)], dim=1)
         object_trans_all = torch.cat([object_trans_all, obj_trans.unsqueeze(1)], dim=1)
         object_rot_mat_all = torch.cat([object_rot_mat_all, object_rot_mat_global.unsqueeze(1)], dim=1)

@@ -8,6 +8,7 @@ import torch
 from torch import nn
 
 from .representation import REPRESENTATION
+from .window_codec import project_to_so3
 
 
 def normalize_progress(progress: torch.Tensor) -> torch.Tensor:
@@ -71,10 +72,16 @@ class GaussianDiffusion(nn.Module):
         progress: torch.Tensor,
         *,
         generator: Optional[torch.Generator] = None,
+        paired_repeats: int = 1,
     ) -> torch.Tensor:
         batch = fixed_history.shape[0]
         shape = (batch, REPRESENTATION.window_frames, REPRESENTATION.dimension)
-        current = torch.randn(shape, device=fixed_history.device, generator=generator)
+        if paired_repeats < 1 or batch % paired_repeats:
+            raise ValueError("paired_repeats must evenly divide the batch")
+        base_batch = batch // paired_repeats
+        current = torch.randn(
+            (base_batch, *shape[1:]), device=fixed_history.device, generator=generator,
+        ).repeat(paired_repeats, 1, 1)
         current[:, :REPRESENTATION.history_frames] = fixed_history
         for step in reversed(range(self.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=current.device)
@@ -85,7 +92,9 @@ class GaussianDiffusion(nn.Module):
                 + _extract(self.posterior_mean_coef2, timesteps, current.shape) * current
             )
             if step:
-                noise = torch.randn(current.shape, device=current.device, generator=generator)
+                noise = torch.randn(
+                    (base_batch, *current.shape[1:]), device=current.device, generator=generator,
+                ).repeat(paired_repeats, 1, 1)
                 current = mean + (
                     0.5 * _extract(self.posterior_log_variance, timesteps, current.shape)
                 ).exp() * noise
@@ -136,7 +145,7 @@ class HOIPriorSampler:
         obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict,
         obj_rot_mat_prefix=None, object_only=False,
     ):
-        del mat, scene_flag, pelvis_goal, scene_goal, need_scene, need_pelvis_dir, need_pi
+        del mat, scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
         del is_loco, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict
         del obj_rot_mat_prefix, object_only
         batch = fixed_points.shape[0]
@@ -147,6 +156,8 @@ class HOIPriorSampler:
         raw_goal = object_goal.reshape(batch, 3)
         normalized_goal = self.dataset.normalize_torch(raw_goal, is_object=True)
         goals = torch.zeros(batch, 9, dtype=torch.float32, device=self.device)
+        goals[:, :3] = pelvis_goal.reshape(batch, 3).to(device=self.device, dtype=torch.float32)
+        goals[:, 1] = 0.0
         goals[:, 6:9] = normalized_goal
         raw_progress = torch.stack((pi.reshape(-1), end_pi.reshape(-1), seq_length.reshape(-1)), dim=-1).float()
         progress = normalize_progress(raw_progress)
@@ -156,6 +167,9 @@ class HOIPriorSampler:
         sample = self.diffusion.sample(
             self.student_model, fixed_points, text, bps, goals, progress, generator=generator,
         )
+        sample[..., 219:228] = project_to_so3(
+            sample[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
+        ).reshape(batch, REPRESENTATION.window_frames, 9)
         self._update_audit(sample)
         return [sample], []
 

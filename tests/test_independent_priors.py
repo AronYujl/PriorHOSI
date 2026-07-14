@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+import copy
 import sys
 import tempfile
 import unittest
@@ -183,6 +184,41 @@ class ExpertTests(unittest.TestCase):
             for expected, actual in zip(model.parameters(), loaded.parameters()):
                 torch.testing.assert_close(expected, actual)
 
+    def test_remediation_checkpoint_selects_both_ema_variants(self):
+        model = build_expert("hoi", dim_model=32, num_heads=4, num_layers=1)
+        fast = copy.deepcopy(model)
+        slow = copy.deepcopy(model)
+        with torch.no_grad():
+            for parameter in fast.parameters():
+                parameter.add_(0.25)
+            for parameter in slow.parameters():
+                parameter.sub_(0.5)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "hoi-remediation.pth"
+            torch.save({
+                "schema_version": 2,
+                "checkpoint_type": "hoi_prior_phase1b",
+                "expert": "hoi",
+                "initialization": "random",
+                "window_state_codec": "state-compositional-v1",
+                "model_config": {"dim_model": 32, "num_heads": 4, "num_layers": 1},
+                "model": model.state_dict(),
+                "ema_models": {"0.999": fast.state_dict(), "0.9999": slow.state_dict()},
+                "ema_model": slow.state_dict(),
+            }, path)
+            loaded_fast, metadata = load_trained_hoi_prior(
+                str(path), torch.device("cpu"), weight_variant="ema_0.999",
+            )
+            self.assertEqual(metadata["weight_variant"], "ema_0.999")
+            for expected, actual in zip(fast.parameters(), loaded_fast.parameters()):
+                torch.testing.assert_close(expected, actual)
+            loaded_online, metadata = load_trained_hoi_prior(
+                str(path), torch.device("cpu"), weight_variant="online",
+            )
+            self.assertEqual(metadata["weight_variant"], "online")
+            for expected, actual in zip(model.parameters(), loaded_online.parameters()):
+                torch.testing.assert_close(expected, actual)
+
     def test_cpu_forward_backward_for_both_expert_apis(self):
         batch = 2
         x = torch.randn(batch, 16, 232)
@@ -208,6 +244,20 @@ class HOITrainingTests(unittest.TestCase):
         torch.testing.assert_close(noisy[:, :2], clean[:, :2], rtol=0, atol=0)
         self.assertGreater(float((noisy[:, 2:] - clean[:, 2:]).abs().max()), 0.0)
 
+    def test_paired_diffusion_reuses_noise_across_condition_variants(self):
+        class ConditionBlind(torch.nn.Module):
+            def forward(self, noisy, timesteps, text, bps, goals, progress):
+                del timesteps, text, bps, goals, progress
+                return torch.zeros_like(noisy)
+
+        fixed = torch.randn(2, 2, 232).repeat(2, 1, 1)
+        generator = torch.Generator().manual_seed(42)
+        sample = GaussianDiffusion().sample(
+            ConditionBlind(), fixed, torch.randn(4, 768), torch.randn(4, 1024, 3),
+            torch.randn(4, 9), torch.randn(4, 3), generator=generator, paired_repeats=2,
+        )
+        torch.testing.assert_close(sample[:2], sample[2:], rtol=0, atol=0)
+
     def test_progress_condition_preserves_pi_end_pi_and_length_semantics(self):
         progress = normalize_progress(torch.tensor([[12.0, 60.0, 120.0]]))
         torch.testing.assert_close(progress[0, :2], torch.tensor([0.1, 0.5]))
@@ -222,6 +272,9 @@ class HOITrainingTests(unittest.TestCase):
         losses = hoi_training_losses(
             prediction, target, goals, offsets, parents,
             torch.full((3,), -2.0), torch.full((3,), 2.0),
+            torch.full((3,), -2.0), torch.full((3,), 2.0),
+            torch.tensor([False, True]), torch.randn(2, 100, 3),
+            torch.eye(3).repeat(2, 1, 1), torch.eye(3).repeat(2, 1, 1),
         )
         self.assertTrue(all(torch.isfinite(value) for value in losses.values()))
         losses["total"].backward()

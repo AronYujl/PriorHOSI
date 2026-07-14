@@ -1,0 +1,19 @@
+defaults:
+  - config_train_hoi_prior
+  - _self_
+
+mode: remediation-screen-r3072
+num_gpus: 4
+batch_size: 768
+effective_batch_size: 3072
+gradient_accumulation_steps: 1
+num_workers: 4
+dataset_limit: 0
+max_processed_windows: 6144000
+validation_windows: 32768
+validation_batch_size: 768
+validation_interval_windows: 3072000
+checkpoint_interval_windows: 6144000
+learning_rate: 0.0003
+warmup_windows: 1572864
+

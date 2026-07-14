@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from pytorch3d import transforms
 
 from .representation import REPRESENTATION
+from .window_codec import project_to_so3
 
 
 def _fk_positions(
@@ -37,8 +38,15 @@ def hoi_training_losses(
     parents_24: torch.Tensor,
     position_minimum: torch.Tensor,
     position_maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
+    terminal_window: torch.Tensor,
+    rest_object_points: torch.Tensor,
+    world_to_local_rotation: torch.Tensor,
+    object_rotation_reference: torch.Tensor,
     *,
     fk_weight: float = 50.0,
+    object_surface_weight: float = 50.0,
     velocity_weight: float = 0.1,
     goal_weight: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
@@ -85,7 +93,32 @@ def hoi_training_losses(
         velocity_channels[:, REPRESENTATION.history_frames:] - predicted_previous,
         target_velocity_channels[:, REPRESENTATION.history_frames:] - target_velocity_channels[:, REPRESENTATION.history_frames - 1:-1],
     )
-    losses["object_goal"] = F.mse_loss(prediction[:, -1, 216:219], goals[:, 6:9])
+    terminal = terminal_window.reshape(-1).to(device=prediction.device, dtype=prediction.dtype)
+    goal_per_window = (prediction[:, -1, 216:219] - goals[:, 6:9]).square().mean(dim=-1)
+    # Keep a differentiable zero when a batch contains no terminal windows.
+    losses["object_goal"] = (goal_per_window * terminal).sum() / terminal.sum().clamp_min(1.0)
+
+    object_scale = (object_maximum - object_minimum).reshape(1, 1, 3)
+    object_base = object_minimum.reshape(1, 1, 3)
+    predicted_object_translation = (prediction[..., 216:219] + 1.0) * object_scale / 2.0 + object_base
+    target_object_translation = (target[..., 216:219] + 1.0) * object_scale / 2.0 + object_base
+    predicted_relative = project_to_so3(prediction[..., 219:228].reshape(*prediction.shape[:2], 3, 3))
+    target_relative = project_to_so3(target[..., 219:228].reshape(*target.shape[:2], 3, 3))
+    reference = object_rotation_reference[:, None]
+    predicted_global_rotation = project_to_so3(predicted_relative @ reference)
+    target_global_rotation = project_to_so3(target_relative @ reference)
+    world_to_local = world_to_local_rotation[:, None]
+    predicted_local_rotation = world_to_local @ predicted_global_rotation
+    target_local_rotation = world_to_local @ target_global_rotation
+    points = rest_object_points.to(prediction)
+    predicted_surface = torch.einsum("bpc,btdc->btpd", points, predicted_local_rotation)
+    target_surface = torch.einsum("bpc,btdc->btpd", points, target_local_rotation)
+    predicted_surface = predicted_surface + predicted_object_translation[:, :, None]
+    target_surface = target_surface + target_object_translation[:, :, None]
+    losses["object_surface"] = F.mse_loss(
+        predicted_surface[:, REPRESENTATION.history_frames:],
+        target_surface[:, REPRESENTATION.history_frames:],
+    )
     reconstruction = sum(losses[name] for name in (
         "joint_position", "joint_rotation", "object_translation", "object_rotation", "contact",
     ))
@@ -93,6 +126,7 @@ def hoi_training_losses(
     losses["total"] = (
         reconstruction
         + float(fk_weight) * losses["fk"]
+        + float(object_surface_weight) * losses["object_surface"]
         + float(velocity_weight) * losses["velocity"]
         + float(goal_weight) * losses["object_goal"]
     )

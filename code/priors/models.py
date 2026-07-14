@@ -155,6 +155,7 @@ def build_expert(
 
 def load_trained_hoi_prior(
     checkpoint_path: str, device: torch.device, *, use_ema: bool = True,
+    weight_variant: Optional[str] = None,
 ) -> Tuple[HOIPrior, Dict[str, object]]:
     """Strictly load a Phase 1B checkpoint for evaluation or same-run resume.
 
@@ -179,8 +180,25 @@ def load_trained_hoi_prior(
         num_heads=int(model_config["num_heads"]),
         num_layers=int(model_config["num_layers"]),
     )
-    state_key = "ema_model" if use_ema else "model"
-    state = checkpoint.get(state_key)
+    if weight_variant is None:
+        weight_variant = "ema_0.9999" if use_ema else "online"
+    if weight_variant == "online":
+        state_key = "model"
+        state = checkpoint.get(state_key)
+    elif weight_variant in {"ema_0.999", "ema_0.9999"}:
+        decay = weight_variant[len("ema_"):]
+        ema_models = checkpoint.get("ema_models")
+        if isinstance(ema_models, dict) and decay in ema_models:
+            state_key = f"ema_models[{decay}]"
+            state = ema_models[decay]
+        elif decay == "0.9999":
+            state_key = "ema_model"
+            state = checkpoint.get(state_key)
+        else:
+            state_key = f"ema_models[{decay}]"
+            state = None
+    else:
+        raise ValueError(f"unknown HOIPrior weight variant: {weight_variant}")
     if not isinstance(state, dict):
         raise ValueError(f"HOIPrior checkpoint is missing {state_key} weights")
     model.load_state_dict(state, strict=True)
@@ -189,10 +207,11 @@ def load_trained_hoi_prior(
         key: checkpoint.get(key) for key in (
             "schema_version", "checkpoint_type", "expert", "initialization", "run_id",
             "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
-            "model_config", "data_contract_sha256", "split_sha256",
+            "model_config", "data_contract_sha256", "split_sha256", "window_state_codec",
         )
     }
     metadata["weights"] = state_key
+    metadata["weight_variant"] = weight_variant
     metadata["path"] = str(path)
     return model, metadata
 

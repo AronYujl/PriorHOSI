@@ -29,11 +29,12 @@ weight_decay: 0.01
 beta1: 0.9
 beta2: 0.999
 gradient_clip_norm: 1.0
-ema_decay: 0.9999
+ema_decays: [0.999, 0.9999]
 amp: true
 max_consecutive_amp_overflows: 16
 
 fk_weight: 50.0
+object_surface_weight: 50.0
 velocity_weight: 0.1
 goal_weight: 1.0
 

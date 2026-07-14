@@ -8,12 +8,14 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import torch
+import trimesh
 from pytorch3d import transforms
 from scipy.spatial.transform import Rotation
 from torch.utils.data import Dataset
 
 from datasets.utils import get_smpl_parents, zup_to_yup
 from .representation import REPRESENTATION
+from .window_codec import WindowStateCodec
 
 
 def hsi_filter(left, right) -> np.ndarray:
@@ -38,7 +40,7 @@ def partition_for_scenes(split: Dict[str, object], scenes: np.ndarray) -> np.nda
     return values
 
 
-def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, parents: np.ndarray) -> torch.Tensor:
+def _global_rotations(root_orient: np.ndarray, pose: np.ndarray, parents: np.ndarray) -> torch.Tensor:
     root = zup_to_yup(root_orient.copy()).reshape(-1, 1, 3)
     body = zup_to_yup(pose.copy().reshape(-1, 3)).reshape(-1, 21, 3)
     local = transforms.axis_angle_to_matrix(torch.from_numpy(np.concatenate((root, body), axis=1)).float())
@@ -46,6 +48,11 @@ def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, p
     for joint, parent in enumerate(parents):
         if parent >= 0:
             global_rotation[:, joint] = global_rotation[:, parent] @ global_rotation[:, joint]
+    return global_rotation
+
+
+def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, parents: np.ndarray) -> torch.Tensor:
+    global_rotation = _global_rotations(root_orient, pose, parents)
     shifted = torch.from_numpy(shift).float()[None, None] @ global_rotation
     return transforms.matrix_to_rotation_6d(shifted)
 
@@ -116,6 +123,13 @@ class PriorWindowDataset(Dataset):
             self.object_rot = np.load(self.root / "object_rot_mat.npy", mmap_mode="r")
             self.object_minimum, self.object_maximum = self.norm[2].astype(np.float32), self.norm[3].astype(np.float32)
             self.rest_human_offsets = np.load(self.root / "rest_human_offsets_aligned.npy", mmap_mode="r")
+            self.codec = WindowStateCodec(
+                torch.from_numpy(self.minimum), torch.from_numpy(self.maximum),
+                torch.from_numpy(self.object_minimum), torch.from_numpy(self.object_maximum),
+                bps_path=self.repo / "code/bps.pt",
+            )
+        else:
+            self.codec = WindowStateCodec(torch.from_numpy(self.minimum), torch.from_numpy(self.maximum))
 
     def _load_pickle(self, relative: str):
         with (self.root / relative).open("rb") as handle:
@@ -134,6 +148,13 @@ class PriorWindowDataset(Dataset):
         return np.load(self.root / "contact_label_npy_files" / f"{sequence_name}.npy", mmap_mode="r")
 
     @lru_cache(maxsize=16)
+    def _rest_object_points(self, object_name: str) -> np.ndarray:
+        mesh = trimesh.load_mesh(self.repo / "data/object/rest_object_geo" / f"{object_name}.ply", process=False)
+        vertices = zup_to_yup(np.asarray(mesh.vertices, dtype=np.float32).copy())
+        indices = np.linspace(0, len(vertices) - 1, min(100, len(vertices))).round().astype(np.int64)
+        return np.asarray(vertices[indices], dtype=np.float32)
+
+    @lru_cache(maxsize=16)
     def _scene(self, scene_name: str) -> np.ndarray:
         occupancy = np.load(self.root / "Scene" / f"{scene_name}.npy", mmap_mode="r")
         x = np.linspace(0, occupancy.shape[0] - 1, 8).round().astype(int)
@@ -148,42 +169,46 @@ class PriorWindowDataset(Dataset):
             raise ValueError(f"window {index} has {end-start} source frames, expected 48")
         frames = np.arange(start, end, 3)
         joints = np.asarray(self.joints[frames], dtype=np.float32)
-        initial = np.array((joints[0, 0, 0], 0.0, joints[0, 0, 2]), dtype=np.float32)
-        oriented = zup_to_yup(np.asarray(self.orient[start], dtype=np.float64).copy())
-        yaw = Rotation.from_rotvec(oriented).as_euler("zxy")[2]
-        shift = Rotation.from_euler("zxy", (0.0, 0.0, -yaw)).as_matrix().astype(np.float32)
-        joints = (joints - initial) @ shift.T
-        joints = (-1.0 + 2.0 * (joints - self.minimum) / (self.maximum - self.minimum)).reshape(16, 84)
-        rotations = _rotation_6d(
-            np.asarray(self.orient[start:end]), np.asarray(self.pose[start:end]), shift, self.parents,
-        )[::3].numpy()
-        representation = np.zeros((16, REPRESENTATION.dimension), dtype=np.float32)
-        representation[:, :84] = joints
-        representation[:, 84:216] = rotations.reshape(16, 132)
+        global_rotations = _global_rotations(
+            np.asarray(self.orient[start:end]), np.asarray(self.pose[start:end]), self.parents,
+        )[::3]
         sequence = int(self.sequence_ids[index])
         sequence_name = str(self.scene_names[sequence] if self.expert == "hoi" else self.scene_names[start])
         object_bps = np.zeros((1024, 3), dtype=np.float32)
         scene = np.zeros((8, 8, 8), dtype=np.float32)
         goals = np.zeros(9, dtype=np.float32)
         if self.expert == "hoi":
-            trans = (np.asarray(self.object_trans[frames], dtype=np.float32) - initial) @ shift.T
-            representation[:, 216:219] = -1.0 + 2.0 * (trans - self.object_minimum) / (self.object_maximum - self.object_minimum)
-            reference = np.asarray(self.object_rot[start], dtype=np.float32)
-            representation[:, 219:228] = (np.asarray(self.object_rot[frames]) @ reference.T).reshape(16, 9)
+            object_translation = torch.from_numpy(np.asarray(self.object_trans[frames], dtype=np.float32))
+            object_rotation = torch.from_numpy(np.asarray(self.object_rot[frames], dtype=np.float32))
             offset = start - int(self.seq_starts[sequence])
             object_bps = zup_to_yup(np.asarray(self._bps(sequence_name)[offset], dtype=np.float32).copy())
-            representation[:, 228:232] = np.asarray(self._contact(sequence_name)[offset:offset + 48:3], dtype=np.float32)
+            contact = torch.from_numpy(
+                np.asarray(self._contact(sequence_name)[offset:offset + 48:3], dtype=np.float32)
+            )
+            representation_tensor, frame = self.codec.encode(
+                torch.from_numpy(joints), global_rotations,
+                global_object_translation=object_translation,
+                global_object_rotation=object_rotation,
+                contact=contact,
+            )
+            representation = representation_tensor.numpy()
             if not bool(self.language["need_object"][index]):
                 raise ValueError(f"HOI window {index} does not contain a dynamic object")
+            pelvis_endpoint = torch.from_numpy(
+                np.array(self.joints[frames[-1], 0], dtype=np.float32, copy=True)
+            )
+            goals[:3] = self.codec.pelvis_goal(pelvis_endpoint, frame).numpy()
             goal_frame = int(self.language["end_range"][index]) - 4
             goal_frame = min(max(goal_frame, int(self.seq_starts[sequence])), int(self.seq_ends[sequence]) - 1)
-            goal_trans = (np.asarray(self.object_trans[goal_frame], dtype=np.float32) - initial) @ shift.T
-            goals[6:9] = -1.0 + 2.0 * (
-                goal_trans - self.object_minimum
-            ) / (self.object_maximum - self.object_minimum)
+            goal_trans = torch.from_numpy(
+                np.array(self.object_trans[goal_frame], dtype=np.float32, copy=True)
+            )
+            goals[6:9] = self.codec.object_goal(goal_trans, frame).numpy()
         else:
+            representation_tensor, frame = self.codec.encode(torch.from_numpy(joints), global_rotations)
+            representation = representation_tensor.numpy()
             scene = self._scene(sequence_name)
-            goals[:3] = joints[-1, :3]
+            goals[:3] = representation[-1, :3]
         text = self.language["text"][index][0]
         embedding = np.asarray(self.text_features[self.text_to_feature[text]], dtype=np.float32).reshape(-1)
         norm = np.linalg.norm(embedding)
@@ -193,6 +218,11 @@ class PriorWindowDataset(Dataset):
         seq_length = int(self.seq_ends[sequence] - self.seq_starts[sequence])
         pi = int(self.language["pi"][index])
         end_pi = min(pi + 48, seq_length)
+        # OMOMO's final language window ends one stored sentinel frame before
+        # ``seq_ends``.  Expose that window as the inclusive terminal progress
+        # endpoint so the preregistered mask is exactly ``end_pi == seq_length``.
+        if end == int(self.seq_ends[sequence]) - 1:
+            end_pi = seq_length
         progress = np.asarray((pi, end_pi, seq_length), dtype=np.float32)
         result = {
             "x": torch.from_numpy(representation),
@@ -207,6 +237,14 @@ class PriorWindowDataset(Dataset):
             )
             result["sequence_index"] = torch.tensor(sequence, dtype=torch.long)
             result["window_index"] = torch.tensor(index, dtype=torch.long)
+            result["terminal_window"] = torch.tensor(end_pi == seq_length, dtype=torch.bool)
+            result["window_origin"] = frame.origin.detach().clone()
+            result["world_to_local_rotation"] = frame.world_to_local.detach().clone()
+            result["object_rotation_reference"] = frame.object_reference.detach().clone()
+            object_name = sequence_name.split("_")[1]
+            result["rest_object_points"] = torch.from_numpy(
+                np.array(self._rest_object_points(object_name), dtype=np.float32, copy=True)
+            )
         else:
             result["scene_condition"] = torch.from_numpy(scene)
         return result

@@ -13,7 +13,7 @@ import socket
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
 import hydra
 import numpy as np
@@ -31,11 +31,12 @@ from priors.diffusion import GaussianDiffusion, normalize_progress
 from priors.losses import hoi_training_losses
 from priors.models import build_expert
 from priors.representation import REPRESENTATION
+from priors.window_codec import BPS_SHA256
 
 
 LOSS_KEYS = (
     "total", "reconstruction", "joint_position", "joint_rotation", "object_translation",
-    "object_rotation", "contact", "fk", "velocity", "object_goal", "contact_accuracy",
+    "object_rotation", "contact", "fk", "object_surface", "velocity", "object_goal", "contact_accuracy",
 )
 
 
@@ -100,9 +101,10 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "weight_decay": float(cfg.weight_decay),
         "betas": [float(cfg.beta1), float(cfg.beta2)],
         "gradient_clip_norm": float(cfg.gradient_clip_norm),
-        "ema_decay": float(cfg.ema_decay),
+        "ema_decays": [float(value) for value in cfg.ema_decays],
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
+        "object_surface_weight": float(cfg.object_surface_weight),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
         "amp": bool(cfg.amp),
@@ -122,7 +124,11 @@ def _lr_lambda(update: int, total_updates: int, warmup_updates: int, minimum_rat
 def _move_batch(batch: Dict[str, torch.Tensor], device: torch.device) -> Dict[str, torch.Tensor]:
     return {
         key: batch[key].to(device, non_blocking=True)
-        for key in ("x", "text_embedding", "object_bps", "goals", "progress", "rest_human_offsets")
+        for key in (
+            "x", "text_embedding", "object_bps", "goals", "progress", "rest_human_offsets",
+            "terminal_window", "rest_object_points", "world_to_local_rotation",
+            "object_rotation_reference",
+        )
     }
 
 
@@ -133,6 +139,8 @@ def _forward_losses(
     parents: torch.Tensor,
     minimum: torch.Tensor,
     maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
     cfg: DictConfig,
     *,
     generator: Optional[torch.Generator] = None,
@@ -159,7 +167,14 @@ def _forward_losses(
         parents,
         minimum,
         maximum,
+        object_minimum,
+        object_maximum,
+        batch["terminal_window"],
+        batch["rest_object_points"],
+        batch["world_to_local_rotation"],
+        batch["object_rotation_reference"],
         fk_weight=float(cfg.fk_weight),
+        object_surface_weight=float(cfg.object_surface_weight),
         velocity_weight=float(cfg.velocity_weight),
         goal_weight=float(cfg.goal_weight),
     )
@@ -183,9 +198,12 @@ def _validate(
     parents: torch.Tensor,
     minimum: torch.Tensor,
     maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
     cfg: DictConfig,
     processed_windows: int,
 ) -> Dict[str, object]:
+    was_training = model.training
     model.eval()
     local_limit = int(cfg.validation_windows) // world_size
     if local_limit * world_size != int(cfg.validation_windows):
@@ -205,7 +223,8 @@ def _validate(
                 batch = {key: value[:remaining] for key, value in batch.items()}
             with torch.cuda.amp.autocast(enabled=bool(cfg.amp)):
                 losses = _forward_losses(
-                    model, diffusion, batch, parents, minimum, maximum, cfg, generator=generator,
+                    model, diffusion, batch, parents, minimum, maximum,
+                    object_minimum, object_maximum, cfg, generator=generator,
                 )
             count = batch["x"].shape[0]
             for index, key in enumerate(LOSS_KEYS):
@@ -225,7 +244,7 @@ def _validate(
         "validation_windows": int(totals[-1].item()),
         "finite": all(math.isfinite(value) for value in result.values()),
     })
-    model.train()
+    model.train(was_training)
     return result
 
 
@@ -250,7 +269,7 @@ def _save_checkpoint(
     world_size: int,
     cfg: DictConfig,
     model: DistributedDataParallel,
-    ema: torch.nn.Module,
+    ema_models: Mapping[str, torch.nn.Module],
     optimizer: torch.optim.Optimizer,
     scheduler: LambdaLR,
     scaler: torch.cuda.amp.GradScaler,
@@ -271,8 +290,9 @@ def _save_checkpoint(
         if checkpoint_path.exists():
             raise FileExistsError(f"refusing to overwrite checkpoint {checkpoint_path}")
         value = {
-            "schema_version": 1,
+            "schema_version": 2,
             "checkpoint_type": "hoi_prior_phase1b",
+            "window_state_codec": "state-compositional-v1",
             "expert": "hoi",
             "initialization": "random",
             "run_id": str(cfg.run_id),
@@ -291,7 +311,9 @@ def _save_checkpoint(
             "data_contract_sha256": str(cfg.data_contract_sha256),
             "split_sha256": _sha256(Path(str(cfg.split_manifest)).resolve()),
             "model": model.module.state_dict(),
-            "ema_model": ema.state_dict(),
+            "ema_models": {key: value.state_dict() for key, value in ema_models.items()},
+            # Retain the legacy name for the official evaluator until D2 locks a terminal variant.
+            "ema_model": ema_models["0.9999"].state_dict(),
             "optimizer": optimizer.state_dict(),
             "scheduler": scheduler.state_dict(),
             "scaler": scaler.state_dict(),
@@ -312,7 +334,7 @@ def _load_resume(
     rank: int,
     cfg: DictConfig,
     model: DistributedDataParallel,
-    ema: torch.nn.Module,
+    ema_models: Mapping[str, torch.nn.Module],
     optimizer: torch.optim.Optimizer,
     scheduler: LambdaLR,
     scaler: torch.cuda.amp.GradScaler,
@@ -339,7 +361,11 @@ def _load_resume(
         if checkpoint.get(key) != expected:
             raise ValueError(f"resume checkpoint {key} mismatch: {checkpoint.get(key)!r} != {expected!r}")
     model.module.load_state_dict(checkpoint["model"], strict=True)
-    ema.load_state_dict(checkpoint["ema_model"], strict=True)
+    checkpoint_emas = checkpoint.get("ema_models")
+    if not isinstance(checkpoint_emas, dict) or set(checkpoint_emas) != set(ema_models):
+        raise ValueError("resume checkpoint EMA variants mismatch")
+    for key, ema in ema_models.items():
+        ema.load_state_dict(checkpoint_emas[key], strict=True)
     optimizer.load_state_dict(checkpoint["optimizer"])
     scheduler.load_state_dict(checkpoint["scheduler"])
     scaler.load_state_dict(checkpoint["scaler"])
@@ -387,6 +413,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         raise ValueError("HOIPrior architecture must remain 512-wide, 16-head, 8-layer")
     if cfg.init_checkpoint not in (None, "", False):
         raise ValueError("HOIPrior training initialization must be random; init_checkpoint is forbidden")
+    if (
+        float(cfg.fk_weight) != 50.0
+        or float(cfg.object_surface_weight) != 50.0
+        or float(cfg.velocity_weight) != 0.1
+        or float(cfg.goal_weight) != 1.0
+    ):
+        raise ValueError("Phase 1B remediation loss weights are locked at FK/surface/velocity/goal=50/50/0.1/1")
     if world_size not in {1, 4}:
         raise ValueError("Phase 1B supports one-GPU functional smoke or four-GPU worker execution")
 
@@ -431,7 +464,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         num_heads=int(cfg.num_heads), num_layers=int(cfg.num_layers),
     ).to(device)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
-    ema = copy.deepcopy(model.module).requires_grad_(False).eval()
+    ema_decays = [float(value) for value in cfg.ema_decays]
+    if ema_decays != [0.999, 0.9999]:
+        raise ValueError("Phase 1B remediation requires EMA decays 0.999 and 0.9999")
+    ema_models = {
+        str(decay): copy.deepcopy(model.module).requires_grad_(False).eval()
+        for decay in ema_decays
+    }
     diffusion = GaussianDiffusion(int(cfg.diffusion_steps)).to(device)
     optimizer = AdamW(
         model.parameters(), lr=float(cfg.learning_rate), weight_decay=float(cfg.weight_decay),
@@ -448,6 +487,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     norm = np.load(Path(str(cfg.repo_root)) / "data/train/norm.npy")
     minimum = torch.as_tensor(norm[0], device=device, dtype=torch.float32)
     maximum = torch.as_tensor(norm[1], device=device, dtype=torch.float32)
+    object_minimum = torch.as_tensor(norm[2], device=device, dtype=torch.float32)
+    object_maximum = torch.as_tensor(norm[3], device=device, dtype=torch.float32)
 
     state = {
         "processed_windows": 0,
@@ -458,7 +499,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     }
     resumed_from = None
     if cfg.resume_checkpoint not in (None, "", False):
-        state = _load_resume(rank, cfg, model, ema, optimizer, scheduler, scaler)
+        state = _load_resume(rank, cfg, model, ema_models, optimizer, scheduler, scaler)
         resumed_from = str(Path(str(cfg.resume_checkpoint)).resolve())
     processed_windows = state["processed_windows"]
     optimizer_updates = state["optimizer_updates"]
@@ -499,7 +540,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             sync_context = contextlib.nullcontext() if boundary else model.no_sync()
             with sync_context:
                 with torch.cuda.amp.autocast(enabled=bool(cfg.amp)):
-                    losses = _forward_losses(model, diffusion, batch, parents, minimum, maximum, cfg)
+                    losses = _forward_losses(
+                        model, diffusion, batch, parents, minimum, maximum,
+                        object_minimum, object_maximum, cfg,
+                    )
                     loss = losses["total"] / int(cfg.gradient_accumulation_steps)
                 if not torch.isfinite(loss):
                     raise FloatingPointError(f"non-finite HOIPrior loss at update {optimizer_updates}")
@@ -550,7 +594,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             scaler.update()
             optimizer.zero_grad(set_to_none=True)
             scheduler.step()
-            _ema_update(ema, model.module, float(cfg.ema_decay))
+            for decay in ema_decays:
+                _ema_update(ema_models[str(decay)], model.module, decay)
             optimizer_updates += 1
             processed_windows += effective
             for key in LOSS_KEYS:
@@ -570,15 +615,15 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 and processed_windows % int(cfg.validation_interval_windows) == 0
             ):
                 validation_records.append(_validate(
-                    rank, world_size, ema, diffusion, validation_loader, parents,
-                    minimum, maximum, cfg, processed_windows,
+                    rank, world_size, ema_models["0.9999"], diffusion, validation_loader, parents,
+                    minimum, maximum, object_minimum, object_maximum, cfg, processed_windows,
                 ))
             if (
                 int(cfg.checkpoint_interval_windows)
                 and processed_windows % int(cfg.checkpoint_interval_windows) == 0
             ):
                 _save_checkpoint(
-                    rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
+                    rank, world_size, cfg, model, ema_models, optimizer, scheduler, scaler,
                     processed_windows=processed_windows,
                     optimizer_updates=optimizer_updates,
                     amp_overflow_skips=amp_overflow_skips,
@@ -591,7 +636,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             if pause_at and processed_windows >= pause_at and processed_windows < int(cfg.max_processed_windows):
                 if last_checkpoint_windows != processed_windows:
                     _save_checkpoint(
-                        rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
+                        rank, world_size, cfg, model, ema_models, optimizer, scheduler, scaler,
                         processed_windows=processed_windows,
                         optimizer_updates=optimizer_updates,
                         amp_overflow_skips=amp_overflow_skips,
@@ -612,12 +657,12 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     if not paused and validation_loader is not None:
         if not validation_records or validation_records[-1]["processed_windows"] != processed_windows:
             validation_records.append(_validate(
-                rank, world_size, ema, diffusion, validation_loader, parents,
-                minimum, maximum, cfg, processed_windows,
+                rank, world_size, ema_models["0.9999"], diffusion, validation_loader, parents,
+                minimum, maximum, object_minimum, object_maximum, cfg, processed_windows,
             ))
     if last_checkpoint_windows != processed_windows:
         terminal_checkpoint = _save_checkpoint(
-            rank, world_size, cfg, model, ema, optimizer, scheduler, scaler,
+            rank, world_size, cfg, model, ema_models, optimizer, scheduler, scaler,
             processed_windows=processed_windows,
             optimizer_updates=optimizer_updates,
             amp_overflow_skips=amp_overflow_skips,
@@ -715,6 +760,15 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "timing_cuda_synchronized": True,
                 "checkpoint_hashes": checkpoint_hashes,
                 "model_config": _model_config(cfg),
+                "ema_decays": ema_decays,
+                "loss_weights": {
+                    "fk": float(cfg.fk_weight),
+                    "object_surface": float(cfg.object_surface_weight),
+                    "velocity": float(cfg.velocity_weight),
+                    "terminal_object_goal": float(cfg.goal_weight),
+                },
+                "window_state_codec": "state-compositional-v1",
+                "bps_sha256": BPS_SHA256,
                 "representation": REPRESENTATION.as_dict(),
                 "data_contract_sha256": str(cfg.data_contract_sha256),
                 "split_manifest": split_manifest,
