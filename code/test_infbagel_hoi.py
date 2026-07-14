@@ -13,6 +13,7 @@ import trimesh
 from utils import *
 from constants import *
 from priors.models import load_trained_hoi_prior
+from priors.representation import transform_object_points_for_next_window
 
 
 def sha256_file(path):
@@ -814,9 +815,9 @@ def test(cfg: DictConfig) -> None:
         if step != 0:
             rel_object_trans = obj_trans[:, -cfg.auto_regre_num, :].reshape(batch_size, 1, 3) - first_object_trans_batch # 534 X 1 X 3
             rel_object_rot_mat = obj_rot_mat[:,-cfg.auto_regre_num,:].reshape(batch_size, 3, 3)
-            object_points = rel_object_rot_mat.bmm(first_object_points_batch.transpose(1, 2)) + rel_object_trans.transpose(1, 2)
-
-            object_points_batch = object_points.transpose(1, 2) # 534 X 1024 X 3
+            object_points_batch = transform_object_points_for_next_window(
+                first_object_points_batch, rel_object_rot_mat, rel_object_trans,
+            ) # 534 X 1024 X 3
 
             mat = get_mat(cfg, points)
 

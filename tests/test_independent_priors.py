@@ -20,7 +20,9 @@ from priors.models import (
     HSIPrior, HOIPrior, assert_parameter_independence, build_expert,
     load_trained_hoi_prior,
 )
-from priors.representation import REPRESENTATION, masked_reconstruction_loss
+from priors.representation import (
+    REPRESENTATION, masked_reconstruction_loss, transform_object_points_for_next_window,
+)
 from datasets.utils import get_smpl_parents
 
 
@@ -53,6 +55,17 @@ class RepresentationTests(unittest.TestCase):
         target = torch.ones_like(prediction)
         masked_reconstruction_loss(prediction, target, "hoi").backward()
         self.assertGreater(float(prediction.grad[:, 2:, 228:].abs().max()), 0.0)
+
+    def test_autoregressive_object_transform_uses_bps_dtype(self):
+        points = torch.tensor([[[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]], dtype=torch.float32)
+        rotation = torch.eye(3, dtype=torch.float64).unsqueeze(0)
+        translation = torch.tensor([[[0.5, -1.0, 2.0]]], dtype=torch.float64)
+        transformed = transform_object_points_for_next_window(points, rotation, translation)
+        self.assertEqual(transformed.dtype, torch.float32)
+        torch.testing.assert_close(
+            transformed,
+            points + torch.tensor([0.5, -1.0, 2.0], dtype=torch.float32),
+        )
 
 
 class ContractTests(unittest.TestCase):

@@ -206,6 +206,13 @@ per-GPU micro-batch 768、accumulation 1、effective batch 3,072，每卡最小 
 筛选的 validation 和 checkpoint 均只在固定预算末端执行，即 3,145,728 windows / 第 1,024
 个 update；每次 terminal validation 固定覆盖 32,768 windows。
 
+2026-07-14 首次完整 native run `p1-hoi-eval-native-s42-20260714` 在 438 条序列均加载、
+第 0 个自回归窗口完成后，于第 1 个窗口的 object-point 坐标变换失败：OMOMO 物体旋转来自
+NumPy `float64`，而锁定 BPS 点为 `float32`，混合 dtype 进入 `torch.bmm`。该失败 run 保留且
+无 OOM、无部分 CHOIS 输出。允许的表示诊断修复仅在该坐标变换入口将旋转和平移显式对齐到
+BPS tensor 的 device/dtype，并新增 mixed-dtype 回归测试；不得改变 checkpoint、数据、模型、
+采样步数、序列数或指标。修复提交发布到 worker 后，以新 run ID 原样重跑完整协议。
+
 筛选在同一 commit `800a9fd1e2ec5fcdad1f05d855609e8960aaafd9` 完成。候选 A/B 的
 terminal validation total 为 182.709418 / 166.539836，FK 为 3.615757 / 3.293625；contact
 accuracy 为 0.570313 / 0.570430。按预注册规则锁定 B：peak LR `3e-4`、warmup 1,572,864

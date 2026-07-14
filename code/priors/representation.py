@@ -78,6 +78,34 @@ class RepresentationSchema:
 REPRESENTATION = RepresentationSchema()
 
 
+def transform_object_points_for_next_window(
+    rest_object_points: torch.Tensor,
+    object_rotation: torch.Tensor,
+    object_translation: torch.Tensor,
+) -> torch.Tensor:
+    """Apply the autoregressive object transform in the BPS tensor dtype.
+
+    OMOMO object transforms can arrive from NumPy as float64 while the locked
+    BPS representation is float32.  Keep the representation tensor authoritative
+    so both ``bmm`` operands and the translated result use one explicit dtype.
+    """
+    if rest_object_points.ndim != 3 or rest_object_points.shape[-1] != 3:
+        raise ValueError(f"expected rest object points [B,N,3], got {rest_object_points.shape}")
+    batch_size = rest_object_points.shape[0]
+    if object_rotation.shape != (batch_size, 3, 3):
+        raise ValueError(f"expected object rotation [B,3,3], got {object_rotation.shape}")
+    if object_translation.shape not in ((batch_size, 3), (batch_size, 1, 3)):
+        raise ValueError(
+            f"expected object translation [B,3] or [B,1,3], got {object_translation.shape}"
+        )
+    device = rest_object_points.device
+    dtype = rest_object_points.dtype
+    rotation = object_rotation.to(device=device, dtype=dtype)
+    translation = object_translation.reshape(batch_size, 1, 3).to(device=device, dtype=dtype)
+    transformed = rotation.bmm(rest_object_points.transpose(1, 2))
+    return (transformed + translation.transpose(1, 2)).transpose(1, 2)
+
+
 def masked_reconstruction_loss(
     prediction: torch.Tensor, target: torch.Tensor, expert: str, history_frames: int = 2,
 ) -> torch.Tensor:
