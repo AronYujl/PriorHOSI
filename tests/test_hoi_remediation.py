@@ -1,4 +1,5 @@
 import unittest
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -6,6 +7,9 @@ import numpy as np
 import torch
 import trimesh
 from pytorch3d import transforms
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "code"))
 
 from datasets.utils import get_smpl_parents, zup_to_yup
 from priors.data import PriorWindowDataset
@@ -19,10 +23,6 @@ from priors.remediation import (
 from priors.window_codec import WindowFrame, project_to_so3, rotation_geodesic
 from tools.evaluate_hoi_remediation import paired_bootstrap
 from tools.select_hoi_remediation import select
-
-
-REPO = Path(__file__).resolve().parents[1]
-
 
 class RemediationDiagnosticTest(unittest.TestCase):
     def _dataset(self):
