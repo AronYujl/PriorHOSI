@@ -223,7 +223,8 @@ BPS tensor 的 device/dtype，并新增 mixed-dtype 回归测试；不得改变 
 woodchair/whitechair/largebox/largetable/plasticbox/trashcan 的协议结果，不是缺失 run。
 完整 gate 与 seed-42 sequence bootstrap 在
 `experiments/results/p1_hoi_phase1b_gate_s42_20260714.json`。不得 merge、创建
-`exp/p1b-hoi-v1` 或开始 Phase 1C；新的训练/采样方向必须在后续 Phase 1B session 先预注册。
+`exp/p1b-hoi-v1` 或开始 Phase 1C。后续 Phase 1B session 只允许先预注册表示、坐标、mask、
+normalization、数据契约或优化诊断；其他方向不由本次失败决定授权。
 
 筛选在同一 commit `800a9fd1e2ec5fcdad1f05d855609e8960aaafd9` 完成。候选 A/B 的
 terminal validation total 为 182.709418 / 166.539836，FK 为 3.615757 / 3.293625；contact
