@@ -442,6 +442,19 @@ Python、clean exact commit、`INFBAGEL_WORKER_EXPERT=hoi`、resolved config/pre
 `tools/experiment.py start/finish/register`。D2-G、D3、D4、official 438、CHOIS、merge/tag 及
 Phase 1C 继续禁止；无论 D2-B/D2-P2 结果如何，都不自动授权新训练。
 
+2026-07-15 D2-B 按 CUDA gate 停止。reportable run
+`p1-hoi-d2b-bps-replay-s42-20260715` 在 clean commit
+`667c5f3059058ac8b1cc6eb9f9c321a8bba4e573` 完成，live preflight 全部通过。CPU 复现原
+5-window/5-basis failure，max-abs `0.01226154`；RTX 3090 CUDA 只消除其中 3 个，但
+`sub13_woodchair_047` 与 `sub14_floorlamp_019` 仍失败，CUDA max-abs 分别为 `0.005186975` 与
+`0.000869215`，均高于 `1e-4`。两者 selected/stored 顶点平方距离差仍仅为
+`1.49e-8/-5.96e-8`，但按预注册不得以等距或 RMS 代替 component-wise gate，故分类为
+`backend-replay-unresolved`、`conditional_continuation_allowed=false`。本 run 未加载 checkpoint，
+model forward、training update、official/CHOIS 使用均为 0。完整失败与 artifact hashes 位于
+`experiments/results/p1_hoi_phase1b_d2b_bps_backend_s42_20260715.json`。D2-P2 不得运行；不得拟合
+tie-breaker、读取 stored per-frame BPS/future GT、放宽阈值或继续任何训练/评测。D2-B amendment
+至此耗尽，任何进一步 BPS 算法修复必须再做新的 dated Phase 1B amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

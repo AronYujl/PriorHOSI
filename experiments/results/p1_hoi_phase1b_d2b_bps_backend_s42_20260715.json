@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "stage": "D2-B author BPS backend replay",
+  "run_id": "p1-hoi-d2b-bps-replay-s42-20260715",
+  "seed": 42,
+  "git_commit": "667c5f3059058ac8b1cc6eb9f9c321a8bba4e573",
+  "status": "completed",
+  "classification": "backend-replay-unresolved",
+  "conditional_continuation_allowed": false,
+  "selection": {
+    "partition": "internal_validation",
+    "windows": 32,
+    "global_window_indices_sha256": "bd79bacbddee71ede86dd8ec85650108c8aa7d964c6c6b65197281d234fd37c0",
+    "sequence_names_sha256": "7f16d1b8f4f3843639d10d0ecd367d1e2073b8b55bb03f4fef9895c960b85663"
+  },
+  "provenance": {
+    "author_baseline_commit": "b9a158f75ab0740c91c9cfc8863a65fa381b014c",
+    "author_bps_blob": "03b0851af882192913c90d3485559c6c034455ed",
+    "current_bps_blob": "03b0851af882192913c90d3485559c6c034455ed",
+    "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "rest_geometry_object_count": 13,
+    "rest_geometry_file_pairs": 26,
+    "all_rest_geometry_pairs_identical": true
+  },
+  "cpu": {
+    "max_abs": 0.012261539697647095,
+    "mean_window_rms": 0.000017081245418881785,
+    "failed_windows": 5,
+    "failed_basis_points": 5,
+    "runtime_seconds": 10.303299425984733,
+    "passed": false
+  },
+  "cuda": {
+    "device": "NVIDIA GeForce RTX 3090",
+    "physical_gpu_index": 2,
+    "torch": "1.13.1+cu117",
+    "pytorch3d": "0.7.8",
+    "cuda_runtime": "11.7",
+    "max_abs": 0.005186975002288818,
+    "mean_window_rms": 0.000003539634689742055,
+    "failed_windows": 2,
+    "failed_basis_points": 2,
+    "runtime_seconds": 4.834754858049564,
+    "passed": false,
+    "failures": [
+      {
+        "sequence": "sub13_woodchair_047",
+        "global_window_index": 182367,
+        "basis_index": 969,
+        "selected_vertex_index": 17321,
+        "stored_vertex_index": 17848,
+        "stored_minus_selected_squared_distance": 1.4901161193847656e-08,
+        "max_abs": 0.005186975002288818
+      },
+      {
+        "sequence": "sub14_floorlamp_019",
+        "global_window_index": 186967,
+        "basis_index": 460,
+        "selected_vertex_index": 10153,
+        "stored_vertex_index": 10161,
+        "stored_minus_selected_squared_distance": -5.960464477539063e-08,
+        "max_abs": 0.0008692145347595215
+      }
+    ]
+  },
+  "workload_scope": {
+    "future_gt_used_for_condition": false,
+    "official_test_used": false,
+    "chois_used": false,
+    "checkpoint_count_loaded": 0,
+    "checkpoint_selection": false,
+    "model_forward_calls": 0,
+    "training_updates": 0
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2b-bps-replay-s42-20260715",
+    "tree_sha256": "99b3663be4bff5abb4d4cb402b0f3efeb65dce89579fd4955befc532f7493204",
+    "tree_files": 6,
+    "tree_bytes": 54218,
+    "manifest_sha256": "16412acdf2fa37e2cb69b9d0d0f039d029b43c61318ff198adbdf4e76bc543f8",
+    "metrics_sha256": "44f84a38f3f5ee732a966417c7e3239e6a53e47aae51359f295343a7c08f2817",
+    "resolved_config_sha256": "173a30c147851678a181fd6e6567659e0fbe962b1d2de56202beeda3ab413e08",
+    "preflight_sha256": "9babcb83a09a7578f5f36131a30f366689e6140d656d695482ab82a4d2b5f812",
+    "diagnostic_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_local_registry_sha256": "bcf6a8f208fd07dfac2f52701f4b44ebe87a2f5f05e8a70a0dbd16b62528f2c0"
+  },
+  "blocker": "The worker CUDA backend still violates the unchanged 1e-4 component-wise BPS GT replay gate on two of the fixed 32 windows. The worst CUDA error is 0.005186975, so the preregistered CPU-backend-artifact continuation trigger is false.",
+  "forbidden_next_actions": [
+    "D2-P2 teacher-x0 or reverse-chain continuation",
+    "fit a tie-breaker to stored per-frame BPS",
+    "use stored per-frame BPS or future GT during generated rollout",
+    "relax or replace the 1e-4 component-wise gate with RMS or geometric equivalence",
+    "promote an existing D2 checkpoint",
+    "D2-G contact fallback",
+    "D3 formal training",
+    "D4 official native or CHOIS evaluation",
+    "merge or create exp/p1b-hoi-v1",
+    "start Phase 1C or any later phase"
+  ],
+  "next_allowed_action": "Stop Phase 1B. Any further nearest-neighbor representation or deterministic replay repair requires another dated Phase 1B plan and registry amendment; the completed D2-B amendment authorizes no further workload."
+}

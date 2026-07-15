@@ -268,6 +268,18 @@
       "checkpoint_selection": false,
       "training_authorized": false
     },
+    "result": {
+      "run_id": "p1-hoi-d2b-bps-replay-s42-20260715",
+      "git_commit": "667c5f3059058ac8b1cc6eb9f9c321a8bba4e573",
+      "status": "completed",
+      "classification": "backend-replay-unresolved",
+      "cpu_failed_windows": 5,
+      "cpu_max_abs": 0.012261539697647095,
+      "cuda_failed_windows": 2,
+      "cuda_max_abs": 0.005186975002288818,
+      "conditional_continuation_allowed": false,
+      "aggregate": "experiments/results/p1_hoi_phase1b_d2b_bps_backend_s42_20260715.json"
+    },
     "cuda_failure_action": "register backend-replay-unresolved and stop; no stored-frame BPS, future GT, tolerance relaxation or fitted tie-breaker",
     "forbidden": ["d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "merge", "tag", "phase_1c"]
   }
