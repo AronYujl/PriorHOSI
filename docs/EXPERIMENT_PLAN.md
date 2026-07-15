@@ -499,6 +499,24 @@ amendment 不改变 sampler 生成的 BPS 数值、232-D representation、模型
 `tools/experiment.py start/finish/register`，finish 后由 worker 主动回传 authority staging 并校验
 完整 tree hash。
 
+2026-07-15 D2-C 按 CPU fail-fast gate 停止。reportable run
+`p1-hoi-d2c-bps-equivalence-s42-20260715` 在 worker clean commit
+`ff4e1256638ef1d97e2720901fbfa46e3280ed88` 完成，覆盖 13/13 类、每类 64 个，共 832 个
+internal-validation windows 和 851,968 个 basis 点。851,882 个点严格满足 component-wise
+`<=1e-4`，另有 69 个点同时满足 hash-verified immutable PLY、双侧 mesh residual `<=1e-6 m`
+及 squared-distance gap `<=1e-7 m²`，按授权记为几何等价 tie；仍有 17 个点的 gap 位于
+`1.0356937307776093e-7` 至 `2.1901005275992702e-7 m²`，全部超过锁定上限，因此分类为
+`geometric-equivalence-unexplained-failure`、`conditional_d2p_authorized=false`。这 17 个点分布于
+floorlamp 3、largetable 2、plasticbox 2、smallbox 1、suitcase 5、tripod 2、whitechair 1、
+woodchair 1；所有点均有限，且 PLY residual 都低于 `1e-6 m`，但不构成获准 tie。
+
+CPU gate 失败后工具按预注册顺序跳过 CUDA：0 windows、0 basis、0 GPU kernels。preflight 如实
+记录 GPU 0 上外部 root Python PID 858478 占用 3,184 MiB；未 kill 外部进程，且未用 throughput
+作任何选择。run 未加载 checkpoint、未做 model forward/training update，未使用 official 438 或
+CHOIS，sampler 未读取 stored per-frame BPS 或 future GT。完整 17-point blocker 与封存 artifact
+hashes 位于 `experiments/results/p1_hoi_phase1b_d2c_bps_equivalence_s42_20260715.json`。D2-P3
+不得运行；D2-C amendment 至此耗尽，D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

@@ -349,6 +349,25 @@
       "checkpoint_selection": false,
       "training_authorized": false
     },
+    "result": {
+      "run_id": "p1-hoi-d2c-bps-equivalence-s42-20260715",
+      "git_commit": "ff4e1256638ef1d97e2720901fbfa46e3280ed88",
+      "status": "completed",
+      "classification": "geometric-equivalence-unexplained-failure",
+      "passed": false,
+      "cpu_windows": 832,
+      "object_classes": 13,
+      "basis_points": 851968,
+      "strict_basis_points": 851882,
+      "accepted_tie_basis_points": 69,
+      "unexplained_basis_points": 17,
+      "nonfinite_basis_points": 0,
+      "cuda_status": "skipped_due_to_cpu_gate",
+      "cuda_gpu_kernel_calls": 0,
+      "conditional_d2p_authorized": false,
+      "aggregate": "experiments/results/p1_hoi_phase1b_d2c_bps_equivalence_s42_20260715.json",
+      "aggregate_sha256": "9384445f1bdaed6358b4d2aca70a2388d1fc750adbebe04d98d74ab417efdc8b"
+    },
     "failure_action": "register and stop Phase 1B",
     "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "tolerance_relaxation", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }
