@@ -233,5 +233,42 @@
       "requires": ["detached_session", "resolved_config", "finite_initial_losses_and_gradients", "registered_memory_headroom", "resumable_checkpoint"],
       "action": "report measured throughput and ETA, yield, and wait for the user to request continuation instead of continuous polling"
     }
+  },
+  "phase_1b_d2b_bps_backend_preregistration": {
+    "status": "locked_before_d2b_implementation_or_gpu_workload",
+    "date": "2026-07-15",
+    "seed": 42,
+    "source_author_baseline_commit": "b9a158f75ab0740c91c9cfc8863a65fa381b014c",
+    "source_d2p_result_sha256": "918dfbdb78019a73156f15a898553e0128053868f5c0124f1307801ee5e8ac83",
+    "provenance": {
+      "bps_git_blob": "03b0851af882192913c90d3485559c6c034455ed",
+      "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+      "rest_geometry_pairs_compared": 13,
+      "split_local_and_repository_geometry_hashes_identical": true
+    },
+    "backend_replay": {
+      "run_id": "p1-hoi-d2b-bps-replay-s42-20260715",
+      "partition": "internal_validation",
+      "windows": 32,
+      "selection": "identical D2-P first-window selection",
+      "devices": ["worker_cpu", "worker_cuda_single_idle_rtx3090"],
+      "bps_max_abs": 0.0001,
+      "future_gt_used": false,
+      "checkpoint_count_loaded": 0,
+      "model_forward_calls": 0,
+      "training_updates": 0,
+      "required_reports": ["fieldwise_max_abs", "rms", "failed_windows", "failed_basis_points", "selected_vertex_indices", "nearest_squared_distance_gap", "asset_hashes", "dependency_versions"]
+    },
+    "conditional_continuation": {
+      "trigger": "worker CUDA component-wise BPS replay passes max abs <=1e-4 for all 32 fixed windows",
+      "classification": "cpu-knn-tie-backend-artifact",
+      "allowed_code_change": "require reportable D2-P BPS contract replay on the same worker CUDA backend as the sampler while preserving CPU provenance/coordinate/surface-equivalence tests",
+      "follow_on_run_id": "p1-hoi-d2p2-mechanism-s42-20260715",
+      "follow_on_scope": "repeat D2-P P0 on CUDA and execute the already locked P1/P2 only after P0 passes",
+      "checkpoint_selection": false,
+      "training_authorized": false
+    },
+    "cuda_failure_action": "register backend-replay-unresolved and stop; no stored-frame BPS, future GT, tolerance relaxation or fitted tie-breaker",
+    "forbidden": ["d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "merge", "tag", "phase_1c"]
   }
 }

@@ -407,6 +407,41 @@ training updates 和 GPU forward calls 均为 0。完整失败序列与 artifact
 max-abs gate，不得继续 P1/P2、D2-G、D3/D4 或后续 phase。任何 BPS mismatch 调查/修复都必须
 再做新的 dated Phase 1B amendment。
 
+2026-07-15 Phase 1B D2-B 作者 BPS backend replay 预注册。用户确认 `code/bps.pt` 来自
+InfBaGel 作者发布资产，并指定以 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`（除
+`.gitignore`/`requirements.txt` 外为作者原始发布）作为 provenance 基准。只读核验确认当前
+`code/bps.pt` 与该基准为同一 Git blob `03b0851af882192913c90d3485559c6c034455ed`，文件
+SHA-256 为 `fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042`；作者 dataset
+从 split-local `rest_object_geo` 读取网格，而当前 snapshot 的 split-local 与
+`data/object/rest_object_geo` 共 13 个 PLY/NPY 均逐文件同 hash。因此 D2-P0 不是资产来源或
+复制路径漂移。对 5 个失败窗口逐点审计还显示，每个窗口只有 `1/1024` 个 basis 点不一致；stored
+delta 对应的 PLY 顶点残差均小于 `1.4e-7 m`，CPU KNN 所选顶点与 stored 顶点的平方距离差仅为
+`0` 或 `5.96e-8`。本 amendment 只检验这是否为作者生成路径与 CPU/CUDA KNN tie backend 的执行
+上下文差异，不改变 BPS 表示、资产、阈值或模型。
+
+1. **D2-B0：固定 backend replay。** 在 D2-P 同一固定 32 条 internal-validation 首窗口上，以
+   当前 hash-verified `code/bps.pt`、不可变 PLY、GT 当前帧 object rotation 和完全相同的
+   `WindowStateCodec.recompute_bps`，分别报告 worker CPU 与单张无 contention RTX 3090 CUDA 的
+   max-abs/RMS、失败窗口数、失败 basis 数、选中顶点和最近距离差。不得读取 future GT，不加载
+   checkpoint，training updates 与 model forward calls 均为 0。严格 gate 仍是每个窗口
+   max-abs `<=1e-4`；RMS 或几何等距不得替代该 gate。
+2. **唯一条件式继续。** 只有 CUDA 对全部 32 窗口严格通过 `1e-4`，且 provenance/hash/公式与
+   CPU 完全相同，才分类为 `cpu-knn-tie-backend-artifact`。随后可提交最小诊断修复：D2-P 的
+   reportable BPS contract replay 必须在实际 sampler 所用的 worker CUDA backend 上执行；CPU
+   自动测试仍验证 basis/asset hash、坐标公式、无 future GT 和最近表面等价性，但不得声称 CPU
+   component-wise replay 通过。修复后使用新 run id
+   `p1-hoi-d2p2-mechanism-s42-20260715` 从 P0 重新开始；CUDA P0 严格通过后，才按原 D2-P 固定
+   checkpoint、512 teacher windows、32 reverse traces 和分类规则执行 P1/P2。该 follow-on 仍是
+   diagnostic-only，不选择 checkpoint。
+3. **停止条件。** 若 CUDA 任一窗口仍超过 `1e-4`，立即登记 `backend-replay-unresolved` 并停止；
+   不得用 stored per-frame BPS、future GT、阈值放宽或内部样本拟合 tie-breaker 修补 sampler。
+   任何进一步表示/近邻算法修复必须再做 dated amendment。
+
+D2-B 唯一 reportable run id 为 `p1-hoi-d2b-bps-replay-s42-20260715`，seed 42，使用 worker 固定
+Python、clean exact commit、`INFBAGEL_WORKER_EXPERT=hoi`、resolved config/preflight 和
+`tools/experiment.py start/finish/register`。D2-G、D3、D4、official 438、CHOIS、merge/tag 及
+Phase 1C 继续禁止；无论 D2-B/D2-P2 结果如何，都不自动授权新训练。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
