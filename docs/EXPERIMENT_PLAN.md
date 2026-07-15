@@ -396,6 +396,17 @@ plan/registry amendment，且不得提升本次任一不合格 checkpoint。
 config/preflight 必须先归档。完成后保留全部 negative artifact 并停止；任何修复或再训练仍需新的
 dated plan/registry amendment。D2-G、D3、D4、merge/tag 和 Phase 1C 继续禁止。
 
+2026-07-15 D2-P 按 P0 gate 停止。reportable run
+`p1-hoi-d2p-mechanism-s42-20260715` 在 clean commit `7a3e024d91471958c4b8ddbf6d368ca63d6bfffe`
+完成；live preflight 全部通过，但固定 32 个 internal 首窗口中 5 个 BPS replay 的 max-abs error
+超过 `1e-4`，最差 `sub10_tripod_006=0.01226154`。pelvis、object-goal、metric target、history
+replay 的最大误差分别为 `0`、`0`、`3.58e-7`、`2.98e-7`，均通过。分类为
+`coordinate-contract-defect`；工具在加载 checkpoint 或检查 CUDA 前按门槛返回，candidate count、
+training updates 和 GPU forward calls 均为 0。完整失败序列与 artifact hashes 位于
+`experiments/results/p1_hoi_phase1b_d2p_mechanism_s42_20260715.json`。不得以较小 RMS 取代明确的
+max-abs gate，不得继续 P1/P2、D2-G、D3/D4 或后续 phase。任何 BPS mismatch 调查/修复都必须
+再做新的 dated Phase 1B amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

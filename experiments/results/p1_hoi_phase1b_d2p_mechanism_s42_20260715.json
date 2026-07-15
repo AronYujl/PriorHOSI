@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "stage": "D2-P mechanism diagnostic",
+  "run_id": "p1-hoi-d2p-mechanism-s42-20260715",
+  "seed": 42,
+  "git_commit": "7a3e024d91471958c4b8ddbf6d368ca63d6bfffe",
+  "status": "completed",
+  "classification": "coordinate-contract-defect",
+  "contract_replay_passed": false,
+  "candidate_checkpoint_count_loaded": 0,
+  "training_updates": 0,
+  "gpu_forward_calls": 0,
+  "official_test_used": false,
+  "chois_used": false,
+  "checkpoint_selection": false,
+  "runtime_seconds": 9.41774845123291,
+  "contract_replay": {
+    "positions": 32,
+    "future_gt_used_for_condition": false,
+    "tolerances": {
+      "pelvis_goal_max_abs": 0.00001,
+      "object_goal_max_abs": 0.00001,
+      "metric_object_target_max_abs": 0.00001,
+      "history_max_abs": 0.00001,
+      "bps_max_abs": 0.0001
+    },
+    "max_abs_errors": {
+      "pelvis_goal_max_abs": 0.0,
+      "object_goal_max_abs": 0.0,
+      "metric_object_target_max_abs": 3.5762786865234375e-07,
+      "history_max_abs": 2.980232238769531e-07,
+      "bps_max_abs": 0.012261539697647095
+    },
+    "checks": {
+      "pelvis_goal_max_abs": true,
+      "object_goal_max_abs": true,
+      "metric_object_target_max_abs": true,
+      "history_max_abs": true,
+      "bps_max_abs": false
+    },
+    "failure_count": 5,
+    "failures": [
+      {
+        "sequence": "sub5_whitechair_014",
+        "global_window_index": 426713,
+        "bps_max_abs": 0.006153881549835205,
+        "bps_rms": 0.00012044770119246095
+      },
+      {
+        "sequence": "sub7_whitechair_026",
+        "global_window_index": 511231,
+        "bps_max_abs": 0.004875123500823975,
+        "bps_rms": 0.00009160396439256147
+      },
+      {
+        "sequence": "sub10_tripod_006",
+        "global_window_index": 25839,
+        "bps_max_abs": 0.012261539697647095,
+        "bps_rms": 0.00022148090647533536
+      },
+      {
+        "sequence": "sub13_woodchair_047",
+        "global_window_index": 182367,
+        "bps_max_abs": 0.005186975002288818,
+        "bps_rms": 0.00009367094025947154
+      },
+      {
+        "sequence": "sub14_floorlamp_019",
+        "global_window_index": 186967,
+        "bps_max_abs": 0.0008692145347595215,
+        "bps_rms": 0.000017860262232716195
+      }
+    ]
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2p-mechanism-s42-20260715",
+    "tree_sha256": "db2354b187da8ab110bd917d040b54de06facdd43fa4c507e1f1b414b9f65301",
+    "tree_files": 6,
+    "tree_bytes": 34909,
+    "manifest_sha256": "e00e417eaa271f80a0ff8cb59191b8cf9994720752b5ba6e21f34a07563ef18b",
+    "metrics_sha256": "e3ffb9b2ce278cb6727ac7d39d4e3099ecc81752ff4a9e354be5455e324c605b",
+    "resolved_config_sha256": "549992f2ee48e7ee9e2c582ee173fcb22fd858fddcd7f8cfc2d992a48955e2ba",
+    "preflight_sha256": "78be8f6987812041e8f8b4c75ed88cd99dd8651029b6b0587d1d12464ac74171",
+    "diagnostic_log_sha256": "bda003ea91985c68fd8f64f8e964fd83d5e07d04af7926f9dbf3b37e7872fac7",
+    "run_local_registry_sha256": "483fa1dd4f4b13b35647ed2c046cb862195c1f68b618621aafaebb9982ad9597"
+  },
+  "blocker": "Five of the fixed 32 internal first windows violate the preregistered BPS GT replay max-abs tolerance. The worst error is 0.01226154 versus the required 0.0001. D2-P therefore stops before teacher-x0/reverse-chain GPU diagnostics and before loading either candidate checkpoint.",
+  "forbidden_next_actions": [
+    "silently relax BPS replay from max-abs to RMS",
+    "D2-P teacher-x0 or reverse-chain GPU continuation",
+    "promote an existing D2 checkpoint",
+    "D2-G contact fallback",
+    "D3 formal training",
+    "D4 official native or CHOIS evaluation",
+    "merge or create exp/p1b-hoi-v1",
+    "start Phase 1C or any later phase"
+  ],
+  "next_allowed_action": "Stop. Any investigation or repair of the stored-BPS/rest-geometry/pose replay mismatch requires another dated Phase 1B plan and registry amendment before code or workload execution; the 1e-4 max-abs requirement may not be weakened without explicit new authorization."
+}
