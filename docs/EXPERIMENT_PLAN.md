@@ -899,6 +899,52 @@ worker artifact tree SHA-256 为
 负结果处停止；D2-H1、loss-weight sweep、重训和其他 condition/architecture/sampler intervention
 均未启动，任何后续方向等待用户再次确认和新的 dated amendment。
 
+2026-07-16 Phase 1B D2-J global-gradient-clipping routing diagnostic 预注册。用户在审阅
+D2-I0 的负 gate 后再次明确要求继续推进；该授权只允许新的无训练机制诊断，不恢复 D2-H1，也不
+允许观察后自动修改 loss、gradient clipping、model、condition 或 sampler。D2-I0 已在 fresh holdout
+上证明 high-noise total/reconstruction gradient-norm ratio 很大，但其 aggregate reconstruction cosine
+gate 未通过；完整 appendix 同时显示 total-gradient 与 human reconstruction 的 mean cosine 仅约
+`0.029--0.089`，与 object reconstruction 则约 `0.290--0.340`。正式 HOIPrior 训练又在 AMP
+unscale 后、每个 optimizer step 前固定执行 global `clip_grad_norm_(..., 1.0)`。因此 D2-J0 不重新
+裁定 D2-I0，而独立检验：在真实裁剪公式下，巨大 auxiliary-gradient 是否使固定的一单位全局更新
+预算稳定偏离 human reconstruction、同时保留更高的 object-reconstruction 一阶方向效率。
+
+1. **D2-J0 唯一 reportable run。** workload 真实日期固定为 2026-07-16，run id 为
+   `p1-hoi-d2j-clip-routing-s42-20260716`。只在四卡 HOI worker 加载 sealed online R-1024
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 和 R-3072
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`；EMA 和 released
+   checkpoint 禁止。primary cohort 为 D0 stable window ordering ranks `[640,768)`，共 128 个
+   nonterminal internal-validation windows、8 个不可重排的 16-window blocks；selection SHA-256
+   为 `a75012dda01cfd59c413bb622f4d867ffb6c2c48cf5d9dcfba4fe800e172432a`，并必须与 D2-H0
+   `[0,512)`、D2-I0 `[512,640)` 都不相交。
+2. **固定测量。** seed 42，timesteps `[0,1,10,50,100,250,499]`，q-noise 使用 run-id-based
+   stable seed，两个 checkpoint 复用逐 block 完全相同的 noise。模型保持 `eval()`，只用
+   `torch.autograd.grad`，不写 model `.grad`、不创建 optimizer、不调用 backward/step。逐 block
+   完整报告 joint-position、joint-rotation、object-translation、object-rotation、contact 五个 field
+   reconstruction gradient，以及 human/object/reconstruction aggregate、`50×FK`、
+   `50×object-surface`、`0.1×velocity`、terminal-goal、auxiliary sum 与 total；报告同 D2-I0 的八个
+   parameter groups。对 all-parameter total gradient 按 production `max_norm=1.0` 公式报告 pre-clip
+   norm、clip coefficient、post-clip norm，并用 PyTorch `clip_grad_norm_` synthetic replay 验证公式；
+   human/object directional efficiency 定义为 clipped-total update 与对应 unweighted reconstruction
+   gradient 的 cosine（正比例裁剪不改变其数值）。不得省略 timestep、checkpoint、field 或 group。
+3. **D2-J0 mechanism gate。** gate 只使用 fresh primary cohort 的 `{250,499}`。两个 checkpoint、
+   两个 timestep 均须：全部 finite；state-dict 前后 SHA-256 完全相同；model `.grad` buffers 为空；
+   direct-total/component-sum gradient relative L2 `<=1e-5`；production clipping formula/synthetic replay
+   max abs `<=1e-6`；10,000 次 paired block bootstrap（seed 42）证明 pre-clip total-gradient norm 的
+   95% CI 下界 `>=50`、clip coefficient 的 CI 上界 `<=0.02`、human directional-efficiency cosine 的
+   CI 上界 `<=0.15`，并以 object reconstruction 作预注册负对照，其 cosine CI 下界 `>=0.15`。
+   全部合取通过分类为 `gradient-clip-routing-positive-stop`，任一失败分类为
+   `gradient-clip-routing-negative-stop`。五个 field 与逐 parameter-group 结果为必报描述证据，不得
+   替代 gate 或用 favorable subset 改写结论。
+4. **治理与停止。** 实现只能添加 diagnostic/helper/tests/docs，必须测试 selection disjointness、
+   stable paired RNG、locked clip norm、production-formula parity、field completeness、parameter/state
+   immutability、finite checks 和 zero optimizer updates；不得改变 production training call、loss/
+   weights、232-D representation、model/condition/diffusion/sampler 或 checkpoint。worker 必须走完整
+   lifecycle、resolved config、preflight、persistent session 和 immutable artifact 回收。无论结果正负，
+   本 session 都在 D2-J0 登记后停止；positive 也不授权 clip ablation、loss sweep、重训、D2-H1、
+   official/CHOIS、D3/D4、Phase 1C、merge 或 tag，后续 intervention 必须再次获得用户确认并另行
+   dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
