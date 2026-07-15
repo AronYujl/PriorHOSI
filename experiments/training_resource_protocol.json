@@ -473,5 +473,75 @@
     },
     "failure_action": "register and stop Phase 1B",
     "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "unregistered_tolerance_change", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
+  },
+  "phase_1b_d2e_bps_linear_equivalence_preregistration": {
+    "status": "locked_before_d2e_implementation_or_fresh_holdout_evaluation",
+    "date": "2026-07-15",
+    "seed": 42,
+    "source_head": "6c1f668510a0c0d2eb83fa24ee825a5b856d3085",
+    "authorization": "continue with the previously identified scale-stable linear-distance gate and a fresh untouched holdout",
+    "evidence": {
+      "d2d_calibration_unexplained_basis_points": 0,
+      "d2d_holdout_unexplained_basis_points": 1,
+      "d2d_failure_squared_gap_m2": 0.0000003364421408136309,
+      "d2d_failure_linear_gap_m": 0.0000001912934300962732,
+      "interpretation": "fixed squared-distance tolerances scale with the base distance while the physical nearest-distance difference remains below the preregistered quarter-micrometre cap"
+    },
+    "assets": {
+      "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "rest_object_ply_sha256": "identical to phase_1b_d2c_bps_geometric_equivalence_preregistration.assets.rest_object_ply_sha256"
+    },
+    "selection": {
+      "partition": "internal_validation",
+      "available_windows": 29382,
+      "object_classes": 13,
+      "disclosed_calibration_rank_range_zero_based": [0, 127],
+      "fresh_holdout_rank_range_zero_based": [128, 191],
+      "disclosed_calibration_windows": 1664,
+      "fresh_holdout_windows": 832,
+      "combined_windows": 2496,
+      "overlap": 0,
+      "disclosed_calibration_global_window_indices_sha256": "e58bc72326ec4ec193b7e8371c9a034f64d09761f188ee863f1ccd63ef21bf87",
+      "disclosed_calibration_sequence_window_sha256": "f629e28cb4b277ad53c3bae4df96726a5224457fbbb1c779b4214de8385392ad",
+      "fresh_holdout_global_window_indices_sha256": "44fdc7154902c922310f54ad2eb97d26ca710902d5c9d76c354e50f650e28316",
+      "fresh_holdout_sequence_window_sha256": "70301049201e3c945570f73103d6313f166f592b615908001b41fcc513016b91",
+      "combined_global_window_indices_sha256": "bdf93ebf796baa345f163194aa13b1720e1410d4b1c62c19a29c3a88ee40dc69",
+      "combined_sequence_window_sha256": "258254cf9e277b7e7f40f8fed087a74c128ecfaf7c6279bd47df662066b42e3c",
+      "official_test_used": false,
+      "chois_used": false
+    },
+    "gate": {
+      "strict_component_max_abs": 0.0001,
+      "stored_mesh_residual_m_max": 0.000001,
+      "recomputed_mesh_residual_m_max": 0.000001,
+      "nearest_linear_distance_gap_m_max": 0.00000025,
+      "nearest_squared_distance_gap_m2": "report_only",
+      "finite_required": true,
+      "cpu_and_cuda_unexplained_failures_required": 0,
+      "cpu_and_cuda_object_class_coverage_required_per_subset": 13
+    },
+    "run": {
+      "run_id": "p1-hoi-d2e-bps-linear-equivalence-s42-20260715",
+      "worker_devices": ["cpu", "one_uncontended_rtx3090"],
+      "checkpoint_count_loaded": 0,
+      "model_forward_calls": 0,
+      "training_updates": 0,
+      "sampler_stored_per_frame_bps": false,
+      "sampler_future_gt": false
+    },
+    "conditional_d2p": {
+      "trigger": "D2-E CPU and CUDA both pass disclosed calibration and fresh holdout with zero unexplained basis points",
+      "run_id": "p1-hoi-d2p5-mechanism-s42-20260715",
+      "checkpoint_sha256": {
+        "R-1024-online": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+        "R-3072-online": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4"
+      },
+      "scope": "repeat D2-P P0/P1/P2 only; mechanism diagnosis without checkpoint selection or training",
+      "checkpoint_selection": false,
+      "training_authorized": false
+    },
+    "failure_action": "register and stop Phase 1B without another tolerance iteration",
+    "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "another_tolerance_iteration", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }
 }

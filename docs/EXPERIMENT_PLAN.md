@@ -576,6 +576,43 @@ training update，未使用 official/CHOIS，sampler 未读取 stored per-frame 
 squared-distance gate，必须有新的明确 dated amendment 与全新未查看 holdout。D2-G、D3、D4、
 merge/tag、Phase 1C 及后续阶段继续禁止。
 
+2026-07-15 Phase 1B D2-E BPS 线性几何等价预注册。用户在 D2-D 失败闭环后明确要求继续，因而
+授权此前指出的下一项允许动作：用与基准距离尺度无关的线性最近距离差替代固定平方距离 gate，
+并使用全新未查看 holdout。D2-D 的唯一 holdout failure 在线性差 `0.191293 µm` 上通过既定
+`0.25 µm` cap，却因相同几何距离在平方域的尺度放大而失败；继续扩大固定 squared threshold
+会重复同一尺度依赖。本 amendment 因此不再用 squared-distance gap 作 accept/reject，但仍逐点
+报告该值以保留审计可见性。
+
+1. **唯一 gate。** 非 tie component-wise max-abs `<=1e-4` 保持不变。只有超过该阈值的点才可
+   尝试等价 exception，并必须同时满足：stored 与 recomputed 点均可回放到同一份 hash-verified
+   immutable PLY；双侧 mesh residual 均 `<=1e-6 m`；两点到同一 BPS basis 的最近距离绝对差
+   `<=2.5e-7 m`（`0.25 µm`，即 mesh residual cap 的四分之一）；全部有限。squared-distance gap
+   仅报告，不设 acceptance threshold。不得使用 RMS、component 平均、object 汇总、stored
+   per-frame BPS 或 future GT 放行 sampler。
+2. **新鲜 holdout。** 已揭示的 hash rank 0--127 共 1,664 windows 作为 disclosed calibration；
+   每类 rank 128--191 再取 64 个全新 internal-validation windows，共 832 fresh holdout，与此前
+   1,664 个无交集并覆盖 13/13 类。fresh global-window SHA-256 为
+   `44fdc7154902c922310f54ad2eb97d26ca710902d5c9d76c354e50f650e28316`，sequence/window
+   SHA-256 为 `70301049201e3c945570f73103d6313f166f592b615908001b41fcc513016b91`；2,496-window
+   combined hashes 分别为 `bdf93ebf796baa345f163194aa13b1720e1410d4b1c62c19a29c3a88ee40dc69`
+   与 `258254cf9e277b7e7f40f8fed087a74c128ecfaf7c6279bd47df662066b42e3c`。实现提交前不得查看
+   fresh holdout gate 结果；official 438 与 CHOIS 不参与。
+3. **唯一 reportable gate。** run id 为
+   `p1-hoi-d2e-bps-linear-equivalence-s42-20260715`。worker CPU 与一张无 compute contention 的
+   RTX 3090 必须分别在 disclosed calibration/fresh holdout 达到 0 unexplained、0 nonfinite、
+   13/13 class coverage；记录 strict/equivalent/failure、mesh residual、linear 与 squared gap。
+   不加载 checkpoint、不做 model forward/training update；external process 不得 kill，throughput
+   不参与结论。CPU 任一 failure 可 fail-fast 跳过 CUDA并直接判负。
+4. **唯一条件式 D2-P5。** 只有 D2-E CPU/CUDA 全部通过，才允许提交相同线性 gate 的最小 P0
+   诊断改动，并以新 run id `p1-hoi-d2p5-mechanism-s42-20260715` 重跑 P0/P1/P2。只读取既有
+   R-1024 online checkpoint
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 与 R-3072 online
+   checkpoint `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`，复用固定 512
+   teacher windows、timesteps、paired permutation/bootstrap 与 32-sequence 500-step reverse
+   trace。只做机制分类，不选择 checkpoint、不训练、不运行三窗口 rollout、official 或 CHOIS。
+5. **停止条件。** D2-E 任一 failure 即登记并停止，不运行 D2-P5，且不得继续迭代阈值。D2-P5
+   完成后也停止；D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
