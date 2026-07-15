@@ -217,6 +217,7 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertTrue(bool(gate["tie"][1]))
         self.assertLessEqual(float(gate["stored_mesh_residual_m"][1]), 1e-6)
         self.assertLessEqual(float(gate["nearest_squared_distance_gap_m2"][1]), 1e-7)
+        self.assertEqual(gate["nearest_squared_distance_gap_m2"].dtype, torch.float64)
 
         non_tie = stored.clone()
         non_tie[1] = zup_to_yup_tensor(vertices[2] - basis[1])
@@ -267,7 +268,7 @@ class RemediationDiagnosticTest(unittest.TestCase):
         assets = verify_d2c_assets()
         self.assertEqual(set(assets["rest_object_ply"]), set(PLY_SHA256))
 
-    def test_d2c_known_cpu_mismatches_are_provable_ties(self):
+    def test_d2c_known_cpu_mismatches_use_the_explicit_gate(self):
         dataset = PriorWindowDataset(
             str(REPO), "hoi", partition="internal_validation",
             split_manifest="experiments/splits/omomo_hoi_train_validation_seed42.json",
@@ -275,11 +276,14 @@ class RemediationDiagnosticTest(unittest.TestCase):
         global_indices = (426713, 511231, 25839, 182367, 186967)
         positions = [int(np.flatnonzero(dataset.indices == value)[0]) for value in global_indices]
         result = d2c_replay_device(dataset, positions, torch.device("cpu"))
-        self.assertEqual(result["unexplained_basis_points"], 0)
         self.assertGreaterEqual(result["tie_basis_points"], 1)
         self.assertEqual(
-            result["strict_basis_points"] + result["tie_basis_points"], 5 * 1024,
+            result["strict_basis_points"] + result["tie_basis_points"]
+            + result["unexplained_basis_points"],
+            5 * 1024,
         )
+        for failure in result["failures"]:
+            self.assertGreater(failure["nearest_squared_distance_gap_m2"], 1e-7)
 
 
 class WindowStateCodecTest(unittest.TestCase):

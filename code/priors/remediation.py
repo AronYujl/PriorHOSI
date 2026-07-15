@@ -136,9 +136,16 @@ def bps_replay_equivalence_gate(
     stored_indices = torch.full(
         (point_count,), -1, dtype=torch.long, device=recomputed.device,
     )
-    stored_residual = torch.full_like(component_error, float("inf"))
-    recomputed_residual = torch.full_like(component_error, float("inf"))
-    squared_distance_gap = torch.full_like(component_error, float("inf"))
+    proof_dtype = torch.float64
+    stored_residual = torch.full(
+        (point_count,), float("inf"), dtype=proof_dtype, device=recomputed.device,
+    )
+    recomputed_residual = torch.full(
+        (point_count,), float("inf"), dtype=proof_dtype, device=recomputed.device,
+    )
+    squared_distance_gap = torch.full(
+        (point_count,), float("inf"), dtype=proof_dtype, device=recomputed.device,
+    )
     if bool(candidates.any()):
         rows = torch.nonzero(candidates).flatten()
         stored_closest = basis[rows] + yup_to_zup_tensor(stored[rows])
@@ -150,10 +157,18 @@ def bps_replay_equivalence_gate(
         stored_vertices = transformed_vertices[candidate_stored_indices]
         selected_vertices = transformed_vertices[selected_vertex_indices[rows]]
         recomputed_closest = basis[rows] + yup_to_zup_tensor(recomputed[rows])
-        candidate_stored_residual = (stored_closest - stored_vertices).norm(dim=-1)
-        candidate_recomputed_residual = (recomputed_closest - selected_vertices).norm(dim=-1)
-        stored_distance = (stored_vertices - basis[rows]).square().sum(dim=-1)
-        recomputed_distance = (selected_vertices - basis[rows]).square().sum(dim=-1)
+        # The points themselves define the two nearest distances; PLY vertices
+        # independently prove that each point is on the immutable mesh.  Use
+        # float64 for the proof so subtracting two ~1 m^2 distances does not
+        # quantize the 1e-7 m^2 gate to float32 ULPs.
+        candidate_stored_residual = (
+            stored_closest.to(proof_dtype) - stored_vertices.to(proof_dtype)
+        ).norm(dim=-1)
+        candidate_recomputed_residual = (
+            recomputed_closest.to(proof_dtype) - selected_vertices.to(proof_dtype)
+        ).norm(dim=-1)
+        stored_distance = stored[rows].to(proof_dtype).square().sum(dim=-1)
+        recomputed_distance = recomputed[rows].to(proof_dtype).square().sum(dim=-1)
         candidate_gap = (stored_distance - recomputed_distance).abs()
         stored_residual[rows] = candidate_stored_residual
         recomputed_residual[rows] = candidate_recomputed_residual
