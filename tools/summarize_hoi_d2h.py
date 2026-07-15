@@ -37,6 +37,19 @@ def compact_displacement(value: Mapping[str, object]) -> Dict[str, object]:
     }
 
 
+def validate_run_identity(
+    metrics: Mapping[str, object],
+    manifest: Mapping[str, object],
+    resolved: Mapping[str, object],
+) -> None:
+    """Validate the metric/config ids against the experiment manifest schema."""
+    identifiers = (
+        metrics.get("run_id"), manifest.get("experiment_id"), resolved.get("run_id"),
+    )
+    if identifiers != (RUN_ID, RUN_ID, RUN_ID):
+        raise ValueError(f"D2-H0 run-id mismatch across sealed artifacts: {identifiers}")
+
+
 def compact_candidate(candidate: Mapping[str, object]) -> Dict[str, object]:
     timesteps = {}
     for timestep in TARGET_TIMESTEPS:
@@ -104,8 +117,7 @@ def main() -> None:
     metrics = json.loads(paths["metrics"].read_text(encoding="utf-8"))
     manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
     resolved = json.loads(paths["resolved_config"].read_text(encoding="utf-8"))
-    if metrics["run_id"] != RUN_ID or manifest["run_id"] != RUN_ID or resolved["run_id"] != RUN_ID:
-        raise ValueError("D2-H0 run-id mismatch across sealed artifacts")
+    validate_run_identity(metrics, manifest, resolved)
     if metrics["git_commit"] != manifest["git"]["commit"]:
         raise ValueError("D2-H0 metrics/manifest Git commit mismatch")
     tree = sha256_path(artifact_dir)

@@ -24,6 +24,7 @@ from priors.exposure import (
 from priors.remediation import select_teacher_windows, selection_sha256
 from priors.representation import REPRESENTATION
 from tools.diagnose_hoi_remediation import stable_seed
+from tools.summarize_hoi_d2h import RUN_ID, validate_run_identity
 
 
 class D2HPosteriorTests(unittest.TestCase):
@@ -209,6 +210,15 @@ class D2HReportingTests(unittest.TestCase):
         self.assertNotIn("future", source)
         self.assertNotIn("project_object_rotation_x0", source)
         self.assertIn("posterior_sample", source)
+
+    def test_compact_summary_uses_experiment_manifest_identifier(self):
+        validate_run_identity(
+            {"run_id": RUN_ID}, {"experiment_id": RUN_ID}, {"run_id": RUN_ID},
+        )
+        with self.assertRaisesRegex(ValueError, "run-id mismatch"):
+            validate_run_identity(
+                {"run_id": RUN_ID}, {"run_id": RUN_ID}, {"run_id": RUN_ID},
+            )
 
 
 if __name__ == "__main__":

@@ -805,6 +805,26 @@ coverage 上均存在差异；这些实现差异保持为竞争解释。D2-H 只
    SO(3) remediation、模型/representation/loss 改写、额外预算、official/CHOIS、D3/D4、Phase 1C+
    、Mixer、LLM state machine、merge 与 tag 全部禁止，除非另有新的 dated amendment 和用户授权。
 
+D2-H0 已在 implementation commit `d612cc1f44cf15c4abfa92580e52c1cb2ef6b8a2` 完成，run id 为
+`p1-hoi-d2h-exposure-paired-s42-20260715`。两个 checkpoint 的 finite、immutable history 与共享
+production-posterior formula replay 均通过，history/formula max-abs 都为 `0`；低 timestep
+`{0,1,10,50,100}` 的 joint-position 与 object-translation paired-bootstrap 95% CI 下界在 R-1024
+和 R-3072 都达到 5/5 同时为正。但预注册效应量 gate 失败：R-1024 的低 timestep mean-ratio
+几何均值仅为 joint `1.084273`、object translation `1.294629`，R-3072 仅为 joint `1.074639`、
+object translation `1.318594`，分别低于 `1.5/2.0`。因此分类为
+`reverse-state-exposure-negative-stop`，D2-H1 的条件式授权前提未满足，smoke/training 均未启动。
+
+所有 2 checkpoint × 7 timestep × matched/四种 condition permutation × 5 representation fields、
+state displacement 与 6 个 physical metrics 均完整且 finite；paired parent-q/posterior noise 跨路径及
+checkpoint hash 一致。broadcasting、batch indexing、history/terminal mask、normalization inversion、
+posterior coefficient sharing 与 detach 检查全部通过。描述性 implementation-parity appendix 同时封存
+当前/作者 token routing 对照、token/representation 数值尺度以及逐 timestep loss-gradient norm/cosine，
+但不授权任何 condition/loss/model intervention。worker artifact tree SHA-256 为
+`aafe8e3800a1819cd009a65072a50e7da71389c1263958f2d55a4264224c8924`，精简结果 SHA-256 为
+`2b9e1af050070d1340007891cba7be03bdf639d04603bd4f35040b705bba687d`，见
+`experiments/results/p1_hoi_phase1b_d2h_exposure_paired_s42_20260715.json`。Phase 1B gate 仍未通过；
+本 session 在 D2-H0 停止，任何 D2-H1 或其他新 intervention 都必须等待用户再次确认并按治理要求处理。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
