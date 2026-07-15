@@ -709,6 +709,25 @@ trace 的 raw object-rotation element absolute maximum 在 t=0 达到 R-1024 `2.
    support clamp、contact loss、高噪声 weighting、模型容量或新 condition。D2-G、D3、D4、
    official/CHOIS、merge/tag、Phase 1C 及后续阶段在 D2-F 内全部禁止。
 
+D2-F0 已在 commit `9f671b1e0b5e3f637e9b3de5f196516224ef78d2` 完成，run id 为
+`p1-hoi-d2f-so3-reverse-s42-20260715`。逐 reverse step 投影正确将 applied object rotation 的
+最大 orthogonality/determinant residual 压到 R-1024 `9.3107e-7/7.7486e-7`、R-3072
+`9.5878e-7/7.7486e-7`，两条路径均 finite，history max-abs 均为 `3.5763e-7`。但 paired
+projection 没有修复生成：R-1024 object/pelvis/MPJPE 从 control
+`142.955/12.624/52.650 cm` 变为 `146.486/10.793/55.155 cm`，对应 ratio
+`1.0247/0.8550/1.0476`；R-3072 从 `146.363/12.225/59.831 cm` 变为
+`150.434/12.523/63.210 cm`，对应 ratio `1.0278/1.0244/1.0565`。没有 checkpoint 达到绝对
+object/MPJPE gate，R-1024 也远未达到 object ratio `<=0.50` 的条件式学习曲线 trigger；预注册
+分类因此为 `sampler-mechanism-negative-stop`，D2-F1 与 D2-F2 均未获授权。
+
+该 run 未训练、未选择 checkpoint、未使用 official/CHOIS，sampler 未读取 stored per-frame BPS
+或 future GT。GPU3 preflight 15 MiB/0%，GPU0 外部 PID 858478 未 kill，throughput 未参与任何
+判断；sealed artifact tree SHA-256 为
+`23c5f8c0283c8c8ae20e42592e3cfeb07a3d0634601c5fe7112a5ca3f2f08726`，精简结果见
+`experiments/results/p1_hoi_phase1b_d2f_reverse_manifold_s42_20260715.json`。D2-F 在此负向关闭，
+Phase 1B gate 仍未通过；不得运行 D2-G/D3/D4、official/CHOIS、merge/tag、Phase 1C 或后续阶段。
+任何后续 Phase 1B 方向必须重新 dated preregister。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

@@ -635,7 +635,7 @@
     "forbidden": ["checkpoint_selection", "threshold_iteration", "stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "d2_g", "d3", "d4", "official_test", "chois", "training", "merge", "tag", "phase_1c"]
   },
   "phase_1b_d2f_reverse_manifold_preregistration": {
-    "status": "locked_before_implementation_or_gpu_workload",
+    "status": "completed_sampler_mechanism_negative_stop",
     "date": "2026-07-15",
     "source_head": "b28546fb7391a7e20e9f9f683ba67c4a7b8991c9",
     "evidence": {
@@ -724,6 +724,31 @@
       "chois_used": false,
       "sampler_stored_per_frame_bps": false,
       "sampler_future_gt": false
+    },
+    "result": {
+      "run_id": "p1-hoi-d2f-so3-reverse-s42-20260715",
+      "git_commit": "9f671b1e0b5e3f637e9b3de5f196516224ef78d2",
+      "classification": "sampler-mechanism-negative-stop",
+      "absolute_gate_passes": [],
+      "R-1024_so3_over_control": {
+        "object_goal_error_cm": 1.024702076683966,
+        "pelvis_goal_error_cm": 0.8549671224544095,
+        "mpjpe_cm": 1.0475740608217703
+      },
+      "R-3072_so3_over_control": {
+        "object_goal_error_cm": 1.0278162588552813,
+        "pelvis_goal_error_cm": 1.0243519518577764,
+        "mpjpe_cm": 1.0564754720517864
+      },
+      "d2f1_authorized": false,
+      "d2f2_authorized": false,
+      "training_updates": 0,
+      "checkpoint_selection": false,
+      "official_test_used": false,
+      "chois_used": false,
+      "aggregate": "experiments/results/p1_hoi_phase1b_d2f_reverse_manifold_s42_20260715.json",
+      "authority_staging_tree_sha256": "23c5f8c0283c8c8ae20e42592e3cfeb07a3d0634601c5fe7112a5ca3f2f08726",
+      "next_action": "stop Phase 1B; any further direction requires a new explicit dated amendment"
     },
     "failure_action": "finish/register and stop at the first failed prerequisite",
     "forbidden": ["threshold_adjustment", "support_clamp", "contact_loss_change", "timestep_reweighting", "model_expansion", "stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "d2_g", "d3", "d4", "official_test", "chois", "merge", "tag", "phase_1c"]

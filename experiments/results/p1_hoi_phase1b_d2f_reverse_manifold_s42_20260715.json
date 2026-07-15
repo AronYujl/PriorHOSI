@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "stage": "D2-F0 paired reverse-manifold diagnostic",
+  "run_id": "p1-hoi-d2f-so3-reverse-s42-20260715",
+  "seed": 42,
+  "git_commit": "9f671b1e0b5e3f637e9b3de5f196516224ef78d2",
+  "status": "completed",
+  "classification": "sampler-mechanism-negative-stop",
+  "phase_1b_gate_passed": false,
+  "runtime_seconds": 182.53548407554626,
+  "selection": {
+    "partition": "internal_validation",
+    "trace_sequences": 32,
+    "trace_sequence_selection_sha256": "7f16d1b8f4f3843639d10d0ecd367d1e2073b8b55bb03f4fef9895c960b85663",
+    "official_test_sequence_count": 0,
+    "chois_sequence_count": 0
+  },
+  "protocol": {
+    "paired_variants": ["control", "object_so3_x0"],
+    "paired_initial_and_posterior_noise": true,
+    "projection_channels": [219, 228],
+    "projection_scope": "predicted frames after fixed-history restoration and before posterior mean at every reverse step",
+    "other_channel_clamp": false,
+    "posterior_change": false,
+    "trace_steps": [499, 250, 100, 50, 10, 1, 0]
+  },
+  "absolute_gate": {
+    "object_goal_error_cm_max": 8.00878906911239,
+    "pelvis_goal_error_cm_max": 31.70994416568428,
+    "mpjpe_cm_max": 36.83606872558594,
+    "history_max_abs_max": 0.00001,
+    "orthogonality_frobenius_max": 0.00001,
+    "determinant_abs_error_max": 0.00001,
+    "finite_required": true
+  },
+  "checkpoint_inputs": {
+    "R-1024-online": {
+      "sha256": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+      "processed_windows": 6144000,
+      "optimizer_updates": 6000
+    },
+    "R-3072-online": {
+      "sha256": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",
+      "processed_windows": 6144000,
+      "optimizer_updates": 2000
+    }
+  },
+  "candidates": {
+    "R-1024": {
+      "control": {
+        "object_goal_error_cm": 142.95480346679688,
+        "pelvis_goal_error_cm": 12.624074935913086,
+        "mpjpe_cm": 52.65019607543945,
+        "history_max_abs_error": 0.00000035762786865234375,
+        "finite": true,
+        "all_step_applied_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 13.348175048828125,
+          "determinant_abs_error": 5.695377349853516
+        }
+      },
+      "object_so3_x0": {
+        "object_goal_error_cm": 146.486083984375,
+        "pelvis_goal_error_cm": 10.793169021606445,
+        "mpjpe_cm": 55.15497970581055,
+        "history_max_abs_error": 0.00000035762786865234375,
+        "finite": true,
+        "all_step_raw_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 2.996622323989868,
+          "determinant_abs_error": 2.6297707557678223
+        },
+        "all_step_applied_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 0.0000009310694508712913,
+          "determinant_abs_error": 0.0000007748603820800781
+        }
+      },
+      "so3_over_control_ratios": {
+        "object_goal_error_cm": 1.024702076683966,
+        "pelvis_goal_error_cm": 0.8549671224544095,
+        "mpjpe_cm": 1.0475740608217703
+      },
+      "absolute_gate_passed": false,
+      "mechanism_positive_training_insufficient_gate_passed": false
+    },
+    "R-3072": {
+      "control": {
+        "object_goal_error_cm": 146.362548828125,
+        "pelvis_goal_error_cm": 12.22485065460205,
+        "mpjpe_cm": 59.83144760131836,
+        "history_max_abs_error": 0.00000035762786865234375,
+        "finite": true,
+        "all_step_applied_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 11.75925350189209,
+          "determinant_abs_error": 4.718806266784668
+        }
+      },
+      "object_so3_x0": {
+        "object_goal_error_cm": 150.43380737304688,
+        "pelvis_goal_error_cm": 12.522549629211426,
+        "mpjpe_cm": 63.21045684814453,
+        "history_max_abs_error": 0.00000035762786865234375,
+        "finite": true,
+        "all_step_raw_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 3.524510145187378,
+          "determinant_abs_error": 2.3715128898620605
+        },
+        "all_step_applied_object_rotation_manifold_max": {
+          "orthogonality_frobenius": 0.0000009587829481461085,
+          "determinant_abs_error": 0.0000007748603820800781
+        }
+      },
+      "so3_over_control_ratios": {
+        "object_goal_error_cm": 1.0278162588552813,
+        "pelvis_goal_error_cm": 1.0243519518577764,
+        "mpjpe_cm": 1.0564754720517864
+      },
+      "absolute_gate_passed": false,
+      "mechanism_positive_training_insufficient_gate_passed": false
+    }
+  },
+  "decision": {
+    "absolute_gate_passes": [],
+    "d2f1_authorized": false,
+    "d2f2_authorized": false,
+    "reason": "The projection satisfies the manifold, history and finite checks but worsens paired object-goal error and MPJPE for both checkpoints; R-1024 also misses the preregistered mechanism-positive ratio gate by a wide margin."
+  },
+  "preflight_contention": {
+    "four_gpu_idle": false,
+    "selected_gpu": 3,
+    "selected_gpu_memory_used_mib": 15,
+    "selected_gpu_utilization_percent": 0,
+    "external_gpu_0_process": "PID 858478, python, 3328 MiB",
+    "external_process_killed": false,
+    "throughput_used_for_selection": false
+  },
+  "workload_scope": {
+    "checkpoint_count_loaded": 2,
+    "checkpoint_selection": false,
+    "training_updates": 0,
+    "sampler_stored_per_frame_bps": false,
+    "sampler_future_gt": false,
+    "official_test_used": false,
+    "chois_used": false
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2f-so3-reverse-s42-20260715",
+    "tree_sha256": "23c5f8c0283c8c8ae20e42592e3cfeb07a3d0634601c5fe7112a5ca3f2f08726",
+    "tree_files": 7,
+    "tree_bytes": 491895,
+    "manifest_sha256": "67569df0ff51cf1f55c1d8e525b33476f2ba6dee217dd293e570135c8707de7e",
+    "metrics_sha256": "beb6185e8170d919114483f2f332e7e0e95310506d1e88a561b2aacc630a23c6",
+    "resolved_config_sha256": "adbecfd61fe758eec9c231597c2e814dbd8184c892d3836e2a267552904fe0df",
+    "preflight_sha256": "617b287bc7c153c9498a6fb2d71641319125acf38ea2f466dc11f5dfe14a6396",
+    "diagnostic_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_local_registry_sha256": "d8ec68c52a76844b2f5a97b7b6c2538718a3707c32e9b89c144786dde7a33663"
+  },
+  "blocker": "Per-step object-rotation projection is numerically correct but does not repair reverse generation: both existing checkpoints remain far above the object-goal and MPJPE gates, and the paired intervention slightly worsens both metrics. The preregistered D2-F1 and D2-F2 prerequisites are therefore not met.",
+  "next_allowed_action": "Stop Phase 1B. Any further Phase 1B direction requires a new explicit dated plan and registry amendment.",
+  "forbidden": [
+    "d2f1",
+    "d2f2",
+    "threshold_adjustment",
+    "support_clamp",
+    "checkpoint_selection",
+    "training",
+    "stored_per_frame_bps_in_sampler",
+    "future_gt_in_sampler",
+    "d2_g",
+    "d3",
+    "d4",
+    "official_test",
+    "chois",
+    "merge",
+    "tag",
+    "phase_1c"
+  ]
+}
