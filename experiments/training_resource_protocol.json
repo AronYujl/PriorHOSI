@@ -282,5 +282,74 @@
     },
     "cuda_failure_action": "register backend-replay-unresolved and stop; no stored-frame BPS, future GT, tolerance relaxation or fitted tie-breaker",
     "forbidden": ["d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "merge", "tag", "phase_1c"]
+  },
+  "phase_1b_d2c_bps_geometric_equivalence_preregistration": {
+    "status": "locked_before_d2c_implementation_or_gpu_workload",
+    "date": "2026-07-15",
+    "seed": 42,
+    "source_head": "d00055ec94a2b1b63b389cb565dd881fc089569f",
+    "authorization": "geometric equivalence is allowed only for provable nearest-point ties; non-ties retain component-wise max abs <=1e-4",
+    "assets": {
+      "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "rest_object_ply_sha256": {
+        "clothesstand": "f7967db79cfa76c2dd154426c0e110369b5f28f756dcd9df5e5c9ecba3fed960",
+        "floorlamp": "c012a69bfb37542ad099ff087b17059b2622a47d2e04e09d67403ea929470e4a",
+        "largebox": "6b9ef6cf4564c0a9d052796b2f24bcb0557249304a6c417f25bfcacec50106e0",
+        "largetable": "087c3575a25b0c423a9dcc7ceea2519ff604ce0b8172a5e66e89eefd2d3cb7d1",
+        "monitor": "21f3bbae53b678eff92f34d597f18a7cdbb04db3195425f6c64c6a2790129bc6",
+        "plasticbox": "e0a9c29124314f02d6b189b36716c5a01aeeb973b4001e8f28ee76f3382a1a76",
+        "smallbox": "2aa65b4bf36476ffec1bf4582f2aded77bf111956c70d127d44e8bc76b2072b8",
+        "smalltable": "eb601c69e2aa96b2cf284dccdf63e2c49f192200f3dc298e5cd6143b42a25628",
+        "suitcase": "6ebfb9e5bf732314fe8fbd5dbf1ad500b4b2218fab74888dca7cf3fc2ad49845",
+        "trashcan": "7381b83dc33265872753b8425ec7da4a24da0fc0512b57ebda3307c298659d38",
+        "tripod": "b2222da71906a832826bd15b697e1a21e69627664da97f62704667fe7e871540",
+        "whitechair": "f3cc5036d305cbe5e53a701cdfa63c9181113e6b2249860bf190ab0a8a0bedd0",
+        "woodchair": "45d3e42b3f4cb537efc94e37d5919ff1a70967c4ce4c8ad399a0882e5d356a89"
+      }
+    },
+    "selection": {
+      "partition": "internal_validation",
+      "available_windows": 29382,
+      "object_classes": 13,
+      "windows_per_class": 64,
+      "windows": 832,
+      "algorithm": "within each object class sort by SHA256('42:hoi-d2c:' + object_name + ':' + sequence_name + ':' + global_window_index) and take first 64",
+      "global_window_indices_sha256": "5f13844f9c3c1540d89d19b304e484cba6e84cc8adcb7276ebf4d17fb803db72",
+      "sequence_window_sha256": "e7827e83b88058e9d87dc4d56ccdbfe5929ea245645356fab278364b1aae1f38",
+      "official_test_used": false,
+      "chois_used": false
+    },
+    "gate": {
+      "strict_component_max_abs": 0.0001,
+      "tie_stored_mesh_residual_m_max": 0.000001,
+      "tie_recomputed_mesh_residual_m_max": 0.000001,
+      "tie_nearest_squared_distance_gap_m2_max": 0.0000001,
+      "finite_required": true,
+      "cpu_and_cuda_unexplained_failures_required": 0,
+      "cpu_and_cuda_object_class_coverage_required": 13
+    },
+    "run": {
+      "run_id": "p1-hoi-d2c-bps-equivalence-s42-20260715",
+      "worker_devices": ["cpu", "one_uncontended_rtx3090"],
+      "checkpoint_count_loaded": 0,
+      "model_forward_calls": 0,
+      "training_updates": 0,
+      "sampler_stored_per_frame_bps": false,
+      "sampler_future_gt": false
+    },
+    "conditional_d2p": {
+      "trigger": "D2-C CPU and CUDA both pass all 832 windows with zero unexplained basis points",
+      "run_id": "p1-hoi-d2p3-mechanism-s42-20260715",
+      "checkpoint_sha256": {
+        "R-1024-online": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+        "R-3072-online": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4"
+      },
+      "scope": "repeat D2-P P0/P1/P2 only; mechanism diagnosis without checkpoint selection or training",
+      "checkpoint_selection": false,
+      "training_authorized": false
+    },
+    "failure_action": "register and stop Phase 1B",
+    "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "tolerance_relaxation", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }
 }

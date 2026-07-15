@@ -455,6 +455,50 @@ model forward、training update、official/CHOIS 使用均为 0。完整失败�
 tie-breaker、读取 stored per-frame BPS/future GT、放宽阈值或继续任何训练/评测。D2-B amendment
 至此耗尽，任何进一步 BPS 算法修复必须再做新的 dated Phase 1B amendment。
 
+2026-07-15 Phase 1B D2-C 可证明 BPS tie 几何等价预注册。用户明确授权：仅当 stored 与
+recomputed 最近点可由同一份 hash-verified immutable PLY 证明为等距 mesh 点时，BPS GT replay
+可使用几何等价 gate；所有非 tie basis 点继续严格要求 component-wise max-abs `<=1e-4`。本
+amendment 不改变 sampler 生成的 BPS 数值、232-D representation、模型、loss 或 checkpoint，且
+严禁 sampler 读取 stored per-frame BPS 或 future GT。
+
+1. **锁定大样本。** 仅用 OMOMO `internal_validation` 的 29,382 windows，按 13 个 object class
+   分组；每类按
+   `SHA256("42:hoi-d2c:" + object_name + ":" + sequence_name + ":" + global_window_index)`
+   排序取前 64 个，共 832 windows。每类恰为 64；global-window selection SHA-256 为
+   `5f13844f9c3c1540d89d19b304e484cba6e84cc8adcb7276ebf4d17fb803db72`，
+   sequence/window SHA-256 为
+   `e7827e83b88058e9d87dc4d56ccdbfe5929ea245645356fab278364b1aae1f38`。
+   official 438 与 CHOIS 均不得参与。
+2. **逐 basis gate。** 对每个 window 的 1,024 个 basis 点，先执行原 component-wise 检查。误差
+   `<=1e-4` 记为 strict pass；只有超过该阈值的点才可尝试 tie exception，并必须同时满足：
+   (a) stored delta 还原出的最近点到该 object 的锁定 PLY 顶点 residual `<=1e-6 m`；
+   (b) recomputed 最近点直接来自同一 PLY，且 mesh residual `<=1e-6 m`；
+   (c) 两顶点相对同一 BPS basis 的 squared-distance 绝对差 `<=1e-7 m²`；(d) 全部值有限。
+   任一条件失败即 unexplained failure，不得用 RMS、表面近似或扩大 tolerance 替代。13 个 PLY
+   SHA-256 与 `code/bps.pt` SHA-256 锁入 training protocol，并在运行时逐文件拒绝 mismatch。
+3. **D2-C reportable gate。** 唯一 run id 为
+   `p1-hoi-d2c-bps-equivalence-s42-20260715`；在 worker 的 CPU 和一张空闲 RTX 3090 CUDA 上对
+   同一 832 windows 执行，CPU/CUDA 均须 0 unexplained failures、13/13 class 覆盖、所有值有限
+   才通过。记录 strict/tie 数量、每个 tie 的 object/window/basis/vertex/residual/distance gap。
+   不加载 checkpoint，不做 model forward 或 training update。若其他 GPU 有外部轻微占用，必须
+   登记且不得 kill；所选 GPU 必须无 compute contention，throughput 不参与 gate。
+4. **唯一条件式 D2-P 继续。** 只有 D2-C 全部通过，才允许提交最小诊断改动，并以新 run id
+   `p1-hoi-d2p3-mechanism-s42-20260715` 从 P0 重跑。P0 使用上述逐 basis gate；通过后才读取既有
+   R-1024 online checkpoint
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 与 R-3072 online
+   checkpoint `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`，严格复用原
+   D2-P 的固定 512 teacher windows、timestep `{0,1,10,50,100,250,499}`、paired permutation/
+   bootstrap，以及固定 32-sequence single-window 500-step reverse trace。该 run 只做机制分类，
+   不选择/提升 checkpoint，不训练，不运行三窗口 rollout、official 438 或 CHOIS。
+5. **停止条件。** D2-C 任一 unexplained failure 即登记并停止，不运行 D2-P3。D2-P3 完成后无论
+   分类为何也停止；任何 loss/model/sampler/training 修复仍需新的 dated amendment。D2-G、D3、
+   D4、merge/tag、Phase 1C 及后续阶段继续禁止。
+
+所有 reportable workload 均必须使用 worker 固定 Python、clean exact commit、
+`INFBAGEL_WORKER_EXPERT=hoi`、resolved config/live preflight 与
+`tools/experiment.py start/finish/register`，finish 后由 worker 主动回传 authority staging 并校验
+完整 tree hash。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
