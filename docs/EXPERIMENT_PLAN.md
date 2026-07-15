@@ -361,6 +361,41 @@ matched text/BPS 均未显著优于 permutation；因此不是 contact-only fail
 official test 或 CHOIS，不得 merge/tag，也不得开始 Phase 1C；未来任何修复方向必须先新增 dated
 plan/registry amendment，且不得提升本次任一不合格 checkpoint。
 
+2026-07-15 Phase 1B D2-P 机制诊断预注册。用户在 D2 负结果收口后要求继续；本 amendment
+只授权解释既有 D2 failure，不撤销 `stop-no-eligible-candidate`，也不授权新的训练或 checkpoint
+选择。现有证据显示 `R-1024/R-3072 online` 的 object-goal error 在第 1 窗口已经达到
+`138.9/145.1 cm`，而非只在第 2/3 窗口 handoff 后增长；两者 pelvis/object-goal permutation
+有效，但 text/BPS permutation 不显著。既有训练均有限，且 object-goal 项仅占未加权平均 total
+约 `0.09%/0.11%`，不能仅凭 teacher-forced total 或增加预算断言原因。
+
+1. **D2-P0：CPU contract replay。** 使用同一固定 internal-validation 数据，逐项验证 dataset
+   goal global→local→normalized、sampler goal normalization、metric global target、history
+   encode/decode 和当前 reference/BPS 语义。pelvis/object/history max abs error 必须 `<=1e-5`，BPS
+   replay 必须 `<=1e-4`；不得读取 future GT 来生成 condition。任一项失败即分类为
+   `coordinate-contract-defect` 并停止 GPU 诊断，不得静默换表示。
+2. **D2-P1：固定 teacher-x0 对照。** 只读取 R-1024 与 R-3072 terminal checkpoint 的 online
+   weights，使用 D0 已锁定的 512 internal windows、timestep `{0,1,10,50,100,250,499}` 和完全
+   配对的 noise，分别报告 terminal/non-terminal fieldwise x0 error，以及 matched 对 text、BPS、
+   pelvis、object-goal permutation 的逐样本差与 10,000-replicate paired bootstrap。D0 online
+   已归档结果只作诊断参照，不重新选择旧 checkpoint；EMA 不参与本诊断。
+3. **D2-P2：单窗口 reverse-chain trace。** 在相同 internal set 的固定 32 sequences 上，仅对
+   R-1024/R-3072 online 各运行一次 matched 500-step diffusion，记录 reverse step
+   `{499,250,100,50,10,1,0}` 的 clean-x0 fieldwise error、state/output range、首窗口 object/pelvis
+   endpoint error 和有限性。不得运行三窗口 rollout、official 438 或 CHOIS，也不得用 throughput
+   或本诊断选择 checkpoint。
+4. **归因门槛。** P0 失败即 `coordinate-contract-defect`；P0 通过但 t=499 matched
+   joint-position/object-translation error 超过归档 D0 online 对应值的 `1.10` 倍，且 text/BPS
+   paired response 仍不显著，则为 `high-noise-condition-underfit`；若上述 teacher errors 均在
+   `1.10` 倍内但 P2 首窗口相应误差仍超过 D2 eligibility，则为 `reverse-process-exposure-gap`；
+   其他组合登记为 `mixed-mechanism`。所有分类只产生 blocker/evidence，不自动授权 loss、sampler、
+   model 或训练改动。
+
+唯一 reportable run id 为 `p1-hoi-d2p-mechanism-s42-20260715`，seed 42，必须在四卡 worker
+使用其固定 Python、clean exact commit、`INFBAGEL_WORKER_EXPERT=hoi` 和
+`tools/experiment.py start/finish/register`；实际 GPU 诊断只使用一张无 contention 卡。resolved
+config/preflight 必须先归档。完成后保留全部 negative artifact 并停止；任何修复或再训练仍需新的
+dated plan/registry amendment。D2-G、D3、D4、merge/tag 和 Phase 1C 继续禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
