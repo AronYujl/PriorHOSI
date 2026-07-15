@@ -872,6 +872,33 @@ R-3072 `53.3--137.6`；该观察只用于提出假设，D2-I gate 使用与 D2-H
    D2-I0 并停止；positive 也不授权 loss-weight sweep、重训、D2-H1、architecture/condition intervention、
    official/CHOIS、D3/D4、Phase 1C、merge 或 tag。任何新动作须用户再次确认并另行 dated amendment。
 
+D2-I0 已在 workload commit `45a5165d6e0c09a50d84ffd8ce2d4bd6c4bb4b45` 完成，run id 为
+`p1-hoi-d2i-gradient-dominance-s42-20260715`。两个 checkpoint 在 high-noise `{250,499}` 的
+total/reconstruction all-parameter gradient-norm ratio 都远超 magnitude gate：R-1024 几何均值
+`90.561/111.423`、bootstrap 95% CI `68.286--119.767 / 86.637--142.027`；R-3072 为
+`112.173/125.644`、CI `83.040--149.982 / 89.797--166.585`。但预注册要求的是 dominance 与
+持续弱对齐的合取；cosine mean/95% CI 分别为 R-1024 t250
+`0.2217 [0.1552,0.2973]`、t499 `0.2350 [0.1756,0.3177]`，R-3072 t250
+`0.2205 [0.1295,0.3200]`、t499 `0.2471 [0.1776,0.3098]`，四个 CI 上界都高于 `0.25`。
+因此分类为 `weighted-objective-gradient-dominance-negative-stop`；不能把“大范数”单独提升为
+mechanism-positive，也不授权修改 loss weight。
+
+fresh primary/terminal selections 与 D2-H0 完全不相交，两个 checkpoint 的 block noise hashes
+完全相同；全部 2 checkpoint × 2 cohort × 7 timestep × 10 loss × 8 parameter-group 记录 finite，
+direct-total/component formula replay 全局最大 relative L2 为 `4.8854e-7`，state-dict 前后 hash
+逐 checkpoint 完全相同，`.grad` buffers 为空，optimizer/update 均为 0。terminal cohort 描述性
+结果显示 total/reconstruction ratio 仍为 `71.9--150.3`，但 terminal-goal gradient norm 仅约
+`0.069--0.169`，相对 `50×FK` 的约 `59.9--141.4` 很小；该结果不参与 gate。tmux wrapper
+将退出值 0 与格式字面量写成原始 `0n` token；该文件未覆盖，metrics/manifest/registry 与 completed
+lifecycle 均完整保留。
+
+worker artifact tree SHA-256 为
+`f49cd8acaa95517d59cfcffce7b0fbcc98a02d9b2b9dd223714292f516aec7b6`，精简结果 SHA-256 为
+`2bf63007253c72669619c5d9d688ab8530fc07a1648326d1e96c8d3664ac1ade`，见
+`experiments/results/p1_hoi_phase1b_d2i_gradient_dominance_s42_20260715.json`。本 session 在 D2-I0
+负结果处停止；D2-H1、loss-weight sweep、重训和其他 condition/architecture/sampler intervention
+均未启动，任何后续方向等待用户再次确认和新的 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
