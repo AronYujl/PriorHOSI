@@ -15,13 +15,13 @@ from pathlib import Path
 from typing import Dict, Mapping, Sequence
 
 import torch
-from datasets.utils import get_smpl_parents
 
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
+from datasets.utils import get_smpl_parents  # noqa: E402
 from priors.data import PriorWindowDataset  # noqa: E402
 from priors.diffusion import GaussianDiffusion, normalize_progress  # noqa: E402
 from priors.gradient_routing import (  # noqa: E402

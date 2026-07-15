@@ -1,6 +1,7 @@
 import inspect
 import math
 import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -162,6 +163,14 @@ class D2IGateTests(unittest.TestCase):
         self.assertNotIn(".step(", source)
         self.assertIn('"training_updates": 0', source)
         self.assertIn('"production_model_change": False', source)
+
+    def test_diagnostic_is_directly_executable_from_repo_root(self):
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "tools/diagnose_hoi_d2i.py"), "--help"],
+            cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout)
 
     def test_compact_summary_uses_experiment_manifest_identifier(self):
         validate_run_identity(
