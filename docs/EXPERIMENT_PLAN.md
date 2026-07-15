@@ -945,6 +945,33 @@ unscale 后、每个 optimizer step 前固定执行 global `clip_grad_norm_(...,
    official/CHOIS、D3/D4、Phase 1C、merge 或 tag，后续 intervention 必须再次获得用户确认并另行
    dated amendment。
 
+D2-J0 已在 workload commit `702fc54b0551f79f42958593c7c464f05100599c` 完成，run id 为
+`p1-hoi-d2j-clip-routing-s42-20260716`。两个 checkpoint 的 `{250,499}` pre-clip total-gradient
+norm mean/95% CI 分别为 R-1024 `103.525 [85.078,125.597] / 126.110
+[106.748,148.512]`、R-3072 `134.646 [113.997,156.408] / 132.067
+[111.216,151.357]`；对应 clip coefficients 都约 `0.0066--0.0120`，裁剪饱和 gate 全部通过。
+object reconstruction direction-efficiency 的四个 CI 下界均高于 `0.15`，R-1024 t250 与 R-3072
+t250/t499 的 human CI 上界也低于 `0.15`。但 R-1024 t499 human mean/95% CI 为
+`0.1287 [0.0759,0.1943]`，上界未达到预注册 `<=0.15`，故合取 gate 分类为
+`gradient-clip-routing-negative-stop`；不得将其余 3/4 cell 或强裁剪事实单独提升为 mechanism-positive。
+
+完整 2 checkpoint × 7 timestep × 8 block × 14 component × 8 parameter-group 记录 finite，五个
+representation field 均完整报告。all-parameter 描述证据显示 high-t joint-rotation/contact cosine
+接近零，而 object-translation cosine 为约 `0.562--0.654`；output group 的 high-t human cosine
+仅约 `0.037--0.051`，object cosine 约 `0.327--0.417`，其余 condition/transformer groups 亦保留在
+artifact 中但不参与 gate。paired noise hashes 完全一致，direct/component gradient replay 最大
+relative L2 为 `3.768e-7`，clipping replay max abs 为 `0`，state-dict 前后 hash 一致，`.grad`
+buffers 为空，optimizer/update 为 0。首次 preflight invocation 因传入错误的 worker CHOIS root 在
+manifest/start 前退出且未产生 preflight 文件；随后使用已 pinned 的真实 root 生成唯一 preflight 并
+通过全部检查，未覆盖任何 artifact。GPU0 既有外部进程按协议记录且未干预，workload 隔离在空闲
+GPU3。
+
+worker/authority artifact tree SHA-256 同为
+`62508057b794e135e9d58b29af3d2b8a7a754fb03327da980e4a5cf8eabaca8e`，精简结果 SHA-256 为
+`761703af20bced005b26c8e3650107088b84be9496bc52eda720f36994a7efa5`，见
+`experiments/results/p1_hoi_phase1b_d2j_clip_routing_s42_20260716.json`。本 session 在 D2-J0
+负结果处停止；clip/loss intervention、D2-H1、smoke、训练、official/CHOIS 与后续阶段均未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
