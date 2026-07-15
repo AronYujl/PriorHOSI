@@ -543,5 +543,42 @@
     },
     "failure_action": "register and stop Phase 1B without another tolerance iteration",
     "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "another_tolerance_iteration", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
+  },
+  "phase_1b_d2e_operational_retry_preregistration": {
+    "status": "locked_after_zero-workload_launch_abort_and_before_dataset_construction",
+    "date": "2026-07-15",
+    "source_head": "35b257b119e959516091ddc049240c3e76dc238c",
+    "aborted_run": {
+      "run_id": "p1-hoi-d2e-bps-linear-equivalence-s42-20260715",
+      "status": "aborted",
+      "classification": "operational-launch-argument-mismatch",
+      "reason": "runtime cuda:0 did not match archived resolved config cuda:2",
+      "dataset_constructed": false,
+      "fresh_holdout_observed": false,
+      "cpu_windows": 0,
+      "cuda_windows": 0,
+      "gpu_kernel_calls": 0,
+      "checkpoint_count_loaded": 0,
+      "model_forward_calls": 0,
+      "training_updates": 0,
+      "authority_staging_tree_sha256": "9899ca7551806d2b2d3d28e7a43d59ea2945c680b50b4d34dd6391822af5fa05"
+    },
+    "retry": {
+      "run_id": "p1-hoi-d2e-bps-linear-equivalence-r1-s42-20260715",
+      "selection_and_hashes": "identical to phase_1b_d2e_bps_linear_equivalence_preregistration.selection",
+      "gate": "identical to phase_1b_d2e_bps_linear_equivalence_preregistration.gate",
+      "execution_order": "CPU disclosed+fresh first; stop before CUDA on any CPU failure",
+      "resolved_cuda_device": "cuda:2",
+      "runtime_cuda_device": "cuda:2",
+      "cuda_visible_devices_override": false,
+      "selected_gpu_compute_processes_required": 0,
+      "selected_gpu_memory_used_mib_max_before_start": 128,
+      "scientific_changes": false,
+      "threshold_changes": false,
+      "sample_changes": false
+    },
+    "conditional_d2p": "unchanged D2-P5 authorization; enabled only if retry CPU and CUDA both pass every disclosed and fresh gate",
+    "failure_action": "register and stop Phase 1B; no further D2-E retry or tolerance iteration",
+    "forbidden": ["run_id_reuse", "stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "another_tolerance_iteration", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }
 }

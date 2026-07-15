@@ -613,6 +613,24 @@ merge/tag、Phase 1C 及后续阶段继续禁止。
 5. **停止条件。** D2-E 任一 failure 即登记并停止，不运行 D2-P5，且不得继续迭代阈值。D2-P5
    完成后也停止；D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止。
 
+2026-07-15 Phase 1B D2-E operational retry amendment。首次 reportable run
+`p1-hoi-d2e-bps-linear-equivalence-s42-20260715` 在构造 dataset、读取 fresh holdout 或发起任何
+CUDA kernel 之前被 resolved-config 一致性检查拒绝：归档配置为物理 `cuda:2`，detached command
+误用了经 `CUDA_VISIBLE_DEVICES` 重映射的 `cuda:0`。该 run 已以 `aborted` 封存；CPU/CUDA
+windows、checkpoint、model forward、training update 均为 0，故不是科学 gate failure，也未揭示
+rank 128--191 fresh holdout 的任何结果。worker/authority staging tree SHA-256 为
+`9899ca7551806d2b2d3d28e7a43d59ea2945c680b50b4d34dd6391822af5fa05`。
+
+1. 原 run id 永不复用。只允许一次新 run
+   `p1-hoi-d2e-bps-linear-equivalence-r1-s42-20260715`，保持同一 2,496-window selection/hashes、
+   `0.25 µm` linear gate、严格 component/PLY/finite gates、CPU-before-CUDA 顺序及全部禁止项。
+2. 唯一操作修正是 resolved config 与 runtime 都直接使用物理 `cuda:2`，不设置
+   `CUDA_VISIBLE_DEVICES`，并在 start 前再次断言 GPU2 无 compute process、显存占用 `<=128 MiB`。
+   不改阈值、不换样本、不加载 checkpoint、不训练。
+3. r1 任一科学或操作 failure 都登记并停止，不再重试。只有 r1 CPU/CUDA 对 disclosed/fresh
+   subsets 全部通过，原 D2-P5 条件授权才生效；其余 D2-G、D3、D4、official/CHOIS、merge/tag、
+   Phase 1C 与后续阶段仍禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
