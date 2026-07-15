@@ -517,6 +517,45 @@ CHOIS，sampler 未读取 stored per-frame BPS 或 future GT。完整 17-point b
 hashes 位于 `experiments/results/p1_hoi_phase1b_d2c_bps_equivalence_s42_20260715.json`。D2-P3
 不得运行；D2-C amendment 至此耗尽，D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止。
 
+2026-07-15 Phase 1B D2-D BPS 数值容差校准预注册。用户在 D2-C 失败闭环后明确允许：若
+`1e-7 m²` 对作者提供的 float32 BPS/pose/geometry contract 过严，可作有证据的适度调整。
+D2-C 封存的 69 个 accepted ties 与 17 个 failures 共 86 个 component-wise mismatch，经同一份
+hash-verified immutable PLY、同一 object pose 与 `bps.pt` 在 float64 下只读复核：17 个旧失败点
+的最近线性距离差最大仅 `1.2267085047756865e-7 m`（`0.122671 µm`），其中 15/17 的直接 PLY
+平方距离差回落到 `1e-7 m²` 以下；全部 86 点的线性距离差也都不超过 `0.122671 µm`。因此原
+`1e-7 m²` 已进入 float32 序列化、旋转/矩阵乘法与近等距消减误差量级，不能稳定地区分这些
+immutable-mesh 最近点。
+
+1. **锁定调整且不改非 tie gate。** component-wise max-abs `<=1e-4`、stored/recomputed PLY
+   residual `<=1e-6 m`、全有限、runtime BPS/PLY hash rejection 均保持不变。只有超过
+   component-wise gate 且通过双侧 PLY residual 的点才可尝试数值等价 exception；平方距离差
+   上限调整为 `2.5e-7 m²`（约 1 m² 尺度的两个 float32 epsilon），并新增独立的线性最近距离差
+   上限 `2.5e-7 m`（`0.25 µm`）。两个上限必须同时通过；不允许仅用 RMS、component 平均或
+   object-level 汇总放行。
+2. **不相交 holdout。** D2-D 保留 D2-C 的每类 hash 排名前 64 个 calibration windows，并增加
+   每类排名 65--128（zero-based rank 64--127）的 64 个 holdout windows；两组各 832、均覆盖
+   13/13 类且无交集，总计 1,664 windows / 1,703,936 basis 点。holdout global-window SHA-256
+   为 `750378d6933a6e190ceebfe582b00fac16b403dad853bd9c30f2bfe0b8fdc00a`，sequence/window
+   SHA-256 为 `f2d8fbc4ee42150727a981fbca1b7ef45b9b0902cfb64f859d797bc8ce9a944e`；combined hashes
+   分别为 `e58bc72326ec4ec193b7e8371c9a034f64d09761f188ee863f1ccd63ef21bf87` 与
+   `f629e28cb4b277ad53c3bae4df96726a5224457fbbb1c779b4214de8385392ad`。不得在实现前查看
+   holdout gate 结果；official 438 与 CHOIS 不参与。
+3. **唯一 reportable gate。** run id 为 `p1-hoi-d2d-bps-tolerance-s42-20260715`。worker CPU 与
+   一张无 compute contention 的 RTX 3090 必须分别在 calibration/holdout 上达到 0 unexplained、
+   0 nonfinite 和 13/13 class coverage；记录 strict/equivalent/failure 数量、平方/线性 gap 与
+   residual。不加载 checkpoint，不做 model forward 或 training update；external process 不得 kill，
+   throughput 不用于结论。CPU 任一 failure 时可 fail-fast 跳过 CUDA并直接判负。
+4. **唯一条件式 D2-P4。** 只有 D2-D CPU/CUDA 全部通过，才允许提交同一双重等价 gate 的最小
+   P0 诊断改动，并以新 run id `p1-hoi-d2p4-mechanism-s42-20260715` 从 P0/P1/P2 重跑。仍只读取
+   已封存 R-1024 online checkpoint
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 与 R-3072 online
+   checkpoint `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`，复用原固定
+   512 teacher windows、timesteps、paired permutation/bootstrap 及 32-sequence 500-step reverse
+   trace。只做机制分类，不选择 checkpoint、不训练、不运行三窗口 rollout、official 或 CHOIS。
+5. **停止条件。** D2-D 任一 unexplained failure 即登记并停止，不运行 D2-P4。D2-P4 完成后也
+   停止；D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止，任何 sampler/loss/model 或
+   training 变更仍需新的 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

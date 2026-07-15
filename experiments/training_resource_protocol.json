@@ -369,6 +369,78 @@
       "aggregate_sha256": "9384445f1bdaed6358b4d2aca70a2388d1fc750adbebe04d98d74ab417efdc8b"
     },
     "failure_action": "register and stop Phase 1B",
-    "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "tolerance_relaxation", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
+    "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "unregistered_tolerance_relaxation", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
+  },
+  "phase_1b_d2d_bps_tolerance_preregistration": {
+    "status": "locked_before_d2d_implementation_or_holdout_evaluation",
+    "date": "2026-07-15",
+    "seed": 42,
+    "source_head": "265f281c56abc19876faac6d06e2aff581499bfc",
+    "authorization": "adjust the BPS equivalence tolerance only if the D2-C threshold is evidenced to be too strict",
+    "evidence": {
+      "sealed_d2c_component_mismatches": 86,
+      "sealed_d2c_failures": 17,
+      "float64_immutable_ply_failures_below_old_squared_gap": 15,
+      "float64_immutable_ply_max_linear_distance_gap_m": 0.00000012267085047756865,
+      "all_86_below_new_linear_cap": true,
+      "interpretation": "the old 1e-7 m^2 comparison is within float32 serialization and near-equal squared-distance cancellation scale"
+    },
+    "assets": {
+      "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "rest_object_ply_sha256": "identical to phase_1b_d2c_bps_geometric_equivalence_preregistration.assets.rest_object_ply_sha256"
+    },
+    "selection": {
+      "partition": "internal_validation",
+      "available_windows": 29382,
+      "object_classes": 13,
+      "windows_per_class_per_subset": 64,
+      "calibration_rank_range_zero_based": [0, 63],
+      "holdout_rank_range_zero_based": [64, 127],
+      "calibration_windows": 832,
+      "holdout_windows": 832,
+      "combined_windows": 1664,
+      "overlap": 0,
+      "calibration_global_window_indices_sha256": "5f13844f9c3c1540d89d19b304e484cba6e84cc8adcb7276ebf4d17fb803db72",
+      "calibration_sequence_window_sha256": "e7827e83b88058e9d87dc4d56ccdbfe5929ea245645356fab278364b1aae1f38",
+      "holdout_global_window_indices_sha256": "750378d6933a6e190ceebfe582b00fac16b403dad853bd9c30f2bfe0b8fdc00a",
+      "holdout_sequence_window_sha256": "f2d8fbc4ee42150727a981fbca1b7ef45b9b0902cfb64f859d797bc8ce9a944e",
+      "combined_global_window_indices_sha256": "e58bc72326ec4ec193b7e8371c9a034f64d09761f188ee863f1ccd63ef21bf87",
+      "combined_sequence_window_sha256": "f629e28cb4b277ad53c3bae4df96726a5224457fbbb1c779b4214de8385392ad",
+      "official_test_used": false,
+      "chois_used": false
+    },
+    "gate": {
+      "strict_component_max_abs": 0.0001,
+      "stored_mesh_residual_m_max": 0.000001,
+      "recomputed_mesh_residual_m_max": 0.000001,
+      "nearest_squared_distance_gap_m2_max": 0.00000025,
+      "nearest_linear_distance_gap_m_max": 0.00000025,
+      "finite_required": true,
+      "cpu_and_cuda_unexplained_failures_required": 0,
+      "cpu_and_cuda_object_class_coverage_required_per_subset": 13
+    },
+    "run": {
+      "run_id": "p1-hoi-d2d-bps-tolerance-s42-20260715",
+      "worker_devices": ["cpu", "one_uncontended_rtx3090"],
+      "checkpoint_count_loaded": 0,
+      "model_forward_calls": 0,
+      "training_updates": 0,
+      "sampler_stored_per_frame_bps": false,
+      "sampler_future_gt": false
+    },
+    "conditional_d2p": {
+      "trigger": "D2-D CPU and CUDA both pass calibration and disjoint holdout with zero unexplained basis points",
+      "run_id": "p1-hoi-d2p4-mechanism-s42-20260715",
+      "checkpoint_sha256": {
+        "R-1024-online": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+        "R-3072-online": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4"
+      },
+      "scope": "repeat D2-P P0/P1/P2 only; mechanism diagnosis without checkpoint selection or training",
+      "checkpoint_selection": false,
+      "training_authorized": false
+    },
+    "failure_action": "register and stop Phase 1B",
+    "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "unregistered_tolerance_change", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }
 }
