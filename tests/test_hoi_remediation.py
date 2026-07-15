@@ -21,6 +21,12 @@ from priors.remediation import (
     select_teacher_windows,
 )
 from priors.window_codec import WindowFrame, project_to_so3, rotation_geodesic
+from tools.diagnose_hoi_d2p import (
+    D0_T499,
+    classify_mechanism,
+    field_error_per_sample,
+    resolved_config as d2p_resolved_config,
+)
 from tools.evaluate_hoi_remediation import paired_bootstrap
 from tools.select_hoi_remediation import select
 
@@ -56,6 +62,10 @@ class RemediationDiagnosticTest(unittest.TestCase):
         errors = field_squared_error(prediction, target)
         self.assertTrue(all(float(value) == 0.0 for value in errors.values()))
 
+        per_sample = field_error_per_sample(prediction, target)
+        self.assertTrue(all(value.shape == (2,) for value in per_sample.values()))
+        self.assertTrue(all(float(value.max()) == 0.0 for value in per_sample.values()))
+
     def test_paired_bootstrap_requires_positive_lower_bound(self):
         matched = np.zeros(128)
         permuted = np.linspace(0.5, 1.5, 128)
@@ -80,6 +90,64 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertEqual(select([record])["decision"], "D2-G-contact-only-fallback")
         record["checks"] = dict(checks, finite=False)
         self.assertEqual(select([record])["decision"], "stop-no-eligible-candidate")
+
+    @staticmethod
+    def _mechanism_candidate(joint_ratio, object_ratio, text_significant, bps_significant, trace_passed):
+        return {
+            "teacher_x0": {
+                "499": {
+                    "matched_fieldwise_mse": {
+                        "joint_positions": D0_T499["joint_positions"] * joint_ratio,
+                        "object_translation": D0_T499["object_translation"] * object_ratio,
+                    },
+                    "sensitivity": {
+                        "text_permuted": {"bootstrap": {"matched_significantly_better": text_significant}},
+                        "bps_permuted": {"bootstrap": {"matched_significantly_better": bps_significant}},
+                    },
+                },
+            },
+            "reverse_trace": {
+                "final": {
+                    "d2_threshold_checks": {
+                        "object_goal_error_cm": trace_passed,
+                        "pelvis_goal_error_cm": trace_passed,
+                        "mpjpe_cm": trace_passed,
+                    },
+                },
+            },
+        }
+
+    def test_d2p_mechanism_classification_is_deterministic(self):
+        failed_contract = classify_mechanism({"passed": False}, {})
+        self.assertEqual(failed_contract["category"], "coordinate-contract-defect")
+        underfit = self._mechanism_candidate(2.0, 2.0, False, False, False)
+        result = classify_mechanism({"passed": True}, {"R-1024": underfit, "R-3072": underfit})
+        self.assertEqual(result["category"], "high-noise-condition-underfit")
+        exposure = self._mechanism_candidate(1.0, 1.0, True, True, False)
+        result = classify_mechanism({"passed": True}, {"R-1024": exposure, "R-3072": exposure})
+        self.assertEqual(result["category"], "reverse-process-exposure-gap")
+        mixed = self._mechanism_candidate(2.0, 1.0, False, False, False)
+        result = classify_mechanism({"passed": True}, {"R-1024": mixed, "R-3072": mixed})
+        self.assertEqual(result["category"], "mixed-mechanism")
+
+    def test_d2p_resolved_config_forbids_selection_and_official_data(self):
+        args = SimpleNamespace(
+            checkpoint_r1024="/tmp/r1024.pth",
+            sha256_r1024="1" * 64,
+            checkpoint_r3072="/tmp/r3072.pth",
+            sha256_r3072="2" * 64,
+            run_id="p1-hoi-d2p-mechanism-s42-20260715",
+            teacher_batch_size=64,
+            device="cuda:0",
+            output="/tmp/d2p.json",
+        )
+        config = d2p_resolved_config(args)
+        self.assertFalse(config["official_test_used"])
+        self.assertFalse(config["chois_used"])
+        self.assertFalse(config["checkpoint_selection"])
+        self.assertEqual(config["training_updates"], 0)
+        self.assertEqual(config["teacher"]["windows"], 512)
+        self.assertEqual(config["reverse_trace"]["sequences"], 32)
 
 
 class WindowStateCodecTest(unittest.TestCase):
