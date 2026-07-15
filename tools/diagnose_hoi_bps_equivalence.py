@@ -145,6 +145,7 @@ def _gate_details(
         "stored_mesh_residual_m": float(gate["stored_mesh_residual_m"][row]),
         "recomputed_mesh_residual_m": float(gate["recomputed_mesh_residual_m"][row]),
         "nearest_squared_distance_gap_m2": float(gate["nearest_squared_distance_gap_m2"][row]),
+        "nearest_linear_distance_gap_m": float(gate["nearest_linear_distance_gap_m"][row]),
     } for row in rows.cpu().tolist()]
 
 
@@ -153,6 +154,9 @@ def replay_device(
     dataset: PriorWindowDataset,
     positions: Sequence[int],
     device: torch.device,
+    *,
+    nearest_squared_distance_gap_m2_max: float = NEAREST_SQUARED_DISTANCE_GAP_M2_MAX,
+    nearest_linear_distance_gap_m_max: float = float("inf"),
 ) -> Dict[str, object]:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -197,7 +201,8 @@ def replay_device(
             strict_component_max_abs=STRICT_COMPONENT_MAX_ABS,
             stored_mesh_residual_m_max=STORED_MESH_RESIDUAL_M_MAX,
             recomputed_mesh_residual_m_max=RECOMPUTED_MESH_RESIDUAL_M_MAX,
-            nearest_squared_distance_gap_m2_max=NEAREST_SQUARED_DISTANCE_GAP_M2_MAX,
+            nearest_squared_distance_gap_m2_max=nearest_squared_distance_gap_m2_max,
+            nearest_linear_distance_gap_m_max=nearest_linear_distance_gap_m_max,
         )
         strict_rows = torch.nonzero(gate["strict"]).flatten()
         tie_rows = torch.nonzero(gate["tie"]).flatten()

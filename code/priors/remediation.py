@@ -99,6 +99,7 @@ def bps_replay_equivalence_gate(
     stored_mesh_residual_m_max: float = 1e-6,
     recomputed_mesh_residual_m_max: float = 1e-6,
     nearest_squared_distance_gap_m2_max: float = 1e-7,
+    nearest_linear_distance_gap_m_max: float = float("inf"),
 ) -> Dict[str, object]:
     """Apply the D2-C strict-or-provable-tie BPS replay gate.
 
@@ -146,6 +147,9 @@ def bps_replay_equivalence_gate(
     squared_distance_gap = torch.full(
         (point_count,), float("inf"), dtype=proof_dtype, device=recomputed.device,
     )
+    linear_distance_gap = torch.full(
+        (point_count,), float("inf"), dtype=proof_dtype, device=recomputed.device,
+    )
     if bool(candidates.any()):
         rows = torch.nonzero(candidates).flatten()
         stored_closest = basis[rows] + yup_to_zup_tensor(stored[rows])
@@ -170,16 +174,22 @@ def bps_replay_equivalence_gate(
         stored_distance = stored[rows].to(proof_dtype).square().sum(dim=-1)
         recomputed_distance = recomputed[rows].to(proof_dtype).square().sum(dim=-1)
         candidate_gap = (stored_distance - recomputed_distance).abs()
+        candidate_linear_gap = (
+            torch.sqrt(stored_distance) - torch.sqrt(recomputed_distance)
+        ).abs()
         stored_residual[rows] = candidate_stored_residual
         recomputed_residual[rows] = candidate_recomputed_residual
         squared_distance_gap[rows] = candidate_gap
+        linear_distance_gap[rows] = candidate_linear_gap
         tie[rows] = (
             torch.isfinite(candidate_stored_residual)
             & torch.isfinite(candidate_recomputed_residual)
             & torch.isfinite(candidate_gap)
+            & torch.isfinite(candidate_linear_gap)
             & (candidate_stored_residual <= stored_mesh_residual_m_max)
             & (candidate_recomputed_residual <= recomputed_mesh_residual_m_max)
             & (candidate_gap <= nearest_squared_distance_gap_m2_max)
+            & (candidate_linear_gap <= nearest_linear_distance_gap_m_max)
         )
     accepted = strict | tie
     failure = ~accepted
@@ -194,4 +204,5 @@ def bps_replay_equivalence_gate(
         "stored_mesh_residual_m": stored_residual,
         "recomputed_mesh_residual_m": recomputed_residual,
         "nearest_squared_distance_gap_m2": squared_distance_gap,
+        "nearest_linear_distance_gap_m": linear_distance_gap,
     }

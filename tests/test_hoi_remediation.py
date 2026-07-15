@@ -38,6 +38,13 @@ from tools.diagnose_hoi_bps_equivalence import (
     select_d2c_windows,
     verify_assets as verify_d2c_assets,
 )
+from tools.diagnose_hoi_bps_tolerance import (
+    EXPECTED_HASHES as D2D_EXPECTED_HASHES,
+    NEAREST_LINEAR_DISTANCE_GAP_M_MAX as D2D_LINEAR_GAP,
+    NEAREST_SQUARED_DISTANCE_GAP_M2_MAX as D2D_SQUARED_GAP,
+    resolved_config as d2d_resolved_config,
+    select_d2d_windows,
+)
 from tools.diagnose_hoi_d2p import (
     D0_T499,
     classify_mechanism,
@@ -246,6 +253,67 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertEqual(config["selection"]["windows"], 832)
         self.assertEqual(config["gate"]["strict_component_max_abs"], 1e-4)
         self.assertIn("stop before CUDA", config["execution_order"])
+
+    def test_d2d_dual_tolerance_accepts_float32_tie_but_retains_linear_cap(self):
+        basis = torch.zeros(1, 3)
+        vertices = torch.tensor(((1.0, 0.0, 0.0), (-1.0000001, 0.0, 0.0)))
+        selected = torch.tensor((0,), dtype=torch.long)
+        recomputed = zup_to_yup_tensor(vertices[selected] - basis)
+        stored = zup_to_yup_tensor(vertices[1:] - basis)
+        old_gate = bps_replay_equivalence_gate(
+            recomputed, stored, basis, vertices, selected,
+        )
+        self.assertFalse(old_gate["passed"])
+        adjusted = bps_replay_equivalence_gate(
+            recomputed, stored, basis, vertices, selected,
+            nearest_squared_distance_gap_m2_max=D2D_SQUARED_GAP,
+            nearest_linear_distance_gap_m_max=D2D_LINEAR_GAP,
+        )
+        self.assertTrue(adjusted["passed"])
+        self.assertGreater(float(adjusted["nearest_squared_distance_gap_m2"][0]), 1e-7)
+        self.assertLessEqual(
+            float(adjusted["nearest_squared_distance_gap_m2"][0]), D2D_SQUARED_GAP,
+        )
+        self.assertLessEqual(
+            float(adjusted["nearest_linear_distance_gap_m"][0]), D2D_LINEAR_GAP,
+        )
+
+        near_origin = torch.tensor(((0.001, 0.0, 0.0), (-0.0010003, 0.0, 0.0)))
+        recomputed = zup_to_yup_tensor(near_origin[:1] - basis)
+        stored = zup_to_yup_tensor(near_origin[1:] - basis)
+        rejected = bps_replay_equivalence_gate(
+            recomputed, stored, basis, near_origin, selected,
+            nearest_squared_distance_gap_m2_max=D2D_SQUARED_GAP,
+            nearest_linear_distance_gap_m_max=D2D_LINEAR_GAP,
+        )
+        self.assertLess(float(rejected["nearest_squared_distance_gap_m2"][0]), D2D_SQUARED_GAP)
+        self.assertGreater(float(rejected["nearest_linear_distance_gap_m"][0]), D2D_LINEAR_GAP)
+        self.assertFalse(rejected["passed"])
+
+    def test_d2d_config_and_disjoint_holdout_are_locked(self):
+        args = SimpleNamespace(
+            run_id="p1-hoi-d2d-bps-tolerance-s42-20260715",
+            output="/tmp/d2d.json",
+            cuda_device="cuda:2",
+        )
+        config = d2d_resolved_config(args)
+        self.assertEqual(config["selection"]["combined_windows"], 1664)
+        self.assertEqual(config["selection"]["hashes"], D2D_EXPECTED_HASHES)
+        self.assertEqual(config["gate"]["nearest_squared_distance_gap_m2_max"], 2.5e-7)
+        self.assertEqual(config["gate"]["nearest_linear_distance_gap_m_max"], 2.5e-7)
+        self.assertFalse(config["sampler_stored_per_frame_bps"])
+        self.assertFalse(config["sampler_future_gt"])
+        self.assertEqual(config["checkpoint_count_loaded"], 0)
+        self.assertEqual(config["training_updates"], 0)
+        dataset = PriorWindowDataset(
+            str(REPO), "hoi", partition="internal_validation",
+            split_manifest="experiments/splits/omomo_hoi_train_validation_seed42.json",
+        )
+        subsets, coverage = select_d2d_windows(dataset)
+        self.assertEqual(set(subsets["calibration"]) & set(subsets["holdout"]), set())
+        self.assertTrue(all(len(positions) == 832 for positions in subsets.values()))
+        self.assertTrue(all(set(values) == set(PLY_SHA256) for values in coverage.values()))
+        self.assertTrue(all(count == 64 for values in coverage.values() for count in values.values()))
 
     def test_d2c_selection_and_immutable_ply_hashes(self):
         dataset = PriorWindowDataset(
