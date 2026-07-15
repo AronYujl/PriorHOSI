@@ -345,7 +345,7 @@ class RemediationDiagnosticTest(unittest.TestCase):
 
     def test_d2e_config_and_fresh_holdout_are_locked(self):
         args = SimpleNamespace(
-            run_id="p1-hoi-d2e-bps-linear-equivalence-s42-20260715",
+            run_id="p1-hoi-d2e-bps-linear-equivalence-r1-s42-20260715",
             output="/tmp/d2e.json",
             cuda_device="cuda:2",
         )

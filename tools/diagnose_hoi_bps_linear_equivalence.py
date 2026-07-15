@@ -34,7 +34,7 @@ from tools.diagnose_hoi_bps_equivalence import (  # noqa: E402
 )
 
 
-RUN_ID = "p1-hoi-d2e-bps-linear-equivalence-s42-20260715"
+RUN_ID = "p1-hoi-d2e-bps-linear-equivalence-r1-s42-20260715"
 EXPECTED_DATA_CONTRACT_SHA256 = "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf"
 DISCLOSED_WINDOWS_PER_CLASS = 128
 FRESH_WINDOWS_PER_CLASS = 64
