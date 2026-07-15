@@ -24,6 +24,37 @@ def _extract(values: torch.Tensor, timesteps: torch.Tensor, shape: torch.Size) -
     return result.reshape(timesteps.shape[0], *((1,) * (len(shape) - 1)))
 
 
+def project_object_rotation_x0(clean: torch.Tensor) -> torch.Tensor:
+    """Close predicted object rotations on SO(3) without changing the 232-D API."""
+    if clean.ndim != 3 or clean.shape[1:] != (
+        REPRESENTATION.window_frames, REPRESENTATION.dimension,
+    ):
+        raise ValueError(f"expected clean [B,16,232], got {tuple(clean.shape)}")
+    result = clean.clone()
+    predicted = result[:, REPRESENTATION.history_frames:, 219:228]
+    projected = project_to_so3(predicted.reshape(*predicted.shape[:-1], 3, 3))
+    result[:, REPRESENTATION.history_frames:, 219:228] = projected.reshape(*predicted.shape)
+    return result
+
+
+def prepare_clean_x0(
+    clean: torch.Tensor,
+    fixed_history: torch.Tensor,
+    *,
+    object_so3_x0: bool = False,
+) -> torch.Tensor:
+    """Restore immutable history, then optionally close predicted object x0 on SO(3)."""
+    if fixed_history.shape != (
+        clean.shape[0], REPRESENTATION.history_frames, REPRESENTATION.dimension,
+    ):
+        raise ValueError(f"invalid fixed history shape: {tuple(fixed_history.shape)}")
+    result = clean.clone()
+    result[:, :REPRESENTATION.history_frames] = fixed_history
+    if object_so3_x0:
+        result = project_object_rotation_x0(result)
+    return result
+
+
 class GaussianDiffusion(nn.Module):
     """Linear-beta x0-prediction diffusion with fixed two-frame history."""
 
@@ -73,6 +104,7 @@ class GaussianDiffusion(nn.Module):
         *,
         generator: Optional[torch.Generator] = None,
         paired_repeats: int = 1,
+        object_so3_x0: bool = False,
     ) -> torch.Tensor:
         batch = fixed_history.shape[0]
         shape = (batch, REPRESENTATION.window_frames, REPRESENTATION.dimension)
@@ -86,7 +118,9 @@ class GaussianDiffusion(nn.Module):
         for step in reversed(range(self.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=current.device)
             clean = model(current, timesteps, text_embedding, object_bps, goals, progress)
-            clean[:, :REPRESENTATION.history_frames] = fixed_history
+            clean = prepare_clean_x0(
+                clean, fixed_history, object_so3_x0=object_so3_x0,
+            )
             mean = (
                 _extract(self.posterior_mean_coef1, timesteps, current.shape) * clean
                 + _extract(self.posterior_mean_coef2, timesteps, current.shape) * current
@@ -111,11 +145,19 @@ class HOIPriorSampler:
     forwards scene occupancy or a scene flag to HOIPrior.
     """
 
-    def __init__(self, device: str, auto_regre_num: int = 2, timesteps: int = 500, **_: object) -> None:
+    def __init__(
+        self,
+        device: str,
+        auto_regre_num: int = 2,
+        timesteps: int = 500,
+        object_so3_x0: bool = False,
+        **_: object,
+    ) -> None:
         if auto_regre_num != REPRESENTATION.history_frames:
             raise ValueError("HOIPrior sampler requires exactly two history frames")
         self.device = torch.device(device)
         self.diffusion = GaussianDiffusion(timesteps).to(self.device)
+        self.object_so3_x0 = bool(object_so3_x0)
         self.audit: Dict[str, int] = {
             "generated_values": 0,
             "nonfinite_values": 0,
@@ -165,7 +207,14 @@ class HOIPriorSampler:
         generator.manual_seed((int(torch.initial_seed()) + self.sample_calls * 1000003) % (2 ** 63 - 1))
         self.sample_calls += 1
         sample = self.diffusion.sample(
-            self.student_model, fixed_points, text, bps, goals, progress, generator=generator,
+            self.student_model,
+            fixed_points,
+            text,
+            bps,
+            goals,
+            progress,
+            generator=generator,
+            object_so3_x0=self.object_so3_x0,
         )
         sample[..., 219:228] = project_to_so3(
             sample[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)

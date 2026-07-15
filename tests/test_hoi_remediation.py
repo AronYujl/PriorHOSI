@@ -14,6 +14,7 @@ sys.path.insert(0, str(REPO / "code"))
 
 from datasets.utils import get_smpl_parents, zup_to_yup
 from priors.data import PriorWindowDataset
+from priors.diffusion import GaussianDiffusion, prepare_clean_x0
 from priors.losses import hoi_training_losses
 from priors.remediation import (
     bps_replay_equivalence_gate,
@@ -53,9 +54,15 @@ from tools.diagnose_hoi_bps_linear_equivalence import (
 )
 from tools.diagnose_hoi_d2p import (
     D0_T499,
+    D2_THRESHOLDS,
     classify_mechanism,
     field_error_per_sample,
     resolved_config as d2p_resolved_config,
+)
+from tools.diagnose_hoi_d2f import (
+    classify as classify_d2f,
+    object_rotation_manifold_error,
+    resolved_config as d2f_resolved_config,
 )
 from tools.diagnose_hoi_bps_backend import (
     AUTHOR_BASELINE,
@@ -195,6 +202,72 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertEqual(
             config["contract_replay"]["nearest_squared_distance_gap_m2"], "report_only",
         )
+
+    def test_d2f_config_locks_paired_so3_scope_and_gates(self):
+        args = SimpleNamespace(
+            checkpoint_r1024="/tmp/r1024.pth",
+            sha256_r1024="1" * 64,
+            checkpoint_r3072="/tmp/r3072.pth",
+            sha256_r3072="2" * 64,
+            run_id="p1-hoi-d2f-so3-reverse-s42-20260715",
+            device="cuda:0",
+            output="/tmp/d2f.json",
+        )
+        config = d2f_resolved_config(args)
+        self.assertEqual(config["subphase"], "1B-D2-F0")
+        self.assertEqual(config["paired_variants"], ["control", "object_so3_x0"])
+        self.assertTrue(config["paired_initial_and_posterior_noise"])
+        self.assertEqual(config["projection_channels"], [219, 228])
+        self.assertTrue(config["projection_before_each_posterior_mean"])
+        self.assertFalse(config["other_channel_clamp"])
+        self.assertFalse(config["posterior_change"])
+        self.assertFalse(config["checkpoint_selection"])
+        self.assertEqual(config["training_updates"], 0)
+        self.assertFalse(config["official_test_used"])
+        self.assertFalse(config["chois_used"])
+        self.assertFalse(config["sampler_stored_per_frame_bps"])
+        self.assertFalse(config["sampler_future_gt"])
+        self.assertEqual(config["absolute_gate"]["object_goal_error_cm_max"], D2_THRESHOLDS["object_goal_error_cm"])
+
+    @staticmethod
+    def _d2f_variant(object_goal, pelvis_goal, mpjpe, *, manifold=True):
+        metrics = {
+            "object_goal_error_cm": object_goal,
+            "pelvis_goal_error_cm": pelvis_goal,
+            "mpjpe_cm": mpjpe,
+        }
+        return {
+            "paired_seed": 42,
+            "final": {
+                **metrics,
+                "finite": True,
+                "history_check": True,
+                "manifold_checks": {
+                    "orthogonality_frobenius": manifold,
+                    "determinant_abs_error": manifold,
+                },
+                "d2_threshold_checks": {
+                    name: value <= D2_THRESHOLDS[name] for name, value in metrics.items()
+                },
+            },
+        }
+
+    def test_d2f_classification_has_fixed_absolute_and_training_triggers(self):
+        control = self._d2f_variant(100.0, 20.0, 50.0)
+        projected = self._d2f_variant(40.0, 20.5, 50.5)
+        candidates = {
+            "R-1024": {"control": control, "object_so3_x0": projected},
+            "R-3072": {"control": control, "object_so3_x0": control},
+        }
+        decision = classify_d2f(candidates)
+        self.assertEqual(decision["category"], "sampler-mechanism-positive-training-insufficient")
+        self.assertFalse(decision["d2f1_authorized"])
+        self.assertTrue(decision["d2f2_authorized"])
+        candidates["R-1024"]["object_so3_x0"] = self._d2f_variant(7.0, 20.0, 30.0)
+        decision = classify_d2f(candidates)
+        self.assertEqual(decision["absolute_gate_passes"], ["R-1024"])
+        self.assertTrue(decision["d2f1_authorized"])
+        self.assertFalse(decision["d2f2_authorized"])
 
     def test_d2b_config_is_backend_only_and_fixed_to_author_assets(self):
         args = SimpleNamespace(
@@ -512,6 +585,56 @@ class WindowStateCodecTest(unittest.TestCase):
         identity = torch.eye(3).expand(32, -1, -1)
         torch.testing.assert_close(projected @ projected.transpose(-1, -2), identity, atol=1e-5, rtol=1e-5)
         torch.testing.assert_close(torch.det(projected), torch.ones(32), atol=1e-5, rtol=1e-5)
+
+    def test_reverse_x0_projection_restores_history_and_only_changes_object_rotation(self):
+        clean = torch.randn(2, 16, 232)
+        clean[:, 2:, 219:228] *= 4.0
+        fixed = torch.randn(2, 2, 232)
+        control = prepare_clean_x0(clean, fixed, object_so3_x0=False)
+        projected = prepare_clean_x0(clean, fixed, object_so3_x0=True)
+        torch.testing.assert_close(control[:, :2], fixed)
+        torch.testing.assert_close(projected[:, :2], fixed)
+        active = torch.ones(232, dtype=torch.bool)
+        active[219:228] = False
+        torch.testing.assert_close(projected[:, 2:, active], control[:, 2:, active])
+        errors = object_rotation_manifold_error(projected)
+        self.assertLessEqual(errors["orthogonality_frobenius_max"], 1e-5)
+        self.assertLessEqual(errors["determinant_abs_error_max"], 1e-5)
+
+    def test_gaussian_sampler_applies_projection_before_final_posterior_mean(self):
+        class InvalidObjectModel(torch.nn.Module):
+            def forward(self, noisy, timesteps, text, bps, goals, progress):
+                del timesteps, text, bps, goals, progress
+                value = torch.zeros_like(noisy)
+                invalid = (torch.eye(3) * 2.0).reshape(1, 1, 9)
+                value[..., 219:228] = invalid
+                return value
+
+        diffusion = GaussianDiffusion(500)
+        model = InvalidObjectModel()
+        fixed = torch.zeros(1, 2, 232)
+        text = torch.zeros(1, 768)
+        bps = torch.zeros(1, 1024, 3)
+        goals = torch.zeros(1, 9)
+        progress = torch.zeros(1, 3)
+        control_generator = torch.Generator().manual_seed(42)
+        projected_generator = torch.Generator().manual_seed(42)
+        control = diffusion.sample(
+            model, fixed, text, bps, goals, progress,
+            generator=control_generator, object_so3_x0=False,
+        )
+        projected = diffusion.sample(
+            model, fixed, text, bps, goals, progress,
+            generator=projected_generator, object_so3_x0=True,
+        )
+        control_error = object_rotation_manifold_error(control)["orthogonality_frobenius_max"]
+        projected_error = object_rotation_manifold_error(projected)["orthogonality_frobenius_max"]
+        self.assertGreater(control_error, 1.0)
+        # The float32 t=0 posterior coefficient is close to, but not exactly, one;
+        # the evaluator's existing final handoff projection closes this residual.
+        self.assertLess(projected_error, 1e-3)
+        self.assertLess(projected_error, control_error)
+        torch.testing.assert_close(projected[:, :2], fixed)
 
     def test_nonterminal_goal_loss_is_differentiable_zero(self):
         prediction = torch.zeros(2, 16, 232, requires_grad=True)

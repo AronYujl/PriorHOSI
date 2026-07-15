@@ -3,3 +3,4 @@ pelvis:
   device: ${device}
   auto_regre_num: ${auto_regre_num}
   timesteps: 500
+  object_so3_x0: false
