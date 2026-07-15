@@ -45,6 +45,12 @@ from tools.diagnose_hoi_bps_tolerance import (
     resolved_config as d2d_resolved_config,
     select_d2d_windows,
 )
+from tools.diagnose_hoi_bps_linear_equivalence import (
+    EXPECTED_HASHES as D2E_EXPECTED_HASHES,
+    NEAREST_LINEAR_DISTANCE_GAP_M_MAX as D2E_LINEAR_GAP,
+    resolved_config as d2e_resolved_config,
+    select_d2e_windows,
+)
 from tools.diagnose_hoi_d2p import (
     D0_T499,
     classify_mechanism,
@@ -314,6 +320,57 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertTrue(all(len(positions) == 832 for positions in subsets.values()))
         self.assertTrue(all(set(values) == set(PLY_SHA256) for values in coverage.values()))
         self.assertTrue(all(count == 64 for values in coverage.values() for count in values.values()))
+
+    def test_d2e_linear_gate_reports_but_does_not_gate_squared_gap(self):
+        basis = torch.zeros(1, 3)
+        vertices = torch.tensor(((1.0, 0.0, 0.0), (-1.0000002, 0.0, 0.0)))
+        selected = torch.tensor((0,), dtype=torch.long)
+        recomputed = zup_to_yup_tensor(vertices[:1] - basis)
+        stored = zup_to_yup_tensor(vertices[1:] - basis)
+        d2d = bps_replay_equivalence_gate(
+            recomputed, stored, basis, vertices, selected,
+            nearest_squared_distance_gap_m2_max=D2D_SQUARED_GAP,
+            nearest_linear_distance_gap_m_max=D2D_LINEAR_GAP,
+        )
+        self.assertGreater(float(d2d["nearest_squared_distance_gap_m2"][0]), D2D_SQUARED_GAP)
+        self.assertLessEqual(float(d2d["nearest_linear_distance_gap_m"][0]), D2E_LINEAR_GAP)
+        self.assertFalse(d2d["passed"])
+        d2e = bps_replay_equivalence_gate(
+            recomputed, stored, basis, vertices, selected,
+            nearest_squared_distance_gap_m2_max=float("inf"),
+            nearest_linear_distance_gap_m_max=D2E_LINEAR_GAP,
+        )
+        self.assertTrue(d2e["passed"])
+        self.assertTrue(bool(d2e["tie"][0]))
+
+    def test_d2e_config_and_fresh_holdout_are_locked(self):
+        args = SimpleNamespace(
+            run_id="p1-hoi-d2e-bps-linear-equivalence-s42-20260715",
+            output="/tmp/d2e.json",
+            cuda_device="cuda:2",
+        )
+        config = d2e_resolved_config(args)
+        self.assertEqual(config["selection"]["combined_windows"], 2496)
+        self.assertEqual(config["selection"]["hashes"], D2E_EXPECTED_HASHES)
+        self.assertEqual(config["gate"]["nearest_linear_distance_gap_m_max"], 2.5e-7)
+        self.assertEqual(config["gate"]["nearest_squared_distance_gap_m2"], "report_only")
+        self.assertFalse(config["sampler_stored_per_frame_bps"])
+        self.assertFalse(config["sampler_future_gt"])
+        self.assertEqual(config["checkpoint_count_loaded"], 0)
+        self.assertEqual(config["training_updates"], 0)
+        dataset = PriorWindowDataset(
+            str(REPO), "hoi", partition="internal_validation",
+            split_manifest="experiments/splits/omomo_hoi_train_validation_seed42.json",
+        )
+        subsets, coverage = select_d2e_windows(dataset)
+        self.assertEqual(
+            set(subsets["disclosed_calibration"]) & set(subsets["fresh_holdout"]), set(),
+        )
+        self.assertEqual(len(subsets["disclosed_calibration"]), 1664)
+        self.assertEqual(len(subsets["fresh_holdout"]), 832)
+        self.assertTrue(all(set(values) == set(PLY_SHA256) for values in coverage.values()))
+        self.assertTrue(all(value == 128 for value in coverage["disclosed_calibration"].values()))
+        self.assertTrue(all(value == 64 for value in coverage["fresh_holdout"].values()))
 
     def test_d2c_selection_and_immutable_ply_hashes(self):
         dataset = PriorWindowDataset(

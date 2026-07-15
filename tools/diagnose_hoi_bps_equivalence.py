@@ -157,6 +157,7 @@ def replay_device(
     *,
     nearest_squared_distance_gap_m2_max: float = NEAREST_SQUARED_DISTANCE_GAP_M2_MAX,
     nearest_linear_distance_gap_m_max: float = float("inf"),
+    expected_windows_per_class: int = WINDOWS_PER_CLASS,
 ) -> Dict[str, object]:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -239,7 +240,7 @@ def replay_device(
     total = len(positions) * 1024
     passed = (
         len(per_class) == 13
-        and all(record["windows"] == WINDOWS_PER_CLASS for record in per_class.values())
+        and all(record["windows"] == expected_windows_per_class for record in per_class.values())
         and failure_count == 0
         and finite_failures == 0
         and strict_count + tie_count == total
