@@ -174,7 +174,7 @@ class RemediationDiagnosticTest(unittest.TestCase):
             sha256_r1024="1" * 64,
             checkpoint_r3072="/tmp/r3072.pth",
             sha256_r3072="2" * 64,
-            run_id="p1-hoi-d2p-mechanism-s42-20260715",
+            run_id="p1-hoi-d2p5-mechanism-s42-20260715",
             teacher_batch_size=64,
             device="cuda:0",
             output="/tmp/d2p.json",
@@ -183,9 +183,18 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertFalse(config["official_test_used"])
         self.assertFalse(config["chois_used"])
         self.assertFalse(config["checkpoint_selection"])
+        self.assertFalse(config["sampler_stored_per_frame_bps"])
+        self.assertFalse(config["sampler_future_gt"])
         self.assertEqual(config["training_updates"], 0)
         self.assertEqual(config["teacher"]["windows"], 512)
         self.assertEqual(config["reverse_trace"]["sequences"], 32)
+        self.assertEqual(config["subphase"], "1B-D2-P5")
+        self.assertEqual(
+            config["contract_replay"]["nearest_linear_distance_gap_m_max"], D2E_LINEAR_GAP,
+        )
+        self.assertEqual(
+            config["contract_replay"]["nearest_squared_distance_gap_m2"], "report_only",
+        )
 
     def test_d2b_config_is_backend_only_and_fixed_to_author_assets(self):
         args = SimpleNamespace(
@@ -410,6 +419,17 @@ class RemediationDiagnosticTest(unittest.TestCase):
         )
         for failure in result["failures"]:
             self.assertGreater(failure["nearest_squared_distance_gap_m2"], 1e-7)
+        linear = d2c_replay_device(
+            dataset,
+            positions,
+            torch.device("cpu"),
+            nearest_squared_distance_gap_m2_max=float("inf"),
+            nearest_linear_distance_gap_m_max=D2E_LINEAR_GAP,
+            expected_windows_per_class=None,
+            expected_object_classes=None,
+        )
+        self.assertTrue(linear["passed"])
+        self.assertEqual(linear["unexplained_basis_points"], 0)
 
 
 class WindowStateCodecTest(unittest.TestCase):

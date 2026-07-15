@@ -36,15 +36,22 @@ from priors.representation import REPRESENTATION  # noqa: E402
 from priors.window_codec import WindowFrame, project_to_so3  # noqa: E402
 from tools.diagnose_hoi_remediation import stack_items, stable_seed  # noqa: E402
 from tools.evaluate_hoi_remediation import (  # noqa: E402
-    current_bps,
     global_goals,
-    load_rest_vertices,
     paired_bootstrap,
     stack_frames,
+)
+from tools.diagnose_hoi_bps_equivalence import (  # noqa: E402
+    replay_device as replay_bps_equivalence,
+    verify_assets as verify_bps_assets,
+)
+from tools.diagnose_hoi_bps_linear_equivalence import (  # noqa: E402
+    NEAREST_LINEAR_DISTANCE_GAP_M_MAX,
 )
 
 
 EXPECTED_DATA_CONTRACT_SHA256 = "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf"
+EXPECTED_D2E_AGGREGATE_SHA256 = "c466bc8db49b025427c940c7e6bf224a0993dc9453611919495fe8cb1ca6929e"
+RUN_ID = "p1-hoi-d2p5-mechanism-s42-20260715"
 EXPECTED_CHECKPOINTS = {
     "R-1024": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
     "R-3072": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",
@@ -127,23 +134,26 @@ def contract_replay(dataset: PriorWindowDataset, triples, device: torch.device) 
         str(dataset.scene_names[int(dataset.sequence_ids[int(dataset.indices[position])])])
         for position in positions
     ]
-    rest_vertices = load_rest_vertices(dataset, triples[:32], device)
-    replay_bps = current_bps(dataset, frames.object_reference, names, rest_vertices)
-    stored_bps = torch.stack([item["object_bps"] for item in items]).to(device)
-    bps_error = (replay_bps - stored_bps).abs()
+    bps_equivalence = replay_bps_equivalence(
+        dataset,
+        positions,
+        device,
+        nearest_squared_distance_gap_m2_max=float("inf"),
+        nearest_linear_distance_gap_m_max=NEAREST_LINEAR_DISTANCE_GAP_M_MAX,
+        expected_windows_per_class=None,
+        expected_object_classes=None,
+    )
     tolerances = {
         "pelvis_goal_max_abs": 1e-5,
         "object_goal_max_abs": 1e-5,
         "metric_object_target_max_abs": 1e-5,
         "history_max_abs": 1e-5,
-        "bps_max_abs": 1e-4,
     }
     maxima = {
         "pelvis_goal_max_abs": 0.0,
         "object_goal_max_abs": 0.0,
         "metric_object_target_max_abs": 0.0,
         "history_max_abs": 0.0,
-        "bps_max_abs": float(bps_error.max()),
     }
     failures = []
     for row, (position, item) in enumerate(zip(positions, items)):
@@ -154,7 +164,6 @@ def contract_replay(dataset: PriorWindowDataset, triples, device: torch.device) 
         row_errors = {
             "pelvis_goal_max_abs": float((replay_pelvis - goals[:3]).abs().max()),
             "object_goal_max_abs": float((replay_object - goals[6:9]).abs().max()),
-            "bps_max_abs": float(bps_error[row].max()),
         }
         global_index = int(dataset.indices[position])
         sequence = int(dataset.sequence_ids[global_index])
@@ -187,17 +196,18 @@ def contract_replay(dataset: PriorWindowDataset, triples, device: torch.device) 
                 "global_window_index": global_index,
                 "failed_checks": failed_checks,
                 "max_abs_errors": row_errors,
-                "bps_rms_error": float(bps_error[row].square().mean().sqrt()),
             })
     checks = {name: math.isfinite(maxima[name]) and maxima[name] <= limit for name, limit in tolerances.items()}
+    checks["bps_linear_equivalence"] = bool(bps_equivalence["passed"])
     return {
         "positions": len(positions),
         "future_gt_used_for_condition": False,
         "max_abs_errors": maxima,
         "tolerances": tolerances,
         "checks": checks,
-        "failure_count": len(failures),
+        "failure_count": len(failures) + int(bps_equivalence["unexplained_basis_points"]),
         "failures": failures,
+        "bps_equivalence": bps_equivalence,
         "passed": all(checks.values()),
     }
 
@@ -434,13 +444,22 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
     return {
         "schema_version": 1,
         "phase": "p1",
-        "subphase": "1B-D2-P",
+        "subphase": "1B-D2-P5",
         "mode": "internal-mechanism-diagnostic-only",
         "run_id": args.run_id,
         "seed": 42,
         "repo_root": str(REPO),
         "data_contract_sha256": EXPECTED_DATA_CONTRACT_SHA256,
         "partition": "internal_validation",
+        "contract_replay": {
+            "windows": 32,
+            "strict_component_max_abs": 1e-4,
+            "stored_mesh_residual_m_max": 1e-6,
+            "recomputed_mesh_residual_m_max": 1e-6,
+            "nearest_linear_distance_gap_m_max": NEAREST_LINEAR_DISTANCE_GAP_M_MAX,
+            "nearest_squared_distance_gap_m2": "report_only",
+            "d2e_aggregate_sha256": EXPECTED_D2E_AGGREGATE_SHA256,
+        },
         "checkpoints": {
             "R-1024": {"path": str(Path(args.checkpoint_r1024).resolve()), "sha256": args.sha256_r1024, "weights": "online"},
             "R-3072": {"path": str(Path(args.checkpoint_r3072).resolve()), "sha256": args.sha256_r3072, "weights": "online"},
@@ -457,6 +476,9 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
         "chois_used": False,
         "training_updates": 0,
         "checkpoint_selection": False,
+        "stored_per_frame_bps_use": "diagnostic_gt_replay_only",
+        "sampler_stored_per_frame_bps": False,
+        "sampler_future_gt": False,
         "device": args.device,
         "output": str(Path(args.output).resolve()),
     }
@@ -479,6 +501,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.run_id != RUN_ID:
+        raise ValueError(f"D2-P5 run id must be {RUN_ID}")
     config = resolved_config(args)
     config_path = Path(args.resolved_config).resolve()
     if args.resolve_only:
@@ -497,6 +521,10 @@ def main() -> None:
         actual = sha256_file(path)
         if requested_hashes[name] != EXPECTED_CHECKPOINTS[name] or actual != requested_hashes[name]:
             raise ValueError(f"{name} checkpoint hash mismatch: {actual}")
+    d2e_aggregate = REPO / "experiments/results/p1_hoi_phase1b_d2e_bps_linear_equivalence_s42_20260715.json"
+    if sha256_file(d2e_aggregate) != EXPECTED_D2E_AGGREGATE_SHA256:
+        raise ValueError("D2-P5 requires the hash-verified passing D2-E aggregate")
+    bps_assets = verify_bps_assets()
     started = time.time()
     dataset = PriorWindowDataset(
         str(REPO), "hoi", partition="internal_validation",
@@ -511,7 +539,7 @@ def main() -> None:
         "schema_version": 1,
         "run_id": args.run_id,
         "phase": "p1",
-        "subphase": "1B-D2-P",
+        "subphase": "1B-D2-P5",
         "seed": 42,
         "git_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip(),
         "selection": {
@@ -529,9 +557,20 @@ def main() -> None:
             ),
         },
         "contract_replay": contract,
+        "contract_assets": bps_assets,
+        "d2e_aggregate": {
+            "path": str(d2e_aggregate),
+            "sha256": EXPECTED_D2E_AGGREGATE_SHA256,
+        },
         "candidates": {},
+        "checkpoint_count_loaded": 0,
         "training_updates": 0,
         "checkpoint_selection": False,
+        "stored_per_frame_bps_use": "diagnostic_gt_replay_only",
+        "sampler_stored_per_frame_bps": False,
+        "sampler_future_gt": False,
+        "official_test_used": False,
+        "chois_used": False,
     }
     if not contract["passed"]:
         output["classification"] = classify_mechanism(contract, {})
@@ -556,6 +595,7 @@ def main() -> None:
         del model
         torch.cuda.empty_cache()
     output["classification"] = classify_mechanism(contract, output["candidates"])
+    output["checkpoint_count_loaded"] = len(output["candidates"])
     output["runtime_seconds"] = time.time() - started
     output["gpu"] = {"device": str(device), "name": torch.cuda.get_device_name(device)}
     exclusive_json(Path(args.output).resolve(), output)

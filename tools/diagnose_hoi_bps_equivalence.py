@@ -12,7 +12,7 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Mapping, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -157,7 +157,8 @@ def replay_device(
     *,
     nearest_squared_distance_gap_m2_max: float = NEAREST_SQUARED_DISTANCE_GAP_M2_MAX,
     nearest_linear_distance_gap_m_max: float = float("inf"),
-    expected_windows_per_class: int = WINDOWS_PER_CLASS,
+    expected_windows_per_class: Optional[int] = WINDOWS_PER_CLASS,
+    expected_object_classes: Optional[int] = 13,
 ) -> Dict[str, object]:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -239,8 +240,11 @@ def replay_device(
         torch.cuda.synchronize(device)
     total = len(positions) * 1024
     passed = (
-        len(per_class) == 13
-        and all(record["windows"] == expected_windows_per_class for record in per_class.values())
+        (expected_object_classes is None or len(per_class) == expected_object_classes)
+        and (
+            expected_windows_per_class is None
+            or all(record["windows"] == expected_windows_per_class for record in per_class.values())
+        )
         and failure_count == 0
         and finite_failures == 0
         and strict_count + tie_count == total
