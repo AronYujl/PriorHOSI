@@ -1,6 +1,6 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：Phase 0、Phase 1A 已通过；Phase 1B 首次训练已稳定完成但能力 gate 失败，现已预注册修复重试；Phase 1C 未启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
+状态：Phase 0、Phase 1A 已通过；Phase 1B 首次训练及 D2-F remediation 均未通过，现已预注册 D2-H reverse-state exposure 诊断与条件式修复；Phase 1C 未启动；基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
 
@@ -727,6 +727,83 @@ object/MPJPE gate，R-1024 也远未达到 object ratio `<=0.50` 的条件式学
 `experiments/results/p1_hoi_phase1b_d2f_reverse_manifold_s42_20260715.json`。D2-F 在此负向关闭，
 Phase 1B gate 仍未通过；不得运行 D2-G/D3/D4、official/CHOIS、merge/tag、Phase 1C 或后续阶段。
 任何后续 Phase 1B 方向必须重新 dated preregister。
+
+2026-07-15 Phase 1B D2-H paired reverse-state exposure remediation 预注册。用户确认作者提供的
+InfBaGel checkpoint 已经过一致性蒸馏；该 provenance 事实消除了 checkpoint 训练阶段的不确定性，
+但 D2-H 不预设“一致性蒸馏缺失”是当前失败主因，也不复刻作者蒸馏、CFG、scene occupancy 或
+guidance。作者实现与当前 HOIPrior 在 condition token 路由、timestep 注入、positional encoding、
+Transformer norm/FFN、goal normalization/injection、surface loss 类型和 reverse-state training
+coverage 上均存在差异；这些实现差异保持为竞争解释。D2-H 只检验其中一个最小、可证伪机制：
+当前纯 teacher `q(x_t|x0)` 训练是否不能纠正模型自己的 reverse-state 偏移。任一 gate 失败都只登记
+负结果，不自动授权改 condition、模型、loss、蒸馏或预算。
+
+1. **D2-H0：paired reverse-state exposure diagnostic。** 唯一 reportable run id 为
+   `p1-hoi-d2h-exposure-paired-s42-20260715`。只加载两个 sealed online checkpoint：R-1024
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 与 R-3072
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`；不得加载 EMA 或
+   released InfBaGel checkpoint。固定 internal-validation 512-window selection SHA-256
+   `9d3f8cc4647018fdf285481ffef95df6eb3c4e6f6ad0b680f85e23b1edeebd71`、seed 42、timesteps
+   `[0,1,10,50,100,250,498]` 与 10,000 次 paired bootstrap。对每个 target timestep `t` 先令
+   parent `s=t+1` 并用固定 `x0`、condition 与 parent noise 构造 `x_s~q(x_s|x0)`；control 用真实
+   `x0` 走一次标准 posterior，intervention 用同一 checkpoint 在 `x_s` 上预测的 `x0` 走同一
+   posterior，两条 path 共用 posterior noise。随后在同一 `t` 再调用同一 checkpoint，完整报告
+   joint position、joint rotation、object translation、object rotation、contact 的 per-sample MSE、
+   state displacement、物理误差和四种 condition permutation。GT 只允许构造 diagnostic oracle
+   posterior，不得进入 production sampler condition；sampler 仍不得读取 stored per-frame BPS 或
+   future GT。两条 path 均恢复 immutable 两帧 history，不做 SO(3) projection、support clamp、CFG
+   或 condition 改写。
+2. **D2-H0 mechanism gate。** 两个 checkpoint 均须 finite，history 与 posterior-formula replay
+   max-abs `<=1e-5`。在低 timestep `{0,1,10,50,100}` 中，每个 checkpoint 至少 4/5 个 timestep
+   的 paired-bootstrap 95% CI 下界须同时证明 joint-position 与 object-translation 的
+   `model-parent MSE - oracle-parent MSE > 0`；五个低 timestep 的 mean-ratio 几何均值须分别达到
+   joint position `>=1.5`、object translation `>=2.0`。必须报告全部 checkpoint、timestep、field，
+   不得按有利 subset 选择。任一 checkpoint 或必需 field 失败即登记 negative 并停止；不得训练。
+3. **D2-H implementation-parity measurements。** D2-H0 同时封存不参与 gate 的描述性证据：当前
+   HOIPrior 相对 `b9a158f75ab0740c91c9cfc8863a65fa381b014c` 的 condition/timestep token 路由、goal
+   数值尺度、各 field clean/noise RMS、每项 loss 的 parameter-gradient norm/cosine 及按 timestep
+   分解。该附录用于区分 reverse-state exposure 与实现细节竞争解释；它不得在观察结果后授权新的
+   condition/loss/architecture intervention。
+4. **D2-H1：唯一条件式 one-step detached reverse-state augmentation。** 仅当 D2-H0 两个
+   checkpoint 均通过时，先运行 `p1-hoi-d2h-reverse-aug-smoke-s42-20260715`；smoke 的 posterior
+   parity、detachment、history、固定 row split、RNG、`t=499` fallback、required-gradient、finite 与
+   resource headroom 全部通过后，才允许唯一训练 run
+   `p1-hoi-d2h-r1024-reverse-aug-s42-20260715`。模型保持随机初始化、232-D、16 frames/2 history、
+   8×512×16、500-step x0 diffusion、scene-free OMOMO、原 condition API、原 sampler 与原 loss
+   weights。前 1,572,864 processed windows（1536 updates）保持原 teacher-q warmup；之后每个
+   micro-batch 以固定 row index 分成 50% teacher `q(x_t|x0)` 与 50% one-step exposed rows。
+   exposed row 从 `q(x_{t+1}|x0)` 出发，由当前 online model 在 `eval()`/`no_grad()` 下预测 parent
+   `x0`，用未投影的原标准 posterior 到 `t`，detach 并恢复 history 后再进行唯一有梯度 forward；
+   target 仍为真实 `x0`。`t=499` 回退 teacher-q。不得增加 latent、自条件输入、CFG、scene、
+   SO(3) projection、support clamp 或 parent-path gradient。
+5. **D2-H1 locked budget and checkpoint use。** 训练只在四卡 worker 上使用 seed 42、4×RTX 3090、
+   micro-batch/GPU 256、accumulation 1、effective batch 1024、AdamW、peak LR `1e-4`、原
+   1,572,864-window warmup/cosine schedule、6,144,000 processed windows、98,304,000 processed
+   frames、6000 updates。sealed R-1024 online checkpoint 只作为固定 control，绝不初始化、resume
+   或继续训练 intervention。online weights 是唯一 primary candidate；`0.999/0.9999` EMA 与 online
+   validation 同步记录但只作描述。OOM、nonfinite、history/formula/gradient/headroom failure 均按
+   negative finish/register 并停止，不得观察后改 batch、accumulation、LR、warmup 或预算。
+6. **D2-H1 paired reverse gate。** 唯一 run id 为
+   `p1-hoi-d2h-r1024-reverse-gate-s42-20260715`。先在相同 512-window D2-H0 diagnostic 上要求
+   joint-position 与 object-translation 的 low-timestep `model-parent - oracle-parent` gap 相对 sealed
+   R-1024 均缩小至少 50%。再复用 32-sequence selection SHA-256
+   `7f16d1b8f4f3843639d10d0ecd367d1e2073b8b55bb03f4fef9895c960b85663`，以 paired initial/posterior
+   noise 比较 500-step single-window control/intervention；intervention/control object-goal ratio
+   `<=0.70`、MPJPE ratio `<=0.90`、pelvis-goal ratio `<=1.05`，且不放宽既有 absolute gate：
+   object goal `<=8.0087890691 cm`、pelvis goal `<=31.7099441657 cm`、MPJPE
+   `<=36.8360687256 cm`、history max-abs `<=1e-5`、全部 finite。任一失败即停止。
+7. **D2-H2：条件式固定三窗口 rollout。** 只有上一条全部通过才允许唯一 run id
+   `p1-hoi-d2h-r1024-rollout-s42-20260715`，复用 128-sequence×3-window selection SHA-256
+   `a6688c81c9295743a924afde35a4f920322cb0a84dcc821c658b3f8f812c99a0` 和既有 D2 gate：相对
+   D0 的 object/pelvis ratio 均 `<=0.70`、contact F1 increase `>=0.10`、MPJPE/foot-sliding ratio
+   均 `<=1.10`、四种 condition permutation 全部显著、history/finite 通过。不得使用 official 438、
+   CHOIS、throughput 或 favorable subset 做选择。即使通过也只产生 internal candidate；不得在
+   D2-H 内启动 D3/D4、official/CHOIS、merge/tag 或 Phase 1C。
+8. **治理与停止条件。** 所有逻辑变更先在 authority 提交，worker 只主动 fetch 精确 committed
+   object；所有 reportable run 使用 `tools/experiment.py start/finish/register` 并封存同一执行上下文
+   的 preflight/resolved config/hardware。D2-H 任一 failure/aborted/OOM 都保留并登记；无自动 fallback。
+   released checkpoint 初始化、D2-G、dense nonterminal object-goal loss、BPS tolerance 修改、继续
+   SO(3) remediation、模型/representation/loss 改写、额外预算、official/CHOIS、D3/D4、Phase 1C+
+   、Mixer、LLM state machine、merge 与 tag 全部禁止，除非另有新的 dated amendment 和用户授权。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
