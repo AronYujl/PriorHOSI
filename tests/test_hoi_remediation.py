@@ -245,6 +245,7 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertEqual(config["training_updates"], 0)
         self.assertEqual(config["selection"]["windows"], 832)
         self.assertEqual(config["gate"]["strict_component_max_abs"], 1e-4)
+        self.assertIn("stop before CUDA", config["execution_order"])
 
     def test_d2c_selection_and_immutable_ply_hashes(self):
         dataset = PriorWindowDataset(

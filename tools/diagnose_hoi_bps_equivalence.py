@@ -281,6 +281,7 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
             "nearest_squared_distance_gap_m2_max": NEAREST_SQUARED_DISTANCE_GAP_M2_MAX,
         },
         "devices": ["cpu", args.cuda_device],
+        "execution_order": "cpu-first; stop before CUDA on any unexplained CPU basis point",
         "data_contract_sha256": EXPECTED_DATA_CONTRACT_SHA256,
         "bps_sha256": BPS_SHA256,
         "stored_per_frame_bps_use": "diagnostic_gt_replay_only",
@@ -329,8 +330,19 @@ def main() -> None:
     )
     positions, coverage = select_d2c_windows(dataset)
     cpu = replay_device(dataset, positions, torch.device("cpu"))
-    cuda = replay_device(dataset, positions, cuda_device)
-    passed = bool(cpu["passed"] and cuda["passed"])
+    if cpu["passed"]:
+        cuda = replay_device(dataset, positions, cuda_device)
+    else:
+        cuda = {
+            "device": str(cuda_device),
+            "status": "skipped_due_to_cpu_gate",
+            "reason": "D2-C requires CPU and CUDA to pass; CPU has unexplained basis points",
+            "windows": 0,
+            "basis_points": 0,
+            "passed": None,
+            "gpu_kernel_calls": 0,
+        }
+    passed = bool(cpu["passed"] and cuda["passed"] is True)
     output = {
         "schema_version": 1,
         "run_id": args.run_id,
@@ -356,7 +368,10 @@ def main() -> None:
             "trimesh": trimesh.__version__,
             "cuda_runtime": torch.version.cuda,
             "cudnn": torch.backends.cudnn.version(),
-            "gpu_name": torch.cuda.get_device_name(cuda_device),
+            "gpu_name": (
+                torch.cuda.get_device_name(cuda_device) if cpu["passed"]
+                else "not queried after CPU gate failure"
+            ),
         },
         "cpu": cpu,
         "cuda": cuda,
