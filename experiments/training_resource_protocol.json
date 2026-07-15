@@ -633,5 +633,99 @@
     "authority_staging_tree_sha256": "21775b2b7b6b69365178bcafac9e7da6eee614503babf9f988fdfe653004e623",
     "next_action": "stop Phase 1B; any further direction requires a new explicit dated amendment",
     "forbidden": ["checkpoint_selection", "threshold_iteration", "stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "d2_g", "d3", "d4", "official_test", "chois", "training", "merge", "tag", "phase_1c"]
+  },
+  "phase_1b_d2f_reverse_manifold_preregistration": {
+    "status": "locked_before_implementation_or_gpu_workload",
+    "date": "2026-07-15",
+    "source_head": "b28546fb7391a7e20e9f9f683ba67c4a7b8991c9",
+    "evidence": {
+      "classification": "mixed-mechanism",
+      "coordinate_contract_defect": false,
+      "matched_conditioning_sensitivity_present": true,
+      "R-1024_raw_t0_object_rotation_abs_max": 2.841355085372925,
+      "R-3072_raw_t0_object_rotation_abs_max": 3.217041015625,
+      "R-1024_validation_total_at_3072000": 72.13663913868368,
+      "R-1024_validation_total_at_6144000": 14.074143391335383
+    },
+    "d2f0": {
+      "run_id": "p1-hoi-d2f-so3-reverse-s42-20260715",
+      "partition": "internal_validation",
+      "trace_sequences": 32,
+      "trace_sequence_selection_sha256": "7f16d1b8f4f3843639d10d0ecd367d1e2073b8b55bb03f4fef9895c960b85663",
+      "checkpoints": {
+        "R-1024-online": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+        "R-3072-online": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4"
+      },
+      "paired_variants": ["control", "object_so3_x0"],
+      "paired_initial_and_posterior_noise": true,
+      "projection_channels": [219, 228],
+      "projection_scope": "predicted frames after fixed-history restoration and before posterior mean at every reverse step",
+      "other_channel_clamp": false,
+      "posterior_change": false,
+      "trace_steps": [499, 250, 100, 50, 10, 1, 0],
+      "absolute_gate": {
+        "object_goal_error_cm_max": 8.00878906911239,
+        "pelvis_goal_error_cm_max": 31.70994416568428,
+        "mpjpe_cm_max": 36.83606872558594,
+        "history_max_abs_max": 0.00001,
+        "orthogonality_frobenius_max": 0.00001,
+        "determinant_abs_error_max": 0.00001,
+        "finite_required": true
+      },
+      "mechanism_positive_training_insufficient_gate_R-1024": {
+        "object_goal_so3_over_control_max": 0.5,
+        "mpjpe_so3_over_control_max": 1.02,
+        "pelvis_so3_over_control_max": 1.05,
+        "absolute_manifold_history_and_finite_checks_required": true
+      },
+      "checkpoint_selection": false,
+      "training_updates": 0
+    },
+    "conditional_d2f1": {
+      "trigger": "at least one D2-F0 checkpoint passes every absolute single-window gate",
+      "run_id": "p1-hoi-d2f-so3-rollout-s42-20260715",
+      "sequence_count": 128,
+      "windows_per_sequence": 3,
+      "sequence_selection_sha256": "a6688c81c9295743a924afde35a4f920322cb0a84dcc821c658b3f8f812c99a0",
+      "bootstrap_replicates": 10000,
+      "quality_and_condition_gates": "unchanged D2 gates and selection order",
+      "eligible_result_action": "lock sampler and batch configuration then stop D2-F; D3 remains forbidden"
+    },
+    "conditional_d2f2": {
+      "trigger": "no existing checkpoint is full-rollout eligible and R-1024 passes the D2-F0 mechanism-positive-training-insufficient gate",
+      "run_id": "p1-hoi-d2f-r1024-curve-s42-20260715",
+      "initialization": "random",
+      "resume_checkpoint": null,
+      "seed": 42,
+      "gpu_count": 4,
+      "micro_batch_per_gpu": 256,
+      "gradient_accumulation_steps": 1,
+      "effective_batch_size": 1024,
+      "learning_rate": 0.0001,
+      "warmup_windows": 1572864,
+      "warmup_updates": 1536,
+      "processed_windows": 18432000,
+      "processed_frames": 294912000,
+      "optimizer_updates": 18000,
+      "milestone_windows": [6144000, 12288000, 18432000],
+      "ema_decays": [0.999, 0.9999],
+      "milestone_screening": "online 32-sequence D2-F0 absolute gate first; fixed 128x3 rollout only after an absolute pass",
+      "first_full_rollout_eligible_action": "lock and stop remaining screening; do not start D3",
+      "terminal_failure_action": "register and stop after 18432000 windows"
+    },
+    "invariants": {
+      "representation_dimension": 232,
+      "diffusion_steps": 500,
+      "model_capacity_change": false,
+      "loss_change": false,
+      "condition_change": false,
+      "data_change": false,
+      "official_test_used": false,
+      "chois_used": false,
+      "sampler_stored_per_frame_bps": false,
+      "sampler_future_gt": false
+    },
+    "failure_action": "finish/register and stop at the first failed prerequisite",
+    "forbidden": ["threshold_adjustment", "support_clamp", "contact_loss_change", "timestep_reweighting", "model_expansion", "stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "d2_g", "d3", "d4", "official_test", "chois", "merge", "tag", "phase_1c"]
   }
 }

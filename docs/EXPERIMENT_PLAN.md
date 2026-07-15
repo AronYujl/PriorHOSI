@@ -660,6 +660,55 @@ run 未训练、未使用 official/CHOIS、sampler 未读取 stored per-frame BP
 终点；Phase 1B gate 仍未通过。不得运行 D2-G/D3/D4、official/CHOIS、merge/tag、Phase 1C 或
 后续阶段。任何后续 Phase 1B 方向必须重新 dated preregister。
 
+2026-07-15 Phase 1B D2-F reverse-manifold stabilization 与条件式学习曲线扩展预注册。用户在
+D2-P5 关闭后明确授权继续解决 HOIPrior 质量问题。D2-P5 已排除 codec/BPS contract 缺陷和
+“完全忽略条件”，但暴露 inference-specific mismatch：物体表面 loss 与最终 decode 都先把
+9-D 物体旋转投影到 SO(3)，500-step posterior mean 却直接使用 raw model x0；固定 reverse
+trace 的 raw object-rotation element absolute maximum 在 t=0 达到 R-1024 `2.8414`、R-3072
+`3.2170`，不可能是合法旋转矩阵。与此同时，R-1024 teacher validation total 在
+3,072,000 到 6,144,000 windows 从 `72.1366` 降到 `14.0741`，说明原 10% screening budget
+结束时尚未形成平台期。D2-F 不放宽最终质量 gate、不改变 232-D API、模型容量、训练 loss、
+数据、diffusion schedule 或 condition；只检验并在通过时固定 reverse-step manifold closure，
+然后才允许一个更长但仍属于 screening 的 R-1024 learning curve。
+
+1. **D2-F0：paired reverse-manifold diagnostic。** 唯一 reportable run id 为
+   `p1-hoi-d2f-so3-reverse-s42-20260715`。只读取 D2-P5 相同的 R-1024/R-3072 online
+   checkpoint 与固定 32 internal-validation sequences；每个 checkpoint 使用完全相同的初始
+   Gaussian sample 和逐 step posterior noise，成对运行 `control` 和 `object_so3_x0`。后者仅在
+   每个 reverse step 的 model x0 已生成、fixed history 已恢复之后，将预测帧的 channels
+   `[219:228]` 投影到 SO(3)，再进入 posterior mean；不 clamp 其他 channel、不改 posterior
+   variance、不改变 BPS/rebase。逐个 `{499,250,100,50,10,1,0}` 登记 raw/projected
+   orthogonality residual、determinant error、fieldwise x0 error、range、endpoint metrics，且
+   sampler 仍不得读取 stored per-frame BPS 或 future GT。
+2. **D2-F0 gates。** 两条 paired path 均须 finite 且 history max-abs `<=1e-5`；SO(3) path 的
+   predicted-frame maximum `||R^T R-I||_F <=1e-5`、`|det(R)-1| <=1e-5`。只有至少一个
+   checkpoint 同时满足既有单窗口 thresholds：object goal `<=8.0087890691 cm`、pelvis goal
+   `<=31.7099441657 cm`、MPJPE `<=36.8360687256 cm`，才允许 D2-F1。若没有 checkpoint
+   达到绝对 gate，但 R-1024 的 paired SO(3)/control object-goal ratio `<=0.50`、MPJPE ratio
+   `<=1.02`、pelvis ratio `<=1.05` 且上述 finite/history/manifold checks 全通过，则唯一分类为
+   `sampler-mechanism-positive-training-insufficient` 并允许 D2-F2；否则登记并停止。
+3. **D2-F1：固定三窗口 rollout。** 唯一 reportable run id 为
+   `p1-hoi-d2f-so3-rollout-s42-20260715`。只评估 D2-F0 达到绝对 gate 的 checkpoint，复用既有
+   128-sequence、三窗口 generated-history selection、seed 42、paired condition permutation 与
+   10,000 bootstrap；唯一 sampler 差异为已通过的逐 step object SO(3) projection。完整沿用 D2
+   object/pelvis/contact/MPJPE/FS/finite/condition gates 和选择顺序。若有 eligible checkpoint，
+   只锁定 sampler 与 batch 配置并停止本次 D2-F session；不得启动 D3。若无 eligible candidate，
+   只有 R-1024 同时满足上一条 mechanism-positive trigger 时才允许 D2-F2，否则停止。
+4. **D2-F2：唯一条件式 R-1024 learning curve。** 唯一训练 run id 为
+   `p1-hoi-d2f-r1024-curve-s42-20260715`；必须从 seed-42 随机权重开始，不能 resume screening
+   checkpoint。保持 micro/GPU 256×4、accumulation 1、effective batch 1024、LR `1e-4`、warmup
+   1,572,864 windows/1,536 updates、现有 loss weights、500-step diffusion 与 232-D 模型；总预算
+   18,432,000 windows、294,912,000 frames、18,000 updates，在 6,144,000、12,288,000 和
+   18,432,000 保存 online/EMA-0.999/EMA-0.9999。每个 milestone 只先用 online weights 运行同一
+   32-sequence SO(3) reverse gate；只有达到绝对单窗口 gate 的 milestone 才运行一次固定 128×3
+   full D2 rollout。首个 full-rollout eligible milestone 可锁定配置并终止后续 screening；否则在
+   18,432,000 后停止。该学习曲线是 screening，不是 D3，不能以 loss 下降代替 rollout gate。
+5. **全局停止与治理。** 所有 GPU workload 仅能在四卡 worker、使用 lifecycle 与全新 run id；
+   resolved config 必须先归档，worker checkout 在 reportable run 中不可改变，artifact 仍由 worker
+   主动回收。D2-F 任一步 failure/aborted/OOM 都 finish/register。不得调整上述阈值，不得增加
+   support clamp、contact loss、高噪声 weighting、模型容量或新 condition。D2-G、D3、D4、
+   official/CHOIS、merge/tag、Phase 1C 及后续阶段在 D2-F 内全部禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
