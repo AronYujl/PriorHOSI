@@ -631,6 +631,17 @@ rank 128--191 fresh holdout 的任何结果。worker/authority staging tree SHA-
    subsets 全部通过，原 D2-P5 条件授权才生效；其余 D2-G、D3、D4、official/CHOIS、merge/tag、
    Phase 1C 与后续阶段仍禁止。
 
+D2-E r1 已在 commit `a4e8a82f78fbdbd6c3c2bbc440da79c9ae1089b4` 通过。CPU/CUDA 对 disclosed
+1,664 windows 与 fresh 832 windows 均覆盖 13/13 类、0 unexplained、0 nonfinite；CPU 的
+equivalent 点数为 200/115，CUDA 为 192/105。四个子集的最大线性距离差分别为
+`0.232105/0.224496/0.225945/0.228633 µm`，均低于锁定的 `0.25 µm`；report-only 最大平方差
+为 `3.973856e-7 m²`，双侧最大 PLY residual 为 `2.747639e-7/3.578024e-8 m`。worker GPU2
+preflight 为 15 MiB/0%，GPU0 外部 PID 858478 未 kill；未加载 checkpoint、未做 model forward
+或 training，未使用 official/CHOIS。sealed artifact tree SHA-256 为
+`9845eb3e030918126fad01f3d9dffeccdbb316200bafc83fc3086edf2c71e8cf`，精简结果见
+`experiments/results/p1_hoi_phase1b_d2e_bps_linear_equivalence_s42_20260715.json`。D2-P5 条件授权
+现已生效；只能提交 P0 contract replay 的最小线性等价改动并运行既定 P0/P1/P2。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
