@@ -556,6 +556,26 @@ immutable-mesh 最近点。
    停止；D2-G、D3、D4、merge/tag、Phase 1C 及后续阶段继续禁止，任何 sampler/loss/model 或
    training 变更仍需新的 dated amendment。
 
+2026-07-15 D2-D 按不相交 holdout gate 停止。reportable run
+`p1-hoi-d2d-bps-tolerance-s42-20260715` 在 worker clean commit
+`e51a128346c4ec1be46ac48483ec3b73eccdb3d4` 完成。CPU calibration 的 851,968 个 basis 点中，
+851,882 strict、86 dual-tolerance equivalent、0 unexplained、0 nonfinite，确认原 D2-C 的 17 个
+失败确实来自过严的 `1e-7 m²` 数值界限。独立 holdout 的 851,968 个点中，851,854 strict、
+113 equivalent、1 unexplained、0 nonfinite；唯一失败为 `sub11_clothesstand_071`、global window
+57370、basis 53。其 component max-abs 为 `0.00205436`，stored/recomputed PLY residual 分别为
+`2.15037e-7/3.33200e-8 m`，线性距离差 `1.91293e-7 m` 通过 `2.5e-7 m` cap，但平方距离差
+`3.36442e-7 m²` 超过锁定的 `2.5e-7 m²` cap。
+
+由于 calibration/holdout CPU conjunction 为 false，CUDA 按预注册 fail-fast 跳过：0 windows、
+0 basis、0 GPU kernels。selected GPU 2 在 preflight 为 15 MiB/0%；GPU 0 的外部 PID 858478
+占 3,486 MiB，未 kill，throughput 未用于结论。run 未加载 checkpoint、未做 model forward 或
+training update，未使用 official/CHOIS，sampler 未读取 stored per-frame BPS 或 future GT。
+完整结果与 hashes 位于
+`experiments/results/p1_hoi_phase1b_d2d_bps_tolerance_s42_20260715.json`。D2-P4 不得运行；
+不得针对已揭示的 holdout failure 继续事后调阈值。若未来用 scale-invariant linear gate 替代固定
+squared-distance gate，必须有新的明确 dated amendment 与全新未查看 holdout。D2-G、D3、D4、
+merge/tag、Phase 1C 及后续阶段继续禁止。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

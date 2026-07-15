@@ -440,6 +440,37 @@
       "checkpoint_selection": false,
       "training_authorized": false
     },
+    "result": {
+      "run_id": "p1-hoi-d2d-bps-tolerance-s42-20260715",
+      "git_commit": "e51a128346c4ec1be46ac48483ec3b73eccdb3d4",
+      "status": "completed",
+      "classification": "dual-tolerance-geometric-equivalence-failure",
+      "passed": false,
+      "cpu_calibration": {
+        "strict_basis_points": 851882,
+        "equivalent_basis_points": 86,
+        "unexplained_basis_points": 0,
+        "nonfinite_basis_points": 0,
+        "passed": true
+      },
+      "cpu_holdout": {
+        "strict_basis_points": 851854,
+        "equivalent_basis_points": 113,
+        "unexplained_basis_points": 1,
+        "nonfinite_basis_points": 0,
+        "passed": false,
+        "failure_sequence": "sub11_clothesstand_071",
+        "failure_global_window_index": 57370,
+        "failure_basis_index": 53,
+        "failure_squared_gap_m2": 0.0000003364421408136309,
+        "failure_linear_gap_m": 0.0000001912934300962732
+      },
+      "cuda_status": "skipped_due_to_cpu_gate",
+      "cuda_gpu_kernel_calls": 0,
+      "conditional_d2p_authorized": false,
+      "aggregate": "experiments/results/p1_hoi_phase1b_d2d_bps_tolerance_s42_20260715.json",
+      "aggregate_sha256": "a120330c21b24b286e7a81b5edb6c676df0e7a8b9fc835f1a58cf899d2c2e8b7"
+    },
     "failure_action": "register and stop Phase 1B",
     "forbidden": ["stored_per_frame_bps_in_sampler", "future_gt_in_sampler", "unregistered_tolerance_change", "d2_g", "d3", "d4", "official_test", "chois", "checkpoint_selection", "training", "merge", "tag", "phase_1c"]
   }

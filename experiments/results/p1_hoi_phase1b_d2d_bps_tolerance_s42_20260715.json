@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "stage": "D2-D BPS numerical tolerance calibration",
+  "run_id": "p1-hoi-d2d-bps-tolerance-s42-20260715",
+  "seed": 42,
+  "git_commit": "e51a128346c4ec1be46ac48483ec3b73eccdb3d4",
+  "status": "completed",
+  "classification": "dual-tolerance-geometric-equivalence-failure",
+  "passed": false,
+  "conditional_d2p_authorized": false,
+  "rationale": {
+    "old_squared_gap_m2_max": 0.0000001,
+    "sealed_d2c_component_mismatches": 86,
+    "float64_immutable_ply_max_linear_gap_m": 0.00000012267085047756865,
+    "conclusion": "The old threshold was too strict at float32 contract precision, so D2-D preregistered a bounded squared-gap increase plus an independent linear cap and a disjoint holdout."
+  },
+  "gate": {
+    "strict_component_max_abs": 0.0001,
+    "stored_mesh_residual_m_max": 0.000001,
+    "recomputed_mesh_residual_m_max": 0.000001,
+    "nearest_squared_distance_gap_m2_max": 0.00000025,
+    "nearest_linear_distance_gap_m_max": 0.00000025,
+    "finite_required": true
+  },
+  "selection": {
+    "partition": "internal_validation",
+    "available_windows": 29382,
+    "object_classes": 13,
+    "windows_per_class_per_subset": 64,
+    "calibration_windows": 832,
+    "holdout_windows": 832,
+    "combined_windows": 1664,
+    "overlap": 0,
+    "calibration_global_window_indices_sha256": "5f13844f9c3c1540d89d19b304e484cba6e84cc8adcb7276ebf4d17fb803db72",
+    "calibration_sequence_window_sha256": "e7827e83b88058e9d87dc4d56ccdbfe5929ea245645356fab278364b1aae1f38",
+    "holdout_global_window_indices_sha256": "750378d6933a6e190ceebfe582b00fac16b403dad853bd9c30f2bfe0b8fdc00a",
+    "holdout_sequence_window_sha256": "f2d8fbc4ee42150727a981fbca1b7ef45b9b0902cfb64f859d797bc8ce9a944e",
+    "combined_global_window_indices_sha256": "e58bc72326ec4ec193b7e8371c9a034f64d09761f188ee863f1ccd63ef21bf87",
+    "combined_sequence_window_sha256": "f629e28cb4b277ad53c3bae4df96726a5224457fbbb1c779b4214de8385392ad"
+  },
+  "cpu": {
+    "passed": false,
+    "calibration": {
+      "windows": 832,
+      "object_classes": 13,
+      "basis_points": 851968,
+      "strict_basis_points": 851882,
+      "equivalent_basis_points": 86,
+      "unexplained_basis_points": 0,
+      "nonfinite_basis_points": 0,
+      "max_component_abs_including_equivalent_points": 0.06836101412773132,
+      "max_accepted_squared_gap_m2": 0.00000021901005275992702,
+      "max_accepted_linear_gap_m": 0.00000016702891825204347,
+      "runtime_seconds": 304.2454813119839,
+      "passed": true
+    },
+    "holdout": {
+      "windows": 832,
+      "object_classes": 13,
+      "basis_points": 851968,
+      "strict_basis_points": 851854,
+      "equivalent_basis_points": 113,
+      "unexplained_basis_points": 1,
+      "nonfinite_basis_points": 0,
+      "max_component_abs_including_equivalent_points": 0.031195253133773804,
+      "max_accepted_squared_gap_m2": 0.00000024946060706021456,
+      "max_accepted_linear_gap_m": 0.00000023210523814043427,
+      "runtime_seconds": 308.7415181850083,
+      "passed": false,
+      "failure": {
+        "object_name": "clothesstand",
+        "sequence": "sub11_clothesstand_071",
+        "dataset_position": 3150,
+        "global_window_index": 57370,
+        "source_frame": 81850,
+        "stored_bps_offset": 168,
+        "basis_index": 53,
+        "selected_vertex_index": 10642,
+        "stored_vertex_index": 10481,
+        "component_max_abs": 0.002054363489151001,
+        "stored_mesh_residual_m": 0.00000021503671541306096,
+        "recomputed_mesh_residual_m": 0.00000003332000937312528,
+        "nearest_squared_distance_gap_m2": 0.0000003364421408136309,
+        "nearest_linear_distance_gap_m": 0.0000001912934300962732,
+        "passed_squared_gap": false,
+        "passed_linear_gap": true,
+        "passed_both_mesh_residuals": true
+      }
+    }
+  },
+  "cuda": {
+    "status": "skipped_due_to_cpu_gate",
+    "reason": "D2-D requires both CPU subsets to pass before CUDA",
+    "calibration_windows": 0,
+    "holdout_windows": 0,
+    "basis_points": 0,
+    "gpu_kernel_calls": 0,
+    "passed": null
+  },
+  "assets": {
+    "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "immutable_ply_object_count": 13,
+    "runtime_hash_verification_passed": true
+  },
+  "workload_scope": {
+    "stored_per_frame_bps_use": "diagnostic_gt_replay_only",
+    "sampler_stored_per_frame_bps": false,
+    "sampler_future_gt": false,
+    "official_test_used": false,
+    "chois_used": false,
+    "checkpoint_count_loaded": 0,
+    "checkpoint_selection": false,
+    "model_forward_calls": 0,
+    "training_updates": 0,
+    "d2p4_run_started": false
+  },
+  "preflight_contention": {
+    "four_gpu_idle": false,
+    "selected_gpu": 2,
+    "selected_gpu_memory_used_mib": 15,
+    "selected_gpu_utilization_percent": 0,
+    "external_gpu_0_process": "PID 858478, python, 3486 MiB",
+    "external_process_killed": false,
+    "throughput_used_for_selection": false
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2d-bps-tolerance-s42-20260715",
+    "tree_sha256": "2b2933829fe08417770490dd0121776ed005b8fa9a3ff00beb89f7d51db37039",
+    "tree_files": 6,
+    "tree_bytes": 439239,
+    "manifest_sha256": "0ef7eecf53aa7dcf738d9631d5291a0b63a570cc2532812ef212740518d08119",
+    "metrics_sha256": "e3889c0e913c9f2da773889ef007b25df662ba657d02f359b227230378abffd2",
+    "resolved_config_sha256": "8a033eca68a2ced346ed857fcae72ce4fc6e9cb999af2fa3443c747d6303166a",
+    "preflight_sha256": "603fe969715d370d596e7e93a22e30d94bd81ece0865e1c932c637e1010e9c5c",
+    "diagnostic_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_local_registry_sha256": "3b7558d0d64a5f3e57e885d75cf1850964a4d667c67be27fd4833112ee4a2b20"
+  },
+  "blocker": "The bounded adjustment passed every sealed D2-C calibration mismatch but failed one independently selected holdout basis on the preregistered squared-distance cap. Continuing to tune against this revealed holdout would be post-hoc threshold fitting.",
+  "forbidden_next_actions": [
+    "run p1-hoi-d2p4-mechanism-s42-20260715",
+    "perform another unregistered tolerance change",
+    "use stored per-frame BPS or future GT in the sampler",
+    "promote or select an existing D2 checkpoint",
+    "D2-G, D3 or D4",
+    "official native or CHOIS evaluation",
+    "merge or create exp/p1b-hoi-v1",
+    "start Phase 1C or any later phase"
+  ],
+  "next_allowed_action": "Stop Phase 1B. A scale-invariant replacement of the squared-distance condition would require a new explicit dated amendment and a fresh untouched internal holdout; it must not be tuned on this disclosed failure."
+}
