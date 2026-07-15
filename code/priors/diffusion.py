@@ -92,6 +92,66 @@ class GaussianDiffusion(nn.Module):
         noisy[:, :REPRESENTATION.history_frames] = clean[:, :REPRESENTATION.history_frames]
         return noisy
 
+    def posterior_mean(
+        self,
+        current: torch.Tensor,
+        clean: torch.Tensor,
+        timesteps: torch.Tensor,
+    ) -> torch.Tensor:
+        """Return the production ``q(x_{t-1} | x_t, x_0)`` posterior mean.
+
+        Keeping this formula in one helper makes the paired D2-H diagnostic and
+        the production sampler consume the exact same registered coefficients.
+        The helper deliberately performs no projection, clamp, or conditioning.
+        """
+        if current.shape != clean.shape:
+            raise ValueError(
+                f"posterior current/clean shapes differ: {tuple(current.shape)}/{tuple(clean.shape)}"
+            )
+        if current.ndim != 3 or current.shape[1:] != (
+            REPRESENTATION.window_frames, REPRESENTATION.dimension,
+        ):
+            raise ValueError(f"expected posterior state [B,16,232], got {tuple(current.shape)}")
+        if timesteps.shape != (current.shape[0],) or timesteps.dtype != torch.long:
+            raise ValueError(f"expected long posterior timesteps [B], got {timesteps.shape}/{timesteps.dtype}")
+        if bool((timesteps < 0).any()) or bool((timesteps >= self.timesteps).any()):
+            raise ValueError("posterior timestep is outside the registered diffusion schedule")
+        return (
+            _extract(self.posterior_mean_coef1, timesteps, current.shape) * clean
+            + _extract(self.posterior_mean_coef2, timesteps, current.shape) * current
+        )
+
+    def posterior_sample(
+        self,
+        current: torch.Tensor,
+        clean: torch.Tensor,
+        timesteps: torch.Tensor,
+        noise: torch.Tensor,
+        fixed_history: torch.Tensor,
+    ) -> torch.Tensor:
+        """Apply one production reverse posterior step with explicit noise.
+
+        ``noise`` is explicit so paired diagnostics can prove identity instead
+        of relying on generator call order.  At timestep zero the registered
+        posterior variance is zero, so a zero noise tensor preserves the
+        production sampler's historical no-draw behavior.
+        """
+        if noise.shape != current.shape:
+            raise ValueError(f"posterior noise shape mismatch: {tuple(noise.shape)}/{tuple(current.shape)}")
+        expected_history = (
+            current.shape[0], REPRESENTATION.history_frames, REPRESENTATION.dimension,
+        )
+        if fixed_history.shape != expected_history:
+            raise ValueError(
+                f"expected fixed history {expected_history}, got {tuple(fixed_history.shape)}"
+            )
+        mean = self.posterior_mean(current, clean, timesteps)
+        result = mean + (
+            0.5 * _extract(self.posterior_log_variance, timesteps, current.shape)
+        ).exp() * noise
+        result[:, :REPRESENTATION.history_frames] = fixed_history
+        return result
+
     @torch.no_grad()
     def sample(
         self,
@@ -121,20 +181,15 @@ class GaussianDiffusion(nn.Module):
             clean = prepare_clean_x0(
                 clean, fixed_history, object_so3_x0=object_so3_x0,
             )
-            mean = (
-                _extract(self.posterior_mean_coef1, timesteps, current.shape) * clean
-                + _extract(self.posterior_mean_coef2, timesteps, current.shape) * current
-            )
             if step:
                 noise = torch.randn(
                     (base_batch, *current.shape[1:]), device=current.device, generator=generator,
                 ).repeat(paired_repeats, 1, 1)
-                current = mean + (
-                    0.5 * _extract(self.posterior_log_variance, timesteps, current.shape)
-                ).exp() * noise
             else:
-                current = mean
-            current[:, :REPRESENTATION.history_frames] = fixed_history
+                noise = torch.zeros_like(current)
+            current = self.posterior_sample(
+                current, clean, timesteps, noise, fixed_history,
+            )
         return current
 
 
