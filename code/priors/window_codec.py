@@ -69,6 +69,11 @@ def zup_to_yup_tensor(value: torch.Tensor) -> torch.Tensor:
     return converted
 
 
+def yup_to_zup_tensor(value: torch.Tensor) -> torch.Tensor:
+    """Invert :func:`zup_to_yup_tensor` for author BPS delta replay."""
+    return torch.stack((value[..., 0], -value[..., 2], value[..., 1]), dim=-1)
+
+
 @dataclass(frozen=True)
 class WindowFrame:
     """A window-local XZ origin/yaw frame plus its object rotation reference."""

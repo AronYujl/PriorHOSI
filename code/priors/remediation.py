@@ -8,8 +8,10 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 
 import numpy as np
 import torch
+from pytorch3d.ops import knn_points
 
 from .representation import REPRESENTATION
+from .window_codec import yup_to_zup_tensor
 
 
 D0_TIMESTEPS: Tuple[int, ...] = (0, 1, 10, 50, 100, 250, 499)
@@ -84,3 +86,97 @@ def field_squared_error(prediction: torch.Tensor, target: torch.Tensor) -> Dict[
 def selection_sha256(values: Iterable[object]) -> str:
     payload = "\n".join(str(value) for value in values) + "\n"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def bps_replay_equivalence_gate(
+    recomputed: torch.Tensor,
+    stored: torch.Tensor,
+    basis: torch.Tensor,
+    transformed_vertices: torch.Tensor,
+    selected_vertex_indices: torch.Tensor,
+    *,
+    strict_component_max_abs: float = 1e-4,
+    stored_mesh_residual_m_max: float = 1e-6,
+    recomputed_mesh_residual_m_max: float = 1e-6,
+    nearest_squared_distance_gap_m2_max: float = 1e-7,
+) -> Dict[str, object]:
+    """Apply the D2-C strict-or-provable-tie BPS replay gate.
+
+    This is an audit-only comparison against stored GT BPS.  It does not
+    participate in sampler conditioning; generated BPS continues to come only
+    from ``basis``, the immutable PLY vertices, and the current object pose.
+    """
+    if recomputed.shape != stored.shape or recomputed.ndim != 2 or recomputed.shape[-1] != 3:
+        raise ValueError(f"expected matching [P,3] BPS tensors, got {recomputed.shape}/{stored.shape}")
+    if basis.shape != recomputed.shape:
+        raise ValueError(f"basis shape mismatch: {basis.shape}/{recomputed.shape}")
+    if transformed_vertices.ndim != 2 or transformed_vertices.shape[-1] != 3:
+        raise ValueError(f"expected [V,3] transformed vertices, got {transformed_vertices.shape}")
+    if selected_vertex_indices.shape != recomputed.shape[:-1]:
+        raise ValueError("selected vertex indices must have one value per basis point")
+    if selected_vertex_indices.dtype != torch.long:
+        raise ValueError("selected vertex indices must be torch.long")
+    if bool((selected_vertex_indices < 0).any()) or bool(
+        (selected_vertex_indices >= transformed_vertices.shape[0]).any()
+    ):
+        raise ValueError("selected vertex index is outside the immutable PLY")
+
+    point_count = recomputed.shape[0]
+    component_error = (recomputed - stored).abs().max(dim=-1).values
+    mesh_finite = bool(torch.isfinite(transformed_vertices).all())
+    finite = (
+        torch.isfinite(recomputed).all(dim=-1)
+        & torch.isfinite(stored).all(dim=-1)
+        & torch.isfinite(basis).all(dim=-1)
+        & mesh_finite
+    )
+    strict = finite & (component_error <= strict_component_max_abs)
+    candidates = finite & ~strict
+    tie = torch.zeros(point_count, dtype=torch.bool, device=recomputed.device)
+    stored_indices = torch.full(
+        (point_count,), -1, dtype=torch.long, device=recomputed.device,
+    )
+    stored_residual = torch.full_like(component_error, float("inf"))
+    recomputed_residual = torch.full_like(component_error, float("inf"))
+    squared_distance_gap = torch.full_like(component_error, float("inf"))
+    if bool(candidates.any()):
+        rows = torch.nonzero(candidates).flatten()
+        stored_closest = basis[rows] + yup_to_zup_tensor(stored[rows])
+        stored_nearest = knn_points(
+            stored_closest[None], transformed_vertices[None], K=1, return_nn=True,
+        )
+        candidate_stored_indices = stored_nearest.idx[0, :, 0]
+        stored_indices[rows] = candidate_stored_indices
+        stored_vertices = transformed_vertices[candidate_stored_indices]
+        selected_vertices = transformed_vertices[selected_vertex_indices[rows]]
+        recomputed_closest = basis[rows] + yup_to_zup_tensor(recomputed[rows])
+        candidate_stored_residual = (stored_closest - stored_vertices).norm(dim=-1)
+        candidate_recomputed_residual = (recomputed_closest - selected_vertices).norm(dim=-1)
+        stored_distance = (stored_vertices - basis[rows]).square().sum(dim=-1)
+        recomputed_distance = (selected_vertices - basis[rows]).square().sum(dim=-1)
+        candidate_gap = (stored_distance - recomputed_distance).abs()
+        stored_residual[rows] = candidate_stored_residual
+        recomputed_residual[rows] = candidate_recomputed_residual
+        squared_distance_gap[rows] = candidate_gap
+        tie[rows] = (
+            torch.isfinite(candidate_stored_residual)
+            & torch.isfinite(candidate_recomputed_residual)
+            & torch.isfinite(candidate_gap)
+            & (candidate_stored_residual <= stored_mesh_residual_m_max)
+            & (candidate_recomputed_residual <= recomputed_mesh_residual_m_max)
+            & (candidate_gap <= nearest_squared_distance_gap_m2_max)
+        )
+    accepted = strict | tie
+    failure = ~accepted
+    return {
+        "passed": not bool(failure.any()),
+        "component_error": component_error,
+        "finite": finite,
+        "strict": strict,
+        "tie": tie,
+        "failure": failure,
+        "stored_vertex_indices": stored_indices,
+        "stored_mesh_residual_m": stored_residual,
+        "recomputed_mesh_residual_m": recomputed_residual,
+        "nearest_squared_distance_gap_m2": squared_distance_gap,
+    }

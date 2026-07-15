@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 import sys
 from pathlib import Path
@@ -15,16 +16,27 @@ from datasets.utils import get_smpl_parents, zup_to_yup
 from priors.data import PriorWindowDataset
 from priors.losses import hoi_training_losses
 from priors.remediation import (
+    bps_replay_equivalence_gate,
     deterministic_derangement,
     field_squared_error,
     select_internal_triples,
     select_teacher_windows,
+    selection_sha256,
 )
 from priors.window_codec import (
     WindowFrame,
     project_to_so3,
     rotation_geodesic,
     zup_to_yup_tensor,
+)
+from tools.diagnose_hoi_bps_equivalence import (
+    EXPECTED_GLOBAL_SELECTION_SHA256,
+    EXPECTED_SEQUENCE_WINDOW_SHA256,
+    PLY_SHA256,
+    replay_device as d2c_replay_device,
+    resolved_config as d2c_resolved_config,
+    select_d2c_windows,
+    verify_assets as verify_d2c_assets,
 )
 from tools.diagnose_hoi_d2p import (
     D0_T499,
@@ -190,6 +202,83 @@ class RemediationDiagnosticTest(unittest.TestCase):
         )
         self.assertEqual(
             classify_backend(cpu, {"passed": False}), "backend-replay-unresolved",
+        )
+
+    def test_d2c_gate_accepts_only_strict_or_provable_mesh_ties(self):
+        basis = torch.zeros(2, 3)
+        vertices = torch.tensor(((1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (2.0, 0.0, 0.0)))
+        selected = torch.tensor((0, 0), dtype=torch.long)
+        recomputed = zup_to_yup_tensor(vertices[selected] - basis)
+        stored = recomputed.clone()
+        stored[1] = zup_to_yup_tensor(vertices[1] - basis[1])
+        gate = bps_replay_equivalence_gate(recomputed, stored, basis, vertices, selected)
+        self.assertTrue(gate["passed"])
+        self.assertTrue(bool(gate["strict"][0]))
+        self.assertTrue(bool(gate["tie"][1]))
+        self.assertLessEqual(float(gate["stored_mesh_residual_m"][1]), 1e-6)
+        self.assertLessEqual(float(gate["nearest_squared_distance_gap_m2"][1]), 1e-7)
+
+        non_tie = stored.clone()
+        non_tie[1] = zup_to_yup_tensor(vertices[2] - basis[1])
+        rejected = bps_replay_equivalence_gate(recomputed, non_tie, basis, vertices, selected)
+        self.assertFalse(rejected["passed"])
+        self.assertTrue(bool(rejected["failure"][1]))
+
+        off_mesh = stored.clone()
+        off_mesh[1] += torch.tensor((0.0, 0.0, 2e-6))
+        rejected = bps_replay_equivalence_gate(recomputed, off_mesh, basis, vertices, selected)
+        self.assertFalse(rejected["passed"])
+        self.assertTrue(bool(rejected["failure"][1]))
+
+    def test_d2c_config_forbids_sampler_gt_and_checkpoint_work(self):
+        args = SimpleNamespace(
+            run_id="p1-hoi-d2c-bps-equivalence-s42-20260715",
+            output="/tmp/d2c.json",
+            cuda_device="cuda:0",
+        )
+        config = d2c_resolved_config(args)
+        self.assertFalse(config["sampler_stored_per_frame_bps"])
+        self.assertFalse(config["sampler_future_gt"])
+        self.assertEqual(config["checkpoint_count_loaded"], 0)
+        self.assertEqual(config["model_forward_calls"], 0)
+        self.assertEqual(config["training_updates"], 0)
+        self.assertEqual(config["selection"]["windows"], 832)
+        self.assertEqual(config["gate"]["strict_component_max_abs"], 1e-4)
+
+    def test_d2c_selection_and_immutable_ply_hashes(self):
+        dataset = PriorWindowDataset(
+            str(REPO), "hoi", partition="internal_validation",
+            split_manifest="experiments/splits/omomo_hoi_train_validation_seed42.json",
+        )
+        positions, coverage = select_d2c_windows(dataset)
+        self.assertEqual(len(positions), 832)
+        self.assertEqual(set(coverage), set(PLY_SHA256))
+        self.assertTrue(all(value == 64 for value in coverage.values()))
+        self.assertEqual(
+            selection_sha256(int(dataset.indices[position]) for position in positions),
+            EXPECTED_GLOBAL_SELECTION_SHA256,
+        )
+        payload = "\n".join(
+            f"{dataset.scene_names[int(dataset.sequence_ids[int(dataset.indices[position])])]}:"
+            f"{int(dataset.indices[position])}"
+            for position in positions
+        )
+        self.assertEqual(hashlib.sha256(payload.encode()).hexdigest(), EXPECTED_SEQUENCE_WINDOW_SHA256)
+        assets = verify_d2c_assets()
+        self.assertEqual(set(assets["rest_object_ply"]), set(PLY_SHA256))
+
+    def test_d2c_known_cpu_mismatches_are_provable_ties(self):
+        dataset = PriorWindowDataset(
+            str(REPO), "hoi", partition="internal_validation",
+            split_manifest="experiments/splits/omomo_hoi_train_validation_seed42.json",
+        )
+        global_indices = (426713, 511231, 25839, 182367, 186967)
+        positions = [int(np.flatnonzero(dataset.indices == value)[0]) for value in global_indices]
+        result = d2c_replay_device(dataset, positions, torch.device("cpu"))
+        self.assertEqual(result["unexplained_basis_points"], 0)
+        self.assertGreaterEqual(result["tie_basis_points"], 1)
+        self.assertEqual(
+            result["strict_basis_points"] + result["tie_basis_points"], 5 * 1024,
         )
 
 
