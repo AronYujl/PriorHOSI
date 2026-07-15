@@ -1,0 +1,198 @@
+{
+  "schema_version": 1,
+  "phase": "1B",
+  "stage": "D2-P5 fixed internal mechanism diagnostic",
+  "run_id": "p1-hoi-d2p5-mechanism-s42-20260715",
+  "seed": 42,
+  "git_commit": "1c209ebd9347cd1127015bc4393f9c9469eb6ef9",
+  "status": "completed",
+  "classification": "mixed-mechanism",
+  "phase_1b_gate_passed": false,
+  "runtime_seconds": 4714.633294582367,
+  "selection": {
+    "partition": "internal_validation",
+    "teacher_windows": 512,
+    "teacher_window_indices_sha256": "9d3f8cc4647018fdf285481ffef95df6eb3c4e6f6ad0b680f85e23b1edeebd71",
+    "trace_sequences": 32,
+    "trace_sequence_selection_sha256": "7f16d1b8f4f3843639d10d0ecd367d1e2073b8b55bb03f4fef9895c960b85663",
+    "official_test_sequence_count": 0,
+    "chois_sequence_count": 0
+  },
+  "p0_contract_replay": {
+    "passed": true,
+    "windows": 32,
+    "coordinate_checks": {
+      "pelvis_goal_max_abs": 0.0,
+      "object_goal_max_abs": 0.0,
+      "metric_object_target_max_abs": 0.00000035762786865234375,
+      "history_max_abs": 0.0000002980232238769531,
+      "tolerance": 0.00001,
+      "passed": true
+    },
+    "bps": {
+      "object_classes_in_fixed_selection": 11,
+      "basis_points": 32768,
+      "strict_basis_points": 32765,
+      "equivalent_basis_points": 3,
+      "unexplained_basis_points": 0,
+      "nonfinite_basis_points": 0,
+      "max_component_abs_including_equivalent_points": 0.012261539697647095,
+      "max_accepted_linear_gap_m": 0.00000007261319068252448,
+      "max_squared_gap_m2_report_only": 0.00000012512317981716592,
+      "passed": true
+    },
+    "immutable_bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "immutable_ply_object_count_verified": 13,
+    "d2e_aggregate_sha256": "c466bc8db49b025427c940c7e6bf224a0993dc9453611919495fe8cb1ca6929e",
+    "future_gt_used_for_condition": false
+  },
+  "p1_teacher_x0": {
+    "timesteps": [0, 1, 10, 50, 100, 250, 499],
+    "condition_variants": [
+      "matched",
+      "text_permuted",
+      "bps_permuted",
+      "pelvis_permuted",
+      "object_goal_permuted"
+    ],
+    "bootstrap_replicates": 10000,
+    "all_four_permutations_significantly_worse_at_all_timesteps": true,
+    "significant_comparisons": 56,
+    "total_comparisons": 56,
+    "d0_t499_reference_mse": {
+      "joint_positions": 0.0024204085348173976,
+      "object_translation": 0.00893084186827764
+    },
+    "R-1024": {
+      "t499_matched_mse": {
+        "joint_positions": 0.005512115095598347,
+        "object_translation": 0.0033941562044006446
+      },
+      "d0_t499_ratio": {
+        "joint_positions": 2.2773490575276774,
+        "object_translation": 0.3800488525562961
+      },
+      "teacher_within_1.10": false,
+      "t499_bootstrap_95_ci_matched_advantage": {
+        "text_permuted": [0.0015846234557614024, 0.0029333621467458213],
+        "bps_permuted": [0.00009018496468016224, 0.0005256324600354745],
+        "pelvis_permuted": [0.00497543913746199, 0.00612586962433852],
+        "object_goal_permuted": [0.011314058983693087, 0.0175988455111618]
+      }
+    },
+    "R-3072": {
+      "t499_matched_mse": {
+        "joint_positions": 0.006693160044051183,
+        "object_translation": 0.0041963482056033286
+      },
+      "d0_t499_ratio": {
+        "joint_positions": 2.7653017859466993,
+        "object_translation": 0.46987151575360014
+      },
+      "teacher_within_1.10": false,
+      "t499_bootstrap_95_ci_matched_advantage": {
+        "text_permuted": [0.00138420586721395, 0.002563501747602004],
+        "bps_permuted": [0.0002913424006917964, 0.0007380331724618827],
+        "pelvis_permuted": [0.004510566336841748, 0.0055072001500320765],
+        "object_goal_permuted": [0.011503534986051634, 0.018119945768635404]
+      }
+    }
+  },
+  "p2_reverse_trace": {
+    "steps": [499, 250, 100, 50, 10, 1, 0],
+    "finite": true,
+    "history_max_abs_error": 0.00000035762786865234375,
+    "thresholds": {
+      "object_goal_error_cm": 8.00878906911239,
+      "pelvis_goal_error_cm": 31.70994416568428,
+      "mpjpe_cm": 36.83606872558594
+    },
+    "R-1024": {
+      "object_goal_error_cm": 143.54635620117188,
+      "pelvis_goal_error_cm": 12.570226669311523,
+      "mpjpe_cm": 52.250404357910156,
+      "checks": {
+        "object_goal_error_cm": false,
+        "pelvis_goal_error_cm": true,
+        "mpjpe_cm": false
+      }
+    },
+    "R-3072": {
+      "object_goal_error_cm": 148.1092071533203,
+      "pelvis_goal_error_cm": 11.226083755493164,
+      "mpjpe_cm": 60.04742431640625,
+      "checks": {
+        "object_goal_error_cm": false,
+        "pelvis_goal_error_cm": true,
+        "mpjpe_cm": false
+      }
+    }
+  },
+  "checkpoint_inputs": {
+    "R-1024-online": {
+      "sha256": "d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23",
+      "processed_windows": 6144000,
+      "optimizer_updates": 6000
+    },
+    "R-3072-online": {
+      "sha256": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",
+      "processed_windows": 6144000,
+      "optimizer_updates": 2000
+    }
+  },
+  "mechanism_evidence": {
+    "coordinate_contract_defect": false,
+    "matched_conditioning_sensitivity_present": true,
+    "high_noise_joint_position_underfit_present": true,
+    "high_noise_object_translation_underfit_present": false,
+    "reverse_process_object_and_mpjpe_failure_present": true,
+    "category": "mixed-mechanism"
+  },
+  "preflight_contention": {
+    "four_gpu_idle": false,
+    "selected_gpu": 3,
+    "selected_gpu_memory_used_mib": 15,
+    "selected_gpu_utilization_percent": 0,
+    "external_gpu_0_process": "PID 858478, python, 3328 MiB",
+    "external_process_killed": false,
+    "throughput_used_for_selection": false
+  },
+  "workload_scope": {
+    "checkpoint_count_loaded": 2,
+    "checkpoint_selection": false,
+    "training_updates": 0,
+    "stored_per_frame_bps_use": "diagnostic_gt_replay_only",
+    "sampler_stored_per_frame_bps": false,
+    "sampler_future_gt": false,
+    "official_test_used": false,
+    "chois_used": false
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2p5-mechanism-s42-20260715",
+    "tree_sha256": "21775b2b7b6b69365178bcafac9e7da6eee614503babf9f988fdfe653004e623",
+    "tree_files": 7,
+    "manifest_sha256": "4fb503972306a5cac38400089a8f21ecde55ed3f8bd740c1ea514fd30244039d",
+    "metrics_sha256": "8fe05a19c83a372b02d02606d6c9891910f7b730a9dadb7fbe06f13ca4177f16",
+    "resolved_config_sha256": "926479fab253d62216ab21888e936345a3c646f4e9fef4b5ee210d4b2a183cd8",
+    "preflight_sha256": "c2b1f6859d1eaf1cd0108f214a3292f6f0617f342ea7371822131bf11e91677f",
+    "diagnostic_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_local_registry_sha256": "8759a74aebbaf93c950d56defc2a33fe1bb19309e8cb12c36b955d1bd5d92c87"
+  },
+  "blocker": "D2-P5 rules out a coordinate-contract defect and confirms significant conditioning sensitivity, but both candidates show high-noise joint-position error above the D0 reference and finite reverse traces with severe object-goal and MPJPE failures. The preregistered result is mixed-mechanism and does not authorize checkpoint selection or further remediation.",
+  "next_allowed_action": "Stop Phase 1B. Any further Phase 1B direction requires a new explicit dated plan and registry amendment.",
+  "forbidden": [
+    "checkpoint_selection",
+    "threshold_iteration",
+    "stored_per_frame_bps_in_sampler",
+    "future_gt_in_sampler",
+    "d2_g",
+    "d3",
+    "d4",
+    "official_test",
+    "chois",
+    "training",
+    "merge",
+    "tag",
+    "phase_1c"
+  ]
+}

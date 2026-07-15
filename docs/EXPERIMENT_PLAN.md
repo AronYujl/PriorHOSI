@@ -642,6 +642,24 @@ preflight 为 15 MiB/0%，GPU0 外部 PID 858478 未 kill；未加载 checkpoint
 `experiments/results/p1_hoi_phase1b_d2e_bps_linear_equivalence_s42_20260715.json`。D2-P5 条件授权
 现已生效；只能提交 P0 contract replay 的最小线性等价改动并运行既定 P0/P1/P2。
 
+D2-P5 已在 commit `1c209ebd9347cd1127015bc4393f9c9469eb6ef9` 完成，run id 为
+`p1-hoi-d2p5-mechanism-s42-20260715`。P0 的固定 32 windows 通过全部 coordinate checks；
+32,768 个 BPS basis 为 32,765 strict、3 linear-equivalent、0 unexplained/nonfinite，最大 accepted
+linear gap `0.0726132 µm`。P1 中两个 checkpoint 在全部 7 timesteps 上，matched 均显著优于
+text/BPS/pelvis/object-goal 四种独立 permutation（56/56 bootstrap 95% CI 下界大于 0），排除
+“完全未使用条件”。但 t=499 joint-position MSE 相对 D0 reference 的 ratio 为 R-1024 `2.2773`、
+R-3072 `2.7653`，而 object-translation ratio 为 `0.3800/0.4699`，不是统一 high-noise underfit。
+P2 reverse trace 全部有限、history max-abs `3.5763e-7`；两者 pelvis error `12.570/11.226 cm`
+通过 `31.710 cm` threshold，但 object goal error `143.546/148.109 cm` 与 MPJPE
+`52.250/60.047 cm` 均失败。因此预注册分类为 `mixed-mechanism`，不得用本诊断选择 checkpoint。
+
+run 未训练、未使用 official/CHOIS、sampler 未读取 stored per-frame BPS/future GT。GPU3 preflight
+15 MiB/0%，GPU0 外部 PID 858478 未 kill；sealed artifact tree SHA-256 为
+`21775b2b7b6b69365178bcafac9e7da6eee614503babf9f988fdfe653004e623`，精简结果见
+`experiments/results/p1_hoi_phase1b_d2p5_mechanism_s42_20260715.json`。D2-P5 是本 amendment 的
+终点；Phase 1B gate 仍未通过。不得运行 D2-G/D3/D4、official/CHOIS、merge/tag、Phase 1C 或
+后续阶段。任何后续 Phase 1B 方向必须重新 dated preregister。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
