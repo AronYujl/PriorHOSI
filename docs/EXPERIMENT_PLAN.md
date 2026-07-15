@@ -825,6 +825,53 @@ posterior coefficient sharing 与 detach 检查全部通过。描述性 implemen
 `experiments/results/p1_hoi_phase1b_d2h_exposure_paired_s42_20260715.json`。Phase 1B gate 仍未通过；
 本 session 在 D2-H0 停止，任何 D2-H1 或其他新 intervention 都必须等待用户再次确认并按治理要求处理。
 
+2026-07-15 Phase 1B D2-I weighted-objective gradient routing diagnostic 预注册。用户在审阅
+D2-H0 负结果后明确授权一个新的、基于 implementation-parity appendix 的无训练诊断；该授权不
+撤销 D2-H1 的 failed prerequisite，也不允许训练或观察后修改模型/condition/loss。D2-P5 已在两个
+sealed checkpoint、全部七个 timestep 上证明 text/BPS/pelvis/object-goal 四种 permutation 均显著
+差于 matched condition；D2-H0 又显示 reverse-state exposure penalty 方向稳定但效应量 gate 失败。
+因此本诊断不重复 condition-presence 或 exposure 测试，而检验 appendix 中尚未独立复核的优化机制：
+在已训练 checkpoint 上，锁定的 `50×FK + 50×object-surface + 0.1×velocity + terminal-goal`
+是否使共享参数的 total-gradient 长期由弱对齐的 auxiliary-gradient 主导。D2-H0 的四样本描述性
+appendix 中，total/reconstruction parameter-gradient norm ratio 已达到 R-1024 `35.0--62.3`、
+R-3072 `53.3--137.6`；该观察只用于提出假设，D2-I gate 使用与 D2-H0 不相交的 fresh holdout。
+
+1. **D2-I0 唯一 reportable run。** run id 固定为
+   `p1-hoi-d2i-gradient-dominance-s42-20260715`，只在四卡 HOI worker 加载 sealed online R-1024
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 和 R-3072
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`；EMA 和 released
+   checkpoint 禁止。primary cohort 为 D0 稳定 window hash ordering 的 ranks `[512,640)`，共
+   128 个 nonterminal internal-validation windows，和 D2-H0 ranks `[0,512)` 完全不相交；selection
+   SHA-256 为 `cefbee34d09cf7db3015e7dc1aacb2d17259608ae27f466c4cc7a11f3c1714c3`。
+   terminal-goal 只作描述的 cohort 为排除 D2-H0 selection 后按
+   `SHA256("42:d2i-terminal-fresh:"+sequence_name+":"+pi)` 排序的前 64 个 terminal windows，
+   SHA-256 为 `43acfcbcbfd6755e2bd66a991b5314805eee7a246a5b9783ec596f7a95c7fc21`。
+2. **固定梯度测量。** seed 42，timesteps `[0,1,10,50,100,250,499]`，每个 cohort 按 selection
+   顺序组成不可重排的 16-window blocks，q-noise 由 run id/checkpoint-independent stable seed
+   生成；两个 checkpoint 必须复用相同 noise。模型保持 `eval()`，用 `torch.autograd.grad` 计算但
+   不写 `.grad`、不创建 optimizer、不调用 step。逐 block 报告以下 loss 的 all-parameter 与
+   time/text/BPS/goal-progress/motion-input/transformer/output parameter-group L2 norm 和完整 cosine
+   matrix：human reconstruction、object reconstruction、contact、全部 field reconstruction、
+   `50×FK`、`50×object-surface`、`0.1×velocity`、terminal goal、auxiliary sum 与 total。报告
+   loss values、gradient cancellation index、各 group 对 total squared-norm 的描述性占比，以及
+   terminal/nonterminal 分层；不得只报告有利 timestep、checkpoint、loss 或 parameter group。
+3. **D2-I0 gate。** gate 只用 primary nonterminal cohort 的 high-noise `{250,499}` 和
+   all-parameter gradient。对两个 checkpoint、两个 timestep 都要求：全部 loss/gradient finite；
+   model state-dict 前后 SHA-256 完全相同；直接 total gradient 与按锁定权重重放的 component-sum
+   gradient relative L2 error `<=1e-5`；8 个 block 的 total/reconstruction norm-ratio 几何均值
+   `>=20` 且 10,000 次 paired/block bootstrap（seed 42）95% CI 下界 `>=10`；
+   cosine(total,reconstruction) 的 bootstrap 95% CI 上界 `<=0.25`。全部通过才分类为
+   `weighted-objective-gradient-dominance-positive-stop`，否则为
+   `weighted-objective-gradient-dominance-negative-stop`。terminal goal、逐 component 和逐 parameter
+   group 结果均为描述性证据，不得替代 primary gate。
+4. **治理与停止。** 实现只能添加 diagnostic/helper/tests/docs，并验证 selection disjointness、stable
+   RNG、block pairing、weighted-gradient formula replay、parameter immutability、finite/all-loss/all-group
+   reporting 和 zero optimizer updates；不得改变 production model、232-D representation、loss function/
+   weights、condition API、diffusion/sampler 或 checkpoint。worker 必须使用 lifecycle、resolved config、
+   preflight 与 persistent session，并主动回收 immutable artifact。无论结果正负，本 session 都只登记
+   D2-I0 并停止；positive 也不授权 loss-weight sweep、重训、D2-H1、architecture/condition intervention、
+   official/CHOIS、D3/D4、Phase 1C、merge 或 tag。任何新动作须用户再次确认并另行 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
