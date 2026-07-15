@@ -20,12 +20,25 @@ from priors.remediation import (
     select_internal_triples,
     select_teacher_windows,
 )
-from priors.window_codec import WindowFrame, project_to_so3, rotation_geodesic
+from priors.window_codec import (
+    WindowFrame,
+    project_to_so3,
+    rotation_geodesic,
+    zup_to_yup_tensor,
+)
 from tools.diagnose_hoi_d2p import (
     D0_T499,
     classify_mechanism,
     field_error_per_sample,
     resolved_config as d2p_resolved_config,
+)
+from tools.diagnose_hoi_bps_backend import (
+    AUTHOR_BASELINE,
+    AUTHOR_BPS_BLOB,
+    BPS_TOLERANCE,
+    classify_backend,
+    resolved_config as d2b_resolved_config,
+    yup_to_zup_tensor,
 )
 from tools.evaluate_hoi_remediation import paired_bootstrap
 from tools.select_hoi_remediation import select
@@ -148,6 +161,36 @@ class RemediationDiagnosticTest(unittest.TestCase):
         self.assertEqual(config["training_updates"], 0)
         self.assertEqual(config["teacher"]["windows"], 512)
         self.assertEqual(config["reverse_trace"]["sequences"], 32)
+
+    def test_d2b_config_is_backend_only_and_fixed_to_author_assets(self):
+        args = SimpleNamespace(
+            run_id="p1-hoi-d2b-bps-replay-s42-20260715",
+            output="/tmp/d2b.json",
+            cuda_device="cuda:0",
+        )
+        config = d2b_resolved_config(args)
+        self.assertEqual(config["author_baseline_commit"], AUTHOR_BASELINE)
+        self.assertEqual(config["author_bps_blob"], AUTHOR_BPS_BLOB)
+        self.assertEqual(config["bps_max_abs_tolerance"], BPS_TOLERANCE)
+        self.assertEqual(config["devices"], ["cpu", "cuda:0"])
+        self.assertEqual(config["checkpoint_count_loaded"], 0)
+        self.assertEqual(config["model_forward_calls"], 0)
+        self.assertEqual(config["training_updates"], 0)
+        self.assertFalse(config["official_test_used"])
+        self.assertFalse(config["chois_used"])
+        self.assertFalse(config["checkpoint_selection"])
+
+    def test_d2b_coordinate_conversion_and_gate_are_not_relaxed(self):
+        raw = torch.tensor(((1.0, 2.0, 3.0), (-4.0, 5.0, -6.0)))
+        converted = zup_to_yup_tensor(raw)
+        torch.testing.assert_close(yup_to_zup_tensor(converted), raw)
+        cpu = {"passed": False}
+        self.assertEqual(
+            classify_backend(cpu, {"passed": True}), "cpu-knn-tie-backend-artifact",
+        )
+        self.assertEqual(
+            classify_backend(cpu, {"passed": False}), "backend-replay-unresolved",
+        )
 
 
 class WindowStateCodecTest(unittest.TestCase):
