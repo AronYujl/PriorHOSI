@@ -972,6 +972,56 @@ worker/authority artifact tree SHA-256 同为
 `experiments/results/p1_hoi_phase1b_d2j_clip_routing_s42_20260716.json`。本 session 在 D2-J0
 负结果处停止；clip/loss intervention、D2-H1、smoke、训练、official/CHOIS 与后续阶段均未启动。
 
+2026-07-16 Phase 1B D2-K sealed-AdamW counterfactual update-routing diagnostic 预注册。用户在
+D2-J0 negative-stop 后再次明确确认继续；该确认仅允许新的 zero-update 机制诊断，不授权 clip/loss
+修改、D2-H1 或训练。D2-J0 已证明 formal training 的 global clip norm `1.0` 在 fresh holdout 上
+稳定饱和，并观察到 human/object direction efficiency 分化，但其四格合取 gate 因 R-1024 t499
+human CI 上界失败而为 negative。两个 sealed terminal checkpoint 的只读 metadata 进一步确认：
+online model 同时保存 119 组完整 AdamW `exp_avg/exp_avg_sq`；R-1024/R-3072 分别位于 optimizer
+step `6000/2000`，stored LR `1e-5/3e-5`，且历史一阶矩全局 norm 相对下一次 clipped-current
+numerator contribution 约为 `1.106/0.796`。因此 D2-K0 不重设 D2-J 阈值，而检验实际训练优化器的
+历史状态和逐坐标二阶预条件是否会恢复 D2-J 中较弱的 human reconstruction 路由。
+
+1. **D2-K0 唯一 reportable run。** run id 固定为
+   `p1-hoi-d2k-adamw-routing-s42-20260716`，只在四卡 HOI worker 读取 sealed online R-1024
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 和 R-3072
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`；EMA 与 released
+   checkpoint 禁止。fresh primary cohort 从 D0 stable global ordering rank 768 起扫描，跳过 terminal
+   ranks `768,770` 后取前 128 个 nonterminal windows，即实际 ranks `769--897` 内的 128 项；selection
+   SHA-256 为 `747c0b1c881e150a8ccdb8675044a877b1ab32f615169ea9e3577dcff0a3f90a`，必须与
+   D2-H0 `[0,512)`、D2-I0 `[512,640)`、D2-J0 ranks `640--767` 全部不相交。固定 8 个不可重排的
+   16-window blocks、seed 42、timesteps `[0,1,10,50,100,250,499]`、10,000 次 paired block
+   bootstrap seed 42；两个 checkpoint 逐 block/timestep 使用 checkpoint-independent stable q-noise。
+2. **精确 counterfactual。** 模型保持 `eval()`；使用 `torch.autograd.grad` 重放当前锁定 objective
+   的五个 field、human/object/reconstruction aggregate、`50×FK`、`50×object-surface`、
+   `0.1×velocity`、terminal goal、auxiliary sum 与 total。只把 total gradient 按 production max norm
+   `1.0` 缩放，再从 checkpoint 读取但不修改 AdamW step、`exp_avg`、`exp_avg_sq`、betas、eps、
+   weight decay 和 stored LR，按 PyTorch AdamW 下一步公式构造 gradient-like descent direction：
+   bias-corrected historical-moment contribution、current clipped-gradient contribution 与 decoupled
+   weight-decay contribution之和。逐 block 完整报告 raw-clipped 与 full-AdamW direction 对每个 field/
+   aggregate 的 cosine、两者 paired difference、full direction 与 current clipped total 的 cosine，以及
+   historical/current/decay 三项在 D2-I/J 同一八个 parameter groups 的 norm/cosine/decomposition；不得
+   只报告有利 checkpoint、timestep、field、block 或 group。
+3. **D2-K0 rescue gate。** gate 只使用 fresh primary 的 `{250,499}`，并将“optimizer state 恢复
+   human routing”定义为严格合取。两个 checkpoint、两个 timestep 都须：全部 finite；model 与 optimizer
+   state SHA-256 前后完全相同；model `.grad` buffers 为空；checkpoint optimizer parameter order、step、
+   hyperparameters 与 registered training contract 精确一致；direct-total/component gradient replay、
+   clip replay、AdamW historical+current+decay decomposition relative L2 均 `<=1e-5`。对 paired blocks，
+   full-AdamW human efficiency 减 raw-clipped human efficiency 的 bootstrap 95% CI 下界须 `>=0.05`，
+   full-AdamW human efficiency CI 下界须 `>=0.15`，并要求 full-AdamW object efficiency CI 下界
+   `>=0.15` 作为 no-object-harm 对照。全部通过分类为 `adamw-human-routing-rescue-positive-stop`，任一
+   失败分类为 `adamw-human-routing-rescue-negative-stop`。optimizer/current/history/decay 的其他尺度与
+   groupwise 结果均为描述证据，不得替代 gate。
+4. **治理与停止。** workload 不得创建 `torch.optim` optimizer、调用 backward/step、写 parameter
+   `.grad`、修改/保存 checkpoint 或生成训练状态；counterfactual tensor 计算不得写回 model/moments。
+   实现只能添加 diagnostic/helper/tests/docs，且须测试真实 AdamW small-tensor parity、bias correction、
+   weight decay、missing-gradient semantics、parameter-order rejection、stable selection/RNG、全 field/group
+   reporting、formula replay、state immutability 与 zero updates。不得改变 production model/training/loss/
+   representation/condition/diffusion/sampler。worker 必须走 resolved config、live preflight、start/finish/
+   register、persistent session 和 immutable recovery。无论 positive/negative，本 session 仅登记 D2-K0
+   并停止；不授权 optimizer reset/ablation、clip/loss intervention、D2-H1、smoke、训练、official/CHOIS、
+   D3/D4、Phase 1C、merge 或 tag，任何下一动作再次等待用户确认和新的 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
