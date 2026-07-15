@@ -345,6 +345,22 @@ config/preflight、初始稳定区间、有限 loss/gradient、显存 headroom �
 验证后，不要求 Codex 持续轮询；应报告实测吞吐与剩余时间并结束当前交互，等待用户发送
 “继续”后再检查完成状态。该规则只节约监控，不降低 checkpoint、manifest 或失败登记要求。
 
+2026-07-15 Phase 1B 修复重试在 D2 按预注册规则停止。`R-1024` 与 `R-3072` 均从随机
+初始化完成各 `6,144,000` windows，训练 loss/关键梯度和两次 teacher-forced validation 均
+有限；terminal checkpoint SHA-256 分别为
+`d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 与
+`48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`。固定 128-sequence
+三窗口 internal rollout 对 online、EMA-0.999、EMA-0.9999 共六个记录评估后无一合格。
+最接近的 `R-3072 online` 虽通过 pelvis ratio `0.3412`、contact F1 增量 `0.1241`、FS ratio
+`0.3930` 和 finite gate，但 object-goal ratio 为 `10.1958`、MPJPE ratio 为 `1.8086`，且
+matched text/BPS 均未显著优于 permutation；因此不是 contact-only failure，D2-G 不得启动。
+提交的选择器 run `p1-hoi-d2-selection-s42-20260715` 返回
+`stop-no-eligible-candidate`、`selected=null`、`d2_g_allowed=false`。完整六记录、contention、run
+与 artifact hash 位于
+`experiments/results/p1_hoi_phase1b_remediation_d2_s42_20260715.json`。本次不得运行 D3、D4、
+official test 或 CHOIS，不得 merge/tag，也不得开始 Phase 1C；未来任何修复方向必须先新增 dated
+plan/registry amendment，且不得提升本次任一不合格 checkpoint。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
