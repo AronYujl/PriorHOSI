@@ -1445,6 +1445,30 @@ batch size `16`、online-only、500 diffusion steps、三项 semantic 与四项 
 以及无训练 stop contract；完整 artifact 保留逐 sequence、逐 active frame 与 object-category appendix，
 tracked aggregate 可移除这些大数组但不得移除 aggregate、paired comparisons、contract 或 decision。
 
+2026-07-16 Phase 1B D2-O r1 Python-3.8 compatibility amendment。首次 reportable run
+`p1-hoi-d2o-contact-alignment-s42-20260716` 在 exact commit
+`141652d025d86ab6385813ae11a2dcb60c6ab620` 上通过 resolved-config、preflight 与
+`tools/experiment.py start` 后启动，但在任何 checkpoint rollout/GPU sampling 前，于
+ground-truth object-category summary 使用 Python 3.9 `dict | dict` 运算符时，被 worker 的
+verified Python 3.8 以 `TypeError` 停止。该 run 已以 `failed` finish/register；manifest、
+metrics、resolved-config、preflight 与 run-local registry SHA-256 分别为
+`1741b75b751d388b75041174feb4f8750d4f123cb40a6cef0f41f655019ce68d`、
+`e0d3306fe7ddbe74d4c44eca3152f2dd1f9cc1f7f40a004a6c1988674295e6e9`、
+`1d6172fd7454b65646f961c4a06b5dd6b2398c377133cc876348b676da309f51`、
+`6dcfe0e60b4035a5f8a0a58d1b3be0126dd5637bdf1e4df3e422a7b993218ebc`、
+`d4920488ebe21267e515de954d59b4e1e88b30128d5f1266bf9b9d5c5a7d8b76`；不得覆盖或复用。
+
+唯一 compatibility retry run id 预注册为
+`p1-hoi-d2o-contact-alignment-r1-s42-20260716`。r1 必须原样继承 D2-O0 的三个 online
+checkpoint、64 sequences × 3 phase-offset windows、selection SHA-256、batch size 16、
+matched condition、shared sampler noise、semantic/physical thresholds、distance decomposition、
+bootstrap、classification gate 与全部 no-training/stop boundary。代码变更只允许：
+将 object-category summary 的 `dict | dict` 改写为 Python-3.8-compatible construction，
+更新 run-id/output constants，并增加会实际执行多 object-category summary 的 regression test；
+不得依据未观察的 checkpoint 结果改变任何科学输入或阈值。必须在 authority 与 worker verified
+environment 重跑完整 tests，重新生成 r1 resolved config/preflight/manifest，并继续使用无 contention
+GPU 1。无论 r1 分类为何，仍只 finish/register/recover D2-O0 并停止，不得训练、D2-H1 或 D2-G。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
