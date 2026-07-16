@@ -54,6 +54,100 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _state_dict_sha256(state: Mapping[str, torch.Tensor]) -> str:
+    digest = hashlib.sha256()
+    for name, value in sorted(state.items()):
+        tensor = value.detach().contiguous().cpu()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(tuple(tensor.shape)).encode("ascii"))
+        digest.update(str(tensor.dtype).encode("ascii"))
+        digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def _load_weight_initialization(
+    cfg: DictConfig,
+    model: torch.nn.Module,
+) -> Dict[str, object]:
+    """Load only the hash-locked online model weights allowed by D2-M0."""
+    path_value = cfg.weight_init_checkpoint
+    if path_value in (None, "", False):
+        return {
+            "mode": "random",
+            "source_checkpoint": None,
+            "source_checkpoint_sha256": None,
+            "source_model_state_sha256": None,
+            "initial_model_state_sha256": _state_dict_sha256(model.state_dict()),
+            "restored_components": [],
+            "old_optimizer_states_loaded": 0,
+            "old_ema_models_loaded": 0,
+            "old_scheduler_states_loaded": 0,
+            "old_scaler_states_loaded": 0,
+            "old_rng_states_loaded": 0,
+        }
+    from priors.optimizer_reset import (
+        CANDIDATES,
+        SOURCE_CHECKPOINT_SHA256,
+        SOURCE_RUN_ID,
+    )
+
+    if str(cfg.d2m_candidate) not in CANDIDATES:
+        raise ValueError("weight-only initialization is restricted to a registered D2-M candidate")
+    if str(cfg.weight_init_variant) != "online":
+        raise ValueError("D2-M weight-only initialization accepts online model weights only")
+    if str(cfg.weight_init_sha256) != SOURCE_CHECKPOINT_SHA256:
+        raise ValueError("D2-M source checkpoint configured SHA-256 mismatch")
+    path = Path(str(path_value)).resolve()
+    actual_sha256 = _sha256(path)
+    if actual_sha256 != SOURCE_CHECKPOINT_SHA256:
+        raise ValueError(f"D2-M source checkpoint file hash mismatch: {actual_sha256}")
+    checkpoint = torch.load(path, map_location="cpu")
+    if (
+        not isinstance(checkpoint, dict)
+        or checkpoint.get("checkpoint_type") != "hoi_prior_phase1b"
+        or checkpoint.get("expert") != "hoi"
+        or checkpoint.get("initialization") != "random"
+    ):
+        raise ValueError(
+            "D2-M weight initialization requires a self-trained random-origin Phase 1B checkpoint; "
+            "released checkpoint initialization is forbidden"
+        )
+    if checkpoint.get("run_id") != SOURCE_RUN_ID:
+        raise ValueError(f"D2-M source run mismatch: {checkpoint.get('run_id')}")
+    if checkpoint.get("model_config") != _model_config(cfg):
+        raise ValueError("D2-M source model configuration mismatch")
+    if checkpoint.get("data_contract_sha256") != str(cfg.data_contract_sha256):
+        raise ValueError("D2-M source data contract mismatch")
+    split_sha256 = _sha256(Path(str(cfg.split_manifest)).resolve())
+    if checkpoint.get("split_sha256") != split_sha256:
+        raise ValueError("D2-M source split mismatch")
+    source_model = checkpoint.get("model")
+    if not isinstance(source_model, dict):
+        raise ValueError("D2-M source checkpoint is missing online model weights")
+    source_model_sha256 = _state_dict_sha256(source_model)
+    model.load_state_dict(source_model, strict=True)
+    initial_model_sha256 = _state_dict_sha256(model.state_dict())
+    if initial_model_sha256 != source_model_sha256:
+        raise ValueError("D2-M source online model did not load exactly")
+    return {
+        "mode": "phase1b_online_weight_only",
+        "source_checkpoint": str(path),
+        "source_checkpoint_sha256": actual_sha256,
+        "source_run_id": checkpoint.get("run_id"),
+        "source_git_commit": checkpoint.get("git_commit"),
+        "source_processed_windows": checkpoint.get("processed_windows"),
+        "source_optimizer_updates": checkpoint.get("optimizer_updates"),
+        "source_model_state_sha256": source_model_sha256,
+        "initial_model_state_sha256": initial_model_sha256,
+        "restored_components": ["model"],
+        "old_optimizer_states_loaded": 0,
+        "old_ema_models_loaded": 0,
+        "old_scheduler_states_loaded": 0,
+        "old_scaler_states_loaded": 0,
+        "old_rng_states_loaded": 0,
+    }
+
+
 def _atomic_json(path: Path, value: Dict[str, object], *, overwrite: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and not overwrite:
@@ -107,6 +201,16 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "object_surface_weight": float(cfg.object_surface_weight),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
+        "weight_init_sha256": (
+            None if cfg.weight_init_sha256 in (None, "", False) else str(cfg.weight_init_sha256)
+        ),
+        "weight_init_variant": (
+            None if cfg.weight_init_variant in (None, "", False) else str(cfg.weight_init_variant)
+        ),
+        "d2m_candidate": (
+            None if cfg.d2m_candidate in (None, "", False) else str(cfg.d2m_candidate)
+        ),
+        "d2m_rng_audit": bool(cfg.d2m_rng_audit),
         "amp": bool(cfg.amp),
         "data_contract_sha256": str(cfg.data_contract_sha256),
         "split_sha256": _sha256(split),
@@ -144,12 +248,21 @@ def _forward_losses(
     cfg: DictConfig,
     *,
     generator: Optional[torch.Generator] = None,
+    audit_digest=None,
 ) -> Dict[str, torch.Tensor]:
     clean = batch["x"]
     timesteps = torch.randint(
         0, REPRESENTATION.diffusion_steps, (clean.shape[0],), device=clean.device, generator=generator,
     )
     noise = torch.randn(clean.shape, device=clean.device, generator=generator)
+    if audit_digest is not None:
+        audit_digest.update(
+            clean[:, (0, -1), :8].detach().contiguous().cpu().numpy().tobytes()
+        )
+        audit_digest.update(timesteps.detach().contiguous().cpu().numpy().tobytes())
+        audit_digest.update(
+            noise[:, (0, -1), :8].detach().contiguous().cpu().numpy().tobytes()
+        )
     noisy = diffusion.q_sample(clean, timesteps, noise)
     prediction = model(
         noisy,
@@ -280,6 +393,7 @@ def _save_checkpoint(
     epoch: int,
     batches_consumed_in_epoch: int,
     checkpoint_hashes: List[Dict[str, object]],
+    weight_initialization: Mapping[str, object],
 ) -> Path:
     checkpoint_dir = Path(str(cfg.checkpoint_dir)).resolve()
     checkpoint_path = checkpoint_dir / f"{cfg.run_id}_windows{processed_windows:09d}.pth"
@@ -318,6 +432,7 @@ def _save_checkpoint(
             "scheduler": scheduler.state_dict(),
             "scaler": scaler.state_dict(),
             "rng_pattern": f"{checkpoint_path.stem}.rank{{rank}}.rng.pth",
+            "weight_initialization": dict(weight_initialization),
         }
         _atomic_torch_save(checkpoint_path, value)
         checkpoint_hashes.append({
@@ -413,13 +528,50 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         raise ValueError("HOIPrior architecture must remain 512-wide, 16-head, 8-layer")
     if cfg.init_checkpoint not in (None, "", False):
         raise ValueError("HOIPrior training initialization must be random; init_checkpoint is forbidden")
-    if (
-        float(cfg.fk_weight) != 50.0
-        or float(cfg.object_surface_weight) != 50.0
-        or float(cfg.velocity_weight) != 0.1
-        or float(cfg.goal_weight) != 1.0
-    ):
-        raise ValueError("Phase 1B remediation loss weights are locked at FK/surface/velocity/goal=50/50/0.1/1")
+    d2m_candidate = None if cfg.d2m_candidate in (None, "", False) else str(cfg.d2m_candidate)
+    configured_weights = {
+        "fk": float(cfg.fk_weight),
+        "object_surface": float(cfg.object_surface_weight),
+        "velocity": float(cfg.velocity_weight),
+        "terminal_goal": float(cfg.goal_weight),
+    }
+    if d2m_candidate is None:
+        if configured_weights != {
+            "fk": 50.0,
+            "object_surface": 50.0,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        }:
+            raise ValueError(
+                "Phase 1B remediation loss weights are locked at FK/surface/velocity/goal=50/50/0.1/1"
+            )
+        if cfg.weight_init_checkpoint not in (None, "", False):
+            raise ValueError("weight-only initialization requires a registered D2-M candidate")
+    else:
+        from priors.optimizer_reset import (
+            CANDIDATES,
+            EFFECTIVE_BATCH_SIZE,
+            OPTIMIZER_UPDATES,
+            PROCESSED_WINDOWS,
+            SOURCE_OPTIMIZER_LR,
+            WEIGHTS,
+        )
+
+        if d2m_candidate not in CANDIDATES or configured_weights != WEIGHTS[d2m_candidate]:
+            raise ValueError("D2-M candidate loss weights do not match the locked contract")
+        if (
+            world_size != 4
+            or int(cfg.batch_size) != 768
+            or int(cfg.gradient_accumulation_steps) != 1
+            or int(cfg.effective_batch_size) != EFFECTIVE_BATCH_SIZE
+            or int(cfg.max_processed_windows) != PROCESSED_WINDOWS
+            or int(cfg.max_processed_windows) // int(cfg.effective_batch_size) != OPTIMIZER_UPDATES
+            or float(cfg.learning_rate) != SOURCE_OPTIMIZER_LR
+            or int(cfg.warmup_windows) != 0
+            or float(cfg.minimum_lr_ratio) != 1.0
+            or not bool(cfg.d2m_rng_audit)
+        ):
+            raise ValueError("D2-M optimizer-reset smoke budget/LR/RNG contract mismatch")
     if world_size not in {1, 4}:
         raise ValueError("Phase 1B supports one-GPU functional smoke or four-GPU worker execution")
 
@@ -463,6 +615,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         "hoi", init_checkpoint=cfg.init_checkpoint, dim_model=int(cfg.dim_model),
         num_heads=int(cfg.num_heads), num_layers=int(cfg.num_layers),
     ).to(device)
+    weight_initialization = _load_weight_initialization(cfg, model)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
     ema_decays = [float(value) for value in cfg.ema_decays]
     if ema_decays != [0.999, 0.9999]:
@@ -483,6 +636,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         lambda update: _lr_lambda(update, total_updates, warmup_updates, float(cfg.minimum_lr_ratio)),
     )
     scaler = torch.cuda.amp.GradScaler(enabled=bool(cfg.amp))
+    initial_optimizer_state_count = len(optimizer.state)
     parents = torch.as_tensor(get_smpl_parents(use_joints24=True), device=device, dtype=torch.long)
     norm = np.load(Path(str(cfg.repo_root)) / "data/train/norm.npy")
     minimum = torch.as_tensor(norm[0], device=device, dtype=torch.float32)
@@ -519,6 +673,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     initial_grad_scale = float(scaler.get_scale())
     validation_records: List[Dict[str, object]] = []
     checkpoint_hashes: List[Dict[str, object]] = []
+    training_rng_digest = hashlib.sha256() if bool(cfg.d2m_rng_audit) else None
     optimizer.zero_grad(set_to_none=True)
     paused = False
     last_checkpoint_windows = -1
@@ -543,6 +698,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     losses = _forward_losses(
                         model, diffusion, batch, parents, minimum, maximum,
                         object_minimum, object_maximum, cfg,
+                        audit_digest=training_rng_digest,
                     )
                     loss = losses["total"] / int(cfg.gradient_accumulation_steps)
                 if not torch.isfinite(loss):
@@ -630,6 +786,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     epoch=epoch,
                     batches_consumed_in_epoch=batches_consumed,
                     checkpoint_hashes=checkpoint_hashes,
+                    weight_initialization=weight_initialization,
                 )
                 last_checkpoint_windows = processed_windows
             pause_at = int(cfg.pause_after_windows) if cfg.pause_after_windows is not None else 0
@@ -643,6 +800,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                         epoch=epoch,
                         batches_consumed_in_epoch=batches_consumed,
                         checkpoint_hashes=checkpoint_hashes,
+                        weight_initialization=weight_initialization,
                     )
                     last_checkpoint_windows = processed_windows
                 paused = True
@@ -669,6 +827,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             epoch=epoch,
             batches_consumed_in_epoch=batches_consumed,
             checkpoint_hashes=checkpoint_hashes,
+            weight_initialization=weight_initialization,
         )
     else:
         terminal_checkpoint = Path(str(cfg.checkpoint_dir)).resolve() / (
@@ -699,6 +858,16 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         device=device,
     )
     torch.distributed.all_reduce(loss_vector, op=torch.distributed.ReduceOp.SUM)
+    audit_hashes = None
+    if training_rng_digest is not None:
+        audit_bytes = bytes.fromhex(training_rng_digest.hexdigest())
+        audit_tensor = torch.tensor(list(audit_bytes), dtype=torch.uint8, device=device)
+        gathered_audits = [torch.zeros_like(audit_tensor) for _ in range(world_size)]
+        torch.distributed.all_gather(gathered_audits, audit_tensor)
+        audit_hashes = [
+            bytes(int(value) for value in item.cpu().tolist()).hex()
+            for item in gathered_audits
+        ]
     if rank == 0:
         values = [item.cpu().tolist() for item in gathered]
         device_total = torch.cuda.get_device_properties(device).total_memory
@@ -718,6 +887,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         }
         _atomic_json(Path(str(cfg.state_path)).resolve(), state_record, overwrite=True)
         if not paused:
+            optimizer_steps = [
+                int(value["step"].item() if torch.is_tensor(value["step"]) else value["step"])
+                for value in optimizer.state.values()
+                if "step" in value
+            ]
             averaged_losses = {
                 key: float(loss_vector[index].item() / max(loss_vector[-1].item(), 1.0))
                 for index, key in enumerate(LOSS_KEYS)
@@ -727,6 +901,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "status": "stable",
                 "expert": "hoi",
                 "initialization": "random",
+                "training_start": weight_initialization["mode"],
                 "released_checkpoint_used": False,
                 "git_commit": _git_commit(Path(str(cfg.repo_root)).resolve()),
                 "world_size": world_size,
@@ -759,6 +934,17 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 ],
                 "timing_cuda_synchronized": True,
                 "checkpoint_hashes": checkpoint_hashes,
+                "weight_initialization": weight_initialization,
+                "initial_optimizer_state_count": initial_optimizer_state_count,
+                "terminal_optimizer_state_count": len(optimizer.state),
+                "terminal_optimizer_step_min": min(optimizer_steps) if optimizer_steps else None,
+                "terminal_optimizer_step_max": max(optimizer_steps) if optimizer_steps else None,
+                "training_rng_audit_schema": (
+                    "per-rank SHA256(clean[:,{0,-1},:8], timesteps, q_noise[:,{0,-1},:8])"
+                    if audit_hashes is not None else None
+                ),
+                "training_rng_sha256_by_rank": audit_hashes,
+                "d2m_candidate": d2m_candidate,
                 "model_config": _model_config(cfg),
                 "ema_decays": ema_decays,
                 "loss_weights": {

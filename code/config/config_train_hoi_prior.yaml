@@ -46,6 +46,11 @@ num_heads: 16
 num_layers: 8
 init_checkpoint: null
 resume_checkpoint: null
+weight_init_checkpoint: null
+weight_init_sha256: null
+weight_init_variant: null
+d2m_candidate: null
+d2m_rng_audit: false
 profile_every_update: true
 
 output_dir: ${repo_root}/results/experiments/${run_id}

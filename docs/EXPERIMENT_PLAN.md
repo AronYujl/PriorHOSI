@@ -1234,6 +1234,16 @@ condition/sampler intervention，也不授权完整重训或 official/CHOIS。
    negative 不自动触发 architecture/loss/condition intervention。D2-H1、完整训练、official/CHOIS、
    merge/tag、Phase 1C 与后续阶段仍禁止，等待用户再次确认。
 
+D2-M0 implementation entry point 为 `tools/run_hoi_d2m.py`，训练基配置为
+`code/config/config_train_hoi_prior_d2m.yaml`，fresh selection/bootstrap/gate 位于
+`code/priors/optimizer_reset.py`，统一 teacher/native evaluation 与 compact summary 分别位于
+`tools/evaluate_hoi_d2m.py` 和 `tools/summarize_hoi_d2m.py`。`train_hoi_prior.py` 的默认路径仍只
+允许 random initialization 与 `50/50/0.1/1`；只有同时满足 exact D2-M candidate、source hash、
+online variant、budget、LR 与 paired-RNG contract 时，才允许 weight-only source load 和 balanced
+weights。native physical summary 只作向后兼容的 additive reporting，新增 pelvis/object translation
+MAE 与 object-rotation geodesic；production sampler equation、BPS recomputation 与 condition API
+未改变。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

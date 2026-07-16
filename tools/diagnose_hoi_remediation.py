@@ -318,6 +318,7 @@ def physical_summary(dataset, triples, decoded_steps, device):
     pelvis_goal_errors = []
     contact_counts = np.zeros(4, dtype=np.int64)  # tp/fp/tn/fn
     foot_sliding = []
+    per_sequence = []
     rest_cache: Dict[str, torch.Tensor] = {}
     for row, triple in enumerate(triples):
         pred_joints = []
@@ -344,6 +345,11 @@ def physical_summary(dataset, triples, decoded_steps, device):
                 prediction["joints"][-1, 0][[0, 2]] - pelvis_goal[[0, 2]]
             ) * 100.0
             object_error = torch.linalg.vector_norm(prediction["object_translation"][-1] - object_goal) * 100.0
+            object_rotation_error = transforms.so3_relative_angle(
+                project_so3(prediction["object_rotation"]),
+                project_so3(target["object_rotation"]),
+                cos_bound=1e-7,
+            ).mean() * (180.0 / math.pi)
             pelvis_goal_errors.append(float(pelvis_error))
             object_goal_errors.append(float(object_error))
             per_window.append({
@@ -356,11 +362,17 @@ def physical_summary(dataset, triples, decoded_steps, device):
                 "joint_position_mae_cm": float(
                     torch.linalg.vector_norm(prediction["joints"] - target["joints"], dim=-1).mean() * 100.0
                 ),
+                "pelvis_translation_mae_cm": float(
+                    torch.linalg.vector_norm(
+                        prediction["joints"][:, 0] - target["joints"][:, 0], dim=-1,
+                    ).mean() * 100.0
+                ),
                 "object_translation_mae_cm": float(
                     torch.linalg.vector_norm(
                         prediction["object_translation"] - target["object_translation"], dim=-1,
                     ).mean() * 100.0
                 ),
+                "object_rotation_geodesic_deg": float(object_rotation_error),
                 "contact_channel_mse": float((prediction["contact"] - target["contact"]).square().mean()),
             })
             all_joint_relative_errors.append(torch.linalg.vector_norm(relative_pred - relative_gt, dim=-1))
@@ -385,12 +397,13 @@ def physical_summary(dataset, triples, decoded_steps, device):
         gt_hands = target_joints[:, (24, 26)]
         pred_contact = torch.cdist(pred_hands, predicted_vertices).amin(dim=(1, 2)) < 0.05
         gt_contact = torch.cdist(gt_hands, target_vertices).amin(dim=(1, 2)) < 0.05
-        contact_counts += np.asarray((
+        sequence_contact_counts = np.asarray((
             int((pred_contact & gt_contact).sum()),
             int((pred_contact & ~gt_contact).sum()),
             int((~pred_contact & ~gt_contact).sum()),
             int((~pred_contact & gt_contact).sum()),
         ))
+        contact_counts += sequence_contact_counts
         joints_np = predicted_joints.detach().cpu().numpy().copy()
         floor = min(float(joints_np[:, 10, 1].min()), float(joints_np[:, 11, 1].min()))
         joints_np[..., 1] -= floor
@@ -399,7 +412,35 @@ def physical_summary(dataset, triples, decoded_steps, device):
             displacement = np.linalg.norm(np.diff(joints_np[:, joint][:, (0, 2)], axis=0), axis=1)
             y = joints_np[:-1, joint, 1]
             terms.append(float(np.abs(displacement * (2.0 - 2.0 ** (y / height)))[y < height].sum()) / len(joints_np) * 100.0)
-        foot_sliding.append(float(np.mean(terms)))
+        sequence_foot_sliding = float(np.mean(terms))
+        foot_sliding.append(sequence_foot_sliding)
+        sequence_tp, sequence_fp, sequence_tn, sequence_fn = sequence_contact_counts.tolist()
+        sequence_precision = (
+            sequence_tp / (sequence_tp + sequence_fp)
+            if sequence_tp + sequence_fp else 0.0
+        )
+        sequence_recall = (
+            sequence_tp / (sequence_tp + sequence_fn)
+            if sequence_tp + sequence_fn else 0.0
+        )
+        sequence_f1 = (
+            2.0 * sequence_precision * sequence_recall
+            / (sequence_precision + sequence_recall)
+            if sequence_precision + sequence_recall else 0.0
+        )
+        per_sequence.append({
+            "sequence": name,
+            "foot_sliding": sequence_foot_sliding,
+            "physical_contact_f1": float(sequence_f1),
+            "physical_contact_precision": float(sequence_precision),
+            "physical_contact_recall": float(sequence_recall),
+            "contact_counts": {
+                "tp": sequence_tp,
+                "fp": sequence_fp,
+                "tn": sequence_tn,
+                "fn": sequence_fn,
+            },
+        })
     tp, fp, tn, fn = contact_counts.tolist()
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
@@ -409,7 +450,9 @@ def physical_summary(dataset, triples, decoded_steps, device):
             key: float(np.mean([value[key] for value in per_window if value["window"] == step]))
             for key in (
                 "mpjpe_cm", "pelvis_goal_error_cm", "object_goal_error_cm",
-                "joint_position_mae_cm", "object_translation_mae_cm", "contact_channel_mse",
+                "joint_position_mae_cm", "pelvis_translation_mae_cm",
+                "object_translation_mae_cm",
+                "object_rotation_geodesic_deg", "contact_channel_mse",
             )
         }
         for step in (1, 2, 3)
@@ -420,6 +463,15 @@ def physical_summary(dataset, triples, decoded_steps, device):
             "object_goal_error_cm": float(np.mean(third_object)),
             "pelvis_goal_error_cm": float(np.mean(pelvis_goal_errors)),
             "mpjpe_cm": float(torch.cat(all_joint_relative_errors).mean() * 100.0),
+            "pelvis_translation_mae_cm": float(np.mean([
+                value["pelvis_translation_mae_cm"] for value in per_window
+            ])),
+            "object_translation_mae_cm": float(np.mean([
+                value["object_translation_mae_cm"] for value in per_window
+            ])),
+            "object_rotation_geodesic_deg": float(np.mean([
+                value["object_rotation_geodesic_deg"] for value in per_window
+            ])),
             "foot_sliding": float(np.mean(foot_sliding)),
             "physical_contact_f1": float(f1),
             "physical_contact_precision": float(precision),
@@ -430,6 +482,7 @@ def physical_summary(dataset, triples, decoded_steps, device):
         },
         "by_window": windows,
         "per_sequence_window": per_window,
+        "per_sequence": per_sequence,
         "contact_counts": {"tp": tp, "fp": fp, "tn": tn, "fn": fn},
         "object_surface_vertex_sampling": "uniform-index-up-to-2048-from-hash-verified-rest-ply",
     }
