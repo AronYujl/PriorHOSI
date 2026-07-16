@@ -1370,6 +1370,74 @@ released consistency-distilled baseline。完整 artifact 已由 worker 主动�
 `004595af680fd4040781d63ab6c5a46e5bd016663e8878281e8d1b38d2b8b7bb`。D2-N 不重跑、不选择
 checkpoint、不授权训练或 D2-H1；停止并等待新的用户确认与 dated intervention。
 
+2026-07-16 Phase 1B D2-O contact semantic–geometry alignment diagnostic 预注册。用户在 D2-N
+确认 balanced checkpoint 的人体/目标/平移与 foot-sliding 改善可迁移、但 contact F1 显著下降后
+明确要求继续推进。现有证据不支持直接增加 contact-channel reconstruction 权重：D2-M balanced
+训练的 contact smooth-L1 与 threshold-0.5 accuracy 均优于 current，fresh internal rollout 的
+contact-channel MSE 也更低，但作者 native 5 cm 几何 contact 的主要退化来自 recall/contact
+percent。作者实现同样用四维 contact reconstruction，而 native evaluator 仅以左右手关节到物体
+表面的几何距离定义 contact；因此在选择新的 loss/guidance 前，D2-O0 只审计语义标签、生成
+contact channel、人体姿态与物体姿态之间的对应关系，不训练、不修改 model/loss/condition 或
+production sampler。
+
+1. **唯一 reportable diagnostic。** run id 固定为
+   `p1-hoi-d2o-contact-alignment-s42-20260716`。使用 source R-3072 online
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`、
+   D2-M current online
+   `76e0d8811fc9f54caa6d4778e2fe9fcaee78fad98bee5f17570b47568f71e31f`
+   和 D2-M balanced online
+   `ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8`；
+   三者全部使用 online weights、seed 42、500-step production sampler、matched condition 与
+   完全相同的 sequence/window ordering 和按 checkpoint role 独立重放的 sampler noise。不得读取
+   EMA、released checkpoint、optimizer/RNG state，不得只保留有利 checkpoint、手、threshold、
+   object category 或 sequence。
+2. **fresh holdout 与 measurements。** internal-validation 序列按
+   `SHA256("42:d2o-contact-alignment:" + sequence_name + ":14,56,98")`、sequence name 与
+   sequence id 排序，固定前 64 个同时具备 `pi=(14,56,98)` 的序列，共 192 窗；global window
+   indices SHA-256 固定为
+   `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`。这些窗口不与此前
+   D2/D2-M 使用的 `pi=(0,42,84)` rollout 窗口重叠。对每个 sequence、window、active frame、
+   left/right/union 与 object category 完整封存：
+   - GT 四维 contact label、前两维 hand-semantic label threshold `0.5`，以及 GT 人体与 GT
+     物体在 `2/5/7.5/10 cm` 阈值下的 hand-object geometry；
+   - 每个 checkpoint 的四维 contact reconstruction smooth-L1/MSE、前两维 threshold
+     `0.5/0.75/0.95` precision/recall/F1/accuracy/calibration、生成 semantic 与生成 geometry
+     agreement；
+   - 作者 native 5 cm physical contact accuracy/precision/recall/F1/contact percent，另将
+     `2/7.5/10 cm` 作为描述性 threshold sensitivity；
+   - 在 GT 5 cm contact frames 上报告四种距离分解：
+     generated-human/generated-object、GT-human/generated-object、
+     generated-human/GT-object、GT-human/GT-object，从而区分 human-pose、object-pose 与
+     joint-coupling contribution；另报告左右手、union、contact run length 与距离分位数。
+   paired bootstrap 固定 10,000、seed 42，sequence 为 paired unit。GT 只用于 diagnostic
+   reference/decomposition；production condition、BPS 更新与 sampler 不得读取 future GT 或
+   stored per-frame BPS。
+3. **分类 gate。** 所有 checkpoint/input/config hashes、64 sequences/192 windows、selection
+   hash、shared sampler-noise replay、history restoration、finite、all-field/all-threshold
+   reporting 与 sampler provenance 必须通过，否则分类
+   `contact-alignment-contract-failure-stop`。contract 通过后：
+   - 若 GT hand-semantic threshold `0.5` 对 GT native 5 cm geometry 的 union F1 或 recall
+     `<0.80`，分类 `label-evaluator-contract-mismatch-stop`；
+   - 否则，只有 balanced 相对 source 与 current 的前两维 semantic contact MSE 改善均由
+     paired-bootstrap 95% CI 严格证明（`comparator - balanced` CI 下界 `>0`），且 source 与
+     current 相对 balanced 的 native 5 cm physical recall 下降也均由 95% CI 严格证明
+     （`comparator - balanced` CI 下界 `>0`），才分类
+     `semantic-geometry-decoupling-positive-stop`；
+   - 其余完整结果分类 `mixed-contact-deficit-stop`。
+   这些分类只决定下一次 dated intervention 应优先处理 label/evaluator contract、显式几何对齐
+   或其他 mixed mechanism，不选择 checkpoint，也不自动授权 contact loss、guidance、CFG、
+   architecture/condition 修改或训练。
+4. **实现、执行与停止。** 尽量复用 D2-M rollout、stable RNG、object mesh、native physical
+   metric 与 paired-bootstrap utilities；新增独立 contact-alignment utility、fully resolved
+   config、summary 与 tests，覆盖 selection determinism/non-overlap、semantic/geometry truth
+   table、左右手与 union、threshold completeness、human/object swap decomposition、shared
+   sampler noise、history、finite、all-checkpoint reporting 及 production sampler 无 future
+   GT/stored BPS。先提交本 amendment，再提交 implementation/config/tests；worker 主动 fetch
+   exact commit，在单张无 contention RTX 3090 的 worker-owned persistent session 走
+   `start/finish/register` 与 immutable recovery。无论分类为何，本 session 都在 D2-O0
+   register/compact result 后停止；不得启动 D2-H1、D2-G、contact remediation smoke/training、
+   official 438、CHOIS、Phase 1C 或后续阶段，等待用户再次确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
