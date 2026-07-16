@@ -1059,6 +1059,60 @@ worker/authority artifact tree SHA-256 同为
 `3007745024/3087007744` bytes。本 session 在 D2-K0 negative-stop 处停止；D2-H1、smoke、训练、
 optimizer/clip/loss/model/condition/sampler intervention、official/CHOIS 与后续阶段均未启动。
 
+2026-07-16 Phase 1B D2-L fixed gradient-balanced auxiliary counterfactual 预注册。用户在 D2-K0
+negative-stop 后明确授权继续一个最后的 zero-update loss-routing diagnostic；该授权不允许观察
+D2-L cohort 后选择权重、执行 weight sweep、修改 production loss、启动 smoke/D2-H1 或训练。
+D2-I 的 sealed artifact 已在 D2-L fresh cohort 选择前提供唯一权重推导依据：对 R-1024/R-3072、
+`{250,499}`、每格 8 blocks 的 32 个 all-parameter records，令每 block reconstruction-field target
+为 `sqrt(||g_human|| × ||g_object||)`，其几何均值固定为 `0.6279429736100133`。将 D2-I 中
+`50×FK` 与 `50×object-surface` 的 norm 除以 50 得 raw norm，32-block 几何均值分别为
+`1.7589570087469566/1.3158017183675033`，故唯一 counterfactual weights 固定为
+`FK=0.3569973401779424`、`object_surface=0.4772322188400037`。推导源 metrics SHA-256 为
+`910998c54487cb127343e783773d3dbf13d24b359caf0442695f066bc271bf56`；velocity `0.1`、terminal
+goal `1.0` 与五个 reconstruction fields `1.0` 保持不变。
+
+1. **D2-L0 唯一 reportable run。** run id 固定为
+   `p1-hoi-d2l-aux-balance-s42-20260716`，只在四卡 HOI worker 读取 sealed online R-1024
+   `d7931a3221c11903a8f9856355a16a493107ed78ad7947120906eece2b22ec23` 和 R-3072
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`；EMA 与 released
+   checkpoint 禁止。fresh cohort 固定为 D0 stable global ordering ranks `898--1025` 的 128 个
+   nonterminal windows，无需跳过 terminal，selection SHA-256 为
+   `b5faa79316c6bd7aa9df0687a2554d458a459bd331c94648a99380d5c3b43a75`，与 D2-H/I/J/K 的
+   ranks `0--897` 全部不相交。固定 8 个不可重排的 16-window blocks、seed 42、timesteps
+   `[0,1,10,50,100,250,499]`、10,000 次 paired block bootstrap seed 42；current 与 balanced
+   candidate、两个 checkpoint 必须逐 block/timestep 使用完全相同的 sample、condition 与 stable
+   q-noise。
+2. **唯一 counterfactual 与完整报告。** 模型保持 `eval()`；使用 `torch.autograd.grad` 分别得到五个
+   reconstruction field、raw FK、raw object-surface、raw velocity、terminal goal 的 gradients。
+   current candidate 必须精确重放 production weights `50/50/0.1/1`；balanced candidate 只将
+   FK/surface 换成上述 locked weights，其他 tensor、mask、normalization、model、condition 与 losses
+   不变。两者分别按 production global clip norm `1.0` 得 raw-clipped direction，并使用相同 sealed
+   AdamW step/moments/hyperparameters 构造 exact next full-AdamW direction；不得创建 optimizer、
+   写回 moments 或参数。完整报告 current/balanced clipped 与 full-AdamW 对五个 fields、human/object/
+   reconstruction、四个 auxiliary、auxiliary sum、total 的 norm/cosine、paired difference，以及
+   historical/current/decay contribution 和 D2-I/J/K 同一八个 parameter groups；不得只报告有利
+   checkpoint、timestep、field、block、candidate 或 group。
+3. **D2-L0 mechanism gate。** gate 只使用 `{250,499}`，并要求两个 checkpoint、两个 timestep 的
+   四格全部通过。每格须全部 finite；model、raw optimizer、mapped moments 前后 SHA-256 不变；
+   `.grad` buffers 为空；119-state optimizer contract 精确；current direct/component formula、
+   balanced direct/component formula、两种 clip formula、两种 AdamW decomposition relative L2
+   均 `<=1e-5`。paired-bootstrap 95% CI 必须同时满足：balanced clipped human efficiency 减 current
+   clipped human efficiency 的下界 `>=0.10`；balanced clipped human/object efficiency 下界均
+   `>=0.15`；balanced full-AdamW human efficiency 减 current full-AdamW human efficiency 的下界
+   `>=0.10`；balanced full-AdamW human/object efficiency 下界均 `>=0.15`。全部通过分类为
+   `gradient-balanced-auxiliary-routing-positive-stop`，任一失败分类为
+   `gradient-balanced-auxiliary-routing-negative-stop`。其他 timestep、component、direction 与 group
+   只作描述证据，不得替代 gate。
+4. **治理与停止。** 实现只能添加 D2-L diagnostic/helper/tests/docs；须测试 locked-weight provenance、
+   current production replay、balanced formula、paired candidate noise、exact clipping/AdamW parity、
+   selection/RNG、全 field/candidate/direction/group reporting、state immutability、missing-gradient 与
+   zero updates。不得修改 production loss weights/API、model、232-D representation、condition、
+   diffusion、sampler、checkpoint 或训练配置。worker 必须走 exact committed object、clean worktree、
+   resolved config、live preflight、`start/finish/register`、persistent session 和 immutable recovery。
+   无论 positive/negative，本 session 只登记 D2-L0 并停止；positive 也只说明 fixed-weight smoke 的
+   条件式前提已达到，仍不授权 smoke、D2-H1 或训练。negative 则停止继续添加 Phase 1B remediation
+   mechanism；是否撰写 closure summary 或进入其他阶段须等待用户再次确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
