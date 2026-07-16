@@ -1022,6 +1022,43 @@ numerator contribution 约为 `1.106/0.796`。因此 D2-K0 不重设 D2-J 阈值
    并停止；不授权 optimizer reset/ablation、clip/loss intervention、D2-H1、smoke、训练、official/CHOIS、
    D3/D4、Phase 1C、merge 或 tag，任何下一动作再次等待用户确认和新的 dated amendment。
 
+D2-K0 已在 workload commit `9afd8f7ad0ff02539a228bbb50af765d05fca5f9` 完成，run id 为
+`p1-hoi-d2k-adamw-routing-s42-20260716`。四个 preregistered high-noise cell 均未通过 rescue gate：
+R-1024 t250/t499 的 full-AdamW minus raw-clipped human efficiency mean/95% CI 分别为
+`0.0003 [-0.0213,0.0272] / 0.0031 [-0.0211,0.0313]`，full human 为
+`0.0281 [0.0216,0.0333] / 0.0598 [0.0388,0.0811]`，full object 为
+`0.1174 [0.0993,0.1338] / 0.1499 [0.1123,0.1860]`。R-3072 对应三组结果为
+`0.0089 [-0.0081,0.0299] / 0.0154 [-0.0085,0.0413]`、
+`0.0143 [0.0099,0.0191] / 0.0368 [0.0263,0.0466]` 和
+`0.1006 [0.0829,0.1219] / 0.1476 [0.1227,0.1670]`。因此所有 human improvement CI 下界均未达到
+`0.05`，full human/object CI 下界亦均未达到 `0.15`，严格分类为
+`adamw-human-routing-rescue-negative-stop`；不得将任一正的 point estimate 提升为 rescue 证据。
+
+完整 2 checkpoint × 7 timestep × 8 block × 14 loss-component × 5 direction × 8 parameter-group
+记录 finite，paired q-noise hashes 完全一致。R-1024/R-3072 的 direct/component gradient replay 最大
+relative L2 为 `3.159e-7/2.836e-7`，clip replay max abs 均为 `0`，AdamW
+historical+current+decay decomposition 最大 relative L2 为 `5.365e-8/5.294e-8`。两个 checkpoint
+均精确覆盖 119 个 optimizer states，step/next-step 为 `6000/6001` 与 `2000/2001`；model、raw
+optimizer 和 device-mapped moment 的前后 SHA-256 完全不变，`.grad` buffers 为空，optimizer 未创建且
+update 为 0。small-tensor test 与 PyTorch AdamW 的下一步参数差分达到数值一致，未发现 bias correction、
+second-moment denominator、weight decay、missing-gradient、parameter order 或 detach 的实现 defect。
+
+描述证据显示 full-AdamW 与 raw clipped total 的 all-parameter cosine 在四格仅约 `0.080--0.130`，与
+current preconditioned contribution 为 `0.781--0.948`、与 historical contribution 为
+`0.265--0.558`；historical contribution 对 total/object 的 cosine 接近零或为负，因此没有提供稳定的
+human rescue。weight-decay direction norm 约 `1.585`，相对 full direction 的 `1447--2016` 很小。
+groupwise full-AdamW 结果虽在 time/BPS/goal-progress 等组有较高局部 human/object cosine，但 output
+group 的 high-t human/object cosine 仅约 `0.020--0.030 / 0.042--0.061`。这些是描述性定位证据，不能
+自动授权 optimizer、model、condition、loss 或 output-head intervention。
+
+worker/authority artifact tree SHA-256 同为
+`2ba1284abc3d1b3ed62a56b03496ac134e932f64ddaf1fd281c91fd66b377a79`，精简结果 SHA-256 为
+`35f3debde5a0469964ec6ca534dfb91dcf15e980446eca4c49b3519f357b0bde`，见
+`experiments/results/p1_hoi_phase1b_d2k_adamw_routing_s42_20260716.json`。workload 在物理 GPU3
+执行，GPU0 的既有外部进程仅记录且未干预；运行 `625.42s`，peak allocated/reserved 为
+`3007745024/3087007744` bytes。本 session 在 D2-K0 negative-stop 处停止；D2-H1、smoke、训练、
+optimizer/clip/loss/model/condition/sampler intervention、official/CHOIS 与后续阶段均未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
