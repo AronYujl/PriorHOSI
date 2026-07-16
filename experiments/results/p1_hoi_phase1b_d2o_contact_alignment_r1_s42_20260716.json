@@ -1,0 +1,3840 @@
+{
+  "artifact": {
+    "manifest_sha256": "5a5fd5418f5322e3754ab62e3e1cba7e3a3184a48390aa8e3287907582989909",
+    "metrics_sha256": "aee38b32ffc090483266c7c89d0d4c4a27f96278f8eaaff67444916e87d8bcd3",
+    "preflight_sha256": "70e565449bd21d98198ac51861cb993268f3c9857d722b1a864d4955f0b92270",
+    "registry_sha256": "229a5e9c0b3cf761630bd81397a18bdcececece953e917df1a8c5ac3756849c4",
+    "resolved_config_sha256": "5fc45c0d03807e45d2cc8d6dd9f92f1942615306b5acf82b07b321e41d14cc61"
+  },
+  "assets": {
+    "bps": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "normalization": "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969"
+  },
+  "checkpoint_selection": false,
+  "checkpoint_write": false,
+  "chois_used": false,
+  "comparisons": {
+    "balanced_vs_current": {
+      "comparator_minus_balanced_physical_contact_percent_5cm": {
+        "bootstrap_95_ci": [
+          -0.008556547619047623,
+          0.09933035714285715
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.3058035714285714,
+        "paired_mean_first_minus_second": 0.044642857142857144,
+        "second_mean": 0.2611607142857143
+      },
+      "comparator_minus_balanced_physical_f1_5cm": {
+        "bootstrap_95_ci": [
+          -0.0427347004613983,
+          0.08273295622877833
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.3998060067506886,
+        "paired_mean_first_minus_second": 0.020654375539229403,
+        "second_mean": 0.37915163121145923
+      },
+      "comparator_minus_balanced_physical_recall_5cm": {
+        "bootstrap_95_ci": [
+          -0.01987480129509026,
+          0.09518224164390789
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.31833199752976354,
+        "paired_mean_first_minus_second": 0.0374173535836792,
+        "second_mean": 0.28091464394608434
+      },
+      "comparator_minus_balanced_semantic_first_two_mse": {
+        "bootstrap_95_ci": [
+          0.057818487004479176,
+          0.12903765295553243
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.24211950934413506,
+        "paired_mean_first_minus_second": 0.09213031628438749,
+        "second_mean": 0.14998919305974756
+      }
+    },
+    "balanced_vs_source": {
+      "comparator_minus_balanced_physical_contact_percent_5cm": {
+        "bootstrap_95_ci": [
+          -0.001116071428571422,
+          0.11532738095238093
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.31770833333333337,
+        "paired_mean_first_minus_second": 0.05654761904761905,
+        "second_mean": 0.2611607142857143
+      },
+      "comparator_minus_balanced_physical_f1_5cm": {
+        "bootstrap_95_ci": [
+          -0.0384874894844274,
+          0.09749177975373119
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.40910337912158345,
+        "paired_mean_first_minus_second": 0.029951747910124265,
+        "second_mean": 0.37915163121145923
+      },
+      "comparator_minus_balanced_physical_recall_5cm": {
+        "bootstrap_95_ci": [
+          -0.01220031606265422,
+          0.11433040242372113
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.33067170198287227,
+        "paired_mean_first_minus_second": 0.04975705803678791,
+        "second_mean": 0.28091464394608434
+      },
+      "comparator_minus_balanced_semantic_first_two_mse": {
+        "bootstrap_95_ci": [
+          0.06599756591768842,
+          0.14491199497574264
+        ],
+        "bootstrap_replicates": 10000,
+        "bootstrap_seed": 42,
+        "first_mean": 0.25395478717883463,
+        "paired_mean_first_minus_second": 0.10396559411908705,
+        "second_mean": 0.14998919305974756
+      }
+    }
+  },
+  "contract": {
+    "all_checkpoints_reported": true,
+    "all_fields_thresholds_decomposition_reported": true,
+    "all_finite": true,
+    "asset_hashes_exact": true,
+    "checkpoint_hashes_exact": true,
+    "data_contract_exact": true,
+    "history_restoration": true,
+    "model_state_unchanged": true,
+    "production_sampler_equation_unchanged": true,
+    "sampler_future_gt_absent": true,
+    "sampler_stored_per_frame_bps_absent": true,
+    "selection_exact": true,
+    "shared_sampler_noise_identity": true
+  },
+  "d2g_started": false,
+  "d2h1_started": false,
+  "decision": {
+    "checkpoint_selected": false,
+    "classification": "mixed-contact-deficit-stop",
+    "comparator_checks": {
+      "current": {
+        "physical_recall_deficit_ci_lower_gt_zero": false,
+        "semantic_mse_improvement_ci_lower_gt_zero": true
+      },
+      "source": {
+        "physical_recall_deficit_ci_lower_gt_zero": false,
+        "semantic_mse_improvement_ci_lower_gt_zero": true
+      }
+    },
+    "contract_checks": {
+      "all_checkpoints_reported": true,
+      "all_fields_thresholds_decomposition_reported": true,
+      "all_finite": true,
+      "asset_hashes_exact": true,
+      "checkpoint_hashes_exact": true,
+      "data_contract_exact": true,
+      "history_restoration": true,
+      "model_state_unchanged": true,
+      "production_sampler_equation_unchanged": true,
+      "sampler_future_gt_absent": true,
+      "sampler_stored_per_frame_bps_absent": true,
+      "selection_exact": true,
+      "shared_sampler_noise_identity": true
+    },
+    "contract_passed": true,
+    "d2g_started": false,
+    "d2h1_started": false,
+    "gt_label_evaluator_contract_passed": true,
+    "gt_union_5cm": {
+      "accuracy": 0.8337053571428571,
+      "counts": {
+        "fn": 348,
+        "fp": 99,
+        "tn": 473,
+        "tp": 1768
+      },
+      "f1": 0.8877730354004518,
+      "frames": 2688,
+      "precision": 0.9469737546866631,
+      "prediction_percent": 0.6945684523809523,
+      "recall": 0.8355387523629489,
+      "target_percent": 0.7872023809523809
+    },
+    "semantic_geometry_decoupling_proved": false,
+    "training_authorized": false,
+    "training_started": false
+  },
+  "ema_used": false,
+  "git_commit": "87636dbbcbb4f7c666d6576590f3a587e5f4add2",
+  "gpu": {
+    "device": "cuda:1",
+    "maximum_allocated_bytes": 220922880,
+    "maximum_reserved_bytes": 312475648,
+    "name": "NVIDIA GeForce RTX 3090"
+  },
+  "ground_truth": {
+    "aggregate": {
+      "contact_label_prevalence": {
+        "0": 0.5256696428571429,
+        "1": 0.6242559523809523,
+        "2": 0.020089285714285716,
+        "3": 0.022321428571428572
+      },
+      "frames": 2688,
+      "semantic_geometry_alignment": {
+        "10": {
+          "left_hand": {
+            "accuracy": 0.8299851190476191,
+            "counts": {
+              "fn": 455,
+              "fp": 2,
+              "tn": 820,
+              "tp": 1411
+            },
+            "f1": 0.8606282403171699,
+            "frames": 2688,
+            "precision": 0.9985845718329794,
+            "prediction_percent": 0.5256696428571429,
+            "recall": 0.7561629153269025,
+            "target_percent": 0.6941964285714286
+          },
+          "right_hand": {
+            "accuracy": 0.8664434523809523,
+            "counts": {
+              "fn": 342,
+              "fp": 17,
+              "tn": 668,
+              "tp": 1661
+            },
+            "f1": 0.9024721543058951,
+            "frames": 2688,
+            "precision": 0.9898688915375446,
+            "prediction_percent": 0.6242559523809523,
+            "recall": 0.8292561158262606,
+            "target_percent": 0.7451636904761905
+          },
+          "union": {
+            "accuracy": 0.8560267857142857,
+            "counts": {
+              "fn": 382,
+              "fp": 5,
+              "tn": 439,
+              "tp": 1862
+            },
+            "f1": 0.9058623206032596,
+            "frames": 2688,
+            "precision": 0.9973219068023568,
+            "prediction_percent": 0.6945684523809523,
+            "recall": 0.8297682709447415,
+            "target_percent": 0.8348214285714286
+          }
+        },
+        "2": {
+          "left_hand": {
+            "accuracy": 0.6741071428571429,
+            "counts": {
+              "fn": 133,
+              "fp": 743,
+              "tn": 1142,
+              "tp": 670
+            },
+            "f1": 0.6046931407942239,
+            "frames": 2688,
+            "precision": 0.47416843595187547,
+            "prediction_percent": 0.5256696428571429,
+            "recall": 0.8343711083437111,
+            "target_percent": 0.29873511904761907
+          },
+          "right_hand": {
+            "accuracy": 0.6220238095238095,
+            "counts": {
+              "fn": 201,
+              "fp": 815,
+              "tn": 809,
+              "tp": 863
+            },
+            "f1": 0.6294675419401896,
+            "frames": 2688,
+            "precision": 0.5143027413587604,
+            "prediction_percent": 0.6242559523809523,
+            "recall": 0.8110902255639098,
+            "target_percent": 0.3958333333333333
+          },
+          "union": {
+            "accuracy": 0.6465773809523809,
+            "counts": {
+              "fn": 227,
+              "fp": 723,
+              "tn": 594,
+              "tp": 1144
+            },
+            "f1": 0.7066090179122916,
+            "frames": 2688,
+            "precision": 0.612747723620782,
+            "prediction_percent": 0.6945684523809523,
+            "recall": 0.8344274252370533,
+            "target_percent": 0.5100446428571429
+          }
+        },
+        "5": {
+          "left_hand": {
+            "accuracy": 0.8463541666666666,
+            "counts": {
+              "fn": 321,
+              "fp": 92,
+              "tn": 954,
+              "tp": 1321
+            },
+            "f1": 0.8648117839607201,
+            "frames": 2688,
+            "precision": 0.9348903043170559,
+            "prediction_percent": 0.5256696428571429,
+            "recall": 0.8045066991473813,
+            "target_percent": 0.6108630952380952
+          },
+          "right_hand": {
+            "accuracy": 0.8337053571428571,
+            "counts": {
+              "fn": 286,
+              "fp": 161,
+              "tn": 724,
+              "tp": 1517
+            },
+            "f1": 0.8715886239586326,
+            "frames": 2688,
+            "precision": 0.9040524433849821,
+            "prediction_percent": 0.6242559523809523,
+            "recall": 0.841375485302274,
+            "target_percent": 0.6707589285714286
+          },
+          "union": {
+            "accuracy": 0.8337053571428571,
+            "counts": {
+              "fn": 348,
+              "fp": 99,
+              "tn": 473,
+              "tp": 1768
+            },
+            "f1": 0.8877730354004518,
+            "frames": 2688,
+            "precision": 0.9469737546866631,
+            "prediction_percent": 0.6945684523809523,
+            "recall": 0.8355387523629489,
+            "target_percent": 0.7872023809523809
+          }
+        },
+        "7.5": {
+          "left_hand": {
+            "accuracy": 0.8366815476190477,
+            "counts": {
+              "fn": 424,
+              "fp": 15,
+              "tn": 851,
+              "tp": 1398
+            },
+            "f1": 0.8642967542503864,
+            "frames": 2688,
+            "precision": 0.9893842887473461,
+            "prediction_percent": 0.5256696428571429,
+            "recall": 0.7672886937431395,
+            "target_percent": 0.6778273809523809
+          },
+          "right_hand": {
+            "accuracy": 0.8675595238095238,
+            "counts": {
+              "fn": 312,
+              "fp": 44,
+              "tn": 698,
+              "tp": 1634
+            },
+            "f1": 0.9017660044150111,
+            "frames": 2688,
+            "precision": 0.9737783075089392,
+            "prediction_percent": 0.6242559523809523,
+            "recall": 0.8396711202466598,
+            "target_percent": 0.7239583333333334
+          },
+          "union": {
+            "accuracy": 0.8567708333333334,
+            "counts": {
+              "fn": 359,
+              "fp": 26,
+              "tn": 462,
+              "tp": 1841
+            },
+            "f1": 0.9053356282271945,
+            "frames": 2688,
+            "precision": 0.986073915372255,
+            "prediction_percent": 0.6945684523809523,
+            "recall": 0.8368181818181818,
+            "target_percent": 0.8184523809523809
+          }
+        }
+      }
+    }
+  },
+  "models": {
+    "balanced": {
+      "aggregate": {
+        "distance_decomposition_on_gt_5cm_contact": {
+          "generated_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 14.372109131358368,
+              "quantiles_cm": {
+                "max": 74.21507239341736,
+                "median": 13.043871521949768,
+                "min": 0.0,
+                "p05": 1.472804457880557,
+                "p25": 6.4997827634215355,
+                "p75": 20.789000019431114,
+                "p95": 32.00062543153761
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.37088915956151036,
+                "2": 0.0712545676004872,
+                "5": 0.20219244823386115,
+                "7.5": 0.28319123020706455
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 14.820121316364757,
+              "quantiles_cm": {
+                "max": 53.54573130607605,
+                "median": 12.199313938617706,
+                "min": 0.13810679083690047,
+                "p05": 1.4511894714087248,
+                "p25": 6.328468769788742,
+                "p75": 21.448583155870438,
+                "p95": 35.51491618156433
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.4070992789794787,
+                "2": 0.06932889628397115,
+                "5": 0.19633943427620631,
+                "7.5": 0.30227398779811426
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 10.348743592098,
+              "quantiles_cm": {
+                "max": 38.52235674858093,
+                "median": 8.778000995516777,
+                "min": 0.0,
+                "p05": 0.9468125179409981,
+                "p25": 3.9293719455599785,
+                "p75": 15.332332253456116,
+                "p95": 24.398111179471016
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.5534026465028355,
+                "2": 0.11767485822306238,
+                "5": 0.31474480151228734,
+                "7.5": 0.43194706994328924
+              }
+            }
+          },
+          "generated_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 31.534768334245616,
+              "quantiles_cm": {
+                "max": 114.1281008720398,
+                "median": 27.727024257183075,
+                "min": 0.24656993336975574,
+                "p05": 3.285374250262977,
+                "p25": 17.75157079100609,
+                "p75": 44.32840198278427,
+                "p95": 66.97283148765564
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.13763702801461633,
+                "2": 0.03227771010962241,
+                "5": 0.07369062119366626,
+                "7.5": 0.10475030450669914
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 33.74159291555255,
+              "quantiles_cm": {
+                "max": 116.67933464050293,
+                "median": 28.918370604515076,
+                "min": 0.2183660166338086,
+                "p05": 4.07533124089241,
+                "p25": 16.433946788311005,
+                "p75": 46.443070471286774,
+                "p95": 79.46998715400694
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.13921242373821408,
+                "2": 0.02273987798114254,
+                "5": 0.06544647809206877,
+                "7.5": 0.09595119245701608
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 25.70774330981366,
+              "quantiles_cm": {
+                "max": 104.6627402305603,
+                "median": 21.200796961784363,
+                "min": 0.2183660166338086,
+                "p05": 2.2028316743671894,
+                "p25": 11.210411414504051,
+                "p75": 35.44704094529152,
+                "p95": 63.73297721147537
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.22164461247637052,
+                "2": 0.04489603024574669,
+                "5": 0.11483931947069943,
+                "7.5": 0.16446124763705103
+              }
+            }
+          },
+          "gt_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 23.938903112048692,
+              "quantiles_cm": {
+                "max": 96.1242139339447,
+                "median": 20.143986493349075,
+                "min": 0.1655842293985188,
+                "p05": 2.6699053775519146,
+                "p25": 11.787795461714268,
+                "p75": 32.683854550123215,
+                "p95": 57.40029662847519
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.20401948842874543,
+                "2": 0.03654080389768575,
+                "5": 0.09561510353227771,
+                "7.5": 0.14677222898903775
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 22.633975545992723,
+              "quantiles_cm": {
+                "max": 95.53465843200684,
+                "median": 20.345339179039,
+                "min": 0.10066175600513816,
+                "p05": 2.0925563387572765,
+                "p25": 9.870394319295883,
+                "p75": 31.010065972805023,
+                "p95": 53.80998909473416
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.2529118136439268,
+                "2": 0.048252911813643926,
+                "5": 0.1192457016084304,
+                "7.5": 0.19412090959511924
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 17.908968006951483,
+              "quantiles_cm": {
+                "max": 85.12921333312988,
+                "median": 14.812633395195007,
+                "min": 0.10066175600513816,
+                "p05": 1.3567840680480003,
+                "p25": 6.935849413275719,
+                "p75": 25.04536211490631,
+                "p95": 45.305998623371124
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.35302457466918713,
+                "2": 0.07703213610586011,
+                "5": 0.17958412098298676,
+                "7.5": 0.2731568998109641
+              }
+            }
+          },
+          "gt_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 2.098363998996028,
+              "quantiles_cm": {
+                "max": 4.985492676496506,
+                "median": 2.037806250154972,
+                "min": 0.0,
+                "p05": 0.3239809023216367,
+                "p25": 1.077127200551331,
+                "p75": 3.1153052113950253,
+                "p95": 4.068638011813162
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.4890377588306943,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 1.911832781002872,
+              "quantiles_cm": {
+                "max": 4.9983881413936615,
+                "median": 1.7600150778889656,
+                "min": 0.0,
+                "p05": 0.30707362573593855,
+                "p25": 0.8336607366800308,
+                "p75": 2.724219858646393,
+                "p95": 4.371494613587856
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.5901275651691625,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 1.70205005008634,
+              "quantiles_cm": {
+                "max": 4.993974044919014,
+                "median": 1.5654508024454117,
+                "min": 0.0,
+                "p05": 0.2577948209363967,
+                "p25": 0.6514484528452158,
+                "p75": 2.41433959454298,
+                "p95": 4.02446873486042
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.6479206049149339,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            }
+          }
+        },
+        "frames": 2688,
+        "physical_geometry_vs_gt": {
+          "prediction_distance_cm": {
+            "left_hand": {
+              "max": 74.73713755607605,
+              "median": 17.583125084638596,
+              "min": 0.0,
+              "p05": 2.0018613897264004,
+              "p25": 9.307150915265083,
+              "p75": 28.35797145962715,
+              "p95": 55.273750126361854
+            },
+            "right_hand": {
+              "max": 69.7222888469696,
+              "median": 14.29901123046875,
+              "min": 0.13810679083690047,
+              "p05": 1.9915554765611887,
+              "p25": 7.686124928295612,
+              "p75": 24.39274825155735,
+              "p95": 41.74528807401657
+            },
+            "union": {
+              "max": 69.7222888469696,
+              "median": 10.31123548746109,
+              "min": 0.0,
+              "p05": 1.0746145667508245,
+              "p25": 4.787083715200424,
+              "p75": 18.508105352520943,
+              "p95": 36.441434174776084
+            }
+          },
+          "target_distance_cm": {
+            "left_hand": {
+              "max": 105.55654764175415,
+              "median": 3.3797387033700943,
+              "min": 0.0,
+              "p05": 0.390625,
+              "p25": 1.6375630628317595,
+              "p75": 34.5651738345623,
+              "p95": 65.69680452346802
+            },
+            "right_hand": {
+              "max": 100.44775009155273,
+              "median": 2.71226791664958,
+              "min": 0.0,
+              "p05": 0.3670238424092531,
+              "p25": 1.345655438490212,
+              "p75": 10.721141658723354,
+              "p95": 66.50162637233736
+            },
+            "union": {
+              "max": 79.95567321777344,
+              "median": 1.9555647857487202,
+              "min": 0.0,
+              "p05": 0.28752507641911507,
+              "p25": 0.8910296484827995,
+              "p75": 4.038811940699816,
+              "p95": 52.60800242424011
+            }
+          },
+          "thresholds_cm": {
+            "10": {
+              "left_hand": {
+                "accuracy": 0.5442708333333334,
+                "counts": {
+                  "fn": 1185,
+                  "fp": 40,
+                  "tn": 782,
+                  "tp": 681
+                },
+                "f1": 0.5264785465790491,
+                "frames": 2688,
+                "precision": 0.9445214979195562,
+                "prediction_percent": 0.2682291666666667,
+                "prediction_run_lengths": {
+                  "max_frames": 29,
+                  "mean_frames": 8.193181818181818,
+                  "runs": 88
+                },
+                "recall": 0.364951768488746,
+                "target_percent": 0.6941964285714286,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 49.10526315789474,
+                  "runs": 38
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5241815476190477,
+                "counts": {
+                  "fn": 1180,
+                  "fp": 99,
+                  "tn": 586,
+                  "tp": 823
+                },
+                "f1": 0.5627350427350427,
+                "frames": 2688,
+                "precision": 0.8926247288503254,
+                "prediction_percent": 0.3430059523809524,
+                "prediction_run_lengths": {
+                  "max_frames": 42,
+                  "mean_frames": 7.880341880341881,
+                  "runs": 117
+                },
+                "recall": 0.4108836744882676,
+                "target_percent": 0.7451636904761905,
+                "target_run_lengths": {
+                  "max_frames": 156,
+                  "mean_frames": 45.52272727272727,
+                  "runs": 44
+                }
+              },
+              "union": {
+                "accuracy": 0.5993303571428571,
+                "counts": {
+                  "fn": 1008,
+                  "fp": 69,
+                  "tn": 375,
+                  "tp": 1236
+                },
+                "f1": 0.6965342349957735,
+                "frames": 2688,
+                "precision": 0.9471264367816092,
+                "prediction_percent": 0.48549107142857145,
+                "prediction_run_lengths": {
+                  "max_frames": 66,
+                  "mean_frames": 11.651785714285714,
+                  "runs": 112
+                },
+                "recall": 0.5508021390374331,
+                "target_percent": 0.8348214285714286,
+                "target_run_lengths": {
+                  "max_frames": 292,
+                  "mean_frames": 86.3076923076923,
+                  "runs": 26
+                }
+              }
+            },
+            "2": {
+              "left_hand": {
+                "accuracy": 0.6971726190476191,
+                "counts": {
+                  "fn": 741,
+                  "fp": 73,
+                  "tn": 1812,
+                  "tp": 62
+                },
+                "f1": 0.13219616204690832,
+                "frames": 2688,
+                "precision": 0.45925925925925926,
+                "prediction_percent": 0.05022321428571429,
+                "prediction_run_lengths": {
+                  "max_frames": 10,
+                  "mean_frames": 2.4545454545454546,
+                  "runs": 55
+                },
+                "recall": 0.07721046077210461,
+                "target_percent": 0.29873511904761907,
+                "target_run_lengths": {
+                  "max_frames": 48,
+                  "mean_frames": 13.163934426229508,
+                  "runs": 61
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.6168154761904762,
+                "counts": {
+                  "fn": 979,
+                  "fp": 51,
+                  "tn": 1573,
+                  "tp": 85
+                },
+                "f1": 0.14166666666666666,
+                "frames": 2688,
+                "precision": 0.625,
+                "prediction_percent": 0.050595238095238096,
+                "prediction_run_lengths": {
+                  "max_frames": 7,
+                  "mean_frames": 2.3448275862068964,
+                  "runs": 58
+                },
+                "recall": 0.07988721804511278,
+                "target_percent": 0.3958333333333333,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 13.818181818181818,
+                  "runs": 77
+                }
+              },
+              "union": {
+                "accuracy": 0.5293898809523809,
+                "counts": {
+                  "fn": 1187,
+                  "fp": 78,
+                  "tn": 1239,
+                  "tp": 184
+                },
+                "f1": 0.22535211267605634,
+                "frames": 2688,
+                "precision": 0.7022900763358778,
+                "prediction_percent": 0.0974702380952381,
+                "prediction_run_lengths": {
+                  "max_frames": 13,
+                  "mean_frames": 2.62,
+                  "runs": 100
+                },
+                "recall": 0.13420860685630925,
+                "target_percent": 0.5100446428571429,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 14.43157894736842,
+                  "runs": 95
+                }
+              }
+            },
+            "5": {
+              "left_hand": {
+                "accuracy": 0.49516369047619047,
+                "counts": {
+                  "fn": 1310,
+                  "fp": 47,
+                  "tn": 999,
+                  "tp": 332
+                },
+                "f1": 0.3285502226620485,
+                "frames": 2688,
+                "precision": 0.8759894459102903,
+                "prediction_percent": 0.1409970238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 26,
+                  "mean_frames": 6.5344827586206895,
+                  "runs": 58
+                },
+                "recall": 0.20219244823386115,
+                "target_percent": 0.6108630952380952,
+                "target_run_lengths": {
+                  "max_frames": 144,
+                  "mean_frames": 32.19607843137255,
+                  "runs": 51
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.44382440476190477,
+                "counts": {
+                  "fn": 1449,
+                  "fp": 46,
+                  "tn": 839,
+                  "tp": 354
+                },
+                "f1": 0.32137993645029506,
+                "frames": 2688,
+                "precision": 0.885,
+                "prediction_percent": 0.1488095238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 14,
+                  "mean_frames": 4.597701149425287,
+                  "runs": 87
+                },
+                "recall": 0.19633943427620631,
+                "target_percent": 0.6707589285714286,
+                "target_run_lengths": {
+                  "max_frames": 128,
+                  "mean_frames": 37.5625,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.44717261904761907,
+                "counts": {
+                  "fn": 1450,
+                  "fp": 36,
+                  "tn": 536,
+                  "tp": 666
+                },
+                "f1": 0.4726756564939673,
+                "frames": 2688,
+                "precision": 0.9487179487179487,
+                "prediction_percent": 0.2611607142857143,
+                "prediction_run_lengths": {
+                  "max_frames": 26,
+                  "mean_frames": 6.622641509433962,
+                  "runs": 106
+                },
+                "recall": 0.31474480151228734,
+                "target_percent": 0.7872023809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 54.256410256410255,
+                  "runs": 39
+                }
+              }
+            },
+            "7.5": {
+              "left_hand": {
+                "accuracy": 0.5018601190476191,
+                "counts": {
+                  "fn": 1312,
+                  "fp": 27,
+                  "tn": 839,
+                  "tp": 510
+                },
+                "f1": 0.4323866044934294,
+                "frames": 2688,
+                "precision": 0.9497206703910615,
+                "prediction_percent": 0.19977678571428573,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 7.256756756756757,
+                  "runs": 74
+                },
+                "recall": 0.27991218441273324,
+                "target_percent": 0.6778273809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 43.38095238095238,
+                  "runs": 42
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.46875,
+                "counts": {
+                  "fn": 1362,
+                  "fp": 66,
+                  "tn": 676,
+                  "tp": 584
+                },
+                "f1": 0.44992295839753466,
+                "frames": 2688,
+                "precision": 0.8984615384615384,
+                "prediction_percent": 0.2418154761904762,
+                "prediction_run_lengths": {
+                  "max_frames": 31,
+                  "mean_frames": 6.5,
+                  "runs": 100
+                },
+                "recall": 0.3001027749229188,
+                "target_percent": 0.7239583333333334,
+                "target_run_lengths": {
+                  "max_frames": 129,
+                  "mean_frames": 42.30434782608695,
+                  "runs": 46
+                }
+              },
+              "union": {
+                "accuracy": 0.5148809523809523,
+                "counts": {
+                  "fn": 1253,
+                  "fp": 51,
+                  "tn": 437,
+                  "tp": 947
+                },
+                "f1": 0.592245153220763,
+                "frames": 2688,
+                "precision": 0.9488977955911824,
+                "prediction_percent": 0.3712797619047619,
+                "prediction_run_lengths": {
+                  "max_frames": 57,
+                  "mean_frames": 8.678260869565218,
+                  "runs": 115
+                },
+                "recall": 0.4304545454545455,
+                "target_percent": 0.8184523809523809,
+                "target_run_lengths": {
+                  "max_frames": 291,
+                  "mean_frames": 70.96774193548387,
+                  "runs": 31
+                }
+              }
+            }
+          }
+        },
+        "predicted_semantic_vs_predicted_geometry": {
+          "10": {
+            "left_hand": {
+              "accuracy": 0.5997023809523809,
+              "counts": {
+                "fn": 172,
+                "fp": 904,
+                "tn": 1063,
+                "tp": 549
+              },
+              "f1": 0.5050597976080956,
+              "frames": 2688,
+              "precision": 0.3778389538885065,
+              "prediction_percent": 0.5405505952380952,
+              "recall": 0.7614424410540915,
+              "target_percent": 0.2682291666666667
+            },
+            "right_hand": {
+              "accuracy": 0.5572916666666666,
+              "counts": {
+                "fn": 157,
+                "fp": 1033,
+                "tn": 733,
+                "tp": 765
+              },
+              "f1": 0.5625,
+              "frames": 2688,
+              "precision": 0.42547274749721914,
+              "prediction_percent": 0.6688988095238095,
+              "recall": 0.8297180043383948,
+              "target_percent": 0.3430059523809524
+            },
+            "union": {
+              "accuracy": 0.6130952380952381,
+              "counts": {
+                "fn": 201,
+                "fp": 839,
+                "tn": 544,
+                "tp": 1104
+              },
+              "f1": 0.6798029556650246,
+              "frames": 2688,
+              "precision": 0.5681935151827071,
+              "prediction_percent": 0.7228422619047619,
+              "recall": 0.8459770114942529,
+              "target_percent": 0.48549107142857145
+            }
+          },
+          "2": {
+            "left_hand": {
+              "accuracy": 0.4888392857142857,
+              "counts": {
+                "fn": 28,
+                "fp": 1346,
+                "tn": 1207,
+                "tp": 107
+              },
+              "f1": 0.13476070528967254,
+              "frames": 2688,
+              "precision": 0.07364074328974536,
+              "prediction_percent": 0.5405505952380952,
+              "recall": 0.7925925925925926,
+              "target_percent": 0.05022321428571429
+            },
+            "right_hand": {
+              "accuracy": 0.37202380952380953,
+              "counts": {
+                "fn": 13,
+                "fp": 1675,
+                "tn": 877,
+                "tp": 123
+              },
+              "f1": 0.12719751809720786,
+              "frames": 2688,
+              "precision": 0.06840934371523916,
+              "prediction_percent": 0.6688988095238095,
+              "recall": 0.9044117647058824,
+              "target_percent": 0.050595238095238096
+            },
+            "union": {
+              "accuracy": 0.3523065476190476,
+              "counts": {
+                "fn": 30,
+                "fp": 1711,
+                "tn": 715,
+                "tp": 232
+              },
+              "f1": 0.21043083900226756,
+              "frames": 2688,
+              "precision": 0.11940298507462686,
+              "prediction_percent": 0.7228422619047619,
+              "recall": 0.8854961832061069,
+              "target_percent": 0.0974702380952381
+            }
+          },
+          "5": {
+            "left_hand": {
+              "accuracy": 0.5349702380952381,
+              "counts": {
+                "fn": 88,
+                "fp": 1162,
+                "tn": 1147,
+                "tp": 291
+              },
+              "f1": 0.31768558951965065,
+              "frames": 2688,
+              "precision": 0.2002752924982794,
+              "prediction_percent": 0.5405505952380952,
+              "recall": 0.7678100263852242,
+              "target_percent": 0.1409970238095238
+            },
+            "right_hand": {
+              "accuracy": 0.44642857142857145,
+              "counts": {
+                "fn": 45,
+                "fp": 1443,
+                "tn": 845,
+                "tp": 355
+              },
+              "f1": 0.3230209281164695,
+              "frames": 2688,
+              "precision": 0.19744160177975528,
+              "prediction_percent": 0.6688988095238095,
+              "recall": 0.8875,
+              "target_percent": 0.1488095238095238
+            },
+            "union": {
+              "accuracy": 0.4728422619047619,
+              "counts": {
+                "fn": 88,
+                "fp": 1329,
+                "tn": 657,
+                "tp": 614
+              },
+              "f1": 0.4642722117202268,
+              "frames": 2688,
+              "precision": 0.31600617601646935,
+              "prediction_percent": 0.7228422619047619,
+              "recall": 0.8746438746438746,
+              "target_percent": 0.2611607142857143
+            }
+          },
+          "7.5": {
+            "left_hand": {
+              "accuracy": 0.5662202380952381,
+              "counts": {
+                "fn": 125,
+                "fp": 1041,
+                "tn": 1110,
+                "tp": 412
+              },
+              "f1": 0.414070351758794,
+              "frames": 2688,
+              "precision": 0.28355127322780455,
+              "prediction_percent": 0.5405505952380952,
+              "recall": 0.7672253258845437,
+              "target_percent": 0.19977678571428573
+            },
+            "right_hand": {
+              "accuracy": 0.5059523809523809,
+              "counts": {
+                "fn": 90,
+                "fp": 1238,
+                "tn": 800,
+                "tp": 560
+              },
+              "f1": 0.4575163398692811,
+              "frames": 2688,
+              "precision": 0.3114571746384872,
+              "prediction_percent": 0.6688988095238095,
+              "recall": 0.8615384615384616,
+              "target_percent": 0.2418154761904762
+            },
+            "union": {
+              "accuracy": 0.5465029761904762,
+              "counts": {
+                "fn": 137,
+                "fp": 1082,
+                "tn": 608,
+                "tp": 861
+              },
+              "f1": 0.5855151309078545,
+              "frames": 2688,
+              "precision": 0.4431291816778178,
+              "prediction_percent": 0.7228422619047619,
+              "recall": 0.8627254509018036,
+              "target_percent": 0.3712797619047619
+            }
+          }
+        },
+        "semantic_vs_gt": {
+          "all_four_mse": 0.08520174319440936,
+          "all_four_smooth_l1": 0.04245736724978134,
+          "first_two_calibration": {
+            "brier": 0.12796872640551543,
+            "expected_calibration_error": 0.06447478585393929,
+            "raw_outside_0_1_percent": 0.3404017857142857
+          },
+          "first_two_mse": 0.14998919305974756,
+          "first_two_smooth_l1": 0.07470776164314556,
+          "per_channel": {
+            "0": {
+              "mse": 0.13599940601753424,
+              "prediction_quantiles": {
+                "max": 1.3149662017822266,
+                "median": 0.549890011548996,
+                "min": -0.5415328741073608,
+                "p05": -0.31866642236709597,
+                "p25": 0.1093391627073288,
+                "p75": 0.8469322323799133,
+                "p95": 1.0897123575210572
+              },
+              "smooth_l1": 0.0678648060266723,
+              "target_percent": 0.5256696428571429
+            },
+            "1": {
+              "mse": 0.16397898010196085,
+              "prediction_quantiles": {
+                "max": 1.5081489086151123,
+                "median": 0.722061961889267,
+                "min": -0.399839848279953,
+                "p05": -0.1354649268090725,
+                "p25": 0.347669318318367,
+                "p75": 0.9942672252655029,
+                "p95": 1.3569495677947998
+              },
+              "smooth_l1": 0.0815507172596188,
+              "target_percent": 0.6242559523809523
+            },
+            "2": {
+              "mse": 0.021003107696844128,
+              "prediction_quantiles": {
+                "max": 0.12070978432893753,
+                "median": 0.011812749318778515,
+                "min": -0.08574914932250977,
+                "p05": -0.04307343885302544,
+                "p25": -0.01489582797512412,
+                "p75": 0.04331776965409517,
+                "p95": 0.07635348439216615
+              },
+              "smooth_l1": 0.010501206232185131,
+              "target_percent": 0.020089285714285716
+            },
+            "3": {
+              "mse": 0.019825478961298215,
+              "prediction_quantiles": {
+                "max": 0.20349156856536865,
+                "median": 0.0026055608177557588,
+                "min": -0.1099851205945015,
+                "p05": -0.05268392525613308,
+                "p25": -0.02168612740933895,
+                "p75": 0.029562121722847223,
+                "p95": 0.14496639966964722
+              },
+              "smooth_l1": 0.009912739480649108,
+              "target_percent": 0.022321428571428572
+            }
+          },
+          "thresholds": {
+            "0.5": {
+              "left_hand": {
+                "accuracy": 0.8385416666666666,
+                "counts": {
+                  "fn": 197,
+                  "fp": 237,
+                  "tn": 1038,
+                  "tp": 1216
+                },
+                "f1": 0.848569434752268,
+                "frames": 2688,
+                "precision": 0.8368891947694426,
+                "prediction_percent": 0.5405505952380952,
+                "prediction_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 37.256410256410255,
+                  "runs": 39
+                },
+                "recall": 0.8605803255484784,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.828125,
+                "counts": {
+                  "fn": 171,
+                  "fp": 291,
+                  "tn": 719,
+                  "tp": 1507
+                },
+                "f1": 0.8670886075949366,
+                "frames": 2688,
+                "precision": 0.8381535038932146,
+                "prediction_percent": 0.6688988095238095,
+                "prediction_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 51.371428571428574,
+                  "runs": 35
+                },
+                "recall": 0.898092967818832,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.8965773809523809,
+                "counts": {
+                  "fn": 101,
+                  "fp": 177,
+                  "tn": 644,
+                  "tp": 1766
+                },
+                "f1": 0.9270341207349082,
+                "frames": 2688,
+                "precision": 0.9089037570766856,
+                "prediction_percent": 0.7228422619047619,
+                "prediction_run_lengths": {
+                  "max_frames": 252,
+                  "mean_frames": 69.39285714285714,
+                  "runs": 28
+                },
+                "recall": 0.9459025174076058,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.75": {
+              "left_hand": {
+                "accuracy": 0.7258184523809523,
+                "counts": {
+                  "fn": 636,
+                  "fp": 101,
+                  "tn": 1174,
+                  "tp": 777
+                },
+                "f1": 0.678306416412047,
+                "frames": 2688,
+                "precision": 0.8849658314350797,
+                "prediction_percent": 0.32663690476190477,
+                "prediction_run_lengths": {
+                  "max_frames": 106,
+                  "mean_frames": 30.275862068965516,
+                  "runs": 29
+                },
+                "recall": 0.5498938428874734,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.7310267857142857,
+                "counts": {
+                  "fn": 566,
+                  "fp": 157,
+                  "tn": 853,
+                  "tp": 1112
+                },
+                "f1": 0.7546657617916527,
+                "frames": 2688,
+                "precision": 0.876280535855004,
+                "prediction_percent": 0.4720982142857143,
+                "prediction_run_lengths": {
+                  "max_frames": 105,
+                  "mean_frames": 29.511627906976745,
+                  "runs": 43
+                },
+                "recall": 0.6626936829558999,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.7994791666666666,
+                "counts": {
+                  "fn": 463,
+                  "fp": 76,
+                  "tn": 745,
+                  "tp": 1404
+                },
+                "f1": 0.8389602629220198,
+                "frames": 2688,
+                "precision": 0.9486486486486486,
+                "prediction_percent": 0.5505952380952381,
+                "prediction_run_lengths": {
+                  "max_frames": 123,
+                  "mean_frames": 38.94736842105263,
+                  "runs": 38
+                },
+                "recall": 0.7520085698982325,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.95": {
+              "left_hand": {
+                "accuracy": 0.6008184523809523,
+                "counts": {
+                  "fn": 1043,
+                  "fp": 30,
+                  "tn": 1245,
+                  "tp": 370
+                },
+                "f1": 0.40816326530612246,
+                "frames": 2688,
+                "precision": 0.925,
+                "prediction_percent": 0.1488095238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 42,
+                  "mean_frames": 14.285714285714286,
+                  "runs": 28
+                },
+                "recall": 0.2618542108987969,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.6019345238095238,
+                "counts": {
+                  "fn": 983,
+                  "fp": 87,
+                  "tn": 923,
+                  "tp": 695
+                },
+                "f1": 0.5650406504065041,
+                "frames": 2688,
+                "precision": 0.8887468030690537,
+                "prediction_percent": 0.29092261904761907,
+                "prediction_run_lengths": {
+                  "max_frames": 54,
+                  "mean_frames": 17.772727272727273,
+                  "runs": 44
+                },
+                "recall": 0.41418355184743744,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.6045386904761905,
+                "counts": {
+                  "fn": 1029,
+                  "fp": 34,
+                  "tn": 787,
+                  "tp": 838
+                },
+                "f1": 0.6119021540708287,
+                "frames": 2688,
+                "precision": 0.9610091743119266,
+                "prediction_percent": 0.3244047619047619,
+                "prediction_run_lengths": {
+                  "max_frames": 54,
+                  "mean_frames": 19.377777777777776,
+                  "runs": 45
+                },
+                "recall": 0.4488484199250134,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            }
+          }
+        }
+      },
+      "all_contact_fields_thresholds_and_decomposition_reported": true,
+      "checkpoint": {
+        "metadata": {
+          "checkpoint_type": "hoi_prior_phase1b",
+          "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+          "expert": "hoi",
+          "git_commit": "f17beabf508aa461ac5452ab3f705095bd0e04a2",
+          "initialization": "random",
+          "model_config": {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8
+          },
+          "optimizer_updates": 64,
+          "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2m-reset-paired-s42-20260716/candidates/balanced/checkpoints/p1-hoi-d2m-reset-paired-s42-20260716-balanced_windows000196608.pth",
+          "processed_frames": 3145728,
+          "processed_windows": 196608,
+          "run_id": "p1-hoi-d2m-reset-paired-s42-20260716-balanced",
+          "schema_version": 2,
+          "seed": 42,
+          "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+          "weight_variant": "online",
+          "weights": "model",
+          "window_state_codec": "state-compositional-v1"
+        },
+        "model_state_sha256_after": "6fdb7dce773d3022f89b0cc363072c8036503ee640ee0d2df7bd6ad6d0760838",
+        "model_state_sha256_before": "6fdb7dce773d3022f89b0cc363072c8036503ee640ee0d2df7bd6ad6d0760838",
+        "model_state_unchanged": true,
+        "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2m-reset-paired-s42-20260716/candidates/balanced/checkpoints/p1-hoi-d2m-reset-paired-s42-20260716-balanced_windows000196608.pth",
+        "sha256": "ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8"
+      },
+      "finite": true,
+      "history_max_abs": 4.76837158203125e-07
+    },
+    "current": {
+      "aggregate": {
+        "distance_decomposition_on_gt_5cm_contact": {
+          "generated_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 10.91074722124367,
+              "quantiles_cm": {
+                "max": 51.084113121032715,
+                "median": 8.340900391340256,
+                "min": 0.13810679083690047,
+                "p05": 1.114249839447439,
+                "p25": 4.7108544036746025,
+                "p75": 15.019291266798973,
+                "p95": 29.685612022876732
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.5828258221680876,
+                "2": 0.08952496954933009,
+                "5": 0.2697929354445798,
+                "7.5": 0.44884287454323996
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 14.110310894374633,
+              "quantiles_cm": {
+                "max": 71.65403366088867,
+                "median": 11.012230813503265,
+                "min": 0.16914558364078403,
+                "p05": 1.0375244449824095,
+                "p25": 5.524001643061638,
+                "p75": 19.99790146946907,
+                "p95": 36.534006297588306
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.4653355518580144,
+                "2": 0.09095951192457016,
+                "5": 0.22296173044925124,
+                "7.5": 0.3471991125901276
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 9.845347135473661,
+              "quantiles_cm": {
+                "max": 51.084113121032715,
+                "median": 7.140602171421051,
+                "min": 0.13810679083690047,
+                "p05": 0.6514484528452158,
+                "p25": 3.4798329696059227,
+                "p75": 14.355425909161568,
+                "p95": 27.252832055091858
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.6257088846880907,
+                "2": 0.14697542533081284,
+                "5": 0.358695652173913,
+                "7.5": 0.5236294896030246
+              }
+            }
+          },
+          "generated_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 53.62224898157283,
+              "quantiles_cm": {
+                "max": 156.47170543670654,
+                "median": 51.25420093536377,
+                "min": 0.1291870721615851,
+                "p05": 7.06665348261595,
+                "p25": 30.904585868120193,
+                "p75": 71.77770137786865,
+                "p95": 111.48828446865073
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.0682095006090134,
+                "2": 0.024360535931790498,
+                "5": 0.03958587088915956,
+                "7.5": 0.05237515225334957
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 57.73342851016318,
+              "quantiles_cm": {
+                "max": 157.28719234466553,
+                "median": 56.91600441932678,
+                "min": 0.16914558364078403,
+                "p05": 7.262545451521874,
+                "p25": 35.33544838428497,
+                "p75": 76.99688971042633,
+                "p95": 113.16088676452634
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.06766500277315585,
+                "2": 0.018857459789240156,
+                "5": 0.03438713255684969,
+                "7.5": 0.052135330005546314
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 50.842511869477555,
+              "quantiles_cm": {
+                "max": 155.23524284362793,
+                "median": 47.691817581653595,
+                "min": 0.1291870721615851,
+                "p05": 5.103675462305546,
+                "p25": 30.40735051035881,
+                "p75": 68.06194931268692,
+                "p95": 108.5152804851532
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.0831758034026465,
+                "2": 0.02930056710775047,
+                "5": 0.04962192816635161,
+                "7.5": 0.0671077504725898
+              }
+            }
+          },
+          "gt_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 39.54813341630269,
+              "quantiles_cm": {
+                "max": 145.38795948028564,
+                "median": 34.39607173204422,
+                "min": 0.2583741443231702,
+                "p05": 5.21373113617301,
+                "p25": 16.337912529706955,
+                "p75": 55.177004635334015,
+                "p95": 95.39607405662535
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.12911084043848964,
+                "2": 0.012180267965895249,
+                "5": 0.04506699147381242,
+                "7.5": 0.08343483556638245
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 36.88981633514442,
+              "quantiles_cm": {
+                "max": 157.3187232017517,
+                "median": 34.573400020599365,
+                "min": 0.12448778143152595,
+                "p05": 5.694695562124252,
+                "p25": 17.277085036039352,
+                "p75": 50.48322379589081,
+                "p95": 80.39453804492948
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.11702717692734331,
+                "2": 0.016638935108153077,
+                "5": 0.04215196894065446,
+                "7.5": 0.07709373266777593
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 31.235406063802962,
+              "quantiles_cm": {
+                "max": 145.38795948028564,
+                "median": 25.798074901103973,
+                "min": 0.1091830083169043,
+                "p05": 2.9454441741108894,
+                "p25": 11.228504963219166,
+                "p75": 42.79339537024498,
+                "p95": 82.25448280572891
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.21219281663516068,
+                "2": 0.0335538752362949,
+                "5": 0.08648393194706994,
+                "7.5": 0.1446124763705104
+              }
+            }
+          },
+          "gt_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 2.098363998996028,
+              "quantiles_cm": {
+                "max": 4.985492676496506,
+                "median": 2.037806250154972,
+                "min": 0.0,
+                "p05": 0.3239809023216367,
+                "p25": 1.077127200551331,
+                "p75": 3.1153052113950253,
+                "p95": 4.068638011813162
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.4890377588306943,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 1.911832781002872,
+              "quantiles_cm": {
+                "max": 4.9983881413936615,
+                "median": 1.7600150778889656,
+                "min": 0.0,
+                "p05": 0.30707362573593855,
+                "p25": 0.8336607366800308,
+                "p75": 2.724219858646393,
+                "p95": 4.371494613587856
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.5901275651691625,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 1.70205005008634,
+              "quantiles_cm": {
+                "max": 4.993974044919014,
+                "median": 1.5654508024454117,
+                "min": 0.0,
+                "p05": 0.2577948209363967,
+                "p25": 0.6514484528452158,
+                "p75": 2.41433959454298,
+                "p95": 4.02446873486042
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.6479206049149339,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            }
+          }
+        },
+        "frames": 2688,
+        "physical_geometry_vs_gt": {
+          "prediction_distance_cm": {
+            "left_hand": {
+              "max": 81.64024353027344,
+              "median": 12.178628519177437,
+              "min": 0.048828125,
+              "p05": 1.4266670076176524,
+              "p25": 5.962731596082449,
+              "p75": 25.056572258472443,
+              "p95": 49.92127731442452
+            },
+            "right_hand": {
+              "max": 98.3427345752716,
+              "median": 14.227542281150818,
+              "min": 0.16914558364078403,
+              "p05": 1.367348921485245,
+              "p25": 7.021791860461235,
+              "p75": 26.099397987127304,
+              "p95": 58.21221739053726
+            },
+            "union": {
+              "max": 81.64024353027344,
+              "median": 8.800109475851059,
+              "min": 0.048828125,
+              "p05": 0.7358802552334963,
+              "p25": 4.099527467042208,
+              "p75": 19.385701790452003,
+              "p95": 45.007156133651755
+            }
+          },
+          "target_distance_cm": {
+            "left_hand": {
+              "max": 105.55654764175415,
+              "median": 3.3797387033700943,
+              "min": 0.0,
+              "p05": 0.390625,
+              "p25": 1.6375630628317595,
+              "p75": 34.5651738345623,
+              "p95": 65.69680452346802
+            },
+            "right_hand": {
+              "max": 100.44775009155273,
+              "median": 2.71226791664958,
+              "min": 0.0,
+              "p05": 0.3670238424092531,
+              "p25": 1.345655438490212,
+              "p75": 10.721141658723354,
+              "p95": 66.50162637233736
+            },
+            "union": {
+              "max": 79.95567321777344,
+              "median": 1.9555647857487202,
+              "min": 0.0,
+              "p05": 0.28752507641911507,
+              "p25": 0.8910296484827995,
+              "p75": 4.038811940699816,
+              "p95": 52.60800242424011
+            }
+          },
+          "thresholds_cm": {
+            "10": {
+              "left_hand": {
+                "accuracy": 0.6625744047619048,
+                "counts": {
+                  "fn": 800,
+                  "fp": 107,
+                  "tn": 715,
+                  "tp": 1066
+                },
+                "f1": 0.7015465613688714,
+                "frames": 2688,
+                "precision": 0.9087809036658141,
+                "prediction_percent": 0.43638392857142855,
+                "prediction_run_lengths": {
+                  "max_frames": 49,
+                  "mean_frames": 12.612903225806452,
+                  "runs": 93
+                },
+                "recall": 0.5712754555198285,
+                "target_percent": 0.6941964285714286,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 49.10526315789474,
+                  "runs": 38
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5744047619047619,
+                "counts": {
+                  "fn": 1073,
+                  "fp": 71,
+                  "tn": 614,
+                  "tp": 930
+                },
+                "f1": 0.6191744340878828,
+                "frames": 2688,
+                "precision": 0.929070929070929,
+                "prediction_percent": 0.3723958333333333,
+                "prediction_run_lengths": {
+                  "max_frames": 48,
+                  "mean_frames": 10.427083333333334,
+                  "runs": 96
+                },
+                "recall": 0.4643035446829755,
+                "target_percent": 0.7451636904761905,
+                "target_run_lengths": {
+                  "max_frames": 156,
+                  "mean_frames": 45.52272727272727,
+                  "runs": 44
+                }
+              },
+              "union": {
+                "accuracy": 0.6655505952380952,
+                "counts": {
+                  "fn": 842,
+                  "fp": 57,
+                  "tn": 387,
+                  "tp": 1402
+                },
+                "f1": 0.7572238725357818,
+                "frames": 2688,
+                "precision": 0.9609321453050035,
+                "prediction_percent": 0.5427827380952381,
+                "prediction_run_lengths": {
+                  "max_frames": 84,
+                  "mean_frames": 15.357894736842105,
+                  "runs": 95
+                },
+                "recall": 0.624777183600713,
+                "target_percent": 0.8348214285714286,
+                "target_run_lengths": {
+                  "max_frames": 292,
+                  "mean_frames": 86.3076923076923,
+                  "runs": 26
+                }
+              }
+            },
+            "2": {
+              "left_hand": {
+                "accuracy": 0.6737351190476191,
+                "counts": {
+                  "fn": 747,
+                  "fp": 130,
+                  "tn": 1755,
+                  "tp": 56
+                },
+                "f1": 0.11324570273003035,
+                "frames": 2688,
+                "precision": 0.3010752688172043,
+                "prediction_percent": 0.06919642857142858,
+                "prediction_run_lengths": {
+                  "max_frames": 8,
+                  "mean_frames": 2.8615384615384616,
+                  "runs": 65
+                },
+                "recall": 0.06973848069738481,
+                "target_percent": 0.29873511904761907,
+                "target_run_lengths": {
+                  "max_frames": 48,
+                  "mean_frames": 13.163934426229508,
+                  "runs": 61
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.6209077380952381,
+                "counts": {
+                  "fn": 948,
+                  "fp": 71,
+                  "tn": 1553,
+                  "tp": 116
+                },
+                "f1": 0.18545163868904876,
+                "frames": 2688,
+                "precision": 0.6203208556149733,
+                "prediction_percent": 0.06956845238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 9,
+                  "mean_frames": 3.1166666666666667,
+                  "runs": 60
+                },
+                "recall": 0.10902255639097744,
+                "target_percent": 0.3958333333333333,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 13.818181818181818,
+                  "runs": 77
+                }
+              },
+              "union": {
+                "accuracy": 0.5234375,
+                "counts": {
+                  "fn": 1156,
+                  "fp": 125,
+                  "tn": 1192,
+                  "tp": 215
+                },
+                "f1": 0.2513150204558737,
+                "frames": 2688,
+                "precision": 0.6323529411764706,
+                "prediction_percent": 0.12648809523809523,
+                "prediction_run_lengths": {
+                  "max_frames": 9,
+                  "mean_frames": 3.3009708737864076,
+                  "runs": 103
+                },
+                "recall": 0.15681983953318746,
+                "target_percent": 0.5100446428571429,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 14.43157894736842,
+                  "runs": 95
+                }
+              }
+            },
+            "5": {
+              "left_hand": {
+                "accuracy": 0.5163690476190477,
+                "counts": {
+                  "fn": 1199,
+                  "fp": 101,
+                  "tn": 945,
+                  "tp": 443
+                },
+                "f1": 0.40530649588289114,
+                "frames": 2688,
+                "precision": 0.8143382352941176,
+                "prediction_percent": 0.20238095238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 5.180952380952381,
+                  "runs": 105
+                },
+                "recall": 0.2697929354445798,
+                "target_percent": 0.6108630952380952,
+                "target_run_lengths": {
+                  "max_frames": 144,
+                  "mean_frames": 32.19607843137255,
+                  "runs": 51
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.4575892857142857,
+                "counts": {
+                  "fn": 1401,
+                  "fp": 57,
+                  "tn": 828,
+                  "tp": 402
+                },
+                "f1": 0.35543766578249336,
+                "frames": 2688,
+                "precision": 0.8758169934640523,
+                "prediction_percent": 0.17075892857142858,
+                "prediction_run_lengths": {
+                  "max_frames": 20,
+                  "mean_frames": 4.989130434782608,
+                  "runs": 92
+                },
+                "recall": 0.22296173044925124,
+                "target_percent": 0.6707589285714286,
+                "target_run_lengths": {
+                  "max_frames": 128,
+                  "mean_frames": 37.5625,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.47172619047619047,
+                "counts": {
+                  "fn": 1357,
+                  "fp": 63,
+                  "tn": 509,
+                  "tp": 759
+                },
+                "f1": 0.5166780122532335,
+                "frames": 2688,
+                "precision": 0.9233576642335767,
+                "prediction_percent": 0.30580357142857145,
+                "prediction_run_lengths": {
+                  "max_frames": 34,
+                  "mean_frames": 6.682926829268292,
+                  "runs": 123
+                },
+                "recall": 0.358695652173913,
+                "target_percent": 0.7872023809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 54.256410256410255,
+                  "runs": 39
+                }
+              }
+            },
+            "7.5": {
+              "left_hand": {
+                "accuracy": 0.5904017857142857,
+                "counts": {
+                  "fn": 1014,
+                  "fp": 87,
+                  "tn": 779,
+                  "tp": 808
+                },
+                "f1": 0.5947736474052263,
+                "frames": 2688,
+                "precision": 0.9027932960893855,
+                "prediction_percent": 0.33296130952380953,
+                "prediction_run_lengths": {
+                  "max_frames": 45,
+                  "mean_frames": 8.95,
+                  "runs": 100
+                },
+                "recall": 0.4434687156970362,
+                "target_percent": 0.6778273809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 43.38095238095238,
+                  "runs": 42
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5022321428571429,
+                "counts": {
+                  "fn": 1280,
+                  "fp": 58,
+                  "tn": 684,
+                  "tp": 666
+                },
+                "f1": 0.498876404494382,
+                "frames": 2688,
+                "precision": 0.919889502762431,
+                "prediction_percent": 0.2693452380952381,
+                "prediction_run_lengths": {
+                  "max_frames": 35,
+                  "mean_frames": 7.387755102040816,
+                  "runs": 98
+                },
+                "recall": 0.34224049331963,
+                "target_percent": 0.7239583333333334,
+                "target_run_lengths": {
+                  "max_frames": 129,
+                  "mean_frames": 42.30434782608695,
+                  "runs": 46
+                }
+              },
+              "union": {
+                "accuracy": 0.5896577380952381,
+                "counts": {
+                  "fn": 1049,
+                  "fp": 54,
+                  "tn": 434,
+                  "tp": 1151
+                },
+                "f1": 0.676064610866373,
+                "frames": 2688,
+                "precision": 0.9551867219917013,
+                "prediction_percent": 0.44828869047619047,
+                "prediction_run_lengths": {
+                  "max_frames": 56,
+                  "mean_frames": 11.367924528301886,
+                  "runs": 106
+                },
+                "recall": 0.5231818181818182,
+                "target_percent": 0.8184523809523809,
+                "target_run_lengths": {
+                  "max_frames": 291,
+                  "mean_frames": 70.96774193548387,
+                  "runs": 31
+                }
+              }
+            }
+          }
+        },
+        "predicted_semantic_vs_predicted_geometry": {
+          "10": {
+            "left_hand": {
+              "accuracy": 0.6819196428571429,
+              "counts": {
+                "fn": 692,
+                "fp": 163,
+                "tn": 1352,
+                "tp": 481
+              },
+              "f1": 0.5294441386901487,
+              "frames": 2688,
+              "precision": 0.7468944099378882,
+              "prediction_percent": 0.23958333333333334,
+              "recall": 0.4100596760443308,
+              "target_percent": 0.43638392857142855
+            },
+            "right_hand": {
+              "accuracy": 0.6339285714285714,
+              "counts": {
+                "fn": 292,
+                "fp": 692,
+                "tn": 995,
+                "tp": 709
+              },
+              "f1": 0.5903413821815153,
+              "frames": 2688,
+              "precision": 0.5060670949321913,
+              "prediction_percent": 0.5212053571428571,
+              "recall": 0.7082917082917083,
+              "target_percent": 0.3723958333333333
+            },
+            "union": {
+              "accuracy": 0.7261904761904762,
+              "counts": {
+                "fn": 302,
+                "fp": 434,
+                "tn": 795,
+                "tp": 1157
+              },
+              "f1": 0.7586885245901639,
+              "frames": 2688,
+              "precision": 0.7272155876807039,
+              "prediction_percent": 0.5918898809523809,
+              "recall": 0.7930089102124743,
+              "target_percent": 0.5427827380952381
+            }
+          },
+          "2": {
+            "left_hand": {
+              "accuracy": 0.7611607142857143,
+              "counts": {
+                "fn": 92,
+                "fp": 550,
+                "tn": 1952,
+                "tp": 94
+              },
+              "f1": 0.22650602409638554,
+              "frames": 2688,
+              "precision": 0.14596273291925466,
+              "prediction_percent": 0.23958333333333334,
+              "recall": 0.5053763440860215,
+              "target_percent": 0.06919642857142858
+            },
+            "right_hand": {
+              "accuracy": 0.5163690476190477,
+              "counts": {
+                "fn": 43,
+                "fp": 1257,
+                "tn": 1244,
+                "tp": 144
+              },
+              "f1": 0.18136020151133503,
+              "frames": 2688,
+              "precision": 0.10278372591006424,
+              "prediction_percent": 0.5212053571428571,
+              "recall": 0.7700534759358288,
+              "target_percent": 0.06956845238095238
+            },
+            "union": {
+              "accuracy": 0.5018601190476191,
+              "counts": {
+                "fn": 44,
+                "fp": 1295,
+                "tn": 1053,
+                "tp": 296
+              },
+              "f1": 0.306576903158985,
+              "frames": 2688,
+              "precision": 0.18604651162790697,
+              "prediction_percent": 0.5918898809523809,
+              "recall": 0.8705882352941177,
+              "target_percent": 0.12648809523809523
+            }
+          },
+          "5": {
+            "left_hand": {
+              "accuracy": 0.7626488095238095,
+              "counts": {
+                "fn": 269,
+                "fp": 369,
+                "tn": 1775,
+                "tp": 275
+              },
+              "f1": 0.46296296296296297,
+              "frames": 2688,
+              "precision": 0.42701863354037267,
+              "prediction_percent": 0.23958333333333334,
+              "recall": 0.5055147058823529,
+              "target_percent": 0.20238095238095238
+            },
+            "right_hand": {
+              "accuracy": 0.5684523809523809,
+              "counts": {
+                "fn": 109,
+                "fp": 1051,
+                "tn": 1178,
+                "tp": 350
+              },
+              "f1": 0.3763440860215054,
+              "frames": 2688,
+              "precision": 0.24982155603140613,
+              "prediction_percent": 0.5212053571428571,
+              "recall": 0.7625272331154684,
+              "target_percent": 0.17075892857142858
+            },
+            "union": {
+              "accuracy": 0.6164434523809523,
+              "counts": {
+                "fn": 131,
+                "fp": 900,
+                "tn": 966,
+                "tp": 691
+              },
+              "f1": 0.5727310401989224,
+              "frames": 2688,
+              "precision": 0.43431803896920174,
+              "prediction_percent": 0.5918898809523809,
+              "recall": 0.8406326034063261,
+              "target_percent": 0.30580357142857145
+            }
+          },
+          "7.5": {
+            "left_hand": {
+              "accuracy": 0.7273065476190477,
+              "counts": {
+                "fn": 492,
+                "fp": 241,
+                "tn": 1552,
+                "tp": 403
+              },
+              "f1": 0.5237166991552956,
+              "frames": 2688,
+              "precision": 0.6257763975155279,
+              "prediction_percent": 0.23958333333333334,
+              "recall": 0.45027932960893857,
+              "target_percent": 0.33296130952380953
+            },
+            "right_hand": {
+              "accuracy": 0.6067708333333334,
+              "counts": {
+                "fn": 190,
+                "fp": 867,
+                "tn": 1097,
+                "tp": 534
+              },
+              "f1": 0.5025882352941177,
+              "frames": 2688,
+              "precision": 0.3811563169164882,
+              "prediction_percent": 0.5212053571428571,
+              "recall": 0.7375690607734806,
+              "target_percent": 0.2693452380952381
+            },
+            "union": {
+              "accuracy": 0.6964285714285714,
+              "counts": {
+                "fn": 215,
+                "fp": 601,
+                "tn": 882,
+                "tp": 990
+              },
+              "f1": 0.7081545064377682,
+              "frames": 2688,
+              "precision": 0.6222501571338781,
+              "prediction_percent": 0.5918898809523809,
+              "recall": 0.8215767634854771,
+              "target_percent": 0.44828869047619047
+            }
+          }
+        },
+        "semantic_vs_gt": {
+          "all_four_mse": 0.13153686796990838,
+          "all_four_smooth_l1": 0.0655324479816405,
+          "first_two_calibration": {
+            "brier": 0.20608319417973991,
+            "expected_calibration_error": 0.18941036188273522,
+            "raw_outside_0_1_percent": 0.23344494047619047
+          },
+          "first_two_mse": 0.24211950934413504,
+          "first_two_smooth_l1": 0.12058778266544017,
+          "per_channel": {
+            "0": {
+              "mse": 0.28090695478348604,
+              "prediction_quantiles": {
+                "max": 0.9717105627059937,
+                "median": 0.25874900817871094,
+                "min": -0.8966600298881531,
+                "p05": -0.542760643362999,
+                "p25": -0.06879285722970963,
+                "p75": 0.4875863566994667,
+                "p95": 0.7349536657333374
+              },
+              "smooth_l1": 0.1396551558269293,
+              "target_percent": 0.5256696428571429
+            },
+            "1": {
+              "mse": 0.20333206390478406,
+              "prediction_quantiles": {
+                "max": 1.1995693445205688,
+                "median": 0.5160103440284729,
+                "min": -0.9201503992080688,
+                "p05": -0.21543068587779998,
+                "p25": 0.25318827480077744,
+                "p75": 0.7323092520236969,
+                "p95": 0.9715371102094651
+              },
+              "smooth_l1": 0.10152040950395096,
+              "target_percent": 0.6242559523809523
+            },
+            "2": {
+              "mse": 0.020973834582687534,
+              "prediction_quantiles": {
+                "max": 0.1398313194513321,
+                "median": 0.033772772178053856,
+                "min": -0.06851348280906677,
+                "p05": -0.021030756272375585,
+                "p25": 0.009608059888705611,
+                "p75": 0.06428138352930546,
+                "p95": 0.09428858757019044
+              },
+              "smooth_l1": 0.010486917291343767,
+              "target_percent": 0.020089285714285716
+            },
+            "3": {
+              "mse": 0.020934618608675955,
+              "prediction_quantiles": {
+                "max": 0.20063874125480652,
+                "median": -0.004163351841270924,
+                "min": -0.10431990027427673,
+                "p05": -0.06572653539478779,
+                "p25": -0.034773752093315125,
+                "p75": 0.03303211461752653,
+                "p95": 0.10057666078209877
+              },
+              "smooth_l1": 0.010467309304337978,
+              "target_percent": 0.022321428571428572
+            }
+          },
+          "thresholds": {
+            "0.5": {
+              "left_hand": {
+                "accuracy": 0.6551339285714286,
+                "counts": {
+                  "fn": 848,
+                  "fp": 79,
+                  "tn": 1196,
+                  "tp": 565
+                },
+                "f1": 0.5493437044239183,
+                "frames": 2688,
+                "precision": 0.8773291925465838,
+                "prediction_percent": 0.23958333333333334,
+                "prediction_run_lengths": {
+                  "max_frames": 56,
+                  "mean_frames": 13.702127659574469,
+                  "runs": 47
+                },
+                "recall": 0.39985845718329793,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.7079613095238095,
+                "counts": {
+                  "fn": 531,
+                  "fp": 254,
+                  "tn": 756,
+                  "tp": 1147
+                },
+                "f1": 0.7450470932120817,
+                "frames": 2688,
+                "precision": 0.8187009279086367,
+                "prediction_percent": 0.5212053571428571,
+                "prediction_run_lengths": {
+                  "max_frames": 119,
+                  "mean_frames": 22.238095238095237,
+                  "runs": 63
+                },
+                "recall": 0.6835518474374255,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.7849702380952381,
+                "counts": {
+                  "fn": 427,
+                  "fp": 151,
+                  "tn": 670,
+                  "tp": 1440
+                },
+                "f1": 0.8328513591671488,
+                "frames": 2688,
+                "precision": 0.9050911376492772,
+                "prediction_percent": 0.5918898809523809,
+                "prediction_run_lengths": {
+                  "max_frames": 119,
+                  "mean_frames": 26.081967213114755,
+                  "runs": 61
+                },
+                "recall": 0.7712908409212641,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.75": {
+              "left_hand": {
+                "accuracy": 0.5096726190476191,
+                "counts": {
+                  "fn": 1317,
+                  "fp": 1,
+                  "tn": 1274,
+                  "tp": 96
+                },
+                "f1": 0.1271523178807947,
+                "frames": 2688,
+                "precision": 0.9896907216494846,
+                "prediction_percent": 0.03608630952380952,
+                "prediction_run_lengths": {
+                  "max_frames": 19,
+                  "mean_frames": 6.928571428571429,
+                  "runs": 14
+                },
+                "recall": 0.06794055201698514,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5721726190476191,
+                "counts": {
+                  "fn": 1096,
+                  "fp": 54,
+                  "tn": 956,
+                  "tp": 582
+                },
+                "f1": 0.5030250648228176,
+                "frames": 2688,
+                "precision": 0.9150943396226415,
+                "prediction_percent": 0.23660714285714285,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 12.72,
+                  "runs": 50
+                },
+                "recall": 0.3468414779499404,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.5368303571428571,
+                "counts": {
+                  "fn": 1225,
+                  "fp": 20,
+                  "tn": 801,
+                  "tp": 642
+                },
+                "f1": 0.5077105575326216,
+                "frames": 2688,
+                "precision": 0.9697885196374623,
+                "prediction_percent": 0.24627976190476192,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 12.25925925925926,
+                  "runs": 54
+                },
+                "recall": 0.3438671665773969,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.95": {
+              "left_hand": {
+                "accuracy": 0.4765625,
+                "counts": {
+                  "fn": 1407,
+                  "fp": 0,
+                  "tn": 1275,
+                  "tp": 6
+                },
+                "f1": 0.008456659619450317,
+                "frames": 2688,
+                "precision": 1.0,
+                "prediction_percent": 0.002232142857142857,
+                "prediction_run_lengths": {
+                  "max_frames": 6,
+                  "mean_frames": 6.0,
+                  "runs": 1
+                },
+                "recall": 0.004246284501061571,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.43005952380952384,
+                "counts": {
+                  "fn": 1524,
+                  "fp": 8,
+                  "tn": 1002,
+                  "tp": 154
+                },
+                "f1": 0.16739130434782606,
+                "frames": 2688,
+                "precision": 0.9506172839506173,
+                "prediction_percent": 0.060267857142857144,
+                "prediction_run_lengths": {
+                  "max_frames": 14,
+                  "mean_frames": 8.1,
+                  "runs": 20
+                },
+                "recall": 0.09177592371871275,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.36569940476190477,
+                "counts": {
+                  "fn": 1704,
+                  "fp": 1,
+                  "tn": 820,
+                  "tp": 163
+                },
+                "f1": 0.16051206302314133,
+                "frames": 2688,
+                "precision": 0.9939024390243902,
+                "prediction_percent": 0.06101190476190476,
+                "prediction_run_lengths": {
+                  "max_frames": 14,
+                  "mean_frames": 8.2,
+                  "runs": 20
+                },
+                "recall": 0.08730583824317087,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            }
+          }
+        }
+      },
+      "all_contact_fields_thresholds_and_decomposition_reported": true,
+      "checkpoint": {
+        "metadata": {
+          "checkpoint_type": "hoi_prior_phase1b",
+          "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+          "expert": "hoi",
+          "git_commit": "f17beabf508aa461ac5452ab3f705095bd0e04a2",
+          "initialization": "random",
+          "model_config": {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8
+          },
+          "optimizer_updates": 64,
+          "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2m-reset-paired-s42-20260716/candidates/current/checkpoints/p1-hoi-d2m-reset-paired-s42-20260716-current_windows000196608.pth",
+          "processed_frames": 3145728,
+          "processed_windows": 196608,
+          "run_id": "p1-hoi-d2m-reset-paired-s42-20260716-current",
+          "schema_version": 2,
+          "seed": 42,
+          "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+          "weight_variant": "online",
+          "weights": "model",
+          "window_state_codec": "state-compositional-v1"
+        },
+        "model_state_sha256_after": "aa48d99af99141e4e767db11edfbab8f0c81529627ee2681656413b32cd515ac",
+        "model_state_sha256_before": "aa48d99af99141e4e767db11edfbab8f0c81529627ee2681656413b32cd515ac",
+        "model_state_unchanged": true,
+        "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2m-reset-paired-s42-20260716/candidates/current/checkpoints/p1-hoi-d2m-reset-paired-s42-20260716-current_windows000196608.pth",
+        "sha256": "76e0d8811fc9f54caa6d4778e2fe9fcaee78fad98bee5f17570b47568f71e31f"
+      },
+      "finite": true,
+      "history_max_abs": 4.76837158203125e-07
+    },
+    "source": {
+      "aggregate": {
+        "distance_decomposition_on_gt_5cm_contact": {
+          "generated_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 11.336631737249574,
+              "quantiles_cm": {
+                "max": 51.943063735961914,
+                "median": 9.145599976181984,
+                "min": 0.06905339541845024,
+                "p05": 0.673923504073173,
+                "p25": 4.0322257205843925,
+                "p75": 16.53526984155178,
+                "p95": 29.40600618720053
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.5371498172959805,
+                "2": 0.13215590742996347,
+                "5": 0.2965895249695493,
+                "7.5": 0.41169305724725946
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 15.74251232116059,
+              "quantiles_cm": {
+                "max": 71.86216711997986,
+                "median": 13.192090392112732,
+                "min": 0.11960399569943547,
+                "p05": 1.1210281774401665,
+                "p25": 6.208897940814495,
+                "p75": 21.414899080991745,
+                "p95": 40.2634596824646
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.37992235163616195,
+                "2": 0.09428729894620078,
+                "5": 0.20077648363838047,
+                "7.5": 0.2961730449251248
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 10.18524002565497,
+              "quantiles_cm": {
+                "max": 51.943063735961914,
+                "median": 7.665315270423889,
+                "min": 0.0,
+                "p05": 0.5068480619229376,
+                "p25": 2.9891553800553083,
+                "p75": 15.233708918094635,
+                "p95": 28.42918336391449
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.5935727788279773,
+                "2": 0.1843100189035917,
+                "5": 0.3695652173913043,
+                "7.5": 0.4914933837429111
+              }
+            }
+          },
+          "generated_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 52.40616568844505,
+              "quantiles_cm": {
+                "max": 152.55157947540283,
+                "median": 49.94528889656067,
+                "min": 0.03452669770922512,
+                "p05": 6.9013308733701715,
+                "p25": 29.396041482686996,
+                "p75": 69.90209519863129,
+                "p95": 108.52105200290673
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.07064555420219244,
+                "2": 0.026187576126674786,
+                "5": 0.04141291108404385,
+                "7.5": 0.05420219244823386
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 57.44346727254086,
+              "quantiles_cm": {
+                "max": 167.11981296539307,
+                "median": 56.46131634712219,
+                "min": 0.1091830083169043,
+                "p05": 7.471849024295807,
+                "p25": 34.96232628822327,
+                "p75": 77.99176871776581,
+                "p95": 115.32541751861562
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.06877426511369938,
+                "2": 0.01774819744869662,
+                "5": 0.03716028840820854,
+                "7.5": 0.051026067665002776
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 49.47877782114874,
+              "quantiles_cm": {
+                "max": 152.55157947540283,
+                "median": 46.264152228832245,
+                "min": 0.03452669770922512,
+                "p05": 4.635856114327908,
+                "p25": 28.575167804956436,
+                "p75": 66.1333218216896,
+                "p95": 106.00303113460541
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.08553875236294896,
+                "2": 0.031190926275992438,
+                "5": 0.05434782608695652,
+                "7.5": 0.0666351606805293
+              }
+            }
+          },
+          "gt_human_generated_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 38.30809744347758,
+              "quantiles_cm": {
+                "max": 139.7154450416565,
+                "median": 33.67942273616791,
+                "min": 0.3049315419048071,
+                "p05": 4.88964781165123,
+                "p25": 15.958618745207787,
+                "p75": 53.85991930961609,
+                "p95": 90.50520420074461
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.1315468940316687,
+                "2": 0.016443361753958587,
+                "5": 0.052984165651644335,
+                "7.5": 0.0925700365408039
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 35.238971177636294,
+              "quantiles_cm": {
+                "max": 152.90199518203735,
+                "median": 31.39393925666809,
+                "min": 0.13810679083690047,
+                "p05": 4.2216707020998,
+                "p25": 15.92642366886139,
+                "p75": 50.277772545814514,
+                "p95": 78.70264053344727
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.13810316139767054,
+                "2": 0.024958402662229616,
+                "5": 0.06100942872989462,
+                "7.5": 0.09317803660565724
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 29.76530262125816,
+              "quantiles_cm": {
+                "max": 139.7154450416565,
+                "median": 23.78918156027794,
+                "min": 0.13810679083690047,
+                "p05": 2.2057903930544853,
+                "p25": 10.928026773035526,
+                "p75": 41.31723418831825,
+                "p95": 76.94330364465714
+              },
+              "recall_by_threshold_cm": {
+                "10": 0.22637051039697542,
+                "2": 0.046313799621928164,
+                "5": 0.1053875236294896,
+                "7.5": 0.16351606805293006
+              }
+            }
+          },
+          "gt_human_gt_object": {
+            "left_hand": {
+              "frames": 1642,
+              "mean_cm": 2.098363998996028,
+              "quantiles_cm": {
+                "max": 4.985492676496506,
+                "median": 2.037806250154972,
+                "min": 0.0,
+                "p05": 0.3239809023216367,
+                "p25": 1.077127200551331,
+                "p75": 3.1153052113950253,
+                "p95": 4.068638011813162
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.4890377588306943,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "right_hand": {
+              "frames": 1803,
+              "mean_cm": 1.911832781002872,
+              "quantiles_cm": {
+                "max": 4.9983881413936615,
+                "median": 1.7600150778889656,
+                "min": 0.0,
+                "p05": 0.30707362573593855,
+                "p25": 0.8336607366800308,
+                "p75": 2.724219858646393,
+                "p95": 4.371494613587856
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.5901275651691625,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            },
+            "union": {
+              "frames": 2116,
+              "mean_cm": 1.70205005008634,
+              "quantiles_cm": {
+                "max": 4.993974044919014,
+                "median": 1.5654508024454117,
+                "min": 0.0,
+                "p05": 0.2577948209363967,
+                "p25": 0.6514484528452158,
+                "p75": 2.41433959454298,
+                "p95": 4.02446873486042
+              },
+              "recall_by_threshold_cm": {
+                "10": 1.0,
+                "2": 0.6479206049149339,
+                "5": 1.0,
+                "7.5": 1.0
+              }
+            }
+          }
+        },
+        "frames": 2688,
+        "physical_geometry_vs_gt": {
+          "prediction_distance_cm": {
+            "left_hand": {
+              "max": 91.76690578460693,
+              "median": 12.644074857234955,
+              "min": 0.0,
+              "p05": 0.9593204595148563,
+              "p25": 5.733511410653591,
+              "p75": 24.889102950692177,
+              "p95": 49.16680112481117
+            },
+            "right_hand": {
+              "max": 106.62652254104614,
+              "median": 16.56549423933029,
+              "min": 0.11960399569943547,
+              "p05": 1.4636528398841617,
+              "p25": 8.368858695030212,
+              "p75": 28.621364384889603,
+              "p95": 60.834726393222816
+            },
+            "union": {
+              "max": 91.76690578460693,
+              "median": 9.651049971580505,
+              "min": 0.0,
+              "p05": 0.6015502219088374,
+              "p25": 3.5596758127212524,
+              "p75": 19.78061944246292,
+              "p95": 44.68163058161736
+            }
+          },
+          "target_distance_cm": {
+            "left_hand": {
+              "max": 105.55654764175415,
+              "median": 3.3797387033700943,
+              "min": 0.0,
+              "p05": 0.390625,
+              "p25": 1.6375630628317595,
+              "p75": 34.5651738345623,
+              "p95": 65.69680452346802
+            },
+            "right_hand": {
+              "max": 100.44775009155273,
+              "median": 2.71226791664958,
+              "min": 0.0,
+              "p05": 0.3670238424092531,
+              "p25": 1.345655438490212,
+              "p75": 10.721141658723354,
+              "p95": 66.50162637233736
+            },
+            "union": {
+              "max": 79.95567321777344,
+              "median": 1.9555647857487202,
+              "min": 0.0,
+              "p05": 0.28752507641911507,
+              "p25": 0.8910296484827995,
+              "p75": 4.038811940699816,
+              "p95": 52.60800242424011
+            }
+          },
+          "thresholds_cm": {
+            "10": {
+              "left_hand": {
+                "accuracy": 0.6283482142857143,
+                "counts": {
+                  "fn": 885,
+                  "fp": 114,
+                  "tn": 708,
+                  "tp": 981
+                },
+                "f1": 0.6626139817629179,
+                "frames": 2688,
+                "precision": 0.8958904109589041,
+                "prediction_percent": 0.40736607142857145,
+                "prediction_run_lengths": {
+                  "max_frames": 63,
+                  "mean_frames": 11.774193548387096,
+                  "runs": 93
+                },
+                "recall": 0.5257234726688103,
+                "target_percent": 0.6941964285714286,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 49.10526315789474,
+                  "runs": 38
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5238095238095238,
+                "counts": {
+                  "fn": 1241,
+                  "fp": 39,
+                  "tn": 646,
+                  "tp": 762
+                },
+                "f1": 0.543509272467903,
+                "frames": 2688,
+                "precision": 0.951310861423221,
+                "prediction_percent": 0.29799107142857145,
+                "prediction_run_lengths": {
+                  "max_frames": 56,
+                  "mean_frames": 10.402597402597403,
+                  "runs": 77
+                },
+                "recall": 0.38042935596605093,
+                "target_percent": 0.7451636904761905,
+                "target_run_lengths": {
+                  "max_frames": 156,
+                  "mean_frames": 45.52272727272727,
+                  "runs": 44
+                }
+              },
+              "union": {
+                "accuracy": 0.6424851190476191,
+                "counts": {
+                  "fn": 916,
+                  "fp": 45,
+                  "tn": 399,
+                  "tp": 1328
+                },
+                "f1": 0.7343102018247166,
+                "frames": 2688,
+                "precision": 0.9672250546249089,
+                "prediction_percent": 0.5107886904761905,
+                "prediction_run_lengths": {
+                  "max_frames": 82,
+                  "mean_frames": 15.781609195402298,
+                  "runs": 87
+                },
+                "recall": 0.5918003565062389,
+                "target_percent": 0.8348214285714286,
+                "target_run_lengths": {
+                  "max_frames": 292,
+                  "mean_frames": 86.3076923076923,
+                  "runs": 26
+                }
+              }
+            },
+            "2": {
+              "left_hand": {
+                "accuracy": 0.6733630952380952,
+                "counts": {
+                  "fn": 707,
+                  "fp": 171,
+                  "tn": 1714,
+                  "tp": 96
+                },
+                "f1": 0.17943925233644858,
+                "frames": 2688,
+                "precision": 0.3595505617977528,
+                "prediction_percent": 0.09933035714285714,
+                "prediction_run_lengths": {
+                  "max_frames": 24,
+                  "mean_frames": 3.8142857142857145,
+                  "runs": 70
+                },
+                "recall": 0.11955168119551682,
+                "target_percent": 0.29873511904761907,
+                "target_run_lengths": {
+                  "max_frames": 48,
+                  "mean_frames": 13.163934426229508,
+                  "runs": 61
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.6175595238095238,
+                "counts": {
+                  "fn": 952,
+                  "fp": 76,
+                  "tn": 1548,
+                  "tp": 112
+                },
+                "f1": 0.1789137380191693,
+                "frames": 2688,
+                "precision": 0.5957446808510638,
+                "prediction_percent": 0.06994047619047619,
+                "prediction_run_lengths": {
+                  "max_frames": 9,
+                  "mean_frames": 2.984126984126984,
+                  "runs": 63
+                },
+                "recall": 0.10526315789473684,
+                "target_percent": 0.3958333333333333,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 13.818181818181818,
+                  "runs": 77
+                }
+              },
+              "union": {
+                "accuracy": 0.5342261904761905,
+                "counts": {
+                  "fn": 1097,
+                  "fp": 155,
+                  "tn": 1162,
+                  "tp": 274
+                },
+                "f1": 0.3044444444444444,
+                "frames": 2688,
+                "precision": 0.6386946386946387,
+                "prediction_percent": 0.15959821428571427,
+                "prediction_run_lengths": {
+                  "max_frames": 24,
+                  "mean_frames": 3.9,
+                  "runs": 110
+                },
+                "recall": 0.199854121079504,
+                "target_percent": 0.5100446428571429,
+                "target_run_lengths": {
+                  "max_frames": 80,
+                  "mean_frames": 14.43157894736842,
+                  "runs": 95
+                }
+              }
+            },
+            "5": {
+              "left_hand": {
+                "accuracy": 0.5271577380952381,
+                "counts": {
+                  "fn": 1155,
+                  "fp": 116,
+                  "tn": 930,
+                  "tp": 487
+                },
+                "f1": 0.43385300668151444,
+                "frames": 2688,
+                "precision": 0.8076285240464345,
+                "prediction_percent": 0.22433035714285715,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 6.931034482758621,
+                  "runs": 87
+                },
+                "recall": 0.2965895249695493,
+                "target_percent": 0.6108630952380952,
+                "target_run_lengths": {
+                  "max_frames": 144,
+                  "mean_frames": 32.19607843137255,
+                  "runs": 51
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.4486607142857143,
+                "counts": {
+                  "fn": 1441,
+                  "fp": 41,
+                  "tn": 844,
+                  "tp": 362
+                },
+                "f1": 0.328195829555757,
+                "frames": 2688,
+                "precision": 0.8982630272952854,
+                "prediction_percent": 0.14992559523809523,
+                "prediction_run_lengths": {
+                  "max_frames": 25,
+                  "mean_frames": 5.233766233766234,
+                  "runs": 77
+                },
+                "recall": 0.20077648363838047,
+                "target_percent": 0.6707589285714286,
+                "target_run_lengths": {
+                  "max_frames": 128,
+                  "mean_frames": 37.5625,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.47693452380952384,
+                "counts": {
+                  "fn": 1334,
+                  "fp": 72,
+                  "tn": 500,
+                  "tp": 782
+                },
+                "f1": 0.5265993265993266,
+                "frames": 2688,
+                "precision": 0.9156908665105387,
+                "prediction_percent": 0.3177083333333333,
+                "prediction_run_lengths": {
+                  "max_frames": 36,
+                  "mean_frames": 7.981308411214953,
+                  "runs": 107
+                },
+                "recall": 0.3695652173913043,
+                "target_percent": 0.7872023809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 54.256410256410255,
+                  "runs": 39
+                }
+              }
+            },
+            "7.5": {
+              "left_hand": {
+                "accuracy": 0.5595238095238095,
+                "counts": {
+                  "fn": 1083,
+                  "fp": 101,
+                  "tn": 765,
+                  "tp": 739
+                },
+                "f1": 0.555221637866266,
+                "frames": 2688,
+                "precision": 0.8797619047619047,
+                "prediction_percent": 0.3125,
+                "prediction_run_lengths": {
+                  "max_frames": 42,
+                  "mean_frames": 9.130434782608695,
+                  "runs": 92
+                },
+                "recall": 0.40559824368825464,
+                "target_percent": 0.6778273809523809,
+                "target_run_lengths": {
+                  "max_frames": 210,
+                  "mean_frames": 43.38095238095238,
+                  "runs": 42
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.4728422619047619,
+                "counts": {
+                  "fn": 1380,
+                  "fp": 37,
+                  "tn": 705,
+                  "tp": 566
+                },
+                "f1": 0.4440957238132601,
+                "frames": 2688,
+                "precision": 0.9386401326699834,
+                "prediction_percent": 0.22433035714285715,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 7.265060240963855,
+                  "runs": 83
+                },
+                "recall": 0.2908530318602261,
+                "target_percent": 0.7239583333333334,
+                "target_run_lengths": {
+                  "max_frames": 129,
+                  "mean_frames": 42.30434782608695,
+                  "runs": 46
+                }
+              },
+              "union": {
+                "accuracy": 0.5632440476190477,
+                "counts": {
+                  "fn": 1122,
+                  "fp": 52,
+                  "tn": 436,
+                  "tp": 1078
+                },
+                "f1": 0.6474474474474474,
+                "frames": 2688,
+                "precision": 0.9539823008849557,
+                "prediction_percent": 0.42038690476190477,
+                "prediction_run_lengths": {
+                  "max_frames": 53,
+                  "mean_frames": 11.414141414141413,
+                  "runs": 99
+                },
+                "recall": 0.49,
+                "target_percent": 0.8184523809523809,
+                "target_run_lengths": {
+                  "max_frames": 291,
+                  "mean_frames": 70.96774193548387,
+                  "runs": 31
+                }
+              }
+            }
+          }
+        },
+        "predicted_semantic_vs_predicted_geometry": {
+          "10": {
+            "left_hand": {
+              "accuracy": 0.6755952380952381,
+              "counts": {
+                "fn": 701,
+                "fp": 171,
+                "tn": 1422,
+                "tp": 394
+              },
+              "f1": 0.47469879518072294,
+              "frames": 2688,
+              "precision": 0.6973451327433628,
+              "prediction_percent": 0.21019345238095238,
+              "recall": 0.3598173515981735,
+              "target_percent": 0.40736607142857145
+            },
+            "right_hand": {
+              "accuracy": 0.6395089285714286,
+              "counts": {
+                "fn": 209,
+                "fp": 760,
+                "tn": 1127,
+                "tp": 592
+              },
+              "f1": 0.5499303297724106,
+              "frames": 2688,
+              "precision": 0.4378698224852071,
+              "prediction_percent": 0.5029761904761905,
+              "recall": 0.7390761548064919,
+              "target_percent": 0.29799107142857145
+            },
+            "union": {
+              "accuracy": 0.7061011904761905,
+              "counts": {
+                "fn": 323,
+                "fp": 467,
+                "tn": 848,
+                "tp": 1050
+              },
+              "f1": 0.726643598615917,
+              "frames": 2688,
+              "precision": 0.6921555702043507,
+              "prediction_percent": 0.5643601190476191,
+              "recall": 0.764748725418791,
+              "target_percent": 0.5107886904761905
+            }
+          },
+          "2": {
+            "left_hand": {
+              "accuracy": 0.7730654761904762,
+              "counts": {
+                "fn": 156,
+                "fp": 454,
+                "tn": 1967,
+                "tp": 111
+              },
+              "f1": 0.2668269230769231,
+              "frames": 2688,
+              "precision": 0.19646017699115045,
+              "prediction_percent": 0.21019345238095238,
+              "recall": 0.4157303370786517,
+              "target_percent": 0.09933035714285714
+            },
+            "right_hand": {
+              "accuracy": 0.5297619047619048,
+              "counts": {
+                "fn": 50,
+                "fp": 1214,
+                "tn": 1286,
+                "tp": 138
+              },
+              "f1": 0.1792207792207792,
+              "frames": 2688,
+              "precision": 0.10207100591715976,
+              "prediction_percent": 0.5029761904761905,
+              "recall": 0.7340425531914894,
+              "target_percent": 0.06994047619047619
+            },
+            "union": {
+              "accuracy": 0.5245535714285714,
+              "counts": {
+                "fn": 95,
+                "fp": 1183,
+                "tn": 1076,
+                "tp": 334
+              },
+              "f1": 0.3432682425488181,
+              "frames": 2688,
+              "precision": 0.22017139090309823,
+              "prediction_percent": 0.5643601190476191,
+              "recall": 0.7785547785547785,
+              "target_percent": 0.15959821428571427
+            }
+          },
+          "5": {
+            "left_hand": {
+              "accuracy": 0.7485119047619048,
+              "counts": {
+                "fn": 357,
+                "fp": 319,
+                "tn": 1766,
+                "tp": 246
+              },
+              "f1": 0.4212328767123288,
+              "frames": 2688,
+              "precision": 0.4353982300884956,
+              "prediction_percent": 0.21019345238095238,
+              "recall": 0.4079601990049751,
+              "target_percent": 0.22433035714285715
+            },
+            "right_hand": {
+              "accuracy": 0.5703125,
+              "counts": {
+                "fn": 103,
+                "fp": 1052,
+                "tn": 1233,
+                "tp": 300
+              },
+              "f1": 0.3418803418803419,
+              "frames": 2688,
+              "precision": 0.22189349112426035,
+              "prediction_percent": 0.5029761904761905,
+              "recall": 0.7444168734491315,
+              "target_percent": 0.14992559523809523
+            },
+            "union": {
+              "accuracy": 0.6164434523809523,
+              "counts": {
+                "fn": 184,
+                "fp": 847,
+                "tn": 987,
+                "tp": 670
+              },
+              "f1": 0.5651623787431465,
+              "frames": 2688,
+              "precision": 0.4416611733684904,
+              "prediction_percent": 0.5643601190476191,
+              "recall": 0.7845433255269321,
+              "target_percent": 0.3177083333333333
+            }
+          },
+          "7.5": {
+            "left_hand": {
+              "accuracy": 0.7131696428571429,
+              "counts": {
+                "fn": 523,
+                "fp": 248,
+                "tn": 1600,
+                "tp": 317
+              },
+              "f1": 0.4512455516014235,
+              "frames": 2688,
+              "precision": 0.5610619469026549,
+              "prediction_percent": 0.21019345238095238,
+              "recall": 0.3773809523809524,
+              "target_percent": 0.3125
+            },
+            "right_hand": {
+              "accuracy": 0.6037946428571429,
+              "counts": {
+                "fn": 158,
+                "fp": 907,
+                "tn": 1178,
+                "tp": 445
+              },
+              "f1": 0.45524296675191817,
+              "frames": 2688,
+              "precision": 0.3291420118343195,
+              "prediction_percent": 0.5029761904761905,
+              "recall": 0.7379767827529021,
+              "target_percent": 0.22433035714285715
+            },
+            "union": {
+              "accuracy": 0.6625744047619048,
+              "counts": {
+                "fn": 260,
+                "fp": 647,
+                "tn": 911,
+                "tp": 870
+              },
+              "f1": 0.657347941065357,
+              "frames": 2688,
+              "precision": 0.5735003295978905,
+              "prediction_percent": 0.5643601190476191,
+              "recall": 0.7699115044247787,
+              "target_percent": 0.42038690476190477
+            }
+          }
+        },
+        "semantic_vs_gt": {
+          "all_four_mse": 0.13754907353575402,
+          "all_four_smooth_l1": 0.06841276872607624,
+          "first_two_calibration": {
+            "brier": 0.21257638253357078,
+            "expected_calibration_error": 0.205459184139781,
+            "raw_outside_0_1_percent": 0.23511904761904762
+          },
+          "first_two_mse": 0.25395478717883463,
+          "first_two_smooth_l1": 0.12625385750581572,
+          "per_channel": {
+            "0": {
+              "mse": 0.30020750507112093,
+              "prediction_quantiles": {
+                "max": 0.9662575125694275,
+                "median": 0.22031687945127487,
+                "min": -0.9102542996406555,
+                "p05": -0.5448870688676835,
+                "p25": -0.10519487969577312,
+                "p75": 0.46212737262248993,
+                "p95": 0.7299074530601501
+              },
+              "smooth_l1": 0.1488410288969082,
+              "target_percent": 0.5256696428571429
+            },
+            "1": {
+              "mse": 0.20770206928654827,
+              "prediction_quantiles": {
+                "max": 1.1763200759887695,
+                "median": 0.5019347667694092,
+                "min": -1.0599961280822754,
+                "p05": -0.2451879933476448,
+                "p25": 0.25523339956998825,
+                "p75": 0.7004209160804749,
+                "p95": 0.9404715567827225
+              },
+              "smooth_l1": 0.10366668611472325,
+              "target_percent": 0.6242559523809523
+            },
+            "2": {
+              "mse": 0.021290250116281523,
+              "prediction_quantiles": {
+                "max": 0.14798152446746826,
+                "median": 0.03187691420316696,
+                "min": -0.08962346613407135,
+                "p05": -0.027794882375746965,
+                "p25": 0.005362127325497568,
+                "p75": 0.06854269653558731,
+                "p95": 0.10037362053990365
+              },
+              "smooth_l1": 0.010645125058140761,
+              "target_percent": 0.020089285714285716
+            },
+            "3": {
+              "mse": 0.020996469669065432,
+              "prediction_quantiles": {
+                "max": 0.19943512976169586,
+                "median": 0.004752770997583866,
+                "min": -0.10157536715269089,
+                "p05": -0.06321497485041619,
+                "p25": -0.02874526148661971,
+                "p75": 0.04417005553841591,
+                "p95": 0.10450268760323526
+              },
+              "smooth_l1": 0.010498234834532716,
+              "target_percent": 0.022321428571428572
+            }
+          },
+          "thresholds": {
+            "0.5": {
+              "left_hand": {
+                "accuracy": 0.640625,
+                "counts": {
+                  "fn": 907,
+                  "fp": 59,
+                  "tn": 1216,
+                  "tp": 506
+                },
+                "f1": 0.5116279069767442,
+                "frames": 2688,
+                "precision": 0.8955752212389381,
+                "prediction_percent": 0.21019345238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 56,
+                  "mean_frames": 13.452380952380953,
+                  "runs": 42
+                },
+                "recall": 0.3581033262561925,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.7068452380952381,
+                "counts": {
+                  "fn": 557,
+                  "fp": 231,
+                  "tn": 779,
+                  "tp": 1121
+                },
+                "f1": 0.73993399339934,
+                "frames": 2688,
+                "precision": 0.8291420118343196,
+                "prediction_percent": 0.5029761904761905,
+                "prediction_run_lengths": {
+                  "max_frames": 119,
+                  "mean_frames": 21.125,
+                  "runs": 64
+                },
+                "recall": 0.668057210965435,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.7648809523809523,
+                "counts": {
+                  "fn": 491,
+                  "fp": 141,
+                  "tn": 680,
+                  "tp": 1376
+                },
+                "f1": 0.8132387706855791,
+                "frames": 2688,
+                "precision": 0.9070533948582729,
+                "prediction_percent": 0.5643601190476191,
+                "prediction_run_lengths": {
+                  "max_frames": 119,
+                  "mean_frames": 24.07936507936508,
+                  "runs": 63
+                },
+                "recall": 0.7370112479914301,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.75": {
+              "left_hand": {
+                "accuracy": 0.5141369047619048,
+                "counts": {
+                  "fn": 1306,
+                  "fp": 0,
+                  "tn": 1275,
+                  "tp": 107
+                },
+                "f1": 0.14078947368421055,
+                "frames": 2688,
+                "precision": 1.0,
+                "prediction_percent": 0.039806547619047616,
+                "prediction_run_lengths": {
+                  "max_frames": 17,
+                  "mean_frames": 9.727272727272727,
+                  "runs": 11
+                },
+                "recall": 0.07572540693559802,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.5409226190476191,
+                "counts": {
+                  "fn": 1197,
+                  "fp": 37,
+                  "tn": 973,
+                  "tp": 481
+                },
+                "f1": 0.43806921675774135,
+                "frames": 2688,
+                "precision": 0.9285714285714286,
+                "prediction_percent": 0.19270833333333334,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 11.26086956521739,
+                  "runs": 46
+                },
+                "recall": 0.2866507747318236,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.4962797619047619,
+                "counts": {
+                  "fn": 1340,
+                  "fp": 14,
+                  "tn": 807,
+                  "tp": 527
+                },
+                "f1": 0.4377076411960133,
+                "frames": 2688,
+                "precision": 0.9741219963031423,
+                "prediction_percent": 0.20126488095238096,
+                "prediction_run_lengths": {
+                  "max_frames": 28,
+                  "mean_frames": 11.270833333333334,
+                  "runs": 48
+                },
+                "recall": 0.2822710230316015,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            },
+            "0.95": {
+              "left_hand": {
+                "accuracy": 0.4758184523809524,
+                "counts": {
+                  "fn": 1409,
+                  "fp": 0,
+                  "tn": 1275,
+                  "tp": 4
+                },
+                "f1": 0.005645730416372618,
+                "frames": 2688,
+                "precision": 1.0,
+                "prediction_percent": 0.001488095238095238,
+                "prediction_run_lengths": {
+                  "max_frames": 3,
+                  "mean_frames": 2.0,
+                  "runs": 2
+                },
+                "recall": 0.0028308563340410475,
+                "target_percent": 0.5256696428571429,
+                "target_run_lengths": {
+                  "max_frames": 120,
+                  "mean_frames": 26.166666666666668,
+                  "runs": 54
+                }
+              },
+              "right_hand": {
+                "accuracy": 0.4177827380952381,
+                "counts": {
+                  "fn": 1558,
+                  "fp": 7,
+                  "tn": 1003,
+                  "tp": 120
+                },
+                "f1": 0.13296398891966757,
+                "frames": 2688,
+                "precision": 0.9448818897637795,
+                "prediction_percent": 0.04724702380952381,
+                "prediction_run_lengths": {
+                  "max_frames": 14,
+                  "mean_frames": 7.055555555555555,
+                  "runs": 18
+                },
+                "recall": 0.07151370679380215,
+                "target_percent": 0.6242559523809523,
+                "target_run_lengths": {
+                  "max_frames": 126,
+                  "mean_frames": 34.958333333333336,
+                  "runs": 48
+                }
+              },
+              "union": {
+                "accuracy": 0.35267857142857145,
+                "counts": {
+                  "fn": 1739,
+                  "fp": 1,
+                  "tn": 820,
+                  "tp": 128
+                },
+                "f1": 0.1282565130260521,
+                "frames": 2688,
+                "precision": 0.9922480620155039,
+                "prediction_percent": 0.04799107142857143,
+                "prediction_run_lengths": {
+                  "max_frames": 14,
+                  "mean_frames": 7.166666666666667,
+                  "runs": 18
+                },
+                "recall": 0.06855918585966791,
+                "target_percent": 0.6945684523809523,
+                "target_run_lengths": {
+                  "max_frames": 168,
+                  "mean_frames": 43.41860465116279,
+                  "runs": 43
+                }
+              }
+            }
+          }
+        }
+      },
+      "all_contact_fields_thresholds_and_decomposition_reported": true,
+      "checkpoint": {
+        "metadata": {
+          "checkpoint_type": "hoi_prior_phase1b",
+          "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+          "expert": "hoi",
+          "git_commit": "0960d8b96b7ed98a7399327beabe519fe880292d",
+          "initialization": "random",
+          "model_config": {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8
+          },
+          "optimizer_updates": 2000,
+          "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2-r3072-s42-20260714/checkpoints/p1-hoi-d2-r3072-s42-20260714_windows006144000.pth",
+          "processed_frames": 98304000,
+          "processed_windows": 6144000,
+          "run_id": "p1-hoi-d2-r3072-s42-20260714",
+          "schema_version": 2,
+          "seed": 42,
+          "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+          "weight_variant": "online",
+          "weights": "model",
+          "window_state_codec": "state-compositional-v1"
+        },
+        "model_state_sha256_after": "404a38cfe28782311aa8911299deb6af8a5599304760f7de782ee7482da9cf8e",
+        "model_state_sha256_before": "404a38cfe28782311aa8911299deb6af8a5599304760f7de782ee7482da9cf8e",
+        "model_state_unchanged": true,
+        "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-d2-r3072-s42-20260714/checkpoints/p1-hoi-d2-r3072-s42-20260714_windows006144000.pth",
+        "sha256": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4"
+      },
+      "finite": true,
+      "history_max_abs": 5.364418029785156e-07
+    }
+  },
+  "official_test_used": false,
+  "optimizer_created": false,
+  "phase": "p1",
+  "released_checkpoint_used": false,
+  "run_id": "p1-hoi-d2o-contact-alignment-r1-s42-20260716",
+  "runtime_seconds": 508.6028769016266,
+  "sampler_contract": {
+    "future_gt": false,
+    "production_equation_changed": false,
+    "rollout_bps": "recomputed_from_current_generated_object_pose",
+    "shared_noise_identity": true,
+    "stored_per_frame_bps": false
+  },
+  "schema_version": 1,
+  "seed": 42,
+  "selection": {
+    "eligible_sequences": 161,
+    "phase_offsets": [
+      14,
+      56,
+      98
+    ],
+    "prior_rollout_offsets": [
+      0,
+      42,
+      84
+    ],
+    "sequences": 64,
+    "sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "windows": 192
+  },
+  "status": "completed",
+  "subphase": "1B-D2-O0-r1",
+  "training_authorized": false,
+  "training_started": false,
+  "training_updates": 0
+}

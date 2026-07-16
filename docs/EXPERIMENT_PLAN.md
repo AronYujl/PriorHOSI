@@ -1469,6 +1469,56 @@ bootstrap、classification gate 与全部 no-training/stop boundary。代码变�
 environment 重跑完整 tests，重新生成 r1 resolved config/preflight/manifest，并继续使用无 contention
 GPU 1。无论 r1 分类为何，仍只 finish/register/recover D2-O0 并停止，不得训练、D2-H1 或 D2-G。
 
+2026-07-16 D2-O0 r1 在 exact commit
+`87636dbbcbb4f7c666d6576590f3a587e5f4add2` 上完成，分类为
+`mixed-contact-deficit-stop`。三个 online checkpoint、64 sequences / 192 phase-offset windows、
+selection/shared sampler noise、history、finite、model-state immutability、全部 contact fields/
+thresholds/decomposition 与 production sampler provenance contract 均通过；history max abs 为
+source/current/balanced 的 `5.36e-7/4.77e-7/4.77e-7`。GT hand-semantic 对 GT native 5 cm
+geometry 的 union F1/recall 为 `0.8878/0.8355`，超过 `0.80/0.80`，因此不属于
+label/evaluator contract mismatch。
+
+balanced 的 first-two semantic contact MSE 为 `0.1500`，低于 source/current 的
+`0.2540/0.2421`；paired comparator-minus-balanced 95% CI 分别为
+`[0.0660,0.1449]` / `[0.0578,0.1290]`，严格证明 semantic prediction 改善。native 5 cm
+physical precision/recall/F1/contact-percent 则为 source
+`0.9157/0.3696/0.5266/0.3177`、current
+`0.9234/0.3587/0.5167/0.3058`、balanced
+`0.9487/0.3147/0.4727/0.2612`；balanced 的 recall point estimate 较低，但 source/current
+minus balanced 的 paired 95% CI 为 `[-0.0122,0.1143]` / `[-0.0199,0.0952]`，均跨零，
+故未达到严格 semantic–geometry decoupling 分类。三者共同呈现高 precision、低 recall 与短
+contact duration：5 cm predicted union run mean 为 `7.98/6.68/6.62` frames，而 GT 为
+`54.26` frames。balanced semantic threshold-0.5 contact percent 为 `0.7228`，但 generated
+physical contact percent 只有 `0.2612`，其 semantic-to-generated-geometry union F1 为
+`0.4643`（source/current `0.5652/0.5727`）；这是描述性解耦证据，但不得覆盖预注册 paired gate。
+
+GT-5 cm contact frames 的 distance decomposition 还表明缺陷不是可单独归因于 human 或 object：
+source/current/balanced 的 generated-human/generated-object union mean distance 为
+`10.19/9.85/10.35 cm`；替换为 GT human 但保留 generated object 后为
+`29.77/31.24/17.91 cm`，保留 generated human 但替换为 GT object 后为
+`49.48/50.84/25.71 cm`，GT/GT 为 `1.70 cm`。这说明 generated human/object 之间存在明显
+coupled drift；balanced 减少了 cross-pose 绝对错位，却没有恢复足够的相对接触覆盖和持续时间。
+该结果只支持“共享 under-contact-duration + semantic/geometry/coupled-pose mixed deficit”，
+不自动选择 contact loss、guidance、CFG 或 architecture intervention。
+
+首次 Python-3.8 失败 artifact 已回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2o-contact-alignment-s42-20260716`，7 files /
+40,865 bytes，tree SHA-256
+`1b775fcb6704d274d4f5c3c52a455ba44e3d09055326a82dbb59b86cd09b81ac`。r1 完整 artifact
+已回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2o-contact-alignment-r1-s42-20260716`，8 files /
+48,775,188 bytes，tree SHA-256
+`823fc7a278d47f67feb07c8acc3c7dd7ac91c7fd588c2e1c9987c273b9238978`。r1 manifest、
+metrics、resolved-config、preflight、run-local registry SHA-256 分别为
+`5a5fd5418f5322e3754ab62e3e1cba7e3a3184a48390aa8e3287907582989909`、
+`aee38b32ffc090483266c7c89d0d4c4a27f96278f8eaaff67444916e87d8bcd3`、
+`5fc45c0d03807e45d2cc8d6dd9f92f1942615306b5acf82b07b321e41d14cc61`、
+`70e565449bd21d98198ac51861cb993268f3c9857d722b1a864d4955f0b92270`、
+`229a5e9c0b3cf761630bd81397a18bdcecece953e917df1a8c5ac3756849c4`。compact result 见
+`experiments/results/p1_hoi_phase1b_d2o_contact_alignment_r1_s42_20260716.json`，SHA-256
+`9cea710a82d81cb9af0a77499a3f15e8124acf4649476704ce3aca09bdd4ece3`。D2-O 不重跑、
+不选择 checkpoint、不启动 contact remediation、训练、D2-H1 或 D2-G；停止并等待新的用户确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
