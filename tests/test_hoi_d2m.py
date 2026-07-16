@@ -107,6 +107,7 @@ class D2MStatisticsAndGateTests(unittest.TestCase):
             "all_finite": True,
             "source_checkpoint_hash_exact": True,
             "source_model_hash_exact": True,
+            "asset_hashes_exact": True,
             "initial_model_hashes_equal": True,
             "old_state_load_counts_zero": True,
             "paired_training_rng_audit": True,
@@ -275,6 +276,10 @@ class D2MConfigAndLifecycleTests(unittest.TestCase):
         self.assertIn("learning_rate: 0.00003", config)
         self.assertIn("minimum_lr_ratio: 1.0", config)
         self.assertIn("d2m_rng_audit: true", config)
+        runner = (ROOT / "tools/run_hoi_d2m.py").read_text(encoding="utf-8")
+        self.assertIn("WEIGHT_SOURCE_METRICS_SHA256", runner)
+        self.assertIn("EXPECTED_NORMALIZATION_SHA256", runner)
+        self.assertIn("BPS_SHA256", runner)
 
     def test_default_random_contract_and_sampler_gt_prohibitions_remain(self):
         trainer = (ROOT / "code/train_hoi_prior.py").read_text(encoding="utf-8")

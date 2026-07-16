@@ -9,7 +9,12 @@ from typing import Dict, Mapping, Sequence, Tuple
 
 import numpy as np
 
-from .auxiliary_balancing import BALANCED_WEIGHTS, CURRENT_WEIGHTS
+from .auxiliary_balancing import (
+    BALANCED_WEIGHTS,
+    CURRENT_WEIGHTS,
+    WEIGHT_SOURCE_METRICS_SHA256,
+    WEIGHT_SOURCE_RUN,
+)
 from .exposure import CONDITION_VARIANTS
 from .remediation import selection_sha256, stable_digest
 from .representation import REPRESENTATION
@@ -226,6 +231,7 @@ def mechanism_gate(
         "all_finite": bool(training.get("all_finite", False)),
         "source_checkpoint_hash_exact": bool(training.get("source_checkpoint_hash_exact", False)),
         "source_model_hash_exact": bool(training.get("source_model_hash_exact", False)),
+        "asset_hashes_exact": bool(training.get("asset_hashes_exact", False)),
         "initial_model_hashes_equal": bool(training.get("initial_model_hashes_equal", False)),
         "old_state_load_counts_zero": bool(training.get("old_state_load_counts_zero", False)),
         "initial_optimizer_state_count_zero": all(

@@ -30,9 +30,15 @@ from priors.optimizer_reset import (  # noqa: E402
     SOURCE_CHECKPOINT_SHA256,
     SOURCE_OPTIMIZER_LR,
     WEIGHTS,
+    WEIGHT_SOURCE_METRICS_SHA256,
+    WEIGHT_SOURCE_RUN,
     mechanism_gate,
 )
 from tools.evaluate_hoi_d2m import evaluate, sha256_file  # noqa: E402
+from priors.window_codec import BPS_SHA256  # noqa: E402
+
+
+EXPECTED_NORMALIZATION_SHA256 = "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969"
 
 
 def exclusive_json(path: Path, value: object) -> None:
@@ -180,6 +186,21 @@ def resolved_config(args) -> Dict[str, object]:
                 "optimizer", "ema_models", "ema_model", "scheduler", "scaler", "rng",
             ],
         },
+        "weight_source": {
+            "run_id": WEIGHT_SOURCE_RUN,
+            "path": str(args.weight_source.resolve()),
+            "sha256": args.weight_source_sha256,
+        },
+        "assets": {
+            "normalization": {
+                "path": str((REPO / "data/train/norm.npy").resolve()),
+                "sha256": EXPECTED_NORMALIZATION_SHA256,
+            },
+            "bps": {
+                "path": str((REPO / "code/bps.pt").resolve()),
+                "sha256": BPS_SHA256,
+            },
+        },
         "training": {
             "candidates": candidates,
             "gpu_count": 4,
@@ -210,7 +231,9 @@ def resolved_config(args) -> Dict[str, object]:
 
 def prepare_resolved_config(args) -> None:
     output = args.output.resolve()
-    output.mkdir(parents=True, exist_ok=False)
+    if output.exists() and not output.is_dir():
+        raise FileExistsError(f"D2-M output path is not a directory: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     for candidate in CANDIDATES:
         content = resolve_candidate(
             args.python.resolve(),
@@ -219,7 +242,14 @@ def prepare_resolved_config(args) -> None:
             candidate,
         )
         paths = candidate_paths(output, candidate)
-        paths["resolved"].write_text(content, encoding="utf-8")
+        if paths["resolved"].exists():
+            if paths["resolved"].read_text(encoding="utf-8") != content:
+                raise FileExistsError(
+                    f"refusing to overwrite changed D2-M candidate config {paths['resolved']}"
+                )
+        else:
+            with paths["resolved"].open("x", encoding="utf-8") as handle:
+                handle.write(content)
     exclusive_json(args.resolved_config.resolve(), resolved_config(args))
 
 
@@ -319,6 +349,8 @@ def parse_args():
     parser.add_argument("--python", type=Path, required=True)
     parser.add_argument("--source-checkpoint", type=Path, required=True)
     parser.add_argument("--source-sha256", required=True)
+    parser.add_argument("--weight-source", type=Path, required=True)
+    parser.add_argument("--weight-source-sha256", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--metrics", type=Path, required=True)
     parser.add_argument("--resolved-config", type=Path, required=True)
@@ -334,6 +366,8 @@ def main() -> None:
         raise ValueError(f"D2-M0 run id must be {RUN_ID}")
     if args.source_sha256 != SOURCE_CHECKPOINT_SHA256:
         raise ValueError("D2-M0 source checkpoint requested hash mismatch")
+    if args.weight_source_sha256 != WEIGHT_SOURCE_METRICS_SHA256:
+        raise ValueError("D2-M0 weight-source metrics requested hash mismatch")
     if args.teacher_batch_size < 2:
         raise ValueError("D2-M0 teacher batch size must be at least two")
     if args.python.resolve() != Path(os.environ.get("INFBAGEL_PYTHON", "")).resolve():
@@ -350,6 +384,20 @@ def main() -> None:
         raise RuntimeError("D2-M0 refuses a dirty worker checkout")
     if sha256_file(args.source_checkpoint.resolve()) != SOURCE_CHECKPOINT_SHA256:
         raise ValueError("D2-M0 source checkpoint file hash mismatch")
+    asset_hashes = {
+        "weight_source": sha256_file(args.weight_source.resolve()),
+        "normalization": sha256_file((REPO / "data/train/norm.npy").resolve()),
+        "bps": sha256_file((REPO / "code/bps.pt").resolve()),
+    }
+    expected_asset_hashes = {
+        "weight_source": WEIGHT_SOURCE_METRICS_SHA256,
+        "normalization": EXPECTED_NORMALIZATION_SHA256,
+        "bps": BPS_SHA256,
+    }
+    if asset_hashes != expected_asset_hashes:
+        raise ValueError(
+            f"D2-M0 asset hash mismatch: actual={asset_hashes}, expected={expected_asset_hashes}"
+        )
     if args.metrics.resolve().exists():
         raise FileExistsError(f"refusing to overwrite {args.metrics.resolve()}")
     started = time.time()
@@ -380,6 +428,8 @@ def main() -> None:
         args.source_sha256,
         candidate_metrics,
     )
+    training["asset_hashes_exact"] = True
+    training["asset_hashes"] = asset_hashes
     terminal_checkpoints = {
         name: Path(str(candidate_metrics[name]["terminal_checkpoint"])).resolve()
         for name in CANDIDATES

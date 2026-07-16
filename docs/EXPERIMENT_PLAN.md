@@ -1242,7 +1242,11 @@ D2-M0 implementation entry point 为 `tools/run_hoi_d2m.py`，训练基配置为
 online variant、budget、LR 与 paired-RNG contract 时，才允许 weight-only source load 和 balanced
 weights。native physical summary 只作向后兼容的 additive reporting，新增 pelvis/object translation
 MAE 与 object-rotation geodesic；production sampler equation、BPS recomputation 与 condition API
-未改变。
+未改变。runner 在任何 candidate subprocess 前还会硬验证 D2-I source metrics
+`910998c54487cb127343e783773d3dbf13d24b359caf0442695f066bc271bf56`、normalization
+`6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969` 与 BPS
+`fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042`，并将三者作为
+reportable manifest assets；任一 mismatch 均在 GPU training 前失败。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
