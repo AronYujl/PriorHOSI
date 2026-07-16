@@ -1772,6 +1772,17 @@ representation 或训练 loss。
    不得启动 official/CHOIS、D2-H1、D2-G、smoke/training、loss/model/representation/condition
    修改、Phase 1C 或后续阶段。任何训练或 production adoption 必须另做新的 dated amendment。
 
+2026-07-17 D2-R0 pre-implementation selection-salt clarification。首个 implementation
+selection regression 在任何 implementation commit、resolved config 或 workload 产生前发现：
+预注册 SHA-256
+`189e3f05e28007b3ba3dab25a6cf6afd63ed981135722ae41987129219bfd9da`
+实际由已经用于 cohort 计算的 salt
+`SHA256("42:d2r-routed-guidance:" + sequence_name + ":7,49,91")` 得到，而正文/registry
+误写为包含额外 `state-` 的 salt；后者会得到不同 cohort SHA-256
+`3e534f6f25528792c375329271f4f52c4433e58c205e3bc11ee0aee59c7fa3a3`。D2-R0 固定保留
+原预注册 SHA、offsets、64 sequences、192 windows、run id、checkpoint、variants 与 gate，
+只把 ordering salt 更正为 `d2r-routed-guidance`；不得使用误写 salt 对应的 cohort。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
