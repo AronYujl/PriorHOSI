@@ -1344,6 +1344,32 @@ balanced online checkpoint、438 sequences × 3 windows、500-step production sa
 物理 GPU 3 无 contention 后在 worker-owned persistent session 启动。无论 r1 正负，仍不得
 checkpoint selection、训练、D2-H1、CHOIS、FID/R-Precision 或后续阶段。
 
+2026-07-16 D2-N0 r1 在 exact commit
+`e55438e36a74f2cf27dd7cec68d2d7c3ca97b64f` 上完成，分类为
+`author-native-latest-transfer-negative-stop`。source/current/balanced 三个 online checkpoint
+均完整评估 438 sequences × 3 windows，全部 finite，checkpoint/evaluator hashes、production
+sampler 无 future GT/stored BPS 契约均通过。balanced 相对 source/current 的 author-native
+MPJPE ratio 为 `0.5025/0.5033`，end-object-goal ratio `0.3565/0.3596`，pelvis-goal ratio
+`0.6354/0.6232`，object-translation ratio `0.5419/0.5276`；四项 paired-bootstrap 95% CI
+均严格证明改善。foot-sliding ratio 也改善为 `0.5796/0.5636`。但 balanced contact F1
+`0.3386`，相对 source/current 分别下降 `-0.0868/-0.1030`，95% CI
+`[-0.1144,-0.0584]` / `[-0.1311,-0.0744]`，违反预注册的 preservation lower bound
+`>=-0.02`，因此完整 gate 失败。相对 released Phase 0 compact baseline，balanced 的 MPJPE、
+end-object、pelvis-goal、object-translation、contact-F1 ratio 仍为
+`1.5640/3.5709/2.0391/1.8920/0.4656`，不能提升或选择为可用 checkpoint。
+
+该结果也排除“Phase 1B 差结果主要由 CHOIS 或不同 evaluator 造成”：D2-N 使用的
+`eval_metrics.py` 与作者基线 commit 逐字节一致，且既有 formal 438 failure 本身已使用同一作者
+native path。真实结论是 balanced objective 的人体/目标/平移改善可跨 internal cohort 迁移到
+作者 native official-test protocol，但伴随显著 contact-recall/F1 deficit，且总体仍显著落后于
+released consistency-distilled baseline。完整 artifact 已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2n-author-native-paired-r1-s42-20260716`，31 files /
+1,014,191 bytes，两端逐文件清单 SHA-256
+`ca219c09db7591cd6f6ba91a65fccee8206583841ffafbba7eccac1ff36c53bf`。compact result 见
+`experiments/results/p1_hoi_phase1b_d2n_author_native_paired_r1_s42_20260716.json`，SHA-256
+`004595af680fd4040781d63ab6c5a46e5bd016663e8878281e8d1b38d2b8b7bb`。D2-N 不重跑、不选择
+checkpoint、不授权训练或 D2-H1；停止并等待新的用户确认与 dated intervention。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

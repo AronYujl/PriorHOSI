@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "run_id": "p1-hoi-d2n-author-native-paired-r1-s42-20260716",
+  "phase": "p1",
+  "subphase": "1B-D2-N0-r1",
+  "status": "completed",
+  "classification": "author-native-latest-transfer-negative-stop",
+  "passed": false,
+  "seed": 42,
+  "git_commit": "e55438e36a74f2cf27dd7cec68d2d7c3ca97b64f",
+  "execution_host": "node01",
+  "started_at": "2026-07-16T09:41:35+00:00",
+  "ended_at": "2026-07-16T10:58:22+00:00",
+  "runtime_seconds": 4476.951342462038,
+  "protocol": {
+    "evaluator": "author-native compute_metrics through the HOIPrior production adapter",
+    "official_test_sequences": 438,
+    "windows_per_sequence": 3,
+    "diffusion_steps": 500,
+    "checkpoint_order": [
+      "source",
+      "current",
+      "balanced"
+    ],
+    "weight_variant": "online",
+    "same_seed_and_sequence_order": true,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "chois_used": false,
+    "fid_rprecision_used": false,
+    "fps_used_for_gate": false
+  },
+  "checkpoints": {
+    "source": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",
+    "current": "76e0d8811fc9f54caa6d4778e2fe9fcaee78fad98bee5f17570b47568f71e31f",
+    "balanced": "ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8"
+  },
+  "author_native_metrics": {
+    "source": {
+      "end_obj_trans_err": 30.42009174823761,
+      "xy_points_err": 12.590491771697998,
+      "feet_height": 0.023787036538124084,
+      "foot_sliding": 0.50620030568039,
+      "contact_acc": 0.5725338841777198,
+      "contact_precision": 0.6858709195351735,
+      "contact_recall": 0.35336483983323314,
+      "contact_f1": 0.425392754940899,
+      "contact_percent": 0.29047981445241716,
+      "gt_contact_percent": 0.6618830180474017,
+      "mpjpe": 37.343719601631165,
+      "trans_dist": 33.726394176483154,
+      "obj_trans_dist": 54.905758495085244,
+      "obj_rot_dist": 1.7936405361767382,
+      "hand_pen_loss_omomo": 0.310868406496581,
+      "hand_pen_ratio": 0.1564062088727951,
+      "human_pen_loss_infbagel": 10.017257235136983,
+      "human_pen_ratio": 0.22314304113388062
+    },
+    "current": {
+      "end_obj_trans_err": 30.159887671470642,
+      "xy_points_err": 12.83600777387619,
+      "feet_height": 0.02533508464694023,
+      "foot_sliding": 0.5205667783671015,
+      "contact_acc": 0.5807059505689642,
+      "contact_precision": 0.6987644266275889,
+      "contact_recall": 0.3715114237705774,
+      "contact_f1": 0.4415904668632815,
+      "contact_percent": 0.3065883887801696,
+      "gt_contact_percent": 0.6618830180474017,
+      "mpjpe": 37.28327453136444,
+      "trans_dist": 33.80204439163208,
+      "obj_trans_dist": 56.38878196527457,
+      "obj_rot_dist": 1.8218820668536715,
+      "hand_pen_loss_omomo": 0.37210948368176233,
+      "hand_pen_ratio": 0.1598702222108841,
+      "human_pen_loss_infbagel": 10.243469643043651,
+      "human_pen_ratio": 0.22024907171726227
+    },
+    "balanced": {
+      "end_obj_trans_err": 10.845817625522614,
+      "xy_points_err": 7.999631762504578,
+      "feet_height": 0.05448412522673607,
+      "foot_sliding": 0.293416835882298,
+      "contact_acc": 0.5029897803870407,
+      "contact_precision": 0.6828846361852284,
+      "contact_recall": 0.25754739347729777,
+      "contact_f1": 0.3386315439569915,
+      "contact_percent": 0.2110422555628035,
+      "gt_contact_percent": 0.6618830180474017,
+      "mpjpe": 18.7639981508255,
+      "trans_dist": 14.511367678642273,
+      "obj_trans_dist": 29.752166799144092,
+      "obj_rot_dist": 1.7919920659753354,
+      "hand_pen_loss_omomo": 0.10476480799056197,
+      "hand_pen_ratio": 0.08703850209712982,
+      "human_pen_loss_infbagel": 3.4174950708979623,
+      "human_pen_ratio": 0.13873544335365295
+    }
+  },
+  "balanced_transfer": {
+    "versus_source": {
+      "ratios": {
+        "mpjpe": 0.502467305104923,
+        "end_obj_trans_err": 0.3565346783068452,
+        "xy_points_err": 0.6353708741136581,
+        "obj_trans_dist": 0.5418769836647879,
+        "foot_sliding": 0.5796457105807411,
+        "contact_f1": 0.7960444554445657
+      },
+      "paired_bootstrap_95_ci": {
+        "source_minus_balanced_mpjpe": [
+          18.109106856087845,
+          19.05243067177157
+        ],
+        "source_minus_balanced_end_obj_trans_err": [
+          18.21900681172743,
+          20.90667892816334
+        ],
+        "source_minus_balanced_xy_points_err": [
+          4.255777199701598,
+          4.92339779381517
+        ],
+        "source_minus_balanced_obj_trans_dist": [
+          23.744134874031314,
+          26.60968950900441
+        ],
+        "balanced_over_source_foot_sliding": [
+          0.5210940325278571,
+          0.6423881529759337
+        ],
+        "balanced_minus_source_contact_f1": [
+          -0.11436558500548623,
+          -0.05841597437302421
+        ]
+      }
+    },
+    "versus_current": {
+      "ratios": {
+        "mpjpe": 0.5032819243127463,
+        "end_obj_trans_err": 0.3596106770577291,
+        "xy_points_err": 0.6232180521723746,
+        "obj_trans_dist": 0.5276256333656244,
+        "foot_sliding": 0.5636487921927696,
+        "contact_f1": 0.7668452318782358
+      },
+      "paired_bootstrap_95_ci": {
+        "current_minus_balanced_mpjpe": [
+          18.047819825561213,
+          18.990477213304338
+        ],
+        "current_minus_balanced_end_obj_trans_err": [
+          17.990789941216903,
+          20.607308407346142
+        ],
+        "current_minus_balanced_xy_points_err": [
+          4.497985405667757,
+          5.175573131953022
+        ],
+        "current_minus_balanced_obj_trans_dist": [
+          25.114841547900618,
+          28.180610102524987
+        ],
+        "balanced_over_current_foot_sliding": [
+          0.5076512003686006,
+          0.6244820249510269
+        ],
+        "balanced_minus_current_contact_f1": [
+          -0.13106284235894894,
+          -0.07438375589014154
+        ]
+      }
+    },
+    "versus_released_phase0_baseline": {
+      "ratios": {
+        "mpjpe": 1.563980195613249,
+        "end_obj_trans_err": 3.5709406289519388,
+        "xy_points_err": 2.039111642200129,
+        "obj_trans_dist": 1.8919519472254362,
+        "foot_sliding": 0.8801715874027747,
+        "contact_f1": 0.4656279971711649
+      },
+      "released_checkpoint_loaded": false,
+      "baseline_aggregate_only": true
+    }
+  },
+  "gate": {
+    "all_candidates_finite_and_complete": true,
+    "checkpoint_and_evaluator_hashes_exact": true,
+    "sampler_future_gt_and_stored_bps_absent": true,
+    "balanced_core_improvements_vs_source": true,
+    "balanced_core_improvements_vs_current": true,
+    "balanced_foot_sliding_preserved_vs_source": true,
+    "balanced_foot_sliding_preserved_vs_current": true,
+    "balanced_contact_f1_preserved_vs_source": false,
+    "balanced_contact_f1_preserved_vs_current": false,
+    "complete_gate": false,
+    "failure_reason": "Balanced transferred large author-native human/goal/object and foot-sliding improvements, but contact F1 decreased significantly versus both comparators and violated the preregistered lower-bound preservation gate."
+  },
+  "evaluator_assessment": {
+    "test_script_sha256": "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+    "eval_metrics_sha256": "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+    "eval_metrics_matches_author_commit": true,
+    "eval_config_sha256": "89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73",
+    "phase0_baseline_sha256": "76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6",
+    "prior_formal_hoi_failure_already_used_author_native_metrics": true,
+    "evaluator_mismatch_explains_prior_failure": false
+  },
+  "sampler_contract": {
+    "future_gt": false,
+    "stored_per_frame_bps": false,
+    "rollout_bps": "recomputed from current generated object pose",
+    "production_equation_changed": false
+  },
+  "external_contention": {
+    "gpu_0_pid": 858478,
+    "gpu_0_memory_mib_at_manifest": 3140,
+    "selected_physical_gpu": 3,
+    "selected_gpu_contention": false,
+    "processes_killed": false,
+    "throughput_used_for_gate": false
+  },
+  "artifact": {
+    "authority_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2n-author-native-paired-r1-s42-20260716",
+    "tree_sha256": "ca219c09db7591cd6f6ba91a65fccee8206583841ffafbba7eccac1ff36c53bf",
+    "tree_files": 31,
+    "tree_bytes": 1014191,
+    "manifest_sha256": "6750138320c4628e50ebb86b19bc8549876d1584c4988e4348cf9b5dbf5dfc75",
+    "metrics_sha256": "f8925c641c05c66bc7843c1c1aaf1ab5a61681a5009b92ebe75fc2f49f10213a",
+    "resolved_config_sha256": "85617f16b8e6207a3e393b3c46a12dbcd1cb79b0c974fd42382fdcdb31145038",
+    "preflight_sha256": "97c0c494bca1305b33b4e6dc095f1d82445a2ff4c648d1818b4dbf7e3c1d2f14",
+    "run_local_registry_sha256": "8c5ddb811ac9a08a07cecb911b91306d45acc1645cc93f392cbbec5fa77056c4",
+    "source_aggregate_sha256": "5c2f9acfa4f6c03c2477eae9801c81b5d228659df4b42fa00c5bf0c112e53b18",
+    "current_aggregate_sha256": "3414020c0e27794471a96dc53209ec1f9674ec7339e94ad5457562a293c387db",
+    "balanced_aggregate_sha256": "d95d3090455e763159a4cac793301f9f4744837bf60b4ed21eaef4a141c9ad2b",
+    "source_per_sequence_sha256": "108fe09c9ff40ffc44e91a12e16530dd8ea057344348a066b8b5d4aec9b46978",
+    "current_per_sequence_sha256": "544b81c1991b930fe1f3d412e8ef857c457dc07915fe6d038d8a2f029360c031",
+    "balanced_per_sequence_sha256": "11c11fcd90c0ce2e67d705bb64c3a78bbe2b0e9f84aff7fcb57cab25087e2a1f"
+  },
+  "released_checkpoint_loaded": false,
+  "checkpoint_selected": false,
+  "training_authorized": false,
+  "training_started": false,
+  "d2h1_started": false,
+  "next_action": "Stop D2-N. Do not select or promote the balanced checkpoint and do not start training or D2-H1. Report that the balanced objective transfers strongly to author-native kinematic/goal metrics but creates a significant contact-recall/F1 deficit and remains materially behind the released baseline."
+}
