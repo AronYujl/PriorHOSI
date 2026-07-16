@@ -1621,6 +1621,79 @@ author baseline blobs、batch/device、作者 hand `×10`、499 个 guidance ste
 deviations 与 no-training stop contract；完整 artifact 保留逐 sequence、逐 window、逐
 reverse-step 与 paired RNG appendix。
 
+2026-07-16 D2-Q0 completed result：`author-contact-guidance-negative-stop`。authority
+implementation commit 与 worker exact commit 均为
+`1e9586b24efb29b0bd02e5c1b6b787ea299bc2ae`，两端 checkout clean；worker
+`node01` 使用绝对 Python `/home/yujinlun/data/envs/infbagel/bin/python`、`cuda:1`、
+batch 8 完成 source/current/balanced × unguided/guided 的 192-window paired
+counterfactual，运行时 `3428.291 s`。首次 preflight 因 CHOIS baseline audit root 指向错误
+checkout 而在 manifest/workload 前失败并保留；改用 pinned
+`/home/yujinlun/data/evaluators/chois_release` commit
+`8ec585aa0200fd2a890ffb12897bcf69ae719463` 后 corrected preflight 通过。workload
+return code 为 0；没有复用 run id。
+
+全部 contract gate 通过：三个 checkpoint/两种 variant 均 finite、all-field/all-threshold
+complete，selection SHA-256 为
+`337ba964d4384bc66664ceeb148eb960632bac3861718063b6f86f43c59c5344`，
+paired initial/posterior noise 完全一致；source/current/balanced 的 history max abs 分别为
+`5.9605e-7/4.7684e-7/5.3644e-7`；每个 guided checkpoint 恰有 `11976`
+次 reverse-step guidance、step 0 为零次，作者公式 replay max abs 为 `0`，hand outer
+weight 始终为 `10`。checkpoint model state hash 前后不变，parameter grad buffer 清空；
+production posterior helper 被复用，production sampler 默认行为未变；sampler 不读 future
+GT 或 stored per-frame BPS，rollout BPS 只由当前生成 object pose 重算。
+
+预指定 balanced FK-palm union 5 cm 的局部接触响应显著为正：guided/unguided 的
+recall 为 `0.4012/0.2795`，paired difference `0.1217`、95% CI
+`[0.0640,0.1846]`；F1 为 `0.4821/0.3554`，difference `0.1267`、CI
+`[0.0653,0.1940]`；contact percent 为 `0.3977/0.2742`，difference `0.1235`、CI
+`[0.0655,0.1856]`；predicted run mean 为 `8.9701/6.5833` frames，difference
+`2.3868`、CI `[0.1950,4.7352]`；precision difference 为 `0.0953`、CI
+`[0.0275,0.1752]`。但是 run-mean ratio 只有 `1.3625`，低于固定 `1.5` 门槛。
+此外 guided/unguided ratio 95% CI 为：MPJPE `0.9982 [0.9691,1.0294]`、object
+goal `1.0157 [0.9670,1.0692]`，二者通过；pelvis goal
+`1.0669 [0.9875,1.1572]`、object-translation MAE
+`1.1307 [1.0528,1.2182]`、foot sliding `1.5350 [1.2447,1.8914]` 均因 CI
+上界超过 `1.10` 失败。balanced direct-hand 5 cm recall/F1/contact-percent difference
+分别为 `-0.0021/-0.0048/-0.0007`，CI 均跨零，run ratio 为 `0.8464`；因此 FK
+接触改善没有转化为稳健 direct-hand 接触或可接受的整体运动质量。
+
+完整 descriptive comparator 也没有提供可替代的 checkpoint 选择理由。source FK F1
+difference 为 `0.0352`、CI `[0.0039,0.0706]`，但 recall/coverage/duration CI 跨零且
+duration ratio 仅 `1.0295`；current FK duration difference 为 `1.6248`、CI
+`[0.3604,2.9723]`，ratio `1.2221`，其余 FK recall/F1/coverage CI 跨零，且 foot-sliding
+ratio CI 为 `[1.0566,1.4345]`。所有 checkpoint 与 field、threshold、category 和
+per-sequence appendix 均保留，没有 favorable subset。
+
+Implementation-parity appendix 锁定作者 commit
+`b9a158f75ab0740c91c9cfc8863a65fa381b014c` 三个 blob hash。复现部分包括 24-joint
+FK palms `22/23`、detached `>0.95` semantic mask、`0.02 m` spatial hinge、
+object COM/rotation temporal detach、contact-pair temporal cosine、batch multiplier、
+outer hand `×10`、guidance scale 1 和 negative-loss-gradient injection。预注册 deviation
+包括省略 feet-floor `×500` 与 scene/penetration、deterministic 2,048 vertices 代替作者
+random 10,000 vertices、codec differentiable SO(3) decode，以及当前 500-step DDPM
+checkpoint 代替作者 consistency sampler。因此该结果证明 isolated author hand core 能推动
+FK 接触，却以持续时间不足和 kinematic/object drift 为代价；它不授权把 guidance 写入
+production，也不自动授权其它作者项或新模型/损失 intervention。
+
+完整 immutable artifact 已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2q-author-contact-guidance-s42-20260716`，
+8 files / `158,718,271` bytes；worker/authority 在固定 `LC_ALL=C` 口径下 tree SHA-256
+同为 `5612b73fdb61708acb895cd4bf63700a490edcabb74dce11013782d296895663`。
+manifest、metrics、resolved config、首次失败 preflight、corrected preflight、run-local
+registry SHA-256 分别为
+`8876e724cddd394939f3c5f0634cda5ac1912fb01ef879e5110ac1b8182305bd`、
+`34340fe1654a47797ef32a5a78aeca6b556470720129f3d954436f38ca9db025`、
+`355d053c2bd396db502aef4d2e9cfd41e7775a378ff120390bf5c968ad877e69`、
+`41da5a2a51e615b1cb7dba67346485d4e8f689727c48c9099ea16edb3e162ab1`、
+`c3dad39ae9473598afe4481aadfe43415e2251c303889baa21b849f70f0755db`、
+`d3dab6891caec3d1bfb4ada9809fd1fbb65166c84687473ce3aea3172a824a8c`。
+compact result 为
+`experiments/results/p1_hoi_phase1b_d2q_author_contact_guidance_s42_20260716.json`，
+SHA-256 `66ff72cca071612d9f07e57d2521bf9e69f4724688cbcfe1760c31cbbbb07f23`。
+未选择 checkpoint，未授权或启动 production guidance、optimizer、training、D2-H1、
+D2-G、official/CHOIS 或 Phase 1C；D2-Q0 在此停止，任何下一方向都需要新的 dated
+amendment 与用户确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
