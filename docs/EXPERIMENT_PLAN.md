@@ -1438,6 +1438,13 @@ production sampler。
    register/compact result 后停止；不得启动 D2-H1、D2-G、contact remediation smoke/training、
    official 438、CHOIS、Phase 1C 或后续阶段，等待用户再次确认。
 
+D2-O0 implementation entry point 为 `tools/diagnose_hoi_d2o.py`，锁定 selection、统计与分类
+utility 为 `code/priors/contact_alignment.py`，immutable compact aggregate 由
+`tools/summarize_hoi_d2o.py` 生成。resolved config 必须锁定三个 checkpoint 的绝对路径/hash、
+batch size `16`、online-only、500 diffusion steps、三项 semantic 与四项 physical threshold、
+以及无训练 stop contract；完整 artifact 保留逐 sequence、逐 active frame 与 object-category appendix，
+tracked aggregate 可移除这些大数组但不得移除 aggregate、paired comparisons、contract 或 decision。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
