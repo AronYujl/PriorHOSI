@@ -1322,6 +1322,28 @@ D2-M latest balanced checkpoint 在作者 native 438 协议上是否复现其 fr
    CHOIS/FID/R-Precision/FPS gate、训练、D2-H1、Phase 1C 及后续阶段均不启动；D2-N 完成后停止
    并报告，等待用户再次确认。
 
+2026-07-16 Phase 1B D2-N r1 launch-preflight amendment。首次 reportable run id
+`p1-hoi-d2n-author-native-paired-s42-20260716` 在 workload 启动前即停止：已创建的 immutable
+manifest command 将锁定 baseline 文件名误写为
+`p0_hoi_table5_baseline_s42-20260712.json`，而正确资产为
+`p0_hoi_table5_baseline_s42_20260712.json`。未创建 persistent workload session，三个
+checkpoint 均未开始评估，completed candidates 为空；该 run 已以 `aborted` 完成
+`finish/register`，manifest/metrics/resolved-config/preflight SHA-256 分别为
+`d9a1f9867ecb0dec93239464a444d9afb7a9e57ed735a454b1167485ad4575b2`、
+`a7954605193fca3f2b0ab77b33f5a29fd0b331fa2dc752dfa3518e134c650d78`、
+`a78565e379d52536f78d905c996de6d1617793d24dfe7ab4e33582045ca353d3`、
+`50581e0de70fff1f4e45fe253dc9d1b1115333224b277a199578485488223744`，不得覆盖或复用。
+
+唯一替代 run id 预注册为
+`p1-hoi-d2n-author-native-paired-r1-s42-20260716`。r1 必须原样继承上一节锁定的 source/current/
+balanced online checkpoint、438 sequences × 3 windows、500-step production sampler、
+作者 native evaluator/input hashes、checkpoint order、paired bootstrap、transfer gate 和全部
+停止边界；只允许将 runner/config/output 的 run id 改为 r1 并修正 manifest command 中 baseline
+路径，不得依据未观察的结果改变任何指标、阈值、checkpoint、condition、loss 或 sampler。
+必须重新生成 r1 fully resolved configs 与同一 escalated context 的 preflight/manifest，确认
+物理 GPU 3 无 contention 后在 worker-owned persistent session 启动。无论 r1 正负，仍不得
+checkpoint selection、训练、D2-H1、CHOIS、FID/R-Precision 或后续阶段。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
