@@ -1694,6 +1694,84 @@ SHA-256 `66ff72cca071612d9f07e57d2521bf9e69f4724688cbcfe1760c31cbbbb07f23`。
 D2-G、official/CHOIS 或 Phase 1C；D2-Q0 在此停止，任何下一方向都需要新的 dated
 amendment 与用户确认。
 
+#### 2026-07-17 Phase 1B D2-R state-subspace routed guidance 预注册
+
+用户在 D2-Q0 停止后明确授权继续深入研究 HOIPrior 的多目标耦合问题。D2-Q0 已给出当前
+最强的正向机制证据：balanced online checkpoint 在相同噪声下经 isolated author hand core
+引导后，FK-palm union 5 cm recall/F1/contact coverage 均显著提高；但接触 run mean ratio
+只有 `1.3625`，且 pelvis goal、object translation 与 foot sliding 的 guided/unguided ratio
+CI 超过 `1.10`。重新核对作者 `test_infbagel_hoi.py` 后确认，作者 native contact target
+同样是由 GT rotations/rest offsets 重建的 24-joint FK palms `22/23`，所以该正向接触证据
+不是 evaluator 口径假象。依赖图审计进一步确认：hand spatial gradient 可同时写入人体 root
+position、palm ancestor rotations、object translation 与 object rotation；temporal term 虽
+detach object COM/rotation，仍可写 root/upper rotations；semantic mask 已 detach，contact
+channels 不受梯度。D2-Q0 因此混合了“移动手臂”“移动整个人体 root”和“移动物体”三个
+相互竞争的解，足部/目标退化符合 state-subspace coupling，而不要求先修改 architecture、
+representation 或训练 loss。
+
+1. **唯一 reportable run 与 frozen inputs。** D2-R0 run id 固定为
+   `p1-hoi-d2r-state-routed-guidance-s42-20260717`，seed 42，只加载 D2-M balanced online
+   checkpoint
+   `ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8`；
+   禁止 source/current/released/EMA、optimizer、scheduler 或任何 resume。仍使用 500-step
+   production posterior coefficients/equation、matched text/BPS/pelvis/object-goal/progress、
+   两帧 immutable history、无 CFG、无 SO(3) reverse projection、无 support clamp。所有
+   intervention 均为 analysis-only sampling counterfactual，不改变 production default。
+2. **fresh paired holdout。** internal-validation 每 sequence 固定 phase offsets
+   `[7,49,91]`，与先前 rollout offsets
+   `[0,14,28,42,56,70,84,98,112]` 不重合；按
+   `SHA256("42:d2r-state-routed-guidance:" + sequence_name + ":7,49,91")`、
+   sequence name、sequence id 排序，取前 64 个满足三 offset 的 sequence，共 192 windows。
+   global window-index selection SHA-256 固定为
+   `189e3f05e28007b3ba3dab25a6cf6afd63ed981135722ae41987129219bfd9da`。
+   五个 variants 必须对每个 window 共享完全相同的 initial noise 与每一步 posterior noise，
+   guidance 不得消耗 sampler RNG；每个 variant 均完整报告，禁止 favorable subset。
+3. **固定 variants 与 primary candidate。** 所有 guided variants 只使用 D2-Q0 已锁定的
+   author hand-object core：FK palms `22/23`、detached semantic channels `0/1 > .95`、
+   `0.02 m` spatial hinge、detached temporal object COM/rotation、batch multiplier、outer
+   hand `×10`、guidance scale 1，并只在 reverse step `499..1` 注入
+   `x_prev += grad(-(10 * hand_core), pred_x0)`；step 0 不注入。比较：
+   - `unguided`：production posterior control；
+   - `author_all`：D2-Q0 all-state gradient replay；
+   - `human_only`：从 `author_all` 精确置零 object translation/rotation channels
+     `216:228`，保留 root position 与所有自然非零人体 rotation channels；
+   - `upper_raw`：只保留 palm FK ancestor rotations
+     `[3,6,9,13,14,16,17,18,19,20,21]` 的各 6D channels，置零 root position、其它人体
+     rotations、object 与 contact；
+   - `upper_norm`：预指定 primary candidate；先执行与 `upper_raw` 相同的正交坐标投影，再
+     对每个 sample 的 mutable frames 乘
+     `||g_author_all||_2 / ||g_upper_raw||_2`，使投影前后 state-gradient L2 norm 相等；两者
+     同为零时 scale 定义为 1，只有分母为零而分子非零时视为 contract failure，不做 sweep、
+     clip 或观察后调参。
+4. **coupling 与 parity measurements。** 每个 reverse step/variant 封存 author loss、
+   spatial/temporal、semantic coverage、全梯度和实际注入梯度的 norm/RMS/max、五个
+   representation fields 的梯度能量、22 个 rotation joints 的能量、routing scale、masked-off
+   max abs、history max abs、finite 与 formula replay。明确验证 upper-chain parent mapping、
+   broadcasting、batch indexing、history mask、normalization inversion、posterior
+   coefficients、detach、step-0 omission、model/checkpoint immutability、paired RNG，以及 sampler
+   不读取 future GT/stored per-frame BPS。作者 blobs 与 D2-Q0 相同并重新 hash；deterministic
+   2,048 rest vertices、codec differentiable SO(3) decode 与 500-step non-distilled checkpoint
+   继续作为 parity deviations 如实报告。
+5. **完整评测。** 主 contact 口径使用作者一致的 predicted 24-joint FK palms 对 GT
+   rotation/rest-offset FK palms；另完整报告 28-joint direct representation hand contact。
+   thresholds 为 `2/5/7.5/10 cm`，左右手与 union 全报；sequence-paired bootstrap 10,000、
+   seed 42。native-like kinematics 至少包含 24-joint FK MPJPE、pelvis/object goal error、
+   object translation MAE、object rotation geodesic、FK foot sliding；同时报告五个 state fields
+   的 guided/unguided displacement、contact precision/recall/F1/coverage/run length 与距离分位数。
+6. **mechanism gate 与停止。** 任一 hash/finite/history/noise/formula/routing-mask/norm replay
+   contract 失败即分类 `state-routed-guidance-contract-failure-stop`。contract 全部通过后，
+   只有 `upper_norm` 相对 `unguided` 同时满足下列条件才分类
+   `state-routed-guidance-positive-stop`，否则分类
+   `state-routed-guidance-negative-stop`：
+   - FK union 5 cm recall、F1、prediction percent、prediction run mean 的 paired-bootstrap
+     95% CI 下界均 `>0`；
+   - run mean ratio `>=1.5`，precision difference CI 下界 `>=-0.02`；
+   - FK MPJPE、pelvis goal、object goal、object translation MAE、object rotation geodesic、
+     FK foot sliding 的 `upper_norm/unguided` paired ratio 95% CI 上界均 `<=1.10`。
+   无论正负，D2-R0 均只登记 mechanism result 并停止；不得自动采用 production guidance，
+   不得启动 official/CHOIS、D2-H1、D2-G、smoke/training、loss/model/representation/condition
+   修改、Phase 1C 或后续阶段。任何训练或 production adoption 必须另做新的 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
