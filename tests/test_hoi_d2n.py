@@ -85,7 +85,8 @@ class D2NConfigTests(unittest.TestCase):
         ]
         record = next(
             value for value in records
-            if value["experiment_id"] == "p1-hoi-d2n-author-native-preregister-s42-20260716"
+            if value["experiment_id"]
+            == "p1-hoi-d2n-author-native-r1-preregister-s42-20260716"
         )
         self.assertEqual(record["config"]["run_id"], RUN_ID)
         self.assertEqual(record["config"]["evaluation"]["official_test_sequences"], SAMPLE_COUNT)

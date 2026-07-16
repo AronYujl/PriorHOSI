@@ -17,7 +17,8 @@ import numpy as np
 
 
 REPO = Path(__file__).resolve().parents[1]
-RUN_ID = "p1-hoi-d2n-author-native-paired-s42-20260716"
+RUN_ID = "p1-hoi-d2n-author-native-paired-r1-s42-20260716"
+SUBPHASE = "1B-D2-N0-r1"
 CANDIDATES = ("source", "current", "balanced")
 EXPECTED_CHECKPOINT_SHA256 = {
     "source": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",
@@ -282,7 +283,7 @@ def resolved_config(args) -> Dict[str, object]:
         "schema_version": 1,
         "run_id": args.run_id,
         "phase": "p1",
-        "subphase": "1B-D2-N0",
+        "subphase": SUBPHASE,
         "seed": 42,
         "git_commit": git_output("rev-parse", "HEAD"),
         "repo_root": str(REPO),
@@ -719,7 +720,7 @@ def main() -> None:
             "schema_version": 1,
             "run_id": RUN_ID,
             "phase": "p1",
-            "subphase": "1B-D2-N0",
+            "subphase": SUBPHASE,
             "status": "completed",
             "seed": 42,
             "git_commit": git_output("rev-parse", "HEAD"),
@@ -768,7 +769,7 @@ def main() -> None:
                 "schema_version": 1,
                 "run_id": RUN_ID,
                 "phase": "p1",
-                "subphase": "1B-D2-N0",
+                "subphase": SUBPHASE,
                 "status": "failed",
                 "seed": 42,
                 "git_commit": git_output("rev-parse", "HEAD"),
