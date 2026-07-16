@@ -14,7 +14,7 @@ from .remediation import selection_sha256, stable_digest
 from .window_codec import project_to_so3
 
 
-RUN_ID = "p1-hoi-d2o-contact-alignment-s42-20260716"
+RUN_ID = "p1-hoi-d2o-contact-alignment-r1-s42-20260716"
 MODELS: Tuple[str, ...] = ("source", "current", "balanced")
 EXPECTED_CHECKPOINT_SHA256 = {
     "source": "48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4",

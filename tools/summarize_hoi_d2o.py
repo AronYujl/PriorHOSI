@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Mapping
 
 
-RUN_ID = "p1-hoi-d2o-contact-alignment-s42-20260716"
+RUN_ID = "p1-hoi-d2o-contact-alignment-r1-s42-20260716"
 STRIP_KEYS = {
     "per_frame",
     "per_sequence",

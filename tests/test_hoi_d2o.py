@@ -34,7 +34,7 @@ from priors.contact_alignment import (
 )
 from priors.data import PriorWindowDataset
 from priors.diffusion import GaussianDiffusion
-from tools.diagnose_hoi_d2o import reports_complete
+from tools.diagnose_hoi_d2o import ground_truth_summary, reports_complete
 from tools.summarize_hoi_d2o import validate_identity
 
 
@@ -78,6 +78,26 @@ class D2OSelectionTests(unittest.TestCase):
 
 
 class D2OMetricTests(unittest.TestCase):
+    def test_multi_category_ground_truth_summary_is_python38_compatible(self):
+        records = []
+        for category, semantic in (
+            ("box", [[1.0, 0.0, 0.0, 0.0]]),
+            ("chair", [[0.0, 1.0, 0.0, 0.0]]),
+        ):
+            records.append({
+                "object_category": category,
+                "per_frame": {
+                    "gt_semantic_labels": semantic,
+                    "gt_hand_object_distance_m": [[0.01, 0.10]],
+                },
+            })
+        summary = ground_truth_summary(records)
+        self.assertEqual(set(summary["by_object_category"]), {"box", "chair"})
+        self.assertEqual(summary["frames"], 2)
+        for value in summary["by_object_category"].values():
+            self.assertEqual(value["by_object_category"], {})
+            self.assertEqual(value["frames"], 1)
+
     def test_production_sampler_pairing_restores_history_and_remains_finite(self):
         diffusion = GaussianDiffusion(500)
         model = _ZeroModel()
@@ -266,7 +286,7 @@ class D2OContractAndLifecycleTests(unittest.TestCase):
         record = next(
             value for value in records
             if value["experiment_id"]
-            == "p1-hoi-d2o-contact-alignment-preregister-s42-20260716"
+            == "p1-hoi-d2o-contact-alignment-r1-preregister-s42-20260716"
         )
         self.assertEqual(record["config"]["run_id"], RUN_ID)
         self.assertEqual(

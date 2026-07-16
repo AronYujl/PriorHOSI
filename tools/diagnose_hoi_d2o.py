@@ -65,7 +65,7 @@ from tools.evaluate_hoi_remediation import (  # noqa: E402
 )
 
 
-SUBPHASE = "1B-D2-O0"
+SUBPHASE = "1B-D2-O0-r1"
 EXPECTED_DATA_CONTRACT_SHA256 = "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf"
 EXPECTED_NORMALIZATION_SHA256 = "6969c0c05ac3e03d9b014380118bee78ce8999e5b9adeeb8e700f4eba8baa969"
 DEFAULT_BATCH_SIZE = 16
@@ -286,6 +286,15 @@ def ground_truth_summary(records: Sequence[Mapping[str, object]]) -> Dict[str, o
     semantic = _concatenate_frames(records, "gt_semantic_labels")
     distance = _concatenate_frames(records, "gt_hand_object_distance_m")
     categories = sorted({str(record["object_category"]) for record in records})
+    by_object_category = {}
+    if len(categories) > 1:
+        for category in categories:
+            category_summary = ground_truth_summary([
+                record for record in records
+                if record["object_category"] == category
+            ])
+            category_summary["by_object_category"] = {}
+            by_object_category[category] = category_summary
     return {
         "frames": int(len(semantic)),
         "contact_label_prevalence": {
@@ -293,13 +302,7 @@ def ground_truth_summary(records: Sequence[Mapping[str, object]]) -> Dict[str, o
             for channel in range(4)
         },
         "semantic_geometry_alignment": semantic_geometry_report(semantic, distance),
-        "by_object_category": {
-            category: ground_truth_summary([
-                record for record in records
-                if record["object_category"] == category
-            ]) | {"by_object_category": {}}
-            for category in categories
-        } if len(categories) > 1 else {},
+        "by_object_category": by_object_category,
     }
 
 
