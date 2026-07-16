@@ -1783,6 +1783,13 @@ selection regression 在任何 implementation commit、resolved config 或 workl
 原预注册 SHA、offsets、64 sequences、192 windows、run id、checkpoint、variants 与 gate，
 只把 ordering salt 更正为 `d2r-routed-guidance`；不得使用误写 salt 对应的 cohort。
 
+D2-R0 implementation entry point 为 `tools/diagnose_hoi_d2r.py`，locked selection、
+state-subspace masks、per-sample norm replay、paired comparison 与 gate 位于
+`code/priors/routed_guidance.py`，compact aggregate 由
+`tools/summarize_hoi_d2r.py` 生成，回归覆盖位于 `tests/test_hoi_d2r.py`。runner 的
+`--resolve-only` 是唯一 fully resolved config 生成入口；这些 analysis-only 文件不修改
+production model、loss、representation、condition API、diffusion posterior 或 sampler default。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
