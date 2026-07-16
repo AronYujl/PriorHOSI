@@ -1601,6 +1601,18 @@ checkpoint。
    不得运行 official 438、CHOIS、D2-G、D2-H1、任何 smoke/training、Phase 1C 或后续阶段，
    等待用户再次确认。
 
+2026-07-16 D2-Q0 pre-implementation author hand-scale clarification。首版 amendment 将作者
+wrapper 的 outer hand-object `×10` 误列为 omission；在 implementation commit、resolved config
+和 workload 均尚未产生前，重新审阅 `b9a158f` 的 `apply_hoi_guidance_loss` 与
+`apply_hosi_guidance_loss` 确认两者都对
+`apply_hand_object_interaction_guidance_loss` 固定乘 `10`。D2-Q0 因而必须保留这个作者
+hand weight：实际注入为
+`x_prev += grad(-(10 * author_hand_object_core_loss), pred_x0) * guidance_scale`，
+其中 `guidance_scale=1`；仍排除 feet-floor `×500`、scene/penetration 项。run id、三个
+checkpoint、selection、paired noise、其余公式、2,048-vertex approximation、measurements、
+gate 与全部 stop/no-training contract 不变。该修正发生在任何结果观察前，防止以弱十倍的
+counterfactual 形成假阴性。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
