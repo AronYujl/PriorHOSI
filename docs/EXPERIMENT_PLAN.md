@@ -1519,6 +1519,88 @@ metrics、resolved-config、preflight、run-local registry SHA-256 分别为
 `9cea710a82d81cb9af0a77499a3f15e8124acf4649476704ce3aca09bdd4ece3`。D2-O 不重跑、
 不选择 checkpoint、不启动 contact remediation、训练、D2-H1 或 D2-G；停止并等待新的用户确认。
 
+2026-07-16 Phase 1B D2-Q author-contact-guidance paired counterfactual 预注册。用户在 D2-O
+完整结果后明确授权继续执行建议的最小几何/持续时间 intervention。该方向不是旧 D2-G：
+D2-G 是未满足触发条件的随机初始化训练 fallback；D2-Q0 只在封存 online checkpoint 上执行
+sampling-only counterfactual，不创建 optimizer、不更新参数、不修改 production sampler 默认
+行为。D2-O 已排除 label/evaluator contract mismatch，并显示三个 checkpoint 共同存在高
+precision、低 recall、短 physical-contact duration；balanced 又同时具有最好的语义接触重建、
+`.95` hand-semantic coverage 以及人体/目标/物体平移表现，因此 balanced 在观察 D2-Q0 前固定为
+唯一 mechanism-gate candidate，source/current 仍必须完整运行和报告，禁止结果后选择有利
+checkpoint。
+
+1. **唯一 reportable run 与 fresh holdout。** run id 固定为
+   `p1-hoi-d2q-author-contact-guidance-s42-20260716`。使用 source R-3072 online
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`、
+   D2-M current online
+   `76e0d8811fc9f54caa6d4778e2fe9fcaee78fad98bee5f17570b47568f71e31f`
+   与 D2-M balanced online
+   `ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8`。
+   internal-validation sequence 按
+   `SHA256("42:d2q-author-contact-guidance:" + sequence_name + ":28,70,112")`、
+   sequence name、sequence id 排序，固定前 64 个同时具备 `pi=(28,70,112)` 的序列，共
+   192 windows；global window indices SHA-256 固定为
+   `337ba964d4384bc66664ceeb148eb960632bac3861718063b6f86f43c59c5344`。
+   这些 phase offsets 与 D2/D2-M 的 `(0,42,84)` 及 D2-O 的 `(14,56,98)` 均不重叠。
+2. **paired sampling intervention。** 每个 checkpoint 都以 online weights、seed 42、
+   matched condition、500-step 原始 DDPM posterior、相同 sequence/chunk ordering 各运行
+   unguided 与 guided 两条 trajectory；两条 path 的初始 latent 和每一步 posterior noise 必须
+   byte-identical，guidance 不得消耗 RNG。guided path 只复现作者
+   `b9a158f75ab0740c91c9cfc8863a65fa381b014c` 的 hand-object interaction 核心项：
+   - 由当前 22 路 rotation 与相同 rest-human offsets 做 24-joint FK，使用作者 palm indices
+     `22/23`；前两路预测 contact semantic 以 `>0.95` 形成 detached mask；
+   - 以生成 object pose 变换每个 hash-verified rest mesh 的 deterministic uniform-index
+     2,048-vertex subset，空间 hinge threshold 固定 `0.02 m`；
+   - 保持作者的 object-COM/object-rotation detach、contact-pair temporal cosine、
+     batch-size multiplier、`guidance_scale=1` 与
+     `x_prev += grad(-guidance_loss, pred_x0)` 注入顺序；只在 reverse step `>0` 注入；
+   - 作者 `guidance_loss.py`、`models/infbagel.py` 与 sample config 的 blob SHA-256 分别锁定为
+     `5747721bcc015911c7999692079666f7e5d6204912761d91b8b82d4ba4c4ab24`、
+     `6dec84991c685e11d1f8e4f2f928497673210066d38a5901d0537a40504f9d76`、
+     `39490dc60c47da7273434d65fa95e44a2d34382c872fe7c1718c14886bdde388`。
+   为隔离 hand-object mechanism，不加入作者外层 `×10`、feet-floor `×500` 或任何 scene/
+   penetration 项；这三项 omission、2,048-vertex deterministic approximation 与 HOIPrior
+   codec 的 differentiable SO(3) decode 必须作为 parity deviation 明确封存。guidance 后必须
+   再恢复两帧 immutable history；不得 CFG、support clamp、future GT、stored per-frame BPS、
+   released checkpoint、EMA、consistency distillation 或 checkpoint write。
+3. **完整 measurements。** 对 source/current/balanced × unguided/guided 全部报告：
+   - 每一步 guidance loss、spatial/temporal component、gradient RMS/norm/max、active semantic
+     mask coverage、finite 与 history max abs；
+   - 24-joint FK palm `22/23` 和 28-joint direct hand `24/26` 的左右手/union
+     `2/5/7.5/10 cm` accuracy/precision/recall/F1/contact percent、distance quantiles 与
+     per-sequence contact run lengths；
+   - object/pelvis goal error、MPJPE、joint/pelvis/object translation error、object rotation、
+     foot sliding、四路 contact reconstruction、逐 window 与逐 object-category appendix；
+   - paired guided-minus-unguided 10,000-bootstrap（seed 42，sequence paired unit），以及
+     source/current 的完整 descriptive response。GT 只用于 reference metric，不得进入
+     guidance mask、condition、BPS 或 reverse equation。
+4. **mechanism gate。** 任一 checkpoint/variant、hash/selection、paired noise、history
+   `<=1e-5`、finite、model-state immutability、posterior-helper reuse、all-field/all-threshold
+   reporting 或 sampler provenance 失败，分类
+   `author-contact-guidance-contract-failure-stop`。contract 全部通过后，只有预先指定的
+   balanced guided 相对 balanced unguided 同时满足以下全部条件，才分类
+   `author-contact-guidance-positive-stop`，否则分类
+   `author-contact-guidance-negative-stop`：
+   - FK-palm union 5 cm recall、F1 与 contact percent 的 guided-minus-unguided paired
+     bootstrap 95% CI 下界均 `>0`；
+   - FK-palm union 5 cm predicted mean run length 的 paired CI 下界 `>0`，且
+     `mean(guided)/mean(unguided) >=1.5`；
+   - FK-palm union 5 cm precision 的 guided-minus-unguided CI 下界 `>=-0.02`；
+   - guided/unguided 的 MPJPE、object goal、pelvis goal、object-translation MAE 与 foot
+     sliding paired mean-ratio 95% CI 上界均 `<=1.10`。
+   direct-hand 与 source/current 结果均为必报描述性证据，不能替代上述 balanced FK gate。
+5. **实现、执行与停止。** 新增独立 analysis-only sampler/guidance utility、runner、fully
+   resolved config、summary 与 tests；production `GaussianDiffusion.sample` 和 evaluator adapter
+   不增加 guidance 参数。tests 覆盖作者公式 replay、mask/detach、paired RNG、step-0 omission、
+   posterior helper reuse、history restoration、FK/direct-hand separation、finite、selection、
+   all checkpoint/variant/field/threshold reporting、gate boundary 及 production sampler 无
+   future GT/stored BPS。先单独提交本 amendment，再提交 implementation/config/tests；authority
+   与 worker 使用各自 verified absolute Python，worker 主动 fetch exact committed object，在
+   worker-owned persistent session 走 resolved-config/preflight/start/finish/register/recovery。
+   无论 gate 正负，本 session 只登记 D2-Q0 并停止；不得把 guidance 写入 production default，
+   不得运行 official 438、CHOIS、D2-G、D2-H1、任何 smoke/training、Phase 1C 或后续阶段，
+   等待用户再次确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
