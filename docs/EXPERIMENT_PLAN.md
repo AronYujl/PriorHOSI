@@ -1613,6 +1613,14 @@ checkpoint、selection、paired noise、其余公式、2,048-vertex approximatio
 gate 与全部 stop/no-training contract 不变。该修正发生在任何结果观察前，防止以弱十倍的
 counterfactual 形成假阴性。
 
+D2-Q0 implementation entry point 为 `tools/diagnose_hoi_d2q.py`，锁定 selection、作者公式、
+paired sampler、FK/direct-hand metrics 与 gate 的 utility 为
+`code/priors/contact_guidance.py`，immutable compact aggregate 由
+`tools/summarize_hoi_d2q.py` 生成。resolved config 必须封存三个 checkpoint、全部 rest mesh、
+author baseline blobs、batch/device、作者 hand `×10`、499 个 guidance steps、parity
+deviations 与 no-training stop contract；完整 artifact 保留逐 sequence、逐 window、逐
+reverse-step 与 paired RNG appendix。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
