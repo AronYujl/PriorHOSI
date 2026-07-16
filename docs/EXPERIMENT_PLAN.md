@@ -1113,6 +1113,57 @@ goal `1.0` 与五个 reconstruction fields `1.0` 保持不变。
    条件式前提已达到，仍不授权 smoke、D2-H1 或训练。negative 则停止继续添加 Phase 1B remediation
    mechanism；是否撰写 closure summary 或进入其他阶段须等待用户再次确认。
 
+D2-L0 已在 workload commit `05aa3cd4e48a13d60bd29e372b623b2dae108d83` 完成，run id 为
+`p1-hoi-d2l-aux-balance-s42-20260716`，严格分类为
+`gradient-balanced-auxiliary-routing-negative-stop`。固定 balanced weights 对 raw-clipped path
+产生强且四格一致的 human routing 改善：R-1024 t250/t499 的 balanced-minus-current human
+mean/95% CI 为 `0.3766 [0.3399,0.4129] / 0.3340 [0.3057,0.3591]`，balanced human 为
+`0.4183 [0.3805,0.4551] / 0.4225 [0.3890,0.4562]`，balanced object 为
+`0.5824 [0.5240,0.6487] / 0.6188 [0.5662,0.6718]`。R-3072 对应三组结果为
+`0.3783 [0.3296,0.4289] / 0.3382 [0.2993,0.3765]`、
+`0.4096 [0.3710,0.4498] / 0.3887 [0.3510,0.4263]` 和
+`0.5986 [0.5171,0.6704] / 0.6131 [0.5472,0.6711]`；raw-clipped gate 的全部 registered checks
+均通过。
+
+但 exact sealed-AdamW path 的四格 human checks 全部失败。R-1024 t250/t499 的
+balanced-minus-current AdamW human mean/95% CI 为
+`0.0480 [0.0441,0.0519] / 0.0332 [0.0254,0.0407]`，balanced AdamW human 为
+`0.0705 [0.0643,0.0772] / 0.1107 [0.0926,0.1322]`；R-3072 对应为
+`0.0365 [0.0343,0.0388] / 0.0281 [0.0246,0.0312]` 和
+`0.0505 [0.0477,0.0544] / 0.0669 [0.0602,0.0731]`。所有 improvement CI 下界未达到
+`0.10`，所有 balanced-human CI 下界未达到 `0.15`。balanced AdamW object CI 下界仍为
+`0.2180/0.2535/0.1650/0.1913`，四格均通过 object preservation，但不能替代 failed human
+conjunct。
+
+机制分层因此是：D2-I-derived fixed reweighting 将 current objective 的 high-t preclip norm 从约
+`121--140` 降至约 `1.49--1.77`，clip coefficient 从约 `0.0074--0.0090` 提至
+`0.575--0.684`，并在不牺牲 object routing 的情况下显著旋转 raw-clipped direction toward human。
+这是“`50×FK/50×surface` 主导即时 total-gradient direction”的强 paired 证据。然而，把该新
+gradient 输入旧 checkpoint 的 sealed AdamW second-moment geometry 后，full direction 与 raw-clipped
+direction 的 cosine 仅约 `0.182--0.284`；full direction 虽与其 preconditioned current contribution
+cosine 约 `0.930--0.983`，human 增益仍被压缩。这表明旧 optimizer state/per-coordinate
+preconditioning 不能作为 fixed reweighting 的一步代理；它不证明从 fresh optimizer state 训练该
+objective 会成功或失败，但预注册 gate 不允许据此启动 smoke。
+
+完整 2 checkpoint × 7 timestep × 8 block × 2 candidate × 14 loss-component × 5 direction ×
+8 parameter-group 记录 finite，paired q-noise hashes 完全一致，D2-I source metrics hash 和 32-record
+weight derivation 精确重放。production total value replay max abs 为 `2.384e-7`；R-1024/R-3072
+current/balanced gradient replay 最大 relative L2 不超过 `3.493e-7/3.580e-7`，clip replay 均为
+`0`，AdamW decomposition 不超过 `5.354e-8/5.248e-8`。119-state optimizer contract 精确，
+model/raw optimizer/mapped moments 前后 hashes 一致，`.grad` buffers 为空，optimizer/update 为 0，
+production loss 未修改。groupwise raw-clipped human improvement 在 output group 四格约
+`0.361--0.408`，而 sealed-AdamW output improvement 仅约 `0.061--0.070`；完整其他 groups 已封存，
+均不自动授权 intervention。
+
+worker/authority artifact tree SHA-256 同为
+`1dc7789284773aca5605cda3057a4d445a0cbcbd6a2d8a72702a17e0c3783fac`，精简结果 SHA-256 为
+`760c76da50d45daa1b99eb47bd274f4f8f83f83a7a22f50643a8ee56f98124da`，见
+`experiments/results/p1_hoi_phase1b_d2l_aux_balance_s42_20260716.json`。workload 在物理 GPU3
+执行，GPU0 既有外部进程只记录且未干预；运行 `1028.69s`，peak allocated/reserved 为
+`3950515712/4005560320` bytes。按预注册停止规则，Phase 1B remediation mechanism 在 D2-L0
+negative-stop 后不再自动延伸；D2-H1、smoke、训练、production loss/model/condition/sampler 修改、
+official/CHOIS 与后续阶段均未启动，等待用户确认 closure 或新的 dated direction。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
