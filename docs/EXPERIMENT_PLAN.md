@@ -1266,6 +1266,62 @@ MPJPE/object-goal/pelvis-goal ratio 为 `0.4132/0.8488/0.6045`，但 foot slidin
 `421a4a04675cb8561750ef8a6823bc4dbcda06a5c8efe0b8f8bca35b43160fd3`。D2-M 不重跑、
 不提升 checkpoint、不授权 from-random screen 或完整训练；D2-H1 仍未启动。
 
+2026-07-16 Phase 1B D2-N author-native latest-checkpoint transfer audit 预注册。用户在本地重新执行
+released InfBaGel 的 `python test_infbagel_hoi.py` 后报告 native 指标与论文大致一致，并询问
+Phase 1B 的差结果是否可能由额外 CHOIS evaluator 或不同指标实现导致。已有不可变证据先排除
+这一强解释：Phase 1B formal HOIPrior 的 438-sequence native 失败
+`p1-hoi-eval-native-r1-s42-20260714` 本身就是通过作者 `test_infbagel_hoi.py` 的
+`compute_metrics` 路径得到，CHOIS 只在其后独立运行并进一步 corroborate；当前
+`code/eval_metrics.py` 与作者基线 commit `b9a158f75ab0740c91c9cfc8863a65fa381b014c`
+逐文件 SHA-256 均为
+`445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547`。因此 D2-N0 不把
+“evaluator mismatch 解释既有 formal failure”作为仍可成立的假设，只回答一个更窄的新问题：
+D2-M latest balanced checkpoint 在作者 native 438 协议上是否复现其 fresh internal cohort 的
+人体/目标改善，及其 foot-sliding/contact tradeoff。
+
+1. **唯一 reportable audit。** run id 固定为
+   `p1-hoi-d2n-author-native-paired-s42-20260716`。在同一 worker、同一 exact committed object
+   上依次评估 source R-3072 online
+   `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`、
+   D2-M current online
+   `76e0d8811fc9f54caa6d4778e2fe9fcaee78fad98bee5f17570b47568f71e31f`
+   和 D2-M balanced online
+   `ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8`。
+   三者必须全部报告，不得只运行或保留 balanced；不得读取 EMA、released checkpoint、旧
+   optimizer/RNG state。每次 invocation 都重新固定 seed 42，使用相同 438 official test
+   sequence ordering、3 windows、500-step production diffusion sampler、online weights、
+   condition 与 sampler RNG 协议。GT 只进入作者指标 reference，不得进入 production condition；
+   rollout BPS 必须从当前生成物体姿态重算，不得读取 future GT 或 stored per-frame BPS。
+2. **作者 native 指标与统计。** 固定使用当前 `code/test_infbagel_hoi.py`
+   SHA-256 `22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524`、
+   exact-author `code/eval_metrics.py` 上述 hash 与
+   `config_eval_hoi_prior.yaml` SHA-256
+   `89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73`。
+   完整报告 end-object/pelvis goal、feet height、foot sliding、contact
+   accuracy/precision/recall/F1/percent、MPJPE、human/object translation、object rotation、
+   hand/human penetration 与 ratio；保存全部 438 条 per-sequence metrics。对 balanced-source
+   和 balanced-current 以 sequence 为 paired unit、bootstrap 10,000、seed 42 报告差值或 ratio
+   95% CI。Phase 0 released baseline 只读取 compact aggregate
+   `experiments/results/p0_hoi_table5_baseline_s42_20260712.json`
+   SHA-256 `76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`
+   作绝对描述对照，不加载 checkpoint，不新增 baseline GPU run。
+3. **transfer gate 与解释边界。** 只有全部 finite、三 checkpoint/input/config hashes 精确、
+   各 438 条、sampler audit 无 future GT/stored BPS，并且 balanced 相对 source 与 current 在
+   `mpjpe`、`end_obj_trans_err`、`xy_points_err`、`obj_trans_dist` 四项的 paired-bootstrap
+   95% CI 均证明改善，同时 foot-sliding ratio CI 上界 `<=1.10`、contact-F1
+   `balanced-comparator` 差值 CI 下界 `>=-0.02`，才分类为
+   `author-native-latest-transfer-positive-stop`；任一失败分类为
+   `author-native-latest-transfer-negative-stop`。无论分类，结果只描述 D2-M latest checkpoint
+   是否跨 evaluator protocol transfer；不得 retroactively 改写 D2-M gate、选择 checkpoint、
+   授权重跑/训练/architecture/loss/condition/sampler 修改，也不得声称已解释一致性蒸馏差异。
+4. **执行与停止。** D2-N0 只允许增加非覆盖式三 checkpoint orchestration、fully resolved
+   configs、paired summary 与 tests；不得修改作者 native metric formula、HOIPrior model、
+   representation、loss、condition API 或 production sampler equation。先提交本 amendment，
+   再提交 implementation/config/tests；worker 主动 fetch exact commit，使用单张无 contention
+   RTX 3090 在 persistent session 运行，走 `start/finish/register` 与 immutable recovery。
+   CHOIS/FID/R-Precision/FPS gate、训练、D2-H1、Phase 1C 及后续阶段均不启动；D2-N 完成后停止
+   并报告，等待用户再次确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
