@@ -1248,6 +1248,24 @@ MAE 与 object-rotation geodesic；production sampler equation、BPS recomputati
 `fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042`，并将三者作为
 reportable manifest assets；任一 mismatch 均在 GPU training 前失败。
 
+2026-07-16 D2-M0 按预注册分类为 `fresh-optimizer-balanced-smoke-negative-stop`。worker 在 exact
+commit `f17beabf508aa461ac5452ab3f705095bd0e04a2` 上完成两个 candidate 各 64 个真实 update；
+source/initial model hash、旧 state 零加载、terminal optimizer `119/64` 与全部记录 loss finite
+均通过。current/balanced 每个 rank 分别出现 `10/2` 次 AMP overflow skip，因此预注册的
+zero-overflow finite gate 失败，且两条路径随后消费不同 batch/q-noise，paired training RNG audit
+失败。teacher t=250/499 的 balanced joint-position MSE 分别为 current 的 `0.6564/0.7158`，
+但 object-translation 分别为 `1.0773/1.0567`，相对 source 的两格几何均值为 `1.0983`，故
+teacher object gate 失败。fresh 32-sequence native cohort 上，balanced 相对 current 的
+MPJPE/object-goal/pelvis-goal ratio 为 `0.4132/0.8488/0.6045`，但 foot sliding ratio
+`1.7310`、contact F1 ratio `0.8434`；这些描述性改善不得覆盖 pairing/teacher 失败。完整 artifact
+已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2m-reset-paired-s42-20260716`，36 files /
+1,215,525,519 bytes，两端逐文件清单 SHA-256
+`4e1357d60acd57e49f3ce2762c898cd945032cd57f8dc81eaf66282bff7610d5`。compact result 见
+`experiments/results/p1_hoi_phase1b_d2m_reset_paired_s42_20260716.json`，SHA-256
+`421a4a04675cb8561750ef8a6823bc4dbcda06a5c8efe0b8f8bca35b43160fd3`。D2-M 不重跑、
+不提升 checkpoint、不授权 from-random screen 或完整训练；D2-H1 仍未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
