@@ -1164,6 +1164,76 @@ worker/authority artifact tree SHA-256 同为
 negative-stop 后不再自动延伸；D2-H1、smoke、训练、production loss/model/condition/sampler 修改、
 official/CHOIS 与后续阶段均未启动，等待用户确认 closure 或新的 dated direction。
 
+2026-07-16 Phase 1B D2-M paired fresh-optimizer balanced-objective smoke 预注册。用户在完整审阅
+D2-L0 negative-stop 与其 raw-clipped positive subgate 后，明确授权继续新的 dated direction。
+D2-M0 只检验一个受控因果问题：在相同自有 R-3072 online 权重、相同训练样本与 q-noise 下，
+丢弃旧 AdamW/EMA/scheduler/scaler/RNG state 后，D2-I-derived locked balanced objective 是否比
+原 `50/50/0.1/1` objective 产生可测的 high-noise teacher-forced 与 native rollout 改善。该
+授权不允许从 released checkpoint 初始化、不允许 weight sweep、architecture/representation/
+condition/sampler intervention，也不授权完整重训或 official/CHOIS。
+
+1. **D2-M0 唯一 reportable run。** run id 固定为
+   `p1-hoi-d2m-reset-paired-s42-20260716`，四卡 HOI worker 只读取 R-3072 sealed online
+   checkpoint `48ec27a0c097eaa65b21f58b1d28f7cf64aa3b2c54e9b02eb2bc2f35688460e4`。
+   选择 R-3072 是因为它在既有、结果观察前锁定的 D2 selector 中是唯一记录的 closest record，
+   不是 D2-M 结果后的 subset selection。source 只提供 `model` 权重；不得读取或恢复其 optimizer、
+   EMA、scheduler、scaler 或 rank RNG，不得使用其 EMA，也不得读取 released InfBaGel
+   checkpoint。两个 candidate 固定为 `current` 与 `balanced`，必须从逐 tensor 完全相同的 source
+   online model state 开始，使用 seed 42、完全相同的 distributed sampler order、timesteps 与
+   q-noise。current weights 为 FK/object-surface/velocity/terminal-goal=`50/50/0.1/1`；
+   balanced weights 为
+   `0.3569973401779424/0.4772322188400037/0.1/1`，来源仍唯一锁定为 D2-I metrics
+   `910998c54487cb127343e783773d3dbf13d24b359caf0442695f066bc271bf56`，不得 sweep。
+2. **短程训练合同。** 每个 candidate 固定 4×RTX 3090、micro-batch/GPU `768`、accumulation
+   `1`、effective batch `3072`、64 个真实 AdamW updates，即 `196,608` processed windows /
+   `3,145,728` frames。AdamW 固定 betas `(0.9,0.999)`、eps `1e-8`、weight decay `0.01`、
+   global clip norm `1.0`、AMP 与既有 overflow handling；LR 固定为 source terminal stored LR
+   `3e-5`，warmup `0`、minimum LR ratio `1.0`，不作 LR candidate。optimizer 在第一步前必须为
+   empty state，terminal 必须恰有 119 states 且每个 step 为 64。EMA `0.999/0.9999` 只从 source
+   online 权重重新 copy 并随训练维护，以保持 checkpoint/resume schema；它们不得进入 D2-M
+   evaluation 或 selection。两个 candidate 均只评估 terminal online weights，不做 checkpoint
+   selection。完整保留 source/initial/terminal model hashes、optimizer-state counts、训练 RNG audit、
+   gradient/AMP/finite、loss、memory、throughput 与 terminal checkpoint hashes。
+3. **fresh holdout 与 paired evaluation。** teacher cohort 固定为 D0 stable global window ordering
+   ranks `1026--1537` 的 512 个 internal-validation windows，含 5 个 terminal windows，selection
+   SHA-256 为 `836781bbcdc3a5960631c7af635eaca62bb53f8a67093312fa761eb140174259`；
+   它与 D2-H/I/J/K/L 的 ranks `0--1025` 不相交。固定 timesteps `{250,499}`，source/current/
+   balanced 使用相同 sample、condition 与 stable q-noise，报告五个 representation fields、physical
+   object/pelvis/MPJPE metrics 及 text/BPS/pelvis/object-goal 四种 condition permutation。native
+   cohort 固定为既有 three-window eligible sequence ordering ranks `128--159` 的 32 个此前未用
+   sequences，96 个 global window indices 的 SHA-256 为
+   `30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae`；
+   source/current/balanced 的 matched 三窗口 rollout 使用完全相同 sampler noise，完整报告
+   object goal、pelvis goal、MPJPE、object/pelvis translation、object rotation、contact 与 foot
+   sliding。bootstrap 固定 10,000、seed 42，teacher 以 window、native 以 sequence 为 paired unit。
+4. **D2-M0 gate。** 所有 candidate/run/evaluation 必须 finite；source file/model hashes 精确；
+   两个 initial model hashes 相同；旧 optimizer/EMA/scheduler/scaler/RNG load counts 均为 0；
+   initial optimizer states 为 0，terminal optimizer states/steps 为 `119/64`；训练 RNG audit
+   完全相同；history max abs `<=1e-5`；worker exact commit、clean worktree、data/normalization/BPS
+   hashes 与 resolved-config/preflight checks 全部通过。teacher `{250,499}` 两格都须满足：
+   `current joint-position MSE - balanced joint-position MSE` 的 paired-bootstrap 95% CI 下界
+   `>0`；balanced/current object-translation mean-ratio 的 95% CI 上界 `<=1.05`；balanced/source
+   joint-position mean-ratio 的两格几何均值 `<=0.98`，且每格 ratio `<=1.02`；balanced/source
+   object-translation mean-ratio 的两格几何均值 `<=1.05`。native matched 三窗口须同时满足：
+   `current MPJPE - balanced MPJPE` 与 `current object-goal error - balanced object-goal error`
+   的 sequence-paired bootstrap 95% CI 下界均 `>0`，且 balanced/current pelvis-goal mean-ratio
+   的 95% CI 上界 `<=1.10`。condition permutations 与其他 field/physical metrics 为完整描述证据，
+   不得替代或放宽 gate。全部通过分类为
+   `fresh-optimizer-balanced-smoke-positive-stop`，任一失败分类为
+   `fresh-optimizer-balanced-smoke-negative-stop`。
+5. **治理与停止。** amendment 必须先单独提交，随后 implementation/config/tests/docs 组成第二个
+   完整 commit。实现只允许增加 hash-locked Phase-1B-online weight-only initialization、D2-M
+   paired orchestration/evaluation/summary 与测试；默认 random-only training contract 和 released
+   checkpoint rejection 必须保持。须测试只加载 online model、拒绝 EMA/released/wrong hash、
+   optimizer/EMA/RNG reset、paired training RNG、locked weights/budget/LR、fresh selections、
+   bootstrap gate、全 field/condition/native reporting、terminal state/hash、production sampler
+   不读 future GT/stored BPS。worker 必须走 exact committed object、clean worktree、fully resolved
+   config、same-context four-GPU preflight、`tools/experiment.py start/finish/register`、persistent
+   session 与 immutable artifact recovery。无论 positive/negative，本 session 只完成 D2-M0 并停止；
+   positive 只授权用户随后考虑新的 from-random balanced-objective dated screen，不自动启动它；
+   negative 不自动触发 architecture/loss/condition intervention。D2-H1、完整训练、official/CHOIS、
+   merge/tag、Phase 1C 与后续阶段仍禁止，等待用户再次确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
