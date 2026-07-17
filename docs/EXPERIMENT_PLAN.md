@@ -1937,6 +1937,13 @@ training、production guidance 或 loss/model/condition intervention。
    controller、D2-H1、D2-G、smoke/training、official/CHOIS、loss/model/representation/condition
    修改、Phase 1C 或后续阶段。下一 intervention 仍需新的 dated amendment 与用户确认。
 
+D2-S0 implementation entry point 为 `tools/diagnose_hoi_d2s.py`，locked fresh selection、
+fixed-mask per-sample author formula、direction/scale packing、protected-response trust rule、
+sequence-paired comparison 与 gate 位于 `code/priors/denoiser_response.py`；immutable compact
+aggregate 由 `tools/summarize_hoi_d2s.py` 生成。完整 worker artifact 保留逐 window × timestep ×
+direction × scale reference/response 与 controller selection，tracked compact result 移除这些 raw
+records 但保留全部 aggregate、bootstrap、contract、gate 和 artifact hashes。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
