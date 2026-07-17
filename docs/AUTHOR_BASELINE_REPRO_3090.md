@@ -26,6 +26,11 @@ representation. This avoids creating a second full batch-sized occupancy grid
 when converting a boolean selection, reducing the peak allocation without
 changing occupancy values or the loss.
 
+Training occupancy queries also use direct `(scene, x, y, z)` indexing and a
+sorted object-voxel key lookup instead of materializing one full occupancy grid
+per sample. A synthetic regression test compares this path with the released
+full-grid semantics, including out-of-bound and object-voxel handling.
+
 Use the verified environment and run from `code/`:
 
 ```bash

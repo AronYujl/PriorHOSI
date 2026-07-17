@@ -598,7 +598,79 @@ class InfBaGelDataset(Dataset):
                 # occ = occ.unsqueeze(0)
                 # occ[0, voxel[:, 0], voxel[:, 1], voxel[:, 2]] = 2
 
+    def _get_occ_for_points_direct(self, points, obj_points, scene_flag):
+        """Query scene occupancy without materializing a batch of full grids.
+
+        The old training path selected ``scene_occ[scene_flag]`` with shape
+        ``[B, 300, 100, 400]`` before looking up the query voxels.  At
+        ``B=256`` that temporary tensor is about 2.86 GiB, and the subsequent
+        dtype conversion created a second copy.  Direct advanced indexing
+        touches only the queried voxels.  Object occupancy is overlaid through
+        flattened voxel keys, preserving the old value ``2`` semantics.
+        """
+        batch_size, seq_len = points.shape[:2]
+        points_flat = points.reshape(-1, 3)
+        voxel_size = torch.div(
+            self.scene_grid_torch[3: 6] - self.scene_grid_torch[:3],
+            self.scene_grid_torch[6:])
+        grid_size = self.scene_grid_torch[6:].to(dtype=torch.long)
+        voxel = torch.div(
+            points_flat - self.scene_grid_torch[:3], voxel_size).to(dtype=torch.long)
+        in_bound = torch.all((voxel >= 0) & (voxel < grid_size), dim=-1)
+        safe_voxel = voxel.clone()
+        safe_voxel[torch.logical_not(in_bound)] = 0
+
+        scene_flag = scene_flag.reshape(-1).to(device=points.device, dtype=torch.long)
+        if scene_flag.numel() != batch_size:
+            raise ValueError(
+                f'scene_flag has {scene_flag.numel()} entries for batch size {batch_size}')
+
+        batch_index = torch.arange(batch_size, device=points.device, dtype=torch.long) \
+            .view(-1, 1).expand(-1, seq_len).reshape(-1)
+        valid_index = torch.nonzero(in_bound, as_tuple=False).reshape(-1)
+        occ_for_points = torch.ones(
+            points_flat.shape[0], device=points.device, dtype=torch.int8)
+        if valid_index.numel() > 0:
+            valid_voxel = safe_voxel[valid_index]
+            occ_for_points[valid_index] = self.scene_occ[
+                scene_flag[batch_index[valid_index]],
+                valid_voxel[:, 0], valid_voxel[:, 1], valid_voxel[:, 2]]
+
+        if obj_points is not None:
+            object_points = obj_points.reshape(batch_size, -1, 3)
+            object_count = object_points.shape[1]
+            object_flat = object_points.reshape(-1, 3)
+            object_voxel = torch.div(
+                object_flat - self.scene_grid_torch[:3], voxel_size).to(dtype=torch.long)
+            object_in_bound = torch.all(
+                (object_voxel >= 0) & (object_voxel < grid_size), dim=-1)
+            object_voxel[torch.logical_not(object_in_bound)] = 0
+
+            # This key is (batch, x, y, z).  It fits in int64 for the current
+            # scene grid and lets searchsorted replace a BxQxN comparison.
+            def voxel_key(batch, xyz):
+                return (((batch * grid_size[0] + xyz[:, 0]) * grid_size[1] +
+                         xyz[:, 1]) * grid_size[2] + xyz[:, 2])
+
+            object_batch = torch.arange(batch_size, device=points.device, dtype=torch.long) \
+                .view(-1, 1).expand(-1, object_count).reshape(-1)
+            object_keys = torch.sort(voxel_key(object_batch, object_voxel)).values
+
+            if valid_index.numel() > 0 and object_keys.numel() > 0:
+                query_keys = voxel_key(batch_index[valid_index], safe_voxel[valid_index])
+                positions = torch.searchsorted(object_keys, query_keys)
+                in_key_range = positions < object_keys.numel()
+                safe_positions = positions.clamp(max=object_keys.numel() - 1)
+                is_object_voxel = in_key_range & (
+                    object_keys[safe_positions] == query_keys)
+                occ_for_points[valid_index[is_object_voxel]] = 2
+
+        return occ_for_points.reshape(batch_size, seq_len)
+
     def get_occ_for_points(self, points, obj_points, scene_flag):
+        if self.train and not self.vis:
+            return self._get_occ_for_points_direct(points, obj_points, scene_flag)
+
         batch_size = points.shape[0]
         seq_len = points.shape[1]
         points = points.reshape(-1, 3)
