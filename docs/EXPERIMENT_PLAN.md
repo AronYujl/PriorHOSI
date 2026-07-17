@@ -109,3 +109,40 @@ not a reportable run because this isolated branch does not contain the mandated
 `tools/experiment.py` manifest launcher. Its checkpoints may be used to test
 author metrics; they must not be represented as governed final-table artifacts.
 
+Result: superseded before launch. No four-GPU pipeline result directory or
+persistent session was created. The hardware choice returned to the already
+profiled eight-GPU topology to reduce wall time while preserving effective
+batch 2048.
+
+### 2026-07-17 — eight-GPU automatic author pipeline
+
+Use all eight idle RTX 3090 GPUs with per-GPU batch 256, effective batch 2048,
+FP32 precision, seed 42, learning rate 1e-4, 501 diffusion epochs and 201
+consistency epochs. This changes only data-parallel topology relative to the
+superseded four-GPU convenience pipeline; the training objective and processed
+window budget remain fixed.
+
+The exact eight-GPU Diffusion and CM configurations have already passed finite
+loss, checkpoint, synchronized timing and memory gates in
+`p1b-author-throughput-mmap-profile-r1-s42-20260717` and
+`p1b-author-cm-mmap-profile-r1-s42-20260717`. Therefore the persistent full
+pipeline starts Diffusion directly and, only after the process exits
+successfully and the exact `epoch500.pth` exists, hashes that checkpoint and
+passes it to the CM run. CM must similarly finish at `epoch200.pth`. The chain
+refuses a dirty worktree, locks the launched commit, archives resolved Hydra
+configs, Git/hardware snapshots, commands, stage logs and checkpoint hashes,
+and never reuses an existing run directory.
+
+The first full Diffusion epoch is the live stability interval. Require finite
+losses through that interval, a successful epoch-0 model-weight checkpoint and
+at least 4 GiB memory headroom on every GPU before ending active polling. The
+author script's checkpoints contain model weights only, not optimizer or RNG
+state; they are valid direct inputs to CM but are not strict mid-training resume
+artifacts. This limitation is recorded rather than changing checkpoint
+semantics immediately before reproduction.
+
+As with the superseded convenience pipeline, this run is exploratory and not
+eligible for final-table reporting because this isolated author branch lacks
+`tools/experiment.py`. Its purpose is to determine whether the author metrics
+can be reproduced and to produce compatible Diffusion/CM weights without
+mixing outputs into the prior-development branch.
