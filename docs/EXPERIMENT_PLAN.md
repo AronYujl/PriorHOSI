@@ -1974,6 +1974,50 @@ resolved-config/preflight/start 之后的 worker-owned persistent workload envir
 只能 fetch 精确 committed object。无论 r1 gate 正负，仍只登记 D2-S0 后停止，不得启动
 full-trajectory controller、D2-H1、D2-G、smoke/training、official/CHOIS 或后续 phase。
 
+D2-S0 r1 已在精确 commit `4003268403ab9515dc8ed0d5540977dc20948745` 上由 node01
+`cuda:1` 完成 192/192 windows，return code 0，runtime `313.510 s`。全部 contract checks 通过：
+finite、selection、checkpoint/data/normalization/BPS/author blob、paired RNG、两帧 history、production
+posterior helper/formula、no-GT selection、candidate 不回写、model/state immutability 与 sampler 无
+future GT/stored BPS 均精确；history、posterior、baseline-next 与 candidate replay max abs 均为 `0`，
+per-sample author sum replay max abs 为 `1.90735e-6`。五个 low-t gate 结果如下；loss/recall/F1 均为
+selected 相对 baseline 的 paired difference，最后一列是八个 protected ratio 的 95% CI 上界最大值。
+
+| target t | nonzero fraction | fixed-mask loss diff 95% CI | FK 5 cm recall diff 95% CI | FK 5 cm F1 diff 95% CI | max protected ratio CI upper | pass |
+| ---: | ---: | ---: | ---: | ---: | ---: | :---: |
+| 0 | 0.3385 | [0.006099, 0.012929] | [-0.000744, 0.003348] | [-0.000702, 0.002081] | 1.002401 | no |
+| 1 | 0.3125 | [0.004202, 0.010036] | [-0.001459, 0.001698] | [-0.002402, 0.001338] | 1.001274 | no |
+| 10 | 0.2500 | [0.001418, 0.003581] | [0, 0.001116] | [0, 0.000729] | 1.000608 | no |
+| 50 | 0.4062 | [0.003611, 0.006842] | [0.000372, 0.002976] | [0, 0.002542] | 1.001238 | no |
+| 100 | 0.4531 | [0.005466, 0.010458] | [0, 0.001860] | [0, 0.001523] | 1.001092 | no |
+
+因此 0/5 low timesteps 通过，低于至少 4/5 的 gate，分类
+`denoiser-response-frontier-negative-stop`。所有 low-t fixed-mask proxy loss CI 下界均严格大于 0，
+且所有 protected ratio CI 上界远低于 1.05；失败来自 nonzero coverage 全部低于 0.50，以及没有任何
+low timestep 同时取得严格正的 recall 与 F1 CI 下界。描述性 t=250/498 nonzero fractions 分别为
+`0.5521/0.6094`，max protected ratio CI upper 为 `1.002309/1.004106`，但 contact recall/F1 CI 均跨
+0，不能替代 low-t gate。`author_all` 的 nonzero coverage 在七个 timestep 仅
+`0.0260--0.4948`，也没有提供更强 frontier。
+
+机制结论是：next-denoiser state coupling 可以被该 trust rule 严格限制，但规则在关键低噪声 steps
+过于稀疏；即便 fixed-mask author proxy 显著下降，其物理 FK contact effect 仍接近 0。因此 D2-R 的
+耦合问题并不能靠这个无 GT 局部 response selector 转化为可用 controller。未授权 full-trajectory
+controller、production guidance、checkpoint selection 或 training。
+
+完整 immutable artifact 已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2s-denoiser-response-frontier-r1-s42-20260717`：8 files / 1,898,882,887
+bytes，worker/authority tree SHA-256 均为
+`349dc66bce9ec30d88cfeff8883fd28d2bc36b1c7645e777c153be3901f33fc3`。manifest、metrics、resolved
+config、preflight/hardware snapshot 与 run-local registry SHA-256 分别为
+`ac37180f6bd6df9c47c13ace3f1a13b760ecfb813fdf96fc28e0836d07e47631`、
+`aebb94792525f9a00e4353de91385d920b0300dcb4575c456176e42acb27a068`、
+`37d3ab8704405b486fe4a2eba277a5d25060ec8d330c50ed34fd75c2ea9c95ea`、
+`9691dcdbee737850ce8b0c5cae0694b474256dfae84918ddc1744498ae1d7701` 与
+`830a9f9d8a6422fa1cdbd4430a84c74f02df9557800729b160d26e8588b1294b`。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2s_denoiser_response_frontier_r1_s42_20260717.json`，SHA-256
+`5aa52fd75d65e0caa7439821e9e79eac291987656036a332da1f32389be1e479`。本 session 到此停止；未启动
+D2-H1、D2-G、smoke/training、official/CHOIS 或后续 phase，任何新 intervention 必须另做 dated
+amendment 并等待用户确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
