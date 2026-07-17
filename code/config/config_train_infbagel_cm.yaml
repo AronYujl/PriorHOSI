@@ -8,13 +8,13 @@ defaults:
       - pelvis
   - _self_
 
-exp_name: author_b9a_infbagel_cm_4x3090
+exp_name: author_b9a_infbagel_cm_8x3090
 seed: 42
 sample_type: consistency
 train: true
 load_state_dict: true
-# Keep the author's topology and global batch for the 4 x RTX 3090 candidate.
-batch_size: 512
+# Keep the author's global batch on the 8 x RTX 3090 candidate.
+batch_size: 256
 lr: 0.0001
 epochs: 201
 device: cuda:0
@@ -25,7 +25,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1
 
-num_gpus: 4
+num_gpus: 8
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16
