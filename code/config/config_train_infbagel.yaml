@@ -8,14 +8,14 @@ defaults:
       - pelvis
   - _self_
 
-exp_name: author_b9a_infbagel_8x3090
+exp_name: author_b9a_infbagel_4x3090
 seed: 42
 sample_type: diffusion
 train: true
 load_state_dict: false
-# Author baseline: 4 x A100 x 512 = 2048 global batch.
-# Port: 8 x RTX 3090 x 256 = 2048 global batch.
-batch_size: 256
+# Author topology: 4 x A100 x 512 = 2048 global batch.
+# Current validation candidate: 4 x RTX 3090 x 512 = 2048 global batch.
+batch_size: 512
 lr: 0.0001
 epochs: 501
 device: cuda:0
@@ -26,7 +26,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1
 
-num_gpus: 8
+num_gpus: 4
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16
