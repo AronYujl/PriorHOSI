@@ -1854,6 +1854,89 @@ SHA-256 `a1bb67f622aad70dc88ab978ee0326057d4b1076277487149634b8058aa0417a`。
 未选择 checkpoint，未采用 production guidance，未启动 official/CHOIS、D2-H1、D2-G、
 smoke/training 或后续 phase；任何下一项 intervention 需要新的 dated amendment。
 
+#### 2026-07-17 Phase 1B D2-S denoiser-response trust frontier 预注册
+
+用户在 D2-R0 完整 negative-stop 后明确确认继续推进。D2-R0 已证明 author hand gradient 的
+state-subspace coupling：`upper_raw` 保留了显著 contact response，但 pelvis/object/foot
+保护仍失败；`upper_norm` 又把每 sample 的 upper-chain gradient 平均放大 `3.068`、最大
+`88.441`，并在后续 reverse steps 重新诱发全 state drift。因此 D2-S0 不观察结果后缩放
+D2-R trajectory，也不直接改 production sampler；它在真实 unguided reverse state 上测量固定
+input perturbation 经“下一次相同 denoiser”后的局部 response frontier，检验是否存在由无 GT
+规则识别的安全信赖域。该诊断只决定后续是否值得预注册 full-trajectory controller，不授权
+training、production guidance 或 loss/model/condition intervention。
+
+1. **唯一 reportable run 与 frozen inputs。** run id 固定为
+   `p1-hoi-d2s-denoiser-response-frontier-s42-20260717`，seed 42，只加载 balanced online
+   checkpoint
+   `ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8` 的 model weights；
+   released、EMA、source/current checkpoint、optimizer/scheduler/scaler/RNG state 与 checkpoint
+   write 均禁止。使用当前 500-step production posterior coefficients/equation、matched
+   text/BPS/pelvis/object-goal/progress、两帧 immutable history，不做 CFG、SO(3) reverse
+   projection 或 support clamp，不改变 model、232-D representation、condition API、loss 或
+   production sampler 默认行为。
+2. **fresh holdout 与真实 reverse parent state。** internal-validation 每 sequence 固定 phase
+   offsets `[21,63,105]`，与先前 rollout offsets
+   `[0,7,14,28,42,49,56,70,84,91,98,112]` 全部不重合；按
+   `SHA256("42:d2s-denoiser-response:" + sequence_name + ":21,63,105")`、sequence name、
+   sequence id 排序，取前 64 个同时具备三个 offset 的 sequence，共 192 windows。global
+   window-index SHA-256 固定为
+   `77d493519b4f7e91a529e3be1b42c3e62d84d045d11bbf24acaab10c6a41a70d`。每个 window 从
+   自身 GT 两帧 history 与 matched condition 启动一条完全 unguided production trajectory；
+   target timesteps 固定为 `[0,1,10,50,100,250,498]`，对应 parent
+   `[1,2,11,51,101,251,499]`。probe 只读取 parent prediction、共享 posterior noise 与
+   posterior state；所有 counterfactual candidate 均不得写回 trajectory 或消耗 sampler RNG。
+3. **固定 direction、scale frontier 与 no-GT controller。** 在每个 parent prediction 上只计算
+   D2-Q/R 锁定的 author hand gradient：24-joint FK palms `22/23`、detached semantic channels
+   `0/1 > .95`、`0.02 m` spatial hinge、detached temporal object COM/rotation、batch multiplier、
+   outer hand `×10`。完整报告 `author_all` 与 D2-R `upper_raw` 两个 direction；后者只保留
+   palm-ancestor rotations `[3,6,9,13,14,16,17,18,19,20,21]`。两个 direction 都固定评估
+   scales `[1,0.5,0.25,0.125,0.0625,0]`，不 sweep 其它值。primary controller 只在
+   `upper_raw` 中逐 sample 从大到小选第一个同时满足以下条件的非零 scale，否则选 `0`：
+   - candidate 下一步 clean prediction 在 **baseline 下一步 prediction 固定的** semantic mask 下，
+     per-sample author hand loss 严格低于 baseline；candidate contact channels 不得通过改变 mask
+     规避 objective；
+   - 对 joint positions、非 upper-chain rotations、object translation、object rotation 与 contact
+     五个 protected group，candidate-minus-baseline 下一步 clean-response RMS 均不超过
+     `0.25 ×` baseline-next-minus-parent-clean natural-response RMS。若 natural 与 candidate response
+     同为零则该 group 通过；natural 为零但 candidate 非零则该 scale 拒绝。
+   选择过程不得读取 target `x0`、GT FK/contact、future frame 或 stored per-frame BPS；scale ordering、
+   fixed-mask、groupwise response 与最大合格 scale 必须逐 sample replay。
+4. **完整 measurements。** 对七个 target timestep、两个 direction、六个 scale 和 controller
+   selected candidate 全部报告 input update norm/RMS/max、五个 representation fields、upper/lower
+   rotation energy、next-denoiser field response、response/input amplification、相对 scale-1 的
+   local-linearity residual、fixed-mask author spatial/temporal/total loss、semantic-mask/contact-channel
+   response、selected-scale histogram 与 rejection reason。GT 只在 controller selection 完成后用于
+   reference：五个 field MSE、FK-palm 与 direct-hand `2/5/7.5/10 cm` 左/右/union contact、
+   FK MPJPE、pelvis/object goal、object translation、object rotation 与 FK foot sliding。
+   sequence 为 paired-bootstrap unit，10,000 replicates、seed 42；不得遗漏不利 timestep、scale、
+   direction、field 或 subset。
+5. **mechanism gate。** 任一 input/checkpoint/author blob hash、selection、unguided RNG、posterior
+   formula、history `<=1e-5`、finite、direction/scale completeness、fixed-mask/per-sample-loss sum、
+   protected-response、largest-eligible-scale replay、model/state immutability、production sampler
+   provenance 或 no-GT selection contract 失败，分类
+   `denoiser-response-frontier-contract-failure-stop`。contract 全部通过后，gate 只使用预指定
+   low target timesteps `{0,1,10,50,100}` 和 controller selected candidate；至少 4/5 个 timestep
+   必须同时满足：
+   - nonzero selected-scale fraction `>=0.50`；
+   - baseline-minus-selected fixed-mask author loss paired-bootstrap 95% CI 下界 `>0`；
+   - selected-minus-baseline FK-palm union 5 cm recall 与 F1 CI 下界均 `>0`；
+   - selected/baseline 的 joint-position MSE、object-translation MSE、FK MPJPE、pelvis goal、
+     object goal、object-translation MAE、object-rotation geodesic 与 FK foot-sliding paired mean-ratio
+     95% CI 上界均 `<=1.05`。
+   满足则分类 `denoiser-response-frontier-positive-stop`，否则分类
+   `denoiser-response-frontier-negative-stop`。timestep 250/498、`author_all` 和所有固定 scale
+   仍为必报描述证据，不能替代 low-t gate 或用于观察后改 primary。
+6. **实现、执行与停止。** 新增 analysis-only helper、runner、resolved config、summary 与 tests；
+   tests 至少覆盖 target/parent 边界 `0/1`、`498/499`、fixed-mask per-sample/aggregate author formula
+   equivalence、upper mask、scale ordering、zero-denominator trust rule、largest-eligible selection、
+   candidate batch indexing、paired RNG、history restoration、posterior helper reuse、all-field/scale/
+   timestep reporting、finite/no-GT selection 与 production sampler 无 future GT/stored BPS。先单独
+   提交本 amendment，再提交 implementation/config/tests；worker 主动 fetch exact committed object，
+   用绝对 Python 在 worker-owned persistent session 走 resolved-config/preflight/start/finish/register
+   和 immutable recovery。无论 gate 正负，D2-S0 登记后停止；不得在本 session 启动 full-trajectory
+   controller、D2-H1、D2-G、smoke/training、official/CHOIS、loss/model/representation/condition
+   修改、Phase 1C 或后续阶段。下一 intervention 仍需新的 dated amendment 与用户确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
