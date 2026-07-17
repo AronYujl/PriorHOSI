@@ -13,6 +13,9 @@ seed: 42
 sample_type: consistency
 train: true
 load_state_dict: true
+# Keep FP32 as the reproducibility baseline. Use precision=amp only for the
+# explicitly registered RTX 3090 throughput variant.
+precision: fp32
 # Keep the author's global batch on the 8 x RTX 3090 candidate.
 batch_size: 256
 lr: 0.0001

@@ -32,6 +32,21 @@ TRAIN_BATCH_KEYS = (
     'global_rot_6d', 'contact_label', 'rest_human_offsets', 'seg_len', 'end_pi',
 )
 
+
+def shutdown_dataloader(dataloader):
+    """Stop persistent workers before a spawned DDP rank exits.
+
+    A bounded smoke breaks out of an active iterator. Letting the rank process
+    terminate with that iterator alive can race the pin-memory thread and
+    produce a misleading ``ConnectionResetError`` during otherwise successful
+    checkpoint cleanup. This uses the PyTorch iterator shutdown hook when it
+    exists and intentionally leaves normal epoch-to-epoch persistence intact.
+    """
+    iterator = getattr(dataloader, '_iterator', None)
+    shutdown = getattr(iterator, '_shutdown_workers', None)
+    if shutdown is not None:
+        shutdown()
+
 @hydra.main(version_base=None, config_path="config", config_name="config_train_infbagel")
 def train(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
@@ -56,7 +71,21 @@ def train_ddp(rank, world_size, cfg):
     np.random.seed(int(cfg.seed) + rank)
     torch.manual_seed(int(cfg.seed) + rank)
     torch.cuda.manual_seed_all(int(cfg.seed) + rank)
+    precision = str(getattr(cfg, 'precision', 'fp32')).lower()
+    if precision not in ('fp32', 'amp'):
+        raise ValueError(f"Unsupported precision={precision!r}; use 'fp32' or 'amp'")
+    amp_enabled = precision == 'amp' and device.type == 'cuda'
+    if amp_enabled:
+        # RTX 3090 is Ampere. Autocast uses the FP16 Tensor Core path and
+        # TF32 accelerates the remaining FP32 matmuls. This is opt-in because
+        # it is a numerical/performance variant of the FP32 baseline.
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        if hasattr(torch, 'set_float32_matmul_precision'):
+            torch.set_float32_matmul_precision('high')
     print(f'Training on {device}', flush=True)
+    if rank == 0:
+        print(f'Precision: {precision} (autocast={amp_enabled})', flush=True)
     print('Initializing Distributed', flush=True)
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
 
@@ -84,6 +113,8 @@ def train_ddp(rank, world_size, cfg):
     else:
         model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         optimizer = Adam(model.parameters(), lr=cfg.lr)
+
+    scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
 
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
@@ -146,7 +177,8 @@ def train_ddp(rank, world_size, cfg):
                 mask, _, _ = get_mask(x_start, -1, p=1., fixed_frame=cfg.auto_regre_num)
 
             if is_consistency:
-                loss_dict = trainer.consistency_loss(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
+                with torch.cuda.amp.autocast(enabled=amp_enabled):
+                    loss_dict = trainer.consistency_loss(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
                     need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
 
                 loss_consistency, loss_object, loss_fk = \
@@ -167,7 +199,8 @@ def train_ddp(rank, world_size, cfg):
                             writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
                             writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
             else:
-                loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
+                with torch.cuda.amp.autocast(enabled=amp_enabled):
+                    loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
                     need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
 
                 loss, loss_object, loss_fk = \
@@ -185,8 +218,13 @@ def train_ddp(rank, world_size, cfg):
                             writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
                             writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
 
-            loss.backward()
-            optimizer.step()
+            if amp_enabled:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
             optimizer_updates += 1
             if cfg.max_optimizer_updates is not None and optimizer_updates >= int(cfg.max_optimizer_updates):
                 stop_training = True
@@ -203,6 +241,7 @@ def train_ddp(rank, world_size, cfg):
         print('Clearing cache', flush=True)
         torch.cuda.empty_cache()
         if stop_training:
+            shutdown_dataloader(dataloader)
             break
 
 

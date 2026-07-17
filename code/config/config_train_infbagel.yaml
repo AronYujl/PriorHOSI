@@ -13,6 +13,9 @@ seed: 42
 sample_type: diffusion
 train: true
 load_state_dict: false
+# Keep FP32 as the reproducibility baseline. Use precision=amp only for the
+# explicitly registered RTX 3090 throughput variant.
+precision: fp32
 # Author topology: 4 x A100 x 512 = 2048 global batch.
 # Current validated candidate: 8 x RTX 3090 x 256 = 2048 global batch.
 batch_size: 256

@@ -31,6 +31,12 @@ sorted object-voxel key lookup instead of materializing one full occupancy grid
 per sample. A synthetic regression test compares this path with the released
 full-grid semantics, including out-of-bound and object-voxel handling.
 
+The default `precision: fp32` path remains the reproduction reference. An
+explicit `precision=amp` run enables CUDA autocast/GradScaler and Ampere TF32
+matmuls as a throughput variant; it is expected to be faster but is not
+bitwise-equivalent to FP32/A100 training. Benchmark it with a fresh run name
+before using its checkpoint for CM distillation.
+
 Use the verified environment and run from `code/`:
 
 ```bash
