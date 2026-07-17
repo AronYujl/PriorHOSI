@@ -15,10 +15,11 @@ passed. Outputs are kept in two separate directories under
 `results/author_b9a_*`.
 
 The dataset keeps scene occupancy tensors on the GPU. The training code now
-gives DataLoader workers a CPU-only shallow view, so the default
-`num_workers=2` can prefetch without inheriting CUDA tensors. If a different
-host still reports CUDA IPC/OOM during loading, override `num_workers=0`; this
-affects loading throughput and memory, not the model objective.
+gives DataLoader workers a CPU-only shallow view and starts them with the
+`spawn` context, so the default `num_workers=2` can prefetch without inheriting
+the rank's CUDA address space. If a different host still reports CUDA IPC/OOM
+during loading, override `num_workers=0`; this affects loading throughput and
+memory, not the model objective.
 
 Use the verified environment and run from `code/`:
 

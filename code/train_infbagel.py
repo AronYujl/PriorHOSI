@@ -88,14 +88,20 @@ def train_ddp(rank, world_size, cfg):
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
     dataloader_dataset = infbagel_dataset
+    dataloader_kwargs = {}
     if cfg.num_workers > 0 and hasattr(infbagel_dataset, 'cpu_worker_view'):
         dataloader_dataset = infbagel_dataset.cpu_worker_view()
+        # The default Linux ``fork`` context inherits the parent rank's CUDA
+        # address space even when the worker dataset is CPU-only.  Spawn starts
+        # workers cleanly and unpickles only the CPU view.
+        dataloader_kwargs['multiprocessing_context'] = 'spawn'
         if rank == 0:
-            print('DataLoader workers use a CPU-only dataset view', flush=True)
+            print('DataLoader workers use a CPU-only dataset view (spawn context)', flush=True)
 
     sampler = DistributedSampler(dataloader_dataset, seed=int(cfg.seed))
     dataloader = DataLoader(dataloader_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
-                            sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0)
+                            sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0,
+                            **dataloader_kwargs)
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
