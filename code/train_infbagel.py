@@ -89,7 +89,7 @@ def train_ddp(rank, world_size, cfg):
 
     sampler = DistributedSampler(infbagel_dataset, seed=int(cfg.seed))
     dataloader = DataLoader(infbagel_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
-                            sampler=sampler, pin_memory=True, persistent_workers=True)
+                            sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0)
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
