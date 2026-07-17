@@ -75,3 +75,17 @@ The gate requires finite losses, a checkpoint, rank-maximum stage timings and
 peak memory, and clean process teardown. A full CM run remains unauthorized
 until its measured time is combined with the diffusion estimate.
 
+Result: the CM compute and memory gates passed, but the clean-teardown gate did
+not. Across eight measured warm updates, rank-maximum synchronized CM update
+time averaged 2.5110 seconds, with 2.3226 seconds in loss computation, 0.2668
+seconds in backward/DDP, and less than 0.003 seconds in exposed data wait plus
+host-to-device transfer. Rank-maximum CUDA memory was 4.237 GiB allocated and
+4.373 GiB reserved. The complete smoke took 70.78 seconds.
+
+The 58,491-update CM schedule is estimated at 40.8 hours. Combined with the
+44.4-hour diffusion estimate, author diffusion plus consistency distillation is
+approximately 85.2 hours (3.55 days). The recurring terminal CUDA IPC warnings
+remain a non-fatal nested-multiprocessing cleanup issue because they appear only
+after the checkpoint and synchronized summary; do not claim the cleanup fix
+succeeded. Throughput optimization is no longer the gate for reproduction.
+
