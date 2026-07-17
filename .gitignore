@@ -16,4 +16,5 @@ checkpoint/
 smpl_models/
 t2m_eval/
 data
+third_party/
 .codegraph/
