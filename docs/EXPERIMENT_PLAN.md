@@ -1944,6 +1944,36 @@ aggregate 由 `tools/summarize_hoi_d2s.py` 生成。完整 worker artifact 保�
 direction × scale reference/response 与 controller selection，tracked compact result 移除这些 raw
 records 但保留全部 aggregate、bootstrap、contract、gate 和 artifact hashes。
 
+#### 2026-07-17 Phase 1B D2-S0 worker-role failure 与 r1 重试 amendment
+
+首次 reportable run `p1-hoi-d2s-denoiser-response-frontier-s42-20260717` 已在 worker-owned
+persistent session 启动，但因启动命令遗漏 `INFBAGEL_WORKER_EXPERT=hoi`，立即停在 runner 的
+worker-role guard。该进程未加载 checkpoint、未进入 CUDA diagnostic、未处理 window，也未创建
+optimizer 或执行 training update；因此分类为
+`denoiser-response-frontier-contract-failure-stop`，不构成 D2-S0 mechanism positive/negative
+结果，run id 永不复用。failed artifact 已 `finish/register` 并由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2s-denoiser-response-frontier-s42-20260717`：8 files / 73,551
+bytes，worker/authority tree SHA-256 均为
+`d8790cb7ff52108ebea24b44c28be0cbf9281f5faf19485ffbbcf3109597503e`；manifest、metrics、resolved
+config、preflight、hardware snapshot 与 run-local registry SHA-256 分别为
+`2762ffc03b63756212a21089347e5cb4d9d6bff2615f7041a85113e0cdc61380`、
+`2ce1a1583a08c0b989de7224eba489e3c09c6ac42a9a0028fba3acbd7ad9db0b`、
+`cbffc175a3f27d19dd43d5242e167fa5910133fffe64c0577c19edf1b7afe1df`、
+`ae072e9f18e5a897a39b15f0f099660258c2cf83b0842bceec46f815ec4a6af1`、
+`ae072e9f18e5a897a39b15f0f099660258c2cf83b0842bceec46f815ec4a6af1` 与
+`6f935450157a9a9f7017669375eda49e819ff38bdbea0b256080aad5a3889630`。
+
+授权一次严格 operational retry，唯一新 run id 为
+`p1-hoi-d2s-denoiser-response-frontier-r1-s42-20260717`。r1 完整继承上节已锁定的 checkpoint、
+selection SHA、192 windows、timesteps/parents、directions、scales、no-GT controller、bootstrap、
+measurements、gate、分类与所有禁止项；不得观察后改变任何科学配置。唯一允许的执行差异是，在
+resolved-config/preflight/start 之后的 worker-owned persistent workload environment 中同时显式导出
+`INFBAGEL_PYTHON=/home/yujinlun/data/envs/infbagel/bin/python` 与
+`INFBAGEL_WORKER_EXPERT=hoi`。summary identity 必须接受该精确 r1 id，测试须覆盖原 id 与 r1 id 之外
+的 run id 均被拒绝。先单独提交本 amendment，再提交该 summary/config identity 修正与测试；worker
+只能 fetch 精确 committed object。无论 r1 gate 正负，仍只登记 D2-S0 后停止，不得启动
+full-trajectory controller、D2-H1、D2-G、smoke/training、official/CHOIS 或后续 phase。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
