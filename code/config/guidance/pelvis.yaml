@@ -1,5 +1,4 @@
 pelvis:
-  seq_len: ${dataset.seq_len}
   step: ${dataset.step}
   mask_ind: 0
   mask_y: false

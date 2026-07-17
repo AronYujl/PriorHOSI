@@ -8,11 +8,13 @@ defaults:
       - pelvis
   - _self_
 
-exp_name: infbagel_cm
+exp_name: author_b9a_infbagel_cm_8x3090
+seed: 42
 sample_type: consistency
 train: true
 load_state_dict: true
-batch_size: 512
+# Keep the author's global batch while moving from 4 x A100 to 8 x RTX 3090.
+batch_size: 256
 lr: 0.0001
 epochs: 201
 device: cuda:0
@@ -22,7 +24,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1
 
-num_gpus: 4
+num_gpus: 8
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16

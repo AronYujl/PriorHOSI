@@ -8,6 +8,9 @@ from constants import *
 import os
 from torch.utils.tensorboard import SummaryWriter
 import datetime
+import random
+
+import numpy as np
 
 os.environ['ROOT_DIR'] = '..'
 os.environ['HYDRA_FULL_ERROR'] = '1'
@@ -36,6 +39,8 @@ def train(cfg: DictConfig) -> None:
     os.environ["MASTER_PORT"] = find_free_port()
     world_size = cfg.num_gpus
     print('Usable GPUS: ', torch.cuda.device_count(), flush=True)
+    if torch.cuda.device_count() < world_size:
+        raise RuntimeError(f'configured num_gpus={world_size}, but only {torch.cuda.device_count()} CUDA devices are visible')
     torch.multiprocessing.spawn(train_ddp,
                                 args=(world_size, cfg),
                                 nprocs=world_size,
@@ -47,6 +52,10 @@ def train_ddp(rank, world_size, cfg):
 
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
     cfg.device = f"cuda:{rank}"
+    random.seed(int(cfg.seed) + rank)
+    np.random.seed(int(cfg.seed) + rank)
+    torch.manual_seed(int(cfg.seed) + rank)
+    torch.cuda.manual_seed_all(int(cfg.seed) + rank)
     print(f'Training on {device}', flush=True)
     print('Initializing Distributed', flush=True)
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -78,7 +87,7 @@ def train_ddp(rank, world_size, cfg):
 
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
-    sampler = DistributedSampler(infbagel_dataset)
+    sampler = DistributedSampler(infbagel_dataset, seed=int(cfg.seed))
     dataloader = DataLoader(infbagel_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
                             sampler=sampler, pin_memory=True, persistent_workers=True)
 
@@ -116,7 +125,7 @@ def train_ddp(rank, world_size, cfg):
 
             global_rot_6d = b['global_rot_6d'].reshape(b['global_rot_6d'].shape[0], b['global_rot_6d'].shape[1], -1)
 
-            t = torch.randint(0, trainer.timesteps, (cfg.batch_size,), device=device).long()
+            t = torch.randint(0, trainer.timesteps, (joints.shape[0],), device=device).long()
             x_start = torch.cat([joints, global_rot_6d, object_trans, object_rot_mat.reshape(object_rot_mat.shape[0], object_rot_mat.shape[1], -1), contact_label], dim=-1) # 84 + 132 + 3 + 9 + 4
             with torch.no_grad():
                 mask, _, _ = get_mask(x_start, -1, p=1., fixed_frame=cfg.auto_regre_num)
