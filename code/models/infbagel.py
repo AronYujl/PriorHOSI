@@ -868,10 +868,6 @@ class Sampler:
             del occ_list
         if occ is not None:
             del occ
-        if occ_goal is not None:
-            del occ_goal
-        if occ_temp is not None:
-            del occ_temp
                 
         return dict(loss=loss, loss_object=loss_object, loss_fk=loss_fk)
 
