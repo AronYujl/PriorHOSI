@@ -21,7 +21,10 @@ from priors.denoiser_response import (
     PHASE_OFFSETS,
     PRIOR_ROLLOUT_OFFSETS,
     PROTECTED_GROUPS,
+    RETRY_RUN_ID,
     RUN_ID,
+    RUN_IDS,
+    RUN_SUBPHASES,
     SCALES,
     SELECTION_SHA256,
     TARGET_TIMESTEPS,
@@ -37,7 +40,11 @@ from priors.denoiser_response import (
 )
 from priors.representation import REPRESENTATION
 from priors.routed_guidance import upper_rotation_mask
-from tools.diagnose_hoi_d2s import probe_parent_response, run_unguided_chunk
+from tools.diagnose_hoi_d2s import (
+    probe_parent_response,
+    resolved_config,
+    run_unguided_chunk,
+)
 from tools.summarize_hoi_d2s import compact, validate_identity
 from datasets.utils import get_smpl_parents
 from tools.evaluate_hoi_remediation import global_goals, stack_frames
@@ -291,15 +298,58 @@ class D2SGateAndGovernanceTests(unittest.TestCase):
         self.assertEqual(prereg[0]["config"]["checkpoint"]["sha256"], CHECKPOINT_SHA256)
         self.assertFalse(prereg[0]["config"]["training_authorized"])
         self.assertFalse(prereg[0]["config"]["full_trajectory_controller_authorized"])
+        retry = [
+            record for record in records
+            if record["experiment_id"]
+            == "p1-hoi-d2s-denoiser-response-frontier-r1-preregister-s42-20260717"
+        ]
+        self.assertEqual(len(retry), 1)
+        self.assertEqual(retry[0]["config"]["run_id"], RETRY_RUN_ID)
+        self.assertEqual(
+            retry[0]["config"]["only_operational_delta"],
+            {"INFBAGEL_WORKER_EXPERT": "hoi"},
+        )
+        self.assertFalse(retry[0]["config"]["training_authorized"])
 
     def test_summary_requires_identity_and_removes_raw_records(self):
+        for run_id in RUN_IDS:
+            metrics = {"run_id": run_id, "git_commit": "abc", "status": "completed"}
+            manifest = {"experiment_id": run_id, "git": {"commit": "abc"}}
+            validate_identity(metrics, manifest)
         metrics = {"run_id": RUN_ID, "git_commit": "abc", "status": "completed"}
         manifest = {"experiment_id": RUN_ID, "git": {"commit": "abc"}}
-        validate_identity(metrics, manifest)
         with self.assertRaises(ValueError):
             validate_identity({**metrics, "status": "failed"}, manifest)
+        with self.assertRaises(ValueError):
+            validate_identity(metrics, {**manifest, "experiment_id": RETRY_RUN_ID})
+        with self.assertRaises(ValueError):
+            validate_identity(
+                {**metrics, "run_id": "p1-hoi-d2s-observed-best-s42-20260717"},
+                {**manifest, "experiment_id": "p1-hoi-d2s-observed-best-s42-20260717"},
+            )
         value = compact({"timesteps": {"0": {"raw": {"records": [1]}}}, "keep": 2})
         self.assertEqual(value, {"timesteps": {"0": {}}, "keep": 2})
+
+    def test_retry_resolved_config_changes_only_identity(self):
+        class Args:
+            checkpoint = ROOT / "checkpoint.pth"
+            checkpoint_sha256 = CHECKPOINT_SHA256
+            device = "cuda:1"
+            batch_size = 8
+            output = ROOT / "metrics.json"
+
+        original_args = Args()
+        original_args.run_id = RUN_ID
+        retry_args = Args()
+        retry_args.run_id = RETRY_RUN_ID
+        original = resolved_config(original_args)
+        retry = resolved_config(retry_args)
+        self.assertEqual(original["subphase"], RUN_SUBPHASES[RUN_ID])
+        self.assertEqual(retry["subphase"], RUN_SUBPHASES[RETRY_RUN_ID])
+        for key in ("run_id", "subphase"):
+            original.pop(key)
+            retry.pop(key)
+        self.assertEqual(original, retry)
 
 
 if __name__ == "__main__":

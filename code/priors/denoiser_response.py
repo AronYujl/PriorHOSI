@@ -22,7 +22,13 @@ from .routed_guidance import UPPER_ROTATION_JOINTS, upper_rotation_mask
 
 
 RUN_ID = "p1-hoi-d2s-denoiser-response-frontier-s42-20260717"
+RETRY_RUN_ID = "p1-hoi-d2s-denoiser-response-frontier-r1-s42-20260717"
 SUBPHASE = "1B-D2-S0"
+RUN_SUBPHASES = {
+    RUN_ID: SUBPHASE,
+    RETRY_RUN_ID: f"{SUBPHASE}-r1",
+}
+RUN_IDS: Tuple[str, ...] = tuple(RUN_SUBPHASES)
 CHECKPOINT_SHA256 = (
     "ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8"
 )

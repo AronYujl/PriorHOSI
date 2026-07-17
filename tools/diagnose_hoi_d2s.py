@@ -58,10 +58,10 @@ from priors.denoiser_response import (  # noqa: E402
     PHYSICAL_METRICS,
     PRIOR_ROLLOUT_OFFSETS,
     PROTECTED_GROUPS,
-    RUN_ID,
+    RUN_IDS,
+    RUN_SUBPHASES,
     SCALES,
     SELECTION_SHA256,
-    SUBPHASE,
     TARGET_TIMESTEPS,
     TRUST_RATIO,
     UPPER_ROTATION_JOINTS,
@@ -121,7 +121,7 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
         "schema_version": 1,
         "run_id": args.run_id,
         "phase": "p1",
-        "subphase": SUBPHASE,
+        "subphase": RUN_SUBPHASES[args.run_id],
         "mode": "next-denoiser-local-response-frontier",
         "seed": 42,
         "git_commit": git_output("rev-parse", "HEAD"),
@@ -1036,8 +1036,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.run_id != RUN_ID:
-        raise ValueError(f"D2-S0 run id must be {RUN_ID}")
+    if args.run_id not in RUN_IDS:
+        raise ValueError(f"D2-S0 run id must be one of {RUN_IDS}")
     if args.checkpoint_sha256 != CHECKPOINT_SHA256:
         raise ValueError("D2-S0 checkpoint SHA argument mismatch")
     if args.batch_size != DEFAULT_BATCH_SIZE:
@@ -1262,9 +1262,9 @@ def main() -> None:
     runtime = time.time() - started
     result = {
         "schema_version": 1,
-        "run_id": RUN_ID,
+        "run_id": args.run_id,
         "phase": "p1",
-        "subphase": SUBPHASE,
+        "subphase": RUN_SUBPHASES[args.run_id],
         "status": "completed",
         "git_commit": git_output("rev-parse", "HEAD"),
         "seed": 42,
@@ -1332,7 +1332,7 @@ def main() -> None:
     }
     exclusive_json(args.output.resolve(), result)
     print(json.dumps({
-        "run_id": RUN_ID,
+        "run_id": args.run_id,
         "classification": decision["classification"],
         "passing_timesteps": decision["passing_timesteps"],
         "contract_passed": decision["contract_passed"],

@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Mapping
 
 
-RUN_ID = "p1-hoi-d2s-denoiser-response-frontier-s42-20260717"
+RUN_IDS = (
+    "p1-hoi-d2s-denoiser-response-frontier-s42-20260717",
+    "p1-hoi-d2s-denoiser-response-frontier-r1-s42-20260717",
+)
 STRIP_KEYS = {
     "raw",
     "records",
@@ -38,7 +41,8 @@ def load_json(path: Path):
 def validate_identity(
     metrics: Mapping[str, object], manifest: Mapping[str, object],
 ) -> None:
-    if metrics.get("run_id") != RUN_ID or manifest.get("experiment_id") != RUN_ID:
+    run_id = metrics.get("run_id")
+    if run_id not in RUN_IDS or manifest.get("experiment_id") != run_id:
         raise ValueError("D2-S summary run-id mismatch")
     if metrics.get("git_commit") != manifest.get("git", {}).get("commit"):
         raise ValueError("D2-S summary manifest/workload commit mismatch")
