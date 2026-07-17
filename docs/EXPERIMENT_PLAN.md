@@ -1790,6 +1790,70 @@ state-subspace masks、per-sample norm replay、paired comparison 与 gate 位�
 `--resolve-only` 是唯一 fully resolved config 生成入口；这些 analysis-only 文件不修改
 production model、loss、representation、condition API、diffusion posterior 或 sampler default。
 
+2026-07-17 D2-R0 completed result：`state-routed-guidance-negative-stop`。authority
+implementation commit 与 worker execution commit 均为
+`38e3b7ee3ca4eda06dc51d3fc5bfeef430b6b278`；worker 使用 `cuda:1`、batch 8、
+balanced online checkpoint 与锁定的 64 sequences/192 windows selection，runtime
+`3705.1325 s`。return code 0，全部 hash/selection/finite/history/paired-RNG/author-formula/
+routing-mask/norm-replay/model-immutability/metric-completeness contracts 通过；history 与 author
+formula replay max abs 均为 `0`，每个 guided variant 精确执行 11,976 次 update（192 windows
+`×499`），step 0 不注入。
+
+预指定 `upper_norm` 相对 `unguided` 的 FK-palm union 5 cm sequence-paired 结果为：recall
+差 `+0.065904`、95% CI `[0.004129,0.128325]`；F1 差 `+0.078289`、CI
+`[0.015101,0.144815]`；prediction percent 差 `+0.055432`、CI
+`[-0.001488,0.113095]`；run mean 差 `+1.626042` frames、CI
+`[0.174212,3.173210]`，paired-mean ratio `1.30819`；precision 差 `+0.099143`、CI
+`[0.006060,0.197225]`。它因此在 recall/F1/run/precision 上有真实正向作用，却同时失败
+coverage CI 与 `>=1.5` duration gate。native-like `upper_norm/unguided` ratio CI 为：FK
+MPJPE `1.05865 [1.00841,1.11004]`、pelvis goal
+`1.07714 [1.01755,1.14199]`、object goal
+`0.97340 [0.93043,1.01719]`、object translation
+`1.07970 [1.00179,1.15988]`、object rotation
+`0.89071 [0.82186,0.95866]`、FK foot sliding
+`1.05755 [0.93506,1.21076]`；四项 CI upper 超过 `1.10`，完整 gate 为 negative。
+
+其余 variants 不能提供隐藏的 favorable solution。`author_all` 的 contact 效果最强：
+recall/F1/coverage/run mean 差分别为 `+0.10808/+0.11279/+0.10938/+3.81250`，相应
+CI 下界全 `>0`，run ratio `1.72261`；但 object translation、pelvis 与 foot-sliding ratio
+CI upper 分别为 `1.11644/1.11442/1.24035`，仍失败保护 gate。`human_only` 将物体
+gradient 精确置零后 run ratio 降至 `1.36797`，pelvis ratio CI
+`[1.05544,1.22326]` 明确退化。`upper_raw` 不做能量重分配时 recall/F1/coverage/run 均
+显著改善，run ratio `1.46634`，FK MPJPE ratio CI `[0.99643,1.05937]`；但仍低于 duration
+门槛，且 pelvis/object-translation/foot-sliding CI upper 为
+`1.12927/1.11622/1.22464`。
+
+coupling audit 给出更具体的原因。`author_all` 全梯度平均 squared-energy 中
+joint positions 占 `73.57%`、joint rotations `20.79%`、object translation `5.20%`、
+object rotation `0.44%`、contact `0%`；所以主要 shortcut 是人体 root/joint-position，
+而不是物体通道本身。`upper_norm` 删除 root/object 后把全部 L2 能量重分配到 ancestor
+rotations，routing scale mean/max 为 `3.0684/88.4413`。尽管当前 step 的 object/root
+injected gradient 精确为零，后续 denoiser calls 仍重新耦合所有输出字段；最终 normalized
+state displacement 反而达到 joint positions `0.64685`、rotations `1.55019`、object
+translation `0.15846`、object rotation `1.23756`、contact `0.21374`，均高于对应
+`upper_raw`。因此 D2-R0 证明 state-subspace coupling 存在，却否定“简单 hard mask + 全局
+norm conservation 足以解决 HOIPrior”的假设；观察结果后不得自动改 scale、做 trust-region/
+PCGrad、增加 feet term 或改变训练目标。
+
+完整 immutable artifact 已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2r-state-routed-guidance-s42-20260717`，
+8 files / `681,156,185` bytes，worker/authority tree SHA-256 同为
+`6ae0d121c026e7d88d20c1212117e8d3c611c2b53d7edfef12e47399ac64588b`。
+manifest、metrics、resolved config、preflight/hardware snapshot、run-local registry、returncode
+与 workload log SHA-256 分别为
+`7231e38105ea3166bcb53b26198659431701f97f445747dadcaac11c8cb64943`、
+`f93f4910354008a75a994d7d1fdb6f3c706ae2cc2d5d040121f2882250982477`、
+`3383c3f8afafd267963752064ae9a16713703402bf77d1ec05d0ee8f13f7ebd8`、
+`02b2ca4e3a837e2fabb14af70d476a32411514f55c7d5c489510eca9a3212604`、
+`ac556c4fa3b2fbd5ec26aadb0fd871520e391c860047d04ebf0b19967d952fc6`、
+`9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`、
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。
+compact result 为
+`experiments/results/p1_hoi_phase1b_d2r_state_routed_guidance_s42_20260717.json`，
+SHA-256 `a1bb67f622aad70dc88ab978ee0326057d4b1076277487149634b8058aa0417a`。
+未选择 checkpoint，未采用 production guidance，未启动 official/CHOIS、D2-H1、D2-G、
+smoke/training 或后续 phase；任何下一项 intervention 需要新的 dated amendment。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
