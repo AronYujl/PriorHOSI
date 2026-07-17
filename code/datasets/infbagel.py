@@ -1,4 +1,5 @@
 import os
+import copy
 import torch
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -687,6 +688,27 @@ class InfBaGelDataset(Dataset):
 
     def __len__(self):
         return len(self.start_ind)
+
+    def cpu_worker_view(self):
+        """Return a worker-safe shallow view containing no CUDA-only state.
+
+        The training dataset keeps scene occupancy and several lookup tensors on
+        the rank's GPU because ``Sampler`` queries them during the loss.  A
+        regular DataLoader worker inherits the dataset under Linux's fork
+        start method, which makes those CUDA tensors visible to every worker
+        and can trigger CUDA IPC allocations/OOMs.  ``__getitem__`` only needs
+        the CPU-side arrays and object geometry, so workers use this view while
+        the main process keeps the original dataset for the trainer.
+        """
+        worker_dataset = copy.copy(self)
+        for name in (
+                'scene_occ', 'scene_occ_ref', 'scene_grid_torch',
+                'batch_id', 'batch_id_obj', 'min_torch', 'max_torch',
+                'obj_min_torch', 'obj_max_torch'):
+            if hasattr(worker_dataset, name):
+                delattr(worker_dataset, name)
+        worker_dataset.device = 'cpu'
+        return worker_dataset
 
     def normalize(self, data, is_object=False):
         shape_orig = data.shape

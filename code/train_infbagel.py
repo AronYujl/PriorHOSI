@@ -87,8 +87,14 @@ def train_ddp(rank, world_size, cfg):
 
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
-    sampler = DistributedSampler(infbagel_dataset, seed=int(cfg.seed))
-    dataloader = DataLoader(infbagel_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
+    dataloader_dataset = infbagel_dataset
+    if cfg.num_workers > 0 and hasattr(infbagel_dataset, 'cpu_worker_view'):
+        dataloader_dataset = infbagel_dataset.cpu_worker_view()
+        if rank == 0:
+            print('DataLoader workers use a CPU-only dataset view', flush=True)
+
+    sampler = DistributedSampler(dataloader_dataset, seed=int(cfg.seed))
+    dataloader = DataLoader(dataloader_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
                             sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0)
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
