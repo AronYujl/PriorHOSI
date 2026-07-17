@@ -14,6 +14,11 @@ batch of 2048. The current candidate uses 8×RTX 3090 with a per-GPU batch of
 passed. Outputs are kept in two separate directories under
 `results/author_b9a_*`.
 
+The dataset keeps scene occupancy tensors on the GPU, so this 3090
+configuration uses `num_workers=0` to avoid CUDA tensor duplication/IPC from
+DataLoader workers. This affects loading throughput and memory, not the model
+objective.
+
 Use the verified environment and run from `code/`:
 
 ```bash
@@ -21,7 +26,7 @@ export INFBAGEL_PYTHON=/data/yujinlun/anaconda3/envs/infbagel/bin/python
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 "$INFBAGEL_PYTHON" train_infbagel.py \
-  num_gpus=8 batch_size=256
+  num_gpus=8 batch_size=256 num_workers=0
 ```
 
 The diffusion run writes the checkpoint consumed by consistency distillation.
@@ -30,7 +35,7 @@ After the final `epoch500` checkpoint exists, run:
 ```bash
 "$INFBAGEL_PYTHON" train_infbagel.py \
   --config-name config_train_infbagel_cm \
-  num_gpus=8 batch_size=256 \
+  num_gpus=8 batch_size=256 num_workers=0 \
   ckpt_path=/data/yujinlun/InfBaGel-release/results/author_b9a_infbagel_8x3090/checkpoints/author_b9a_infbagel_8x3090_epoch500.pth
 ```
 
