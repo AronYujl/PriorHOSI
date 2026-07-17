@@ -158,7 +158,7 @@ class InfBaGelDataset(Dataset):
                 # print(f"{sid} Loading Scene Mesh {file}")
                 if 'occ' not in file:
                     scene_occ = np.load(os.path.join(self.scene_folder, file))
-                    scene_occ = torch.from_numpy(scene_occ).to(device=device, dtype=bool)
+                    scene_occ = torch.from_numpy(scene_occ).to(device=device, dtype=torch.int8)
                 else:
                     scene_occ = np.load(os.path.join(self.scene_folder, file))
                 
@@ -166,7 +166,11 @@ class InfBaGelDataset(Dataset):
                 self.scene_dict[file[:-4]] = sid
             if not self.vis and self.load_object_goal: # todo: can be optimized
                 self.scene_occ = get_occupancy_from_npy(self.scene_occ)
-                self.scene_occ = torch.from_numpy(self.scene_occ).to(device=self.device, dtype=bool)
+                # Keep the occupancy cache in its training dtype.  Converting
+                # a batch-sized bool selection to int8 inside
+                # get_occ_for_points temporarily holds two ~2.86 GiB tensors
+                # at batch_size=256.
+                self.scene_occ = torch.from_numpy(self.scene_occ).to(device=self.device, dtype=torch.int8)
                 with open(os.path.join(folder, 'scene_name2file.pkl'), 'rb') as f:
                     self.scene_name2file = pkl.load(f)
             else:
@@ -268,7 +272,7 @@ class InfBaGelDataset(Dataset):
         for sid, file in enumerate(scene_file_list):
             if 'occ' not in file:
                 scene_occ = np.load(os.path.join(self.scene_folder, file))
-                scene_occ = torch.from_numpy(scene_occ).to(device=device, dtype=bool)
+                scene_occ = torch.from_numpy(scene_occ).to(device=device, dtype=torch.int8)
             else:
                 scene_occ = np.load(os.path.join(self.scene_folder, file))
 
@@ -276,7 +280,7 @@ class InfBaGelDataset(Dataset):
             self.scene_dict[file[:-4]] = sid
         if not self.vis and self.load_object_goal:
             self.scene_occ = get_occupancy_from_npy(self.scene_occ)
-            self.scene_occ = torch.from_numpy(self.scene_occ).to(device=self.device, dtype=bool)
+            self.scene_occ = torch.from_numpy(self.scene_occ).to(device=self.device, dtype=torch.int8)
             with open(os.path.join(folder, 'scene_name2file.pkl'), 'rb') as f:
                 self.scene_name2file = pkl.load(f)
         else:
@@ -536,7 +540,7 @@ class InfBaGelDataset(Dataset):
         return info
 
     def get_pene_occ_count(self, points, scene_flag):
-        occ = (self.scene_occ[scene_flag]).to(dtype=torch.int8).clone().to(dtype=torch.int8)
+        occ = self.scene_occ[scene_flag].clone()
 
         T, N = points.shape[0], points.shape[1]
         points = points.reshape(-1, 3)
@@ -612,7 +616,12 @@ class InfBaGelDataset(Dataset):
         if self.train:
             voxel = torch.cat([self.batch_id, voxel], dim=1)
 
-        occ = (self.scene_occ[scene_flag]).to(dtype=torch.int8)
+        # A 1-D scene_flag performs advanced indexing and already returns an
+        # independent mutable batch.  Scalar flags are views, so clone only
+        # that evaluation case before adding object occupancy.
+        occ = self.scene_occ[scene_flag]
+        if not isinstance(scene_flag, torch.Tensor) or scene_flag.ndim == 0:
+            occ = occ.clone()
 
         if self.load_object_goal:
             self.batch_id_obj = torch.linspace(0, batch_size - 1, batch_size).tile((1024, 1)).T \

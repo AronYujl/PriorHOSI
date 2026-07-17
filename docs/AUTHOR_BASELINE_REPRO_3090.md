@@ -21,6 +21,11 @@ the rank's CUDA address space. If a different host still reports CUDA IPC/OOM
 during loading, override `num_workers=0`; this affects loading throughput and
 memory, not the model objective.
 
+The occupancy cache is stored as `int8`, matching the loss-time occupancy
+representation. This avoids creating a second full batch-sized occupancy grid
+when converting a boolean selection, reducing the peak allocation without
+changing occupancy values or the loss.
+
 Use the verified environment and run from `code/`:
 
 ```bash
