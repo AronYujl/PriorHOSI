@@ -89,3 +89,23 @@ remain a non-fatal nested-multiprocessing cleanup issue because they appear only
 after the checkpoint and synchronized summary; do not claim the cleanup fix
 succeeded. Throughput optimization is no longer the gate for reproduction.
 
+### 2026-07-17 — four-GPU automatic author pipeline
+
+The selected author-topology reproduction uses physical GPUs 4--7, which are
+idle, share NUMA node 1, and have PIX connectivity to one another. Restore the
+author's per-GPU batch of 512 on four RTX 3090s, retaining the registered global
+batch of 2048, FP32 precision, learning rate, seed and epoch schedules.
+
+Use one persistent shell pipeline that first performs non-overwriting ten-update
+diffusion and CM preflights at the exact four-GPU batch. A failed process,
+missing checkpoint or non-finite failure must stop the chain. If both commands
+exit successfully and write their checkpoints, start the 501-epoch diffusion
+run; after `epoch500.pth` is verified, pass that exact path directly to the
+201-epoch consistency run. Never use the preflight diffusion checkpoint for the
+full CM run.
+
+This convenience pipeline refuses a dirty worktree and locks its commit, but is
+not a reportable run because this isolated branch does not contain the mandated
+`tools/experiment.py` manifest launcher. Its checkpoints may be used to test
+author metrics; they must not be represented as governed final-table artifacts.
+
