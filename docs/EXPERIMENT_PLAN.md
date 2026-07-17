@@ -52,3 +52,26 @@ pass exact synthetic lazy-loader regression tests. A CM smoke and any further
 optimization are selected only after the warm timing identifies the dominant
 stage; this change alone does not authorize a full run.
 
+Result: the diffusion profiling gate passed. Across eight measured warm updates,
+the rank-maximum synchronized update averaged 1.0967 seconds, with 0.0009
+seconds of exposed data wait, 0.0014 seconds of host-to-device transfer, 0.7676
+seconds of loss computation, 0.3742 seconds of backward/DDP work, and 0.0229
+seconds of optimizer work. Rank-maximum CUDA memory was 8.565 GiB allocated and
+8.656 GiB reserved. The full ten-update process took 52.90 seconds; one-time
+dataset initialization took 12.82 seconds and first-batch wait took 12.29
+seconds. At the profiled rate the 145,791-update diffusion schedule is about
+44.4 hours, before a non-profile throughput confirmation.
+
+The CUDA IPC/driver messages emitted after the checkpoint and profile summary
+are classified as shutdown-cleanup warnings, not a training failure. Add an
+explicit worker/process-group teardown before the next smoke so the formal run
+does not leave worker resources pending at normal completion.
+
+### 2026-07-17 — consistency-model warm timing
+
+Hypothesis: after the same lazy-asset fix, a ten-update FP32 CM smoke with two
+warmup updates will provide a valid warm-step and memory estimate without OOM.
+The gate requires finite losses, a checkpoint, rank-maximum stage timings and
+peak memory, and clean process teardown. A full CM run remains unauthorized
+until its measured time is combined with the diffusion estimate.
+

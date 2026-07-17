@@ -10,6 +10,7 @@ CODE_ROOT = Path(__file__).resolve().parents[1] / 'code'
 sys.path.insert(0, str(CODE_ROOT))
 
 from datasets.infbagel import InfBaGelDataset  # noqa: E402
+from train_infbagel import shutdown_dataloader  # noqa: E402
 
 
 class InfBaGelWorkerViewTest(unittest.TestCase):
@@ -46,6 +47,24 @@ class InfBaGelWorkerViewTest(unittest.TestCase):
         self.assertEqual(
             worker_dataset.worker_batch_keys, ('joints', 'mat')
         )
+
+    def test_shutdown_dataloader_releases_persistent_iterator(self):
+        class FakeIterator:
+            def __init__(self):
+                self.shutdown_called = False
+
+            def _shutdown_workers(self):
+                self.shutdown_called = True
+
+        class FakeLoader:
+            pass
+
+        loader = FakeLoader()
+        iterator = FakeIterator()
+        loader._iterator = iterator
+        shutdown_dataloader(loader)
+        self.assertTrue(iterator.shutdown_called)
+        self.assertIsNone(loader._iterator)
 
 
     def test_lazy_training_assets_match_eager_values_and_copy_samples(self):

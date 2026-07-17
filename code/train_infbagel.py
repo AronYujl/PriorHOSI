@@ -11,6 +11,7 @@ import datetime
 import random
 import json
 import time
+import gc
 
 import numpy as np
 
@@ -48,6 +49,9 @@ def shutdown_dataloader(dataloader):
     shutdown = getattr(iterator, '_shutdown_workers', None)
     if shutdown is not None:
         shutdown()
+    if hasattr(dataloader, '_iterator'):
+        dataloader._iterator = None
+
 
 def synchronized_time(enabled, device):
     """Return a wall-clock timestamp after pending CUDA work completes."""
@@ -420,6 +424,16 @@ def train_ddp(rank, world_size, cfg):
                 flush=True,
             )
 
+
+    # Persistent workers and NCCL must be closed explicitly on both bounded
+    # smokes and naturally completed full runs. Otherwise rank processes can
+    # tear down CUDA while worker queues still own shared tensor handles.
+    shutdown_dataloader(dataloader)
+    gc.collect()
+    if device.type == 'cuda':
+        torch.cuda.synchronize(device)
+    torch.distributed.barrier()
+    torch.distributed.destroy_process_group()
 
 def get_mask(x_start, ind, p, fixed_frame=0, mask_y=True):
     '''
