@@ -100,6 +100,9 @@ def train_ddp(rank, world_size, cfg):
     if cfg.use_tensorboard and rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(cfg.exp_dir, 'tensorboard_logs'))
 
+    optimizer_updates = 0
+    stop_training = False
+
     for epoch in range(cfg.start_epoch, cfg.epochs):
         print(f'Start epoch {epoch}', flush=True)
         sampler.set_epoch(epoch)
@@ -142,7 +145,7 @@ def train_ddp(rank, world_size, cfg):
                 else:
                     loss = loss_consistency
 
-                if step % 10 == 0:
+                if step % 10 == 0 or (cfg.max_optimizer_updates is not None and int(cfg.max_optimizer_updates) == 1):
                     current_lr = optimizer.param_groups[0]['lr']
                     print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
                     if cfg.use_tensorboard and rank == 0:
@@ -161,7 +164,7 @@ def train_ddp(rank, world_size, cfg):
                 if loss_object is not None:
                     loss = loss + cfg.loss_w_obj_pts * loss_object + cfg.loss_w_fk * loss_fk
 
-                if step % 10 == 0:
+                if step % 10 == 0 or (cfg.max_optimizer_updates is not None and int(cfg.max_optimizer_updates) == 1):
                     current_lr = optimizer.param_groups[0]['lr']
                     print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
                     if cfg.use_tensorboard and rank == 0:
@@ -172,6 +175,10 @@ def train_ddp(rank, world_size, cfg):
 
             loss.backward()
             optimizer.step()
+            optimizer_updates += 1
+            if cfg.max_optimizer_updates is not None and optimizer_updates >= int(cfg.max_optimizer_updates):
+                stop_training = True
+                break
 
         if rank == 0 and epoch % cfg.ckpt_interval == 0:
             print(f'Saving checkpoint', flush=True)
@@ -183,6 +190,8 @@ def train_ddp(rank, world_size, cfg):
 
         print('Clearing cache', flush=True)
         torch.cuda.empty_cache()
+        if stop_training:
+            break
 
 
 def get_mask(x_start, ind, p, fixed_frame=0, mask_y=True):

@@ -21,6 +21,7 @@ epochs: 501
 device: cuda:0
 use_tensorboard: true
 ckpt_interval: 20
+max_optimizer_updates: null
 exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1

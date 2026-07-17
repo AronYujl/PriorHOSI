@@ -31,3 +31,7 @@ After the final `epoch500` checkpoint exists, run:
 The distillation command must name the diffusion checkpoint explicitly;
 `config_train_infbagel_cm.yaml` intentionally keeps `ckpt_path` empty so a
 stale checkpoint cannot be loaded silently.
+
+For a one-update preflight only, add `max_optimizer_updates=1` and use a new
+output name. The default is `null`, so the two commands above retain the
+author's complete epoch-based schedule.
