@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 import pickle as pkl
 import trimesh
 import random
+from collections import OrderedDict
 from datasets.utils import get_occupancy_from_npy, zup_to_yup, get_smpl_parents
 
 from bps_torch.bps import bps_torch
@@ -69,10 +70,13 @@ class InfBaGelDataset(Dataset):
             # load object data
             self.object_rot_mat = np.load(os.path.join(folder, 'object_rot_mat.npy'))
             self.object_trans = np.load(os.path.join(folder, 'object_trans.npy'))
-            if os.path.exists(os.path.join(folder, 'object_points.npy')):
-                self.object_points = np.load(os.path.join(folder, 'object_points.npy'))
-            else:
-                self.object_points = None
+            self.object_points_path = os.path.join(folder, 'object_points.npy')
+            if not os.path.exists(self.object_points_path):
+                self.object_points_path = None
+            # Avoid materializing this approximately 9.2 GiB array in every
+            # DDP rank. A worker opens the read-only mapping on first use.
+            self.object_points = None
+            self._object_points_mmap = None
             if self.use_object_keypoints:
                 pass
                 # self.transformed_obj_verts = np.load(os.path.join(folder, 'transformed_obj_verts.npy'))
@@ -102,6 +106,8 @@ class InfBaGelDataset(Dataset):
         else:
             self.object_rot_mat = None
             self.object_trans = None
+            self.object_points_path = None
+            self._object_points_mmap = None
             self.object_points = None
             self.object_name = None
         
@@ -213,20 +219,22 @@ class InfBaGelDataset(Dataset):
             self.obj_max = norm[3].astype(np.float32)
             self.obj_min_torch = torch.tensor(self.obj_min).to(device)
             self.obj_max_torch = torch.tensor(self.obj_max).to(device)
-            self.obj_bps_data = []
             self.bps_dict = {}
+            self._bps_mmaps = OrderedDict()
+            self._bps_mmap_limit = 32
             self.rest_bps_data = {}
             self.rest_obj_verts = {}
 
-            start_idx = 0
             bps_file_list = sorted(os.listdir(self.dest_obj_bps_npy_folder))
             for bid, file in enumerate(bps_file_list):
                 obj_bps_npy_path = os.path.join(self.dest_obj_bps_npy_folder, file)
-                obj_bps_data = torch.from_numpy(np.load(obj_bps_npy_path))# .to(device) # T X 1024 X 3 
-                self.obj_bps_data.append(obj_bps_data)
-                self.bps_dict[file[:-4]] = (start_idx, start_idx + obj_bps_data.shape[0])
-                start_idx += obj_bps_data.shape[0]
-            self.obj_bps_data = torch.cat(self.obj_bps_data, dim=0)
+                # Reading only the header avoids concatenating the roughly
+                # 9.4 GiB BPS collection once per DDP rank.
+                obj_bps_data = np.load(obj_bps_npy_path, mmap_mode='r')
+                self.bps_dict[file[:-4]] = (
+                    obj_bps_npy_path, obj_bps_data.shape[0]
+                )
+                del obj_bps_data
 
             if self.use_object_keypoints:
                 self.bps_torch = bps_torch()
@@ -362,14 +370,14 @@ class InfBaGelDataset(Dataset):
             assert int(self.end_range[idx]) == int(self.ori_sequence_end_idx[origin_sequence_idx])
             # object_goal[1] = 0. (3-dim position represent final object position)
             if self.scene_name[origin_sequence_idx] in self.bps_dict:
-                bps_start_idx, bps_end_idx = self.bps_dict[self.scene_name[origin_sequence_idx]]
-                obj_bps_data = self.obj_bps_data[bps_start_idx:bps_end_idx]
-                assert obj_bps_data.shape[0] == self.ori_sequence_end_idx[origin_sequence_idx] - self.ori_sequence_start_idx[origin_sequence_idx]
+                bps_key = self.scene_name[origin_sequence_idx]
+                _, bps_length = self.bps_dict[bps_key]
+                assert bps_length == self.ori_sequence_end_idx[origin_sequence_idx] - self.ori_sequence_start_idx[origin_sequence_idx]
                 if self.use_random_frame_bps:
-                    random_sampled_t_idx = random.sample(list(range(obj_bps_data.shape[0])), 1)[0]
+                    random_sampled_t_idx = random.sample(list(range(bps_length)), 1)[0]
                 else: # use the first frame of this window for object bps
                     random_sampled_t_idx = start_idx - self.ori_sequence_start_idx[origin_sequence_idx] 
-                obj_bps_data = obj_bps_data[random_sampled_t_idx:random_sampled_t_idx+1] # 1 X 1024 X 3
+                obj_bps_data = self._get_bps_frame(bps_key, random_sampled_t_idx)
                 obj_bps_data = zup_to_yup(obj_bps_data)
                 # bps_set = self.obj_bps + self.object_trans[self.ori_sequence_start_idx[origin_sequence_idx]+random_sampled_t_idx][None,None,:] # 1X1024X3
                 # lhand_point = self.joints[self.ori_sequence_start_idx[origin_sequence_idx]+random_sampled_t_idx][24,:] # 3
@@ -483,8 +491,8 @@ class InfBaGelDataset(Dataset):
             pi = 0
             need_pi = False
 
-        if is_object and self.object_points is not None:
-            object_points = self.object_points[start_idx]
+        if is_object and self.object_points_path is not None:
+            object_points = self._get_object_points_frame(start_idx)
         else:
             object_points = np.zeros((1024, 3))
 
@@ -537,6 +545,9 @@ class InfBaGelDataset(Dataset):
             'object_name': object_name
         }
         
+        worker_batch_keys = getattr(self, 'worker_batch_keys', None)
+        if worker_batch_keys is not None:
+            return {key: info[key] for key in worker_batch_keys}
         return info
 
     def get_pene_occ_count(self, points, scene_flag):
@@ -770,7 +781,34 @@ class InfBaGelDataset(Dataset):
     def __len__(self):
         return len(self.start_ind)
 
-    def cpu_worker_view(self):
+    def _get_object_points_frame(self, frame_idx):
+        """Copy one frame from a worker-local read-only memory map."""
+        if self.object_points_path is None:
+            return None
+        if self._object_points_mmap is None:
+            self._object_points_mmap = np.load(
+                self.object_points_path, mmap_mode='r'
+            )
+        return np.array(self._object_points_mmap[frame_idx], copy=True)
+
+    def _get_bps_frame(self, bps_key, frame_idx):
+        """Copy one BPS frame, retaining a small worker-local mmap LRU."""
+        mmap_array = self._bps_mmaps.pop(bps_key, None)
+        if mmap_array is None:
+            bps_path, _ = self.bps_dict[bps_key]
+            mmap_array = np.load(bps_path, mmap_mode='r')
+        self._bps_mmaps[bps_key] = mmap_array
+        while len(self._bps_mmaps) > self._bps_mmap_limit:
+            _, evicted = self._bps_mmaps.popitem(last=False)
+            mmap_handle = getattr(evicted, '_mmap', None)
+            if mmap_handle is not None:
+                mmap_handle.close()
+        # Copy just the selected frame so torch owns writable worker memory.
+        return torch.from_numpy(np.array(
+            mmap_array[frame_idx:frame_idx + 1], copy=True
+        ))
+
+    def cpu_worker_view(self, training_batch_keys=None):
         """Return a worker-safe shallow view containing no CUDA-only state.
 
         The training dataset keeps scene occupancy and several lookup tensors on
@@ -789,6 +827,12 @@ class InfBaGelDataset(Dataset):
             if hasattr(worker_dataset, name):
                 delattr(worker_dataset, name)
         worker_dataset.device = 'cpu'
+        worker_dataset._object_points_mmap = None
+        worker_dataset._bps_mmaps = OrderedDict()
+        worker_dataset.worker_batch_keys = (
+            tuple(training_batch_keys) if training_batch_keys is not None
+            else None
+        )
         return worker_dataset
 
     def normalize(self, data, is_object=False):

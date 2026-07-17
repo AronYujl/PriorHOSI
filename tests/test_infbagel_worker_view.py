@@ -1,7 +1,10 @@
+from collections import OrderedDict
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
 import torch
 CODE_ROOT = Path(__file__).resolve().parents[1] / 'code'
 sys.path.insert(0, str(CODE_ROOT))
@@ -23,8 +26,10 @@ class InfBaGelWorkerViewTest(unittest.TestCase):
         dataset.obj_min_torch = object()
         dataset.obj_max_torch = object()
         dataset.cpu_value = object()
+        dataset._object_points_mmap = object()
+        dataset._bps_mmaps = OrderedDict([('cached', object())])
 
-        worker_dataset = dataset.cpu_worker_view()
+        worker_dataset = dataset.cpu_worker_view(('joints', 'mat'))
 
         self.assertIsNot(worker_dataset, dataset)
         self.assertEqual(worker_dataset.device, 'cpu')
@@ -35,6 +40,45 @@ class InfBaGelWorkerViewTest(unittest.TestCase):
                 'obj_min_torch', 'obj_max_torch'):
             self.assertFalse(hasattr(worker_dataset, name), name)
             self.assertTrue(hasattr(dataset, name), name)
+
+        self.assertIsNone(worker_dataset._object_points_mmap)
+        self.assertEqual(worker_dataset._bps_mmaps, OrderedDict())
+        self.assertEqual(
+            worker_dataset.worker_batch_keys, ('joints', 'mat')
+        )
+
+
+    def test_lazy_training_assets_match_eager_values_and_copy_samples(self):
+        object_points = np.arange(3 * 4 * 3, dtype=np.float32).reshape(3, 4, 3)
+        bps = (np.arange(2 * 4 * 3, dtype=np.float32) + 100).reshape(2, 4, 3)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            object_points_path = Path(temp_dir) / 'object_points.npy'
+            bps_path = Path(temp_dir) / 'object_bps.npy'
+            np.save(object_points_path, object_points)
+            np.save(bps_path, bps)
+
+            dataset = object.__new__(InfBaGelDataset)
+            dataset.object_points_path = str(object_points_path)
+            dataset._object_points_mmap = None
+            dataset.bps_dict = {'object': (str(bps_path), len(bps))}
+            dataset._bps_mmaps = OrderedDict()
+            dataset._bps_mmap_limit = 1
+
+            actual_points = dataset._get_object_points_frame(1)
+            actual_bps = dataset._get_bps_frame('object', 1)
+
+            self.assertTrue(np.array_equal(actual_points, object_points[1]))
+            self.assertTrue(torch.equal(actual_bps, torch.from_numpy(bps[1:2])))
+            self.assertTrue(actual_points.flags.writeable)
+            self.assertTrue(actual_bps.numpy().flags.writeable)
+            self.assertIsNotNone(dataset._object_points_mmap)
+            self.assertEqual(list(dataset._bps_mmaps), ['object'])
+
+            actual_points[0, 0] = -1
+            actual_bps[0, 0, 0] = -1
+            self.assertEqual(np.load(object_points_path, mmap_mode='r')[1, 0, 0], 12)
+            self.assertEqual(np.load(bps_path, mmap_mode='r')[1, 0, 0], 112)
 
     def test_direct_training_occupancy_matches_full_grid_lookup(self):
         dataset = object.__new__(InfBaGelDataset)

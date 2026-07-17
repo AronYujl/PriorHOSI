@@ -25,6 +25,10 @@ device: cuda:0
 use_tensorboard: true
 ckpt_interval: 20
 max_optimizer_updates: null
+# CUDA synchronization is intentionally opt-in because it perturbs throughput.
+profile_timing: false
+timing_warmup_updates: 2
+
 exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 1

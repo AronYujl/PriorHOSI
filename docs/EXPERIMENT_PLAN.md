@@ -23,3 +23,32 @@ losses, required checkpoints, no OOM, and measured warm throughput. A full
 training run is not authorized by this smoke alone. If the speed gate is not
 met, the next optimization must be preregistered separately.
 
+Result: the gate failed. The AMP diffusion smoke took 365.34 seconds for ten
+updates versus 339.88 seconds for the latest FP32 smoke, and its reported loss
+scale changed from approximately 155--168 to 482--519. The one-update AMP CM
+smoke took 412.30 seconds and is dominated by startup. AMP checkpoints are not
+eligible for the author-reproduction run.
+
+### 2026-07-17 — lazy training assets and synchronized timing
+
+Hypothesis: the smoke wall time is dominated by one-time input initialization,
+because each of eight DDP ranks eagerly reads and concatenates approximately
+9.2 GiB of `object_points.npy` and 9.4 GiB of per-object BPS arrays before its
+DataLoader workers start. Read-only NumPy memory maps opened lazily inside each
+worker, with a copied current sample, must preserve the exact training values
+and random-frame distribution while eliminating redundant eager reads and
+rank-local copies. Returning only fields consumed by the training step must not
+change the objective.
+
+Add opt-in CUDA-synchronized segmented timing so startup, data wait, host-to-
+device transfer, loss computation, backward/DDP synchronization, and optimizer
+work are measured separately. Timing synchronization is enabled only for a
+non-reportable profiling smoke and is excluded from production throughput.
+
+The gate is a new, non-overwriting ten-update FP32 diffusion smoke with two
+warmup updates. It must complete with finite losses and a checkpoint, report
+rank-maximum stage timings, preserve the existing effective batch of 2048, and
+pass exact synthetic lazy-loader regression tests. A CM smoke and any further
+optimization are selected only after the warm timing identifies the dominant
+stage; this change alone does not authorize a full run.
+
