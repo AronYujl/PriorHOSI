@@ -20,6 +20,9 @@ EXPECTED_CONTRACT_SHA256 = "a908994bef58a21798af605f01df25582743e1066dd7d0211315
 EXPECTED_T2M_COMMIT = "72df96ec453edea2fbe9603b1d58a955eaf71636"
 EXPECTED_CHOIS_COMMIT = "8ec585aa0200fd2a890ffb12897bcf69ae719463"
 EXPECTED_CHOIS_CHECKPOINT_SHA256 = "a125bc15ffd9772686737111c7501ecee0a2d8571d9aca348ec1195ddef78775"
+IDLE_MEMORY_USED_MIB_MAX = 128
+DISPLAY_ONLY_UTILIZATION_PERCENT_MAX = 1
+IDLE_PSTATE = "P8"
 
 
 def run(command: Sequence[str], cwd: Optional[Path] = None, check: bool = True) -> str:
@@ -71,6 +74,20 @@ def compute_processes() -> list[str]:
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
+def four_gpu_idle(gpus: list[dict], processes: list[str]) -> bool:
+    """Accept the bounded display-only Xorg floor, never a CUDA compute allocation."""
+    return (
+        len(gpus) == 4
+        and not processes
+        and all(
+            gpu["memory_used_mib"] <= IDLE_MEMORY_USED_MIB_MAX
+            and gpu["utilization_percent"] <= DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
+            and gpu["pstate"] == IDLE_PSTATE
+            for gpu in gpus
+        )
+    )
+
+
 def forbidden_snapshot_entries(data: Path) -> list[str]:
     forbidden = []
     for relative in ("dataset", "hosi_test"):
@@ -106,10 +123,7 @@ def main() -> int:
     data = data_link.resolve()
     gpus = gpu_snapshot()
     processes = compute_processes()
-    idle = (
-        len(gpus) == 4 and not processes
-        and all(gpu["memory_used_mib"] <= 128 and gpu["utilization_percent"] == 0 for gpu in gpus)
-    )
+    idle = four_gpu_idle(gpus, processes)
     disk = shutil.disk_usage(repo)
     contract = json.loads((
         repo / "experiments/results/p1_data_hoi_contract_s42_20260713.json"
@@ -167,6 +181,16 @@ def main() -> int:
         "gpus": gpus,
         "compute_processes": processes,
         "four_gpu_idle": idle,
+        "idle_contract": {
+            "gpu_count": 4,
+            "compute_processes_must_be_empty": True,
+            "memory_used_mib_max_per_gpu": IDLE_MEMORY_USED_MIB_MAX,
+            "instantaneous_utilization_percent_max_per_gpu": (
+                DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
+            ),
+            "required_pstate": IDLE_PSTATE,
+            "scope": "display-only Xorg driver floor; CUDA compute contention remains forbidden",
+        },
         "filesystem": {"total_bytes": disk.total, "used_bytes": disk.used, "free_bytes": disk.free},
         "clock": run(["timedatectl", "status"]),
         "reverse_tunnel": run(["systemctl", "--user", "status", "infbagel-reverse-ssh.service"], check=False),

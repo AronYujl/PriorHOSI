@@ -24,6 +24,7 @@ from train_hoi_prior import (
     _validate_d2t_contract,
     _validate_d2t_execution_host,
 )
+from tools.capture_hoi_worker_preflight import four_gpu_idle
 
 
 EXPECTED_FIXED_SOURCE_SHA256 = {
@@ -143,6 +144,27 @@ class D2TUpdateRuleTests(unittest.TestCase):
 
 
 class D2TScientificAndGovernanceTests(unittest.TestCase):
+    def test_display_only_idle_tolerance_is_tight(self):
+        gpus = [
+            {
+                "memory_used_mib": 100,
+                "utilization_percent": 1 if index == 0 else 0,
+                "pstate": "P8",
+            }
+            for index in range(4)
+        ]
+        self.assertTrue(four_gpu_idle(gpus, []))
+        with_process = ["GPU-0, 123, python, 1"]
+        self.assertFalse(four_gpu_idle(gpus, with_process))
+        gpus[0]["utilization_percent"] = 2
+        self.assertFalse(four_gpu_idle(gpus, []))
+        gpus[0]["utilization_percent"] = 1
+        gpus[0]["memory_used_mib"] = 129
+        self.assertFalse(four_gpu_idle(gpus, []))
+        gpus[0]["memory_used_mib"] = 100
+        gpus[0]["pstate"] = "P2"
+        self.assertFalse(four_gpu_idle(gpus, []))
+
     def test_model_data_diffusion_and_loss_sources_are_unchanged(self):
         for relative, expected in EXPECTED_FIXED_SOURCE_SHA256.items():
             actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()

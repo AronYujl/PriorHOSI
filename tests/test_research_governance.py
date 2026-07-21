@@ -248,6 +248,9 @@ class ManifestTests(unittest.TestCase):
         self.assertIn("forbidden_snapshot_entries", source)
         self.assertIn("refusing to overwrite", source)
         self.assertIn("EXPECTED_CHOIS_CHECKPOINT_SHA256", source)
+        self.assertIn("DISPLAY_ONLY_UTILIZATION_PERCENT_MAX = 1", source)
+        self.assertIn("IDLE_MEMORY_USED_MIB_MAX = 128", source)
+        self.assertIn("compute_processes_must_be_empty", source)
 
     def test_multi_server_worker_contract_is_documented(self):
         rules = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")

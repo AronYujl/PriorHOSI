@@ -2073,6 +2073,28 @@ loss 机制，还是此前与作者 DDPM 明显不同的 update-rule contract。
    训练预算、checkpoint variant、evaluator 或阈值。只有 effective-diffusion gate 通过后，才可另行提出
    并预注册从自主训练 HOIPrior diffusion checkpoint 开始的 consistency stage。
 
+#### 2026-07-21 D2-T display-only Xorg idle preflight clarification
+
+D2-T implementation commit `baa01bf73b6e151693f949fe943505bf8eda3410` 已在 authority 与
+`infbagel-4gpu` clean checkout 通过 207 项测试（worker 按 HOI-only contract 跳过 2 项真实 LINGO
+资产测试），且尚未执行 `tools/experiment.py start`、GPU smoke 或 training。首次与第二次 immutable
+preflight 分别为 `preflight.json` 和 `preflight_r1.json`，SHA-256
+`b0f35ae89511eb2dc1e88d04c56fd244bab8a75a9078fa8820bf1bebdd5b8047` 与
+`9626a12af3c08f7def479e75dec51b969108517ef30a0101e61242909f320527`；二者除
+`four_gpu_idle` 外所有 checks 均通过。GPU 0 只有 Xorg graphics PIDs `2552/3224`，无 CUDA compute
+process，P8、约 96--100 MiB used、memory utilization 0%；14 秒 71 samples 的 GPU utilization
+min/avg/max 为 `0/0/6%`，但 `nvidia-smi` 单点值稳定显示 `1%`。因此失败来自 preflight 将瞬时
+utilization 写死为精确 0%，不是训练 contention。
+
+用户明确确认该长期存在的 Xorg 占用可忽略。仅作 operational clarification：四卡 idle 仍要求
+4×RTX 3090、CUDA compute-process 列表为空、每卡 memory used `<=128 MiB`，并把瞬时 GPU
+utilization 上限从 `0%` 调整为 `1%`，用于容纳 display-only Xorg driver floor。不得放宽到用户提及
+的 10 GiB 训练峰值，不得容纳任何 compute process、P2/P0 训练状态或 `>128 MiB` 的外部 allocation。
+preflight 输出必须记录该 tolerance 和逐卡 checks；新增 tests 后提交新的 exact commit，worker 主动
+fast-forward，再写入不覆盖旧失败证据的 `preflight_r2.json`。只有 r2 全部通过，才可创建原 D2-T
+run id 的 lifecycle manifest 并启动原预注册 workload；scientific config、run id、seed、budget、gates
+和所有禁止 checkpoint-load 项均不变。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
