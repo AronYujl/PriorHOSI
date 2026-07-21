@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1B-D2-T0",
+  "seed": 42,
+  "classification": "author-update-rule-negative-stop",
+  "training": {
+    "run_id": "p1-hoi-d2t-author-update-rule-s42-20260721",
+    "git_commit": "6d57d34e27aeb748039896052a861fdda386873e",
+    "processed_windows": 6144000,
+    "processed_frames": 98304000,
+    "optimizer_updates": 3000,
+    "wall_time_seconds": 2065.4577,
+    "throughput_windows_per_second": 2974.6434,
+    "midpoint_validation_total_loss": 4.981731,
+    "final_validation_total_loss": 2.954167,
+    "peak_reserved_bytes_per_rank": 4087349248,
+    "midpoint_checkpoint_sha256": "50d78c044140a2536911c7525f57ee44fc93745765f5837b5a66d31f23840ab7",
+    "final_checkpoint_sha256": "1543af304acf76f385dbd3656a1ca82ea25dcd504ee120f7f63e821d71483647",
+    "manifest_sha256": "b642443df60a9d1c073ffdf35fd209ef6ac695562b25627b3c4762ce3a2a3572",
+    "metrics_sha256": "39a0772ce2655ceb04b06afb6431b5c90a58be709f5d93764e69083f91e5f547",
+    "state_sha256": "d497a36d6ce78d2541bb29422f825a818fe8908af74630d2afc2eb2eec35391f",
+    "artifact_tree_sha256": "9173d340ab66dffb08b73ba04b177bdaf171377a7e2cd484e361821d20729387"
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-d2t-native-eval-s42-20260721",
+    "git_commit": "c066e69d16331a77de0b482af4e3ea3c05ee598d",
+    "protocol": "official-438 author-native HOI, 3 windows per sequence, 500-step unguided diffusion, online weights",
+    "runtime_seconds": 365.3135327299824,
+    "generation_seconds": 61.39941426785663,
+    "generation_fps": 898.8359361091107,
+    "end_to_end_seconds": 358.92726589599624,
+    "target_metrics": {
+      "mpjpe": 34.73673164844513,
+      "end_obj_trans_err": 38.556334376335144,
+      "xy_points_err": 17.600099742412567,
+      "obj_trans_dist": 57.446651980592854,
+      "foot_sliding": 0.17613753734908996,
+      "contact_f1": 0.2763771110670828
+    },
+    "sealed_r1024_control_metrics": {
+      "mpjpe": 18.7639981508255,
+      "end_obj_trans_err": 10.845817625522614,
+      "xy_points_err": 7.999631762504578,
+      "obj_trans_dist": 29.752166799144092,
+      "foot_sliding": 0.293416835882298,
+      "contact_f1": 0.3386315439569915
+    },
+    "paired_bootstrap_95_ci": {
+      "control_minus_target_mpjpe": [-16.448650045116263, -15.49949955952154],
+      "control_minus_target_end_obj_trans_err": [-29.40061260941292, -26.062625699046286],
+      "control_minus_target_xy_points_err": [-10.032344768238445, -9.184045058709131],
+      "control_minus_target_obj_trans_dist": [-29.12346578389105, -26.27332678311912],
+      "target_minus_control_contact_f1": [-0.0957244814412811, -0.02939212094750461],
+      "target_over_control_foot_sliding": [0.5434278241074244, 0.6638748234674472]
+    },
+    "mechanism_passed": false,
+    "effective_diffusion_passed": false,
+    "manifest_sha256": "f9937e2ef0771c0d41899c16d7206969941ecc0220d03333eaf16aa008c9feec",
+    "metrics_sha256": "9112ea4d38ff58f7bfa6e9be9e0b1569b5cfba0dd6362a7d24d425c8e878ea98",
+    "aggregate_sha256": "8862cfdc013482bc4fb3810bfbcaf3131010b3ee9bee13324dccd27df85e2702",
+    "per_sequence_sha256": "422dd0e8bc87cc896186ebdaea9fcd22868ae4ba40d2d61d5bb16a1000500f9e",
+    "artifact_tree_sha256": "e77bb8e6d9bfb112a6bf34e142baeab672ab34a9a6ad5ede4073f199692572dc"
+  },
+  "causal_conclusion": "Matching the author DDPM optimizer and update-budget contract alone is not sufficient for HOIPrior. The intervention reduced foot sliding but significantly worsened all four preregistered kinematic/object metrics and contact F1 relative to the sealed R1024 control.",
+  "released_checkpoint_loaded": false,
+  "author_checkpoint_loaded": false,
+  "consistency_started": false,
+  "checkpoint_selected": false,
+  "next_action": "Stop D2-T. Do not start consistency distillation or another training intervention without a new dated plan and registry amendment."
+}

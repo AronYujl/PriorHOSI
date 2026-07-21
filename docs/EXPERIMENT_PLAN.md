@@ -2144,6 +2144,31 @@ idle 判定。默认 preflight 和训练仍使用原 `<=1%` 规则，绝不把�
 `preflight_r2.json`，不得覆盖前两次失败。resolved target/config、run id、device `cuda:0`、checkpoint、
 evaluator、seed、438 sequences、scientific gates 均不变；不授权训练、CM 或 sampler intervention。
 
+#### 2026-07-21 D2-T author update-rule parity completion
+
+D2-T 训练与独立 evaluation lifecycle 均已完成并回收到 authority。训练从随机初始化开始，只把
+HOIPrior 的 optimizer/update-rule contract 对齐作者 DDPM：4×RTX 3090、per-GPU batch 512、effective
+batch 2048、Adam、LR `1e-4`、无 scheduler/warmup/weight decay/clipping/AMP/EMA，固定 3,000 updates、
+6,144,000 windows；232-D representation、HOIPrior architecture/conditions/losses/data/sampler 均保持不变。
+final online checkpoint SHA-256 为
+`1543af304acf76f385dbd3656a1ca82ea25dcd504ee120f7f63e821d71483647`，训练 finite 且 final validation
+total loss 2.954167。
+
+official-438 author-native、3 windows/sequence、500-step unguided diffusion 评估得到：MPJPE 34.7367、
+end-object 38.5563、xy 17.6001、object translation 57.4467、foot sliding 0.1761、contact F1 0.2764。
+相对 sealed R1024 control，四项 lower-is-better paired improvement CI 全为负，contact F1 difference
+95% CI 为 `[-0.0957,-0.0294]`；只有 foot-sliding ratio gate 通过。因此 mechanism/effective-diffusion
+gate 均失败，分类 `author-update-rule-negative-stop`，checkpoint 不选择，CM 不授权。
+
+compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2t_author_update_rule_s42_20260721.json`，SHA-256
+`0d211dd59bff79addcf1848da6ffaa5f4076a66d666e1c9d04cc086611933529`。training/evaluation authority
+staging tree SHA-256 分别为
+`9173d340ab66dffb08b73ba04b177bdaf171377a7e2cd484e361821d20729387` 与
+`e77bb8e6d9bfb112a6bf34e142baeab672ab34a9a6ad5ede4073f199692572dc`。该结果否定“仅 update-rule parity
+即可得到有效 diffusion HOIPrior”，但不否定 HOIPrior；下一训练方向必须重新预注册并针对仍未隔离的
+architecture/condition/loss mechanism。不得从 D2-T checkpoint 启动 CM 或进行观察后 checkpoint selection。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
