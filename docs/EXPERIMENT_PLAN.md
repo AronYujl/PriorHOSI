@@ -2095,6 +2095,39 @@ fast-forward，再写入不覆盖旧失败证据的 `preflight_r2.json`。只有
 run id 的 lifecycle manifest 并启动原预注册 workload；scientific config、run id、seed、budget、gates
 和所有禁止 checkpoint-load 项均不变。
 
+#### 2026-07-21 D2-T author-native evaluation lifecycle amendment
+
+D2-T training 已在 commit `6d57d34e27aeb748039896052a861fdda386873e` 完整结束：returncode
+数值 0、3,000 updates、6,144,000 windows、final online checkpoint SHA-256
+`1543af304acf76f385dbd3656a1ca82ea25dcd504ee120f7f63e821d71483647`。training manifest 已完成，
+因此不得重新打开或复用其 run id 来承载 GPU evaluation。原预注册 scientific gate 不变，新增唯一
+evaluation lifecycle run id `p1-hoi-d2t-native-eval-s42-20260721`，subphase `1B-D2-T0-eval`。
+
+评估只加载 D2-T final checkpoint 的 `model`/online weights，不加载 optimizer、scheduler、RNG、EMA、
+released 或 author checkpoint。使用现有 `code/test_infbagel_hoi.py` official 438 author-native protocol、
+3 windows/sample、500-step unguided diffusion、seed 42、无 CFG/dynamic perception/guidance、无 CHOIS
+export、无 FID/R-precision gate。evaluator static hashes 锁定为 test script
+`22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524`、metrics
+`445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547`、config
+`89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73`。
+
+paired control 不重复生成，复用 D2-N 已完成且同 evaluator/seed/order/protocol 的 sealed R1024 online
+records：aggregate SHA-256 `d95d3090455e763159a4cac793301f9f4744837bf60b4ed21eaef4a141c9ad2b`、
+per-sequence SHA-256 `11c11fcd90c0ce2e67d705bb64c3a78bbe2b0e9f84aff7fcb57cab25087e2a1f`，
+438 sequences / 3 windows，checkpoint SHA-256
+`ded9a12d4e85179c37e2457475649ccc614ef364b97eaebade0629b2c11d4ed8`。任何 hash、sequence identity、
+metric set、normalization、online-weight 或 official-count mismatch 均分类
+`author-update-rule-contract-failure-stop`。
+
+mechanism gate 逐 sequence、10,000 bootstrap、seed 42：control-minus-D2-T 的 MPJPE、end-object、xy、
+object-translation improvement CI 下界均 `>0`；D2-T-minus-control contact F1 CI 下界 `>=-0.02`；
+D2-T/control foot-sliding ratio CI 上界 `<=1.10`。失败分类 `author-update-rule-negative-stop`。
+若通过，再相对 Phase-0 released aggregate（JSON SHA-256
+`76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`）检查原锁定 absolute ratios 与
+contact F1 `>=0.60`；absolute gate 失败分类 `positive-but-not-effective-diffusion-stop`，两 gate 均通过
+分类 `effective-diffusion-hoi-prior-stop`。评估完成后 finish/register/recover 全部 artifacts 并停止；
+无论结果如何都不在本 amendment 启动 CM、第二次训练、checkpoint selection 或 sampler intervention。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

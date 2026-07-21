@@ -25,6 +25,15 @@ from train_hoi_prior import (
     _validate_d2t_execution_host,
 )
 from tools.capture_hoi_worker_preflight import four_gpu_idle
+from tools.run_hoi_d2t_evaluation import (
+    BASELINE_KEYS,
+    CONTROL_AGGREGATE_SHA256,
+    CONTROL_PER_SEQUENCE_SHA256,
+    RUN_ID as EVAL_RUN_ID,
+    TARGET_SHA256,
+    classify as classify_evaluation,
+    compare_records,
+)
 
 
 EXPECTED_FIXED_SOURCE_SHA256 = {
@@ -144,6 +153,55 @@ class D2TUpdateRuleTests(unittest.TestCase):
 
 
 class D2TScientificAndGovernanceTests(unittest.TestCase):
+    @staticmethod
+    def _native_records(offset=0.0, contact=0.7, foot=0.3):
+        return {
+            f"sequence-{index:03d}": {
+                "mpjpe": 10.0 + offset,
+                "end_obj_trans_err": 4.0 + offset,
+                "pelvis_goal_error_cm": 3.0 + offset,
+                "obj_trans_dist": 12.0 + offset,
+                "foot_sliding": foot,
+                "contact_f1": contact,
+            }
+            for index in range(32)
+        }
+
+    def test_native_evaluation_gate_matches_preregistration(self):
+        control = self._native_records(offset=1.0, contact=0.70, foot=0.30)
+        target = self._native_records(offset=0.0, contact=0.69, foot=0.30)
+        comparison = compare_records(control, target)
+        target_metrics = {key: 1.0 for key in BASELINE_KEYS}
+        target_metrics["contact_f1"] = 0.69
+        ratios = {
+            "mpjpe": 1.0,
+            "end_obj_trans_err": 1.0,
+            "xy_points_err": 1.0,
+            "obj_trans_dist": 1.0,
+            "foot_sliding": 1.0,
+        }
+        result = classify_evaluation(
+            comparison, target_metrics, ratios, contract_passed=True,
+        )
+        self.assertEqual(result["classification"], "effective-diffusion-hoi-prior-stop")
+        self.assertTrue(result["mechanism_passed"])
+        target = self._native_records(offset=0.0, contact=0.60, foot=0.30)
+        result = classify_evaluation(
+            compare_records(control, target), target_metrics, ratios, contract_passed=True,
+        )
+        self.assertEqual(result["classification"], "author-update-rule-negative-stop")
+
+    def test_native_evaluation_registry_and_hashes_are_locked(self):
+        self.assertEqual(EVAL_RUN_ID, "p1-hoi-d2t-native-eval-s42-20260721")
+        self.assertEqual(TARGET_SHA256, "1543af304acf76f385dbd3656a1ca82ea25dcd504ee120f7f63e821d71483647")
+        self.assertEqual(CONTROL_AGGREGATE_SHA256, "d95d3090455e763159a4cac793301f9f4744837bf60b4ed21eaef4a141c9ad2b")
+        self.assertEqual(CONTROL_PER_SEQUENCE_SHA256, "11c11fcd90c0ce2e67d705bb64c3a78bbe2b0e9f84aff7fcb57cab25087e2a1f")
+        records = [json.loads(line) for line in (ROOT / "experiments/registry.jsonl").read_text(encoding="utf-8").splitlines()]
+        record = next(item for item in records if item["experiment_id"] == "p1-hoi-d2t-native-eval-preregister-s42-20260721")
+        self.assertEqual(record["config"]["run_id"], EVAL_RUN_ID)
+        self.assertTrue(record["config"]["control"]["reused_without_regeneration"])
+        self.assertFalse(record["config"]["consistency_authorized"])
+
     def test_display_only_idle_tolerance_is_tight(self):
         gpus = [
             {
