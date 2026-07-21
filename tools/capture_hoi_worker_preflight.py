@@ -88,6 +88,23 @@ def four_gpu_idle(gpus: list[dict], processes: list[str]) -> bool:
     )
 
 
+def four_gpu_evaluation_idle(gpus: list[dict], processes: list[str]) -> bool:
+    """Ignore only GPU 0 display utilization for an explicitly opted-in evaluation."""
+    return (
+        len(gpus) == 4
+        and not processes
+        and all(
+            gpu["memory_used_mib"] <= IDLE_MEMORY_USED_MIB_MAX
+            and gpu["pstate"] == IDLE_PSTATE
+            and (
+                gpu["index"] == 0
+                or gpu["utilization_percent"] <= DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
+            )
+            for gpu in gpus
+        )
+    )
+
+
 def forbidden_snapshot_entries(data: Path) -> list[str]:
     forbidden = []
     for relative in ("dataset", "hosi_test"):
@@ -111,6 +128,7 @@ def main() -> int:
     parser.add_argument("--chois-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--require-idle", action="store_true")
+    parser.add_argument("--allow-gpu0-display-utilization", action="store_true")
     args = parser.parse_args()
     repo = args.repo_root.resolve()
     output = args.output.resolve()
@@ -123,7 +141,11 @@ def main() -> int:
     data = data_link.resolve()
     gpus = gpu_snapshot()
     processes = compute_processes()
-    idle = four_gpu_idle(gpus, processes)
+    idle = (
+        four_gpu_evaluation_idle(gpus, processes)
+        if args.allow_gpu0_display_utilization
+        else four_gpu_idle(gpus, processes)
+    )
     disk = shutil.disk_usage(repo)
     contract = json.loads((
         repo / "experiments/results/p1_data_hoi_contract_s42_20260713.json"
@@ -187,6 +209,9 @@ def main() -> int:
             "memory_used_mib_max_per_gpu": IDLE_MEMORY_USED_MIB_MAX,
             "instantaneous_utilization_percent_max_per_gpu": (
                 DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
+            ),
+            "gpu0_display_utilization_ignored": bool(
+                args.allow_gpu0_display_utilization
             ),
             "required_pstate": IDLE_PSTATE,
             "scope": "display-only Xorg driver floor; CUDA compute contention remains forbidden",

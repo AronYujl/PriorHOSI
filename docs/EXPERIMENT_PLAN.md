@@ -2128,6 +2128,22 @@ contact F1 `>=0.60`；absolute gate 失败分类 `positive-but-not-effective-dif
 分类 `effective-diffusion-hoi-prior-stop`。评估完成后 finish/register/recover 全部 artifacts 并停止；
 无论结果如何都不在本 amendment 启动 CM、第二次训练、checkpoint selection 或 sampler intervention。
 
+#### 2026-07-21 D2-T native evaluation display-only preflight clarification
+
+evaluation lifecycle 在任何 GPU workload 启动前保留了两个失败 preflight：`preflight.json` SHA-256
+`9435c8cfc3e31e4198263331ebb6b7e9d4403c3349e4a171a1e32cd003a5c3f7` 与 `preflight_r1.json`
+SHA-256 `3215d8ae53379ac2ffa00c9d01812b8a522da75aa427ae746e9a8411af73189a`。两次均只有 GPU0
+display Xorg floor：memory 100 MiB、P8、compute-process list 为空；其余全部 checks 通过，但瞬时
+utilization 分别为 10% 和 7%。随后 30 次连续只读采样显示 GPU0 为 7--10%，其余 GPU 为 0%，
+说明原 training-oriented `<=1%` 瞬时门槛会稳定误拒绝单卡 evaluation。
+
+按用户明确授权忽略 Xorg 占用，只为本次 evaluation preflight 新增显式 opt-in
+`--allow-gpu0-display-utilization`：仍要求四张卡均为 RTX 3090、compute-process list 为空、每卡
+memory `<=128 MiB`、P8，且 GPU1--3 utilization `<=1%`；仅 GPU0 的 display utilization 不进入
+idle 判定。默认 preflight 和训练仍使用原 `<=1%` 规则，绝不把该 opt-in 用于训练。下一次只写
+`preflight_r2.json`，不得覆盖前两次失败。resolved target/config、run id、device `cuda:0`、checkpoint、
+evaluator、seed、438 sequences、scientific gates 均不变；不授权训练、CM 或 sampler intervention。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

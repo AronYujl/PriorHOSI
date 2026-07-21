@@ -24,7 +24,7 @@ from train_hoi_prior import (
     _validate_d2t_contract,
     _validate_d2t_execution_host,
 )
-from tools.capture_hoi_worker_preflight import four_gpu_idle
+from tools.capture_hoi_worker_preflight import four_gpu_evaluation_idle, four_gpu_idle
 from tools.run_hoi_d2t_evaluation import (
     BASELINE_KEYS,
     CONTROL_AGGREGATE_SHA256,
@@ -222,6 +222,24 @@ class D2TScientificAndGovernanceTests(unittest.TestCase):
         gpus[0]["memory_used_mib"] = 100
         gpus[0]["pstate"] = "P2"
         self.assertFalse(four_gpu_idle(gpus, []))
+
+    def test_evaluation_only_idle_ignores_gpu0_display_utilization(self):
+        gpus = [
+            {
+                "index": index,
+                "memory_used_mib": 100 if index == 0 else 15,
+                "utilization_percent": 10 if index == 0 else 0,
+                "pstate": "P8",
+            }
+            for index in range(4)
+        ]
+        self.assertTrue(four_gpu_evaluation_idle(gpus, []))
+        self.assertFalse(four_gpu_evaluation_idle(gpus, ["GPU-0, 123, python, 1"]))
+        gpus[0]["memory_used_mib"] = 129
+        self.assertFalse(four_gpu_evaluation_idle(gpus, []))
+        gpus[0]["memory_used_mib"] = 100
+        gpus[1]["utilization_percent"] = 2
+        self.assertFalse(four_gpu_evaluation_idle(gpus, []))
 
     def test_model_data_diffusion_and_loss_sources_are_unchanged(self):
         for relative, expected in EXPECTED_FIXED_SOURCE_SHA256.items():
