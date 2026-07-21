@@ -2218,6 +2218,40 @@ condition、representation、data、diffusion、sampler 或 optimization。
    hash 和 negative result。只有 absolute gate 通过后，用户才可另行授权选择 final checkpoint，并以
    新 dated amendment 讨论从自主训练 HOIPrior diffusion checkpoint 开始的 consistency stage。
 
+#### 2026-07-21 D2-U balanced-objective completion
+
+D2-U 已在 clean worker commit `c4293735b7a144ddf7a1190e8ecf6e43b9698d18` 完成。训练严格从
+随机初始化开始，未加载 released、author、source、current、balanced、D2-T 或任何 prior
+checkpoint；固定 D2-T 的 4×RTX 3090、effective batch 2048、Adam、LR `1e-4`、FP32、无
+scheduler/warmup/clipping/AMP/EMA 和 6,144,000-window 预算，只把 FK/object-surface 权重改为
+`0.3569973401779424/0.4772322188400037`。3,000 updates 全部 finite，无 overflow；final validation
+total 为 `0.0822169`，final checkpoint SHA-256 为
+`7cb379263f8a72e7f9017e4ada9d521a9e25f7c160c061305a92b9822bda2cad`。
+
+唯一一次 official-438、3 windows/sequence、500-step unguided diffusion evaluation 得到：MPJPE
+`17.0285`、end-object `10.0201`、xy `9.5509`、object translation `27.1250`、foot sliding
+`0.3101`、contact F1 `0.3391`。相对 D2-T，MPJPE/end-object/xy/object-translation 的 paired
+improvement 95% CI 分别为 `[17.2038,18.2254]`、`[26.8360,30.3090]`、
+`[7.6452,8.4718]`、`[28.6225,32.0440]`，contact-F1 difference CI 为
+`[0.0323,0.0943]`；这直接支持 H3 loss geometry 是主要机制之一。但 foot-sliding ratio CI 为
+`[1.6229,1.9071]`，超过 `<=1.10` 保护门槛，且相对 Phase-0 released baseline 的 absolute
+MPJPE/end-object/xy/object-translation/contact-F1 gates 仍失败。因此按预注册分类为
+`balanced-objective-negative-stop`，不选择 checkpoint、不启动 CM。
+
+D2-U 与此前 sealed balanced checkpoint 的 descriptive comparison 为：MPJPE `17.0285 vs
+18.7640`、end-object `10.0201 vs 10.8458`、object translation `27.1250 vs 29.7522` 更好；
+xy `9.5509 vs 7.9996`、foot sliding `0.3101 vs 0.2934` 更差；contact F1 `0.3391 vs 0.3386`
+基本相同。故从随机训练的 balanced objective 已复现并略推进既有 balanced checkpoint 的主要
+kinematic/object 能力，但尚未形成可用 HOIPrior，剩余缺口集中为 foot/contact 与 trajectory
+质量的训练期 Pareto，而不是 update rule 或 sampler-only contact heuristic。
+
+训练/evaluation artifacts 已由 worker 主动回收到 authority staging；固定 `LC_ALL=C` tree
+SHA-256 分别为
+`f480ab0223beb998821932f495f882d3067c2d6ab21ddb5fa7578c09ff43a670` 与
+`67704f86e69c12f38d6a0c9382d4ac383396c384c955d81f9264450afc1ce7c3`。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2u_balanced_author_update_s42_20260721.json`。D2-U 至此停止；
+任何下一训练机制必须另行 dated plan/registry amendment，且不得从本 checkpoint 自动启动 CM。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

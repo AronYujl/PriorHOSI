@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1B-D2-U0",
+  "seed": 42,
+  "date": "2026-07-21",
+  "classification": "balanced-objective-negative-stop",
+  "checkpoint_selected": false,
+  "consistency_authorized": false,
+  "training": {
+    "run_id": "p1-hoi-d2u-balanced-author-update-s42-20260721",
+    "git_commit": "c4293735b7a144ddf7a1190e8ecf6e43b9698d18",
+    "random_initialization": true,
+    "released_or_author_or_prior_checkpoint_loaded": false,
+    "processed_windows": 6144000,
+    "optimizer_updates": 3000,
+    "effective_batch_size": 2048,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "loss_weights": {
+      "fk": 0.3569973401779424,
+      "object_surface": 0.4772322188400037,
+      "velocity": 0.1,
+      "terminal_object_goal": 1.0
+    },
+    "final_validation_total": 0.08221689165884527,
+    "wall_seconds": 1916.9227475560037,
+    "throughput_windows_per_second": 3205.1369873060053,
+    "midpoint_checkpoint_sha256": "d040a1f8d4a0e3a762aa766e794bd95679906bb0cb2732ff0b3d5ddff179ea08",
+    "final_checkpoint_sha256": "7cb379263f8a72e7f9017e4ada9d521a9e25f7c160c061305a92b9822bda2cad",
+    "metrics_sha256": "182c71303b6459f907fe1b64ee170e0d7a398bfd4eba2de77cd19ddeafc6c1ab",
+    "manifest_sha256": "8f91dbb30d14da27adb836d6562c10db942e9afb83d38104d8c2f1f350bee4a9",
+    "artifact_tree_sha256": "f480ab0223beb998821932f495f882d3067c2d6ab21ddb5fa7578c09ff43a670"
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-d2u-native-eval-s42-20260721",
+    "protocol": "author-native HOI official 438, three windows per sequence, 500-step unguided diffusion",
+    "target_metrics": {
+      "mpjpe": 17.028522491455078,
+      "end_obj_trans_err": 10.0201316177845,
+      "xy_points_err": 9.550940245389938,
+      "obj_trans_dist": 27.124984708711963,
+      "obj_rot_dist": 1.498042622315591,
+      "trans_dist": 14.900743961334229,
+      "feet_height": 0.0427151694893837,
+      "foot_sliding": 0.3100764522203782,
+      "contact_acc": 0.5212546205696891,
+      "contact_precision": 0.6258985793033619,
+      "contact_recall": 0.27519026224544,
+      "contact_f1": 0.33910090017069644,
+      "contact_percent": 0.21948612017105168,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.14640847441388605,
+      "hand_pen_ratio": 0.09475577622652054,
+      "human_pen_loss_infbagel": 2.596128166444645,
+      "human_pen_ratio": 0.10821714252233505
+    },
+    "d2t_minus_d2u_paired_95_ci": {
+      "mpjpe": [17.20376310840283, 18.225362569808144],
+      "end_obj_trans_err": [26.8359837032777, 30.309023817292875],
+      "xy_points_err": [7.645209500179137, 8.471820902177154],
+      "obj_trans_dist": [28.622509176081458, 32.04401964459281]
+    },
+    "d2u_minus_d2t_contact_f1_95_ci": [0.03226603424174267, 0.09425562891226018],
+    "d2u_over_d2t_foot_sliding_ratio_95_ci": [1.6229024093844662, 1.9071116870581097],
+    "mechanism_checks": {
+      "all_four_kinematic_object_metrics_improved": true,
+      "contact_f1_preserved": true,
+      "foot_sliding_preserved": false
+    },
+    "mechanism_passed": false,
+    "effective_diffusion_passed": false,
+    "metrics_sha256": "e1ade8e70f92147da46bc15c707beae11b46c511f2b9e62ecfffd636f6653290",
+    "aggregate_sha256": "1f898f0f8127dbf7f93b0cc376e575e89e05e11212a6a846dc821dee85f9e5ba",
+    "per_sequence_sha256": "5cf7a88923f4d4c0daa2b3c5e7adac46920cbd51d820dcc6e8003139feeb654b",
+    "manifest_sha256": "7e8676dbf6e04b86d26687fa043fc2da96cd4820ccb2446b7b9497918b10d751",
+    "artifact_tree_sha256": "67704f86e69c12f38d6a0c9382d4ac383396c384c955d81f9264450afc1ce7c3"
+  },
+  "descriptive_comparison": {
+    "d2u_vs_d2t": {
+      "mpjpe_delta": -17.70820915699005,
+      "end_obj_trans_err_delta": -28.536202758550644,
+      "xy_points_err_delta": -8.049159497022629,
+      "obj_trans_dist_delta": -30.32166727188089,
+      "foot_sliding_delta": 0.13393891487128825,
+      "contact_f1_delta": 0.06272378910361365
+    },
+    "d2u_vs_sealed_balanced": {
+      "mpjpe_delta": -1.7354756593704224,
+      "end_obj_trans_err_delta": -0.8256860077381134,
+      "xy_points_err_delta": 1.5513084828853607,
+      "obj_trans_dist_delta": -2.627182090432129,
+      "foot_sliding_delta": 0.016659616338080243,
+      "contact_f1_delta": 0.0004693562137049411
+    }
+  },
+  "conclusion": "The locked balanced objective is a major HOIPrior training mechanism: from random initialization it strongly improves kinematic and object-goal quality over D2-T and matches or exceeds the prior sealed balanced checkpoint on several metrics. It is not sufficient for an effective HOIPrior because foot sliding violates the protected mechanism gate and absolute quality/contact gates remain unmet.",
+  "next_action": "Stop without checkpoint selection or consistency distillation. A new dated subphase should isolate the remaining foot/contact versus kinematic tradeoff without undoing the balanced loss geometry."
+}

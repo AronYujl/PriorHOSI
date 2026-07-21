@@ -275,10 +275,29 @@ class D2UEvaluationAndGovernanceTests(unittest.TestCase):
         self.assertFalse(training["config"]["consistency_authorized"])
         self.assertTrue(evaluation["config"]["control"]["reused_without_regeneration"])
         self.assertFalse(evaluation["config"]["consistency_authorized"])
+        completed = next(item for item in records if item["experiment_id"] ==
+                         "p1-hoi-d2u-native-eval-s42-20260721")
+        self.assertEqual(
+            completed["results"]["classification"],
+            "balanced-objective-negative-stop",
+        )
+        self.assertFalse(completed["results"]["mechanism_passed"])
+        self.assertFalse(completed["results"]["effective_diffusion_passed"])
         plan = (ROOT / "docs/EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
         self.assertIn("D2-U from-random balanced-objective screen", plan)
         self.assertIn("p1-hoi-d2u-native-eval-s42-20260721", plan)
         self.assertIn("自动延长预算", plan)
+        compact = json.loads((
+            ROOT / "experiments/results/"
+            "p1_hoi_phase1b_d2u_balanced_author_update_s42_20260721.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(compact["classification"], "balanced-objective-negative-stop")
+        self.assertFalse(compact["checkpoint_selected"])
+        self.assertFalse(compact["consistency_authorized"])
+        self.assertEqual(
+            compact["training"]["final_checkpoint_sha256"],
+            "7cb379263f8a72e7f9017e4ada9d521a9e25f7c160c061305a92b9822bda2cad",
+        )
 
     def test_model_data_loss_and_diffusion_sources_are_unchanged(self):
         for relative, expected in EXPECTED_FIXED_SOURCE_SHA256.items():
