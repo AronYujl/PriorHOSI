@@ -2169,6 +2169,55 @@ staging tree SHA-256 分别为
 即可得到有效 diffusion HOIPrior”，但不否定 HOIPrior；下一训练方向必须重新预注册并针对仍未隔离的
 architecture/condition/loss mechanism。不得从 D2-T checkpoint 启动 CM 或进行观察后 checkpoint selection。
 
+#### 2026-07-21 Phase 1B D2-U from-random balanced-objective screen 预注册
+
+D2-T 已用随机初始化、作者 DDPM update-rule contract 和 6,144,000-window 固定预算排除“只要把
+Adam/LR/effective batch/FP32/无 EMA 等更新规则对齐即可学成 HOIPrior”：其 official-438
+MPJPE/end-object/xy/object-translation 均显著差于 sealed balanced control。另一方面，D2-I 的
+parameter-gradient audit 显示原 `50×FK + 50×object-surface` 在高噪声时令 auxiliary/reconstruction
+gradient-norm ratio 约为 90--126；D2-L 证明锁定的 balanced 权重能直接修正 raw gradient routing，
+D2-M/D2-N 则显示 balanced objective 可大幅改善已有模型的 kinematics/object-goal，但 D2-M 只有
+64 updates 且受 AMP overflow divergence 与旧训练 lineage 限制。D2-U 因而只检验 H3 loss geometry：
+在 D2-T 的 clean from-random update contract 上替换这两个已预先锁定的权重，不改变 architecture、
+condition、representation、data、diffusion、sampler 或 optimization。
+
+1. **唯一 manipulated factor。** intervention run id 固定为
+   `p1-hoi-d2u-balanced-author-update-s42-20260721`、subphase `1B-D2-U0`、seed 42。相对已完成
+   D2-T，唯一改变为 `fk_weight: 50.0 -> 0.3569973401779424` 与
+   `object_surface_weight: 50.0 -> 0.4772322188400037`；`velocity_weight=0.1`、
+   `goal_weight=1.0` 不变。权重来自 D2-I locked aggregate，不根据 D2-U 结果重新调参。
+2. **固定训练 contract。** 必须从随机初始化开始，保留 232-D state、16-frame window、2-frame
+   history、512-wide/16-head/8-layer Transformer、500-step x0 diffusion、原 data/split/condition/
+   sampler。只在四卡 `infbagel-4gpu/node01` 运行：4×RTX 3090、batch/GPU 512、accumulation 1、
+   effective batch 2048、Adam `(0.9,0.999)`、constant LR `1e-4`、FP32、无 warmup/scheduler/
+   weight decay/clipping/AMP/EMA，3,000 updates、6,144,000 processed windows，midpoint/final
+   checkpoint 与 validation cadence 完全复用 D2-T。禁止加载 released、author、source、current、
+   balanced、D2-T、prior、resume 或任何 EMA checkpoint；不得设置 `d2m_candidate`。
+3. **实现和 lifecycle。** 新增独立 D2-U Hydra config 与 fail-closed mode；D2-T exact contract
+   必须保持不变。代码、config、tests、plan、registry 和 target-only evaluator/gate runner 组成一个
+   logical commit。authority 完成 registry validation、targeted/full tests、compile 与 diff check 后，
+   worker 只能 worker-initiated fast-forward 到 exact commit。训练前必须归档无 unresolved
+   interpolation 的 resolved config、同一 escalated context 的四卡 preflight，并通过
+   `tools/experiment.py start` 创建不覆盖旧结果的 manifest；detached workload 不依赖 SSH 存活。
+4. **mechanism gate。** D2-U final online checkpoint 使用与 D2-T 完全相同的 author-native HOI
+   official-438、每序列三窗口、500-step unguided diffusion evaluator；独立 evaluation lifecycle
+   run id 固定为 `p1-hoi-d2u-native-eval-s42-20260721`、subphase `1B-D2-U0-eval`。逐 sequence、10,000 paired
+   bootstrap、seed 42：`D2-T minus D2-U` 的 MPJPE、end-object、xy、object-translation improvement
+   CI 下界均须 `>0`；`D2-U minus D2-T` contact-F1 CI 下界须 `>=-0.02`；D2-U/D2-T
+   foot-sliding ratio CI 上界须 `<=1.10`。D2-T per-sequence records 只读复用，不重新生成。
+5. **absolute effective-diffusion gate。** 同时相对 Phase-0 released aggregate 满足 MPJPE ratio
+   `<=1.30`、end-object `<=2.00`、xy `<=1.50`、object-translation `<=1.50`、foot-sliding
+   `<=1.10` 且 contact F1 `>=0.60`，才分类为 `effective-diffusion-hoi-prior-stop`。mechanism
+   gate 通过但 absolute gate 失败，分类 `balanced-objective-positive-but-not-effective-stop`；任一
+   mechanism 条件失败分类 `balanced-objective-negative-stop`；contract/hash/lifecycle 失败分类
+   `balanced-objective-contract-failure-stop`。
+6. **停止规则和 artifact contract。** 无论结果如何，D2-U 训练与 official evaluation 后停止；不得
+   自动延长预算、选择 midpoint、修改 contact loss、启动 architecture/condition intervention 或 CM。
+   必须保留 resolved config、preflight、manifest、日志、loss/validation、midpoint/final checkpoint
+   hashes、RNG/checkpoint-resume 证据、official aggregate/per-sequence/bootstrap/gate JSON、artifact-tree
+   hash 和 negative result。只有 absolute gate 通过后，用户才可另行授权选择 final checkpoint，并以
+   新 dated amendment 讨论从自主训练 HOIPrior diffusion checkpoint 开始的 consistency stage。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

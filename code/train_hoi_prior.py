@@ -203,6 +203,7 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "scheduler_name": str(cfg.get("scheduler_name", "cosine")),
         "primary_weight_variant": str(cfg.get("primary_weight_variant", "ema_0.9999")),
         "d2t_author_update_rule": bool(cfg.get("d2t_author_update_rule", False)),
+        "d2u_balanced_author_update": bool(cfg.get("d2u_balanced_author_update", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
@@ -237,23 +238,31 @@ def _is_d2t(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2t_author_update_rule", False))
 
 
+def _is_d2u(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2u_balanced_author_update", False))
+
+
+def _uses_author_update_rule(cfg: DictConfig) -> bool:
+    return _is_d2t(cfg) or _is_d2u(cfg)
+
+
 def _optimization_contract(cfg: DictConfig) -> Dict[str, object]:
-    d2t = _is_d2t(cfg)
+    author_update = _uses_author_update_rule(cfg)
     return {
-        "optimizer": "Adam" if d2t else "AdamW",
+        "optimizer": "Adam" if author_update else "AdamW",
         "betas": [float(cfg.beta1), float(cfg.beta2)],
         "weight_decay": float(cfg.weight_decay),
         "learning_rate": float(cfg.learning_rate),
-        "scheduler": "none" if d2t else "cosine",
+        "scheduler": "none" if author_update else "cosine",
         "warmup_windows": int(cfg.warmup_windows),
-        "gradient_clipping": bool(cfg.get("gradient_clipping", not d2t)),
+        "gradient_clipping": bool(cfg.get("gradient_clipping", not author_update)),
         "gradient_clip_norm": (
             None if cfg.gradient_clip_norm in (None, "", False) else float(cfg.gradient_clip_norm)
         ),
         "amp": bool(cfg.amp),
         "ema_decays": [float(value) for value in cfg.ema_decays],
         "primary_weight_variant": str(
-            cfg.get("primary_weight_variant", "online" if d2t else "ema_0.9999")
+            cfg.get("primary_weight_variant", "online" if author_update else "ema_0.9999")
         ),
     }
 
@@ -264,6 +273,7 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
     expected_run_id = "p1-hoi-d2t-author-update-rule-s42-20260721"
     exact = {
         "mode": str(cfg.mode) == "d2t-author-update-rule",
+        "d2u_mode_off": not _is_d2u(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-T0",
         "run_id": str(cfg.run_id) == expected_run_id,
         "seed": int(cfg.seed) == 42,
@@ -303,25 +313,94 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
         raise ValueError(f"D2-T author update-rule contract mismatch: {failed}")
 
 
+def _validate_d2u_contract(cfg: DictConfig, world_size: int) -> None:
+    if not _is_d2u(cfg):
+        return
+    exact = {
+        "mode": str(cfg.mode) == "d2u-balanced-author-update",
+        "d2t_mode_off": not _is_d2t(cfg),
+        "subphase": str(cfg.subphase) == "1B-D2-U0",
+        "run_id": str(cfg.run_id) == "p1-hoi-d2u-balanced-author-update-s42-20260721",
+        "seed": int(cfg.seed) == 42,
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "max_processed_windows": int(cfg.max_processed_windows) == 6144000,
+        "optimizer_updates": int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 3000,
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "balanced_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint, cfg.resume_checkpoint, cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256, cfg.weight_init_variant, cfg.d2m_candidate,
+            )
+        ),
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-U balanced author-update contract mismatch: {failed}")
+
+
+def _validate_author_update_execution_host(cfg: DictConfig) -> None:
+    if not _uses_author_update_rule(cfg):
+        return
+    label = "D2-U" if _is_d2u(cfg) else "D2-T"
+    if socket.gethostname() != "node01":
+        raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
+    if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
+        raise RuntimeError(f"{label} requires INFBAGEL_WORKER_EXPERT=hoi")
+    expected_python = "/home/yujinlun/data/envs/infbagel/bin/python"
+    if os.environ.get("INFBAGEL_PYTHON") != expected_python:
+        raise RuntimeError(f"{label} requires INFBAGEL_PYTHON={expected_python}")
+    if Path(sys.executable).resolve() != Path(expected_python).resolve():
+        raise RuntimeError(f"{label} must execute with {expected_python}")
+
+
 def _validate_d2t_execution_host(cfg: DictConfig) -> None:
     if not _is_d2t(cfg):
         return
-    if socket.gethostname() != "node01":
-        raise RuntimeError("D2-T HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
-    if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
-        raise RuntimeError("D2-T requires INFBAGEL_WORKER_EXPERT=hoi")
-    expected_python = "/home/yujinlun/data/envs/infbagel/bin/python"
-    if os.environ.get("INFBAGEL_PYTHON") != expected_python:
-        raise RuntimeError(f"D2-T requires INFBAGEL_PYTHON={expected_python}")
-    if Path(sys.executable).resolve() != Path(expected_python).resolve():
-        raise RuntimeError(f"D2-T must execute with {expected_python}")
+    _validate_author_update_execution_host(cfg)
+
+
+def _validate_d2u_execution_host(cfg: DictConfig) -> None:
+    if not _is_d2u(cfg):
+        return
+    _validate_author_update_execution_host(cfg)
 
 
 def _build_optimizer(
     cfg: DictConfig,
     parameters: Iterable[torch.nn.Parameter],
 ) -> torch.optim.Optimizer:
-    optimizer_class = Adam if _is_d2t(cfg) else AdamW
+    optimizer_class = Adam if _uses_author_update_rule(cfg) else AdamW
     return optimizer_class(
         parameters, lr=float(cfg.learning_rate), weight_decay=float(cfg.weight_decay),
         betas=(float(cfg.beta1), float(cfg.beta2)),
@@ -334,7 +413,7 @@ def _build_scheduler(
     total_updates: int,
     warmup_updates: int,
 ) -> Optional[LambdaLR]:
-    if _is_d2t(cfg):
+    if _uses_author_update_rule(cfg):
         return None
     return LambdaLR(
         optimizer,
@@ -358,9 +437,9 @@ def _primary_validation_model(
     model: DistributedDataParallel,
     ema_models: Mapping[str, torch.nn.Module],
 ) -> torch.nn.Module:
-    if _is_d2t(cfg):
+    if _uses_author_update_rule(cfg):
         if ema_models:
-            raise ValueError("D2-T validation forbids EMA models")
+            raise ValueError("author-update validation forbids EMA models")
         return model.module
     return ema_models["0.9999"]
 
@@ -562,7 +641,10 @@ def _checkpoint_value(
         "scaler": scaler.state_dict() if bool(cfg.amp) else None,
         "optimization_contract": _optimization_contract(cfg),
         "primary_weight_variant": str(
-            cfg.get("primary_weight_variant", "online" if _is_d2t(cfg) else "ema_0.9999")
+            cfg.get(
+                "primary_weight_variant",
+                "online" if _uses_author_update_rule(cfg) else "ema_0.9999",
+            )
         ),
         "rng_pattern": rng_pattern,
         "weight_initialization": dict(weight_initialization),
@@ -687,7 +769,8 @@ def _load_resume(
 def _worker(rank: int, cfg: DictConfig) -> None:
     world_size = int(cfg.num_gpus)
     _validate_d2t_contract(cfg, world_size)
-    _validate_d2t_execution_host(cfg)
+    _validate_d2u_contract(cfg, world_size)
+    _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -727,14 +810,22 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         "terminal_goal": float(cfg.goal_weight),
     }
     if d2m_candidate is None:
-        if configured_weights != {
+        locked_weights = {
             "fk": 50.0,
             "object_surface": 50.0,
             "velocity": 0.1,
             "terminal_goal": 1.0,
-        }:
+        }
+        if _is_d2u(cfg):
+            locked_weights = {
+                "fk": 0.3569973401779424,
+                "object_surface": 0.4772322188400037,
+                "velocity": 0.1,
+                "terminal_goal": 1.0,
+            }
+        if configured_weights != locked_weights:
             raise ValueError(
-                "Phase 1B remediation loss weights are locked at FK/surface/velocity/goal=50/50/0.1/1"
+                "Phase 1B loss weights do not match the registered training mode"
             )
         if cfg.weight_init_checkpoint not in (None, "", False):
             raise ValueError("weight-only initialization requires a registered D2-M candidate")
@@ -809,10 +900,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     weight_initialization = _load_weight_initialization(cfg, model)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
     ema_decays = [float(value) for value in cfg.ema_decays]
-    if not _is_d2t(cfg) and ema_decays != [0.999, 0.9999]:
+    if not _uses_author_update_rule(cfg) and ema_decays != [0.999, 0.9999]:
         raise ValueError("Phase 1B remediation requires EMA decays 0.999 and 0.9999")
-    if _is_d2t(cfg) and ema_decays:
-        raise ValueError("D2-T forbids EMA models")
+    if _uses_author_update_rule(cfg) and ema_decays:
+        raise ValueError("author-update modes forbid EMA models")
     ema_models = {
         str(decay): copy.deepcopy(model.module).requires_grad_(False).eval()
         for decay in ema_decays
@@ -1115,7 +1206,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "scheduler_class": None if scheduler is None else scheduler.__class__.__name__,
                 "gradient_clipping_enabled": bool(cfg.get("gradient_clipping", True)),
                 "primary_weight_variant": str(
-                    cfg.get("primary_weight_variant", "online" if _is_d2t(cfg) else "ema_0.9999")
+                    cfg.get(
+                        "primary_weight_variant",
+                        "online" if _uses_author_update_rule(cfg) else "ema_0.9999",
+                    )
                 ),
                 "warmup_windows": int(cfg.warmup_windows),
                 "warmup_updates": warmup_updates,
@@ -1176,7 +1270,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg), flush=True)
     _validate_d2t_contract(cfg, int(cfg.num_gpus))
-    _validate_d2t_execution_host(cfg)
+    _validate_d2u_contract(cfg, int(cfg.num_gpus))
+    _validate_author_update_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")
     os.environ["MASTER_ADDR"] = "127.0.0.1"

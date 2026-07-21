@@ -51,6 +51,8 @@ weight_init_sha256: null
 weight_init_variant: null
 d2m_candidate: null
 d2m_rng_audit: false
+d2t_author_update_rule: false
+d2u_balanced_author_update: false
 profile_every_update: true
 
 output_dir: ${repo_root}/results/experiments/${run_id}
