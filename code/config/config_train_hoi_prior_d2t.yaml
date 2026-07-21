@@ -1,0 +1,53 @@
+defaults:
+  - config_train_hoi_prior
+  - _self_
+
+mode: d2t-author-update-rule
+subphase: 1B-D2-T0
+run_id: p1-hoi-d2t-author-update-rule-s42-20260721
+seed: 42
+
+d2t_author_update_rule: true
+optimizer_name: Adam
+scheduler_name: none
+gradient_clipping: false
+primary_weight_variant: online
+
+num_gpus: 4
+batch_size: 512
+effective_batch_size: 2048
+gradient_accumulation_steps: 1
+num_workers: 4
+dataset_limit: 0
+
+max_processed_windows: 6144000
+validation_windows: 32768
+validation_batch_size: 512
+validation_interval_windows: 3072000
+checkpoint_interval_windows: 3072000
+pause_after_windows: null
+
+learning_rate: 0.0001
+warmup_windows: 0
+minimum_lr_ratio: 1.0
+weight_decay: 0.0
+beta1: 0.9
+beta2: 0.999
+gradient_clip_norm: null
+ema_decays: []
+amp: false
+max_consecutive_amp_overflows: 0
+
+fk_weight: 50.0
+object_surface_weight: 50.0
+velocity_weight: 0.1
+goal_weight: 1.0
+
+init_checkpoint: null
+resume_checkpoint: null
+weight_init_checkpoint: null
+weight_init_sha256: null
+weight_init_variant: null
+d2m_candidate: null
+d2m_rng_audit: false
+profile_every_update: true

@@ -2018,6 +2018,61 @@ config、preflight/hardware snapshot 与 run-local registry SHA-256 分别为
 D2-H1、D2-G、smoke/training、official/CHOIS 或后续 phase，任何新 intervention 必须另做 dated
 amendment 并等待用户确认。
 
+#### 2026-07-21 Phase 1B D2-T author-DDPM update-rule parity screen 预注册
+
+作者自主训练的 InfBaGel diffusion epoch500 已在 official 438-sequence HOI evaluator 上形成有效
+HOI 能力，而 D2-H 已证明当前 HOIPrior 存在 model-parent reverse-state exposure 放大。两项证据共同
+否定“一致性蒸馏是基础能力的唯一来源”，但尚未区分当前 HOIPrior 的失败主要来自 model/condition/
+loss 机制，还是此前与作者 DDPM 明显不同的 update-rule contract。D2-T0 因而只把训练更新规则对齐
+到作者 DDPM；保持 HOIPrior 的独立 232-D prior、network、conditions、diffusion、loss、data 与 sampler
+不变。它不是作者网络移植，不加载 released 或自主训练作者 checkpoint，也不授权 consistency stage。
+
+1. **唯一 manipulated factor。** control 为 sealed R1024 HOIPrior；intervention 固定为
+   `p1-hoi-d2t-author-update-rule-s42-20260721`、subphase `1B-D2-T0`、seed 42。D2-T 将一组不可拆分的
+   optimizer/update-rule contract 作为唯一 factor：4×RTX 3090、per-GPU batch 512、gradient
+   accumulation 1、effective batch 2048、Adam (`betas=(0.9,0.999)`、weight decay 0)、constant
+   LR `1e-4`、FP32、无 warmup/cosine、无 global gradient clipping、无 EMA selection，只保存/评估
+   online model。该组合同来自作者 DDPM 的实际训练更新规则；不得只挑其中观察后有利的子项。
+2. **fixed controls。** 保持 `WindowStateCodec` 与 232-D representation、16-frame window、2-frame
+   immutable history、scene-free independent HOIPrior、512-wide/16-head/8-layer network、现有 timestep/
+   text/BPS/goal/progress/history condition routing、500-step x0 DDPM、训练 split、seed 42、random
+   initialization、FK/surface/velocity/terminal-goal weights `50/50/0.1/1`、normalization、dataset sampler
+   与 processed-window budget `6,144,000` 不变；对应 3,000 optimizer updates。validation 固定
+   32,768 windows，在 3,072,000 与 6,144,000 processed windows 评估；checkpoint 同步保留 midpoint
+   与 terminal online weights。禁止 CFG、dynamic perception、contact/bump guidance、任何 sampler
+   intervention、released/author checkpoint、旧 HOIPrior initialization/resume、CM/teacher/student/target。
+3. **execution ownership 与 lifecycle。** authority/integration host `10.184.17.253` 只做开发、CPU/static
+   tests、commit、manifest recovery 与未来 HSI 工作，明确禁止运行任何 HOIPrior CUDA workload。
+   D2-T 只能在 `infbagel-4gpu`（worker `10.181.9.214`）执行；worker 必须主动 fetch 精确 commit，使用
+   `/home/yujinlun/data/envs/infbagel/bin/python`，显式设置 `INFBAGEL_PYTHON` 与
+   `INFBAGEL_WORKER_EXPERT=hoi`。先归档 fully resolved Hydra config，再由 clean worker checkout 运行
+   `tools/experiment.py start`，核验四张 RTX 3090、无 contention、commit/config/assets hashes 与 worker
+   role 后，才可在 worker-owned persistent session 启动。旧 run id、脏 checkout、authority CUDA、
+   非四卡 topology 或缺少 lifecycle manifest 均为 contract failure；不得静默降 batch、改 accumulation
+   或在当前服务器代跑。
+4. **mechanism gate。** 使用与 sealed R1024 相同的 author-native HOI evaluation protocol、official
+   438 sequences、500-step unguided diffusion loop、online weights、sequence-paired 10,000-replicate
+   bootstrap（seed 42）。除 finite、checkpoint/config/hash/lifecycle、official-438、paired-unit 和禁止
+   checkpoint-load contracts 全部通过外，D2-T 相对 sealed R1024 必须同时满足：MPJPE、end-object
+   error、xy error、object-translation error 的 paired improvement 95% CI 下界均 `>0`；contact F1
+   difference CI 下界 `>=-0.02`；foot-sliding D2-T/R1024 paired mean-ratio CI 上界 `<=1.10`。
+   任一失败分类 `author-update-rule-negative-stop`，不选择 checkpoint、不进入 CM。
+5. **effective-diffusion gate。** mechanism gate 通过后，再相对 released Phase-0 author-native baseline
+   检查 MPJPE ratio `<=1.30`、end-object ratio `<=2.00`、xy ratio `<=1.50`、object-translation ratio
+   `<=1.50`、foot-sliding ratio `<=1.10` 且 contact F1 `>=0.60`。mechanism pass 但该绝对 gate 失败，
+   分类 `positive-but-not-effective-diffusion-stop`；两 gate 全通过才可称为 usable diffusion HOIPrior。
+   单 training seed 只支持该 preregistered mechanism screen，不得外推训练方差或 main-table 稳健性。
+6. **实现、测试、artifact 与停止规则。** 新增独立 D2-T config，并对 optimizer class、constant LR、
+   FP32、no clipping、no EMA、online validation/checkpoint、3,000 updates、random-only initialization、
+   worker host/role 和 model/data/diffusion/loss source invariance 加 fail-closed guards/tests。checkpoint
+   必须记录 optimizer/scheduler/clipping/AMP/primary-weight metadata，且 `ema_models={}`、不写 legacy
+   `ema_model`。artifact 至少包括 manifest、resolved config、preflight/hardware snapshot、training log、
+   metrics/state、midpoint/terminal checkpoint 与 hashes、native evaluation aggregate/per-sequence records、
+   bootstrap/gate summary 和 append-only registry completion。任何确定实现 defect、OOM、NaN、hash/
+   lifecycle failure 或 gate negative 均登记全部负结果并停止；不得观察结果后改变 update-rule factor、
+   训练预算、checkpoint variant、evaluator 或阈值。只有 effective-diffusion gate 通过后，才可另行提出
+   并预注册从自主训练 HOIPrior diffusion checkpoint 开始的 consistency stage。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

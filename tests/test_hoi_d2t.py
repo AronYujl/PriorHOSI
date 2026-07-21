@@ -1,0 +1,190 @@
+import hashlib
+import json
+import os
+import sys
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
+
+import torch
+from omegaconf import OmegaConf
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "code"))
+
+from train_hoi_prior import (
+    _build_optimizer,
+    _build_scheduler,
+    _checkpoint_value,
+    _gradient_l2_norm,
+    _optimization_contract,
+    _primary_validation_model,
+    _validate_d2t_contract,
+    _validate_d2t_execution_host,
+)
+
+
+EXPECTED_FIXED_SOURCE_SHA256 = {
+    "code/priors/representation.py": "a510b4ddfb4f6b60e3917219a87898a717d91cbfb858d0993f3e054b5a1abf74",
+    "code/priors/window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
+    "code/priors/data.py": "62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5",
+    "code/priors/models.py": "f7bb304a7358cb6a667756c14d6eed3eb3fb69644888d5aa1153a44b90ae71b0",
+    "code/priors/losses.py": "36f9aa1b19c91fe7e59caa29068ff343bc3c74b3b9053ece8212c1aaf0c82821",
+    "code/priors/diffusion.py": "f006c89758807f4d23059f5d97e0b673dbd0d867f4f2859b832fcf37ac1e901a",
+}
+
+
+def d2t_config():
+    base = OmegaConf.load(ROOT / "code/config/config_train_hoi_prior.yaml")
+    intervention = OmegaConf.load(ROOT / "code/config/config_train_hoi_prior_d2t.yaml")
+    cfg = OmegaConf.merge(base, intervention)
+    cfg.repo_root = str(ROOT)
+    cfg.split_manifest = str(
+        ROOT / "experiments/splits/omomo_hoi_train_validation_seed42.json"
+    )
+    return cfg
+
+
+class D2TUpdateRuleTests(unittest.TestCase):
+    def test_exact_config_and_optimizer_contract(self):
+        cfg = d2t_config()
+        _validate_d2t_contract(cfg, 4)
+        parameter = torch.nn.Parameter(torch.tensor([1.0]))
+        optimizer = _build_optimizer(cfg, [parameter])
+        scheduler = _build_scheduler(cfg, optimizer, 3000, 0)
+        self.assertIs(type(optimizer), torch.optim.Adam)
+        self.assertIsNone(scheduler)
+        self.assertEqual(optimizer.defaults["lr"], 0.0001)
+        self.assertEqual(optimizer.defaults["betas"], (0.9, 0.999))
+        self.assertEqual(optimizer.defaults["weight_decay"], 0.0)
+        self.assertEqual(cfg.max_processed_windows // cfg.effective_batch_size, 3000)
+        self.assertEqual(
+            _optimization_contract(cfg),
+            {
+                "optimizer": "Adam",
+                "betas": [0.9, 0.999],
+                "weight_decay": 0.0,
+                "learning_rate": 0.0001,
+                "scheduler": "none",
+                "warmup_windows": 0,
+                "gradient_clipping": False,
+                "gradient_clip_norm": None,
+                "amp": False,
+                "ema_decays": [],
+                "primary_weight_variant": "online",
+            },
+        )
+
+    def test_contract_fails_closed_on_single_field_change(self):
+        cfg = d2t_config()
+        cfg.learning_rate = 0.0003
+        with self.assertRaisesRegex(ValueError, "learning_rate"):
+            _validate_d2t_contract(cfg, 4)
+        cfg = d2t_config()
+        cfg.resume_checkpoint = "/tmp/forbidden.pth"
+        with self.assertRaisesRegex(ValueError, "random_initialization"):
+            _validate_d2t_contract(cfg, 4)
+
+    def test_unclipped_gradient_norm_is_observational(self):
+        first = torch.nn.Parameter(torch.tensor([3.0]))
+        second = torch.nn.Parameter(torch.tensor([4.0]))
+        first.grad = torch.tensor([3.0])
+        second.grad = torch.tensor([4.0])
+        before = (first.grad.clone(), second.grad.clone())
+        self.assertEqual(float(_gradient_l2_norm([first, second])), 5.0)
+        torch.testing.assert_close(first.grad, before[0])
+        torch.testing.assert_close(second.grad, before[1])
+
+    def test_validation_and_checkpoint_use_online_only(self):
+        cfg = d2t_config()
+        module = torch.nn.Linear(2, 2)
+        wrapper = SimpleNamespace(module=module)
+        self.assertIs(_primary_validation_model(cfg, wrapper, {}), module)
+        optimizer = _build_optimizer(cfg, module.parameters())
+        scaler = torch.cuda.amp.GradScaler(enabled=False)
+        value = _checkpoint_value(
+            cfg,
+            wrapper,
+            {},
+            optimizer,
+            None,
+            scaler,
+            world_size=4,
+            processed_windows=6144000,
+            optimizer_updates=3000,
+            amp_overflow_skips=0,
+            epoch=10,
+            batches_consumed_in_epoch=20,
+            rng_pattern="checkpoint.rank{rank}.rng.pth",
+            weight_initialization={"mode": "random", "restored_components": []},
+        )
+        self.assertEqual(value["ema_models"], {})
+        self.assertNotIn("ema_model", value)
+        self.assertIsNone(value["scheduler"])
+        self.assertIsNone(value["scaler"])
+        self.assertEqual(value["primary_weight_variant"], "online")
+        self.assertEqual(value["optimization_contract"]["optimizer"], "Adam")
+
+    def test_worker_host_and_environment_are_fail_closed(self):
+        cfg = d2t_config()
+        with mock.patch("socket.gethostname", return_value="ubuntu"):
+            with self.assertRaisesRegex(RuntimeError, "infbagel-4gpu/node01"):
+                _validate_d2t_execution_host(cfg)
+        environment = {
+            "INFBAGEL_WORKER_EXPERT": "hoi",
+            "INFBAGEL_PYTHON": "/home/yujinlun/data/envs/infbagel/bin/python",
+        }
+        with mock.patch("socket.gethostname", return_value="node01"), mock.patch.dict(
+            os.environ, environment, clear=False,
+        ), mock.patch("train_hoi_prior.sys.executable", environment["INFBAGEL_PYTHON"]):
+            _validate_d2t_execution_host(cfg)
+
+
+class D2TScientificAndGovernanceTests(unittest.TestCase):
+    def test_model_data_diffusion_and_loss_sources_are_unchanged(self):
+        for relative, expected in EXPECTED_FIXED_SOURCE_SHA256.items():
+            actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+            self.assertEqual(actual, expected, relative)
+
+    def test_registry_locks_worker_lifecycle_and_no_checkpoint_load(self):
+        records = [
+            json.loads(line)
+            for line in (ROOT / "experiments/registry.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()
+        ]
+        record = next(
+            item for item in records
+            if item["experiment_id"]
+            == "p1-hoi-d2t-author-update-rule-preregister-s42-20260721"
+        )
+        config = record["config"]
+        self.assertEqual(config["execution_host"], "infbagel-4gpu")
+        self.assertEqual(config["worker_address"], "10.181.9.214")
+        self.assertTrue(config["authority_hoi_cuda_forbidden"])
+        self.assertEqual(config["manipulated_factor"]["effective_batch_size"], 2048)
+        self.assertEqual(config["fixed"]["optimizer_updates"], 3000)
+        self.assertEqual(config["forbidden_load"], [
+            "released_checkpoint",
+            "author_diffusion_checkpoint",
+            "author_consistency_checkpoint",
+            "prior_checkpoint",
+            "resume_checkpoint",
+            "ema_model",
+            "ema_models",
+        ])
+        self.assertFalse(config["consistency_authorized"])
+
+    def test_plan_names_exact_lifecycle_and_stop_contract(self):
+        plan = (ROOT / "docs/EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
+        self.assertIn("D2-T author-DDPM update-rule parity screen", plan)
+        self.assertIn("tools/experiment.py start", plan)
+        self.assertIn("10.184.17.253", plan)
+        self.assertIn("明确禁止运行任何 HOIPrior CUDA workload", plan)
+        self.assertIn("只有 effective-diffusion gate 通过后", plan)
+
+
+if __name__ == "__main__":
+    unittest.main()

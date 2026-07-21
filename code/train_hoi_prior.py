@@ -11,6 +11,7 @@ import os
 import random
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
@@ -20,7 +21,7 @@ import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 from torch.nn.parallel import DistributedDataParallel
-from torch.optim import AdamW
+from torch.optim import Adam, AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -194,7 +195,14 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "minimum_lr_ratio": float(cfg.minimum_lr_ratio),
         "weight_decay": float(cfg.weight_decay),
         "betas": [float(cfg.beta1), float(cfg.beta2)],
-        "gradient_clip_norm": float(cfg.gradient_clip_norm),
+        "gradient_clip_norm": (
+            None if cfg.gradient_clip_norm in (None, "", False) else float(cfg.gradient_clip_norm)
+        ),
+        "gradient_clipping": bool(cfg.get("gradient_clipping", True)),
+        "optimizer_name": str(cfg.get("optimizer_name", "AdamW")),
+        "scheduler_name": str(cfg.get("scheduler_name", "cosine")),
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "ema_0.9999")),
+        "d2t_author_update_rule": bool(cfg.get("d2t_author_update_rule", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
@@ -223,6 +231,138 @@ def _lr_lambda(update: int, total_updates: int, warmup_updates: int, minimum_rat
     remaining = max(total_updates - warmup_updates, 1)
     progress = min(max((update - warmup_updates) / remaining, 0.0), 1.0)
     return minimum_ratio + (1.0 - minimum_ratio) * 0.5 * (1.0 + math.cos(math.pi * progress))
+
+
+def _is_d2t(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2t_author_update_rule", False))
+
+
+def _optimization_contract(cfg: DictConfig) -> Dict[str, object]:
+    d2t = _is_d2t(cfg)
+    return {
+        "optimizer": "Adam" if d2t else "AdamW",
+        "betas": [float(cfg.beta1), float(cfg.beta2)],
+        "weight_decay": float(cfg.weight_decay),
+        "learning_rate": float(cfg.learning_rate),
+        "scheduler": "none" if d2t else "cosine",
+        "warmup_windows": int(cfg.warmup_windows),
+        "gradient_clipping": bool(cfg.get("gradient_clipping", not d2t)),
+        "gradient_clip_norm": (
+            None if cfg.gradient_clip_norm in (None, "", False) else float(cfg.gradient_clip_norm)
+        ),
+        "amp": bool(cfg.amp),
+        "ema_decays": [float(value) for value in cfg.ema_decays],
+        "primary_weight_variant": str(
+            cfg.get("primary_weight_variant", "online" if d2t else "ema_0.9999")
+        ),
+    }
+
+
+def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
+    if not _is_d2t(cfg):
+        return
+    expected_run_id = "p1-hoi-d2t-author-update-rule-s42-20260721"
+    exact = {
+        "mode": str(cfg.mode) == "d2t-author-update-rule",
+        "subphase": str(cfg.subphase) == "1B-D2-T0",
+        "run_id": str(cfg.run_id) == expected_run_id,
+        "seed": int(cfg.seed) == 42,
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "max_processed_windows": int(cfg.max_processed_windows) == 6144000,
+        "optimizer_updates": int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 3000,
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint, cfg.resume_checkpoint, cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256, cfg.weight_init_variant, cfg.d2m_candidate,
+            )
+        ),
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-T author update-rule contract mismatch: {failed}")
+
+
+def _validate_d2t_execution_host(cfg: DictConfig) -> None:
+    if not _is_d2t(cfg):
+        return
+    if socket.gethostname() != "node01":
+        raise RuntimeError("D2-T HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
+    if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
+        raise RuntimeError("D2-T requires INFBAGEL_WORKER_EXPERT=hoi")
+    expected_python = "/home/yujinlun/data/envs/infbagel/bin/python"
+    if os.environ.get("INFBAGEL_PYTHON") != expected_python:
+        raise RuntimeError(f"D2-T requires INFBAGEL_PYTHON={expected_python}")
+    if Path(sys.executable).resolve() != Path(expected_python).resolve():
+        raise RuntimeError(f"D2-T must execute with {expected_python}")
+
+
+def _build_optimizer(
+    cfg: DictConfig,
+    parameters: Iterable[torch.nn.Parameter],
+) -> torch.optim.Optimizer:
+    optimizer_class = Adam if _is_d2t(cfg) else AdamW
+    return optimizer_class(
+        parameters, lr=float(cfg.learning_rate), weight_decay=float(cfg.weight_decay),
+        betas=(float(cfg.beta1), float(cfg.beta2)),
+    )
+
+
+def _build_scheduler(
+    cfg: DictConfig,
+    optimizer: torch.optim.Optimizer,
+    total_updates: int,
+    warmup_updates: int,
+) -> Optional[LambdaLR]:
+    if _is_d2t(cfg):
+        return None
+    return LambdaLR(
+        optimizer,
+        lambda update: _lr_lambda(update, total_updates, warmup_updates, float(cfg.minimum_lr_ratio)),
+    )
+
+
+def _gradient_l2_norm(parameters: Iterable[torch.nn.Parameter]) -> torch.Tensor:
+    norms = [
+        parameter.grad.detach().norm(2)
+        for parameter in parameters
+        if parameter.grad is not None
+    ]
+    if not norms:
+        return torch.tensor(float("nan"))
+    return torch.stack(norms).norm(2)
+
+
+def _primary_validation_model(
+    cfg: DictConfig,
+    model: DistributedDataParallel,
+    ema_models: Mapping[str, torch.nn.Module],
+) -> torch.nn.Module:
+    if _is_d2t(cfg):
+        if ema_models:
+            raise ValueError("D2-T validation forbids EMA models")
+        return model.module
+    return ema_models["0.9999"]
 
 
 def _move_batch(batch: Dict[str, torch.Tensor], device: torch.device) -> Dict[str, torch.Tensor]:
@@ -377,6 +517,62 @@ def _restore_rng(value: Dict[str, object]) -> None:
     torch.cuda.set_rng_state(value["cuda"])
 
 
+def _checkpoint_value(
+    cfg: DictConfig,
+    model: DistributedDataParallel,
+    ema_models: Mapping[str, torch.nn.Module],
+    optimizer: torch.optim.Optimizer,
+    scheduler: Optional[LambdaLR],
+    scaler: torch.cuda.amp.GradScaler,
+    *,
+    world_size: int,
+    processed_windows: int,
+    optimizer_updates: int,
+    amp_overflow_skips: int,
+    epoch: int,
+    batches_consumed_in_epoch: int,
+    rng_pattern: str,
+    weight_initialization: Mapping[str, object],
+) -> Dict[str, object]:
+    value = {
+        "schema_version": 2,
+        "checkpoint_type": "hoi_prior_phase1b",
+        "window_state_codec": "state-compositional-v1",
+        "expert": "hoi",
+        "initialization": "random",
+        "run_id": str(cfg.run_id),
+        "seed": int(cfg.seed),
+        "git_commit": _git_commit(Path(str(cfg.repo_root)).resolve()),
+        "processed_windows": processed_windows,
+        "processed_frames": processed_windows * REPRESENTATION.window_frames,
+        "optimizer_updates": optimizer_updates,
+        "amp_overflow_skips": amp_overflow_skips,
+        "epoch": epoch,
+        "batches_consumed_in_epoch": batches_consumed_in_epoch,
+        "world_size": world_size,
+        "effective_batch_size": int(cfg.effective_batch_size),
+        "model_config": _model_config(cfg),
+        "resume_contract": _resume_contract(cfg),
+        "data_contract_sha256": str(cfg.data_contract_sha256),
+        "split_sha256": _sha256(Path(str(cfg.split_manifest)).resolve()),
+        "model": model.module.state_dict(),
+        "ema_models": {key: item.state_dict() for key, item in ema_models.items()},
+        "optimizer": optimizer.state_dict(),
+        "scheduler": None if scheduler is None else scheduler.state_dict(),
+        "scaler": scaler.state_dict() if bool(cfg.amp) else None,
+        "optimization_contract": _optimization_contract(cfg),
+        "primary_weight_variant": str(
+            cfg.get("primary_weight_variant", "online" if _is_d2t(cfg) else "ema_0.9999")
+        ),
+        "rng_pattern": rng_pattern,
+        "weight_initialization": dict(weight_initialization),
+    }
+    if ema_models:
+        # Retain the legacy name for pre-D2-T official evaluator compatibility.
+        value["ema_model"] = ema_models["0.9999"].state_dict()
+    return value
+
+
 def _save_checkpoint(
     rank: int,
     world_size: int,
@@ -384,7 +580,7 @@ def _save_checkpoint(
     model: DistributedDataParallel,
     ema_models: Mapping[str, torch.nn.Module],
     optimizer: torch.optim.Optimizer,
-    scheduler: LambdaLR,
+    scheduler: Optional[LambdaLR],
     scaler: torch.cuda.amp.GradScaler,
     *,
     processed_windows: int,
@@ -403,37 +599,17 @@ def _save_checkpoint(
     if rank == 0:
         if checkpoint_path.exists():
             raise FileExistsError(f"refusing to overwrite checkpoint {checkpoint_path}")
-        value = {
-            "schema_version": 2,
-            "checkpoint_type": "hoi_prior_phase1b",
-            "window_state_codec": "state-compositional-v1",
-            "expert": "hoi",
-            "initialization": "random",
-            "run_id": str(cfg.run_id),
-            "seed": int(cfg.seed),
-            "git_commit": _git_commit(Path(str(cfg.repo_root)).resolve()),
-            "processed_windows": processed_windows,
-            "processed_frames": processed_windows * REPRESENTATION.window_frames,
-            "optimizer_updates": optimizer_updates,
-            "amp_overflow_skips": amp_overflow_skips,
-            "epoch": epoch,
-            "batches_consumed_in_epoch": batches_consumed_in_epoch,
-            "world_size": world_size,
-            "effective_batch_size": int(cfg.effective_batch_size),
-            "model_config": _model_config(cfg),
-            "resume_contract": _resume_contract(cfg),
-            "data_contract_sha256": str(cfg.data_contract_sha256),
-            "split_sha256": _sha256(Path(str(cfg.split_manifest)).resolve()),
-            "model": model.module.state_dict(),
-            "ema_models": {key: value.state_dict() for key, value in ema_models.items()},
-            # Retain the legacy name for the official evaluator until D2 locks a terminal variant.
-            "ema_model": ema_models["0.9999"].state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "scheduler": scheduler.state_dict(),
-            "scaler": scaler.state_dict(),
-            "rng_pattern": f"{checkpoint_path.stem}.rank{{rank}}.rng.pth",
-            "weight_initialization": dict(weight_initialization),
-        }
+        value = _checkpoint_value(
+            cfg, model, ema_models, optimizer, scheduler, scaler,
+            world_size=world_size,
+            processed_windows=processed_windows,
+            optimizer_updates=optimizer_updates,
+            amp_overflow_skips=amp_overflow_skips,
+            epoch=epoch,
+            batches_consumed_in_epoch=batches_consumed_in_epoch,
+            rng_pattern=f"{checkpoint_path.stem}.rank{{rank}}.rng.pth",
+            weight_initialization=weight_initialization,
+        )
         _atomic_torch_save(checkpoint_path, value)
         checkpoint_hashes.append({
             "path": str(checkpoint_path),
@@ -451,7 +627,7 @@ def _load_resume(
     model: DistributedDataParallel,
     ema_models: Mapping[str, torch.nn.Module],
     optimizer: torch.optim.Optimizer,
-    scheduler: LambdaLR,
+    scheduler: Optional[LambdaLR],
     scaler: torch.cuda.amp.GradScaler,
 ) -> Dict[str, int]:
     path = Path(str(cfg.resume_checkpoint)).resolve()
@@ -482,8 +658,21 @@ def _load_resume(
     for key, ema in ema_models.items():
         ema.load_state_dict(checkpoint_emas[key], strict=True)
     optimizer.load_state_dict(checkpoint["optimizer"])
-    scheduler.load_state_dict(checkpoint["scheduler"])
-    scaler.load_state_dict(checkpoint["scaler"])
+    checkpoint_scheduler = checkpoint.get("scheduler")
+    if scheduler is None:
+        if checkpoint_scheduler is not None:
+            raise ValueError("resume checkpoint unexpectedly contains scheduler state")
+    else:
+        if not isinstance(checkpoint_scheduler, dict):
+            raise ValueError("resume checkpoint is missing scheduler state")
+        scheduler.load_state_dict(checkpoint_scheduler)
+    checkpoint_scaler = checkpoint.get("scaler")
+    if bool(cfg.amp):
+        if not isinstance(checkpoint_scaler, dict):
+            raise ValueError("resume checkpoint is missing AMP scaler state")
+        scaler.load_state_dict(checkpoint_scaler)
+    elif checkpoint_scaler is not None:
+        raise ValueError("FP32 resume checkpoint unexpectedly contains AMP scaler state")
     rng_path = path.parent / checkpoint["rng_pattern"].format(rank=rank)
     _restore_rng(torch.load(rng_path, map_location="cpu"))
     return {
@@ -497,6 +686,8 @@ def _load_resume(
 
 def _worker(rank: int, cfg: DictConfig) -> None:
     world_size = int(cfg.num_gpus)
+    _validate_d2t_contract(cfg, world_size)
+    _validate_d2t_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
     torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -618,23 +809,19 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     weight_initialization = _load_weight_initialization(cfg, model)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
     ema_decays = [float(value) for value in cfg.ema_decays]
-    if ema_decays != [0.999, 0.9999]:
+    if not _is_d2t(cfg) and ema_decays != [0.999, 0.9999]:
         raise ValueError("Phase 1B remediation requires EMA decays 0.999 and 0.9999")
+    if _is_d2t(cfg) and ema_decays:
+        raise ValueError("D2-T forbids EMA models")
     ema_models = {
         str(decay): copy.deepcopy(model.module).requires_grad_(False).eval()
         for decay in ema_decays
     }
     diffusion = GaussianDiffusion(int(cfg.diffusion_steps)).to(device)
-    optimizer = AdamW(
-        model.parameters(), lr=float(cfg.learning_rate), weight_decay=float(cfg.weight_decay),
-        betas=(float(cfg.beta1), float(cfg.beta2)),
-    )
+    optimizer = _build_optimizer(cfg, model.parameters())
     total_updates = int(cfg.max_processed_windows) // effective
     warmup_updates = int(cfg.warmup_windows) // effective
-    scheduler = LambdaLR(
-        optimizer,
-        lambda update: _lr_lambda(update, total_updates, warmup_updates, float(cfg.minimum_lr_ratio)),
-    )
+    scheduler = _build_scheduler(cfg, optimizer, total_updates, warmup_updates)
     scaler = torch.cuda.amp.GradScaler(enabled=bool(cfg.amp))
     initial_optimizer_state_count = len(optimizer.state)
     parents = torch.as_tensor(get_smpl_parents(use_joints24=True), device=device, dtype=torch.long)
@@ -703,7 +890,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     loss = losses["total"] / int(cfg.gradient_accumulation_steps)
                 if not torch.isfinite(loss):
                     raise FloatingPointError(f"non-finite HOIPrior loss at update {optimizer_updates}")
-                scaler.scale(loss).backward()
+                if bool(cfg.amp):
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
             for key in LOSS_KEYS:
                 pending_loss_sums[key] += float(losses[key].detach())
             pending_loss_observations += 1
@@ -712,7 +902,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             if not boundary:
                 continue
 
-            scaler.unscale_(optimizer)
+            if bool(cfg.amp):
+                scaler.unscale_(optimizer)
             key_gradient = model.module.network.motion_input.weight.grad
             if key_gradient is None:
                 raise FloatingPointError("missing key HOIPrior gradient")
@@ -743,13 +934,20 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 continue
             if not torch.any(key_gradient != 0):
                 raise FloatingPointError("zero key HOIPrior gradient")
-            gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(cfg.gradient_clip_norm))
+            if bool(cfg.get("gradient_clipping", True)):
+                gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(cfg.gradient_clip_norm))
+            else:
+                gradient_norm = _gradient_l2_norm(model.parameters())
             if not torch.isfinite(gradient_norm):
                 raise FloatingPointError("non-finite HOIPrior gradient norm")
-            scaler.step(optimizer)
-            scaler.update()
+            if bool(cfg.amp):
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
             optimizer.zero_grad(set_to_none=True)
-            scheduler.step()
+            if scheduler is not None:
+                scheduler.step()
             for decay in ema_decays:
                 _ema_update(ema_models[str(decay)], model.module, decay)
             optimizer_updates += 1
@@ -771,7 +969,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 and processed_windows % int(cfg.validation_interval_windows) == 0
             ):
                 validation_records.append(_validate(
-                    rank, world_size, ema_models["0.9999"], diffusion, validation_loader, parents,
+                    rank, world_size, _primary_validation_model(cfg, model, ema_models), diffusion,
+                    validation_loader, parents,
                     minimum, maximum, object_minimum, object_maximum, cfg, processed_windows,
                 ))
             if (
@@ -815,7 +1014,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     if not paused and validation_loader is not None:
         if not validation_records or validation_records[-1]["processed_windows"] != processed_windows:
             validation_records.append(_validate(
-                rank, world_size, ema_models["0.9999"], diffusion, validation_loader, parents,
+                rank, world_size, _primary_validation_model(cfg, model, ema_models), diffusion,
+                validation_loader, parents,
                 minimum, maximum, object_minimum, object_maximum, cfg, processed_windows,
             ))
     if last_checkpoint_windows != processed_windows:
@@ -910,6 +1110,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps),
                 "effective_batch_size": effective,
                 "learning_rate": float(cfg.learning_rate),
+                "optimization_contract": _optimization_contract(cfg),
+                "optimizer_class": optimizer.__class__.__name__,
+                "scheduler_class": None if scheduler is None else scheduler.__class__.__name__,
+                "gradient_clipping_enabled": bool(cfg.get("gradient_clipping", True)),
+                "primary_weight_variant": str(
+                    cfg.get("primary_weight_variant", "online" if _is_d2t(cfg) else "ema_0.9999")
+                ),
                 "warmup_windows": int(cfg.warmup_windows),
                 "warmup_updates": warmup_updates,
                 "epochs_equivalent": processed_windows / len(train_dataset),
@@ -968,6 +1175,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
 @hydra.main(version_base=None, config_path="config", config_name="config_train_hoi_prior")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg), flush=True)
+    _validate_d2t_contract(cfg, int(cfg.num_gpus))
+    _validate_d2t_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")
     os.environ["MASTER_ADDR"] = "127.0.0.1"
