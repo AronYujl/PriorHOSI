@@ -90,6 +90,14 @@ CONTROL_IMPROVEMENT_METRICS = (
 )
 
 
+def interpreter_matches_expected(
+    executable: str | Path,
+    expected: str | Path = EXPECTED_PYTHON,
+) -> bool:
+    """Compare interpreter identities after resolving worker-local symlinks."""
+    return Path(executable).resolve() == Path(expected).resolve()
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -602,7 +610,7 @@ def main() -> None:
         raise RuntimeError("D2-W requires INFBAGEL_WORKER_EXPERT=hoi")
     if os.environ.get("INFBAGEL_PYTHON") != EXPECTED_PYTHON:
         raise RuntimeError("D2-W INFBAGEL_PYTHON mismatch")
-    if str(Path(sys.executable).resolve()) != EXPECTED_PYTHON:
+    if not interpreter_matches_expected(sys.executable):
         raise RuntimeError("D2-W interpreter mismatch")
     if subprocess.check_output(
         ["git", "status", "--porcelain"], cwd=REPO, text=True,

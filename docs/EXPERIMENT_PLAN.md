@@ -2396,6 +2396,28 @@ loss-geometry 缺口。
    budget。两条路径都必须重新获得用户确认；penetration 的 smallbox/suitcase contact-collision tradeoff
    保留为后续独立假设，禁止与 foot intervention 捆绑。
 
+#### 2026-07-22 Phase 1B D2-W worker interpreter symlink implementation amendment
+
+D2-W implementation commit `21580b66b4af0c79ca54940afb908df34ff4a4a4` 发布后、任何 run directory、
+manifest、checkpoint load 或 GPU workload 创建前，只读 worker preflight 发现 lifecycle guard 的确定缺陷：
+规范解释器 `/home/yujinlun/data/envs/infbagel/bin/python` 是指向 `python3.8` 的符号链接，
+`sys.executable` 保留前一路径，而 `Path(sys.executable).resolve()` 得到后一路径；原 guard 将这个 canonical
+路径与未 canonicalize 的 `EXPECTED_PYTHON` 字符串比较，故合法 worker 环境也必然触发
+`D2-W interpreter mismatch`。实测两侧分别为
+`.../bin/python3.8` 与 `.../bin/python`，比较结果为 false。用户已确认授权以下最小 amendment。
+
+1. **唯一实现修改。** interpreter identity guard 只改为比较
+   `Path(sys.executable).resolve()` 与 `Path(EXPECTED_PYTHON).resolve()`；环境变量仍必须逐字等于规范
+   `INFBAGEL_PYTHON`，worker hostname、clean worktree、CUDA、checkpoint/data/hash/parity 等 guard 均不变。
+2. **回归要求。** 单元测试必须构造 `python -> python3.8` 符号链接，证明 alias/target 双向 canonical
+   比较通过、不同文件失败；D2-W 全部测试、完整 authority suite、worker role-applicable suite 与 registry
+   validation 必须通过后才能创建 lifecycle artifact。
+3. **科学协议不变。** run id、三个 checkpoint 及 hash、internal selection、paired noise、500-step sampling、
+   指标、bootstrap gate 和停止规则完全不变；不训练、不选择 checkpoint、不运行 official-438/CHOIS/CM，
+   不修改 production model、loss、condition、sampler 或 evaluator。
+4. **失败处理。** 修复后若 worker guard、resolved-config、preflight、checkpoint contract、noise parity 或 finite
+   contract 任一失败，保留 artifact 并分类 contract failure；不得通过放宽 guard 或更换解释器继续运行。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

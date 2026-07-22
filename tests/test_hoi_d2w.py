@@ -1,5 +1,6 @@
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +18,7 @@ from tools.diagnose_hoi_d2w import (  # noqa: E402
     EXPECTED_CHECKPOINTS,
     RUN_ID,
     classify_frontier,
+    interpreter_matches_expected,
     official_foot_sliding,
     resolved_config,
     sample_with_noise_audit,
@@ -162,6 +164,19 @@ class D2WGateAndGovernanceTests(unittest.TestCase):
         self.assertFalse(config["production_change"])
         self.assertFalse(config["consistency_authorized"])
 
+    def test_interpreter_guard_accepts_canonical_worker_symlink_only(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "python3.8"
+            target.touch()
+            alias = root / "python"
+            alias.symlink_to(target.name)
+            other = root / "other-python"
+            other.touch()
+            self.assertTrue(interpreter_matches_expected(target, alias))
+            self.assertTrue(interpreter_matches_expected(alias, target))
+            self.assertFalse(interpreter_matches_expected(other, alias))
+
     def test_checkpoint_hashes_plan_and_registry_are_locked(self):
         self.assertEqual(
             EXPECTED_CHECKPOINTS["control"]["file_sha256"],
@@ -194,6 +209,13 @@ class D2WGateAndGovernanceTests(unittest.TestCase):
         self.assertFalse(record["config"]["official_test_used"])
         self.assertFalse(record["config"]["checkpoint_selection"])
         self.assertFalse(record["config"]["consistency_authorized"])
+        amendment = next(
+            value for value in records
+            if value["experiment_id"]
+            == "p1-hoi-d2w-interpreter-path-amendment-s42-20260722"
+        )
+        self.assertFalse(amendment["config"]["scientific_protocol_change"])
+        self.assertFalse(amendment["config"]["training_authorized"])
 
 
 if __name__ == "__main__":
