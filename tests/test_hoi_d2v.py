@@ -255,10 +255,36 @@ class D2VEvaluationAndGovernanceTests(unittest.TestCase):
         self.assertFalse(training["config"]["consistency_authorized"])
         self.assertTrue(evaluation["config"]["control"]["reused_without_regeneration"])
         self.assertFalse(evaluation["config"]["consistency_authorized"])
+        completed_training = next(item for item in records if item["experiment_id"] ==
+                                  "p1-hoi-d2v-balanced-long-budget-s42-20260722")
+        completed_evaluation = next(item for item in records if item["experiment_id"] ==
+                                    "p1-hoi-d2v-native-eval-s42-20260722")
+        self.assertEqual(completed_training["results"]["final_checkpoint_sha256"],
+                         "e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4")
+        self.assertTrue(completed_training["config"]["d2u_initial_model_state_identical"])
+        self.assertEqual(completed_evaluation["results"]["classification"],
+                         "long-budget-negative-stop")
+        self.assertFalse(completed_evaluation["results"]["mechanism_passed"])
+        self.assertFalse(completed_evaluation["results"]["effective_diffusion_passed"])
+        self.assertFalse(completed_evaluation["results"]["checkpoint_selected"])
+        self.assertGreater(completed_evaluation["results"]["target_metrics"]["contact_f1"], 0.60)
         plan = (ROOT / "docs/EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
         self.assertIn("D2-V from-random balanced long-budget screen", plan)
         self.assertIn("p1-hoi-d2v-native-eval-s42-20260722", plan)
         self.assertIn("本 subphase 不授权 CM", plan)
+        self.assertIn("D2-V balanced long-budget completion", plan)
+        compact = json.loads((
+            ROOT / "experiments/results/"
+            "p1_hoi_phase1b_d2v_balanced_long_budget_s42_20260722.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(compact["classification"], "long-budget-negative-stop")
+        self.assertFalse(compact["checkpoint_selected"])
+        self.assertFalse(compact["consistency_authorized"])
+        self.assertTrue(compact["training"]["d2u_initial_model_state_identical"])
+        self.assertEqual(compact["training"]["processed_windows"], 61440000)
+        self.assertEqual(compact["evaluation"]["target_metrics"]["contact_f1"],
+                         0.628590477397954)
+        self.assertFalse(compact["evaluation"]["mechanism_checks"]["foot_sliding_preserved"])
 
 
 if __name__ == "__main__":

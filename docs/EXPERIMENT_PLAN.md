@@ -2302,6 +2302,47 @@ condition、architecture、loss、optimization 和 evaluation contract 下，把
    才能等待用户另行授权选择 final checkpoint；任何 consistency stage 都必须以新的 dated
    amendment 从自主训练的 D2-V HOIPrior diffusion checkpoint 开始，本 subphase 不授权 CM。
 
+#### 2026-07-22 D2-V balanced long-budget completion
+
+D2-V 已在 clean worker commit `91e54654b6d9aa05e7cfca384ea7ab488018c298` 完成。D2-U 与
+D2-V 的 initial model-state SHA-256 均为
+`ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e`；data、model、condition、
+loss、optimizer、seed 和 sampling 均相同，唯一变化是从 6,144,000/3,000 增至
+61,440,000 processed windows/30,000 updates。因此这是严格 budget-only comparison，而不是从
+D2-U resume。训练约 108.08 epochs，全部 loss/gradient finite，无 AMP/EMA；20 个固定 cadence
+checkpoints 全部保留。final validation total 为 `0.0489330`，固定 final checkpoint SHA-256 为
+`e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4`，吞吐
+`3,200.83 windows/s`。internal validation 最低点在 24,576,000 windows (`0.0449481`)，仅作
+descriptive evidence；没有选择该中间 checkpoint，official evaluation 仍只使用预注册 final。
+
+唯一一次 official-438、3 windows/sequence、500-step unguided diffusion evaluation 得到：MPJPE
+`12.1224`、end-object `3.6807`、xy `4.0103`、object translation `16.1082`、object rotation
+`1.0245`、foot sliding `0.3783`、contact recall/F1 `0.5853/0.6286`。相对 D2-U，四个
+lower-is-better 指标的 paired improvement 95% CI 分别为 `[4.4763,5.3445]`、
+`[5.8280,6.8378]`、`[5.1792,5.9114]`、`[10.1110,11.9449]`，contact-F1 difference CI 为
+`[0.2576,0.3218]`。这直接支持 H4 training-budget insufficiency 是主要机制之一：当前
+architecture/condition/232-D representation 能在不经过 CM 的情况下学到接近 released baseline 的
+kinematic、object-goal 和 contact 能力。
+
+但 D2-V/D2-U foot-sliding ratio CI 为 `[1.1232,1.3275]`，超过预注册 `<=1.10`；相对 released
+baseline 的 foot-sliding ratio 为 `1.1347`，也超过 absolute `<=1.10`。其余 absolute
+MPJPE/end-object/xy/object-translation gates 均通过且 contact F1 `>=0.60`。此外非 gate 的
+descriptive protection 指标也恶化：hand/human penetration loss 为 `0.2641/4.1712`，分别是
+released baseline 的 `1.6259×/1.6110×`。因此必须按预注册分类
+`long-budget-negative-stop`，不选择 checkpoint、不启动 CM，也不以 favorable subset 或中间
+checkpoint 改判。科学上它是当前最强的 from-random HOIPrior capability evidence，但尚不是 sealed
+usable expert；剩余缺口已收缩为强 denoiser 上的 foot-sliding/contact/penetration protection，而非
+基本 denoiser 无法学习。
+
+training/evaluation artifacts 已由 worker 主动回收到 authority
+`/data/yujinlun/InfBaGel-p1b-staging/`；标准 directory tree SHA-256 分别为
+`fe1d9ec82369864ab6b3dfd334d01d07c58832027b56f25435e3d8074a15c6f3`（113 files / 7,127,146,664
+bytes）与 `05b8a9c6fc0c1021c3fbc2a09308b80246eadee6efb9e4221eb0baf4477c6bb8`（16 files /
+362,375 bytes），worker/authority 完全一致。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2v_balanced_long_budget_s42_20260722.json`。D2-V 至此停止；
+任何下一 foot-sliding/penetration training intervention 必须另行 dated plan/registry amendment，
+且 consistency 仍不授权。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
