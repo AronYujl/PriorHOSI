@@ -12,6 +12,9 @@ from .representation import REPRESENTATION
 from .window_codec import project_to_so3
 
 
+D2X_FOOT_JOINTS = (7, 8, 10, 11)
+
+
 def _fk_positions(
     root: torch.Tensor,
     global_rotation: torch.Tensor,
@@ -28,6 +31,47 @@ def _fk_positions(
         rotated = torch.matmul(global_rotation[:, :, parent], offset).squeeze(-1)
         positions.append(positions[parent] + rotated)
     return torch.stack(positions, dim=2)
+
+
+def _velocity_residuals(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    predicted_fk_positions: torch.Tensor,
+    position_minimum: torch.Tensor,
+    position_maximum: torch.Tensor,
+    *,
+    fk_foot_temporal_routing: bool,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Build the fixed-size velocity residual pair, optionally routing foot x/z through FK."""
+    velocity_channels = torch.cat((prediction[..., :84], prediction[..., 216:219]), dim=-1)
+    if fk_foot_temporal_routing:
+        scale = (position_maximum - position_minimum).reshape(1, 1, 1, 3)
+        minimum = position_minimum.reshape(1, 1, 1, 3)
+        normalized_fk = 2.0 * (predicted_fk_positions - minimum) / scale - 1.0
+        direct_positions = prediction[..., :84].reshape(*prediction.shape[:2], 28, 3)
+        replacement_positions = torch.cat(
+            (normalized_fk, direct_positions[..., 24:, :]), dim=2,
+        )
+        route_mask = torch.zeros_like(direct_positions, dtype=torch.bool)
+        route_mask[..., D2X_FOOT_JOINTS, 0] = True
+        route_mask[..., D2X_FOOT_JOINTS, 2] = True
+        routed_positions = torch.where(route_mask, replacement_positions, direct_positions)
+        velocity_channels = torch.cat(
+            (routed_positions.flatten(start_dim=-2), prediction[..., 216:219]), dim=-1,
+        )
+    target_velocity_channels = torch.cat((target[..., :84], target[..., 216:219]), dim=-1)
+    predicted_previous = torch.cat((
+        target_velocity_channels[:, REPRESENTATION.history_frames - 1:REPRESENTATION.history_frames],
+        velocity_channels[:, REPRESENTATION.history_frames:-1],
+    ), dim=1)
+    predicted_residual = (
+        velocity_channels[:, REPRESENTATION.history_frames:] - predicted_previous
+    )
+    target_residual = (
+        target_velocity_channels[:, REPRESENTATION.history_frames:]
+        - target_velocity_channels[:, REPRESENTATION.history_frames - 1:-1]
+    )
+    return predicted_residual, target_residual
 
 
 def hoi_training_losses(
@@ -49,6 +93,7 @@ def hoi_training_losses(
     object_surface_weight: float = 50.0,
     velocity_weight: float = 0.1,
     goal_weight: float = 1.0,
+    fk_foot_temporal_routing: bool = False,
 ) -> Dict[str, torch.Tensor]:
     if prediction.shape != target.shape or prediction.shape[-1] != REPRESENTATION.dimension:
         raise ValueError(f"expected matching [B,16,232], got {prediction.shape}/{target.shape}")
@@ -83,16 +128,15 @@ def hoi_training_losses(
     foot_fk = F.mse_loss(fk[:, active, [7, 8, 10, 11]], target_positions[:, active, [7, 8, 10, 11]])
     losses["fk"] = hand_fk + foot_fk
 
-    velocity_channels = torch.cat((prediction[..., :84], prediction[..., 216:219]), dim=-1)
-    target_velocity_channels = torch.cat((target[..., :84], target[..., 216:219]), dim=-1)
-    predicted_previous = torch.cat((
-        target_velocity_channels[:, REPRESENTATION.history_frames - 1:REPRESENTATION.history_frames],
-        velocity_channels[:, REPRESENTATION.history_frames:-1],
-    ), dim=1)
-    losses["velocity"] = F.mse_loss(
-        velocity_channels[:, REPRESENTATION.history_frames:] - predicted_previous,
-        target_velocity_channels[:, REPRESENTATION.history_frames:] - target_velocity_channels[:, REPRESENTATION.history_frames - 1:-1],
+    predicted_velocity, target_velocity = _velocity_residuals(
+        prediction,
+        target,
+        fk,
+        position_minimum,
+        position_maximum,
+        fk_foot_temporal_routing=bool(fk_foot_temporal_routing),
     )
+    losses["velocity"] = F.mse_loss(predicted_velocity, target_velocity)
     terminal = terminal_window.reshape(-1).to(device=prediction.device, dtype=prediction.dtype)
     goal_per_window = (prediction[:, -1, 216:219] - goals[:, 6:9]).square().mean(dim=-1)
     # Keep a differentiable zero when a batch contains no terminal windows.

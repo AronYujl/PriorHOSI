@@ -204,6 +204,11 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "primary_weight_variant": str(cfg.get("primary_weight_variant", "ema_0.9999")),
         "d2t_author_update_rule": bool(cfg.get("d2t_author_update_rule", False)),
         "d2u_balanced_author_update": bool(cfg.get("d2u_balanced_author_update", False)),
+        "d2v_balanced_long_budget": bool(cfg.get("d2v_balanced_long_budget", False)),
+        "d2x_fk_foot_temporal_routing": bool(
+            cfg.get("d2x_fk_foot_temporal_routing", False)
+        ),
+        "fk_foot_temporal_routing": bool(cfg.get("fk_foot_temporal_routing", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
@@ -246,8 +251,17 @@ def _is_d2v(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2v_balanced_long_budget", False))
 
 
+def _is_d2x(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2x_fk_foot_temporal_routing", False))
+
+
 def _uses_author_update_rule(cfg: DictConfig) -> bool:
-    return _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg)
+    return _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
+
+
+def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
+    if bool(cfg.get("fk_foot_temporal_routing", False)) and not _is_d2x(cfg):
+        raise ValueError("FK-foot temporal routing is restricted to the registered D2-X mode")
 
 
 def _optimization_contract(cfg: DictConfig) -> Dict[str, object]:
@@ -279,6 +293,7 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
         "mode": str(cfg.mode) == "d2t-author-update-rule",
         "d2u_mode_off": not _is_d2u(cfg),
         "d2v_mode_off": not _is_d2v(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-T0",
         "run_id": str(cfg.run_id) == expected_run_id,
         "seed": int(cfg.seed) == 42,
@@ -312,6 +327,7 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
             )
         ),
         "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "fk_foot_temporal_routing_off": not bool(cfg.fk_foot_temporal_routing),
     }
     failed = sorted(name for name, passed in exact.items() if not passed)
     if failed:
@@ -325,6 +341,7 @@ def _validate_d2u_contract(cfg: DictConfig, world_size: int) -> None:
         "mode": str(cfg.mode) == "d2u-balanced-author-update",
         "d2t_mode_off": not _is_d2t(cfg),
         "d2v_mode_off": not _is_d2v(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-U0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2u-balanced-author-update-s42-20260721",
         "seed": int(cfg.seed) == 42,
@@ -369,6 +386,7 @@ def _validate_d2u_contract(cfg: DictConfig, world_size: int) -> None:
             )
         ),
         "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "fk_foot_temporal_routing_off": not bool(cfg.fk_foot_temporal_routing),
     }
     failed = sorted(name for name, passed in exact.items() if not passed)
     if failed:
@@ -382,6 +400,7 @@ def _validate_d2v_contract(cfg: DictConfig, world_size: int) -> None:
         "mode": str(cfg.mode) == "d2v-balanced-long-budget",
         "d2t_mode_off": not _is_d2t(cfg),
         "d2u_mode_off": not _is_d2u(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-V0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2v-balanced-long-budget-s42-20260722",
         "seed": int(cfg.seed) == 42,
@@ -426,16 +445,83 @@ def _validate_d2v_contract(cfg: DictConfig, world_size: int) -> None:
             )
         ),
         "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "fk_foot_temporal_routing_off": not bool(cfg.fk_foot_temporal_routing),
     }
     failed = sorted(name for name, passed in exact.items() if not passed)
     if failed:
         raise ValueError(f"D2-V balanced long-budget contract mismatch: {failed}")
 
 
+def _validate_d2x_contract(cfg: DictConfig, world_size: int) -> None:
+    if not _is_d2x(cfg):
+        return
+    exact = {
+        "mode": str(cfg.mode) == "d2x-fk-foot-temporal-routing",
+        "d2t_mode_off": not _is_d2t(cfg),
+        "d2u_mode_off": not _is_d2u(cfg),
+        "d2v_mode_off": not _is_d2v(cfg),
+        "subphase": str(cfg.subphase) == "1B-D2-X0",
+        "run_id": str(cfg.run_id) == (
+            "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723"
+        ),
+        "seed": int(cfg.seed) == 42,
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "max_processed_windows": int(cfg.max_processed_windows) == 61440000,
+        "optimizer_updates": (
+            int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 30000
+        ),
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "balanced_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "fk_foot_temporal_routing_on": bool(cfg.fk_foot_temporal_routing),
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint, cfg.resume_checkpoint, cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256, cfg.weight_init_variant, cfg.d2m_candidate,
+            )
+        ),
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-X FK-foot temporal routing contract mismatch: {failed}")
+
+
 def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
-    label = "D2-V" if _is_d2v(cfg) else ("D2-U" if _is_d2u(cfg) else "D2-T")
+    label = (
+        "D2-X" if _is_d2x(cfg)
+        else ("D2-V" if _is_d2v(cfg) else ("D2-U" if _is_d2u(cfg) else "D2-T"))
+    )
     if socket.gethostname() != "node01":
         raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
     if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
@@ -461,6 +547,12 @@ def _validate_d2u_execution_host(cfg: DictConfig) -> None:
 
 def _validate_d2v_execution_host(cfg: DictConfig) -> None:
     if not _is_d2v(cfg):
+        return
+    _validate_author_update_execution_host(cfg)
+
+
+def _validate_d2x_execution_host(cfg: DictConfig) -> None:
+    if not _is_d2x(cfg):
         return
     _validate_author_update_execution_host(cfg)
 
@@ -578,6 +670,7 @@ def _forward_losses(
         object_surface_weight=float(cfg.object_surface_weight),
         velocity_weight=float(cfg.velocity_weight),
         goal_weight=float(cfg.goal_weight),
+        fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
     )
 
 
@@ -837,9 +930,11 @@ def _load_resume(
 
 def _worker(rank: int, cfg: DictConfig) -> None:
     world_size = int(cfg.num_gpus)
+    _validate_fk_foot_temporal_routing_mode(cfg)
     _validate_d2t_contract(cfg, world_size)
     _validate_d2u_contract(cfg, world_size)
     _validate_d2v_contract(cfg, world_size)
+    _validate_d2x_contract(cfg, world_size)
     _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
@@ -1324,6 +1419,15 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     "velocity": float(cfg.velocity_weight),
                     "terminal_object_goal": float(cfg.goal_weight),
                 },
+                "loss_routing": {
+                    "fk_foot_temporal_routing": bool(
+                        cfg.get("fk_foot_temporal_routing", False)
+                    ),
+                    "foot_joint_indices": [7, 8, 10, 11],
+                    "routed_components": ["x", "z"],
+                    "velocity_weight": float(cfg.velocity_weight),
+                    "velocity_reduction": "mean_square",
+                },
                 "window_state_codec": "state-compositional-v1",
                 "bps_sha256": BPS_SHA256,
                 "representation": REPRESENTATION.as_dict(),
@@ -1339,9 +1443,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
 @hydra.main(version_base=None, config_path="config", config_name="config_train_hoi_prior")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg), flush=True)
+    _validate_fk_foot_temporal_routing_mode(cfg)
     _validate_d2t_contract(cfg, int(cfg.num_gpus))
     _validate_d2u_contract(cfg, int(cfg.num_gpus))
     _validate_d2v_contract(cfg, int(cfg.num_gpus))
+    _validate_d2x_contract(cfg, int(cfg.num_gpus))
     _validate_author_update_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")

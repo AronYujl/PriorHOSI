@@ -54,6 +54,8 @@ d2m_rng_audit: false
 d2t_author_update_rule: false
 d2u_balanced_author_update: false
 d2v_balanced_long_budget: false
+d2x_fk_foot_temporal_routing: false
+fk_foot_temporal_routing: false
 profile_every_update: true
 
 output_dir: ${repo_root}/results/experiments/${run_id}

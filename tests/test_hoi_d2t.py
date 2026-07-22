@@ -41,7 +41,7 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     "code/priors/window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
     "code/priors/data.py": "62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5",
     "code/priors/models.py": "f7bb304a7358cb6a667756c14d6eed3eb3fb69644888d5aa1153a44b90ae71b0",
-    "code/priors/losses.py": "36f9aa1b19c91fe7e59caa29068ff343bc3c74b3b9053ece8212c1aaf0c82821",
+    "code/priors/losses.py": "d36a10b7feea873ee17c0bee0907660b2646342deb2b8e478af2599727b6b287",
     "code/priors/diffusion.py": "f006c89758807f4d23059f5d97e0b673dbd0d867f4f2859b832fcf37ac1e901a",
 }
 

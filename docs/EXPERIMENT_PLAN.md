@@ -2469,6 +2469,87 @@ physical-contact precision/recall/F1 均为 0，contact-preservation 项只能�
 选择或 schedule-only retry。这仍是基于证据的机制优先级，不是该 loss 必然有效的证明；penetration 必须保持
 独立，不得捆绑。D2-W 至此停止，未训练、未启动 CM、未选择或蒸馏任何 checkpoint。
 
+#### 2026-07-23 Phase 1B D2-X FK-foot temporal gradient-routing screen 预注册
+
+D2-V 已证明当前 232-D diffusion HOIPrior 在 61,440,000 processed windows 后能够从随机初始化学到接近
+released baseline 的 MPJPE、object-goal、object-translation 与 contact；其唯一 absolute capability gate
+失败项是 foot sliding，且 penetration 仍较弱。D2-W 进一步排除了中途 checkpoint 或后半程 constant-LR
+过冲作为主要解释，并确认现有 velocity objective 只监督 direct normalized joint/object-translation
+channels，而 official foot sliding 完全由 predicted root/rotations 经 FK 后得到。D2-X 因此只检验一个
+loss-gradient routing 假设：把既有 velocity residual 中四个足部关节的水平分量对齐到 evaluator 使用的
+rotation-to-FK trajectory，是否能降低脚滑且不破坏 D2-V 已形成的能力。
+
+1. **唯一 manipulated factor。** Training run id 固定为
+   p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723、subphase 1B-D2-X0、seed 42。相对 D2-V，
+   velocity loss 的 tensor shape、元素数、mean-square reduction 与全局 weight 0.1 均不变；只替换
+   joints [7,8,10,11] 的 x/z 共 8 个 predicted temporal residual slots。Prediction 侧先用 predicted
+   root、22 个 6D rotations、既有 24-joint parents/rest offsets 得到 FK positions，再用既有
+   position min/max 映射到 direct position channels 相同的 normalized scale。Target 侧继续使用
+   normalized clean direct foot positions。第一个 future frame 的 previous prediction 必须是 immutable
+   GT history 最后一帧；其后 previous prediction 使用前一帧 predicted normalized FK position。四个
+   足部 y、其余 joint xyz、object translation 以及所有 target residual 保持 D2-V 原实现。不得增加
+   新 loss term、可调 weight、height/contact gate 或 sampler correction。
+2. **固定训练 contract。** 必须重新随机初始化，保留 D2-V 的 232-D state、16 frames、2 history
+   frames、512-wide/16-head/8-layer Transformer、500-step clean-x0 diffusion、OMOMO split、全部
+   conditions、FK/object-surface/velocity/goal weights
+   0.3569973401779424/0.4772322188400037/0.1/1.0。只在 infbagel-4gpu/node01 运行：
+   4×RTX 3090、batch/GPU 512、accumulation 1、effective batch 2048、Adam (0.9,0.999)、
+   constant LR 1e-4、FP32、无 warmup/scheduler/weight decay/clipping/AMP/EMA，固定
+   61,440,000 processed windows、30,000 updates、32,768 validation windows 以及每
+   3,072,000 windows validation/checkpoint cadence。禁止加载 released、author、source、current、
+   balanced、D2-T/U/V、prior、resume 或任何 EMA checkpoint；不得设置 d2m_candidate。
+3. **实现和 lifecycle。** 在任何 production 代码改动前完成本 plan 与 registry 预注册。新增独立
+   D2-X Hydra config、fail-closed mode/host/provenance contract 和 tests；D2-T/U/V 的 exact config、
+   loss 与 checkpoint-resume contract 必须保持不变。测试至少证明：routing 关闭时与原 velocity
+   formula bitwise/数值等价；开启时足部 x/z formula 正确；第一 future frame 只读取 immutable
+   history；非足部、足部 y 与 object residual 不变；rotation/root 获得 velocity gradient 而 direct
+   foot x/z 不再获得该分量梯度；随机初始化与 forbidden-checkpoint guard 生效。代码、config、
+   tests、plan、registry 和 target-only evaluator 必须组成一个 logical commit。authority 全量验证后，
+   worker 只能主动 fast-forward 到相同 commit。训练前归档 fully-resolved config、同一 escalated
+   context 的四卡 preflight，并用 tools/experiment.py start 创建不可覆盖的 reportable manifest。
+4. **固定 official evaluation。** Evaluation run id 固定为
+   p1-hoi-d2x-native-eval-s42-20260723、subphase 1B-D2-X0-eval。只评估 fixed final online
+   checkpoint 一次，使用 author-native HOI official-438、每 sequence 三窗口、500-step unguided
+   diffusion；无 CFG、dynamic perception、guidance、CHOIS selection、FID 或 R-precision。D2-V
+   final official per-sequence records 与 aggregate 作为 immutable paired control，只读复用且不重新
+   生成。统计单位为 sequence，10,000 次 paired bootstrap，seed 42。
+5. **mechanism/effective gates。** Mechanism gate 要求同时满足：D2-V minus D2-X foot-sliding
+   difference 的 paired 95% CI 下界 > 0；D2-X/D2-V 的 MPJPE、end-object、xy 与
+   object-translation ratio CI 上界均 <= 1.10；D2-X minus D2-V contact-F1 difference CI 下界
+   >= -0.02；D2-X/D2-V 的 hand-penetration-loss 与 human-penetration-loss ratio CI 上界均
+   <= 1.10；以及 contract、finite loss/gradient、normalization、history 与 checkpoint provenance
+   全通过。Absolute effective-diffusion gate 继续使用 Phase-0 released ratios：MPJPE <= 1.30、
+   end-object <= 2.00、xy <= 1.50、object-translation <= 1.50、foot sliding <= 1.10，且
+   contact F1 >= 0.60。Mechanism 与 absolute gate 均通过时分类
+   fk-foot-temporal-routing-positive-candidate-stop；仅 mechanism 通过时分类
+   fk-foot-temporal-routing-positive-but-not-effective-stop；任一 mechanism 条件失败分类
+   fk-foot-temporal-routing-negative-stop；contract/hash/lifecycle 失败分类
+   fk-foot-temporal-routing-contract-failure-stop。
+6. **停止规则和 artifacts。** 无论结果如何，完成 fixed-budget training 与一次 official evaluation
+   后停止；不得观察中间 checkpoint 后选择 favorable state、延长预算、同时修 penetration/contact、
+   修改 architecture/condition、启动 sampler heuristic 或 consistency distillation。即使两个 gate 均
+   通过，本 subphase 也只产生 foot-protected diffusion candidate，checkpoint 选择及后续 penetration
+   intervention 必须另行确认；CM 仍不授权。必须保留 resolved config、machine preflight、manifest、
+   完整 logs/metrics、全部 cadence checkpoint hashes、resume evidence、loss/gradient routing audit、
+   official aggregate/per-sequence/bootstrap/gate JSON、artifact-tree hash 和任何 negative result。
+
+#### 2026-07-23 Phase 1B D2-X penetration finite-mask measurement amendment
+
+在 D2-X implementation 尚未提交、未创建 run directory、未启动任何 GPU workload 时，对 immutable
+D2-V official-438 control 的 per-sequence artifact 做 fail-closed schema check，发现
+hand_pen_loss_omomo 与 human_pen_loss_infbagel 仅在相同的固定 181 条 sequence 上为 finite，其余
+257 条均为 null；D2-V aggregate 的两个 penetration mean 也正是按这 181 条计算。该缺失由既有 author
+evaluator/object asset coverage 决定，不是 D2-X 结果或 favorable selection。固定 181-sequence ID
+列表按字典序、每行一个 ID 且末尾换行的 SHA-256 为
+2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec。
+
+D2-X measurement contract 因而在训练前明确为：MPJPE、end-object、xy、object-translation、
+foot-sliding 与 contact-F1 继续使用全部 438 个 paired sequences；两个 penetration ratio 只使用上述
+预先由 control 封存的 181 条 finite mask，并且 target 两个字段的 finite/null mask 必须分别与 control
+完全相同、两个 target penetration masks 也必须相同。任何 mask identity/count/hash 不一致均分类为
+contract failure，不允许按 target 数值重新筛选或用 aggregate-only ratio 绕过。bootstrap replicates、
+seed、ratio 上界 1.10、其余 gate、训练唯一变量、run id、预算和停止规则全部不变。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
