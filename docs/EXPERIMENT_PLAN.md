@@ -2343,6 +2343,59 @@ bytes）与 `05b8a9c6fc0c1021c3fbc2a09308b80246eadee6efb9e4221eb0baf4477c6bb8`�
 任何下一 foot-sliding/penetration training intervention 必须另行 dated plan/registry amendment，
 且 consistency 仍不授权。
 
+#### 2026-07-22 Phase 1B D2-W fixed-checkpoint FK foot-sliding frontier diagnostic 预注册
+
+D2-V 已证明 10x budget 能把独立 232-D diffusion HOIPrior 的 MPJPE、object-goal、object-translation
+和 contact 提升到接近 released baseline，但 fixed final 的 official foot-sliding 仍为 `0.3783`，相对
+D2-U 的 paired ratio CI 为 `[1.1232,1.3275]`。训练期 direct normalized velocity validation loss 同期
+从 `0.0010924` 降至 `0.0001033`，而 official evaluator 通过 predicted rotations、root translation 和
+rest offsets 做 FK 后再计算近地面 ankle/toe 水平位移；production velocity loss 则只读取 direct
+joint-position 与 object-translation channels。D2-W 在任何新训练前，只判断 foot-sliding 缺口主要是
+`24.576M -> 61.44M` constant-LR 后半程退化，还是在能力形成时已经存在的 rotation/FK trajectory
+loss-geometry 缺口。
+
+1. **唯一 reportable diagnostic。** run id 固定为
+   `p1-hoi-d2w-checkpoint-frontier-s42-20260722`、subphase `1B-D2-W0`、seed 42，只能在
+   `infbagel-4gpu/node01` 运行。加载同一 D2-V run 的三个 online model checkpoints，仅用于 inference：
+   `6,144,000` windows（file SHA-256
+   `be8233c0a4c013d973c4140ba5c1f472332f1fdd6be8efa21585deeb250506d3`，model-state SHA-256
+   `cfcb5836129d177bf57c60ffd8669ee4516fad77f52b58afd037d063e9aaa0c7`）、预先由 teacher-forced
+   internal validation total 唯一确定的 `24,576,000` windows（file SHA-256
+   `efab7f55d6a719ac85659de0aa66c2f94235e1875ae5e6951e9c4334017ee9a3`，model-state SHA-256
+   `1ee340962d158e12a31d3ad081da37886cd8bbc3eddd80b523de4eb236ba2735`）和 fixed final
+   `61,440,000` windows（file SHA-256
+   `e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4`，model-state SHA-256
+   `f7d134ac98ede806abae322c77816ef21ace427e3905a4cb5e1d4a2a2b4b89fc`）。D2-V 6.144M
+   model state 已只读验证与 D2-U final 完全相同；不得加载 optimizer/scheduler/scaler/RNG/EMA，
+   不得写 checkpoint 或执行 optimizer update。
+2. **固定 internal-only rollout。** 复用 D2-M 在 D2-V 前已经 sealed 的 internal-validation
+   three-window native holdout：eligible sequence ranks `128--159`、32 sequences、96 windows、selection
+   SHA-256 `30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae`。三个 checkpoint
+   必须使用逐 step 完全相同的 500-step diffusion noise、matched text/BPS/goal/progress、generated-history
+   handoff 和 current generated-object BPS；只用 online weights，无 CFG、dynamic perception、guidance、
+   CHOIS、official-438 或 released/author checkpoint。
+3. **指标与 parity。** 每个 checkpoint 必报 per-sequence/aggregate：direct-joint foot sliding、
+   rotation-to-FK foot sliding、FK MPJPE、pelvis/object goal error、object translation/rotation error、physical
+   contact precision/recall/F1，以及 direct-vs-FK foot trajectory disagreement。FK 使用与 production loss
+   相同的 24-joint parents/rest offsets，脚滑使用 official evaluator 相同 ankle/toe indices、Y-up、近地面
+   height thresholds 与水平 displacement 公式。D2-W 还必须以 synthetic parity test 证明 torch 实现与
+   `code/eval_metrics.py::compute_foot_sliding_for_smpl` 一致，并证明三个 checkpoint 的 q-noise hashes
+   完全相同。
+4. **唯一 gate。** 10,000 次 paired sequence bootstrap、seed 42。`24.576M` 只有同时满足以下条件才分类
+   `midbudget-protection-supported-stop`：`61.44M minus 24.576M` 的 FK foot-sliding difference CI 下界
+   `>0`；`24.576M / 61.44M` 的 FK-MPJPE、pelvis-goal、object-goal、object-translation ratio CI 上界均
+   `<=1.10`；`24.576M minus 61.44M` physical-contact-F1 CI 下界 `>=-0.02`；且相对 6.144M，
+   FK-MPJPE、object-goal 和 object-translation 的 improvement CI 下界均 `>0`。任一失败分类
+   `midbudget-protection-negative-stop`；contract/hash/parity/lifecycle 失败分类
+   `midbudget-protection-contract-failure-stop`。direct/FK divergence 和 penetration coupling 只作机制解释，
+   不得改写 gate。
+5. **停止与后续。** 本 subphase 不选择任何 D2-V checkpoint，不使用 internal 或 official 指标追认
+   favorable intermediate，不修改 production loss/model/condition/sampler，不训练，不启动 CM。若 gate
+   通过，下一 dated proposal 只能测试 from-random fixed mid-budget/learning-rate schedule；若 gate 失败，
+   下一 dated proposal 才能测试一个 evaluator-aligned FK-foot temporal loss，并保持 D2-V 的 61.44M
+   budget。两条路径都必须重新获得用户确认；penetration 的 smallbox/suitcase contact-collision tradeoff
+   保留为后续独立假设，禁止与 foot intervention 捆绑。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
