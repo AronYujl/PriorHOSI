@@ -54,8 +54,8 @@ from tools.evaluate_hoi_remediation import (  # noqa: E402
 from tools.run_hoi_d2n import paired_difference, paired_ratio  # noqa: E402
 
 
-RUN_ID = "p1-hoi-d2w-checkpoint-frontier-s42-20260722"
-SUBPHASE = "1B-D2-W0"
+RUN_ID = "p1-hoi-d2w-checkpoint-frontier-r1-s42-20260723"
+SUBPHASE = "1B-D2-W0-r1"
 EXPECTED_PYTHON = "/home/yujinlun/data/envs/infbagel/bin/python"
 EXPECTED_DATA_CONTRACT_SHA256 = (
     "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf"

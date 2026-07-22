@@ -2418,6 +2418,26 @@ manifest、checkpoint load 或 GPU workload 创建前，只读 worker preflight 
 4. **失败处理。** 修复后若 worker guard、resolved-config、preflight、checkpoint contract、noise parity 或 finite
    contract 任一失败，保留 artifact 并分类 contract failure；不得通过放宽 guard 或更换解释器继续运行。
 
+#### 2026-07-23 Phase 1B D2-W date-rollover operational retry amendment
+
+原 lifecycle `p1-hoi-d2w-checkpoint-frontier-s42-20260722` 的 manifest 于
+`2026-07-22T23:59:37+08:00` 创建，但等待受控 SSH/Git 操作后，worker-owned workload 实际于
+`2026-07-23T00:10:32+08:00` 才启动，`metrics.json` 于 `00:11:18+08:00` 写成。由于实际 GPU workload
+日期已经跨日，原 `20260722` run id 违反真实日期绑定，即使进程 return code 为 0、推理合约通过，也不得作为
+reportable D2-W 科学结果。该 lifecycle 已以 `aborted` finish/register 到 run-local registry，全部文件保留、
+run id 永不复用；其已观察数值不得用于改动阈值、checkpoint、selection、指标、gate 或任何后续配置。
+
+授权一次且仅一次严格 operational retry：
+`p1-hoi-d2w-checkpoint-frontier-r1-s42-20260723`，subphase `1B-D2-W0-r1`。r1 完整继承
+2026-07-22 D2-W 预注册的三个 checkpoint/file/model-state hash、32-sequence/96-window internal selection、
+逐 step paired noise、generated-history/current-BPS、500-step online diffusion、全部 metric、10,000 次 paired
+bootstrap、唯一 gate、分类和停止规则。唯一允许差异是 run id、subphase、真实日期及由新 commit/lifecycle
+自然产生的 manifest/preflight/runtime hash；不得因已观察 aborted output 改变任何科学变量。
+
+r1 必须使用新结果目录和新 resolved config/preflight/manifest，重新绑定全部 input hash；原 failed/passed
+preflight、manifest、log、metrics、exit code 与 aborted registry 均不覆盖。r1 无论 gate 正负都 finish/register、
+回收并停止，不选择 checkpoint、不训练、不运行 official-438/CHOIS/CM，也不开始 FK-foot loss intervention。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

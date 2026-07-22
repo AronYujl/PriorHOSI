@@ -204,6 +204,10 @@ class D2WGateAndGovernanceTests(unittest.TestCase):
             if value["experiment_id"]
             == "p1-hoi-d2w-checkpoint-frontier-preregister-s42-20260722"
         )
+        self.assertEqual(
+            record["config"]["run_id"],
+            "p1-hoi-d2w-checkpoint-frontier-s42-20260722",
+        )
         self.assertTrue(record["config"]["diagnostic_authorized"])
         self.assertFalse(record["config"]["training_authorized"])
         self.assertFalse(record["config"]["official_test_used"])
@@ -216,6 +220,22 @@ class D2WGateAndGovernanceTests(unittest.TestCase):
         )
         self.assertFalse(amendment["config"]["scientific_protocol_change"])
         self.assertFalse(amendment["config"]["training_authorized"])
+        retry = next(
+            value for value in records
+            if value["experiment_id"]
+            == "p1-hoi-d2w-checkpoint-frontier-r1-preregister-s42-20260723"
+        )
+        self.assertEqual(retry["config"]["run_id"], RUN_ID)
+        self.assertEqual(
+            retry["config"]["only_operational_delta"],
+            {
+                "run_id": RUN_ID,
+                "subphase": "1B-D2-W0-r1",
+                "date": "2026-07-23",
+            },
+        )
+        self.assertFalse(retry["config"]["scientific_protocol_change"])
+        self.assertFalse(retry["config"]["training_authorized"])
 
 
 if __name__ == "__main__":
