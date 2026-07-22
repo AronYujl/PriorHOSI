@@ -21,6 +21,7 @@ from priors.losses import D2X_FOOT_JOINTS, _fk_positions, _velocity_residuals
 from train_hoi_prior import (
     _build_optimizer,
     _build_scheduler,
+    _locked_loss_weights,
     _optimization_contract,
     _validate_d2v_contract,
     _validate_d2x_contract,
@@ -86,6 +87,30 @@ class D2XConfigAndContractTests(unittest.TestCase):
                 "scheduler": "none", "warmup_windows": 0,
                 "gradient_clipping": False, "gradient_clip_norm": None,
                 "amp": False, "ema_decays": [], "primary_weight_variant": "online",
+            },
+        )
+
+    def test_pre_optimizer_loss_dispatch_includes_d2x(self):
+        balanced = {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        }
+        for name in (
+            "config_train_hoi_prior_d2u",
+            "config_train_hoi_prior_d2v",
+            "config_train_hoi_prior_d2x",
+        ):
+            with self.subTest(config=name):
+                self.assertEqual(_locked_loss_weights(merged_config(name)), balanced)
+        self.assertEqual(
+            _locked_loss_weights(merged_config("config_train_hoi_prior_d2t")),
+            {
+                "fk": 50.0,
+                "object_surface": 50.0,
+                "velocity": 0.1,
+                "terminal_goal": 1.0,
             },
         )
 
@@ -258,6 +283,9 @@ class D2XGovernanceTests(unittest.TestCase):
         plan = (ROOT / "docs/EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
         self.assertIn("D2-X FK-foot temporal gradient-routing screen", plan)
         self.assertIn("p1-hoi-d2x-native-eval-s42-20260723", plan)
+        self.assertIn(
+            "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723", plan,
+        )
         records = [
             json.loads(line) for line in
             (ROOT / "experiments/registry.jsonl").read_text(encoding="utf-8").splitlines()
@@ -282,6 +310,27 @@ class D2XGovernanceTests(unittest.TestCase):
         self.assertTrue(evaluation["config"]["control"]["reused_without_regeneration"])
         self.assertFalse(evaluation["config"]["consistency_authorized"])
         self.assertFalse(evaluation["config"]["checkpoint_selection"])
+        failed = next(
+            item for item in records
+            if item["experiment_id"] ==
+            "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723"
+        )
+        amendment = next(
+            item for item in records
+            if item["experiment_id"] ==
+            "p1-hoi-d2x-dispatch-r1-amendment-s42-20260723"
+        )
+        self.assertEqual(failed["status"], "failed")
+        self.assertEqual(failed["results"]["optimizer_updates"], 0)
+        self.assertTrue(failed["config"]["run_id_reuse_forbidden"])
+        self.assertEqual(
+            amendment["config"]["r1"]["training_run_id"],
+            "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+        )
+        self.assertEqual(
+            amendment["config"]["r1"]["evaluation_run_id"],
+            "p1-hoi-d2x-native-eval-r1-s42-20260723",
+        )
 
 
 class D2XEvaluationTests(unittest.TestCase):
@@ -410,12 +459,12 @@ class D2XEvaluationTests(unittest.TestCase):
     def test_training_metrics_bind_final_random_checkpoint_and_routing(self):
         target_sha = "a" * 64
         checkpoint = Path(
-            "/tmp/p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723_"
+            "/tmp/p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_"
             "windows061440000.pth"
         )
         metrics = {
             "status": "stable",
-            "run_id": "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723",
+            "run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
             "seed": 42,
             "initialization": "random",
             "training_start": "random",
@@ -478,7 +527,7 @@ class D2XEvaluationTests(unittest.TestCase):
                 validate_training_result(args)
 
     def test_evaluator_ids_and_control_hashes_are_locked(self):
-        self.assertEqual(EVAL_RUN_ID, "p1-hoi-d2x-native-eval-s42-20260723")
+        self.assertEqual(EVAL_RUN_ID, "p1-hoi-d2x-native-eval-r1-s42-20260723")
         self.assertEqual(
             CONTROL_CHECKPOINT_SHA256,
             "e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4",

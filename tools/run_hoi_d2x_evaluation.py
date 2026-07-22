@@ -31,8 +31,8 @@ from tools.run_hoi_d2n import (  # noqa: E402
 )
 
 
-RUN_ID = "p1-hoi-d2x-native-eval-s42-20260723"
-SUBPHASE = "1B-D2-X0-eval"
+RUN_ID = "p1-hoi-d2x-native-eval-r1-s42-20260723"
+SUBPHASE = "1B-D2-X0-eval-r1"
 CONTROL_CHECKPOINT_SHA256 = "e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4"
 CONTROL_AGGREGATE_SHA256 = "21f6bb27fe8d38a5203c2e40dee02815470bc40b638ee3a616101faae5cf8f0e"
 CONTROL_PER_SEQUENCE_SHA256 = "4d147ef0a76977146639bab4260c6f7c5c2f96d9b253fb52ad968269f649ce1a"
@@ -392,7 +392,8 @@ def classify(
 
 def validate_training_result(args) -> Dict[str, object]:
     if args.target_checkpoint.name != (
-        "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723_windows061440000.pth"
+        "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_"
+        "windows061440000.pth"
     ):
         raise ValueError("D2-X evaluation requires the registered final checkpoint basename")
     metrics = load_json(args.training_metrics.resolve())
@@ -424,7 +425,9 @@ def validate_training_result(args) -> Dict[str, object]:
     }
     checks = {
         "status": metrics.get("status") == "stable",
-        "run_id": metrics.get("run_id") == "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723",
+        "run_id": metrics.get("run_id") == (
+            "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723"
+        ),
         "seed": metrics.get("seed") == 42,
         "initialization": metrics.get("initialization") == "random",
         "training_start": metrics.get("training_start") == "random",

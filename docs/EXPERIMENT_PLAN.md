@@ -2550,6 +2550,45 @@ foot-sliding 与 contact-F1 继续使用全部 438 个 paired sequences；两个
 contract failure，不允许按 target 数值重新筛选或用 aggregate-only ratio 绕过。bootstrap replicates、
 seed、ratio 上界 1.10、其余 gate、训练唯一变量、run id、预算和停止规则全部不变。
 
+#### 2026-07-23 Phase 1B D2-X pre-optimizer dispatch failure and r1 operational amendment
+
+首次 reportable lifecycle p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723 在 clean worker commit
+48e2e6c31d281af8809d35b5c8ce2ac8123205d1、resolved config 与四卡 preflight 均通过后启动，但在
+任何 optimizer update、processed window 或 checkpoint 之前 fail-closed。确定原因是
+code/train_hoi_prior.py 的 pre-optimizer locked loss-weight dispatch 仍只将 D2-U/D2-V 识别为
+balanced weights mode，遗漏已由独立 exact contract 验证的 D2-X；因此合法的
+FK/object-surface weights 0.3569973401779424/0.4772322188400037 被旧 generic guard 误判。
+该失败不是 loss 数值、显存、数据、梯度或 checkpoint lineage 结果，不能用于判断 D2-X 科学假设。
+
+失败 lifecycle 已永久保留并标记 failed：exit code 1、optimizer updates 0、processed windows 0、
+checkpoint 0，未加载 released/author/prior checkpoint、未启动 consistency。manifest/metrics/
+resolved/preflight/log/run-local-registry SHA-256 分别为
+936984115a66c7142b5254c4cc5d33874e855be46972ceec5e75f69483be8c7e、
+e52a6eebb4d3fc40e9c204e5381520ba5b65c42ec37b3d3aae945fa4ef501ff7、
+5746293fc4f5455a3619b4aec46e5b899aa51f2751416d29577bd54f83b4f226、
+c8e1fee0ca60fcd92d482a838601396ec7f2ee4e0ac9d3c6bd62ea2390cd9ae9、
+71fa61f14a230fc05bc1dec3f234c1e258149b6a88602762ad6584baf9a01dd4 和
+5e7486c4991990654a448ba10314a11db2ab157d68d0c834c48280ec456279e5；完整 tree 为
+11 files / 33,752 bytes，SHA-256
+4088e04b1b92d412d25aa1842cb6cd2d6d4191a48c79388fdc3c8229bf16ab95。
+
+用户已授权继续 D2-X，因此只允许一次 operational r1：
+
+1. 唯一实现修复是让 pre-optimizer balanced loss-weight dispatch 明确包含 D2-X，并增加直接回归测试，
+   证明 D2-U/D2-V/D2-X 返回相同 locked balanced weights，而普通/D2-T mode 仍返回 50/50。不得改动
+   loss formula、routing、weights、data、architecture、condition、optimization、budget 或 evaluator gate。
+2. 新 training run id 固定为
+   p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723、subphase 1B-D2-X0-r1；新 evaluation
+   run id 固定为 p1-hoi-d2x-native-eval-r1-s42-20260723、subphase 1B-D2-X0-eval-r1。旧 training
+   id 永不复用，旧未启动 evaluation id 不得绑定到 r1 checkpoint。
+3. r1 完整继承原 D2-X 和 penetration-mask amendment 的唯一变量、随机初始化、61,440,000-window/
+   30,000-update contract、4×3090、official-438/181 finite-mask statistics、所有 gates、classifications、
+   artifact contract 与停止规则。必须形成新完整 commit、worker 主动 fast-forward、重新生成
+   resolved config/preflight/manifest；禁止从失败 lifecycle resume 或加载任何 checkpoint。
+4. 若同一 dispatch blocker 再现或出现新的 pre-optimizer contract failure，r1 必须保留并停止，不得继续
+   自由重试。若 r1 进入稳定训练，则按原 D2-X 协议完成；仍不授权 checkpoint selection、penetration
+   intervention 或 CM。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

@@ -3,8 +3,8 @@ defaults:
   - _self_
 
 mode: d2x-fk-foot-temporal-routing
-subphase: 1B-D2-X0
-run_id: p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723
+subphase: 1B-D2-X0-r1
+run_id: p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723
 seed: 42
 
 d2t_author_update_rule: false

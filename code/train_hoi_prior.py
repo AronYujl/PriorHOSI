@@ -264,6 +264,22 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         raise ValueError("FK-foot temporal routing is restricted to the registered D2-X mode")
 
 
+def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
+    if _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg):
+        return {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        }
+    return {
+        "fk": 50.0,
+        "object_surface": 50.0,
+        "velocity": 0.1,
+        "terminal_goal": 1.0,
+    }
+
+
 def _optimization_contract(cfg: DictConfig) -> Dict[str, object]:
     author_update = _uses_author_update_rule(cfg)
     return {
@@ -460,9 +476,9 @@ def _validate_d2x_contract(cfg: DictConfig, world_size: int) -> None:
         "d2t_mode_off": not _is_d2t(cfg),
         "d2u_mode_off": not _is_d2u(cfg),
         "d2v_mode_off": not _is_d2v(cfg),
-        "subphase": str(cfg.subphase) == "1B-D2-X0",
+        "subphase": str(cfg.subphase) == "1B-D2-X0-r1",
         "run_id": str(cfg.run_id) == (
-            "p1-hoi-d2x-fk-foot-temporal-routing-s42-20260723"
+            "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723"
         ),
         "seed": int(cfg.seed) == 42,
         "world_size": world_size == 4,
@@ -975,19 +991,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         "terminal_goal": float(cfg.goal_weight),
     }
     if d2m_candidate is None:
-        locked_weights = {
-            "fk": 50.0,
-            "object_surface": 50.0,
-            "velocity": 0.1,
-            "terminal_goal": 1.0,
-        }
-        if _is_d2u(cfg) or _is_d2v(cfg):
-            locked_weights = {
-                "fk": 0.3569973401779424,
-                "object_surface": 0.4772322188400037,
-                "velocity": 0.1,
-                "terminal_goal": 1.0,
-            }
+        locked_weights = _locked_loss_weights(cfg)
         if configured_weights != locked_weights:
             raise ValueError(
                 "Phase 1B loss weights do not match the registered training mode"
