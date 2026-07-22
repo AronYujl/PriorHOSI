@@ -2438,6 +2438,37 @@ r1 必须使用新结果目录和新 resolved config/preflight/manifest，重新
 preflight、manifest、log、metrics、exit code 与 aborted registry 均不覆盖。r1 无论 gate 正负都 finish/register、
 回收并停止，不选择 checkpoint、不训练、不运行 official-438/CHOIS/CM，也不开始 FK-foot loss intervention。
 
+D2-W r1 已在 worker commit `e8f4599d1f4d67b1b90f319c850ed2230280b1ad` 完成，return code 0，
+runtime `32.128 s`。selection、三个 checkpoint file/model-state hash、逐 step noise、official foot-sliding
+torch/numpy parity 与 finite contract 全部通过；r1 与跨日期 aborted lifecycle 的 selection、checkpoint
+contracts/metadata、完整 per-sequence results、comparison、decision 和 contract 逐字段完全一致。两个 immutable
+目录均已由 worker 主动回收到 authority staging，worker/authority 标准 tree hash 一致：aborted 为
+`224c9cb6837ef08ebaa46c2c3c140bb4cbf3abd30c140c2400c4dfea6a98f36b`（8 files / 281,739
+bytes），completed r1 为
+`bdbd4d66c7304e5d8f80624bd66b99b6088fbda68b898ea12fa95c3b92cfad4d`（7 files / 277,106
+bytes）。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2w_checkpoint_frontier_r1_s42_20260723.json`。
+
+| checkpoint | FK foot sliding | direct foot sliding | FK MPJPE cm | pelvis goal cm | object goal cm | object trans cm | direct/FK foot disagreement cm |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 6.144M control | 1.0184 | 1.4574 | 24.5116 | 8.9756 | 63.2352 | 45.4860 | 11.2901 |
+| 24.576M midpoint | 1.3803 | 1.3443 | 15.5517 | 4.5868 | 56.6646 | 20.6455 | 5.2632 |
+| 61.44M final | 0.9332 | 1.0083 | 13.9775 | 3.9919 | 58.4418 | 20.3566 | 3.2849 |
+
+核心 gate 的 `final - midpoint` FK foot-sliding paired 95% CI 为
+`[-0.7963,-0.1099]`，方向与“后半程退化”假设相反；midpoint/final 的 FK-MPJPE ratio CI 为
+`[1.0286,1.2009]`，pelvis-goal 与 object-translation ratio CI 上界也分别为 `1.4025/1.2015`，且
+midpoint 相对 control 的 object-goal improvement CI `[-4.0275,17.6240]` 未严格大于 0。因此分类固定为
+`midbudget-protection-negative-stop`，不选择 midpoint。该 32-sequence internal holdout 上三个 checkpoint
+physical-contact precision/recall/F1 均为 0，contact-preservation 项只能视为无信息，不能外推到 official-438。
+
+科学上，D2-W 排除了“24.576M 后继续 constant LR 是 D2-V official foot-sliding 缺口主要来源”这一首选
+解释；后半程反而降低 direct 与 rotation-to-FK foot sliding 并缩小 direct/FK trajectory disagreement。
+结合 production velocity loss 不读取 rotation channels、official metric 完全依赖 rotation-to-FK 的确定
+目标错位，下一候选应是单一 evaluator-aligned FK-foot temporal training loss，而不是 mid-budget checkpoint
+选择或 schedule-only retry。这仍是基于证据的机制优先级，不是该 loss 必然有效的证明；penetration 必须保持
+独立，不得捆绑。D2-W 至此停止，未训练、未启动 CM、未选择或蒸馏任何 checkpoint。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

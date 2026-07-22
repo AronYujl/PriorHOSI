@@ -236,6 +236,36 @@ class D2WGateAndGovernanceTests(unittest.TestCase):
         )
         self.assertFalse(retry["config"]["scientific_protocol_change"])
         self.assertFalse(retry["config"]["training_authorized"])
+        compact = json.loads((
+            ROOT / "experiments/results/"
+            "p1_hoi_phase1b_d2w_checkpoint_frontier_r1_s42_20260723.json"
+        ).read_text(encoding="utf-8"))
+        self.assertEqual(
+            compact["classification"], "midbudget-protection-negative-stop",
+        )
+        self.assertFalse(compact["checkpoint_selected"])
+        self.assertTrue(compact["contract"]["passed"])
+        self.assertEqual(
+            compact["artifacts"]["completed_20260723"]["artifact_tree_sha256"],
+            "bdbd4d66c7304e5d8f80624bd66b99b6088fbda68b898ea12fa95c3b92cfad4d",
+        )
+        aborted = next(
+            value for value in records
+            if value["experiment_id"]
+            == "p1-hoi-d2w-checkpoint-frontier-s42-20260722"
+        )
+        self.assertEqual(aborted["status"], "aborted")
+        self.assertFalse(aborted["results"]["lifecycle_reportable"])
+        completed = next(
+            value for value in records
+            if value["experiment_id"] == RUN_ID
+        )
+        self.assertEqual(completed["status"], "completed")
+        self.assertEqual(
+            completed["results"]["classification"],
+            "midbudget-protection-negative-stop",
+        )
+        self.assertFalse(completed["results"]["checkpoint_selected"])
 
 
 if __name__ == "__main__":
