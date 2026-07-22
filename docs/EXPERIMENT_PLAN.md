@@ -2252,6 +2252,56 @@ SHA-256 分别为
 `experiments/results/p1_hoi_phase1b_d2u_balanced_author_update_s42_20260721.json`。D2-U 至此停止；
 任何下一训练机制必须另行 dated plan/registry amendment，且不得从本 checkpoint 自动启动 CM。
 
+#### 2026-07-22 Phase 1B D2-V from-random balanced long-budget screen 预注册
+
+D2-U 已直接证明 balanced loss geometry 能把 clean from-random HOIPrior 的主要 kinematic/object
+指标推进到或略优于此前 sealed balanced checkpoint，但在 6,144,000 processed windows 终止时
+internal validation 仍明显下降，且作者自主训练 DDPM 使用了远长于该 screen 的训练周期。D2-V
+因此只检验 H4 training-budget insufficiency：在 D2-U 完全相同的 232-D diffusion HOIPrior、data、
+condition、architecture、loss、optimization 和 evaluation contract 下，把固定预算扩大十倍。它不
+检验 consistency、dynamic perception、sampler guidance、architecture 或 condition routing。
+
+1. **唯一 manipulated factor。** training run id 固定为
+   `p1-hoi-d2v-balanced-long-budget-s42-20260722`、subphase `1B-D2-V0`、seed 42。相对 D2-U，
+   唯一变化为 `max_processed_windows: 6,144,000 -> 61,440,000`，对应 optimizer updates
+   `3,000 -> 30,000`。D2-V 必须重新随机初始化；禁止 resume D2-U 或加载其 checkpoint，因此
+   “更长预算”不与 checkpoint lineage 混杂。
+2. **固定训练 contract。** 完全保留 D2-U 的 232-D state、16-frame window、2-frame history、
+   512-wide/16-head/8-layer Transformer、500-step clean-x0 diffusion、固定 OMOMO split、全部
+   conditions、FK/object-surface/velocity/goal 权重
+   `0.3569973401779424/0.4772322188400037/0.1/1.0`。只在四卡
+   `infbagel-4gpu/node01` 运行：4×RTX 3090、batch/GPU 512、accumulation 1、effective batch
+   2048、Adam `(0.9,0.999)`、constant LR `1e-4`、FP32、无 warmup/scheduler/weight decay/
+   clipping/AMP/EMA。validation windows 32,768，validation/checkpoint cadence 均保持 D2-U 的
+   3,072,000 windows。禁止加载 released、author、source、current、balanced、D2-T、D2-U、
+   prior、resume 或任何 EMA checkpoint；不得设置 `d2m_candidate`。
+3. **实现和 lifecycle。** 新增独立 D2-V Hydra config、fail-closed mode、tests 和 target-only
+   evaluator；D2-T/D2-U exact contracts 必须保持不变。代码、config、tests、plan、registry 和
+   evaluator 组成一个 logical commit。authority 通过 registry validation、targeted/full tests、
+   compile、resolved-config 和 semantic diff 后，worker 只能主动 fast-forward 到 exact commit。
+   workload 前必须归档 fully-resolved config、同一 escalated context 的四卡 preflight，并用
+   `tools/experiment.py start` 建立新 manifest；detached workload 不依赖 SSH 存活。
+4. **budget mechanism gate。** final online checkpoint 只评估一次，evaluation run id 固定为
+   `p1-hoi-d2v-native-eval-s42-20260722`、subphase `1B-D2-V0-eval`。复用 D2-U official-438
+   per-sequence records 作为只读 control，使用相同每序列三窗口、500-step unguided diffusion、
+   10,000 paired bootstrap、seed 42。`D2-U minus D2-V` 的 MPJPE、end-object、xy、
+   object-translation improvement CI 下界均须 `>0`；`D2-V minus D2-U` contact-F1 CI 下界须
+   `>=-0.02`；D2-V/D2-U foot-sliding ratio CI 上界须 `<=1.10`。
+5. **absolute effective-diffusion gate。** 同时相对 Phase-0 released aggregate满足 MPJPE ratio
+   `<=1.30`、end-object `<=2.00`、xy `<=1.50`、object-translation `<=1.50`、foot-sliding
+   `<=1.10` 且 contact F1 `>=0.60`，才分类为 `effective-diffusion-hoi-prior-stop`。budget
+   mechanism gate 通过但 absolute gate 失败，分类
+   `long-budget-positive-but-not-effective-stop`；任一 mechanism 条件失败分类
+   `long-budget-negative-stop`；contract/hash/lifecycle 失败分类
+   `long-budget-contract-failure-stop`。
+6. **停止规则和 artifacts。** 无论结果如何，完成 D2-V fixed-budget training 与一次 official
+   evaluation 后停止；不得观察中间 checkpoint 后提前选择、延长预算、改变 loss/contact、启动
+   architecture/condition intervention 或 CM。保留 resolved config、preflight、manifest、完整
+   log/metrics、全部 cadence checkpoint hashes、resume evidence、official aggregate/per-sequence/
+   bootstrap/gate JSON、artifact-tree hash 和任何 negative result。只有 absolute gate 通过后，
+   才能等待用户另行授权选择 final checkpoint；任何 consistency stage 都必须以新的 dated
+   amendment 从自主训练的 D2-V HOIPrior diffusion checkpoint 开始，本 subphase 不授权 CM。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
