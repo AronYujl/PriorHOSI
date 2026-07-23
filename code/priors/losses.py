@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Dict
 
 import torch
@@ -13,6 +14,9 @@ from .window_codec import project_to_so3
 
 
 D2X_FOOT_JOINTS = (7, 8, 10, 11)
+D2X_FOOT_XZ_VELOCITY_SLOTS = tuple(
+    joint * 3 + component for joint in D2X_FOOT_JOINTS for component in (0, 2)
+)
 
 
 def _fk_positions(
@@ -74,6 +78,30 @@ def _velocity_residuals(
     return predicted_residual, target_residual
 
 
+def _velocity_loss(
+    predicted_residual: torch.Tensor,
+    target_residual: torch.Tensor,
+    *,
+    fk_foot_temporal_routing: bool,
+    routed_foot_residual_multiplier: float,
+) -> torch.Tensor:
+    """Apply the preregistered D2-Y per-slot weighting without changing D2-X."""
+    multiplier = float(routed_foot_residual_multiplier)
+    if not math.isfinite(multiplier) or multiplier < 1.0:
+        raise ValueError("routed-foot residual multiplier must be finite and at least one")
+    if multiplier == 1.0:
+        return F.mse_loss(predicted_residual, target_residual)
+    if not fk_foot_temporal_routing:
+        raise ValueError("routed-foot residual amplification requires FK-foot temporal routing")
+    if predicted_residual.shape != target_residual.shape or predicted_residual.shape[-1] != 87:
+        raise ValueError(
+            "routed-foot residual amplification expects matching [...,87] residual tensors"
+        )
+    slot_weights = predicted_residual.new_ones(87)
+    slot_weights[list(D2X_FOOT_XZ_VELOCITY_SLOTS)] = multiplier
+    return ((predicted_residual - target_residual).square() * slot_weights).mean()
+
+
 def hoi_training_losses(
     prediction: torch.Tensor,
     target: torch.Tensor,
@@ -94,6 +122,7 @@ def hoi_training_losses(
     velocity_weight: float = 0.1,
     goal_weight: float = 1.0,
     fk_foot_temporal_routing: bool = False,
+    routed_foot_residual_multiplier: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
     if prediction.shape != target.shape or prediction.shape[-1] != REPRESENTATION.dimension:
         raise ValueError(f"expected matching [B,16,232], got {prediction.shape}/{target.shape}")
@@ -136,7 +165,12 @@ def hoi_training_losses(
         position_maximum,
         fk_foot_temporal_routing=bool(fk_foot_temporal_routing),
     )
-    losses["velocity"] = F.mse_loss(predicted_velocity, target_velocity)
+    losses["velocity"] = _velocity_loss(
+        predicted_velocity,
+        target_velocity,
+        fk_foot_temporal_routing=bool(fk_foot_temporal_routing),
+        routed_foot_residual_multiplier=float(routed_foot_residual_multiplier),
+    )
     terminal = terminal_window.reshape(-1).to(device=prediction.device, dtype=prediction.dtype)
     goal_per_window = (prediction[:, -1, 216:219] - goals[:, 6:9]).square().mean(dim=-1)
     # Keep a differentiable zero when a batch contains no terminal windows.

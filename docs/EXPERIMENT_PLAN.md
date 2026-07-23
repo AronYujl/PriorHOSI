@@ -2636,6 +2636,97 @@ evaluation manifest/metrics/aggregate/per-sequence/resolved/preflight/run-local-
 `fdf21f8b0042d1d26ac2a3b4cf8a073a43cd20283f0292d55572aa66de6e42f6`。D2-X 至此停止；
 任何新的 HOIPrior 机制必须另行 dated plan/registry amendment，且 consistency stage 仍未授权。
 
+#### 2026-07-23 Phase 1B D2-Y routed-foot residual amplification screen 预注册
+
+D2-X 已证明 evaluator-aligned FK-foot temporal routing 没有显著破坏 D2-V：official-438 上
+MPJPE、object、contact 与 penetration protection 均通过，foot sliding 点估计从 `0.3783` 降至
+`0.3630`；但 paired mean improvement `0.0152733` 的 10,000-replicate sequence bootstrap 95% CI
+`[-0.0037904,0.0341575]` 包含 0，因此不能选择 checkpoint。封存代码与只读 audit 同时确认，
+velocity tensor 每 future frame 有 87 个 residual slots，routed foot x/z 仅 8 个，占
+`8/87 = 9.1954%`；D2-X final validation 的 unweighted velocity MSE 为 `0.0001015743360`，
+乘全局 weight `0.1` 后只占 total validation loss 的 `0.0208%`。固定 seed-42 probe 上 late routed
+scalar 只占 weighted velocity scalar 的 `5.42%--5.79%`，routed gradient/FK-gradient norm ratio
+仅 `0.00640%--0.01049%`，且 routed 与 FK gradient cosine 为 `-0.7435` 至 `-0.8086`。这支持
+“routing 正确但 global mean/weight 使信号过弱”为首选解释，并把“rotation/root 上与 FK 的竞争抵消”
+保留为次要竞争解释；official metric 的 30 Hz interpolation、predicted floor 与 near-ground nonlinear
+gate 仍构成尚未消除的语义差异。上述 audit 没有发现新的确定 implementation defect；D2-X r0 的
+0-update dispatch defect 继续作为独立 lifecycle failure 永久保留。
+
+D2-Y 只检验一个可证伪的 loss-geometry 机制：保持 D2-X 的 8 个 FK-routed residual slots 和所有其他
+训练条件不变，仅对这 8 个 squared residual errors 使用固定乘数 `1024`，仍在原 87×14 tensor 上做
+一次 global mean，且全局 velocity weight 仍为 `0.1`。`1024` 是预先由封存 late probe 选择的最小
+2 的幂，使三个 preregistered timestep strata 的 routed/FK gradient-norm ratio 全部至少为 5%
+（线性外推为 `8.00%/6.55%/10.74%`）；不得根据 smoke、中间 validation 或训练结果调整或 sweep。
+
+1. **唯一 manipulated factor。** Training run id 固定为
+   `p1-hoi-d2y-routed-foot-amplification-s42-20260723`、subphase `1B-D2-Y0`、seed 42。对
+   D2-X routed slots（joints `[7,8,10,11]` 的 x/z）令
+   `L_velocity = mean(w_j * (predicted_residual_j-target_residual_j)^2)`，其中 routed slots
+   `w_j=1024`，其余 79 slots `w_j=1`。Residual construction、target、first-future immutable GT
+   history、later predicted-FK history、tensor shape/element count、全局 velocity weight、FK/
+   reconstruction/object-surface/goal formula 全部保持 D2-X 不变；不得增加 height/contact gate、
+   penetration term、sampler correction或第二个 loss knob。
+2. **固定训练 contract。** 必须重新随机初始化并保留 232-D representation、16 frames、2 history
+   frames、512-wide/16-head/8-layer Transformer、500-step clean-x0 diffusion、OMOMO seed-42 split、
+   全部 conditions，以及 FK/object-surface/velocity/goal weights
+   `0.3569973401779424/0.4772322188400037/0.1/1.0`。只允许在
+   `infbagel-4gpu/node01` 用 4×RTX 3090、batch/GPU 512、accumulation 1、effective batch 2048、
+   Adam `(0.9,0.999)`、constant LR `1e-4`、FP32、无 warmup/scheduler/weight decay/clipping/AMP/EMA，
+   固定 61,440,000 processed windows / 30,000 updates、32,768 validation windows 和每
+   3,072,000 windows validation/checkpoint cadence。禁止加载 released、author、D2-V、D2-X、
+   prior、resume、EMA 或任何其他 checkpoint；不得设置 `d2m_candidate`。若 reportable lifecycle
+   在日期变化后才启动，必须先按启动机器真实 `date` 追加只改 run/subphase 标识的 operational
+   amendment，旧 id 不得创建或复用。
+3. **固定 internal mechanism diagnostic。** 复用 D2-W 封存的 32-sequence/96-window selection
+   （selection SHA-256
+   `30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae`），用相同 clean batch、
+   timestep、noise、condition dropout 与 D2-X early/mid/final online checkpoints作 paired control。
+   D2-Y 必须报告 early/mid/final 和 timestep `0/249/499` 的 routed normalized residual RMS，以及
+   root、rotation、input projection、output projection、Transformer parameter-gradient norm；
+   同时报告 routed gradient 与 reconstruction、FK、object-surface、goal gradient cosine。Internal
+   mechanism gate 固定为 final D2-X minus D2-Y routed-foot normalized residual MSE 在 timestep
+   `249` 和 `499` 的 sequence-paired 10,000-replicate bootstrap 95% CI 下界均 `>0`。Internal gate
+   只诊断放大是否被优化器吸收，不用于 checkpoint selection。
+4. **固定 official evaluation。** Evaluation run id 固定为
+   `p1-hoi-d2y-native-eval-s42-20260723`、subphase `1B-D2-Y0-eval`。只评估 fixed final online
+   checkpoint 一次，使用 D2-X 完全相同的 author-native official-438、每 sequence 三窗口、
+   500-step unguided diffusion；无 CFG、dynamic perception、guidance、CHOIS selection、FID 或
+   R-precision。D2-X r1 final aggregate/per-sequence records 和 checkpoint SHA-256
+   `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+   `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a` /
+   `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51`
+   作为 immutable paired control，只读复用。统计单位为 sequence，bootstrap 10,000 次、seed 42；
+   penetration 继续绑定 D2-X 已封存的相同 181-sequence finite mask 和
+   `2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec` ID hash。
+5. **success、negative 与 effective gates。** Official mechanism gate 要求：D2-X minus D2-Y
+   foot-sliding difference CI 下界 `>0`；D2-Y/D2-X 的 MPJPE、end-object、xy、
+   object-translation、hand-penetration-loss 与 human-penetration-loss ratio CI 上界均
+   `<=1.10`；D2-Y minus D2-X contact-F1 difference CI 下界 `>=-0.02`；所有 contract、finite、
+   normalization、history、mask 与 provenance checks 通过。Absolute gate 继续相对 Phase-0
+   released baseline 使用 MPJPE/end-object/xy/object-translation/foot-sliding ratio
+   `<=1.30/2.00/1.50/1.50/1.10` 且 contact F1 `>=0.60`。
+   internal 与 official mechanism gates、absolute gate 全通过时分类
+   `routed-foot-amplification-positive-candidate-stop`；internal 通过而 official foot gate 失败为
+   `routed-foot-amplification-transfer-negative-stop`，区分“信号确实变强但训练 surrogate 未转移到
+   near-ground official metric”；official foot 改善但任一 protection gate 失败为
+   `routed-foot-amplification-conflict-negative-stop`，支持 gradient conflict/capability tradeoff；
+   internal gate 失败为 `routed-foot-amplification-optimization-negative-stop`；mechanism 通过但
+   absolute gate 失败为 `routed-foot-amplification-positive-but-not-effective-stop`；artifact/
+   lifecycle contract 失败为 `routed-foot-amplification-contract-failure-stop`。
+6. **实现、停止规则与 artifact contract。** Plan/registry 后才允许新增 fail-closed D2-Y config、
+   weighted reduction、contract、diagnostic、target-only evaluator 与 tests；D2-T/U/V/X 的 exact
+   config、loss 和 checkpoint-resume contract 必须保持不变。authority clean validation 后形成一个
+   logical commit，worker 只能主动 fast-forward 到相同 Git object；训练前必须归档 fully-resolved
+   config、同一 execution context 的 machine preflight，并用 `tools/experiment.py start` 创建
+   reportable manifest。必须保留 manifest/resolved/preflight、完整 logs/metrics、20 个 cadence
+   checkpoints 与 80 个 RNG sidecars及 hashes、resume evidence、internal per-sequence/gradient/
+   bootstrap audit、official aggregate/per-sequence/bootstrap/gate JSON、normalization/mask/provenance
+   audits、artifact-tree hash和任何 failure。无论分类如何，完成 fixed-budget training、internal
+   diagnostic 和一次 official evaluation 后停止；不得选择中间或最终 checkpoint、延长预算、从
+   D2-V/D2-X resume、post-hoc 改 multiplier/gate、启动 penetration intervention、HSIPrior、Mixer 或
+   consistency distillation。即使分类 positive，本 subphase 也只产生待用户另行确认的 diffusion
+   candidate，绝不自动授权 checkpoint selection 或 CM。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
