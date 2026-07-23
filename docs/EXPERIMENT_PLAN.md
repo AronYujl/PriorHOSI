@@ -2589,6 +2589,53 @@ c8e1fee0ca60fcd92d482a838601396ec7f2ee4e0ac9d3c6bd62ea2390cd9ae9、
    自由重试。若 r1 进入稳定训练，则按原 D2-X 协议完成；仍不授权 checkpoint selection、penetration
    intervention 或 CM。
 
+#### 2026-07-23 D2-X r1 completion and negative gate
+
+D2-X r1 在 `3af3facaf73d3bbffcca6d6181bac1ff89909a24`、`infbagel-4gpu/node01` 上从随机初始化完成了
+固定的 61,440,000 processed windows / 30,000 optimizer updates。effective batch 为 2,048（4×3090、
+每卡 512、accumulation 1），loss/gradient 全部 finite，20 个 cadence checkpoint 和 80 个 RNG sidecar
+均保留；未加载 released、author、source、current、balanced、prior 或任何 resume/EMA checkpoint。
+最终 online checkpoint SHA-256 为
+`b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51`，training manifest/metrics/
+resolved/preflight/run-local-registry SHA-256 分别为
+`2011ded7310f851d3a1278bd65fe2d19fdca8f7b859d289d7e240b3d8d347d85`、
+`0c99ac8b5880b1e7419cc6fe9c4be6388e7f806f066e9863da0ac320336693f3`、
+`5e913957d0dde5bd3d589e98248436a14353f831ccfd422a5a96d152f7273130`、
+`1ef9206e8521ca73ef78c0dec7bddc1ef1b192e138f3765d1f06ff4ef7187cac` 和
+`9dde11270e443f39e86ab77b26f0a80fd097cba2f42b7591d314f87373a1e856`；完整 training tree 为
+112 files / 7,127,226,145 bytes，SHA-256 `3f95773270e4701310daac9128c19d822d0a4e887ad7c5ddd40008f1b98a47c6`。
+
+首次 evaluation preflight 只因错误地把 `--chois-root` 指向 checkout 内的资产目录而失败
+（未创建 evaluation manifest、未加载 checkpoint、未启动 GPU workload）；该失败文件保留。随后使用
+固定的 `/home/yujinlun/data/evaluators/chois_release` 重新捕获 preflight，所有 pinned checks、四卡
+idle/无 CUDA compute process 和 Xorg 显示层约束通过。唯一一次 official-438 evaluation 使用 final
+online checkpoint、每序列 3 windows、500-step unguided diffusion，无 CFG、dynamic perception、guidance、
+CHOIS、FID 或 R-precision。D2-V final records 作为只读 paired control，181-sequence penetration mask
+保持完全一致。
+
+target aggregate 为 MPJPE `12.0508`、end-object `3.7402`、xy `4.0505`、object translation `15.9940`、
+foot sliding `0.3630`、contact F1 `0.6374`、hand/human penetration loss `0.2454/3.8691`。相对 D2-V，
+foot-sliding mean 改善 `0.0152733`，但 10,000-replicate paired bootstrap 95% CI 为
+`[-0.0037904, 0.0341575]`，没有满足预注册的 CI 下界 `>0`；其余 kinematic/object/contact/penetration
+protection checks 均通过，且相对 released baseline 的所有 absolute checks 也通过。因此分类严格为
+`fk-foot-temporal-routing-negative-stop`。这是一个保留 D2-V 能力但未证实 foot-sliding 因果改善的负结果，
+不是 evaluator 或 artifact contract 失败；不得从该 checkpoint 选择、延长预算、修改 sampler/contact/
+penetration，或启动 consistency distillation。
+
+evaluation manifest/metrics/aggregate/per-sequence/resolved/preflight/run-local-registry SHA-256 分别为
+`fa19565eb96155f735a7b8c1569a95e1069267b8641ffe7968e878554fee4550`、
+`f2cb76d0c248c4d4b8ce4571758c1937e2e19170199c6e9631df21858dc1c807`、
+`3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b`、
+`69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`、
+`206eb63d15231d5986adf001295810b1a83cf88511f7435379d43f35a8c03617`、
+`3262548e948038f3725978e645c4f2f14893253bddfa5349ec80e018b18cf76e` 和
+`6739dd94d7181c76020f33d3cdbf24aff5f3fe24495c411363808722fc3ba1a`；evaluation tree 为 16 files /
+366,190 bytes，SHA-256 `c4a853d99659ac92ac830621a0e8caf68aea3db9f3d954b3486d3aa4d3d3eb74`，worker/authority
+完全一致。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2x_fk_foot_temporal_routing_r1_s42_20260723.json`，SHA-256
+`fdf21f8b0042d1d26ac2a3b4cf8a073a43cd20283f0292d55572aa66de6e42f6`。D2-X 至此停止；
+任何新的 HOIPrior 机制必须另行 dated plan/registry amendment，且 consistency stage 仍未授权。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
