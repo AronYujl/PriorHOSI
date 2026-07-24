@@ -3044,6 +3044,55 @@ D2-Z training config 现在只绑定 portable checkout-local artifact path
 transfer、GPU smoke、training、checkpoint load、internal/official evaluation、checkpoint
 selection 或 consistency；本 session 在 hash-binding commit 后停止等待用户确认。
 
+#### 2026-07-24 Phase 1B D2-Z worker/GPU execution authorization amendment
+
+用户已于本 amendment 前明确授权继续执行 D2-Z worker sync、artifact transfer、GPU smoke 与固定
+正式训练，并要求正式训练稳定后停止轮询、待用户通知训练结束。Authority 与 worker 在任何本次
+文件修改或 GPU workload 前分别执行 `date`，均得到
+`2026-07-24 11:23:24 CST (+0800)`；authority 为 clean
+`phase/01b-hoi@4d087689d38d338d4a62abffa70bfb77ab46b0fe`，worker 为 clean
+`phase/01b-hoi@2cd4991fa3a39f0b6b0d98912a710a7d4c70a964`。worker 的旧 HEAD 是已封存结果
+提交，不是 corruption；必须在本 amendment 形成新的 clean authority logical commit 后由 worker
+主动 fast-forward 到完全相同的 Git object，worker 不得编辑 source。
+
+本次只新增 execution authorization，不改变 D2-Z 的 scientific mechanism、threshold、multiplier、
+loss reduction、representation、architecture、conditions、split、seed、effective batch、budget、
+evaluator、gates、classifications 或 stop rule。授权范围固定如下：
+
+1. worker 主动拉取 exact authority commit，并主动复制 authority 的 immutable
+   `p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json` 到 config 已绑定的
+   checkout-local ignored path；必须校验 SHA-256
+   `d56f1cbc5297b82d768cd396ab1a49c6e33d4101d156c0375501bf32ae055faa`。
+2. worker 使用 `/home/yujinlun/data/envs/infbagel/bin/python`、`ROOT_DIR` 等于 checkout root、
+   `INFBAGEL_WORKER_EXPERT=hoi`，完成 role-applicable CPU tests、registry validation、fully
+   resolved Hydra config 与同一 GPU execution context 的四卡 idle/preflight archive。任一
+   commit、audit、data、asset、config、idle 或 unresolved-interpolation contract 失败即停止，
+   不得自由重试 formal run id。
+3. 允许一个独立 operational GPU smoke：
+   `p1-hoi-d2z-gpu-smoke-s42-20260724`、subphase `1B-D2-Z0-gpu-smoke`。它只在 worker GPU 0
+   以 seed 42、随机初始化、真实 D2-Z train windows 和 production model/diffusion/loss path执行
+   一次 forward/backward；必须验证 audit hash、binary gate 同时含 active/inactive entries、全部
+   loss finite、motion input/output/Transformer 关键 parameter gradient finite 且 nonzero，以及
+   peak allocated/reserved memory。它不得创建 optimizer、执行 update、写 checkpoint、加载任何
+   checkpoint 或形成科学 selection；无论成功失败都必须保留 manifest、resolved config、
+   preflight、metrics 和 log，原 smoke id 不得复用。
+4. smoke 通过后允许启动已绑定的唯一 formal training
+   `p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724`、subphase `1B-D2-Z0`。必须使用
+   4×RTX 3090、batch/GPU 512、effective batch 2048、seed 42、随机初始化、61,440,000 windows /
+   30,000 updates 和全部既有 exact config；禁止设置或加载 init/resume/weight-init/EMA/released/
+   author/D2-V/D2-X/D2-Y/prior checkpoint。通过 `tools/experiment.py start` 创建 reportable
+   manifest，并在 worker-owned persistent `tmux` 中运行，不依赖反向 SSH 存活。
+5. 只监测 initial stability interval：resolved/preflight/manifest 通过，loss 与所需 gradients finite/
+   nonzero，无 overflow，四卡显存满足既有 headroom contract，并产生首个 3,072,000-window
+   checkpoint 及四个 RNG sidecar。对该完整原子 checkpoint 做只读 schema/hash/contract
+   inspection 作为 resumable evidence，不实际 resume、不创建第二训练 lineage。满足后记录吞吐和
+   ETA，停止连续轮询；训练结束、artifact recovery、internal diagnostic 与 official evaluation 等待
+   用户再次通知。若此前失败，保留失败并停止，不得复用 id。
+
+本授权不允许 checkpoint selection、D2-Z/D2-Y resume、修改 gate 或旧 gate、internal/official
+evaluation、consistency distillation、HSIPrior 或 Mixer。Formal training 即使完成也只产生尚未
+评估且不可选择的 D2-Z artifact；后续 lifecycle 仍受原预注册 stop rule 约束。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
