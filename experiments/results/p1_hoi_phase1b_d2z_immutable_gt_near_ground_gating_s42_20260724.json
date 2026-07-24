@@ -1,0 +1,381 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1B-D2-Z0",
+  "seed": 42,
+  "training_date": "2026-07-24",
+  "completion_date": "2026-07-24",
+  "classification": "immutable-gt-near-ground-joint-negative-stop",
+  "checkpoint_selected": false,
+  "consistency_authorized": false,
+  "consistency_started": false,
+  "implementation": {
+    "plan_commit": "2b818726093fc15ff819e76fd12119eb329343bf",
+    "implementation_commit": "3034510418fdc76e334cb8643c74414ded045726",
+    "training_commit": "2634cea35e86cd054c9283fdfddb89fe507dc066",
+    "internal_r1_commit": "ff5148a7040cc6c9679393557a395e3f147a43b8",
+    "evaluation_commit": "38d7e409a1b6208049d1b4ce358eacfef0dc9f3a",
+    "single_manipulated_factor": "apply the fixed 1024 D2-Y multiplier only when immutable-GT previous-frame foot height is below the fixed joint-specific near-ground threshold; otherwise use coefficient 1",
+    "gate_source": "immutable_gt_previous_sampled_frame",
+    "floor_source": "complete_immutable_aligned_gt_sequence_30hz",
+    "thresholds_m": {
+      "7": 0.08,
+      "8": 0.08,
+      "10": 0.04,
+      "11": 0.04
+    },
+    "active_multiplier": 1024.0,
+    "inactive_multiplier": 1.0,
+    "gate_stop_gradient": true,
+    "representation_dimension": 232,
+    "architecture_changed": false,
+    "conditions_changed": false,
+    "optimization_changed": false,
+    "global_velocity_weight": 0.1,
+    "global_velocity_reduction": "weighted_squared_errors_then_original_global_mean",
+    "released_or_author_or_prior_checkpoint_loaded": false
+  },
+  "preserved_operational_failures": {
+    "gate_audit_r0": {
+      "run_id": "p1-hoi-d2z-gate-audit-s42-20260724",
+      "status": "failed",
+      "failure": "raw aligned OMOMO gate helper incorrectly required 24 rather than 28 joints",
+      "checkpoint_loads": 0,
+      "optimizer_updates": 0,
+      "cuda_calls": 0,
+      "artifact_tree_sha256": "11553516ef660118e2e66b8ca9eb0f277c34aa21af10c8fca782a15b4b6cdc9f"
+    },
+    "gpu_smoke_r0": {
+      "run_id": "p1-hoi-d2z-gpu-smoke-s42-20260724",
+      "status": "failed",
+      "failure": "the smoke-only DataLoader iterator consumed Torch RNG before model construction",
+      "forward_started": false,
+      "optimizer_updates": 0,
+      "checkpoint_loads": 0,
+      "artifact_tree_sha256": "cdd6934b5cb68fc42a71feee1f165695256376b08044ff3e2ced76806193edd3"
+    },
+    "internal_r0": {
+      "run_id": "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724",
+      "status": "failed",
+      "failure": "the diagnostic reporting contract rejected valid zero-support per-sequence inactive strata",
+      "scientific_metrics_written": false,
+      "official_test_sequences_used": 0,
+      "optimizer_updates": 0,
+      "artifact_tree_sha256": "239fb2bf4a4ce7ff456bea8a0ebd265bcde8b12cef14a8ae0e81ba081b472544"
+    }
+  },
+  "gate_audit": {
+    "run_id": "p1-hoi-d2z-gate-audit-r1-s42-20260724",
+    "status": "completed",
+    "cpu_only": true,
+    "selection_sha256": "30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae",
+    "selection_sequences": 32,
+    "selection_windows": 96,
+    "active_counts": {
+      "7": 1096,
+      "8": 1081,
+      "10": 1211,
+      "11": 1232
+    },
+    "total_active": 4620,
+    "total_entries": 5376,
+    "active_fraction": 0.859375,
+    "metrics_sha256": "d56f1cbc5297b82d768cd396ab1a49c6e33d4101d156c0375501bf32ae055faa",
+    "artifact_tree_sha256": "2c3db75fd2227974ecaf939a1e22dd6cccd6ebaf739ee424d1c8ce6aa55cdbca"
+  },
+  "gpu_smoke_r1": {
+    "run_id": "p1-hoi-d2z-gpu-smoke-r1-s42-20260724",
+    "status": "completed",
+    "initial_model_state_sha256": "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e",
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "artifact_tree_sha256": "3a36211aaa3143a965828f37c2cbbc53872188162905dd93fe3017f55a12f148"
+  },
+  "training": {
+    "run_id": "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724",
+    "execution_host": "infbagel-4gpu/node01",
+    "random_initialization": true,
+    "initial_model_state_sha256": "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e",
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "effective_batch_size": 2048,
+    "micro_batch_per_gpu": 512,
+    "world_size": 4,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "amp_overflow_skips": 0,
+    "final_validation": {
+      "total": 0.05024458122670694,
+      "reconstruction": 0.04191971372029002,
+      "fk": 0.010272838372998194,
+      "object_surface": 0.008309884734273965,
+      "velocity": 0.0038164153908581966
+    },
+    "wall_seconds": 19319.675177562982,
+    "throughput_windows_per_second": 3180.177691152577,
+    "throughput_frames_per_second": 50882.843058441234,
+    "minimum_memory_headroom_bytes": 21208694784,
+    "checkpoint_count": 20,
+    "rng_sidecar_count": 80,
+    "early_checkpoint_sha256": "dce01c06b58ac41120307f3fbf8fb4f4892d15140abe583e8202e4cf0a9c48ed",
+    "mid_checkpoint_sha256": "31ca1874e6da7105ca5a39196ca1f658492108d6695834fc28b89287b231189c",
+    "final_checkpoint_sha256": "44c1ff8c8cf4abc2c7312923f64183e1a4a307166d187c9fcaff03abdcc162b6",
+    "metrics_sha256": "84b682c4ec78ce80402538c6304a419f8bfcf879b7bf3163ced68d8032d47d09",
+    "manifest_sha256": "39a400060c01056f03c03eff28a6ba83f0e0b88b520394a43a72eaf0903b28df",
+    "resolved_config_sha256": "b81490a2941193679b9d9c1b9e85713884ef27ec2ed8076bb06c39cb6d202c26",
+    "preflight_sha256": "a94293326f41243b89a9911d3d1c94a34755bd41cc6d70baf8a0f2c2dd83c38b",
+    "run_local_registry_sha256": "f5e2848696009542ad50353de8d572c9498c46945c8d4a69bf438410c8659188",
+    "resume_evidence_sha256": "fed416229e281f2097a4a7a5ddb232f920f4a1fd8dd616bbba1a1cec2e43330b",
+    "artifact_tree": {
+      "sha256": "41de8a4a2b94b225d82d628ca3d074408b33619550f8809e1d6576ef2b1f4726",
+      "files": 113,
+      "bytes": 7127278269,
+      "worker_authority_match": true
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-r1-s42-20260724",
+    "protocol": "sealed 32-sequence/96-window selection; D2-X/D2-Y/D2-Z early, mid and final online checkpoints; paired clean windows, timesteps, noise and condition dropout",
+    "selection_sha256": "30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae",
+    "official_test_sequences_used": 0,
+    "timesteps": [
+      0,
+      249,
+      499
+    ],
+    "zero_inactive_support_sequence_indices": [
+      2,
+      5,
+      16
+    ],
+    "final_active_routed_residual_rms": {
+      "d2x": {
+        "0": 0.007178969215601683,
+        "249": 0.008951296098530293,
+        "499": 0.010113012976944447
+      },
+      "d2y": {
+        "0": 0.005560997407883406,
+        "249": 0.007029175292700529,
+        "499": 0.0076669915579259396
+      },
+      "d2z": {
+        "0": 0.005675253923982382,
+        "249": 0.007053803652524948,
+        "499": 0.007912366650998592
+      }
+    },
+    "final_inactive_routed_residual_rms": {
+      "d2x": {
+        "0": 0.011349723674356937,
+        "249": 0.01513495109975338,
+        "499": 0.015744762495160103
+      },
+      "d2y": {
+        "0": 0.009540087543427944,
+        "249": 0.013163391500711441,
+        "499": 0.013669740408658981
+      },
+      "d2z": {
+        "0": 0.010086220689117908,
+        "249": 0.01350369118154049,
+        "499": 0.014262055978178978
+      }
+    },
+    "final_d2z_uniform_vs_gated": {
+      "0": {
+        "gradient_norm_retained_fraction": 0.7766875837718062,
+        "gradient_cosine": 0.9949011009244926
+      },
+      "249": {
+        "gradient_norm_retained_fraction": 0.7833385291197377,
+        "gradient_cosine": 0.9591693173657183
+      },
+      "499": {
+        "gradient_norm_retained_fraction": 0.8587024694589622,
+        "gradient_cosine": 0.9482719007785055
+      }
+    },
+    "final_d2z_gated_fk_cosine": {
+      "0": 0.6908418478986285,
+      "249": -0.5109884264936272,
+      "499": -0.15211479131635075
+    },
+    "selection_use": false,
+    "checkpoint_selected": false,
+    "runtime_seconds": 12.160655643092468,
+    "metrics_sha256": "0540afa33b485f3a893973d827fe0c48bfca08df3e0b3fdd54fa1f14ce9256e3",
+    "manifest_sha256": "d5f3d3bd04bdd290ec5dbd599d706a99daac78e1ec51259b88f9280fc9a0043d",
+    "preflight_sha256": "abca0349a533bf288f5a6ef80bfee447423c13563a7c9875ff2d098959e5626b",
+    "run_local_registry_sha256": "b09e80dcc370f31a2aa43f9a39d571ee01477bc5999236a99ea002dd0f1f4f50",
+    "artifact_tree": {
+      "sha256": "039894526a9044865ea0fcfbdee1ba9c51f148a74860048ba16fdd6b1f31e960",
+      "files": 6,
+      "bytes": 515725,
+      "worker_authority_match": true
+    }
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-d2z-native-eval-s42-20260724",
+    "protocol": "author-native HOI official 438, three windows per sequence, 500-step unguided diffusion, final online weights",
+    "primary_control": "sealed D2-X r1 final official records, reused without regeneration",
+    "mechanism_comparator": "sealed D2-Y final official records, reused without regeneration and not used for selection",
+    "target_metrics": {
+      "mpjpe": 12.265457212924957,
+      "end_obj_trans_err": 4.456652328372002,
+      "xy_points_err": 3.8216207176446915,
+      "obj_trans_dist": 16.394522633600268,
+      "foot_sliding": 0.3634330362321869,
+      "contact_f1": 0.6307983528117344,
+      "hand_pen_loss_omomo": 0.21964046547115448,
+      "human_pen_loss_infbagel": 3.4478715496388266
+    },
+    "d2x_control_metrics": {
+      "mpjpe": 12.050843983888626,
+      "end_obj_trans_err": 3.7402085959911346,
+      "xy_points_err": 4.050519689917564,
+      "obj_trans_dist": 15.994049727002507,
+      "foot_sliding": 0.3630100213939385,
+      "contact_f1": 0.6374259391059788,
+      "hand_pen_loss_omomo": 0.24535650279805918,
+      "human_pen_loss_infbagel": 3.869084620991582
+    },
+    "d2y_comparator_metrics": {
+      "mpjpe": 12.124631553888321,
+      "end_obj_trans_err": 4.850601777434349,
+      "xy_points_err": 3.9675552397966385,
+      "obj_trans_dist": 16.328970602477842,
+      "foot_sliding": 0.35715649450370623,
+      "contact_f1": 0.6350935056440745,
+      "hand_pen_loss_omomo": 0.21839933100877262,
+      "human_pen_loss_infbagel": 3.4353165645464014
+    },
+    "paired_d2x_minus_d2z_foot_sliding": {
+      "mean": -0.0004230148382484122,
+      "bootstrap_95_ci": [
+        -0.02215237491309544,
+        0.02093439273550251
+      ],
+      "passed": false
+    },
+    "paired_d2z_minus_d2x_contact_f1": {
+      "mean": -0.006627586294244486,
+      "bootstrap_95_ci": [
+        -0.027427934240725912,
+        0.01379665210418231
+      ],
+      "passed": false
+    },
+    "target_over_d2x_ratio_ci": {
+      "mpjpe": [
+        1.0003605057616296,
+        1.0355353971840857
+      ],
+      "end_obj_trans_err": [
+        1.1284144949160537,
+        1.250421492431287
+      ],
+      "xy_points_err": [
+        0.9124435750520958,
+        0.9756157968607093
+      ],
+      "obj_trans_dist": [
+        1.0008861397688267,
+        1.0493038744767178
+      ],
+      "hand_pen_loss_omomo": [
+        0.7625026088101736,
+        1.0531312306802703
+      ],
+      "human_pen_loss_infbagel": [
+        0.7599339890716079,
+        1.0478530555143244
+      ]
+    },
+    "paired_d2y_minus_d2z_foot_sliding": {
+      "mean": -0.006276541728480631,
+      "bootstrap_95_ci": [
+        -0.024307108319706592,
+        0.011808825608561908
+      ]
+    },
+    "paired_d2z_minus_d2y_contact_f1": {
+      "mean": -0.004295152832340024,
+      "bootstrap_95_ci": [
+        -0.017483376463219374,
+        0.008503458708531116
+      ]
+    },
+    "penetration_mask_contract": {
+      "passed": true,
+      "official_sequences": 438,
+      "finite_sequences": 181,
+      "sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec"
+    },
+    "gates": {
+      "contract_passed": true,
+      "official_foot_sliding_improved": false,
+      "protection_passed": false,
+      "protection_failures": [
+        "end_obj_trans_err",
+        "contact_f1"
+      ],
+      "all_released_baseline_absolute_checks_passed": true,
+      "mechanism_passed": false,
+      "effective_diffusion_passed": false
+    },
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "runtime_seconds": 385.2141879219562,
+    "generation_seconds": 62.0660042099189,
+    "generation_fps": 889.1824228500968,
+    "normalization_contract_passed": true,
+    "metrics_sha256": "c20738824f0475294e42551121fd7796c2041fd48949e4630e012ad2d4959ae3",
+    "aggregate_sha256": "fb58a5ab3bd5ad0336ce02ff9a15cd7d97af8446599b147c9e2c806208a56162",
+    "per_sequence_sha256": "9f0f0e65bd0eaa4fe3ec1f495f6e4a4489c88d842256dccc3a6b9b57a1e9113f",
+    "manifest_sha256": "c134947136eee8a867222c55584ad744f6a8cffa72742b39a77980f541e50c6e",
+    "resolved_config_sha256": "86610e7c646d08474072b67826ad2a7268b7c8a20cefe93e217f446da3f244ed",
+    "resolved_target_sha256": "f8f1350678f3a706d6763fff2094826c618e10956f8714002dd0cb0a974efa3e",
+    "preflight_sha256": "981c21f0d565e99ee1b9d9ae5e52667de650ddf0986e6f815448edf1a151b4af",
+    "run_local_registry_sha256": "80c908260c73d1c5e27e2f4da4c76e8927575ae329be71d0d0da9171b080c9b9",
+    "artifact_tree": {
+      "sha256": "9613bb8762dc1ba67e29c068dee966461cfa4ac4284a2d84c4dc671625e13bfe",
+      "files": 15,
+      "bytes": 389634,
+      "worker_authority_match": true
+    }
+  },
+  "scientific_interpretation": {
+    "verified_facts": [
+      "The exact from-random D2-Z training completed its fixed budget with stable finite losses and gradients and no prior-state load.",
+      "The fixed internal diagnostic retained most of D2-Y's routed-residual improvement, but the gated gradient remained highly collinear with the uniform gradient and noisy-step routed/FK conflict remained.",
+      "The official D2-X-minus-D2-Z foot-sliding confidence interval included zero, so the registered transfer gate failed.",
+      "The end-object ratio confidence interval exceeded 1.10 and the contact-F1 difference lower bound was below -0.02, so D2-X protection was not preserved.",
+      "Every released-baseline absolute diffusion check, lifecycle/provenance contract, normalization audit and penetration-mask check passed."
+    ],
+    "evidence_based_inference": [
+      "The sealed selection's 85.94% active occupancy made binary near-ground restriction a relatively mild change from uniform D2-Y amplification: it retained 78-86% of gradient norm with cosine 0.95-0.99.",
+      "Restricting amplification to immutable-GT near-ground support did not resolve the official-semantic transfer gap or noisy-step FK conflict.",
+      "The D2-Z point estimates are compatible with registered sequence-level sampling uncertainty and cannot justify checkpoint selection."
+    ],
+    "unresolved_questions": [
+      "Whether the remaining failure is dominated by immutable-GT teacher-forcing versus rollout/predicted-state semantics, by the official metric's nonlinear near-ground/contact definition, or by shared-objective gradient conflict.",
+      "Whether a future single-variable mechanism can target official-semantic foot stability while preserving D2-X end-object and contact capability."
+    ],
+    "scientific_implementation_defect_found": false,
+    "resolved_operational_defects": [
+      "28-joint raw gate shape validation",
+      "smoke-only model/DataLoader RNG ordering",
+      "zero-support internal diagnostic reporting"
+    ]
+  },
+  "conclusion": "D2-Z is a controlled joint negative result: immutable-GT near-ground gating neither produced a statistically certified official foot-sliding improvement nor preserved D2-X end-object/contact capability. No checkpoint is selectable.",
+  "next_action": "Stop D2-Z and Phase 1B at this subphase. Any further HOIPrior mechanism requires a new dated read-only audit and preregistration. Do not select or resume D2-Z, alter the completed gate, rerun official evaluation, start consistency distillation, or enter HSIPrior or Mixer without separate authorization."
+}

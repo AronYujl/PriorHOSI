@@ -3291,6 +3291,49 @@ classification code 未变。Evaluator/test SHA-256 分别为
 Authority py_compile、17 项 D2-Z tests 和 registry validation 均通过；截至本验证时 official
 evaluation 尚未启动。
 
+#### 2026-07-24 Phase 1B D2-Z official completion / joint-negative stop
+
+唯一 `p1-hoi-d2z-native-eval-s42-20260724` 已在 exact commit
+`38d7e409a1b6208049d1b4ce358eacfef0dc9f3a`、clean worker 上完成，exit code 0。协议严格为
+official 438 sequences、每 sequence 3 windows、500-step unguided diffusion、fixed final online
+D2-Z checkpoint；D2-X/D2-Y records 均原样复用，D2-Y 只作 non-selection comparator。
+
+D2-Z 的 MPJPE/end-object/xy/object-translation 为
+`12.2655/4.4567/3.8216/16.3945`，foot sliding/contact F1 为
+`0.363433/0.630798`，hand/human penetration loss 为 `0.219640/3.447872`。Primary D2-X minus
+D2-Z foot-sliding paired mean 为 `-0.000423015`，10,000-replicate sequence bootstrap 95% CI
+`[-0.0221524,0.0209344]`，故 registered foot gate 失败。D2-Z minus D2-X contact-F1 mean/CI 为
+`-0.00662759/[-0.0274279,0.0137967]`，下界低于 `-0.02`；D2-Z/D2-X end-object ratio CI 为
+`[1.12841,1.25042]`，上界高于 `1.10`。其余 MPJPE、xy、object-translation 与两项 penetration
+protection 通过，固定 181-sequence finite mask 精确匹配。所有 Phase-0 released-baseline
+absolute diffusion checks、provenance/lifecycle、normalization 与 finite contracts 通过。
+
+因此严格 classification 为 `immutable-gt-near-ground-joint-negative-stop`：official foot gate
+与 protection gate 均失败。不得因 absolute checks 或任一 point estimate 改写分类；final
+checkpoint 仍未选择，consistency 未授权/未启动。
+
+Evaluation manifest/metrics/aggregate/per-sequence/resolved-target/resolved-lifecycle/preflight/
+run-local-registry SHA-256 分别为
+`c134947136eee8a867222c55584ad744f6a8cffa72742b39a77980f541e50c6e` /
+`c20738824f0475294e42551121fd7796c2041fd48949e4630e012ad2d4959ae3` /
+`fb58a5ab3bd5ad0336ce02ff9a15cd7d97af8446599b147c9e2c806208a56162` /
+`9f0f0e65bd0eaa4fe3ec1f495f6e4a4489c88d842256dccc3a6b9b57a1e9113f` /
+`f8f1350678f3a706d6763fff2094826c618e10956f8714002dd0cb0a974efa3e` /
+`86610e7c646d08474072b67826ad2a7268b7c8a20cefe93e217f446da3f244ed` /
+`981c21f0d565e99ee1b9d9ae5e52667de650ddf0986e6f815448edf1a151b4af` /
+`80c908260c73d1c5e27e2f4da4c76e8927575ae329be71d0d0da9171b080c9b9`。
+完整 15-file / 389,634-byte tree 已由 worker 主动回收，双端 SHA-256
+`9613bb8762dc1ba67e29c068dee966461cfa4ac4284a2d84c4dc671625e13bfe`。
+
+Compact aggregate
+`experiments/results/p1_hoi_phase1b_d2z_immutable_gt_near_ground_gating_s42_20260724.json`
+SHA-256 为
+`c2a0ff494784fac6d42485d189646b8b9618205f8fc8ed6608270ff871c16af4`；
+handoff 为 `docs/phase_summaries/PHASE_1B_D2Z.md`。D2-Z 到此停止。任何下一 HOIPrior 机制必须
+在新 session 先只读审计、核验 registry 下一 ID，再作 dated plan/registry preregistration；
+不得选择或 resume D2-Z、改变旧 gate、重跑 official evaluation、启动 consistency、HSIPrior 或
+Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
