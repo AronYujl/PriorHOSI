@@ -37,7 +37,7 @@ from priors.optimizer_reset import (  # noqa: E402
 
 
 RUN_ID = D2Z_GATE_AUDIT_RUN_ID
-SUBPHASE = "1B-D2-Z0-gate-audit"
+SUBPHASE = "1B-D2-Z0-gate-audit-r1"
 EXPECTED_PYTHON = "/data/yujinlun/anaconda3/envs/infbagel/bin/python"
 EXPECTED_SPLIT_SHA256 = "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e"
 EXPECTED_SELECTION_COUNTS = {"7": 1096, "8": 1081, "10": 1211, "11": 1232}

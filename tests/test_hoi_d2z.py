@@ -106,7 +106,7 @@ class D2ZGateAndLossTests(unittest.TestCase):
         )
 
     def test_gate_uses_previous_sampled_frame_and_strict_thresholds(self):
-        joints = np.ones((16, 24, 3), dtype=np.float32)
+        joints = np.ones((16, 28, 3), dtype=np.float32)
         joints[..., 1] = 1.0
         joints[1, 7, 1] = 0.079
         joints[1, 8, 1] = 0.08
@@ -119,6 +119,8 @@ class D2ZGateAndLossTests(unittest.TestCase):
         self.assertEqual(gate.dtype, np.bool_)
         self.assertEqual(gate[0].tolist(), [True, False, True, False])
         self.assertTrue(gate[1].all())
+        with self.assertRaisesRegex(ValueError, r"\[16,28,3\]"):
+            immutable_gt_near_ground_gate(joints[:, :24], 0.0)
 
     def test_all_false_gate_is_exact_d2x_and_all_true_is_exact_d2y(self):
         generator = torch.Generator().manual_seed(42)
@@ -466,6 +468,7 @@ class D2ZGovernanceTests(unittest.TestCase):
         plan = (ROOT / "docs/EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
         self.assertIn("D2-Z immutable-GT near-ground routed amplification", plan)
         self.assertIn("p1-hoi-d2z-gate-audit-s42-20260724", plan)
+        self.assertIn("p1-hoi-d2z-gate-audit-r1-s42-20260724", plan)
         self.assertIn(
             "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724", plan,
         )

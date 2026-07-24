@@ -24,7 +24,7 @@ TRAINING_RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
 INTERNAL_RUN_ID = (
     "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724"
 )
-GATE_AUDIT_RUN_ID = "p1-hoi-d2z-gate-audit-s42-20260724"
+GATE_AUDIT_RUN_ID = "p1-hoi-d2z-gate-audit-r1-s42-20260724"
 CONTROL_CHECKPOINT_SHA256 = (
     "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51"
 )

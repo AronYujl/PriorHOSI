@@ -12,7 +12,7 @@ import numpy as np
 
 
 D2Z_GATE_AUDIT_SCHEMA = "d2z-immutable-gt-near-ground-gate-audit-v1"
-D2Z_GATE_AUDIT_RUN_ID = "p1-hoi-d2z-gate-audit-s42-20260724"
+D2Z_GATE_AUDIT_RUN_ID = "p1-hoi-d2z-gate-audit-r1-s42-20260724"
 D2Z_FLOOR_ALGORITHM = "code/eval_metrics.py::determine_floor_height_and_contacts"
 D2Z_FLOOR_ALGORITHM_FILE_SHA256 = (
     "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547"
@@ -33,13 +33,13 @@ def immutable_gt_near_ground_gate(
     sampled_aligned_joints: np.ndarray,
     floor_height_m: float,
 ) -> np.ndarray:
-    """Return the 14x4 gate for residuals at frames 2..15.
+    """Return the 14x4 gate from the locked 28-joint raw aligned window.
 
     Each residual is gated by its immutable GT previous sampled frame (1..14).
     """
     joints = np.asarray(sampled_aligned_joints)
-    if joints.shape != (16, 24, 3):
-        raise ValueError(f"D2-Z gate expects sampled aligned joints [16,24,3], got {joints.shape}")
+    if joints.shape != (16, 28, 3):
+        raise ValueError(f"D2-Z gate expects sampled aligned joints [16,28,3], got {joints.shape}")
     floor = float(floor_height_m)
     if not math.isfinite(floor):
         raise ValueError("D2-Z floor height must be finite")

@@ -1,6 +1,6 @@
 phase: p1
-subphase: 1B-D2-Z0-gate-audit
-run_id: p1-hoi-d2z-gate-audit-s42-20260724
+subphase: 1B-D2-Z0-gate-audit-r1
+run_id: p1-hoi-d2z-gate-audit-r1-s42-20260724
 seed: 42
 execution_host: authority/ubuntu
 python: /data/yujinlun/anaconda3/envs/infbagel/bin/python
