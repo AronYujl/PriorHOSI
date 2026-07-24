@@ -3093,6 +3093,14 @@ evaluator、gates、classifications 或 stop rule。授权范围固定如下：
 evaluation、consistency distillation、HSIPrior 或 Mixer。Formal training 即使完成也只产生尚未
 评估且不可选择的 D2-Z artifact；后续 lifecycle 仍受原预注册 stop rule 约束。
 
+上述 operational smoke 已实现为 `tools/smoke_hoi_d2z.py`（SHA-256
+`504fa048b142bb95ed13426ae7693f0801a9ce3050dd0ccb011dc8a5b16e68e0`）。工具只构造随机
+HOIPrior、读取真实 D2-Z batch、执行 production diffusion/loss forward/backward 并原子写 metrics；
+source 中不存在 optimizer、`step`、`torch.load` 或 `torch.save`，因此不能更新参数或读写
+checkpoint。Authority Python 完成 py_compile 与 15 项 D2-Z tests，全部通过；截至该验证时
+GPU smoke/formal training 均未启动。必须先提交该工具、tests 与本记录，再由 worker 主动
+fast-forward 到 exact commit 后执行。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

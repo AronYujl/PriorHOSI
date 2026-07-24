@@ -519,6 +519,20 @@ class D2ZGovernanceTests(unittest.TestCase):
             identity["config"]["identities"]["evaluation"]["run_id"],
         )
 
+    def test_registered_gpu_smoke_is_no_update_and_checkpoint_free(self):
+        source = (ROOT / "tools/smoke_hoi_d2z.py").read_text(encoding="utf-8")
+        self.assertIn(
+            'RUN_ID = "p1-hoi-d2z-gpu-smoke-s42-20260724"',
+            source,
+        )
+        self.assertNotIn("torch.optim", source)
+        self.assertNotIn("optimizer.step(", source)
+        self.assertNotIn("torch.save(", source)
+        self.assertNotIn("torch.load(", source)
+        self.assertIn('"optimizer_updates": 0', source)
+        self.assertIn('"checkpoint_loads": 0', source)
+        self.assertIn('"checkpoint_writes": 0', source)
+
 
 if __name__ == "__main__":
     unittest.main()
