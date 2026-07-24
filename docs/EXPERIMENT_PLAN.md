@@ -2975,6 +2975,30 @@ authority CPU gate audit。若 audit 与 sealed preflight 任一 count/hash 不�
 artifact 和 worker-local path。该步骤本身仍不授权 worker fast-forward、GPU smoke、training、
 internal/official evaluation、checkpoint load/selection 或 consistency。
 
+#### 2026-07-24 Phase 1B D2-Z CPU gate-audit r0 failure / r1 amendment
+
+Implementation commit `3034510418fdc76e334cb8643c74414ded045726` clean 后，authority 通过
+`tools/experiment.py` 启动 `p1-hoi-d2z-gate-audit-s42-20260724`。该 run 完成 manifest、
+resolved-config 和 CPU preflight 后，在首次 full-split window gate shape validation 发现
+`human_joints_aligned.npy` 的锁定 raw shape 是 `[T,28,3]`，而新 helper 错误限制为
+`[16,24,3]`，因此在 0 checkpoint load、0 optimizer update、0 CUDA call 时失败；未写出
+`gate_audit.json`，无科学 counts/result。失败 manifest SHA-256 为
+`ea5dd7473989c50de9fedf8268aa7ba2133dac514755b5fed50c5be8da33083d`，failure metrics 为
+`a5e8f25dad08a481a772b2b67a5e9ec5d5129375916e7b1ff74b319c0839b89e`，preflight 为
+`fdee59171a6c2c868ac4abecb2302595ee79436ca41d69ad43b40e1122d36b02`，resolved config 为
+`e8d25543975f0fd2182ada97e1bd10091549d4792bf915428c9f0dfd2fe756ed`。原 run id 永久禁用，
+不得把该 operational failure 混入 D2-Z 科学结论。
+
+Authority 在任何修复 source change 前再次执行 `date`，得到
+`2026-07-24 11:10:24 CST (+0800)`。允许唯一的 fail-closed 修复：gate helper 的输入合同从错误的
+exact `[16,24,3]` 改为锁定 raw aligned source 的 exact `[16,28,3]`；foot joints
+`[7,8,10,11]`、previous sampled frame、thresholds、floor、binary comparison、counts、
+selection 和所有科学机制均不变。修复与 regression tests 必须单独提交；随后只允许使用新
+`p1-hoi-d2z-gate-audit-r1-s42-20260724`、subphase `1B-D2-Z0-gate-audit-r1` 从头重跑 CPU
+audit。r1 仍为 0 checkpoint/GPU/training；若任何 sealed count/floor/hash 不匹配，登记失败并停止。
+本 amendment 不授权 worker sync、GPU smoke、training、internal/official evaluation、
+checkpoint load/selection 或 consistency。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
