@@ -2800,6 +2800,116 @@ authority SHA-256 全部一致，分别为
 `docs/phase_summaries/PHASE_1B_D2Y.md`。D2-Y 至此停止；未经新的 dated plan/registry amendment
 和用户确认，不得继续 HOIPrior 机制、选择 checkpoint、启动 consistency、进入 HSIPrior 或 Mixer。
 
+#### 2026-07-24 Phase 1B D2-Z immutable-GT near-ground routed amplification 预注册（plan-only）
+
+D2-Y 已证实固定 1024× routed-foot amplification 能被优化器吸收：timestep 249/499 的
+D2-X minus D2-Y routed residual MSE paired bootstrap 95% CI 下界均大于 0；但 official
+foot-sliding improvement CI `[-0.0162119,0.0279164]` 包含 0，且 end-object/contact protection
+失败。因此“8 slots 在 global mean 中过弱”不再是充分解释。D2-X/D2-Y 的训练 residual 对所有
+future frames 一视同仁，而 official foot sliding 只在 previous-frame ankle/toe 相对 inferred floor
+低于 `0.08/0.04 m` 时计入 horizontal displacement；uniform amplification 可能把共享模型容量花在
+official metric 不计分的非近地 foot motion 上，并加剧 late noisy strata 已观察到的 routed/FK 冲突。
+
+只读 post-hoc sequence audit 仅用于形成新假设，不修改 D2-Y gate 或结论：D2-Y 相对 D2-X 的
+438-sequence foot difference 为 239 improve / 199 degrade，mean `0.00585353`、median
+`0.0136075`、SD `0.237995`；按 D2-X foot sliding 四分位分层，最低/最高四分位的 mean improvement
+分别为 `-0.149215/+0.162256`，13 个 object family 中 6 个为正、7 个为负。foot improvement 与
+end-object/contact change 的 Pearson correlation 仅 `-0.0556/-0.0533`。这支持优先检验
+near-ground support mismatch，而不是继续增大 multiplier；这些 exploratory 数字不是 selection gate。
+
+D2-Z 是当前 registry 中下一个未占用的 Phase 1B 标识。本 amendment 只预注册科学机制、gates、
+stop rule 与 artifact contract；不授权实现、GPU smoke、training、evaluation、checkpoint loading/
+selection 或 consistency。具体 workload 日期和 run ids 延迟到用户另行授权后：必须先在执行日运行
+`date`，再 append identity-only lifecycle binding；不得预占或复用本 amendment 日期作为未来
+workload 日期。预留 run stem 为 `p1-hoi-d2z-immutable-gt-near-ground-gating-s42-<YYYYMMDD>`，
+subphase 为 `1B-D2-Z0`。
+
+1. **唯一 manipulated factor。** D2-Z 保留 D2-Y 的 D2-X FK temporal routing、相同 8 个 foot x/z
+   residual slots、相同 target 和固定 multiplier 数值，只把 per-element coefficient 从“所有 routed
+   entries 均为 1024”改为 immutable-GT binary near-ground gating。对 current sampled future frame
+   `t` 的 residual `position[t]-position[t-1]`、joint `j` 和 x/z component `c`：
+   `w(t,j,c)=1024` iff
+   `y_GT[t-1,j]-floor_GT(sequence)<H_j`，否则 `w(t,j,c)=1`；`H_7=H_8=0.08 m`，
+   `H_10=H_11=0.04 m`。First future residual 的 previous frame 仍是 immutable GT history 最后一帧。
+   Gate 必须 stop-gradient，不能读取 prediction、diffusion timestep、contact prediction、object、
+   text 或 loss；同一 joint 的 x/z 共用 gate。不得加入 official exponential height factor、soft gate、
+   zero-velocity target、learned/adaptive threshold、weight normalization 或 multiplier sweep。
+2. **GT floor 与 gate provenance。** `floor_GT(sequence)` 必须只由当前 immutable OMOMO snapshot 中
+   该 sequence 的完整 30 Hz `human_joints_aligned.npy[start_idx:end_idx]` 计算，精确复用
+   `code/eval_metrics.py::determine_floor_height_and_contacts`；该文件当前 SHA-256 为
+   `445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547`。Gate height 使用对应
+   10 Hz training-window sampled previous frame的 raw aligned GT y；window-local x/z origin/yaw
+   不得进入 height/floor。不得使用 generated/predicted floor、per-window minimum、official test
+   motion 或任何新增外部资产。232-D tensor、conditions 和 model input/output 不增加 field；
+   derived floor/gate 只能作为 loss metadata。
+3. **固定 gate preflight contract。** 实现后、任何 GPU 或 reportable manifest 前，必须在 authority
+   CPU 上对 train/internal-validation split 全量生成 deterministic gate audit，记录 algorithm/schema、
+   ordered sequence/window IDs、source/split/function hashes、per-joint active counts、floor finite/range、
+   overall/per-window occupancy、nonfinite count 和 aggregate SHA-256。封存的
+   32-sequence/96-window selection（SHA-256
+   `30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae`）必须精确复现：
+   joints 7/8/10/11 active counts `1096/1081/1211/1232`，各自 denominator `1344`，overall
+   active fraction `4620/5376 = 0.859375`，32 个 GT floor 全 finite 且 min/median/max
+   `0.0260237856/0.0450961320/0.0530758165 m`。Mismatch、零 active entries、source hash change
+   或 nonfinite floor/gate 均为 contract failure；不得通过改 threshold/floor algorithm 修复后沿用同一
+   lifecycle。
+4. **固定训练 contract。** 若后续另行授权，D2-Z 必须重新随机初始化，initial model-state SHA-256
+   仍应为 `ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e`；保留
+   232-D representation、16 frames、2 history frames、512-wide/16-head/8-layer Transformer、
+   500-step clean-x0 diffusion、OMOMO seed-42 split（SHA-256
+   `019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e`）、conditions 和
+   FK/object-surface/velocity/goal weights
+   `0.3569973401779424/0.4772322188400037/0.1/1.0`。只允许
+   `infbagel-4gpu/node01`、4×RTX 3090、batch/GPU 512、accumulation 1、effective batch 2048、
+   Adam `(0.9,0.999)`、constant LR `1e-4`、FP32、无 warmup/scheduler/weight decay/clipping/
+   AMP/EMA，固定 61,440,000 processed windows / 30,000 updates、32,768 validation windows 和
+   3,072,000-window validation/checkpoint cadence。禁止加载 released、author、D2-V、D2-X、D2-Y、
+   prior、resume、EMA 或任何 checkpoint。
+5. **固定 internal diagnostic。** 完整训练后复用上述 sealed 32-sequence/96-window selection，
+   对 D2-X/D2-Y/D2-Z early/mid/final online checkpoints 和 timestep `0/249/499` 使用相同 clean
+   windows、noise 与 condition dropout。必须分别报告 near-ground active 与 inactive routed
+   residual RMS/per-sequence MSE、gate occupancy，以及 gated routed contribution 对 root、rotation、
+   input/output projection、Transformer 的 gradient norm；报告其与 reconstruction、FK、
+   object-surface、goal 的 gradient cosine，并报告相对同一 D2-Z prediction 上 uniform-D2-Y routed
+   contribution 的 gradient-norm retained fraction/cosine。Internal checks 只验证 gate provenance、
+   finite/nonzero gradient 和竞争机制，不作为 checkpoint selection 或调 multiplier 的依据。
+6. **固定 official evaluation 与 controls。** 只允许一次 final-online author-native official-438、
+   每 sequence 3 windows、500-step unguided diffusion；无 CFG、dynamic perception、guidance、
+   CHOIS selection、FID 或 R-precision。Primary candidate control 为 immutable D2-X r1 records：
+   checkpoint/aggregate/per-sequence SHA-256 分别为
+   `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+   `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+   `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`。D2-Y
+   aggregate/per-sequence SHA-256
+   `776e6c35acdaa190ffcbab047b170ed4ab559c23f454714c31ad980db4dd8c70` /
+   `ea2cde99372392c5f16446708e3acf3789a68be9f1b7cc95134fd45390b12c02`
+   仅作为 uniform-amplification mechanism comparator，不重新生成且不取代 D2-X candidate gate。
+   统计单位仍为 sequence、bootstrap 10,000 次、seed 42；penetration 绑定相同 181-sequence mask 和
+   `2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec` ID hash。
+7. **Success、negative 与 absolute gates。** Candidate mechanism gate 相对 D2-X 要求：
+   D2-X minus D2-Z foot-sliding difference CI 下界 `>0`；D2-Z/D2-X 的 MPJPE、end-object、xy、
+   object-translation、hand/human penetration ratio CI 上界均 `<=1.10`；D2-Z minus D2-X
+   contact-F1 difference CI 下界 `>=-0.02`；所有 gate/lifecycle/provenance/finite/normalization/
+   history/mask contracts 通过。Absolute gate 保持相对 Phase-0 released baseline 的
+   MPJPE/end-object/xy/object-translation/foot-sliding ratio
+   `<=1.30/2.00/1.50/1.50/1.10` 且 contact F1 `>=0.60`。D2-Y comparator 的 paired foot、
+   contact、end-object 及其余 protection CI 必须完整报告，但不新增 best-of-two selection。
+8. **分类、停止规则与 artifact contract。** Mechanism/protection/absolute gates 全通过时分类
+   `immutable-gt-near-ground-positive-candidate-stop`；foot gate 失败但 D2-X protection 通过为
+   `immutable-gt-near-ground-transfer-negative-stop`，支持 binary support restriction 减少冲突但
+   未解决 rollout/predicted-floor 语义差异；foot gate 通过但任一 protection 失败为
+   `immutable-gt-near-ground-conflict-negative-stop`；foot 与 protection 均失败为
+   `immutable-gt-near-ground-joint-negative-stop`；absolute gate 失败为
+   `immutable-gt-near-ground-positive-but-not-effective-stop`；任何 contract failure 为
+   `immutable-gt-near-ground-contract-failure-stop`。Artifacts 必须包括 manifest/resolved/
+   same-context preflight、GT-floor/gate audit及 hashes、完整 logs/metrics、20 checkpoints 与 80 RNG
+   sidecars、resume evidence、internal per-sequence/gradient records、official aggregate/
+   per-sequence/bootstrap/gates、normalization/mask/provenance audits、tree hashes 和所有 failure。
+   完成一个 fixed-budget run、internal diagnostic 和一次 official evaluation 后必须停止；不得改为
+   soft/continuous gate、zero-velocity objective、PCGrad、sampler/contact/penetration intervention，
+   不得 sweep threshold/multiplier、选择 midpoint、resume D2-Y/D2-Z、post-hoc 改 gate，或启动
+   consistency、HSIPrior、Mixer。即使 positive，也只产生待用户另行确认的 diffusion candidate。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
