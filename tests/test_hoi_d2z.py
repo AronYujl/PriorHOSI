@@ -51,7 +51,11 @@ from tools.diagnose_hoi_d2z import (  # noqa: E402
     diagnostic_summary,
 )
 from tools.run_hoi_d2z_evaluation import (  # noqa: E402
+    CONTROL_CHECKPOINT_SHA256,
+    D2Y_CHECKPOINT_SHA256,
+    INTERNAL_DIAGNOSTIC_SHA256,
     RUN_ID as EVALUATION_RUN_ID,
+    _validate_internal,
     classify,
 )
 
@@ -418,6 +422,48 @@ class D2ZDiagnosticAndEvaluatorTests(unittest.TestCase):
         self.assertFalse(summary["selection_use"])
         self.assertFalse(summary["checkpoint_selected"])
         self.assertFalse(summary["consistency_authorized"])
+
+    def test_evaluator_accepts_only_internal_r1_null_count_contract(self):
+        diagnostic = {
+            "schema_version": 1,
+            "status": "completed",
+            "run_id": INTERNAL_RUN_ID,
+            "selection": {
+                "sha256": (
+                    "30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae"
+                ),
+                "sequences": 32,
+                "windows": 96,
+            },
+            "gate_audit": {"sha256": "a" * 64},
+            "checkpoints": {
+                "d2x": {"final_sha256": CONTROL_CHECKPOINT_SHA256},
+                "d2y": {"final_sha256": D2Y_CHECKPOINT_SHA256},
+                "d2z": {"final_sha256": "b" * 64},
+            },
+            "results": self.diagnostic_results(),
+            "diagnostic_summary": {
+                "contract_passed": True,
+                "selection_use": False,
+            },
+            "checkpoint_selected": False,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "internal.json"
+            path.write_text(json.dumps(diagnostic), encoding="utf-8")
+            args = type("Args", (), {
+                "internal_diagnostic": path,
+                "internal_diagnostic_sha256": INTERNAL_DIAGNOSTIC_SHA256,
+                "gate_audit_sha256": "a" * 64,
+                "target_sha256": "b" * 64,
+            })()
+            self.assertTrue(_validate_internal(args)["checks"]["all_records"])
+            diagnostic["results"]["d2z"]["final"]["timesteps"]["249"][
+                "inactive_routed_residual_mse_by_sequence"
+            ][0] = 0.0
+            path.write_text(json.dumps(diagnostic), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "all_records"):
+                _validate_internal(args)
 
     @staticmethod
     def comparison(*, foot_lower=0.01, ratio_upper=1.0, contact_lower=-0.01):

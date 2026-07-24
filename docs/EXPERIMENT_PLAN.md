@@ -3283,6 +3283,14 @@ binding amendment，再修改 evaluator/tests 并形成 clean commit；worker �
 创建原已绑定且尚未使用的 `p1-hoi-d2z-native-eval-s42-20260724` manifest。只允许该一次
 official-438 run。
 
+evaluator binding fix 已只更新 expected internal run id/SHA，并逐 sequence 验证上述
+`null/count` schema 和 aggregate nonempty；target generation、controls、statistics、gates 与
+classification code 未变。Evaluator/test SHA-256 分别为
+`b02954b3f72fe27162fdcdc0fb56d5bc6e119bdd8fdca58408151d2256dcc8fa` /
+`23433022b5b990a8f85f864691d8e5d2a690969fc1a1646053e599ef5831ab40`。
+Authority py_compile、17 项 D2-Z tests 和 registry validation 均通过；截至本验证时 official
+evaluation 尚未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

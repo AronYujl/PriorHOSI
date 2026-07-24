@@ -22,7 +22,10 @@ RUN_ID = "p1-hoi-d2z-native-eval-s42-20260724"
 SUBPHASE = "1B-D2-Z0-eval"
 TRAINING_RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
 INTERNAL_RUN_ID = (
-    "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724"
+    "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-r1-s42-20260724"
+)
+INTERNAL_DIAGNOSTIC_SHA256 = (
+    "0540afa33b485f3a893973d827fe0c48bfca08df3e0b3fdd54fa1f14ce9256e3"
 )
 GATE_AUDIT_RUN_ID = "p1-hoi-d2z-gate-audit-r1-s42-20260724"
 CONTROL_CHECKPOINT_SHA256 = (
@@ -93,7 +96,7 @@ def resolved_config(args) -> Dict[str, object]:
     }
     config["internal_diagnostic"] = {
         "path": str(args.internal_diagnostic.resolve()),
-        "sha256": args.internal_diagnostic_sha256,
+        "sha256": INTERNAL_DIAGNOSTIC_SHA256,
         "run_id": INTERNAL_RUN_ID,
         "selection_sha256": INTERNAL_SELECTION_SHA256,
         "selection_use": False,
@@ -122,7 +125,7 @@ def additional_runtime_artifact_hashes(
     }
     expected = {
         "gate_audit": args.gate_audit_sha256,
-        "internal_diagnostic": args.internal_diagnostic_sha256,
+        "internal_diagnostic": INTERNAL_DIAGNOSTIC_SHA256,
         "d2y_aggregate": D2Y_AGGREGATE_SHA256,
         "d2y_per_sequence": D2Y_PER_SEQUENCE_SHA256,
     }
@@ -176,10 +179,30 @@ def _validate_internal(args) -> Dict[str, object]:
                 item = results.get(expert, {}).get(stratum, {}).get(
                     "timesteps", {},
                 ).get(timestep, {})
-                record_checks.append(
-                    len(item.get("active_routed_residual_mse_by_sequence", [])) == 32
-                    and len(item.get("inactive_routed_residual_mse_by_sequence", [])) == 32
-                )
+                strata_valid = []
+                for label in ("active", "inactive"):
+                    sequence_mse = item.get(
+                        f"{label}_routed_residual_mse_by_sequence", [],
+                    )
+                    sequence_counts = item.get(
+                        f"{label}_entries_by_sequence", [],
+                    )
+                    strata_valid.append(
+                        len(sequence_mse) == 32
+                        and len(sequence_counts) == 32
+                        and all(
+                            (
+                                int(count) == 0 and value is None
+                            ) or (
+                                int(count) > 0
+                                and value is not None
+                                and math.isfinite(float(value))
+                            )
+                            for value, count in zip(sequence_mse, sequence_counts)
+                        )
+                        and sum(int(count) for count in sequence_counts) > 0
+                    )
+                record_checks.append(all(strata_valid))
                 values = (
                     item.get("active_routed_residual_rms"),
                     item.get("inactive_routed_residual_rms"),
@@ -195,6 +218,9 @@ def _validate_internal(args) -> Dict[str, object]:
         "schema_version": diagnostic.get("schema_version") == 1,
         "status": diagnostic.get("status") == "completed",
         "run_id": diagnostic.get("run_id") == INTERNAL_RUN_ID,
+        "sha256_argument": (
+            args.internal_diagnostic_sha256 == INTERNAL_DIAGNOSTIC_SHA256
+        ),
         "selection_sha256": (
             diagnostic.get("selection", {}).get("sha256") == INTERNAL_SELECTION_SHA256
         ),
@@ -217,6 +243,8 @@ def _validate_internal(args) -> Dict[str, object]:
         "all_records": all(record_checks),
         "all_finite": all(finite_checks),
         "diagnostic_only": (
+            diagnostic.get("diagnostic_summary", {}).get("contract_passed") is True
+            and
             diagnostic.get("diagnostic_summary", {}).get("selection_use") is False
             and diagnostic.get("checkpoint_selected") is False
         ),
