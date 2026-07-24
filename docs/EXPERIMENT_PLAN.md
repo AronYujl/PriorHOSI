@@ -3131,6 +3131,13 @@ run id 固定为 `p1-hoi-d2z-gpu-smoke-r1-s42-20260724`、subphase
 并形成新 clean commit；worker 主动 fast-forward 后从头生成 r1 resolved/preflight/manifest。若 r1
 失败，保留并停止 formal training；若通过，才按已授权合同启动唯一 formal run。
 
+r1 tool fix 已严格只把 model construction/hash validation 移至
+`raw_batch = next(iter(loader))` 之前，并将 tool identity 改为 fresh r1；修复后工具 SHA-256 为
+`9279665f727abff959d0f069d6509273ec031ac7d196fb772e5d6cd023b57ed2`。Authority py_compile
+与 15 项 D2-Z tests 全部通过；新增 regression 明确断言 model hash 语句位于 iterator 之前，并继续
+静态禁止 optimizer step、checkpoint load/write。截至该验证时 r1 GPU smoke 与 formal training
+均未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

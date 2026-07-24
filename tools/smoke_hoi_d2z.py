@@ -37,7 +37,7 @@ from train_hoi_prior import (  # noqa: E402
 )
 
 
-RUN_ID = "p1-hoi-d2z-gpu-smoke-s42-20260724"
+RUN_ID = "p1-hoi-d2z-gpu-smoke-r1-s42-20260724"
 FORMAL_RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
 EXPECTED_INITIAL_MODEL_SHA256 = (
     "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e"
@@ -147,15 +147,6 @@ def main() -> int:
         num_workers=0,
         pin_memory=True,
     )
-    raw_batch = next(iter(loader))
-    gate_cpu = raw_batch["d2z_near_ground_gate"]
-    active = int(gate_cpu.sum().item())
-    total_gate_entries = int(gate_cpu.numel())
-    if active <= 0 or active >= total_gate_entries:
-        raise RuntimeError(
-            f"smoke batch must contain active and inactive gates: {active}/{total_gate_entries}"
-        )
-
     model = build_expert(
         "hoi",
         init_checkpoint=None,
@@ -168,6 +159,16 @@ def main() -> int:
         raise RuntimeError(
             f"random initialization hash mismatch: {initial_model_sha256}"
         )
+
+    raw_batch = next(iter(loader))
+    gate_cpu = raw_batch["d2z_near_ground_gate"]
+    active = int(gate_cpu.sum().item())
+    total_gate_entries = int(gate_cpu.numel())
+    if active <= 0 or active >= total_gate_entries:
+        raise RuntimeError(
+            f"smoke batch must contain active and inactive gates: {active}/{total_gate_entries}"
+        )
+
     model = model.to(device)
     diffusion = GaussianDiffusion(int(cfg.diffusion_steps)).to(device)
     batch = _move_batch(raw_batch, device)
@@ -255,7 +256,7 @@ def main() -> int:
         "schema_version": 1,
         "status": "stable",
         "run_id": RUN_ID,
-        "subphase": "1B-D2-Z0-gpu-smoke",
+        "subphase": "1B-D2-Z0-gpu-smoke-r1",
         "seed": 42,
         "hostname": socket.gethostname(),
         "device": "cuda:0",
