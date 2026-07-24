@@ -3101,6 +3101,36 @@ checkpoint。Authority Python 完成 py_compile 与 15 项 D2-Z tests，全部�
 GPU smoke/formal training 均未启动。必须先提交该工具、tests 与本记录，再由 worker 主动
 fast-forward 到 exact commit 后执行。
 
+#### 2026-07-24 Phase 1B D2-Z GPU smoke r0 failure / r1 amendment
+
+worker 在 exact commit `875a544679c0de7b493d9aa3c4ec55b2c5b547f0` 上通过 resolved config、
+四卡 idle preflight 与 `tools/experiment.py start` 启动
+`p1-hoi-d2z-gpu-smoke-s42-20260724`。r0 在任何 model forward/backward、optimizer、update 或
+checkpoint 操作前 fail-closed：工具先创建 DataLoader iterator/读取 batch，再构造随机 model；
+PyTorch DataLoader iterator 会消耗 global Torch RNG，因此 observed initial model SHA-256 为
+`c1e9ce860311307f0844d4d31daa5b431583b6781cbddf2bf58f9a653b85554c`，不等于正式训练 rank-0
+锁定的 `ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e`。这是独立 smoke
+工具的执行顺序 defect，不是 D2-Z dataset/loss/trainer/scientific mechanism defect；formal training
+尚未启动，原 smoke id 永久禁用。
+
+r0 manifest/metrics/resolved/preflight/run-local-registry SHA-256 分别为
+`e5771a7a02fc511f3f3f2380f289883989848ca15eff866428f982975f63af92` /
+`b8ee77f88d74e993c7233c1c4b0b90daea1341537716582f59c892c09fdb25eb` /
+`b81490a2941193679b9d9c1b9e85713884ef27ec2ed8076bb06c39cb6d202c26` /
+`cfa94d0e598b4ce58b006b771c79197fa0b2df7ca52ab9fe8376ac98d3bcd1c7` /
+`2aff76bce456c5ef1da963fe4648b529212ab79a0ecec3c0a1e259b132b79374`。7-file tree
+SHA-256 为 `cdd6934b5cb68fc42a71feee1f165695256376b08044ff3e2ced76806193edd3`，worker 主动
+回收到 authority staging 后 tree hash 完全一致。
+
+Authority/worker 在任何 fix 前再次执行 `date`，分别得到
+`2026-07-24 11:36:41/11:36:42 CST (+0800)`。只允许一个 execution-order fix：在 smoke 工具中
+先按 seed 42 构造并校验随机 model，再创建 DataLoader iterator/读取 batch；production trainer、
+D2-Z dataset/loss、config、gate、timesteps、batch、gradient checks 和所有科学合同不变。Fresh r1
+run id 固定为 `p1-hoi-d2z-gpu-smoke-r1-s42-20260724`、subphase
+`1B-D2-Z0-gpu-smoke-r1`。必须先提交本 failure/amendment，再实施单一 fix、更新 tests/tool identity
+并形成新 clean commit；worker 主动 fast-forward 后从头生成 r1 resolved/preflight/manifest。若 r1
+失败，保留并停止 formal training；若通过，才按已授权合同启动唯一 formal run。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
