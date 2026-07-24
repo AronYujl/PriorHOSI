@@ -3393,6 +3393,33 @@ CHOIS release evaluator 输出的是 `R-Precision@1/2/3`，论文只给一个未
    hardware hashes、run-local registry、完整 tree hash及所有失败。大 NPZ 留在 worker/authority
    staging，不进入 Git；Git 只记录 compact aggregate、summary 与 hashes。
 
+#### 2026-07-24 Phase 1B D2-AA CPU/code implementation contract
+
+D2-AA 实现只新增 non-selection orchestration 与 opt-in CHOIS reporting，不修改
+`code/test_infbagel_hoi.py`、`code/eval_metrics.py`、production sampler、model、loss、checkpoint
+或旧 evaluation artifacts。`tools/run_hoi_d2aa_table5.py` 固定四个 final-online checkpoint、
+封存 aggregate/per-sequence hashes、438×3/500-step export、相同首序列 batch-1 timing、source/
+resolved/preflight/dirty-worker contracts，任一候选失败即保留 partial artifacts 并 fail closed。
+Tool SHA-256 为
+`5727c2a8c3e262e7de133258cb46427938025f4178cbefb2f0e293df160f1fb8`。
+
+`tools/run_chois_evaluator.py` 的既有 point-estimate 路径保持原公式和 RNG 顺序；新增参数默认均为
+disabled。D2-AA opt-in 后记录 embedded/dropped sequence IDs、对 Matching Score 与
+R-Precision@1/2/3 做 10,000-replicate bootstrap，并对 paired FID 做 200-replicate bootstrap。
+同时显式暴露 upstream loader 的 `batch_size=32, drop_last=true`：438 exports 中 416 条进入
+embedding metrics、22 条被丢弃。这里没有改变 upstream behavior，只修复此前只报告 input count、
+未报告 effective count 的 reporting omission。更新后 adapter SHA-256 为
+`1038e7e1e7dc2882a2a199396b972ef1eb05335da0877c8f05310ff5ad738b4b`；
+新增 7 项 D2-AA tests SHA-256
+`ef70c1375d949a70652f3133514435bcf6dfd71f679e6707a051397ae6992827`。
+
+Authority 使用指定 `infbagel` Python 完成 py_compile、7 项 D2-AA tests、22 项 governance tests、
+全量 293 tests、registry validation（151 records）与 `git diff --check`。此时尚未 worker
+fast-forward、创建 reportable manifest、加载 checkpoint 或启动任何 CPU/GPU evaluator workload。
+下一步只能提交本 logical implementation，worker 主动 fast-forward exact object，生成
+same-context preflight/resolved configs并以 `tools/experiment.py start` 创建唯一 umbrella
+lifecycle；不得在 dirty worker 或未绑定 artifacts 上运行。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
