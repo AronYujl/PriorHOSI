@@ -231,6 +231,12 @@ def verify_static_assets(args) -> Dict[str, str]:
     return actual
 
 
+def additional_runtime_artifact_hashes(args) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Extension hook for later preregistered wrappers; D2-X itself has none."""
+    del args
+    return {}, {}
+
+
 def finite_metric_mask(
     records: Mapping[str, Mapping[str, object]],
     metric: str,
@@ -529,6 +535,11 @@ def main() -> None:
             "control_aggregate": CONTROL_AGGREGATE_SHA256,
             "control_per_sequence": CONTROL_PER_SEQUENCE_SHA256,
         }
+        extra_actual, extra_expected = additional_runtime_artifact_hashes(args)
+        if set(extra_actual) != set(extra_expected):
+            raise ValueError("evaluation extension artifact hash keys differ")
+        actual_hashes.update(extra_actual)
+        expected_hashes.update(extra_expected)
         if actual_hashes != expected_hashes:
             raise ValueError(f"D2-X runtime artifact hash mismatch: {actual_hashes}")
 

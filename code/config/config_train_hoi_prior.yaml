@@ -56,8 +56,12 @@ d2u_balanced_author_update: false
 d2v_balanced_long_budget: false
 d2x_fk_foot_temporal_routing: false
 d2y_routed_foot_amplification: false
+d2z_immutable_gt_near_ground_gating: false
 fk_foot_temporal_routing: false
 routed_foot_residual_multiplier: 1.0
+immutable_gt_near_ground_gating: false
+d2z_gate_audit_path: null
+d2z_gate_audit_sha256: null
 profile_every_update: true
 
 output_dir: ${repo_root}/results/experiments/${run_id}

@@ -2935,6 +2935,46 @@ audit 不得加载 checkpoint。若任一 GPU lifecycle 未在 2026-07-24 启动
 执行日先运行 `date`，append identity-only replacement，并永久禁用未使用的 20260724 workload id。
 不得借 identity replacement 修改 D2-Z scientific mechanism、controls、gates、budget 或 stop rule。
 
+#### 2026-07-24 Phase 1B D2-Z CPU/code implementation contract
+
+已按上述授权完成实现，但尚未执行 CPU gate audit 或任何 GPU/checkpoint workload：
+
+- 保持既有 `code/priors/data.py` 与 `code/priors/losses.py` 的封存 SHA-256 分别为
+  `62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5` 和
+  `e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be`；D2-Z 的
+  dataset metadata 与 gated reduction 独立实现在 `code/priors/d2z.py`，防止改变 D2-X/Y
+  及更早训练路径。`D2ZPriorWindowDataset` 只向 loss batch 增加 `[14,4]` bool gate，不改变
+  232-D `x`、condition 或 model API；`d2z_hoi_training_losses` 复用未改变的 D2-X residual/
+  FK/reconstruction 逻辑，只替换 velocity scalar reduction。all-false gate 必须与 D2-X
+  velocity/total bit-exact，all-true gate 必须与 D2-Y bit-exact。
+- `tools/audit_hoi_d2z_gate.py` 是 authority/CPU-only、0 checkpoint load、0 optimizer update 的
+  reportable audit；它对 train/internal-validation 的每个完整 aligned GT sequence 调用哈希锁定的
+  official floor 函数，封存 source hashes、ordered sequence/window IDs、per-joint counts、
+  per-window occupancy、floors 和 sealed 32-sequence/96-window counts。训练 config 中 audit
+  path/SHA 当前故意为 `null`；在 clean implementation commit 产生 reportable audit 并另行
+  append hash-binding amendment 前，D2-Z validator 必须 fail closed。
+- `tools/diagnose_hoi_d2z.py` 固定 D2-X/Y/Z early/mid/final 与 timestep `0/249/499`，输出
+  active/inactive per-sequence residual、gate occupancy、root/rotation/input/output/Transformer
+  gradient norms、与 reconstruction/FK/object-surface/goal cosine，以及同一 prediction 上
+  uniform-D2-Y vs gated-D2-Z gradient retained fraction/cosine；该 artifact 仅验证合同，不参与
+  checkpoint selection。
+- `tools/run_hoi_d2z_evaluation.py` 以封存 D2-X records 为唯一 primary control，完整报告但不以
+  D2-Y comparator 或 internal diagnostic 作选择；六种 classification、Phase-0 absolute gate、
+  penetration finite-mask contract 和所有 control hashes 均保持预注册定义。共享 D2-X evaluator
+  只新增默认空的 extra-artifact hash hook，D2-X/D2-Y 行为不变。
+- Authority 使用规定 Python 完成 282 项 CPU 测试，全部通过；registry validation 仍须在包含本
+  amendment 的 logical commit 前再次通过。测试覆盖 gate 的 immutable-previous-frame/strict-
+  threshold 语义、active slot 梯度倍率、all-false/all-true loss parity、audit hash/schema/split/
+  coverage fail-closed、from-random config/provenance、internal record contract 和全部六种 evaluator
+  classification。测试过程中未调用 CUDA，未加载 checkpoint，未创建 optimizer/training result，
+  未选择 checkpoint，也未授权 consistency。
+
+下一步只允许先形成 clean implementation commit，然后由 `tools/experiment.py` 启动已绑定的
+authority CPU gate audit。若 audit 与 sealed preflight 任一 count/hash 不一致，立即登记
+`contract-failure` 并停止；若通过，再以单独 plan/registry hash-binding commit 固定 audit
+artifact 和 worker-local path。该步骤本身仍不授权 worker fast-forward、GPU smoke、training、
+internal/official evaluation、checkpoint load/selection 或 consistency。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
