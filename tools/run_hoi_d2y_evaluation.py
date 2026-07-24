@@ -16,7 +16,7 @@ sys.path.insert(0, str(REPO))
 from tools import run_hoi_d2x_evaluation as shared
 
 
-RUN_ID = "p1-hoi-d2y-native-eval-s42-20260723"
+RUN_ID = "p1-hoi-d2y-native-eval-s42-20260724"
 SUBPHASE = "1B-D2-Y0-eval"
 TRAINING_RUN_ID = "p1-hoi-d2y-routed-foot-amplification-s42-20260723"
 CONTROL_CHECKPOINT_SHA256 = (
@@ -85,7 +85,7 @@ def _validate_internal_diagnostic(args) -> Dict[str, object]:
         "schema_version": diagnostic.get("schema_version") == 1,
         "status": diagnostic.get("status") == "completed",
         "run_id": diagnostic.get("run_id") == (
-            "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260723"
+            "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724"
         ),
         "selection_sha256": (
             diagnostic.get("selection", {}).get("sha256") == INTERNAL_SELECTION_SHA256

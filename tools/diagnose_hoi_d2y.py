@@ -45,7 +45,7 @@ from priors.optimizer_reset import (  # noqa: E402
 from priors.representation import REPRESENTATION  # noqa: E402
 
 
-RUN_ID = "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260723"
+RUN_ID = "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724"
 SUBPHASE = "1B-D2-Y0-internal"
 EXPECTED_PYTHON = "/home/yujinlun/data/envs/infbagel/bin/python"
 EXPECTED_DATA_CONTRACT_SHA256 = (

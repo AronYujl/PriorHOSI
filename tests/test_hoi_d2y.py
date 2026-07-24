@@ -42,6 +42,7 @@ from tools.run_hoi_d2y_evaluation import (  # noqa: E402
     validate_training_result,
 )
 from tools.diagnose_hoi_d2y import (  # noqa: E402
+    RUN_ID as INTERNAL_RUN_ID,
     gradient_cosine,
     mechanism_decision,
 )
@@ -300,6 +301,9 @@ class D2YGovernanceTests(unittest.TestCase):
         evaluation = by_id[
             "p1-hoi-d2y-native-eval-preregister-s42-20260723"
         ]
+        date_amendment = by_id[
+            "p1-hoi-d2y-post-training-date-amendment-s42-20260724"
+        ]
         self.assertEqual(
             training["config"]["manipulated_factor"]["routed_multiplier"], 1024.0
         )
@@ -308,6 +312,14 @@ class D2YGovernanceTests(unittest.TestCase):
         self.assertEqual(
             evaluation["config"]["control"]["checkpoint_sha256"],
             "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+        )
+        self.assertEqual(
+            date_amendment["config"]["replacement"]["internal_run_id"],
+            "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724",
+        )
+        self.assertEqual(
+            date_amendment["config"]["replacement"]["evaluation_run_id"],
+            "p1-hoi-d2y-native-eval-s42-20260724",
         )
 
 
@@ -346,7 +358,11 @@ class D2YEvaluationTests(unittest.TestCase):
         })
 
     def test_control_hashes_and_eval_id_are_sealed_d2x(self):
-        self.assertEqual(EVAL_RUN_ID, "p1-hoi-d2y-native-eval-s42-20260723")
+        self.assertEqual(EVAL_RUN_ID, "p1-hoi-d2y-native-eval-s42-20260724")
+        self.assertEqual(
+            INTERNAL_RUN_ID,
+            "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724",
+        )
         self.assertEqual(
             CONTROL_CHECKPOINT_SHA256,
             "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
@@ -473,7 +489,7 @@ class D2YEvaluationTests(unittest.TestCase):
                 "schema_version": 1,
                 "status": "completed",
                 "run_id": (
-                    "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260723"
+                    "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724"
                 ),
                 "selection": {
                     "sha256": INTERNAL_SELECTION_SHA256,

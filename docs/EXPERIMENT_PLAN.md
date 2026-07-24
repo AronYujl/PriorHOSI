@@ -2727,6 +2727,29 @@ D2-Y 只检验一个可证伪的 loss-geometry 机制：保持 D2-X 的 8 个 FK
    consistency distillation。即使分类 positive，本 subphase 也只产生待用户另行确认的 diffusion
    candidate，绝不自动授权 checkpoint selection 或 CM。
 
+#### 2026-07-24 Phase 1B D2-Y post-training lifecycle date amendment
+
+D2-Y training lifecycle 已于真实日期 2026-07-23 启动，使用已预注册的
+`p1-hoi-d2y-routed-foot-amplification-s42-20260723`，并跨午夜完成固定的 61,440,000-window /
+30,000-update contract。训练 exit code 为 0；final online checkpoint SHA-256 为
+`8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7`。在 2026-07-24 检查完成时，
+原计划中的 internal/evaluation lifecycle 均尚未创建 manifest、加载 checkpoint 或启动 GPU，而其
+预注册 run id 仍带 `20260723`。为满足所有新 lifecycle 使用真实启动日期且不得复用旧 id 的规则，
+只允许以下 identity-only amendment：
+
+1. internal diagnostic run id 改为
+   `p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724`；subphase 仍为
+   `1B-D2-Y0-internal`；
+2. official evaluation run id 改为 `p1-hoi-d2y-native-eval-s42-20260724`；subphase 仍为
+   `1B-D2-Y0-eval`；
+3. 旧的 `p1-hoi-d2y-native-eval-s42-20260723` 预注册标识在任何 workload 前被 supersede，
+   永不创建、复用或绑定 checkpoint；这不是 evaluator/科学 failure，也不产生 retry entitlement。
+
+除上述两个后训练 lifecycle 标识外，D2-X/D2-Y early/mid/final checkpoint、32-sequence/96-window
+selection、timestep/noise/dropout pairing、1024 multiplier、bootstrap、official-438/181 mask、所有
+success/negative/protection/absolute gates、artifact contract 与停止规则完全不变。不得由此修改训练、
+重新生成 D2-X control、选择 checkpoint、启动 CM、HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
