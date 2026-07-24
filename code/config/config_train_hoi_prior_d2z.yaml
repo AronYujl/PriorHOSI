@@ -16,9 +16,8 @@ d2z_immutable_gt_near_ground_gating: true
 fk_foot_temporal_routing: true
 routed_foot_residual_multiplier: 1024.0
 immutable_gt_near_ground_gating: true
-# Bound only after the clean implementation commit produces the reportable CPU audit.
-d2z_gate_audit_path: null
-d2z_gate_audit_sha256: null
+d2z_gate_audit_path: ${repo_root}/results/experiments/p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json
+d2z_gate_audit_sha256: d56f1cbc5297b82d768cd396ab1a49c6e33d4101d156c0375501bf32ae055faa
 optimizer_name: Adam
 scheduler_name: none
 gradient_clipping: false

@@ -312,6 +312,19 @@ class D2ZAuditAndConfigTests(unittest.TestCase):
                 with self.subTest(field=field), self.assertRaisesRegex(ValueError, "D2-Z"):
                     _validate_d2z_contract(mutated, 4)
 
+    def test_training_config_binds_completed_r1_audit(self):
+        raw = OmegaConf.load(ROOT / "code/config/config_train_hoi_prior_d2z.yaml")
+        unresolved = OmegaConf.to_container(raw, resolve=False)
+        self.assertEqual(
+            unresolved["d2z_gate_audit_path"],
+            "${repo_root}/results/experiments/"
+            "p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json",
+        )
+        self.assertEqual(
+            raw.d2z_gate_audit_sha256,
+            "d56f1cbc5297b82d768cd396ab1a49c6e33d4101d156c0375501bf32ae055faa",
+        )
+
     def test_resume_and_metrics_bind_gate_audit(self):
         with tempfile.TemporaryDirectory() as temporary:
             cfg = merged_config("config_train_hoi_prior_d2z")

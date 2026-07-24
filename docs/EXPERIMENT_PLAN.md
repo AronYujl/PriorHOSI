@@ -2999,6 +2999,47 @@ audit。r1 仍为 0 checkpoint/GPU/training；若任何 sealed count/floor/hash 
 本 amendment 不授权 worker sync、GPU smoke、training、internal/official evaluation、
 checkpoint load/selection 或 consistency。
 
+#### 2026-07-24 Phase 1B D2-Z CPU gate-audit r1 completion / hash binding
+
+Shape-fix commit `1bb5ff5cd71eb67c0697094f7c89b0aed9c0643f` clean 后，reportable authority
+CPU run `p1-hoi-d2z-gate-audit-r1-s42-20260724` 完成。Sealed 32-sequence/96-window
+preflight 精确复现：
+
+- joint `[7,8,10,11]` active counts 为 `[1096,1081,1211,1232]`，每 joint denominator
+  `1344`，总计 `4620/5376=0.859375`；
+- floor min/median/max 为
+  `[0.026023785583674908,0.04509613197296858,0.05307581648230553]`；
+- selection SHA-256 为
+  `30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae`；
+- independent loader replay 再次得到相同 96-window counts，canonical payload replay 与 artifact
+  内的 `30add2511afbc651546a6e5d038532455a22b82fc02b2763e01bd8ebc9b911f4`
+  相同。
+
+Full train split 为 4,088 sequences / 568,486 windows，active counts
+`[6501264,6638139,7366360,7473398]`、total `27979161/31835216=0.8788745457`；
+internal-validation 为 216 sequences / 29,382 windows，active counts
+`[333433,337070,378355,382271]`、total `1431129/1645392=0.8697799673`。两边
+nonfinite floor/gate 均为 0，zero-active windows 均为 0；train/internal fully-active windows
+分别为 139,629/7,000。该高覆盖率是预注册 binary threshold 在真实 split 上的已验证性质，不授权
+改 threshold、soft gate 或 weight normalization。
+
+Authority immutable artifacts：
+
+- gate audit：
+  `/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json`，
+  SHA-256 `d56f1cbc5297b82d768cd396ab1a49c6e33d4101d156c0375501bf32ae055faa`；
+- manifest SHA-256 `2e522c3b15b6f255d76a0d9dd8458bf7fa103b2066525efb5b10818e89032637`；
+- preflight SHA-256 `cc0e88ac024a6f4ba5a99e2c81d3eef04e710f95376d9f1fc9424a717a6fa643`；
+- resolved-config SHA-256
+  `d5e73b58725d94bb17ec8fab5fcf3029681831a97138d2538d109b3bb88e5934`。
+
+D2-Z training config 现在只绑定 portable checkout-local artifact path
+`${repo_root}/results/experiments/p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json`
+与上述 gate-audit SHA；worker 若以后另行获准，必须主动复制该 immutable file、校验 SHA，并在
+同一 committed Git object 上通过 dataset/config preflight。当前仍不授权 worker sync、artifact
+transfer、GPU smoke、training、checkpoint load、internal/official evaluation、checkpoint
+selection 或 consistency；本 session 在 hash-binding commit 后停止等待用户确认。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
