@@ -3420,6 +3420,61 @@ fast-forward、创建 reportable manifest、加载 checkpoint 或启动任何 CP
 same-context preflight/resolved configs并以 `tools/experiment.py start` 创建唯一 umbrella
 lifecycle；不得在 dirty worker 或未绑定 artifacts 上运行。
 
+#### 2026-07-24 Phase 1B D2-AA completion / Table-5 reporting pass
+
+唯一 umbrella run 已在 exact commit
+`82ef8f212e77042abd4d6cedfc03fff16d9756eb`、clean `infbagel-4gpu` worker 上完成，exit code 0，
+runtime `1879.9277 s`。四个 fixed final-online checkpoints 均重新运行 official 438 sequences ×
+3 windows、500-step unguided diffusion；D2-V/X/Y/Z 各自重新生成的 native aggregate 18 个
+scalars 与 per-sequence 5,104 个 scalars 对封存记录的最大绝对差均为 `0.0`、mismatch count
+均为 0。四份 GT tree SHA-256 均为
+`d439a98ea32f5d67964bc98431fe25bdffc24b63e00b42601c5355445d01742c`。
+
+Pinned CHOIS evaluator 的 D2-V/X/Y/Z FID 分别为
+`1.578132/1.775477/1.941435/1.935600`，paired embedded-sequence bootstrap 95% CI 分别为
+`[1.188574,2.253517]`、`[1.303928,2.494238]`、`[1.509327,2.574472]`、
+`[1.507692,2.567234]`。R-Precision@1/2/3 分别为
+`0.149038/0.283654/0.413462`、`0.151442/0.283654/0.420673`、
+`0.151442/0.286058/0.415865`、`0.153846/0.293269/0.406250`；Matching Score 分别为
+`3.858646/3.879792/3.951129/3.918002`，Diversity 分别为
+`8.740726/8.781011/8.397693/8.448088`。所有 additive metrics 使用 10,000-replicate、
+seed-42 sequence bootstrap，FID 使用固定 200-replicate paired bootstrap。Upstream
+`batch_size=32, drop_last=true` 未改变：每组 438 exports 中实际 416 条进入 embedding metrics，
+22 条被丢弃；ordered dropped-ID SHA-256 为
+`b7ddcb96dae95814e44d1df8f4fe1791c2c7930ed3ddfca55c3ea3fcde31bd15`。
+这修复的是 effective-count reporting omission，不是 metric formula 或 scientific evaluator
+defect；论文单一 `Rprec` 仍不得映射为任一 rank 指标。
+
+同一 RTX 3090、相同首序列、batch-1、3-window、排除一次 warmup、CUDA synchronized 的
+D2-V/X/Y/Z generation FPS 分别为
+`15.2809/18.1699/18.0095/18.0700`；这些只用于本地对称 timing，不与论文未充分披露协议的
+FPS 宣称严格同协议。完整 Table-5-aligned point estimates、embedding uncertainty、额外
+hand/ratio/contact diagnostics 与论文原表逐列数据已写入
+`experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json`，SHA-256
+`d791c04bf1a896f4230a55e77518368cf4c5cb5c691c6ce98de65c18a87914d8`。
+
+Manifest/metrics/resolved/preflight-r1/run-local-registry SHA-256 分别为
+`a98f6aeab22859c82fba06646888922deae066be9593a97ba44a3de7f229650a` /
+`9512467b4eebf5cce5b0ae40a60de63bda107e135cc45e54d9c8a4e3ffc59889` /
+`c70286c63ea9fb16d19188d4b3651b0492d9cdd027d3c6c10198cb025c295495` /
+`70bee2758200a7879b5bb6ec0be3d179b527deff408c1dbf63273d347e8e6097` /
+`082f77f7199f3229f566622e5117f826b0631d21797d50a617e8efc482a306c1`。
+完整 3,601-file / 132,167,442-byte artifact tree 已由 worker 主动回收到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2aa-table5-completion-s42-20260724`，双端
+SHA-256 均为
+`1fa7f570f935d58adaf1baddd8db2367ae49aa05804310b0a8c2d1cc7febeb77`。
+
+首次 preflight flatten 因 worker 未安装 `jq` 在任何 scientific work/manifest/checkpoint/GPU
+workload 前失败，空 `preflight.json`（SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`）永久保留；
+随后只使用 worker `infbagel` Python 生成并绑定 `preflight_r1.json`。原异步 start 已创建 manifest
+后的一次重复 start 被 fail-closed overwrite check 拒绝，未覆盖 manifest、未重启 workload、
+未复用 run id。两者均为保留的 operational events，不影响点估计或 evaluator 路径。
+
+严格分类为 `table5-completion-pass-nonselection-stop`。D2-AA 不产生新的模型质量 gate，
+不改变 D2-V/X/Y/Z 的 negative classifications，不选择任何 checkpoint，不授权训练、consistency、
+HSIPrior 或 Mixer。Handoff 为 `docs/phase_summaries/PHASE_1B_D2AA.md`。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
