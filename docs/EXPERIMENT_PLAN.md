@@ -2910,6 +2910,31 @@ subphase 为 `1B-D2-Z0`。
    不得 sweep threshold/multiplier、选择 midpoint、resume D2-Y/D2-Z、post-hoc 改 gate，或启动
    consistency、HSIPrior、Mixer。即使 positive，也只产生待用户另行确认的 diffusion candidate。
 
+#### 2026-07-24 Phase 1B D2-Z implementation/lifecycle identity amendment
+
+用户已于 2026-07-24 在 plan-only commit
+`2b818726093fc15ff819e76fd12119eb329343bf` 后单独授权开始 D2-Z CPU/code implementation。
+Authority 在任何 source change 前执行 `date`，得到 `2026-07-24 10:42:57 CST (+0800)`；因此只绑定
+以下当前日期 identities：
+
+- CPU gate audit：`p1-hoi-d2z-gate-audit-s42-20260724`，
+  subphase `1B-D2-Z0-gate-audit`；
+- training：`p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724`，
+  subphase `1B-D2-Z0`；
+- internal diagnostic：
+  `p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724`，
+  subphase `1B-D2-Z0-internal`；
+- official evaluation：`p1-hoi-d2z-native-eval-s42-20260724`，
+  subphase `1B-D2-Z0-eval`。
+
+本 amendment 只授权实现 gate audit、dataset-derived loss metadata、binary gated velocity reduction、
+config/fail-closed contracts、internal diagnostic、target-only evaluator 和 CPU tests，并允许在 clean
+implementation commit 后用 authority CPU 执行已绑定的 deterministic gate audit。仍不授权 GPU
+smoke、training、official evaluation、任何 checkpoint loading/selection 或 consistency；CPU gate
+audit 不得加载 checkpoint。若任一 GPU lifecycle 未在 2026-07-24 启动，必须在未来用户另行授权的
+执行日先运行 `date`，append identity-only replacement，并永久禁用未使用的 20260724 workload id。
+不得借 identity replacement 修改 D2-Z scientific mechanism、controls、gates、budget 或 stop rule。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
