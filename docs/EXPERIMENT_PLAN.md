@@ -3138,6 +3138,24 @@ r1 tool fix 已严格只把 model construction/hash validation 移至
 静态禁止 optimizer step、checkpoint load/write。截至该验证时 r1 GPU smoke 与 formal training
 均未启动。
 
+r1 GPU smoke 已在 exact commit `f67a6437f1ca261ad78f5a8eceab6daabaeb40b5` 上完成：
+initial model SHA 精确为 `ad6980ce...`，真实 8-window batch 的 gate 为 441 active / 7 inactive，
+全部 loss finite；motion input/output、Transformer、predicted root translation 与 joint rotations
+gradient norm 分别为 `55.2236/107.2537/44.4260/1.08801/0.167582`，均 finite/nonzero。GPU 0
+peak allocated/reserved 为 `249,652,224/299,892,736 bytes`，headroom
+`24,996,151,296 bytes`；optimizer created/updates、checkpoint loads/writes 均为 0。
+
+r1 manifest/metrics/resolved/preflight/run-local-registry SHA-256 分别为
+`d0c224fb9af233ceb3a88722ef0c8704cb6568247061279d5be6350e4dba8fbc` /
+`ff66f45ab0fcb72c06c1e8664404a11e3d7950bc57d1e7b766ef0bd98a20d2a4` /
+`b81490a2941193679b9d9c1b9e85713884ef27ec2ed8076bb06c39cb6d202c26` /
+`fe0e3aab513cbec61d2e6b53872ba4b251ce47fc98e3bc7ea70bd6aaaab60230` /
+`ebcd17935cdd28a6165e333d858db94e5e7e24ac33401d9cf3d3cb6ca74a4e89`；7-file tree
+SHA-256 `3a36211aaa3143a965828f37c2cbbc53872188162905dd93fe3017f55a12f148`
+已由 worker 主动回收且双端一致。Operational GPU smoke gate 通过；只有在本 completion metadata
+形成新 clean commit、worker 主动 fast-forward，并重新生成 formal-run resolved config 与四卡
+idle preflight 后，才允许启动唯一 D2-Z formal training。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
