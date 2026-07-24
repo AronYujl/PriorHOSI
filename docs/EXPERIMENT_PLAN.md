@@ -3192,6 +3192,49 @@ Training lifecycle gate 通过，只授权使用 fixed early/mid/final online ch
 internal diagnostic，然后对 fixed final online checkpoint 运行唯一 official evaluation。不得根据
 training/validation loss 或中间 checkpoint 选择模型，不得 resume、增加预算或启动 consistency。
 
+#### 2026-07-24 Phase 1B D2-Z internal diagnostic r0 failure / r1 amendment
+
+首次 fixed internal run
+`p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724`
+在 exact commit `0b94844c58bb2a39c6606acae3aea83c43e4ee9b` 上通过 clean-worktree
+preflight 并开始读取预注册的 9 个 fixed D2-X/D2-Y/D2-Z early/mid/final online checkpoints，
+但在生成任何 scientific diagnostic metrics 前失败。确定原因是 reporting contract 错误地要求
+每条 sealed sequence 的 active 与 inactive residual strata 都非空。固定 32-sequence/96-window
+selection 的 active/inactive entries 为 `4620/756`；所有序列均有 active support，但 sequence
+indices `[2,5,16]` 是合法的 fully-active sequences，其 inactive count 为 0，因此对应
+per-sequence inactive MSE 数学上未定义。该情况未违反既有 gate audit（它只要求全 selection
+active 非零，并明确允许 fully-active windows），不构成 D2-Z training、checkpoint、gate 或
+scientific mechanism defect。
+
+r0 必须永久保留为 failed，禁止复用 run id。其 manifest/failure-metrics/preflight/
+run-local-registry/log/exit-code SHA-256 分别为
+`ca44be99e85c90f2f437bc4236566141e3c01f092df9e80b442c5f0571d6263a` /
+`39f77a06082696572920003c8e7362e0b9e6d34dc0110dabb000fff9e06152c4` /
+`5e73c4f031a190b4d75e6aff8df66df895ce8a78805751118d80aec7d8dd8847` /
+`cc9173f31684ed7ce26a978753b6a1ae29289013bd75b2892ac3084e055790a0` /
+`8784e793ddedf37cef059bcfb38addd2bb70e11e8633267c266ae47df66b893f` /
+`4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865`。
+完整 6-file / 69,454-byte tree 已由 worker 主动回收到 authority staging，双端 SHA-256 均为
+`239fb2bf4a4ce7ff456bea8a0ebd265bcde8b12cef14a8ae0e81ba081b472544`。
+r0 未创建 optimizer、未训练/写 checkpoint、未使用 official-test sequence、未选择 checkpoint，
+也未启动 consistency。
+
+只允许一个 fresh replacement：
+`p1-hoi-d2z-immutable-gt-near-ground-gating-internal-r1-s42-20260724`
+（subphase `1B-D2-Z0-internal-r1`）。唯一 implementation delta 是：保留每条 sequence 的 exact
+support count；count 大于 0 时按原公式报告 per-sequence MSE，count 等于 0 时在 JSON 中报告
+`null` 和 count `0`，不得填 0、插值、删除 sequence 或改变 aggregate denominator。Finite
+validation 只适用于 count 大于 0 的 strata；全 selection 的 active/inactive aggregate 仍必须
+各自非空且 finite。必须增加 regression 覆盖 zero-support 的显式未定义语义。
+
+r1 的 selection SHA、32 sequences/96 windows、全部 9 个 checkpoint paths/SHA、timesteps
+`[0,249,499]`、paired noise/dropout、所有 residual/gradient/cosine computations、D2-X/D2-Y/D2-Z
+比较、bootstrap、seed 42、GPU device 和 non-selection 用途保持不变。不得借此修改 training、
+checkpoint、gate、official evaluator、candidate gate 或 classification。必须先提交本
+failure/amendment，再修改工具并形成新的 clean logical commit；worker 主动 fast-forward 后通过
+fresh preflight/manifest 执行 r1。只有 r1 完整封存后，才可运行已预注册的唯一 official-438
+evaluation。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
