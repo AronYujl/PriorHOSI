@@ -3334,6 +3334,65 @@ handoff 为 `docs/phase_summaries/PHASE_1B_D2Z.md`。D2-Z 到此停止。任何�
 不得选择或 resume D2-Z、改变旧 gate、重跑 official evaluation、启动 consistency、HSIPrior 或
 Mixer。
 
+#### 2026-07-24 Phase 1B D2-AA Table-5 completeness evaluation 预注册
+
+论文 Table 5 的完整 HOI 列为 `Te/Txy/FS/Rprec/FID/Cprec/Crec/Cf1/C%/Pbody/MPJPE/`
+`Troot/Tobj/Oobj/FPS`。D2-V/X/Y/Z 的封存 official-438 native evaluations 已覆盖其中除
+`Rprec/FID` 外的质量列，但其 preregistered target overrides 明确设置
+`save_chois_eval_npz=false`、`fid_rprecision_used=false`；既有 generation FPS 又是
+batch-438 throughput，不能冒充论文未充分说明的 batch-1 timing。另一方面，仓库锁定的
+CHOIS release evaluator 输出的是 `R-Precision@1/2/3`，论文只给一个未进一步定义的
+`Rprec` 标量；D2-AA 不得 post-hoc 把任一个 rank 指标冒充论文标量。用户要求补齐这些
+缺失指标后，registry 中下一个未占用 Phase 1B 标识经全量检索确认为 D2-AA。
+
+1. **唯一目的与固定候选。** 唯一 reportable umbrella run id 为
+   `p1-hoi-d2aa-table5-completion-s42-20260724`、subphase `1B-D2-AA0`、seed 42，只允许在
+   `infbagel-4gpu/node01` 单卡顺序运行。固定、对称地包括 D2-V/X/Y/Z 四个 final-online
+   checkpoints，SHA-256 分别为
+   `e0705681bbaeed40d353494852494d8b7bdaf4d32da92368c0d2ceedea4c01a4` /
+   `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+   `8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7` /
+   `44c1ff8c8cf4abc2c7312923f64183e1a4a307166d187c9fcaff03abdcc162b6`。
+   四者全部运行，不得根据已有 native 点估计只补有利候选；不加载 optimizer、EMA、RNG、
+   released/author checkpoint，也不训练、resume 或写 checkpoint。
+2. **Table-5 quality/export protocol。** 每个 candidate 从固定 checkpoint 重新执行一次
+   official 438 sequences × 3 windows、500-step unguided production diffusion，online weights、
+   seed 42、无 CFG/dynamic perception/guidance/scene/CHOIS selection，并只新增
+   `save_chois_eval_npz=true` 的 matched 438-pair、126-frame、Z-up `global_jpos[T,24,3]`
+   export。重新计算的全部 native aggregate/per-sequence 值必须与各自封存 official result
+   在浮点容差内一致；它们只作为 deterministic regeneration audit，绝不替代原记录、重开旧 gate
+   或成为第二次 selection evaluation。四份 GT export 的 ordered IDs、shape/content tree hash
+   必须彼此相同并匹配 Phase-0 GT contract；否则 contract failure。
+3. **锁定 CHOIS 指标。** 对四份 prediction/GT export 分别使用 pinned CHOIS commit
+   `8ec585aa0200fd2a890ffb12897bcf69ae719463`、text-to-motion commit
+   `72df96ec453edea2fbe9603b1d58a955eaf71636`、feature checkpoint SHA-256
+   `a125bc15ffd9772686737111c7501ecee0a2d8571d9aca348ec1195ddef78775` 和 Phase-0
+   normalization/annotation/GloVe assets。完整报告 FID、Matching Score、
+   R-Precision@1/2/3 与 Diversity；必须同时报告 upstream `drop_last=true` 后实际进入 embedding
+   指标的 sequence 数与被丢弃 ID，不能只写 export count 438。R-Precision@1/2/3 与
+   Matching Score 使用 10,000-replicate、seed-42 sequence bootstrap；非加性 FID 使用固定
+   200-replicate paired sequence bootstrap，仅作不确定性描述，不设 capability gate。不得改变
+   upstream batching、normalization、feature network 或 retrieval definition来追求论文数值。
+4. **本地 efficiency 补充。** 四个 checkpoint 还要各执行一次相同确定性首序列的 warmup 后
+   batch-1、3-window timing-only workload，CUDA 在测量边界同步；报告 generation seconds、
+   generated frames、FPS 与 end-to-end seconds。该本地 batch-1 数值与 batch-438 throughput
+   分列，并与论文 Table-5 FPS 分列引用；论文未公开完整 timing protocol 时不得声称严格同协议。
+   Timing subset 的质量指标不得并入 official-438 aggregate。
+5. **成功/失败与停止。** 只有 checkpoint/source/data/evaluator/assets hashes 全部匹配、
+   clean worker manifest/preflight/resolved configs 完整、四个 candidate native regeneration
+   audit 通过、每组 438 matched exports finite/同 ID、四组 CHOIS 点估计和注册 uncertainty
+   finite、四组 batch-1 timing finite，才分类
+   `table5-completion-pass-nonselection-stop`；任一失败分类
+   `table5-completion-contract-failure-stop` 并保留全部 partial artifacts，不得复用 run id。
+   D2-AA 没有模型质量 success gate，不排序或选择 checkpoint，不改变
+   D2-V/X/Y/Z classification，不授权 consistency、HSIPrior、Mixer 或任何训练。
+6. **Artifact contract。** 保留 umbrella manifest、fully resolved lifecycle/candidate/timing/
+   CHOIS configs、same-context GPU preflight、commands/logs/exit codes、checkpoint和封存
+   aggregate/per-sequence hashes、四组 native regeneration aggregates/per-sequence、438-pair
+   NPZ trees/IDs/hashes、CHOIS point/bootstrap records、batch-1 timing、environment/dependency/
+   hardware hashes、run-local registry、完整 tree hash及所有失败。大 NPZ 留在 worker/authority
+   staging，不进入 Git；Git 只记录 compact aggregate、summary 与 hashes。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
