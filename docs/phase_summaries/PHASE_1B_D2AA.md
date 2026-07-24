@@ -121,3 +121,47 @@ optimizer/checkpoint write/checkpoint selection/consistency/HSI/Mixer 均为 fal
 D2-AA 到此停止。不得选择 D2-V/X/Y/Z checkpoint、继续训练、启动 consistency、进入 HSIPrior
 或 Mixer。任何下一 HOIPrior 机制仍需新 session、只读审计、核验下一个未占用 Phase 1B ID，
 再作 dated plan/registry preregistration。
+
+## Reporting appendix：论文、released、本地作者代码复现与自主 prior
+
+用户在 D2-AA completion 后授权一项只读 reporting amendment：把论文 Table 5 的 InfBaGel
+1/8/16、作者提供 released checkpoint 的本地评估、历史本地复现作者
+diffusion→consistency 训练代码所得 CM e200，以及 D2-V/X/Y/Z 放入一份来源显式的整合表。
+该 amendment 没有重新加载 checkpoint、运行 evaluator/GPU、训练、选择模型或改变任何 gate。
+
+| Row / source | Te↓ | Txy↓ | FS↓ | Rprec↑ | FID↓ | Cprec↑ | Crec↑ | Cf1↑ | C%↑ |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| InfBaGel 1 / paper | 2.93 | 4.19 | 0.36 | 0.63 | 3.41 | 0.79 | 0.64 | 0.66 | 0.52 |
+| InfBaGel 8 / paper | 2.99 | 3.89 | 0.34 | 0.67 | 1.78 | 0.78 | 0.68 | 0.70 | 0.56 |
+| InfBaGel 16 / paper | 3.06 | 3.70 | 0.32 | 0.67 | 0.68 | 0.78 | 0.73 | 0.73 | 0.60 |
+| Released checkpoint / local | 3.0372 | 3.9231 | 0.3334 | — | 0.9334 | 0.7908 | 0.7276 | 0.7273 | 0.5983 |
+| Author-code CM e200 / historical local | 3.5553 | 3.7640 | 0.3320 | — | — | 0.7901 | 0.7499 | 0.7453 | 0.6238 |
+| D2-V / autonomous local | 3.6807 | 4.0103 | 0.3783 | — | 1.5781 | 0.7891 | 0.5853 | 0.6286 | 0.4693 |
+| D2-X / autonomous local | 3.7402 | 4.0505 | 0.3630 | — | 1.7755 | 0.7881 | 0.5945 | 0.6374 | 0.4766 |
+| D2-Y / autonomous local | 4.8506 | 3.9676 | 0.3572 | — | 1.9414 | 0.7973 | 0.5895 | 0.6351 | 0.4774 |
+| D2-Z / autonomous local | 4.4567 | 3.8216 | 0.3634 | — | 1.9356 | 0.7993 | 0.5856 | 0.6308 | 0.4716 |
+
+| Row / source | Pbody↓ | MPJPE↓ | Troot↓ | Tobj↓ | Oobj↓ | FPS↑ |
+|---|---:|---:|---:|---:|---:|---:|
+| InfBaGel 1 / paper | 2.83 | 11.92 | 8.88 | 15.40 | 1.02 | 1566.71 |
+| InfBaGel 8 / paper | 2.61 | 11.97 | 8.47 | 15.59 | 1.02 | 60.94 |
+| InfBaGel 16 / paper | 2.49 | 12.11 | 7.93 | 15.93 | 1.02 | 29.31 |
+| Released checkpoint / local | 2.5893 | 11.9976 | 8.2088 | 15.7256 | 1.0202 | 17.7788 |
+| Author-code CM e200 / historical local | 2.7775 | 11.8195 | 7.7883 | 15.8828 | 1.0186 | — |
+| D2-V / autonomous local | 4.1712 | 12.1224 | 8.2456 | 16.1082 | 1.0245 | 15.2809 |
+| D2-X / autonomous local | 3.8691 | 12.0508 | 8.1701 | 15.9940 | 1.0309 | 18.1699 |
+| D2-Y / autonomous local | 3.4353 | 12.1246 | 8.3380 | 16.3290 | 1.0266 | 18.0095 |
+| D2-Z / autonomous local | 3.4479 | 12.2655 | 8.2608 | 16.3945 | 1.0158 | 18.0700 |
+
+`Author-code CM e200` 是 seed-42、8×RTX 3090、FP32、effective batch 2048 的历史作者代码
+复现，最终评估为 official 438 × 3 windows、16-step consistency；但它是完整
+scene-conditioned InfBaGel，不是独立 HOIPrior。原 run 被登记为 exploratory /
+`reportable=false`，没有 `tools/experiment.py` manifest、per-sequence uncertainty 或 CHOIS
+export，因此 FID/Rprec 不得补值；它的 full-438 descriptive throughput `321.6566 FPS` 也不能
+冒充 batch-1 或论文 FPS。论文 `Rprec` 与本地 R@1/2/3 不作映射，论文 FPS 与本地 batch-1
+FPS 也不作横向排名。
+
+整合结果保存在
+`experiments/results/p1_hoi_phase1b_d2aa_integrated_table_s42_20260724.json`。它逐项绑定
+immutable source 与缺失原因；原 D2-AA compact SHA-256
+`d791c04bf1a896f4230a55e77518368cf4c5cb5c691c6ce98de65c18a87914d8` 保持不变。

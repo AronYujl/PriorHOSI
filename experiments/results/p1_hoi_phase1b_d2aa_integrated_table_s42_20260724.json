@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "artifact_id": "p1-hoi-d2aa-integrated-table-s42-20260724",
+  "phase": "p1",
+  "subphase": "1B-D2-AA0-reporting-amendment",
+  "status": "completed",
+  "created_at": "2026-07-24T23:59:59+08:00",
+  "source_head": "1f4d2bfd50af6a64267a8c6825ad2c7e74b0bdc1",
+  "seed": 42,
+  "classification": "integrated-table-reporting-pass-nonselection-stop",
+  "purpose": "Present paper-reported InfBaGel 1/8/16, the locally evaluated author-supplied released checkpoint, the historical local author-code consistency reproduction, and autonomous diffusion HOIPrior candidates in one source-explicit table.",
+  "preserved_base_result": {
+    "path": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json",
+    "sha256": "d791c04bf1a896f4230a55e77518368cf4c5cb5c691c6ce98de65c18a87914d8",
+    "modified": false
+  },
+  "table_contract": {
+    "columns": [
+      "Te",
+      "Txy",
+      "FS",
+      "Rprec",
+      "FID",
+      "Cprec",
+      "Crec",
+      "Cf1",
+      "C_percent",
+      "Pbody",
+      "MPJPE",
+      "Troot",
+      "Tobj",
+      "Oobj",
+      "FPS"
+    ],
+    "directions": {
+      "Te": "lower",
+      "Txy": "lower",
+      "FS": "lower",
+      "Rprec": "higher",
+      "FID": "lower",
+      "Cprec": "higher",
+      "Crec": "higher",
+      "Cf1": "higher",
+      "C_percent": "higher",
+      "Pbody": "lower",
+      "MPJPE": "lower",
+      "Troot": "lower",
+      "Tobj": "lower",
+      "Oobj": "lower",
+      "FPS": "higher"
+    },
+    "missing_value": null,
+    "missing_value_policy": "A null is an explicitly unevaluated or unmappable field. Values are never copied from a different checkpoint or paper row.",
+    "cross_protocol_ranking_forbidden": true
+  },
+  "rows": [
+    {
+      "label": "InfBaGel 1 (paper)",
+      "source": "paper_reported",
+      "source_reference": "https://arxiv.org/pdf/2604.04843#table-5",
+      "protocol": "InfBaGel paper Table 5, one reported iteration step; local protocol identity is not claimed.",
+      "reporting_status": "published",
+      "metrics": {
+        "Te": 2.93,
+        "Txy": 4.19,
+        "FS": 0.36,
+        "Rprec": 0.63,
+        "FID": 3.41,
+        "Cprec": 0.79,
+        "Crec": 0.64,
+        "Cf1": 0.66,
+        "C_percent": 0.52,
+        "Pbody": 2.83,
+        "MPJPE": 11.92,
+        "Troot": 8.88,
+        "Tobj": 15.4,
+        "Oobj": 1.02,
+        "FPS": 1566.71
+      }
+    },
+    {
+      "label": "InfBaGel 8 (paper)",
+      "source": "paper_reported",
+      "source_reference": "https://arxiv.org/pdf/2604.04843#table-5",
+      "protocol": "InfBaGel paper Table 5, eight reported iteration steps; local protocol identity is not claimed.",
+      "reporting_status": "published",
+      "metrics": {
+        "Te": 2.99,
+        "Txy": 3.89,
+        "FS": 0.34,
+        "Rprec": 0.67,
+        "FID": 1.78,
+        "Cprec": 0.78,
+        "Crec": 0.68,
+        "Cf1": 0.7,
+        "C_percent": 0.56,
+        "Pbody": 2.61,
+        "MPJPE": 11.97,
+        "Troot": 8.47,
+        "Tobj": 15.59,
+        "Oobj": 1.02,
+        "FPS": 60.94
+      }
+    },
+    {
+      "label": "InfBaGel 16 (paper)",
+      "source": "paper_reported",
+      "source_reference": "https://arxiv.org/pdf/2604.04843#table-5",
+      "protocol": "InfBaGel paper Table 5, sixteen reported iteration steps; local protocol identity is not claimed.",
+      "reporting_status": "published",
+      "metrics": {
+        "Te": 3.06,
+        "Txy": 3.7,
+        "FS": 0.32,
+        "Rprec": 0.67,
+        "FID": 0.68,
+        "Cprec": 0.78,
+        "Crec": 0.73,
+        "Cf1": 0.73,
+        "C_percent": 0.6,
+        "Pbody": 2.49,
+        "MPJPE": 12.11,
+        "Troot": 7.93,
+        "Tobj": 15.93,
+        "Oobj": 1.02,
+        "FPS": 29.31
+      }
+    },
+    {
+      "label": "Released checkpoint (local eval)",
+      "source": "locally_evaluated_author_supplied_checkpoint",
+      "source_reference": "experiments/results/p0_hoi_table5_baseline_s42_20260712.json",
+      "protocol": "Local Phase-0 seed-42 official-438 native evaluation; local pinned CHOIS evaluator; separately measured local batch-1 FPS.",
+      "reporting_status": "reportable_baseline_only",
+      "initialization_use": "forbidden_for_HOIPrior_HSIPrior_or_Mixer",
+      "metrics": {
+        "Te": 3.0372438952326775,
+        "Txy": 3.9230965077877045,
+        "FS": 0.33336322153742476,
+        "Rprec": null,
+        "FID": 0.9334244584430564,
+        "Cprec": 0.790809602353939,
+        "Crec": 0.7275875037410999,
+        "Cf1": 0.7272576950146546,
+        "C_percent": 0.5983184750308039,
+        "Pbody": 2.589266609805965,
+        "MPJPE": 11.997593194246292,
+        "Troot": 8.208845555782318,
+        "Tobj": 15.72564612054545,
+        "Oobj": 1.0202497641505308,
+        "FPS": 17.778783663010778
+      },
+      "unmapped_or_missing": {
+        "Rprec": "The paper scalar Rprec is not mapped to local R-Precision@1/2/3."
+      }
+    },
+    {
+      "label": "Author-code CM reproduction e200 (local eval)",
+      "source": "historical_local_author_code_reproduction",
+      "source_reference": "results/experiments/p1b-author-cm-e200-hoi-r1/evaluation/aggregate_metrics.json",
+      "protocol": "Seed-42 local official-438 evaluation, three windows per sequence, full scene-conditioned InfBaGel, consistency sampler with cm_timesteps=16.",
+      "reporting_status": "historical_exploratory_nonreportable",
+      "model_scope": "full_InfBaGel_not_independent_HOIPrior",
+      "metrics": {
+        "Te": 3.5552583634853363,
+        "Txy": 3.764048218727112,
+        "FS": 0.33195587018002976,
+        "Rprec": null,
+        "FID": null,
+        "Cprec": 0.7900912646606302,
+        "Crec": 0.7498554892817759,
+        "Cf1": 0.7453332946006495,
+        "C_percent": 0.6237769080234833,
+        "Pbody": 2.7775029425898894,
+        "MPJPE": 11.819468438625336,
+        "Troot": 7.788340747356415,
+        "Tobj": 15.882750772059378,
+        "Oobj": 1.0186220889663207,
+        "FPS": null
+      },
+      "unmapped_or_missing": {
+        "Rprec": "Not evaluated; save_chois_eval_npz was false, and paper scalar mapping is forbidden.",
+        "FID": "Not evaluated; save_chois_eval_npz was false.",
+        "FPS": "No independent batch-1 timing run. Full-438 descriptive throughput is recorded separately."
+      }
+    },
+    {
+      "label": "D2-V diffusion HOIPrior",
+      "source": "locally_evaluated_autonomous_from_random_prior",
+      "source_reference": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json",
+      "protocol": "Seed-42 official-438 native evaluation, local pinned CHOIS evaluator, 500-step diffusion, final online weights, local batch-1 FPS.",
+      "reporting_status": "scientific_gate_completed_not_selected",
+      "metrics": {
+        "Te": 3.6806978285312653,
+        "Txy": 4.010340198874474,
+        "FS": 0.3782832926733797,
+        "Rprec": null,
+        "FID": 1.578131510164127,
+        "Cprec": 0.7891098180052821,
+        "Crec": 0.585286219853952,
+        "Cf1": 0.628590477397954,
+        "C_percent": 0.46928680147858226,
+        "Pbody": 4.171186942614674,
+        "MPJPE": 12.122368812561035,
+        "Troot": 8.24558362364769,
+        "Tobj": 16.10820101434721,
+        "Oobj": 1.0245118035159093,
+        "FPS": 15.280872547939566
+      }
+    },
+    {
+      "label": "D2-X diffusion HOIPrior",
+      "source": "locally_evaluated_autonomous_from_random_prior",
+      "source_reference": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json",
+      "protocol": "Seed-42 official-438 native evaluation, local pinned CHOIS evaluator, 500-step diffusion, final online weights, local batch-1 FPS.",
+      "reporting_status": "scientific_gate_completed_not_selected",
+      "metrics": {
+        "Te": 3.7402085959911346,
+        "Txy": 4.050519689917564,
+        "FS": 0.3630100213939385,
+        "Rprec": null,
+        "FID": 1.7754768927164406,
+        "Cprec": 0.7880618755952097,
+        "Crec": 0.5944546940443982,
+        "Cf1": 0.6374259391059788,
+        "C_percent": 0.4765528738131478,
+        "Pbody": 3.869084620991582,
+        "MPJPE": 12.050843983888626,
+        "Troot": 8.170091360807419,
+        "Tobj": 15.994049727002507,
+        "Oobj": 1.0309440299298087,
+        "FPS": 18.169893495259554
+      }
+    },
+    {
+      "label": "D2-Y diffusion HOIPrior",
+      "source": "locally_evaluated_autonomous_from_random_prior",
+      "source_reference": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json",
+      "protocol": "Seed-42 official-438 native evaluation, local pinned CHOIS evaluator, 500-step diffusion, final online weights, local batch-1 FPS.",
+      "reporting_status": "scientific_gate_completed_not_selected",
+      "metrics": {
+        "Te": 4.850601777434349,
+        "Txy": 3.9675552397966385,
+        "FS": 0.35715649450370623,
+        "Rprec": null,
+        "FID": 1.9414352857839816,
+        "Cprec": 0.7973053039132951,
+        "Crec": 0.5895078743904255,
+        "Cf1": 0.6350935056440745,
+        "C_percent": 0.4773682684641589,
+        "Pbody": 3.4353165645464014,
+        "MPJPE": 12.124631553888321,
+        "Troot": 8.338010311126709,
+        "Tobj": 16.328970602477842,
+        "Oobj": 1.026564350595026,
+        "FPS": 18.009543462431804
+      }
+    },
+    {
+      "label": "D2-Z diffusion HOIPrior",
+      "source": "locally_evaluated_autonomous_from_random_prior",
+      "source_reference": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json",
+      "protocol": "Seed-42 official-438 native evaluation, local pinned CHOIS evaluator, 500-step diffusion, final online weights, local batch-1 FPS.",
+      "reporting_status": "scientific_gate_completed_not_selected",
+      "metrics": {
+        "Te": 4.456652328372002,
+        "Txy": 3.8216207176446915,
+        "FS": 0.3634330362321869,
+        "Rprec": null,
+        "FID": 1.9356001377656753,
+        "Cprec": 0.7993427985662546,
+        "Crec": 0.5856151895484308,
+        "Cf1": 0.6307983528117344,
+        "C_percent": 0.4716423860259476,
+        "Pbody": 3.4478715496388266,
+        "MPJPE": 12.265457212924957,
+        "Troot": 8.260823041200638,
+        "Tobj": 16.394522633600268,
+        "Oobj": 1.015829360110412,
+        "FPS": 18.07003454361549
+      }
+    }
+  ],
+  "local_embedding_supplement": {
+    "metric_contract": "The local evaluator reports MatchingScore and R-Precision@1/2/3, not the paper scalar Rprec.",
+    "released_checkpoint": {
+      "FID": 0.9334244584430564,
+      "MatchingScore": 3.82294801565317,
+      "R-Precision@1": 0.17307692307692307,
+      "R-Precision@2": 0.31009615384615385,
+      "R-Precision@3": 0.43509615384615385,
+      "Diversity": 9.148917198181152
+    },
+    "author_code_cm_reproduction_e200": {
+      "FID": null,
+      "MatchingScore": null,
+      "R-Precision@1": null,
+      "R-Precision@2": null,
+      "R-Precision@3": null,
+      "Diversity": null,
+      "reason": "The historical evaluation did not export CHOIS NPZ inputs."
+    },
+    "d2v": {
+      "FID": 1.578131510164127,
+      "MatchingScore": 3.858646062704233,
+      "R-Precision@1": 0.14903846153846154,
+      "R-Precision@2": 0.28365384615384615,
+      "R-Precision@3": 0.41346153846153844,
+      "Diversity": 8.74072551727295
+    },
+    "d2x": {
+      "FID": 1.7754768927164406,
+      "MatchingScore": 3.879791938341581,
+      "R-Precision@1": 0.15144230769230768,
+      "R-Precision@2": 0.28365384615384615,
+      "R-Precision@3": 0.4206730769230769,
+      "Diversity": 8.781010627746582
+    },
+    "d2y": {
+      "FID": 1.9414352857839816,
+      "MatchingScore": 3.9511285378382754,
+      "R-Precision@1": 0.15144230769230768,
+      "R-Precision@2": 0.2860576923076923,
+      "R-Precision@3": 0.41586538461538464,
+      "Diversity": 8.397692680358887
+    },
+    "d2z": {
+      "FID": 1.9356001377656753,
+      "MatchingScore": 3.9180020552415113,
+      "R-Precision@1": 0.15384615384615385,
+      "R-Precision@2": 0.2932692307692308,
+      "R-Precision@3": 0.40625,
+      "Diversity": 8.448087692260742
+    }
+  },
+  "historical_author_reproduction_audit": {
+    "training_branch": "phase/01b-author-repro",
+    "training_commit": "1e982bc3a35301287e6e6a9d56325e103655f0e1",
+    "integration_baseline_parentage": true,
+    "forbidden_feature_branch_inherited": false,
+    "seed": 42,
+    "hardware": "8x RTX 3090 24GB",
+    "precision": "fp32",
+    "per_gpu_batch": 256,
+    "effective_batch": 2048,
+    "pipeline_exit_code": 0,
+    "pipeline_finished_at": "2026-07-21T11:48:53+08:00",
+    "diffusion_epoch500_checkpoint_sha256": "44a723d20a4bbf13de8c2db78c3c375472dba20be0530993c9e00ab780747aac",
+    "cm_epoch200_checkpoint_sha256": "a9f5a72e617c2789f84e902829e0aae9118cddfa264047ce9ec320b1cc0df8ab",
+    "evaluation": {
+      "sample_count": 438,
+      "dataset_sequence_count": 438,
+      "windows_per_sample": 3,
+      "sample_type": "consistency",
+      "cm_timesteps": 16,
+      "aggregate_sha256": "97cf420d1f2b2596efc957daee4a812a6fd04ba288eacf45abd9b020a41ad573",
+      "resolved_config_sha256": "769ce3f5e3bf02cf57f8d2d4822b3c6fca3c85102cdaacf461ef7aae298819c9",
+      "overrides_sha256": "200658a4c4377571fe9ea2a6c80bbb858c14efb08ff4f949431638bbf007f97f",
+      "log_sha256": "c2c010ee3fbc6cea3d260bbc8028868e79bee59fd5d788b896627d8376b1bdfb",
+      "per_sequence_metrics_available": false,
+      "registered_uncertainty_available": false,
+      "chois_export_enabled": false,
+      "full_438_descriptive_throughput_fps": 321.6566364428152,
+      "batch1_fps_available": false
+    },
+    "governance_limitations": [
+      "The original training registry marked the pipeline exploratory and reportable=false.",
+      "The historical evaluation has no tools/experiment.py manifest.",
+      "The historical evaluation has aggregate metrics only and no registered sample/sequence uncertainty.",
+      "The row is descriptive comparison evidence, not a selectable HOIPrior checkpoint."
+    ],
+    "extra_native_diagnostics_not_in_paper_table5": {
+      "feet_height": 0.03855578601360321,
+      "contact_accuracy": 0.8156664492280932,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_penetration_loss": 0.1746161400475977,
+      "hand_penetration_ratio": 0.14132247865200043,
+      "human_penetration_ratio": 0.14697887003421783
+    }
+  },
+  "scientific_state": {
+    "paper_checkpoint_loaded": false,
+    "released_checkpoint_loaded_for_new_work": false,
+    "author_reproduction_checkpoint_loaded_for_new_work": false,
+    "gpu_workload_started": false,
+    "training_started": false,
+    "consistency_started": false,
+    "checkpoint_selected": false,
+    "completed_D2V_X_Y_Z_gates_changed": false,
+    "formal_selectable_HOIPrior_exists": false
+  }
+}

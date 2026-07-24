@@ -3520,6 +3520,22 @@ R-Precision@1/2/3 映射。Integrated table 完成后只允许追加 registry co
 中的 reporting appendix 并提交；不得因此重开 D2-V/X/Y/Z gate、选择 checkpoint 或开始下一
 科学 subphase。
 
+#### 2026-07-24 Phase 1B D2-AA integrated-table reporting completion
+
+只读逐项交叉检查通过：论文 InfBaGel 1/8/16 的 45 个 scalars 与已封存论文转录完全一致；
+released、D2-V/X/Y/Z 的 75 个 Table-5-aligned scalars 与 D2-AA compact 完全一致；历史
+author-code CM e200 的 12 个可用 Table-5 native scalars 与原 official-438 aggregate 完全一致。
+历史行的 Rprec/FID/FPS 均保持 null，并记录未导出 CHOIS、没有独立 batch-1 timing 的原因；
+full-438 `321.6566 FPS` 只保留为 descriptive throughput。
+
+独立结果为
+`experiments/results/p1_hoi_phase1b_d2aa_integrated_table_s42_20260724.json`，SHA-256
+由 completion registry 绑定。原 compact SHA-256 复核仍为
+`d791c04bf1a896f4230a55e77518368cf4c5cb5c691c6ce98de65c18a87914d8`，未修改。分类为
+`integrated-table-reporting-pass-nonselection-stop`：没有运行 GPU/evaluator、训练、distillation
+或 checkpoint selection；历史复现没有被提升为 reportable/selectable HOIPrior，D2-V/X/Y/Z
+结论与正式 HOIPrior 缺失状态不变。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
