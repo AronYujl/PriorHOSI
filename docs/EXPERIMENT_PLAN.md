@@ -3475,6 +3475,51 @@ workload 前失败，空 `preflight.json`（SHA-256
 不改变 D2-V/X/Y/Z 的 negative classifications，不选择任何 checkpoint，不授权训练、consistency、
 HSIPrior 或 Mixer。Handoff 为 `docs/phase_summaries/PHASE_1B_D2AA.md`。
 
+#### 2026-07-24 Phase 1B D2-AA integrated-table reporting amendment
+
+用户澄清最终对照必须显式区分并同时列出三类来源：
+
+1. 论文 Table 5 的 InfBaGel 1/8/16 published rows；
+2. 作者提供 released consistency-distilled checkpoint 在本地 Phase-0 evaluator 上的结果；
+3. 先前从 integration baseline 独立 fork 的 `phase/01b-author-repro` 上，按作者
+   diffusion→consistency 训练代码在本地 8×RTX 3090 完整复现所得 CM checkpoint 的历史
+   official-438 HOI evaluation。
+
+该 amendment 只整合已存在的不可变记录，不启动 evaluator/GPU、训练、checkpoint selection 或
+consistency。禁止修改或覆盖已封存的
+`p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json`；新增 integrated aggregate 必须使用
+独立文件
+`experiments/results/p1_hoi_phase1b_d2aa_integrated_table_s42_20260724.json`，并逐行记录
+`source/protocol/reporting_status`，不能把 paper-reported 与 locally-evaluated 数值冒充同协议。
+
+历史本地作者复现的训练 commit 为
+`1e982bc3a35301287e6e6a9d56325e103655f0e1`，使用 seed 42、FP32、8×RTX 3090、
+per-GPU batch 256/effective batch 2048；先完整训练 diffusion epoch500 checkpoint
+`44a723d20a4bbf13de8c2db78c3c375472dba20be0530993c9e00ab780747aac`，再按作者 schedule
+蒸馏至 CM epoch200 checkpoint
+`a9f5a72e617c2789f84e902829e0aae9118cddfa264047ce9ec320b1cc0df8ab`。Pipeline exit code 0，
+但原 branch registry 将其定义为 exploratory reproduction、`reportable=false`、
+`final_table_authorized=false`，且不具备 `tools/experiment.py` reportable manifest；本次用户
+授权只允许将其作为明确标注的 historical local reproduction row 引用，不能提升为正式
+HOIPrior candidate 或选择证据。
+
+该 checkpoint 的既有 evaluation 使用 seed 42、official 438 sequences × 3 windows、
+`sample_type=consistency`、`cm_timesteps=16`，aggregate SHA-256
+`97cf420d1f2b2596efc957daee4a812a6fd04ba288eacf45abd9b020a41ad573`。Native point estimates
+为 Te/Txy/FS `3.555258/3.764048/0.331956`，Cprec/Crec/Cf1/C%
+`0.790091/0.749855/0.745333/0.623777`，Pbody/MPJPE/Troot/Tobj/Oobj
+`2.777503/11.819468/7.788341/15.882751/1.018622`。该历史 run 没有 per-sequence uncertainty，
+且 `save_chois_eval_npz=false`，所以 FID、Matching、R-Precision@1/2/3、Diversity 都必须报告
+为“未评估”，禁止用 released checkpoint 或论文行代填。其 `321.6566 FPS` 是 full-438
+descriptive throughput，不是独立 batch-1 或论文 FPS，必须移到额外 timing 列，Table-5 FPS
+保持 null。
+
+论文 InfBaGel 1/8/16 的完整 15 列直接引用
+`https://arxiv.org/pdf/2604.04843` Table 5；它们的 `Rprec` 是论文单一标量，仍不得与本地
+R-Precision@1/2/3 映射。Integrated table 完成后只允许追加 registry completion、更新 handoff
+中的 reporting appendix 并提交；不得因此重开 D2-V/X/Y/Z gate、选择 checkpoint 或开始下一
+科学 subphase。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
