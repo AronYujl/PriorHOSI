@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "phase": "p1",
+  "subphase": "1B-D2-Y0",
+  "seed": 42,
+  "training_date": "2026-07-23",
+  "completion_date": "2026-07-24",
+  "classification": "routed-foot-amplification-transfer-negative-stop",
+  "checkpoint_selected": false,
+  "consistency_authorized": false,
+  "consistency_started": false,
+  "implementation": {
+    "training_commit": "41767cf73d42d3b90a8aa343e84ffa1a597dbe14",
+    "post_training_date_amendment_commit": "adbad074cfae43e921a5ffa41f9850c130758404",
+    "single_manipulated_factor": "fixed 1024 multiplier on the same eight D2-X FK-routed foot x/z squared velocity residuals",
+    "representation_dimension": 232,
+    "architecture_changed": false,
+    "conditions_changed": false,
+    "optimization_changed": false,
+    "global_velocity_weight": 0.1,
+    "global_velocity_reduction": "weighted_squared_errors_then_original_global_mean",
+    "released_or_author_or_prior_checkpoint_loaded": false
+  },
+  "training": {
+    "run_id": "p1-hoi-d2y-routed-foot-amplification-s42-20260723",
+    "execution_host": "infbagel-4gpu/node01",
+    "random_initialization": true,
+    "initial_model_state_sha256": "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e",
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "effective_batch_size": 2048,
+    "micro_batch_per_gpu": 512,
+    "world_size": 4,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "routed_foot_residual_multiplier": 1024.0,
+    "nonrouted_residual_multiplier": 1.0,
+    "routed_slots": 8,
+    "total_velocity_slots": 87,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "amp_overflow_skips": 0,
+    "validation_count": 20,
+    "final_validation": {
+      "total": 0.050812105082059134,
+      "reconstruction": 0.042082838556211755,
+      "fk": 0.010306893481242696,
+      "object_surface": 0.008453110099196692,
+      "velocity": 0.005705733905699617
+    },
+    "wall_seconds": 18900.03165949008,
+    "throughput_windows_per_second": 3250.7882053811145,
+    "throughput_frames_per_second": 52012.61128609783,
+    "minimum_memory_headroom_bytes": 21212889088,
+    "checkpoint_count": 20,
+    "rng_sidecar_count": 80,
+    "early_checkpoint_sha256": "68aa59f28c4c35abc2a1f8ca50e02a12d504efacd2fac9af67fcd62fc4b818b1",
+    "mid_checkpoint_sha256": "0642651c0f15b230ef44124270bf95f58cab93f3f8571b15f66ef01b8f93b7f7",
+    "final_checkpoint_sha256": "8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7",
+    "metrics_sha256": "a424e11f36d659593e0ec65161e2ced9f71eebf852a5eba8b7d6eaa5fcf1eb16",
+    "manifest_sha256": "487c08a62e3825930cbb1e19e3a6aadb17e3a6c5e9233e48ca8114aacdaa41cb",
+    "resolved_config_sha256": "5e215510a7552204ad2f44acab22aab4cc853136490a1afdd0c10c9172e56adc",
+    "preflight_sha256": "f0bd247ecf771913fe453f103ffeb8d7ee5d5f66f0814aa128daed4c41577833",
+    "run_local_registry_sha256": "fe2c78389b29458e125864fbbed4fd9183bcedbdbe0c1401b0ad1ae138989eb7",
+    "artifact_tree": {
+      "sha256": "177eb44fa53ee46518a714f04ee2fe864aa2a1d755f4377f3fd47fa8e40bf0f8",
+      "files": 112,
+      "bytes": 7128453002,
+      "worker_authority_match": true
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724",
+    "protocol": "sealed 32-sequence/96-window internal selection; D2-X/D2-Y early, mid and final online checkpoints; paired clean windows, timesteps, noise and condition dropout",
+    "selection_sha256": "30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae",
+    "official_test_sequences_used": 0,
+    "timesteps": [
+      0,
+      249,
+      499
+    ],
+    "final_routed_residual_rms": {
+      "d2x": {
+        "0": 0.00792523380368948,
+        "249": 0.010071187280118465,
+        "499": 0.010325700975954533
+      },
+      "d2y": {
+        "0": 0.0062783402390778065,
+        "249": 0.008534467779099941,
+        "499": 0.008675850927829742
+      }
+    },
+    "final_d2y_routed_gradient_cosines": {
+      "0": {
+        "fk": 0.803719317021926,
+        "reconstruction": 0.009808275443768584,
+        "object_surface": 0.002441429751671554
+      },
+      "249": {
+        "fk": -0.5000999976546235,
+        "reconstruction": 0.04855480315416615,
+        "object_surface": 0.032463440868501406
+      },
+      "499": {
+        "fk": -0.45219961909674355,
+        "reconstruction": 0.03643134260107546,
+        "object_surface": 5.779560063731578e-05
+      }
+    },
+    "paired_d2x_minus_d2y_routed_residual_mse": {
+      "249": {
+        "mean": 2.8591667586397307e-05,
+        "bootstrap_95_ci": [
+          2.1242504989515964e-05,
+          3.625026263733843e-05
+        ],
+        "passed": true
+      },
+      "499": {
+        "mean": 3.134972166662919e-05,
+        "bootstrap_95_ci": [
+          2.3997168884193343e-05,
+          3.95998456781399e-05
+        ],
+        "passed": true
+      }
+    },
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "mechanism_passed": true,
+    "checkpoint_selected": false,
+    "runtime_seconds": 7.4212827840819955,
+    "metrics_sha256": "4e8915993f9a87c31eabf3e861e30304d24f0dd74b6906e01280a561c8e2c8dd",
+    "manifest_sha256": "9ebb4a5fd4805533c966dc7c2496cccad952a8ca02ad4ddfc651c63615b9c83a",
+    "preflight_sha256": "85de60eb3930e61449a771898d102f072a3cb0800aebf5fe90c1c0b44c67d8fb",
+    "run_local_registry_sha256": "ffa0cb1fa517d8318bfaaed4ae5492ed0f2b48fe742ad351d9eeb8615baa54d2",
+    "artifact_tree": {
+      "sha256": "d57e48d5d4285b4f42ab090e2aef0b1ee641217ea960382ec0b60c6bf0e8d05f",
+      "files": 6,
+      "bytes": 1493189,
+      "worker_authority_match": true
+    }
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-d2y-native-eval-s42-20260724",
+    "protocol": "author-native HOI official 438, three windows per sequence, 500-step unguided diffusion, final online weights",
+    "control": "sealed D2-X r1 final official records, reused without regeneration",
+    "target_metrics": {
+      "mpjpe": 12.124631553888321,
+      "end_obj_trans_err": 4.850601777434349,
+      "xy_points_err": 3.9675552397966385,
+      "obj_trans_dist": 16.328970602477842,
+      "foot_sliding": 0.35715649450370623,
+      "contact_f1": 0.6350935056440745,
+      "hand_pen_loss_omomo": 0.21839933100877262,
+      "human_pen_loss_infbagel": 3.4353165645464014
+    },
+    "control_metrics": {
+      "mpjpe": 12.050843983888626,
+      "end_obj_trans_err": 3.7402085959911346,
+      "xy_points_err": 4.050519689917564,
+      "obj_trans_dist": 15.994049727002507,
+      "foot_sliding": 0.3630100213939385,
+      "contact_f1": 0.6374259391059788,
+      "hand_pen_loss_omomo": 0.24535650279805918,
+      "human_pen_loss_infbagel": 3.869084620991582
+    },
+    "paired_d2x_minus_d2y_foot_sliding": {
+      "mean": 0.00585352689023222,
+      "bootstrap_95_ci": [
+        -0.01621190388362641,
+        0.0279164483088708
+      ],
+      "passed": false
+    },
+    "paired_d2y_minus_d2x_contact_f1": {
+      "mean": -0.0023324334619044605,
+      "bootstrap_95_ci": [
+        -0.023184425084866164,
+        0.01849714912273985
+      ],
+      "passed": false
+    },
+    "target_over_control_ratio_ci": {
+      "mpjpe": [
+        0.9880489383124897,
+        1.0247666517569902
+      ],
+      "end_obj_trans_err": [
+        1.2262873169838875,
+        1.3617956767665824
+      ],
+      "xy_points_err": [
+        0.9468194115738837,
+        1.0135998149196126
+      ],
+      "obj_trans_dist": [
+        0.9950838286845005,
+        1.0474074522647534
+      ],
+      "hand_pen_loss_omomo": [
+        0.752911320022928,
+        1.0502225621159362
+      ],
+      "human_pen_loss_infbagel": [
+        0.7527797098769818,
+        1.0466259721100835
+      ]
+    },
+    "penetration_mask_contract": {
+      "passed": true,
+      "official_sequences": 438,
+      "finite_sequences": 181,
+      "sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec"
+    },
+    "gates": {
+      "contract_passed": true,
+      "internal_mechanism_passed": true,
+      "official_foot_sliding_improved": false,
+      "protection_passed": false,
+      "protection_failures": [
+        "end_obj_trans_err",
+        "contact_f1"
+      ],
+      "all_released_baseline_absolute_checks_passed": true,
+      "effective_diffusion_passed": false
+    },
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "runtime_seconds": 347.68670348101296,
+    "generation_seconds": 61.13472332293168,
+    "generation_fps": 902.727566271637,
+    "normalization_contract_passed": true,
+    "metrics_sha256": "a24223cd7e70dde41c49609f1c2eac0470d863ecba1c5866b19d9c4da5888537",
+    "aggregate_sha256": "776e6c35acdaa190ffcbab047b170ed4ab559c23f454714c31ad980db4dd8c70",
+    "per_sequence_sha256": "ea2cde99372392c5f16446708e3acf3789a68be9f1b7cc95134fd45390b12c02",
+    "manifest_sha256": "8bba4843be5f30c3eb30583a673801853aeb50ccd898eff84cf328981d9b14b9",
+    "resolved_config_sha256": "1d9a0db505eabccbd7a4184378075ac2dabc25323f9292677c06c0f0c21e0a0c",
+    "resolved_target_sha256": "e567786cd27eef8ac8dd87c82b457c2859a3c5677411e7c0baa9bddfc1fc5589",
+    "preflight_sha256": "3d7c8a2aa791b7c6b08c3f3cfad742ce714495b6541b712afb69cc5e08efc6c9",
+    "run_local_registry_sha256": "a9fd6f13e5f58c0cec95238469c69ba54877e818982f94ac5b5a92159e66cfa7",
+    "artifact_tree": {
+      "sha256": "3e81a59fb1a97e7043e856fda5c502bae3683f24a179b0423143fe910837bdc0",
+      "files": 15,
+      "bytes": 1631051,
+      "worker_authority_match": true
+    }
+  },
+  "scientific_interpretation": {
+    "verified_facts": [
+      "The fixed 1024 multiplier was optimized successfully: both registered internal routed-residual confidence intervals had lower bounds above zero.",
+      "The official paired foot-sliding confidence interval included zero, so the registered transfer gate failed.",
+      "The end-object ratio confidence interval exceeded 1.10 and the contact-F1 difference lower bound was below -0.02, so D2-X protection was not preserved.",
+      "Every released-baseline absolute diffusion check, artifact contract, provenance check, normalization audit and penetration-mask check passed."
+    ],
+    "evidence_based_inference": [
+      "Mean-reduction dilution was real but was not a sufficient explanation of D2-X's official result, because removing that weakness improved the teacher-forced surrogate without certified rollout transfer.",
+      "The remaining leading explanations are semantic mismatch between the routed temporal target and the nonlinear near-ground official metric, plus late noisy-timestep competition between the amplified routed objective and FK/object capability.",
+      "The D2-Y point-estimate foot improvement alone is compatible with registered sequence-sampling uncertainty and cannot justify checkpoint selection."
+    ],
+    "unresolved_questions": [
+      "Whether a directly official-semantic training target can improve near-ground foot sliding without the observed end-object/contact tradeoff.",
+      "Whether a loss geometry that resolves routed/FK conflict, rather than further increasing routed weight, transfers to production rollout."
+    ],
+    "implementation_defect_found": false
+  },
+  "conclusion": "D2-Y is a controlled negative result: routed-foot amplification learned the registered teacher-forced surrogate, but it did not produce a statistically certified official foot-sliding improvement and it violated end-object and contact preservation. No checkpoint is selectable.",
+  "next_action": "Stop D2-Y. Any further HOIPrior mechanism requires a new dated plan and append-only registry hypothesis. Do not increase the multiplier, select or resume D2-Y, start consistency distillation, or enter HSIPrior or Mixer without separate authorization."
+}

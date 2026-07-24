@@ -321,6 +321,73 @@ class D2YGovernanceTests(unittest.TestCase):
             date_amendment["config"]["replacement"]["evaluation_run_id"],
             "p1-hoi-d2y-native-eval-s42-20260724",
         )
+        completed_training = by_id[
+            "p1-hoi-d2y-routed-foot-amplification-s42-20260723"
+        ]
+        completed_internal = by_id[
+            "p1-hoi-d2y-routed-foot-amplification-internal-s42-20260724"
+        ]
+        completed_evaluation = by_id[
+            "p1-hoi-d2y-native-eval-s42-20260724"
+        ]
+        self.assertEqual(completed_training["status"], "completed")
+        self.assertEqual(
+            completed_training["results"]["final_checkpoint_sha256"],
+            "8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7",
+        )
+        self.assertTrue(completed_internal["results"]["mechanism_passed"])
+        self.assertEqual(
+            completed_evaluation["results"]["classification"],
+            "routed-foot-amplification-transfer-negative-stop",
+        )
+        self.assertFalse(
+            completed_evaluation["results"]["official_foot_sliding_improved"]
+        )
+        self.assertFalse(completed_evaluation["results"]["protection_passed"])
+        self.assertFalse(completed_evaluation["results"]["checkpoint_selected"])
+        self.assertFalse(completed_evaluation["results"]["consistency_started"])
+
+    def test_completion_aggregate_and_summary_preserve_negative_result(self):
+        aggregate_path = (
+            ROOT
+            / "experiments/results/"
+            "p1_hoi_phase1b_d2y_routed_foot_amplification_s42_20260724.json"
+        )
+        aggregate = json.loads(aggregate_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            aggregate["classification"],
+            "routed-foot-amplification-transfer-negative-stop",
+        )
+        self.assertTrue(
+            aggregate["internal_diagnostic"]["mechanism_passed"]
+        )
+        self.assertFalse(
+            aggregate["evaluation"]["gates"]["official_foot_sliding_improved"]
+        )
+        self.assertFalse(aggregate["evaluation"]["gates"]["protection_passed"])
+        self.assertTrue(
+            aggregate["evaluation"]["gates"][
+                "all_released_baseline_absolute_checks_passed"
+            ]
+        )
+        self.assertFalse(
+            aggregate["scientific_interpretation"][
+                "implementation_defect_found"
+            ]
+        )
+        self.assertFalse(aggregate["checkpoint_selected"])
+        self.assertFalse(aggregate["consistency_started"])
+        summary = (
+            ROOT / "docs/phase_summaries/PHASE_1B_D2Y.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "routed-foot-amplification-transfer-negative-stop", summary
+        )
+        self.assertIn(
+            "0bc2fffd4304bb3411176cf355dacddfe731e9f1d46eb01cc9bfefe3c215f875",
+            summary,
+        )
+        self.assertIn("No definite implementation defect was found", summary)
 
 
 class D2YEvaluationTests(unittest.TestCase):

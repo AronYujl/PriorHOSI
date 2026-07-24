@@ -2750,6 +2750,56 @@ selection、timestep/noise/dropout pairing、1024 multiplier、bootstrap、offic
 success/negative/protection/absolute gates、artifact contract 与停止规则完全不变。不得由此修改训练、
 重新生成 D2-X control、选择 checkpoint、启动 CM、HSIPrior 或 Mixer。
 
+#### 2026-07-24 Phase 1B D2-Y completion：surrogate 吸收但 official transfer 失败
+
+D2-Y 已完成唯一预注册的 from-random training、internal mechanism diagnostic 和 official-438
+evaluation。训练严格使用 4×RTX 3090、effective batch 2,048、61,440,000 processed windows /
+30,000 updates、seed 42 和 final online weights；20 个 cadence checkpoints、80 个 rank RNG
+sidecars、finite loss、required gradients、零 overflow、random-init/no-restored-state contract 均通过。
+Final checkpoint SHA-256 为
+`8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7`。该 checkpoint 仅是
+negative-result artifact，不得选择、resume 或初始化后续 prior/CM。
+
+固定 32-sequence/96-window internal diagnostic 上，final D2-X minus D2-Y routed residual MSE 在
+timestep 249/499 的 paired mean 为 `2.85917e-05 / 3.13497e-05`，10,000-replicate bootstrap
+95% CI 分别为 `[2.12425e-05,3.62503e-05]` 和
+`[2.39972e-05,3.95998e-05]`，两个下界均大于 0，因此 internal gate 通过：1024× amplification
+确实被优化器吸收并降低了 teacher-forced surrogate。但 final D2-Y routed/FK gradient cosine 在
+timestep 249/499 为 `-0.5001/-0.4522`，说明 late noisy strata 的目标竞争仍然存在。
+
+唯一 official evaluation 使用真实日期 run
+`p1-hoi-d2y-native-eval-s42-20260724`、438 sequences、每序列 3 windows、500-step unguided
+diffusion，并只读复用 sealed D2-X records。D2-Y 的 MPJPE/end-object/xy/object translation/
+foot sliding/contact F1/hand penetration/human penetration 为
+`12.1246/4.8506/3.9676/16.3290/0.3572/0.6351/0.2184/3.4353`。D2-X minus D2-Y
+foot-sliding paired mean 为 `0.00585353`，95% CI
+`[-0.0162119,0.0279164]` 包含 0，official foot gate 失败；D2-Y minus D2-X contact-F1 CI
+`[-0.0231844,0.0184971]` 的下界低于 `-0.02`，且 end-object ratio CI
+`[1.22629,1.36180]` 的上界超过 1.10，因此 protection gate 也失败。MPJPE、xy、
+object-translation、两项 penetration protection、固定 181-sequence mask，以及相对 released
+baseline 的全部 absolute diffusion checks 均通过。
+
+严格分类为 `routed-foot-amplification-transfer-negative-stop`：internal surrogate 显著改善，
+但未 transfer 为显著 official foot-sliding 改善；end-object/contact 的保护失败作为额外负证据完整
+保留，不能 post-hoc 改成 positive 或选择 checkpoint。已验证的是 weight/dilution 机制被成功改变且
+official gate 失败；基于证据的推断是 global-mean dilution 并非 D2-X 的充分解释，剩余主要候选为
+temporal surrogate 与 nonlinear near-ground metric 的语义差异，以及 routed/FK/object capability
+冲突；尚未证明任何新的 official-semantic loss 或 conflict-resolution geometry 有效。没有发现确定
+implementation defect，point-estimate foot 改善仍与注册的 sequence-sampling uncertainty 相容。
+
+training/internal/evaluation artifact trees 已由 worker 主动回收到 authority staging，worker 与
+authority SHA-256 全部一致，分别为
+`177eb44fa53ee46518a714f04ee2fe864aa2a1d755f4377f3fd47fa8e40bf0f8`（112 files /
+7,128,453,002 bytes）、
+`d57e48d5d4285b4f42ab090e2aef0b1ee641217ea960382ec0b60c6bf0e8d05f`（6 files /
+1,493,189 bytes）和
+`3e81a59fb1a97e7043e856fda5c502bae3683f24a179b0423143fe910837bdc0`（15 files /
+1,631,051 bytes）。compact aggregate 为
+`experiments/results/p1_hoi_phase1b_d2y_routed_foot_amplification_s42_20260724.json`，SHA-256
+`0bc2fffd4304bb3411176cf355dacddfe731e9f1d46eb01cc9bfefe3c215f875`；完整 handoff 为
+`docs/phase_summaries/PHASE_1B_D2Y.md`。D2-Y 至此停止；未经新的 dated plan/registry amendment
+和用户确认，不得继续 HOIPrior 机制、选择 checkpoint、启动 consistency、进入 HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
