@@ -3156,6 +3156,42 @@ SHA-256 `3a36211aaa3143a965828f37c2cbbc53872188162905dd93fe3017f55a12f148`
 形成新 clean commit、worker 主动 fast-forward，并重新生成 formal-run resolved config 与四卡
 idle preflight 后，才允许启动唯一 D2-Z formal training。
 
+#### 2026-07-24 Phase 1B D2-Z formal training completion
+
+worker 在 exact commit `2634cea35e86cd054c9283fdfddb89fe507dc066`、clean
+`phase/01b-hoi` 上完成唯一
+`p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724`。训练从随机初始化
+`ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e`
+开始，未加载 released/author/D2-V/D2-X/D2-Y/prior/resume/EMA 或任何 checkpoint state；
+weight-initialization record 的 source 为 null、restored components 为空，所有旧 optimizer/EMA/
+scheduler/scaler/RNG state counts 均为 0。
+
+固定 61,440,000 processed windows / 983,040,000 frames / 30,000 optimizer updates 完整结束，
+exit code 0。Loss 与 required gradients 全程 finite/nonzero，AMP overflow 0；4×RTX 3090、
+micro-batch/GPU 512、effective batch 2048、Adam `1e-4`、FP32 和所有 exact contracts 未变。
+训练 wall time `19,319.6752 s`，throughput `3,180.1777 windows/s`，每 rank minimum memory
+headroom `21,208,694,784 bytes`。Mean training total/velocity 为
+`0.0478505/0.0273295`；final 32,768-window validation total/velocity 为
+`0.0502446/0.00381642`，finite。20 个 3,072,000-window cadence checkpoints 与 80 个 RNG
+sidecars 完整，逐 checkpoint 实际 SHA/bytes 与 metrics 全部一致；terminal online checkpoint
+SHA-256 为 `44c1ff8c8cf4abc2c7312923f64183e1a4a307166d187c9fcaff03abdcc162b6`。
+该 checkpoint 只是未评估 artifact，尚未选择。
+
+Manifest/metrics/resolved/preflight/run-local-registry/resume-evidence SHA-256 分别为
+`39a400060c01056f03c03eff28a6ba83f0e0b88b520394a43a72eaf0903b28df` /
+`84b682c4ec78ce80402538c6304a419f8bfcf879b7bf3163ced68d8032d47d09` /
+`b81490a2941193679b9d9c1b9e85713884ef27ec2ed8076bb06c39cb6d202c26` /
+`a94293326f41243b89a9911d3d1c94a34755bd41cc6d70baf8a0f2c2dd83c38b` /
+`f5e2848696009542ad50353de8d572c9498c46945c8d4a69bf438410c8659188` /
+`fed416229e281f2097a4a7a5ddb232f920f4a1fd8dd616bbba1a1cec2e43330b`。
+完整 113-file / 7,127,278,269-byte training tree 已由 worker 主动回收到 authority staging，
+双端 SHA-256 均为
+`41de8a4a2b94b225d82d628ca3d074408b33619550f8809e1d6576ef2b1f4726`。
+
+Training lifecycle gate 通过，只授权使用 fixed early/mid/final online checkpoints执行已预注册的
+internal diagnostic，然后对 fixed final online checkpoint 运行唯一 official evaluation。不得根据
+training/validation loss 或中间 checkpoint 选择模型，不得 resume、增加预算或启动 consistency。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
