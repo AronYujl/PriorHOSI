@@ -3245,6 +3245,44 @@ aggregate active/inactive RMS 与 denominator 未变。`diagnostic_summary` 现�
 Authority py_compile、16 项 D2-Z tests 与 registry validation 均通过；截至本验证时 internal r1
 尚未启动。
 
+internal r1 已在 exact commit `ff5148a7040cc6c9679393557a395e3f147a43b8`、clean worker
+上完成，exit code 0、runtime `12.1607 s`，固定 9 checkpoints × 3 timesteps 的全部 required
+records/scalars 通过合同。3 个 fully-active sequences 在每个记录中原位保持
+inactive `null/count=0`，其余 defined MSE 及 aggregate active/inactive RMS、gradient norms/
+cosines 均 finite；selection use、official-test sequences、optimizer/update/checkpoint write/
+selection、consistency 均为 0/false。Manifest/metrics/preflight/run-local-registry/log/exit-code
+SHA-256 分别为
+`d5f3d3bd04bdd290ec5dbd599d706a99daac78e1ec51259b88f9280fc9a0043d` /
+`0540afa33b485f3a893973d827fe0c48bfca08df3e0b3fdd54fa1f14ce9256e3` /
+`abca0349a533bf288f5a6ef80bfee447423c13563a7c9875ff2d098959e5626b` /
+`b09e80dcc370f31a2aa43f9a39d571ee01477bc5999236a99ea002dd0f1f4f50` /
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` /
+`9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa`。
+完整 6-file / 515,725-byte tree 已由 worker 主动回收，双端 SHA-256 为
+`039894526a9044865ea0fcfbdee1ba9c51f148a74860048ba16fdd6b1f31e960`。
+
+该 non-selection diagnostic 给出三项描述性证据。第一，final D2-X/D2-Y/D2-Z 的 active routed
+RMS 在 timestep `0/249/499` 分别为
+`0.007179/0.005561/0.005675`、`0.008951/0.007029/0.007054`、
+`0.010113/0.007667/0.007912`；D2-Z 保持 D2-Y 的大部分 surrogate gain，但没有进一步优于
+D2-Y。第二，D2-Z final gated-vs-uniform gradient cosine 为
+`0.9949/0.9592/0.9483`，norm retained fraction 为 `0.7767/0.7833/0.8587`；由于 sealed
+selection 的 active occupancy 达 `85.94%`，binary gating 主要缩小 uniform signal 而没有形成
+明显不同方向。第三，D2-Z gated routed gradient 与 FK 的 cosine 为
+`0.6908/-0.5110/-0.1521`，在两个 noisy strata 仍冲突；timestep 249 的 gated all-parameter norm
+`0.01431` 也远小于 reconstruction/FK/object-surface norms `0.79246/0.22699/0.37023`。
+这些只支持“near-ground restriction 是相对温和、且 noisy-step FK conflict 未消失”的推断；
+不能预测或替代 official foot-sliding paired CI，也不能选择 checkpoint。
+
+official evaluator 在实现时绑定的是已失败的 r0 internal identity，故唯一允许的 pre-evaluation
+contract amendment 是把 expected internal run id 改为上述 r1，并使 validator 与 sealed r1
+schema 一致：逐 sequence 要求 `count==0 iff MSE is null`，count-positive MSE finite，active/
+inactive aggregate 均非空；其余 checkpoint/control hashes、target generation、bootstrap、
+candidate/protection/absolute gates、classifications 与 stop rule全部不变。必须先提交本 completion/
+binding amendment，再修改 evaluator/tests 并形成 clean commit；worker 主动 fast-forward 后才可
+创建原已绑定且尚未使用的 `p1-hoi-d2z-native-eval-s42-20260724` manifest。只允许该一次
+official-438 run。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
