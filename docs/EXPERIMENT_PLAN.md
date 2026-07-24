@@ -2986,7 +2986,8 @@ resolved-config 和 CPU preflight 后，在首次 full-split window gate shape v
 `ea5dd7473989c50de9fedf8268aa7ba2133dac514755b5fed50c5be8da33083d`，failure metrics 为
 `a5e8f25dad08a481a772b2b67a5e9ec5d5129375916e7b1ff74b319c0839b89e`，preflight 为
 `fdee59171a6c2c868ac4abecb2302595ee79436ca41d69ad43b40e1122d36b02`，resolved config 为
-`e8d25543975f0fd2182ada97e1bd10091549d4792bf915428c9f0dfd2fe756ed`。原 run id 永久禁用，
+`e8d25543975f0fd2182ada97e1bd10091549d4792bf915428c9f0dfd2fe756ed`，4-file failure tree
+SHA-256 为 `11553516ef660118e2e66b8ca9eb0f277c34aa21af10c8fca782a15b4b6cdc9f`。原 run id 永久禁用，
 不得把该 operational failure 混入 D2-Z 科学结论。
 
 Authority 在任何修复 source change 前再次执行 `date`，得到
@@ -3031,7 +3032,10 @@ Authority immutable artifacts：
 - manifest SHA-256 `2e522c3b15b6f255d76a0d9dd8458bf7fa103b2066525efb5b10818e89032637`；
 - preflight SHA-256 `cc0e88ac024a6f4ba5a99e2c81d3eef04e710f95376d9f1fc9424a717a6fa643`；
 - resolved-config SHA-256
-  `d5e73b58725d94bb17ec8fab5fcf3029681831a97138d2538d109b3bb88e5934`。
+  `d5e73b58725d94bb17ec8fab5fcf3029681831a97138d2538d109b3bb88e5934`；
+- 4-file completed artifact tree SHA-256
+  `2c3db75fd2227974ecaf939a1e22dd6cccd6ebaf739ee424d1c8ce6aa55cdbca`
+  （69,313,536 bytes；manifest 内嵌 sealed metrics）。
 
 D2-Z training config 现在只绑定 portable checkout-local artifact path
 `${repo_root}/results/experiments/p1-hoi-d2z-gate-audit-r1-s42-20260724/gate_audit.json`
