@@ -1,5 +1,6 @@
 import hashlib
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -46,6 +47,7 @@ from tools.audit_hoi_d2z_gate import (  # noqa: E402
 from tools.diagnose_hoi_d2z import (  # noqa: E402
     RUN_ID as INTERNAL_RUN_ID,
     _masked_per_sequence,
+    _per_sequence_mse_json,
     diagnostic_summary,
 )
 from tools.run_hoi_d2z_evaluation import (  # noqa: E402
@@ -369,11 +371,26 @@ class D2ZDiagnosticAndEvaluatorTests(unittest.TestCase):
         torch.testing.assert_close(inactive, torch.full((32,), 4.0))
         self.assertTrue(torch.all(active_counts == inactive_counts))
 
+    def test_zero_support_stratum_is_null_count_zero_without_imputation(self):
+        error = torch.ones(96, 14, 8)
+        mask = torch.zeros_like(error, dtype=torch.bool)
+        mask[..., ::2] = True
+        mask[:3] = True
+        inactive, inactive_counts = _masked_per_sequence(error, ~mask)
+        reported = _per_sequence_mse_json(inactive, inactive_counts)
+        self.assertEqual(inactive_counts[0].item(), 0)
+        self.assertTrue(math.isnan(inactive[0].item()))
+        self.assertIsNone(reported[0])
+        self.assertEqual(len(reported), 32)
+        self.assertTrue(all(value == 1.0 for value in reported[1:]))
+
     @staticmethod
     def diagnostic_results():
         item = {
             "active_routed_residual_mse_by_sequence": [1.0] * 32,
-            "inactive_routed_residual_mse_by_sequence": [1.0] * 32,
+            "inactive_routed_residual_mse_by_sequence": [None] + [1.0] * 31,
+            "active_entries_by_sequence": [1] * 32,
+            "inactive_entries_by_sequence": [0] + [1] * 31,
             "active_routed_residual_rms": 1.0,
             "inactive_routed_residual_rms": 1.0,
             "gate_occupancy": 0.5,
@@ -502,6 +519,11 @@ class D2ZGovernanceTests(unittest.TestCase):
             if value["experiment_id"]
             == "p1-hoi-d2z-implementation-lifecycle-binding-s42-20260724"
         )
+        internal_r1 = next(
+            value for value in records
+            if value["experiment_id"]
+            == "p1-hoi-d2z-internal-r1-amendment-s42-20260724"
+        )
         self.assertEqual(
             preregistration["config"]["manipulated_factor"]["active_multiplier"],
             1024.0,
@@ -513,7 +535,14 @@ class D2ZGovernanceTests(unittest.TestCase):
         self.assertTrue(identity["config"]["authorized"]["implementation"])
         self.assertTrue(identity["config"]["not_authorized"]["gpu_smoke"])
         self.assertTrue(identity["config"]["not_authorized"]["training"])
-        self.assertEqual(INTERNAL_RUN_ID, identity["config"]["identities"]["internal"]["run_id"])
+        self.assertEqual(
+            identity["config"]["identities"]["internal"]["run_id"],
+            "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724",
+        )
+        self.assertEqual(
+            INTERNAL_RUN_ID,
+            internal_r1["config"]["replacement"]["run_id"],
+        )
         self.assertEqual(
             EVALUATION_RUN_ID,
             identity["config"]["identities"]["evaluation"]["run_id"],

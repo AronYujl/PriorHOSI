@@ -3235,6 +3235,16 @@ failure/amendment，再修改工具并形成新的 clean logical commit；worker
 fresh preflight/manifest 执行 r1。只有 r1 完整封存后，才可运行已预注册的唯一 official-438
 evaluation。
 
+r1 tool fix 已严格实现上述契约：undefined entries 在内部 tensor 中保持 `NaN` 语义，仅在
+serialization 时根据 exact zero count 转为 JSON `null`；count-positive entries 沿用原除法，
+aggregate active/inactive RMS 与 denominator 未变。`diagnostic_summary` 现在逐项验证
+`null iff count==0`、所有 defined MSE finite、两类 aggregate support 非空，并继续禁止 selection。
+工具 identity 已更新为 fresh r1，tool/test SHA-256 分别为
+`02799a5037fb8f0884eebabf0fea24e70a1f17dd6d3c572c2b10862a2c2a17cf` /
+`acf57c66be14b3e5e0f816cbada0e62adcf0c8e3d1b195d4d2154cf9bd600bfd`。
+Authority py_compile、16 项 D2-Z tests 与 registry validation 均通过；截至本验证时 internal r1
+尚未启动。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

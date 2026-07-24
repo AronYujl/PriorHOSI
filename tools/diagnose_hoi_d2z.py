@@ -55,8 +55,8 @@ from tools.diagnose_hoi_d2y import (  # noqa: E402
 )
 
 
-RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-s42-20260724"
-SUBPHASE = "1B-D2-Z0-internal"
+RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-internal-r1-s42-20260724"
+SUBPHASE = "1B-D2-Z0-internal-r1"
 EXPECTED_PYTHON = "/home/yujinlun/data/envs/infbagel/bin/python"
 D2Y_FINAL_SHA256 = "8734431f89cf8739283828d5fb683212ca43143ae3482ad0473f6ed5717eb7a7"
 D2Z_TRAINING_RUN_ID = "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
@@ -168,10 +168,30 @@ def _masked_per_sequence(
     error = squared_error.reshape(32, 3, -1)
     selected = mask.reshape(32, 3, -1)
     counts = selected.sum(dim=(1, 2))
-    if torch.any(counts == 0):
-        raise ValueError("D2-Z internal residual stratum has a sequence with zero entries")
-    mse = (error * selected).sum(dim=(1, 2)) / counts
+    numerator = (error * selected).sum(dim=(1, 2))
+    mse = numerator / counts.clamp_min(1)
+    mse = mse.masked_fill(counts == 0, float("nan"))
     return mse, counts
+
+
+def _per_sequence_mse_json(
+    mse: torch.Tensor,
+    counts: torch.Tensor,
+) -> list:
+    if mse.shape != (32,) or counts.shape != (32,):
+        raise ValueError("D2-Z internal per-sequence report expects 32 entries")
+    values = []
+    for value, count in zip(
+        mse.detach().double().cpu().tolist(),
+        counts.detach().cpu().tolist(),
+    ):
+        if int(count) == 0:
+            values.append(None)
+        elif math.isfinite(float(value)):
+            values.append(float(value))
+        else:
+            raise ValueError("D2-Z internal defined residual is non-finite")
+    return values
 
 
 def evaluate_model_timestep(
@@ -226,6 +246,8 @@ def evaluate_model_timestep(
     if gate4.shape != (96, 14, 4) or gate4.dtype != torch.bool:
         raise ValueError(f"D2-Z internal gate contract mismatch: {gate4.shape}/{gate4.dtype}")
     gate8 = gate4.repeat_interleave(2, dim=-1)
+    if not torch.any(gate8) or not torch.any(~gate8):
+        raise ValueError("D2-Z internal aggregate residual strata must both be nonempty")
     active_mse, active_counts = _masked_per_sequence(routed_error, gate8)
     inactive_mse, inactive_counts = _masked_per_sequence(routed_error, ~gate8)
 
@@ -290,7 +312,10 @@ def evaluate_model_timestep(
         objective_norms[name] = _gradient_norm(
             list(zip((item[0] for item in named_parameters), gradients))
         )
-    numeric = torch.cat((active_mse, inactive_mse)).detach().double().cpu().numpy()
+    numeric = torch.cat((
+        active_mse[active_counts > 0],
+        inactive_mse[inactive_counts > 0],
+    )).detach().double().cpu().numpy()
     if not np.isfinite(numeric).all():
         raise ValueError("D2-Z internal routed residual contains non-finite values")
     return {
@@ -304,8 +329,12 @@ def evaluate_model_timestep(
         "inactive_routed_residual_rms": float(
             routed_error[~gate8].mean().sqrt().item()
         ),
-        "active_routed_residual_mse_by_sequence": active_mse.detach().cpu().tolist(),
-        "inactive_routed_residual_mse_by_sequence": inactive_mse.detach().cpu().tolist(),
+        "active_routed_residual_mse_by_sequence": _per_sequence_mse_json(
+            active_mse, active_counts,
+        ),
+        "inactive_routed_residual_mse_by_sequence": _per_sequence_mse_json(
+            inactive_mse, inactive_counts,
+        ),
         "active_entries_by_sequence": active_counts.detach().cpu().tolist(),
         "inactive_entries_by_sequence": inactive_counts.detach().cpu().tolist(),
         "gated_routed_training_contribution": float(gated_contribution.detach().item()),
@@ -383,10 +412,30 @@ def diagnostic_summary(results: Mapping[str, object]) -> Dict[str, object]:
         for stratum in CHECKPOINT_WINDOWS:
             for timestep in (str(value) for value in TIMESTEPS):
                 item = results[expert][stratum]["timesteps"][timestep]
-                required.append(bool(
-                    len(item["active_routed_residual_mse_by_sequence"]) == 32
-                    and len(item["inactive_routed_residual_mse_by_sequence"]) == 32
-                ))
+                stratum_contracts = []
+                for label in ("active", "inactive"):
+                    sequence_mse = item[
+                        f"{label}_routed_residual_mse_by_sequence"
+                    ]
+                    sequence_counts = item[f"{label}_entries_by_sequence"]
+                    entries = (
+                        len(sequence_mse) == 32
+                        and len(sequence_counts) == 32
+                        and all(
+                            (
+                                int(count) == 0 and value is None
+                            ) or (
+                                int(count) > 0
+                                and value is not None
+                                and math.isfinite(float(value))
+                            )
+                            for value, count in zip(sequence_mse, sequence_counts)
+                        )
+                    )
+                    stratum_contracts.append(
+                        entries and sum(int(count) for count in sequence_counts) > 0
+                    )
+                required.append(all(stratum_contracts))
                 values = [
                     item["active_routed_residual_rms"],
                     item["inactive_routed_residual_rms"],
