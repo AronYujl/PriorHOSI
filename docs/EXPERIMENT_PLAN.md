@@ -3721,6 +3721,46 @@ evaluator 后成功生成 D2-AB resolved record；wrapper 必须调用预先保�
 不得递归调用已被替换的自身函数。该项仍是 pre-workload operational contract，不改变
 任何 evaluator formula、metric 或 gate。
 
+#### 2026-07-25 D2-AB continuous detached training lifecycle amendment（用户确认）
+
+此前 D2-AB 首段使用 `pause_after_windows=3072000` 的目的仅是形成并审计一个可恢复
+checkpoint；它不是科学停止点、不是第二次训练预算，也不是要求 Codex 等待后再决定是否
+继续。该 checkpoint、paused state、resume evidence 和原始日志均为不可变 operational
+证据，不能覆盖或删除。
+
+本 amendment 将 D2-AB 的执行约束改为连续 detached training：
+
+1. **同一 lineage 继续。** 用户已明确确认从
+   `p1-hoi-d2ab-predicted-support-no-slip-s42-20260725` 的
+   `3072000`-window checkpoint 继续。resume 必须使用同一 Git object
+   `3fce4767111f7b4c01b5c2af252f6c3ef362cf43`、同一 run id、同一 seed 42、同一
+   232-D representation、architecture、conditions、loss、optimizer、effective batch
+   和固定 `61440000` processed-window budget；这不是新的 from-random training，也不占用
+   第二机制预算。
+2. **唯一 continuation config。** continuation 的 `resume_checkpoint` 必须绑定
+   `ceb73ebc3a72d6290fc63e2546533c1565912b905a980381d406ea71b39a2ecc`，且
+   `pause_after_windows: null`、`max_processed_windows: 61440000`。不得加载 released、
+   author、D2-V/X/Y/Z、其他 prior、EMA 或任何不同 run 的 state；不得修改预算、改变
+   checkpoint cadence，或选择中间 checkpoint。
+3. **manifest 与 artifact 不覆盖。** 原始 `tools/experiment.py start` manifest、
+   初始 resolved config、首段 train log、paused state 和 checkpoint 保持原样。因为 run id
+   已经被使用，continuation 不创建第二个 manifest，也不复用/覆盖文件；必须新增
+   `resolved_config_resume.yaml`、resume command、same-context resume preflight、
+   `resume_initial_stability` 和 `resume` log/exit artifacts。完整训练结束后才对原 manifest
+   执行一次 `finish/register`，同时绑定初始与 continuation 两套配置和完整 artifact tree。
+4. **Codex 监测边界。** resume 启动后，Codex 只检查一个初始稳定区间：resolved config
+   无 unresolved interpolation、四卡无 CUDA compute contention、进程持续运行、trainer
+   的 finite loss/required-gradient fail-closed 检查未触发，以及注册的显存余量保持。形成
+   稳定快照后立即报告已测 resume 吞吐、总训练耗时估计和 ETA，并停止主动轮询；训练必须在
+   worker-owned persistent session 中继续运行。停止轮询不等于停止、暂停、杀进程或创建
+   新 checkpoint。tunnel/access interruption 也不授权重启、复用 run id 或覆盖结果。
+5. **完成后的固定动作。** 训练仍须跑满 `61440000` windows/`30000` updates；无论中途
+   观测到的 validation/loss 如何，均不得提前选择 checkpoint、延长预算或启动
+   consistency。只有完整训练结束并完成 artifact recovery 后，才运行已注册的一次 internal
+   diagnostic 和一次 native evaluation；本 amendment 不授权 fallback、consistency、
+   HSIPrior 或 Mixer，也不改变任何 scientific gate、uncertainty 或 FID/R-Precision
+   保留规则。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
