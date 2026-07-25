@@ -3796,6 +3796,97 @@ changed-file allowlist 时，验证这些值、metrics 的 `resume_commit_proven
 consistency 或 fallback 规则。此修复不启动任何 GPU workload，随后仍只执行已注册的 D2-AB
 finish/recovery、internal diagnostic 和 native evaluation。
 
+#### 2026-07-26 Phase 1B D2-AB completion / optimization-negative stop
+
+D2-AB 已完成全部预注册 lifecycle，并严格分类为
+`predicted-support-no-slip-optimization-negative-stop`。本 completion 只封存已完成的 smoke、
+training、internal diagnostic 和 native evaluation；没有启动第二次完整训练、conditional
+fallback、checkpoint selection、consistency、HSIPrior 或 Mixer。
+
+1. **GPU smoke 与固定训练 contract。** `p1-hoi-d2ab-gpu-smoke-s42-20260725` 在
+   `cuda:0` 覆盖 timesteps `0/249/499`，random-initialized batch 8 的 loss 与关键
+   root/rotation/model gradients 均 finite/nonzero；support 分布通过方向中性的
+   non-collapse contract。smoke 没有创建 optimizer、update 或 checkpoint，也没有加载任何
+   checkpoint。随后 formal run
+   `p1-hoi-d2ab-predicted-support-no-slip-s42-20260725` 在
+   `infbagel-4gpu/node01` 完成固定的 `61,440,000` processed windows /
+   `30,000` updates、effective batch `2,048`、seed 42、232-D、4×RTX 3090、
+   final-online contract。初始 model-state SHA-256 为
+   `ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e`，
+   final checkpoint SHA-256 为
+   `3eb68cc55cae15fd4bd3ff5279131ffd9a35ba0399e8e90557e89cb301631d8e`。
+   训练总 wall time `18,382.995 s`，吞吐 `3,342.219 windows/s`，每 rank 最小显存余量
+   `21,261,123,584 bytes`；final validation total 为 `0.0488587866`。全部 20 个
+   cadence checkpoints 与 80 个 RNG sidecars 已保留。released、author、D2-V/X/Y/Z、
+   prior 或 EMA 均未作为初始化来源。
+2. **连续 resume provenance。** 首个 `3,072,000`-window checkpoint
+   `ceb73ebc3a72d6290fc63e2546533c1565912b905a980381d406ea71b39a2ecc`
+   只作为 resumability evidence；训练在 worker-owned persistent session 中持续到完整预算，
+   没有被 Codex 停止、重启或换 run id。source commit
+   `3fce4767111f7b4c01b5c2af252f6c3ef362cf43` 到 workload target
+   `0db60d82e454dd722320832e9f7b3f228a90ef72` 的 binary diff SHA-256
+   `9c777e1058ddc78ffdf2455141870e3d08eee37b51621bae4ffa45b32448ec86`
+   已进入 continuation config、metrics、manifest transition 和 run-local registry。
+3. **internal mechanism gate 失败。**
+   `p1-hoi-d2ab-predicted-support-no-slip-internal-s42-20260725` 使用 sealed
+   32-sequence/96-window internal cohort、D2-X/D2-AB final-online checkpoints 和
+   timesteps `249/499`。对主要量 `D2-X minus D2-AB supported velocity`，sequence bootstrap
+   结果分别为：
+   - `t=249`：mean `-0.0013696933`，95% CI
+     `[-0.0021679224,-0.0006211924]`；
+   - `t=499`：mean `-0.0017119791`，95% CI
+     `[-0.0029663018,-0.0008443758]`。
+
+   两个 CI 都在 0 以下，说明 D2-AB 的 predicted-support 区域水平足速反而显著更高。
+   target/control support-mass ratio CI 分别为
+   `[1.005099,1.012231]`、`[1.004567,1.013073]`，完全位于预注册
+   `[0.80,1.20]`，因此 support sanity 通过，负结果不能解释为通过抬脚或关闭 support 获得。
+   internal lifecycle contract/finite checks 均通过，但 mechanism gate 失败；该 diagnostic
+   没有 optimizer、update、checkpoint write/selection 或 official-test 使用。
+4. **固定 native evaluation。** `p1-hoi-d2ab-native-eval-s42-20260725` 只加载上述
+   D2-AB fixed final-online checkpoint，执行 official 438 sequences×3 windows、
+   500-step unguided diffusion；sealed D2-X control records 原样复用。D2-AB point estimates：
+
+   | Te | Txy | FS | Cprec | Crec | Cf1 | C% | Pbody | MPJPE | Troot | Tobj | Oobj |
+   |---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+   | 3.6840 | 4.0892 | 0.3661 | 0.7896 | 0.5953 | 0.6383 | 0.4775 | 3.7714 | 12.0639 | 8.1101 | 15.9248 | 1.0244 |
+
+   primary `D2-X minus D2-AB` foot-sliding paired difference mean 为
+   `-0.0030536116`，95% CI `[-0.0175441732,0.0110958477]`，official improvement
+   gate 失败。D2-AB minus D2-X contact-F1 difference CI
+   `[-0.0046342095,0.0066400986]` 通过；MPJPE、end-object、Txy、object translation、
+   hand penetration 与 human penetration 的 target/control ratio CI 上界全部 `<=1.10`，
+   因而 protection gate 全通过。全部 released-baseline absolute diffusion checks 也通过，
+   其中 FS ratio `1.0980924 <= 1.10`。固定 181/438 penetration finite-mask contract
+   完全匹配。
+5. **timing 与 optional metrics。** native runtime `392.837 s`；generation
+   `62.556 s`、end-to-end generation `386.303 s`、55,188 frames、CUDA-synchronized
+   descriptive throughput `882.212 FPS`。本 evaluator 没有生成 FID 或
+   R-Precision（`fid_rprecision_used=false`）；该缺失已原样保留，不删除字段、不以
+   D2-AA 或其他 checkpoint 的值代填，也不参与选择。
+6. **科学结论。** D2-AB 的 support sanity、protection、absolute、provenance、normalization
+   和 artifact contracts 全通过，但 internal optimization direction 与 official FS gate
+   均失败。故 predicted-state/contact-aware no-slip objective 在当前固定 objective mixture
+   下不是充分机制；这不是 evaluator trick 的失败，也不是确定 training loss/model/math/
+   official-evaluator implementation defect。因为预注册 fallback 明确要求 internal
+   mechanism gate 先通过，local gradient-projection fallback 的触发条件不成立，剩余第二次
+   full-training budget 不得使用。
+7. **artifact seal。** compact result 为
+   `experiments/results/p1_hoi_phase1b_d2ab_predicted_support_no_slip_s42_20260726.json`。
+   smoke tree SHA-256
+   `654733afafcde8ffed20f41d0812e46cd4a62d91f3f8ccedb4d9d1c837823bd6`
+   （15 files / 91,202 bytes）；training tree
+   `e357b0c6e8ed3fdd2d8a0ed8a1ca1ac8dbff461892066bc4bd151928e50063ab`
+   （149 files / 7,127,317,639 bytes）；internal tree
+   `605cfd89381ceb9eb5e35adc4d274feccd102b06f26fbde6570499d6db9cdd55`
+   （18 files / 258,193 bytes）；native-eval tree
+   `d56bff74b8982a6f63efd62e784c2759233d9f5591222dbe9deb9922e17b5d42`
+   （22 files / 379,944 bytes）。worker/authority tree hashes 均一致。
+
+D2-AB 到此停止且 checkpoint 不可选择。任何未来第二机制必须重新执行 `date`、全量扫描下一
+unused Phase 1B identifier、添加新的 dated plan/registry hypothesis，并获得用户新的明确授权；
+不得 resume D2-AB，不得自动启动 consistency、HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

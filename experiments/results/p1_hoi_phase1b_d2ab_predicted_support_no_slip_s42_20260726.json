@@ -1,0 +1,383 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2ab-predicted-support-no-slip-s42-20260725",
+  "phase": "p1",
+  "subphase": "1B-D2-AB0",
+  "status": "completed",
+  "seed": 42,
+  "training_date": "2026-07-25",
+  "completion_date": "2026-07-26",
+  "classification": "predicted-support-no-slip-optimization-negative-stop",
+  "checkpoint_selected": false,
+  "consistency_authorized": false,
+  "consistency_started": false,
+  "fallback_authorized": false,
+  "hsiprior_authorized": false,
+  "mixer_authorized": false,
+  "implementation": {
+    "starting_head": "effc909da9693e25a8bb417749028b53675f4790",
+    "implementation_commit": "3fce4767111f7b4c01b5c2af252f6c3ef362cf43",
+    "continuous_resume_amendment_commit": "3d10eb48bbc8c480a9f474e1e01dd133f96a2bed",
+    "resume_provenance_commit": "0db60d82e454dd722320832e9f7b3f228a90ef72",
+    "completion_transition_commit": "de38d27368dd87f6b30e5aa2a8287421910a93d5",
+    "single_manipulated_factor": "replace the same eight D2-X FK-routed foot x/z residual slots with a differentiable predicted-state support-aware physical no-slip residual",
+    "representation_dimension": 232,
+    "architecture_changed": false,
+    "conditions_changed": false,
+    "production_sampler_changed": false,
+    "official_evaluator_changed": false,
+    "released_or_author_or_prior_checkpoint_loaded": false,
+    "support_scale_m": 0.03925712490454316,
+    "velocity_scale_s_per_m": 0.029363068377844033,
+    "sample_interval_s": 0.1,
+    "foot_joint_indices": [
+      7,
+      8,
+      10,
+      11
+    ],
+    "routed_components": [
+      "x",
+      "z"
+    ],
+    "support_metadata_sha256": "807978580221910ad00260c2dff4f33ddacbb1bf72bad7443bf21ac48f31f079"
+  },
+  "gpu_smoke": {
+    "run_id": "p1-hoi-d2ab-gpu-smoke-s42-20260725",
+    "status": "completed",
+    "git_commit": "3fce4767111f7b4c01b5c2af252f6c3ef362cf43",
+    "device": "cuda:0",
+    "visible_cuda_devices": 4,
+    "batch_size": 8,
+    "timesteps": [
+      0,
+      249,
+      499
+    ],
+    "initial_model_state_sha256": "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e",
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "support_noncollapsed": true,
+    "support_mean": 0.024176856502890587,
+    "support_q05": 1.4707738482802802e-16,
+    "support_median": 1.1971893476570017e-09,
+    "support_q95": 0.23812846839427948,
+    "support_fraction_gt_0_05": 0.0714285746216774,
+    "support_fraction_lt_0_95": 1.0,
+    "memory_headroom_bytes": 24996151296,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "checkpoint_selected": false,
+    "consistency_started": false,
+    "manifest_sha256": "f36f5317d4ff5bdaa3761fc08e800a6cf18576d2f1be43e3ec991f65a8dfe588",
+    "metrics_sha256": "da54b224a814717698694888e3aae3f898a6bea7e6ffcf34b383540abefcab9e",
+    "resolved_config_sha256": "3ee538029e9db652393236aa92c1b437b02b3d3bb0b5a626dcc78a2a8ab46e4f",
+    "preflight_sha256": "5cb07043d5d49a46d39491471d92856b6a628735f1ff693bc46a874964165b25",
+    "run_local_registry_sha256": "3b3582a450fc388b0ec710419924bb60ee86a5400814cc4d554d296061181493",
+    "artifact_tree": {
+      "sha256": "654733afafcde8ffed20f41d0812e46cd4a62d91f3f8ccedb4d9d1c837823bd6",
+      "files": 15,
+      "bytes": 91202,
+      "worker_authority_match": true
+    }
+  },
+  "training": {
+    "run_id": "p1-hoi-d2ab-predicted-support-no-slip-s42-20260725",
+    "execution_host": "infbagel-4gpu/node01",
+    "random_initialization": true,
+    "initial_model_state_sha256": "ad6980ce1e55a2b30420cb05993fa7b9f431ed674cea58c5795d4c885d52c14e",
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "effective_batch_size": 2048,
+    "micro_batch_per_gpu": 512,
+    "world_size": 4,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "amp_overflow_skips": 0,
+    "final_validation": {
+      "total": 0.048858786552045785,
+      "reconstruction": 0.0411070133592375,
+      "fk": 0.010359210079798231,
+      "object_surface": 0.008261368073533504,
+      "velocity": 0.0001001919430028142
+    },
+    "wall_seconds": 18382.995192532893,
+    "throughput_windows_per_second": 3342.2192279611054,
+    "throughput_frames_per_second": 53475.507647377686,
+    "minimum_memory_headroom_bytes": 21261123584,
+    "checkpoint_count": 20,
+    "rng_sidecar_count": 80,
+    "pause_checkpoint_sha256": "ceb73ebc3a72d6290fc63e2546533c1565912b905a980381d406ea71b39a2ecc",
+    "final_checkpoint_sha256": "3eb68cc55cae15fd4bd3ff5279131ffd9a35ba0399e8e90557e89cb301631d8e",
+    "resume_commit_provenance": {
+      "mode": "explicit_bound_transition",
+      "source_commit": "3fce4767111f7b4c01b5c2af252f6c3ef362cf43",
+      "target_commit": "0db60d82e454dd722320832e9f7b3f228a90ef72",
+      "diff_sha256": "9c777e1058ddc78ffdf2455141870e3d08eee37b51621bae4ffa45b32448ec86",
+      "changed_paths": [
+        "code/config/config_train_hoi_prior.yaml",
+        "code/train_hoi_prior.py",
+        "docs/EXPERIMENT_PLAN.md",
+        "experiments/registry.jsonl",
+        "tests/test_hoi_d2ab.py"
+      ]
+    },
+    "manifest_sha256": "f62837feebf565fb164bc8e80a814c424b7b1dded8c8892acec9c5474ab5186a",
+    "metrics_sha256": "4b0d042648fe612e54ff27f88afbf8a59a342ea9ab50581b02a86fede68ea07d",
+    "resolved_config_sha256": "a0f2ae92697094a4471961c5887846fab1067177e82cd7b0d2959b9c2dd508c6",
+    "resolved_resume_config_sha256": "998f74339002afade1be984b8693e20e473c16a014b35abc295c2ca7eb2ef101",
+    "preflight_sha256": "a64235207fac31d47a923973c10d15b169cdf1417747aa1718acfb5eb03ae89d",
+    "resume_preflight_sha256": "3dd3a4d9841f756c34fe476c1bf661eec34ae1fd4602ed623b2330b3e902aec9",
+    "resume_contract_sha256": "01ddd3d92bd87cd7dbd65f8cc2ebc37fdb5f4ce427852889effd9860eed90edf",
+    "resume_evidence_sha256": "cbf416e729bf356370895c8814c119b03bb135a565d46c96337dcfa17035b5ab",
+    "run_local_registry_sha256": "32006088cda8e0d3953b02c9b17bc0c109da1db701dbc91b6a2803a6e764bd86",
+    "artifact_tree": {
+      "sha256": "e357b0c6e8ed3fdd2d8a0ed8a1ca1ac8dbff461892066bc4bd151928e50063ab",
+      "files": 149,
+      "bytes": 7127317639,
+      "worker_authority_match": true
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2ab-predicted-support-no-slip-internal-s42-20260725",
+    "status": "completed",
+    "git_commit": "de38d27368dd87f6b30e5aa2a8287421910a93d5",
+    "protocol": "sealed 32-sequence/96-window internal-validation cohort; paired D2-X and D2-AB final-online predictions at timesteps 249 and 499",
+    "selection_sha256": "30524c88481f6cb81e8063073d510ad01543be92d91eb4ef9b2b8a376cc4fbae",
+    "official_test_sequences_used": 0,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "paired_unit": "sequence",
+    "control_minus_target_supported_velocity": {
+      "249": {
+        "mean": -0.0013696933165192604,
+        "bootstrap_95_ci": [
+          -0.0021679224257241,
+          -0.000621192414837424
+        ],
+        "passed": false
+      },
+      "499": {
+        "mean": -0.001711979100946337,
+        "bootstrap_95_ci": [
+          -0.002966301822743844,
+          -0.0008443758459179667
+        ],
+        "passed": false
+      }
+    },
+    "control_minus_target_no_slip_residual": {
+      "249": {
+        "mean": -0.0009748400771059096,
+        "bootstrap_95_ci": [
+          -0.002146871954028029,
+          0.00012703174288617442
+        ]
+      },
+      "499": {
+        "mean": -0.0010461475467309356,
+        "bootstrap_95_ci": [
+          -0.001949390076333657,
+          -0.00022566327243112074
+        ]
+      }
+    },
+    "target_over_control_support_mass": {
+      "249": {
+        "mean_ratio": 1.0086136401811183,
+        "bootstrap_95_ci": [
+          1.0050989510445736,
+          1.012230579156745
+        ],
+        "passed": true
+      },
+      "499": {
+        "mean_ratio": 1.0088666134241793,
+        "bootstrap_95_ci": [
+          1.0045667676559125,
+          1.0130726574991775
+        ],
+        "passed": true
+      }
+    },
+    "contract_passed": true,
+    "finite": true,
+    "support_sanity_passed": true,
+    "mechanism_passed": false,
+    "runtime_seconds": 4.935697487089783,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_write": false,
+    "checkpoint_selected": false,
+    "consistency_started": false,
+    "manifest_sha256": "8f15b8b3671c0af0cfc0e78947dbde823f3360469c264a677a7a8173a2dbbc72",
+    "metrics_sha256": "80568dd46ac8dcb51bb82f448669b5500ed2990027fa2967e4c2f73f61b28cf3",
+    "preflight_sha256": "feaeeb500c829768ae678bd36a88ed0fa7145f7300fe5dbc863436795e0645f0",
+    "run_local_registry_sha256": "12732b32efb5caef8969a88fff414036dba05c67c69dfc59fd9eb535030b9146",
+    "artifact_tree": {
+      "sha256": "605cfd89381ceb9eb5e35adc4d274feccd102b06f26fbde6570499d6db9cdd55",
+      "files": 18,
+      "bytes": 258193,
+      "worker_authority_match": true
+    }
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-d2ab-native-eval-s42-20260725",
+    "status": "completed",
+    "git_commit": "de38d27368dd87f6b30e5aa2a8287421910a93d5",
+    "protocol": "author-native HOI official 438 sequences, three windows per sequence, 500-step unguided diffusion, final online weights",
+    "primary_control": "sealed D2-X final-online aggregate and per-sequence records, reused without regeneration",
+    "official_sequences": 438,
+    "windows_per_sequence": 3,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "paired_unit": "sequence",
+    "target_metrics": {
+      "end_obj_trans_err": 3.683977946639061,
+      "xy_points_err": 4.089169576764107,
+      "foot_sliding": 0.3660636329913273,
+      "contact_precision": 0.7895729100762319,
+      "contact_recall": 0.5953289612111112,
+      "contact_f1": 0.6383062313543557,
+      "contact_percent": 0.47751322751322756,
+      "human_pen_loss_infbagel": 3.7713554658237207,
+      "hand_pen_loss_omomo": 0.2383167963890756,
+      "mpjpe": 12.063855677843094,
+      "trans_dist": 8.11014473438263,
+      "obj_trans_dist": 15.924828500288577,
+      "obj_rot_dist": 1.0244427748848806
+    },
+    "d2x_control_metrics": {
+      "end_obj_trans_err": 3.7402085959911346,
+      "xy_points_err": 4.050519689917564,
+      "foot_sliding": 0.3630100213939385,
+      "contact_f1": 0.6374259391059788,
+      "human_pen_loss_infbagel": 3.869084620991582,
+      "hand_pen_loss_omomo": 0.24535650279805918,
+      "mpjpe": 12.050843983888626,
+      "obj_trans_dist": 15.994049727002507
+    },
+    "paired_d2x_minus_d2ab_foot_sliding": {
+      "mean": -0.003053611597388859,
+      "bootstrap_95_ci": [
+        -0.01754417318503366,
+        0.011095847700698857
+      ],
+      "passed": false
+    },
+    "paired_d2ab_minus_d2x_contact_f1": {
+      "mean": 0.0008802922483768738,
+      "bootstrap_95_ci": [
+        -0.004634209464602685,
+        0.006640098555292079
+      ],
+      "passed": true
+    },
+    "target_over_d2x_ratio_ci": {
+      "mpjpe": [
+        0.9966439972043475,
+        1.0057097993600606
+      ],
+      "end_obj_trans_err": [
+        0.9712099995410935,
+        0.9986952749778961
+      ],
+      "xy_points_err": [
+        1.0019800906415182,
+        1.0173953950302745
+      ],
+      "obj_trans_dist": [
+        0.9914255002059943,
+        0.9999430523059284
+      ],
+      "hand_pen_loss_omomo": [
+        0.9287032539991535,
+        1.01021840316758
+      ],
+      "human_pen_loss_infbagel": [
+        0.9319976196087882,
+        1.0134658172482367
+      ]
+    },
+    "released_baseline_ratios": {
+      "mpjpe": 1.0055229813616766,
+      "end_obj_trans_err": 1.2129345135639291,
+      "xy_points_err": 1.042332139585843,
+      "obj_trans_dist": 1.0126660855914147,
+      "foot_sliding": 1.098092438941203,
+      "contact_f1": 0.8776892093819557
+    },
+    "penetration_mask_contract": {
+      "passed": true,
+      "official_sequences": 438,
+      "finite_sequences": 181,
+      "sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec"
+    },
+    "gates": {
+      "contract_passed": true,
+      "internal_mechanism_passed": false,
+      "official_foot_sliding_improved": false,
+      "protection_passed": true,
+      "all_released_baseline_absolute_checks_passed": true,
+      "effective_diffusion_passed": false
+    },
+    "runtime_seconds": 392.8370056389831,
+    "generation_seconds": 62.55638632993214,
+    "end_to_end_generation_seconds": 386.3026855799835,
+    "generated_frames": 55188,
+    "generation_fps": 882.2120847730858,
+    "timing_cuda_synchronized": true,
+    "fid_rprecision_used": false,
+    "optional_fid_rprecision_status": "not generated by this evaluator; no optional field was deleted or replaced",
+    "normalization_contract_passed": true,
+    "manifest_sha256": "7e5c51a06c03ed8f0b051cddd3fc815dae140bf35169dce36d2c28e3bb0f7794",
+    "metrics_sha256": "341277323e087d0d0c692ec98a722048565df5eed7073875767edbf191665d58",
+    "aggregate_sha256": "f16c17188d7912dee36cf331f3c4f63347fcec514fe347037aee973b28de6bd5",
+    "per_sequence_sha256": "ebf2e8f680d51f284f84d791cd712ef899296ae1f037afd80e5c3f8e807108ca",
+    "resolved_config_sha256": "57909f26699765f85104d74b4a5e6198e89952a8165731952720651b652609e5",
+    "resolved_target_sha256": "631867b8815efba5dd07692cfbbfa3820c96782e754d38441cd5c0a5123746b3",
+    "preflight_sha256": "e10f7b4fef161fff756dc868722e21b2c7526e54b10c5872332af4eba1e93eb4",
+    "run_local_registry_sha256": "452a7b5ffba9ca05e732360a9f90d578bae164baeeed97b55d7418189cfec0cd",
+    "artifact_tree": {
+      "sha256": "d56bff74b8982a6f63efd62e784c2759233d9f5591222dbe9deb9922e17b5d42",
+      "files": 22,
+      "bytes": 379944,
+      "worker_authority_match": true
+    }
+  },
+  "preserved_operational_failures": [
+    "The pre-workload smoke support-collapse threshold was corrected to a direction-neutral non-degeneracy contract.",
+    "The internal diagnostic import and sequence-reduction/schema defects were corrected before checkpoint evaluation.",
+    "The native resolved-config wrapper recursion was corrected before native evaluation.",
+    "The initial pause checkpoint was retained as resumability evidence and the same lineage continued under a hash-bound source-to-target commit transition.",
+    "The finish/register lifecycle required a fail-closed completion transition guard for the already bound continuation.",
+    "Malformed or stale pre-workload command/timestamp transcripts and one read-only post-launch SSH quoting failure were retained without interrupting or restarting training."
+  ],
+  "scientific_interpretation": {
+    "verified_facts": [
+      "D2-AB completed the exact fixed-budget from-random training contract with finite losses, required gradients, zero AMP overflow skips, and no released, author, D2-V/X/Y/Z, prior, or EMA initialization.",
+      "Support-mass sanity passed at both registered timesteps, so the internal result was not caused by suppressing support occupancy.",
+      "At both timesteps D2-AB had significantly higher supported foot velocity than D2-X; therefore the registered internal mechanism gate failed.",
+      "The official D2-X-minus-D2-AB foot-sliding confidence interval included zero and its point estimate was negative, so native foot sliding did not improve.",
+      "Every D2-X protection gate and every released-baseline absolute diffusion check passed.",
+      "No definite training-loss, model, mathematical, data, or official-evaluator scientific implementation defect was found."
+    ],
+    "evidence_based_inference": [
+      "A predicted-state support definition and zero-slip target alone are not a sufficient mechanism for improving this diffusion HOIPrior under the fixed objective mixture.",
+      "Because optimization moved the registered internal quantity in the wrong direction while protection remained intact, the result is better explained as an objective-optimization failure than as a protected-capability tradeoff or evaluator-only transfer failure.",
+      "The preregistered gradient-projection fallback trigger is not satisfied because it required the D2-AB internal mechanism gate to pass."
+    ],
+    "unresolved_questions": [
+      "Whether a separately preregistered timestep-aware or local gradient-conflict intervention could change the optimization direction remains untested.",
+      "Whether a finite predicted-history exposure can address train-to-rollout mismatch remains untested.",
+      "No remaining question authorizes another training, checkpoint selection, consistency distillation, HSIPrior, or Mixer workload."
+    ]
+  },
+  "conclusion": "D2-AB is a controlled optimization-negative result. It preserved broad native capability but failed both the registered internal mechanism gate and the official foot-sliding improvement gate, so it is not a selectable HOIPrior.",
+  "next_action": "Stop D2-AB. Do not launch the conditional fallback or any other HOIPrior training without a new dated plan/registry entry and explicit user authorization; do not start checkpoint selection, consistency, HSIPrior, or Mixer."
+}
