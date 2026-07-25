@@ -3756,10 +3756,27 @@ checkpoint；它不是科学停止点、不是第二次训练预算，也不是�
    新 checkpoint。tunnel/access interruption 也不授权重启、复用 run id 或覆盖结果。
 5. **完成后的固定动作。** 训练仍须跑满 `61440000` windows/`30000` updates；无论中途
    观测到的 validation/loss 如何，均不得提前选择 checkpoint、延长预算或启动
-   consistency。只有完整训练结束并完成 artifact recovery 后，才运行已注册的一次 internal
-   diagnostic 和一次 native evaluation；本 amendment 不授权 fallback、consistency、
-   HSIPrior 或 Mixer，也不改变任何 scientific gate、uncertainty 或 FID/R-Precision
-   保留规则。
+ consistency。只有完整训练结束并完成 artifact recovery 后，才运行已注册的一次 internal
+ diagnostic 和一次 native evaluation；本 amendment 不授权 fallback、consistency、
+ HSIPrior 或 Mixer，也不改变任何 scientific gate、uncertainty 或 FID/R-Precision
+ 保留规则。
+
+#### 2026-07-25 D2-AB resume provenance guard amendment（operational）
+
+在 continuation workload 启动前发现：正式 trainer 原本要求
+`checkpoint.git_commit == current HEAD`。首段 checkpoint 绑定
+`3fce4767111f7b4c01b5c2af252f6c3ef362cf43`，而本 lifecycle amendment 的治理 commit
+已经是不同 object；若直接 resume，trainer 会在 GPU DDP 初始化后 fail closed。这是可确定的
+provenance/lifecycle 不兼容，不是模型、loss、数据或 evaluator defect；该次未启动
+resume GPU workload，旧 checkpoint 未被改写。
+
+允许的修复仅是一个 hash-bound continuation provenance guard：resume config 必须显式绑定
+checkpoint source commit、worker target HEAD、两者 `git diff --binary` SHA-256 和固定的
+changed-file allowlist（仅本次治理/配置/guard/test 文件）；trainer 仍拒绝所有未显式绑定或
+包含其他 source/config/model 变化的 commit transition。exact-commit resume 及所有新训练
+仍保持原有 fail-closed 规则。该 guard 不改变 forward、loss、optimizer、sampling、预算或
+任何 scientific gate；其 source/target/diff hash 必须进入 continuation resolved config、
+resume contract artifact 和最终 manifest。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 

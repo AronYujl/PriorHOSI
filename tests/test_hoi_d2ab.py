@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -33,6 +34,7 @@ from priors.d2ab import (  # noqa: E402
 from priors.losses import D2X_FOOT_XZ_VELOCITY_SLOTS  # noqa: E402
 from train_hoi_prior import (  # noqa: E402
     _loss_routing_contract,
+    _resume_commit_provenance,
     _resume_contract,
     _validate_d2ab_contract,
     _validate_fk_foot_temporal_routing_mode,
@@ -297,6 +299,114 @@ class D2ABContractTests(unittest.TestCase):
             _resume_contract(cfg)["d2ab_support_metadata_sha256"],
             METADATA_SHA256,
         )
+
+    def test_resume_commit_provenance_is_exact_or_hash_bound(self):
+        exact = merged_config()
+        record = _resume_commit_provenance(
+            exact,
+            "a" * 40,
+            "a" * 40,
+            ROOT,
+        )
+        self.assertEqual(record["mode"], "exact_commit")
+
+        unbound = merged_config()
+        with self.assertRaisesRegex(ValueError, "no explicit transition authorization"):
+            _resume_commit_provenance(
+                unbound,
+                "a" * 40,
+                "b" * 40,
+                ROOT,
+            )
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            plan = repo / "docs/EXPERIMENT_PLAN.md"
+            registry = repo / "experiments/registry.jsonl"
+            plan.parent.mkdir(parents=True)
+            registry.parent.mkdir(parents=True)
+            plan.write_text("initial\n", encoding="utf-8")
+            registry.write_text("{}\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                [
+                    "git", "-c", "user.name=Codex Test",
+                    "-c", "user.email=codex@example.invalid",
+                    "commit", "-q", "-m", "initial",
+                ],
+                cwd=repo,
+                check=True,
+            )
+            source = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+            ).strip()
+            plan.write_text("amended\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                [
+                    "git", "-c", "user.name=Codex Test",
+                    "-c", "user.email=codex@example.invalid",
+                    "commit", "-q", "-m", "amendment",
+                ],
+                cwd=repo,
+                check=True,
+            )
+            target = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+            ).strip()
+            diff_sha256 = hashlib.sha256(subprocess.check_output(
+                ["git", "diff", "--binary", source, target],
+                cwd=repo,
+            )).hexdigest()
+            bound = merged_config()
+            bound.resume_commit_transition_authorized = True
+            bound.resume_source_commit = source
+            bound.resume_target_commit = target
+            bound.resume_transition_diff_sha256 = diff_sha256
+            record = _resume_commit_provenance(
+                bound,
+                source,
+                target,
+                repo,
+            )
+            self.assertEqual(record["mode"], "explicit_bound_transition")
+            self.assertEqual(
+                record["changed_paths"],
+                ["docs/EXPERIMENT_PLAN.md"],
+            )
+            self.assertEqual(record["diff_sha256"], diff_sha256)
+
+            unexpected = repo / "code/priors/d2ab.py"
+            unexpected.parent.mkdir(parents=True)
+            unexpected.write_text("changed\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                [
+                    "git", "-c", "user.name=Codex Test",
+                    "-c", "user.email=codex@example.invalid",
+                    "commit", "-q", "-m", "unexpected",
+                ],
+                cwd=repo,
+                check=True,
+            )
+            unexpected_target = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+            ).strip()
+            bound.resume_target_commit = unexpected_target
+            bound.resume_transition_diff_sha256 = hashlib.sha256(
+                subprocess.check_output(
+                    ["git", "diff", "--binary", source, unexpected_target],
+                    cwd=repo,
+                )
+            ).hexdigest()
+            with self.assertRaisesRegex(ValueError, "non-governance"):
+                _resume_commit_provenance(
+                    bound,
+                    source,
+                    unexpected_target,
+                    repo,
+                )
 
     def test_other_modes_reject_d2ab_fields(self):
         cfg = merged_config()

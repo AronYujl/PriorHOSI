@@ -9,6 +9,7 @@ import json
 import math
 import os
 import random
+import re
 import socket
 import subprocess
 import sys
@@ -169,6 +170,109 @@ def _atomic_torch_save(path: Path, value: object) -> None:
 
 def _git_commit(repo: Path) -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+
+
+_RESUME_TRANSITION_ALLOWED_PATHS = frozenset(
+    {
+        "code/config/config_train_hoi_prior.yaml",
+        "code/train_hoi_prior.py",
+        "docs/EXPERIMENT_PLAN.md",
+        "experiments/registry.jsonl",
+        "tests/test_hoi_d2ab.py",
+    }
+)
+
+
+def _resume_commit_provenance(
+    cfg: DictConfig,
+    checkpoint_commit: str,
+    current_commit: str,
+    repo: Path,
+) -> Dict[str, object]:
+    """Fail-closed provenance check for an explicitly bound governance transition.
+
+    Exact-commit resumes remain the default.  The only exception is a continuation
+    config that binds the checkpoint source commit, current target commit, and the
+    byte-level Git diff hash.  This lets a paused run survive a documented
+    governance/test commit without permitting an arbitrary code transition.
+    """
+    if checkpoint_commit == current_commit:
+        return {
+            "mode": "exact_commit",
+            "checkpoint_git_commit": checkpoint_commit,
+            "current_git_commit": current_commit,
+            "changed_paths": [],
+            "diff_sha256": None,
+        }
+    authorized = bool(cfg.get("resume_commit_transition_authorized", False))
+    source = cfg.get("resume_source_commit")
+    target = cfg.get("resume_target_commit")
+    expected_diff = cfg.get("resume_transition_diff_sha256")
+    if not authorized:
+        raise ValueError(
+            "resume checkpoint Git commit mismatch and no explicit transition authorization: "
+            f"{checkpoint_commit} != {current_commit}"
+        )
+    source = None if source in (None, "", False) else str(source)
+    target = None if target in (None, "", False) else str(target)
+    expected_diff = None if expected_diff in (None, "", False) else str(expected_diff)
+    commit_pattern = re.compile(r"^[0-9a-f]{40}$")
+    if (
+        source is None
+        or target is None
+        or expected_diff is None
+        or not commit_pattern.fullmatch(source)
+        or not commit_pattern.fullmatch(target)
+        or not re.fullmatch(r"[0-9a-f]{64}", expected_diff)
+    ):
+        raise ValueError("resume commit transition requires valid source/target/diff hashes")
+    if source != checkpoint_commit or target != current_commit:
+        raise ValueError(
+            "resume commit transition binding does not match checkpoint/current commits: "
+            f"source={source}, checkpoint={checkpoint_commit}, "
+            f"target={target}, current={current_commit}"
+        )
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source, target],
+        cwd=str(repo),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if ancestor.returncode != 0:
+        raise ValueError("resume commit transition target is not a descendant of checkpoint commit")
+    changed_paths = tuple(
+        line
+        for line in subprocess.check_output(
+            ["git", "diff", "--name-only", source, target],
+            cwd=str(repo),
+            text=True,
+        ).splitlines()
+        if line
+    )
+    unexpected = sorted(set(changed_paths) - _RESUME_TRANSITION_ALLOWED_PATHS)
+    if unexpected:
+        raise ValueError(
+            "resume commit transition changes non-governance/source-guard files: "
+            + ", ".join(unexpected)
+        )
+    diff_bytes = subprocess.check_output(
+        ["git", "diff", "--binary", source, target],
+        cwd=str(repo),
+    )
+    actual_diff = hashlib.sha256(diff_bytes).hexdigest()
+    if actual_diff != expected_diff:
+        raise ValueError(
+            "resume commit transition diff hash mismatch: "
+            f"{actual_diff} != {expected_diff}"
+        )
+    return {
+        "mode": "explicit_bound_transition",
+        "checkpoint_git_commit": checkpoint_commit,
+        "current_git_commit": current_commit,
+        "changed_paths": list(changed_paths),
+        "diff_sha256": actual_diff,
+    }
 
 
 def _model_config(cfg: DictConfig) -> Dict[str, int]:
@@ -1341,16 +1445,17 @@ def _load_resume(
     optimizer: torch.optim.Optimizer,
     scheduler: Optional[LambdaLR],
     scaler: torch.cuda.amp.GradScaler,
-) -> Dict[str, int]:
+) -> Dict[str, object]:
     path = Path(str(cfg.resume_checkpoint)).resolve()
     checkpoint = torch.load(path, map_location=f"cuda:{rank}")
     if checkpoint.get("checkpoint_type") != "hoi_prior_phase1b":
         raise ValueError("resume checkpoint is not a Phase 1B HOIPrior checkpoint")
-    current_commit = _git_commit(Path(str(cfg.repo_root)).resolve())
-    if checkpoint.get("git_commit") != current_commit:
-        raise ValueError(
-            f"resume checkpoint Git commit mismatch: {checkpoint.get('git_commit')} != {current_commit}"
-        )
+    repo = Path(str(cfg.repo_root)).resolve()
+    current_commit = _git_commit(repo)
+    checkpoint_commit = str(checkpoint.get("git_commit"))
+    resume_provenance = _resume_commit_provenance(
+        cfg, checkpoint_commit, current_commit, repo,
+    )
     if checkpoint.get("resume_contract") != _resume_contract(cfg):
         raise ValueError("resume checkpoint training contract mismatch")
     for key, expected in (
@@ -1393,6 +1498,8 @@ def _load_resume(
         "amp_overflow_skips": int(checkpoint.get("amp_overflow_skips", 0)),
         "epoch": int(checkpoint["epoch"]),
         "batches_consumed_in_epoch": int(checkpoint["batches_consumed_in_epoch"]),
+        "resume_checkpoint_git_commit": checkpoint_commit,
+        "resume_commit_provenance": resume_provenance,
     }
 
 
@@ -1581,6 +1688,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         "amp_overflow_skips": 0,
         "epoch": 0,
         "batches_consumed_in_epoch": 0,
+        "resume_checkpoint_git_commit": None,
+        "resume_commit_provenance": None,
     }
     resumed_from = None
     if cfg.resume_checkpoint not in (None, "", False):
@@ -1828,6 +1937,8 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             "terminal_checkpoint": str(terminal_checkpoint),
             "terminal_checkpoint_sha256": _sha256(terminal_checkpoint),
             "resume_checkpoint": resumed_from,
+            "resume_checkpoint_git_commit": state.get("resume_checkpoint_git_commit"),
+            "resume_commit_provenance": state.get("resume_commit_provenance"),
         }
         _atomic_json(Path(str(cfg.state_path)).resolve(), state_record, overwrite=True)
         if not paused:

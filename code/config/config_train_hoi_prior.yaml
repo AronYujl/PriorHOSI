@@ -46,6 +46,10 @@ num_heads: 16
 num_layers: 8
 init_checkpoint: null
 resume_checkpoint: null
+resume_commit_transition_authorized: false
+resume_source_commit: null
+resume_target_commit: null
+resume_transition_diff_sha256: null
 weight_init_checkpoint: null
 weight_init_sha256: null
 weight_init_variant: null
