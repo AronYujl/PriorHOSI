@@ -276,6 +276,99 @@ def command_start(args: argparse.Namespace) -> None:
     print(output)
 
 
+def _finish_commit_transition(
+    repo: Path,
+    manifest: Mapping[str, Any],
+    current: Mapping[str, Any],
+    metrics: Mapping[str, Any],
+    args: argparse.Namespace,
+) -> Optional[Dict[str, Any]]:
+    """Validate and record one explicitly hash-bound completion transition.
+
+    A reportable run normally requires the finishing HEAD to equal the
+    manifest's starting commit.  The D2-AB continuation is the narrow
+    exception: its already-running manifest began before a governance-only
+    resume guard commit, while the completed metrics bind the exact source,
+    target, binary diff, and changed-file allowlist.  Keep the normal
+    exact-HEAD behavior fail-closed for every other case.
+    """
+    starting_commit = str(manifest.get("git", {}).get("commit", ""))
+    transition_values = (
+        args.commit_transition_source,
+        args.commit_transition_target,
+        args.commit_transition_diff_sha256,
+    )
+    allow_paths = sorted(set(args.commit_transition_allow_path))
+    if current["commit"] == starting_commit:
+        if any(value is not None for value in transition_values) or allow_paths:
+            raise ManifestError(
+                "commit-transition arguments are forbidden when HEAD matches the manifest"
+            )
+        return None
+
+    if (
+        any(value is None for value in transition_values)
+        or not allow_paths
+    ):
+        raise ManifestError(
+            "HEAD changed during the run; an explicit hash-bound commit transition is required"
+        )
+    source = str(args.commit_transition_source)
+    target = str(args.commit_transition_target)
+    diff_sha256 = str(args.commit_transition_diff_sha256)
+    if source != starting_commit:
+        raise ManifestError("commit-transition source does not match manifest start commit")
+    if target != current["commit"]:
+        raise ManifestError("commit-transition target does not match current HEAD")
+    if not re.fullmatch(r"[0-9a-f]{40}", source) or not re.fullmatch(r"[0-9a-f]{40}", target):
+        raise ManifestError("commit-transition source/target must be lowercase Git object ids")
+    if not re.fullmatch(r"[0-9a-f]{64}", diff_sha256):
+        raise ManifestError("commit-transition diff must be a lowercase SHA-256")
+
+    diff = subprocess.run(
+        ["git", "diff", "--binary", source, target],
+        cwd=str(repo),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if diff.returncode:
+        detail = diff.stderr.decode("utf-8", errors="replace").strip()
+        raise ManifestError(f"cannot inspect commit transition: {detail}")
+    actual_diff_sha256 = hashlib.sha256(diff.stdout).hexdigest()
+    if actual_diff_sha256 != diff_sha256:
+        raise ManifestError("commit-transition binary diff hash mismatch")
+    changed = run_command(["git", "diff", "--name-only", source, target], repo).splitlines()
+    if changed != allow_paths:
+        raise ManifestError(
+            f"commit-transition changed-file allowlist mismatch: expected {allow_paths}, got {changed}"
+        )
+
+    if metrics.get("git_commit") != target:
+        raise ManifestError("metrics git_commit does not match commit-transition target")
+    provenance = metrics.get("resume_commit_provenance")
+    expected_provenance = {
+        "mode": "explicit_bound_transition",
+        "checkpoint_git_commit": source,
+        "current_git_commit": target,
+        "diff_sha256": diff_sha256,
+        "changed_paths": changed,
+    }
+    if not isinstance(provenance, Mapping):
+        raise ManifestError("metrics lack resume commit provenance for the HEAD transition")
+    for key, expected in expected_provenance.items():
+        if provenance.get(key) != expected:
+            raise ManifestError(f"metrics resume provenance mismatch for {key}")
+    return {
+        "mode": "explicit_bound_transition",
+        "source_commit": source,
+        "target_commit": target,
+        "diff_sha256": diff_sha256,
+        "changed_paths": changed,
+        "metrics_git_commit": metrics.get("git_commit"),
+    }
+
+
 def command_finish(args: argparse.Namespace) -> None:
     repo = find_repo_root(Path.cwd())
     manifest_path = Path(args.manifest).resolve()
@@ -283,12 +376,11 @@ def command_finish(args: argparse.Namespace) -> None:
     if manifest.get("status") != "running" or manifest.get("ended_at") is not None:
         raise ManifestError("only a running manifest may be finished")
     current = git_state(repo)
-    if current["commit"] != manifest.get("git", {}).get("commit"):
-        raise ManifestError("HEAD changed during the run")
     if current["dirty"]:
         raise ManifestError("worktree became dirty during the run")
     metrics_path = Path(args.metrics).resolve()
     metrics = load_json(metrics_path)
+    transition = _finish_commit_transition(repo, manifest, current, metrics, args)
     if args.resolved_config:
         resolved_config = Path(args.resolved_config).resolve()
         if not resolved_config.is_file():
@@ -304,6 +396,8 @@ def command_finish(args: argparse.Namespace) -> None:
         "sha256": sha256_file(metrics_path),
         "bytes": metrics_path.stat().st_size,
     }
+    if transition is not None:
+        manifest["commit_transition"] = transition
     manifest["final_git"] = current
     atomic_write_json(manifest_path, manifest, overwrite=True)
     print(manifest_path)
@@ -632,9 +726,16 @@ def command_register(args: argparse.Namespace) -> None:
         "conclusion": args.conclusion,
         "next_action": args.next_action,
         "manifest_sha256": sha256_file(Path(args.manifest).resolve()),
-        "git_commit": manifest["git"]["commit"],
+        "git_commit": (
+            manifest.get("commit_transition", {}).get(
+                "target_commit", manifest["git"]["commit"]
+            )
+        ),
         "created_at": utc_now(),
     }
+    if manifest.get("commit_transition") is not None:
+        record["manifest_start_git_commit"] = manifest["git"]["commit"]
+        record["commit_transition"] = manifest["commit_transition"]
     registry.parent.mkdir(parents=True, exist_ok=True)
     with registry.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n")
@@ -687,6 +788,10 @@ def build_parser() -> argparse.ArgumentParser:
     finish.add_argument("--metrics", required=True)
     finish.add_argument("--status", choices=sorted(TERMINAL_STATUSES), required=True)
     finish.add_argument("--resolved-config")
+    finish.add_argument("--commit-transition-source")
+    finish.add_argument("--commit-transition-target")
+    finish.add_argument("--commit-transition-diff-sha256")
+    finish.add_argument("--commit-transition-allow-path", action="append", default=[])
     finish.set_defaults(func=command_finish)
 
     register = subparsers.add_parser("register", help="append a sealed run to registry")

@@ -3776,7 +3776,25 @@ changed-file allowlist（仅本次治理/配置/guard/test 文件）；trainer �
 包含其他 source/config/model 变化的 commit transition。exact-commit resume 及所有新训练
 仍保持原有 fail-closed 规则。该 guard 不改变 forward、loss、optimizer、sampling、预算或
 任何 scientific gate；其 source/target/diff hash 必须进入 continuation resolved config、
-resume contract artifact 和最终 manifest。
+ resume contract artifact 和最终 manifest。
+
+#### 2026-07-26 D2-AB completion manifest transition amendment（operational）
+
+完整续训在 `0db60d82e454dd722320832e9f7b3f228a90ef72` 正常结束，但原始
+`tools/experiment.py start` manifest 绑定的是首段 workload commit
+`3fce4767111f7b4c01b5c2af252f6c3ef362cf43`。因此普通 `experiment.py finish` 的
+exact-HEAD guard 会在完成阶段拒绝一个已经通过 resume provenance guard、且 metrics 明确记录
+source/target/diff 的合法同一 lineage。这是确定的 lifecycle implementation defect，不是
+训练或 scientific defect；训练已完成、checkpoint 未修改、evaluation 尚未启动。
+
+允许的最小修复仅扩展 `tools/experiment.py finish/register` 的 manifest provenance contract：
+在显式提供原始 manifest commit、当前 workload commit、`git diff --binary` SHA-256 和固定
+changed-file allowlist 时，验证这些值、metrics 的 `resume_commit_provenance` 与最终
+`metrics.git_commit`，并把 transition 作为不可变 manifest/registry 字段记录；未显式绑定或
+路径/hash 不匹配仍 fail closed。不得放宽 dirty-worktree、run-id、artifact overwrite 或
+普通 exact-HEAD checks，也不改变训练、评估、gate、uncertainty、checkpoint selection、
+consistency 或 fallback 规则。此修复不启动任何 GPU workload，随后仍只执行已注册的 D2-AB
+finish/recovery、internal diagnostic 和 native evaluation。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 

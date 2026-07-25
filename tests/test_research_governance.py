@@ -1,8 +1,10 @@
+import hashlib
 import json
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 try:
     import numpy as np
@@ -62,6 +64,72 @@ class SplitTests(unittest.TestCase):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_hash_bound_completion_transition_is_exact_and_fail_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "docs").mkdir()
+            tracked = repo / "docs" / "EXPERIMENT_PLAN.md"
+            tracked.write_text("initial\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                [
+                    "git", "-c", "user.name=Codex Test",
+                    "-c", "user.email=codex@example.invalid",
+                    "commit", "-q", "-m", "initial",
+                ],
+                cwd=repo,
+                check=True,
+            )
+            source = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+            ).strip()
+            tracked.write_text("amended\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                [
+                    "git", "-c", "user.name=Codex Test",
+                    "-c", "user.email=codex@example.invalid",
+                    "commit", "-q", "-m", "governance",
+                ],
+                cwd=repo,
+                check=True,
+            )
+            target = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True,
+            ).strip()
+            diff = subprocess.check_output(
+                ["git", "diff", "--binary", source, target], cwd=repo,
+            )
+            diff_sha256 = hashlib.sha256(diff).hexdigest()
+            manifest = {"git": {"commit": source}}
+            current = experiment.git_state(repo)
+            metrics = {
+                "git_commit": target,
+                "resume_commit_provenance": {
+                    "mode": "explicit_bound_transition",
+                    "checkpoint_git_commit": source,
+                    "current_git_commit": target,
+                    "diff_sha256": diff_sha256,
+                    "changed_paths": ["docs/EXPERIMENT_PLAN.md"],
+                },
+            }
+            args = SimpleNamespace(
+                commit_transition_source=source,
+                commit_transition_target=target,
+                commit_transition_diff_sha256=diff_sha256,
+                commit_transition_allow_path=["docs/EXPERIMENT_PLAN.md"],
+            )
+            transition = experiment._finish_commit_transition(
+                repo, manifest, current, metrics, args,
+            )
+            self.assertEqual(transition["target_commit"], target)
+            args.commit_transition_allow_path = ["docs/EXPERIMENT_PLAN.md", "unexpected"]
+            with self.assertRaises(experiment.ManifestError):
+                experiment._finish_commit_transition(
+                    repo, manifest, current, metrics, args,
+                )
+
     def test_phase_handoff_contract_is_tracked(self):
         agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         plan = (REPO_ROOT / "docs" / "EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
