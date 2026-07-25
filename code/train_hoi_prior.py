@@ -28,6 +28,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from datasets.utils import get_smpl_parents
 from priors.data import PriorWindowDataset
+from priors.d2ab import D2ABPriorWindowDataset, d2ab_hoi_training_losses
 from priors.d2z import D2ZPriorWindowDataset, d2z_hoi_training_losses
 from priors.diffusion import GaussianDiffusion, normalize_progress
 from priors.losses import hoi_training_losses
@@ -209,6 +210,9 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "d2x_fk_foot_temporal_routing": bool(
             cfg.get("d2x_fk_foot_temporal_routing", False)
         ),
+        "d2ab_predicted_support_no_slip": bool(
+            cfg.get("d2ab_predicted_support_no_slip", False)
+        ),
         "fk_foot_temporal_routing": bool(cfg.get("fk_foot_temporal_routing", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
@@ -241,6 +245,11 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
             cfg.get("routed_foot_residual_multiplier", 1.0)
         )
         contract["d2z_gate_audit_sha256"] = str(cfg.get("d2z_gate_audit_sha256"))
+    if _is_d2ab(cfg):
+        contract["d2ab_predicted_support_no_slip"] = True
+        contract["d2ab_support_metadata_sha256"] = str(
+            cfg.get("d2ab_support_metadata_sha256")
+        )
     return contract
 
 
@@ -276,10 +285,14 @@ def _is_d2z(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2z_immutable_gt_near_ground_gating", False))
 
 
+def _is_d2ab(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2ab_predicted_support_no_slip", False))
+
+
 def _uses_author_update_rule(cfg: DictConfig) -> bool:
     return (
         _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg)
-        or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg)
+        or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
     )
 
 
@@ -287,8 +300,10 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     routing = bool(cfg.get("fk_foot_temporal_routing", False))
     multiplier = float(cfg.get("routed_foot_residual_multiplier", 1.0))
     gating = bool(cfg.get("immutable_gt_near_ground_gating", False))
-    if routing and not (_is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg)):
-        raise ValueError("FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z modes")
+    if routing and not (_is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)):
+        raise ValueError(
+            "FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z/D2-AB modes"
+        )
     if multiplier != 1.0 and not (_is_d2y(cfg) or _is_d2z(cfg)):
         raise ValueError("routed-foot residual amplification is restricted to registered D2-Y/D2-Z")
     if _is_d2y(cfg) and not routing:
@@ -297,15 +312,31 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         raise ValueError("immutable-GT near-ground gating is restricted to registered D2-Z")
     if _is_d2z(cfg) and (not routing or not gating):
         raise ValueError("D2-Z requires FK-foot routing and immutable-GT near-ground gating")
+    if _is_d2ab(cfg) and not routing:
+        raise ValueError("D2-AB predicted-support no-slip requires FK-foot routing")
+    if _is_d2ab(cfg) and (
+        bool(cfg.get("immutable_gt_near_ground_gating", False))
+        or cfg.get("d2z_gate_audit_path") not in (None, "", False)
+        or cfg.get("d2z_gate_audit_sha256") not in (None, "", False)
+    ):
+        raise ValueError("D2-AB cannot use D2-Z gate inputs")
     if not _is_d2z(cfg) and (
         cfg.get("d2z_gate_audit_path") not in (None, "", False)
         or cfg.get("d2z_gate_audit_sha256") not in (None, "", False)
     ):
         raise ValueError("D2-Z gate audit inputs are forbidden outside registered D2-Z")
+    if not _is_d2ab(cfg) and (
+        cfg.get("d2ab_support_metadata_path") not in (None, "", False)
+        or cfg.get("d2ab_support_metadata_sha256") not in (None, "", False)
+    ):
+        raise ValueError("D2-AB support metadata is forbidden outside registered D2-AB")
 
 
 def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
-    if _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg):
+    if (
+        _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
+        or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
+    ):
         return {
             "fk": 0.3569973401779424,
             "object_surface": 0.4772322188400037,
@@ -372,6 +403,26 @@ def _loss_routing_contract(cfg: DictConfig) -> Dict[str, object]:
             "gate_audit_path": str(Path(str(cfg.d2z_gate_audit_path)).resolve()),
             "gate_audit_sha256": str(cfg.d2z_gate_audit_sha256),
         })
+    if _is_d2ab(cfg):
+        contract.update({
+            "d2ab_predicted_support_no_slip": True,
+            "support_metadata_path": str(
+                Path(str(cfg.d2ab_support_metadata_path)).resolve()
+            ),
+            "support_metadata_sha256": str(cfg.d2ab_support_metadata_sha256),
+            "support_floor_source": "raw_immutable_train_sequence_toe_y_5th_linear_quantile",
+            "support_pair_definition": "left_7_10_right_8_11_logmeanexp_soft_min",
+            "support_scale_m": 0.03925712490454316,
+            "sample_interval_s": 0.1,
+            "physical_velocity": "horizontal_position_delta_over_0.1s",
+            "velocity_scale_s_per_m": 0.029363068377844033,
+            "first_future_previous": "immutable_gt_history",
+            "later_previous": "predicted_fk_previous_frame",
+            "gt_and_floor_stop_gradient": True,
+            "zero_slip_target_when_supported": True,
+            "weighted_slots": 8,
+            "total_velocity_slots": 87,
+        })
     return contract
 
 
@@ -386,6 +437,7 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-T0",
         "run_id": str(cfg.run_id) == expected_run_id,
         "seed": int(cfg.seed) == 42,
@@ -439,6 +491,7 @@ def _validate_d2u_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-U0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2u-balanced-author-update-s42-20260721",
         "seed": int(cfg.seed) == 42,
@@ -503,6 +556,7 @@ def _validate_d2v_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-V0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2v-balanced-long-budget-s42-20260722",
         "seed": int(cfg.seed) == 42,
@@ -567,6 +621,7 @@ def _validate_d2x_contract(cfg: DictConfig, world_size: int) -> None:
         "d2v_mode_off": not _is_d2v(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-X0-r1",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723"
@@ -635,6 +690,7 @@ def _validate_d2y_contract(cfg: DictConfig, world_size: int) -> None:
         "d2v_mode_off": not _is_d2v(cfg),
         "d2x_mode_off": not _is_d2x(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-Y0",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2y-routed-foot-amplification-s42-20260723"
@@ -712,6 +768,7 @@ def _validate_d2z_contract(cfg: DictConfig, world_size: int) -> None:
         "d2v_mode_off": not _is_d2v(cfg),
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-Z0",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
@@ -779,15 +836,117 @@ def _validate_d2z_contract(cfg: DictConfig, world_size: int) -> None:
         raise ValueError(f"D2-Z immutable-GT near-ground gating contract mismatch: {failed}")
 
 
+def _validate_d2ab_contract(cfg: DictConfig, world_size: int) -> None:
+    if not _is_d2ab(cfg):
+        return
+    split_path = Path(str(cfg.split_manifest)).resolve()
+    metadata_path = Path(str(cfg.d2ab_support_metadata_path)).resolve()
+    try:
+        split_payload = json.loads(split_path.read_text(encoding="utf-8"))
+        train_sequences = split_payload["train"]["sequence_indices"]
+        from priors.d2ab import validate_metadata
+
+        validate_metadata(
+            metadata_path,
+            str(cfg.d2ab_support_metadata_sha256),
+            split_path=split_path,
+            expected_train_sequence_indices=train_sequences,
+        )
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError(f"D2-AB support metadata validation failed: {error}") from error
+    resume_value = cfg.resume_checkpoint
+    resume_allowed = (
+        resume_value in (None, "", False)
+        or (
+            Path(str(resume_value)).name.startswith(
+                "p1-hoi-d2ab-predicted-support-no-slip-s42-20260725_windows"
+            )
+            and Path(str(resume_value)).suffix == ".pth"
+        )
+    )
+    exact = {
+        "mode": str(cfg.mode) == "d2ab-predicted-support-no-slip",
+        "d2t_mode_off": not _is_d2t(cfg),
+        "d2u_mode_off": not _is_d2u(cfg),
+        "d2v_mode_off": not _is_d2v(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
+        "d2y_mode_off": not _is_d2y(cfg),
+        "d2z_mode_off": not _is_d2z(cfg),
+        "subphase": str(cfg.subphase) == "1B-D2-AB0",
+        "run_id": str(cfg.run_id) == (
+            "p1-hoi-d2ab-predicted-support-no-slip-s42-20260725"
+        ),
+        "seed": int(cfg.seed) == 42,
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "max_processed_windows": int(cfg.max_processed_windows) == 61440000,
+        "optimizer_updates": (
+            int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 30000
+        ),
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "balanced_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "fk_foot_temporal_routing_on": bool(cfg.fk_foot_temporal_routing),
+        "routed_foot_multiplier_unit": (
+            float(cfg.get("routed_foot_residual_multiplier", 1.0)) == 1.0
+        ),
+        "immutable_gt_gate_off": not bool(
+            cfg.get("immutable_gt_near_ground_gating", False)
+        ),
+        "metadata_sha256": str(cfg.d2ab_support_metadata_sha256) == (
+            "807978580221910ad00260c2dff4f33ddacbb1bf72bad7443bf21ac48f31f079"
+        ),
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint, cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256, cfg.weight_init_variant, cfg.d2m_candidate,
+            )
+        ),
+        "resume_same_run_only": resume_allowed,
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AB predicted-support no-slip contract mismatch: {failed}")
+
+
 def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
     label = (
-        "D2-Z" if _is_d2z(cfg)
+        "D2-AB" if _is_d2ab(cfg)
+        else ("D2-Z" if _is_d2z(cfg)
         else ("D2-Y" if _is_d2y(cfg)
         else ("D2-X" if _is_d2x(cfg)
         else ("D2-V" if _is_d2v(cfg) else ("D2-U" if _is_d2u(cfg) else "D2-T"))
-        ))
+        )))
     )
     if socket.gethostname() != "node01":
         raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
@@ -897,6 +1056,10 @@ def _move_batch(batch: Dict[str, torch.Tensor], device: torch.device) -> Dict[st
         moved["d2z_near_ground_gate"] = batch["d2z_near_ground_gate"].to(
             device, non_blocking=True
         )
+    if "d2ab_floor_m" in batch:
+        moved["d2ab_floor_m"] = batch["d2ab_floor_m"].to(
+            device, non_blocking=True
+        )
     return moved
 
 
@@ -961,6 +1124,12 @@ def _forward_losses(
         return d2z_hoi_training_losses(
             *positional,
             batch["d2z_near_ground_gate"],
+            **weights,
+        )
+    if _is_d2ab(cfg):
+        return d2ab_hoi_training_losses(
+            *positional,
+            batch["d2ab_floor_m"],
             **weights,
         )
     return hoi_training_losses(
@@ -1236,6 +1405,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     _validate_d2x_contract(cfg, world_size)
     _validate_d2y_contract(cfg, world_size)
     _validate_d2z_contract(cfg, world_size)
+    _validate_d2ab_contract(cfg, world_size)
     _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
@@ -1316,7 +1486,17 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         str(Path(str(cfg.d2z_gate_audit_path)).resolve()) if _is_d2z(cfg) else None
     )
     d2z_gate_audit_sha256 = str(cfg.d2z_gate_audit_sha256) if _is_d2z(cfg) else None
-    dataset_class = D2ZPriorWindowDataset if _is_d2z(cfg) else PriorWindowDataset
+    d2ab_support_metadata_path = (
+        str(Path(str(cfg.d2ab_support_metadata_path)).resolve())
+        if _is_d2ab(cfg) else None
+    )
+    d2ab_support_metadata_sha256 = (
+        str(cfg.d2ab_support_metadata_sha256) if _is_d2ab(cfg) else None
+    )
+    dataset_class = (
+        D2ZPriorWindowDataset if _is_d2z(cfg)
+        else (D2ABPriorWindowDataset if _is_d2ab(cfg) else PriorWindowDataset)
+    )
     d2z_dataset_kwargs = (
         {
             "gate_audit_path": d2z_gate_audit_path,
@@ -1324,9 +1504,16 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         }
         if _is_d2z(cfg) else {}
     )
+    d2ab_dataset_kwargs = (
+        {
+            "support_metadata_path": d2ab_support_metadata_path,
+            "support_metadata_sha256": d2ab_support_metadata_sha256,
+        }
+        if _is_d2ab(cfg) else {}
+    )
     train_dataset = dataset_class(
         str(cfg.repo_root), "hoi", partition="train", limit=int(cfg.dataset_limit),
-        split_manifest=split_manifest, **d2z_dataset_kwargs,
+        split_manifest=split_manifest, **d2z_dataset_kwargs, **d2ab_dataset_kwargs,
     )
     train_sampler = DistributedSampler(
         train_dataset, num_replicas=world_size, rank=rank, shuffle=True, seed=int(cfg.seed), drop_last=True,
@@ -1344,7 +1531,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     if int(cfg.validation_windows):
         validation_dataset = dataset_class(
             str(cfg.repo_root), "hoi", partition="internal_validation",
-            split_manifest=split_manifest, **d2z_dataset_kwargs,
+            split_manifest=split_manifest, **d2z_dataset_kwargs, **d2ab_dataset_kwargs,
         )
         validation_sampler = DistributedSampler(
             validation_dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False,
@@ -1721,6 +1908,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     "terminal_object_goal": float(cfg.goal_weight),
                 },
                 "loss_routing": _loss_routing_contract(cfg),
+                "support_metadata": (
+                    {
+                        "path": str(Path(str(cfg.d2ab_support_metadata_path)).resolve()),
+                        "sha256": str(cfg.d2ab_support_metadata_sha256),
+                    }
+                    if _is_d2ab(cfg) else None
+                ),
                 "window_state_codec": "state-compositional-v1",
                 "bps_sha256": BPS_SHA256,
                 "representation": REPRESENTATION.as_dict(),
@@ -1743,6 +1937,7 @@ def main(cfg: DictConfig) -> None:
     _validate_d2x_contract(cfg, int(cfg.num_gpus))
     _validate_d2y_contract(cfg, int(cfg.num_gpus))
     _validate_d2z_contract(cfg, int(cfg.num_gpus))
+    _validate_d2ab_contract(cfg, int(cfg.num_gpus))
     _validate_author_update_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")

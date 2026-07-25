@@ -3536,6 +3536,191 @@ full-438 `321.6566 FPS` 只保留为 descriptive throughput。
 或 checkpoint selection；历史复现没有被提升为 reportable/selectable HOIPrior，D2-V/X/Y/Z
 结论与正式 HOIPrior 缺失状态不变。
 
+#### 2026-07-25 Phase 1B D2-AB predicted-support no-slip objective 预注册
+
+D2-V 已证明固定的 232-D representation、architecture、conditions、balanced losses 与
+61,440,000-window budget 能从随机初始化学到强 diffusion HOIPrior；D2-W 排除了通过中间
+checkpoint selection 解决 foot sliding。D2-X 将足部 x/z temporal gradient 路由到
+predicted root/rotations→FK 后，official foot sliding 点估计改善但 paired 95% CI 跨 0。
+D2-Y 的固定 1,024 倍 amplification 显著降低 internal routed residual，却没有显著改善
+official foot sliding，并破坏 end-object/contact protection；D2-Z 的 immutable-GT binary
+near-ground gate 保留 D2-Y 约 78--86% gradient norm、cosine 约 0.95--0.99，仍未改善
+official foot sliding。D2-Y/Z 的 routed-foot 与 FK gradient cosine 在 `t=0` 为正、在
+`t=249/499` 为负，支持“当前 teacher-forced FK temporal target 在 noisy/mid timesteps
+与 reconstruction/FK/object capability 冲突”，但尚未检验由 predicted state 本身定义的
+物理支撑与 no-slip target。
+
+用户在严格只读审计后明确批准执行本 subphase。registry 全量扫描确认 D2-AB 是下一个未使用的
+Phase 1B identifier。本 campaign 最多允许两次新的完整 from-random training；D2-AB 占用第一
+次且当前只授权这一次。第二次只可能是下文严格条件触发、另行 dated amendment 和用户明确授权的
+fallback；不得自动启动。
+
+1. **唯一 manipulated factor 与运行身份。** 正式训练 run id 固定为
+   `p1-hoi-d2ab-predicted-support-no-slip-s42-20260725`、subphase `1B-D2-AB0`、seed 42。
+   唯一改变是用下述 predicted-state/contact-aware differentiable no-slip residual 替换
+   D2-X velocity tensor 中 joints `[7,8,10,11]` 的 8 个 x/z routed residual slots。其余
+   79 slots、87-slot global mean、global velocity weight `0.1`、reconstruction/FK/object
+   surface/terminal-goal losses、data、conditions、model、diffusion 与 production sampler
+   全部不变。该机制不调用 official floor helper、DBSCAN、official ankle/toe thresholds、
+   official foot-sliding reduction 或 test-set statistics，因此不是 evaluator-threshold trick。
+2. **固定 from-random training contract。** 保持 232-D、16 frames、2 history frames、
+   500-step clean-x0 diffusion、512-wide/16-head/8-layer scene-free HOIPrior、固定
+   seed-42 split、4×RTX 3090 `infbagel-4gpu/node01`、per-GPU batch 512、effective batch
+   2,048、accumulation 1、61,440,000 processed windows、30,000 optimizer updates、FP32
+   Adam betas `(0.9,0.999)`、LR `1e-4`、无 warmup/scheduler/weight decay/gradient clipping/
+   AMP/EMA。loss weights 固定为 FK `0.3569973401779424`、object surface
+   `0.4772322188400037`、velocity `0.1`、terminal object goal `1.0`。released、author、
+   D2-V/X/Y/Z、consistency 或其他 prior checkpoint 均不得加载；`init_checkpoint`、
+   `weight_init_checkpoint` 和首次正式启动的 `resume_checkpoint` 必须为空。训练必须由
+   `tools/experiment.py start` 在 clean worker exact committed Git object 上创建 manifest。
+3. **train-only support metadata。** 对固定 train split 的 4,088 条 raw 30-Hz immutable
+   aligned sequences，令
+   \[
+   f_s=Q_{0.05}^{linear}\{y^{GT}_{s,t,10},y^{GT}_{s,t,11}\}.
+   \]
+   pooled strictly-positive clearance 是所有 train sequences、四个 joints
+   `[7,8,10,11]` 的 `y-f_s>0` 值；其固定 median 为
+   \[
+   \ell=0.03925712490454316\ {\rm m}.
+   \]
+   train floor min/median/max 必须为
+   `-0.004783304338343441 / 0.0353932767175138 / 0.06221588589251041 m`。
+   metadata 必须绑定 split、`human_joints_aligned.npy`、`start_idx.npy`、`end_idx.npy`、
+   `norm.npy` hashes、ordered train sequence indices、per-sequence floors、positive count、
+   quantiles 和算法；不得读取 official test。internal-validation loss 可对其自身 immutable
+   sequence 仅用相同公式即时计算 floor，但 `ell/kappa` 只能来自 train metadata。
+4. **公式级 intervention。** predicted foot positions 来自 model predicted clean x0：
+   denormalize root/direct positions，decode rotations，经同一 24-joint FK 得到
+   \(p^\theta\)；GT foot positions \(p^{GT}\) 来自 denormalized clean direct-position channels。
+   左/右 foot pairs 分别为 \(J_L=\{7,10\}\)、\(J_R=\{8,11\}\)。对作为 residual previous
+   state 的位置定义
+   \[
+   d_{t,q}=-\ell\log\left({1\over |J_q|}
+   \sum_{j\in J_q}\exp(-(p^\theta_{t,j,y}-f_s)/\ell)\right),\qquad
+   s_{t,q}=\sigma(-d_{t,q}/\ell).
+   \]
+   第一个 future residual 的 previous state 使用 immutable GT history frame；后续 previous
+   state 使用前一 predicted FK state。固定 sampled-frame interval \(\Delta t=0.1s\)：
+   \[
+   v^\theta_{t,j}={\Pi_{xz}(p^\theta_{t,j}-\bar p^\theta_{t-1,j})\over0.1},
+   \qquad
+   v^{GT}_{t,j}={\Pi_{xz}(p^{GT}_{t,j}-p^{GT}_{t-1,j})\over0.1},
+   \]
+   \[
+   r^{AB}_{t,j}=v^\theta_{t,j}-
+   (1-s_{t-1,q(j)})v^{GT}_{t,j}.
+   \]
+   OMOMO position ranges are locked as
+   `Rx=6.658331632614136 m`、`Rz=6.975271224975586 m`，固定 scalar
+   \(\kappa=0.029363068377844033\,s/m\)。8 个 routed slots 使用
+   \(L^{AB}_{foot}=\operatorname{mean}\|\kappa r^{AB}\|_2^2\) 对应 element errors；
+   其余 79 element errors沿用 D2-X，最后仍对全部 87 slots 和 14 residual frames作一次
+   unchanged mean。没有 multiplier、threshold sweep、contact-label gate、SNR weighting、
+   gradient projection、rollout exposure 或 sampler intervention。
+5. **cheap pre-training diagnostic 与 fail-closed tests。** 在任何 GPU workload 前，CPU-only
+   metadata builder 必须复现上述 4,088 sequence/count/floor/clearance/range/constants，且
+   synthetic 与真实 train-batch tests 必须证明：first-future previous state 为 immutable GT；
+   later previous state 为 predicted FK；support 对 predicted foot height 可微、floor/GT
+   stop-gradient；只有 8 个 routed x/z slots 被替换；direct foot x/z 不获得该分量梯度而
+   root/rotation 获得有限非零梯度；`s→0` 时 routed residual 退化到 scaled physical
+   D2-X target、`s→1` 时退化到 zero-slip target；无 checkpoint load。任一 metadata/hash/
+   shape/gradient/contract 失败即停止，不启动 GPU。
+6. **registered GPU smoke。** run id
+   `p1-hoi-d2ab-gpu-smoke-s42-20260725`，只在 clean exact worker commit 的 `cuda:0`
+   上读取固定 real-data batch 8，覆盖 timesteps `0/249/499`，执行一次 random-initialized
+   forward/backward。不得创建 optimizer、optimizer update 或 checkpoint；必须记录全部
+   losses、support occupancy/quantiles、关键 root/rotation/model gradients、CUDA-synchronized
+   peak memory/headroom、initial model hash 和 0 checkpoint load/write。四卡必须可见且无
+   compute contention。smoke 任一非有限/零关键 gradient、support collapse、hash/host contract
+   失败即保留 artifacts 并停止正式训练。
+7. **训练稳定性与停止轮询。** 正式 detached run 必须先通过 resolved-config、same-context
+   machine preflight、finite losses/required gradients 的初始稳定区间、注册显存 headroom 和
+   至少一个可实际 resume 的 checkpoint。通过后报告 measured throughput、ETA 和 checkpoint
+   hash，停止连续轮询并等待用户通知；tunnel interruption 不允许重启、复用 run id 或覆盖。
+   正式预算无论结果如何不得延长、选择中间 checkpoint 或 resume D2-V/X/Y/Z。
+8. **fixed internal diagnostic。** 训练完成后 run id
+   `p1-hoi-d2ab-predicted-support-no-slip-internal-s42-20260725`，使用 sealed
+   32-sequence/96-window internal cohort、相同 clean windows/noise/dropout、final-online
+   D2-X control 与 D2-AB target，在 timesteps `249`、`499` 报告每 sequence
+   \[
+   M=\operatorname{mean}_{t,j}s_{t-1,q(j)}\|v^\theta_{t,j}\|_2^2
+   \]
+   及 support mass/height/no-slip residual。每个 timestep 对 `D2-X minus D2-AB M` 做
+   seed-42、10,000-replicate sequence bootstrap；internal mechanism gate 要求两个 CI
+   下界均 `>0`。support sanity 还要求 target/control mean support-mass ratio 的 paired
+   95% CI 完全落在 `[0.80,1.20]`，避免通过抬脚关闭 support。该 diagnostic 不选择 checkpoint。
+9. **固定 native evaluation 与 registered uncertainty。** run id
+   `p1-hoi-d2ab-native-eval-s42-20260725`，只加载 D2-AB fixed final-online checkpoint，
+   执行一次 official 438 sequences×3 windows、500-step unguided production diffusion；
+   CFG/dynamic perception/guidance/scene/consistency 均关闭。primary paired control 是封存
+   D2-X final-online aggregate/per-sequence records，checkpoint/aggregate/per-sequence
+   SHA-256 分别为
+   `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+   `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+   `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`，
+   不重新生成 control。所有 paired metrics 使用 sequence 为单位、seed 42、10,000 bootstrap；
+   penetration 固定使用 D2-X evaluator 已封存的同一 181-sequence finite mask。FID、
+   Matching、R-Precision@1/2/3、Diversity 和 timing 若 evaluator 正常产生必须原样保留和
+   报告，但 FID/R-Precision 当前不参与选择，不得删除或反向调 evaluator。
+10. **gates 与 classification。** official mechanism gate 要求 `D2-X minus D2-AB`
+    foot-sliding paired-difference 95% CI 下界 `>0`。protection gate 要求 D2-AB/D2-X 的
+    MPJPE、end-object、Txy、object translation、hand penetration、human penetration paired
+    ratio CI 上界均 `<=1.10`，contact-F1 difference CI 下界 `>=-0.02`。absolute released
+    baseline gate 要求 MPJPE/end-object/Txy/object translation/FS ratios
+    `<=1.30/2.00/1.50/1.50/1.10` 且 contact F1 `>=0.60`。internal、official foot、
+    protection 和 absolute gates 全通过才分类
+    `predicted-support-no-slip-positive-candidate-stop`；internal 失败为
+    `predicted-support-no-slip-optimization-negative-stop`；internal 通过但 official foot
+    失败为 `predicted-support-no-slip-transfer-negative-stop`；official foot 通过但 protection
+    失败为 `predicted-support-no-slip-conflict-negative-stop`；mechanism/protection 通过但
+    absolute gate 失败为 `predicted-support-no-slip-positive-but-not-effective-stop`；
+    lifecycle/hash/support contract 失败为
+    `predicted-support-no-slip-contract-failure-stop`。无论正负均停止，不选择 checkpoint、
+    不延长预算、不自动授权 consistency。
+11. **artifact contract。** 保留并双端 hash 验证：dated plan/registry、support metadata 与
+    builder resolved record、logical implementation commit、authority CPU/test logs、worker
+    pull/preflight/resolved configs、smoke manifest/log/metrics、formal manifest/train logs/
+    training state、全部 checkpoints 与 per-rank RNG、validation/training metrics、resume
+    demonstration、internal diagnostic manifest/per-sequence bootstrap、native evaluation
+    manifest/aggregate/per-sequence/resolved config/logs、optional FID/R@/timing、run-local
+    registry、dependency/hardware/data/evaluator hashes、完整 recovered artifact tree 和所有
+    operational/scientific failures。大 artifacts 不进 Git；Git 只记录 code/config/tests、
+    metadata、compact result、phase summary 与 hashes。
+12. **最多一次条件性 fallback，当前不授权。** 只有 D2-AB internal gate 与 support sanity
+    均通过、native transfer/protection 结果支持 late-timestep conflict、且 D2-AB final
+    no-slip/protection gradient cosine 在 `t=249/499 <= -0.2`、`t=0 >= +0.2`，同时不存在
+    support collapse 或 contract failure，才可提出 local objective-gradient projection：
+    只投影 no-slip gradient，其他 objective gradients 不变，并必须再次从随机初始化。
+    触发时须重新扫描 unused Phase 1B identifier、追加 dated plan/registry、取得用户新的明确
+    授权；不得 resume D2-AB。本次批准不包含该第二次训练、consistency、HSIPrior 或 Mixer。
+
+#### 2026-07-25 D2-AB CPU smoke-contract amendment（未启动 workload）
+
+在 GPU/worker workload 之前的 authority CPU 审计中，精确复现 seed-42、batch-8、随机
+初始化的 D2-AB smoke forward 得到 support mean `0.0266431123`，但 support 分布并未
+collapse（约 `7.6%` entries `>0.05`，且同时存在低/高 support）。原 smoke 工具把
+`mean >= 0.05` 当作 collapse gate，会错误拒绝该合法随机初始化；这是 operational
+gate 实现缺陷，不是 scientific negative，也未消耗 smoke run id、创建 manifest、加载
+checkpoint 或启动 GPU。
+
+修正仅将 smoke 的 support 检查改为方向中性的非退化 contract：所有值有限，分布宽度
+大于 `1e-3`，至少 `5%` entries `>0.05` 且至少 `5%` entries `<0.95`；同时记录
+`q05/median/q95` 与两侧 occupancy。训练公式、数据、预算、native/internal gates、
+run id 和 fallback 授权均不变。修正后仍必须重新运行专项/全量 CPU tests，再在 clean
+exact commit 上执行原注册的 `p1-hoi-d2ab-gpu-smoke-s42-20260725`。
+
+同一 CPU import 审计还发现 internal diagnostic 错把不存在的
+`priors.optimizer_reset.paired_ratio` 作为 support-sanity bootstrap；在任何 checkpoint
+load/evaluation 前已改为同模块既有的 `paired_mean_ratio`（ratio of paired-resampled
+means，seed 42、10,000 replicates），与预注册统计量一致。该修正不改变 cohort、metric、
+gate 或训练，并须由 CLI import test 覆盖。进一步的 CPU schema test 固定 96 windows
+按每窗口全 residual/joint 维均值后再按三窗 sequence 聚合，并验证 aggregate 输入使用
+`{"timesteps": ...}` 包装，避免把 per-window tensor 当作 per-sequence scalar。
+native-evaluation wrapper 的 CPU resolver test 还必须在 monkey-patch shared D2-X
+evaluator 后成功生成 D2-AB resolved record；wrapper 必须调用预先保存的 shared resolver，
+不得递归调用已被替换的自身函数。该项仍是 pre-workload operational contract，不改变
+任何 evaluator formula、metric 或 gate。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
