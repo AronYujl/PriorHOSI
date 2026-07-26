@@ -12,7 +12,13 @@ from typing import Dict, Iterable, Optional, Tuple
 import torch
 from torch import nn
 
+from .interaction_adapter import LocalObjectInteractionAdapter
 from .representation import REPRESENTATION
+
+
+HOI_ARCHITECTURE_BASE = "base"
+HOI_ARCHITECTURE_D2AC = "d2ac_interaction_adapter"
+HOI_ARCHITECTURES = frozenset({HOI_ARCHITECTURE_BASE, HOI_ARCHITECTURE_D2AC})
 
 
 def _time_embedding(timesteps: torch.Tensor, width: int) -> torch.Tensor:
@@ -47,8 +53,21 @@ class _PriorNetwork(nn.Module):
 class _HOICleanMotionNetwork(nn.Module):
     """Condition-token Transformer that predicts the clean 232-D window."""
 
-    def __init__(self, dim_model: int, num_heads: int, num_layers: int, dropout: float = 0.1) -> None:
+    def __init__(
+        self,
+        dim_model: int,
+        num_heads: int,
+        num_layers: int,
+        dropout: float = 0.1,
+        *,
+        architecture_variant: str = HOI_ARCHITECTURE_BASE,
+        bps_path: Optional[str] = None,
+    ) -> None:
         super().__init__()
+        if architecture_variant not in HOI_ARCHITECTURES:
+            raise ValueError(f"unknown HOIPrior architecture variant: {architecture_variant}")
+        if architecture_variant == HOI_ARCHITECTURE_D2AC and num_layers != 8:
+            raise ValueError("D2-AC requires the locked eight-layer HOIPrior trunk")
         self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
         self.text = nn.Sequential(
             nn.Linear(768, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
@@ -77,6 +96,44 @@ class _HOICleanMotionNetwork(nn.Module):
         self.output_norm = nn.LayerNorm(dim_model)
         self.output = nn.Linear(dim_model, REPRESENTATION.dimension)
         self.dim_model = dim_model
+        self.architecture_variant = architecture_variant
+        self.interaction_adapter = (
+            LocalObjectInteractionAdapter(dim_model, bps_path=bps_path)
+            if architecture_variant == HOI_ARCHITECTURE_D2AC
+            else None
+        )
+
+    def _encode(
+        self, tokens: torch.Tensor, object_bps: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.interaction_adapter is None:
+            # Preserve the exact legacy/base execution path and checkpoint
+            # behavior for every non-D2-AC HOIPrior.
+            return self.transformer(tokens)
+        encoded = tokens
+        for layer_index, layer in enumerate(self.transformer.layers):
+            encoded = layer(encoded)
+            if layer_index == 3:
+                motion = self.interaction_adapter(encoded[:, 4:], object_bps)
+                encoded = torch.cat((encoded[:, :4], motion), dim=1)
+        if self.transformer.norm is not None:
+            encoded = self.transformer.norm(encoded)
+        return encoded
+
+    def set_interaction_diagnostic_variant(self, variant: str) -> None:
+        if self.interaction_adapter is None:
+            raise ValueError("HOIPrior has no D2-AC interaction adapter")
+        self.interaction_adapter.set_diagnostic_variant(variant)
+
+    def set_interaction_attention_capture(self, enabled: bool) -> None:
+        if self.interaction_adapter is None:
+            raise ValueError("HOIPrior has no D2-AC interaction adapter")
+        self.interaction_adapter.set_capture_attention(enabled)
+
+    def interaction_attention_snapshot(self):
+        if self.interaction_adapter is None:
+            raise ValueError("HOIPrior has no D2-AC interaction adapter")
+        return self.interaction_adapter.attention_snapshot()
 
     def forward(
         self,
@@ -101,15 +158,30 @@ class _HOICleanMotionNetwork(nn.Module):
         ), dim=1)
         motion = self.motion_input(noisy)
         tokens = torch.cat((conditions, motion), dim=1) + self.position
-        encoded = self.transformer(tokens)
+        encoded = self._encode(tokens, object_bps)
         return self.output(self.output_norm(encoded[:, -REPRESENTATION.window_frames:]))
 
 
 class HOIPrior(nn.Module):
     """HOI API intentionally has no scene argument or scene encoder."""
-    def __init__(self, dim_model: int = 256, num_heads: int = 8, num_layers: int = 4) -> None:
+    def __init__(
+        self,
+        dim_model: int = 256,
+        num_heads: int = 8,
+        num_layers: int = 4,
+        *,
+        architecture_variant: str = HOI_ARCHITECTURE_BASE,
+        bps_path: Optional[str] = None,
+    ) -> None:
         super().__init__()
-        self.network = _HOICleanMotionNetwork(dim_model, num_heads, num_layers)
+        self.network = _HOICleanMotionNetwork(
+            dim_model,
+            num_heads,
+            num_layers,
+            architecture_variant=architecture_variant,
+            bps_path=bps_path,
+        )
+        self.architecture_variant = architecture_variant
 
     def forward(
         self, noisy: torch.Tensor, timesteps: torch.Tensor, text_embedding: torch.Tensor,
@@ -141,14 +213,24 @@ class HSIPrior(nn.Module):
 def build_expert(
     expert: str, *, init_checkpoint: Optional[str] = None, dim_model: int = 256,
     num_heads: int = 8, num_layers: int = 4,
+    architecture_variant: str = HOI_ARCHITECTURE_BASE,
+    bps_path: Optional[str] = None,
 ) -> nn.Module:
     if init_checkpoint not in (None, "", False):
         raise ValueError(
             "HOIPrior/HSIPrior must be randomly initialized; released InfBaGel checkpoint initialization is forbidden"
         )
     if expert == "hoi":
-        return HOIPrior(dim_model, num_heads, num_layers)
+        return HOIPrior(
+            dim_model,
+            num_heads,
+            num_layers,
+            architecture_variant=architecture_variant,
+            bps_path=bps_path,
+        )
     if expert == "hsi":
+        if architecture_variant != HOI_ARCHITECTURE_BASE:
+            raise ValueError("HOI architecture variants are forbidden for HSIPrior")
         return HSIPrior(dim_model, num_heads, num_layers)
     raise ValueError(f"unknown expert: {expert}")
 
@@ -156,6 +238,7 @@ def build_expert(
 def load_trained_hoi_prior(
     checkpoint_path: str, device: torch.device, *, use_ema: bool = True,
     weight_variant: Optional[str] = None,
+    expected_architecture_variant: Optional[str] = None,
 ) -> Tuple[HOIPrior, Dict[str, object]]:
     """Strictly load a Phase 1B checkpoint for evaluation or same-run resume.
 
@@ -173,12 +256,42 @@ def load_trained_hoi_prior(
     model_config = checkpoint.get("model_config")
     if not isinstance(model_config, dict):
         raise ValueError("HOIPrior checkpoint is missing model_config")
+    architecture_variant = str(
+        model_config.get("architecture_variant", HOI_ARCHITECTURE_BASE)
+    )
+    if architecture_variant not in HOI_ARCHITECTURES:
+        raise ValueError(f"unknown HOIPrior checkpoint architecture variant: {architecture_variant}")
+    checkpoint_variant = checkpoint.get("architecture_variant")
+    if architecture_variant == HOI_ARCHITECTURE_D2AC:
+        if checkpoint_variant != HOI_ARCHITECTURE_D2AC:
+            raise ValueError("D2-AC checkpoint is missing its architecture provenance")
+        adapter_contract = checkpoint.get("interaction_adapter_contract")
+        if not isinstance(adapter_contract, dict):
+            raise ValueError("D2-AC checkpoint is missing interaction-adapter provenance")
+        from .interaction_adapter import ASSIGNMENT_SHA256, BPS_SHA256
+        if (
+            adapter_contract.get("bps_sha256") != BPS_SHA256
+            or adapter_contract.get("assignment_sha256") != ASSIGNMENT_SHA256
+            or adapter_contract.get("adapter_parameters") != 349697
+        ):
+            raise ValueError("D2-AC checkpoint interaction-adapter provenance mismatch")
+    elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
+        raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
+    if (
+        expected_architecture_variant is not None
+        and architecture_variant != expected_architecture_variant
+    ):
+        raise ValueError(
+            "HOIPrior checkpoint architecture variant mismatch: "
+            f"{architecture_variant} != {expected_architecture_variant}"
+        )
     model = build_expert(
         "hoi",
         init_checkpoint=None,
         dim_model=int(model_config["dim_model"]),
         num_heads=int(model_config["num_heads"]),
         num_layers=int(model_config["num_layers"]),
+        architecture_variant=architecture_variant,
     )
     if weight_variant is None:
         weight_variant = "ema_0.9999" if use_ema else "online"
@@ -207,9 +320,11 @@ def load_trained_hoi_prior(
         key: checkpoint.get(key) for key in (
             "schema_version", "checkpoint_type", "expert", "initialization", "run_id",
             "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
-            "model_config", "data_contract_sha256", "split_sha256", "window_state_codec",
+            "model_config", "architecture_variant", "interaction_adapter_contract",
+            "data_contract_sha256", "split_sha256", "window_state_codec",
         )
     }
+    metadata["architecture_variant"] = architecture_variant
     metadata["weights"] = state_key
     metadata["weight_variant"] = weight_variant
     metadata["path"] = str(path)

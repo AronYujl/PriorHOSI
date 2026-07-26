@@ -4142,6 +4142,40 @@ evaluation、checkpoint selection、consistency、HSIPrior 或 Mixer。新的 im
 implementation amendment；source change、CPU tests、worker publication 和 D2-AC0 workload
 只能在该入口之后进行。
 
+#### 2026-07-26 Phase 1B D2-AC0 implementation/lifecycle binding amendment
+
+本 session 已在真实日期 `2026-07-26` 重新核验 authority path、`phase/01b-hoi`、
+handoff HEAD `61a989adab2f3053230bfcd0ebb702601fcdaab2` 与 clean worktree，并获用户明确
+授权连续完成 D2-AC0 的 implementation、CPU contract、worker publication、注册 GPU smoke、
+一次完整 from-random training、固定 internal diagnostic、一次 native evaluation 与 artifact
+recovery。本 amendment 只绑定已预注册机制和本日未使用 lifecycle identities，不改变 D2-AC0
+的 architecture、representation、loss、optimizer、data、budget、gates 或 stop rules：
+
+- implementation logical change：`p1-hoi-d2ac-interaction-adapter-implementation-s42-20260726`；
+- authority CPU contract：`p1-hoi-d2ac-cpu-contract-s42-20260726`；
+- registered GPU smoke：`p1-hoi-d2ac-gpu-smoke-s42-20260726`；
+- formal training：`p1-hoi-d2ac-interaction-adapter-s42-20260726`；
+- internal diagnostic：`p1-hoi-d2ac-interaction-adapter-internal-s42-20260726`；
+- native evaluation：`p1-hoi-d2ac-native-eval-s42-20260726`。
+
+Implementation must remain a single logical commit containing source, config, CPU tests, this dated
+binding and its registry record. The worker may execute only that exact committed Git object. The
+first-start init/weight-init/resume checkpoints remain empty; all D2-AC0 workloads use seed 42 and
+the fixed final-online target. If the date changes before an unstarted lifecycle, that lifecycle must
+receive a new identity-only dated amendment before its manifest/workload; an old identity is never
+reused. D2-AC1 remains unauthorized and cannot be started automatically.
+
+The implementation-session preflight also found a transcription defect in the plan-only assignment
+hash, before any source or workload was created. The preregistration calculation serialized
+`{"algorithm":"lexicographic-seed-farthest-point-16-v1","centers":...,"assignments":...}`
+with sorted JSON keys and compact separators and produced the valid 64-hex SHA-256
+`b62f91f4eb6c4bf2a9211f0187cd1eb97c25394ee45de155f33607959fddeecd`;
+the plan-only text and registry line accidentally omitted the two hex characters `59` and therefore
+recorded a 62-character value that cannot be a SHA-256. D2-AC0 binds the valid canonical 64-hex
+value. This correction changes no center, assignment, cluster size, token feature, model parameter,
+training/evaluation protocol, gate, or authorized scope; CPU validation must reproduce the canonical
+payload and corrected hash exactly and fail closed otherwise.
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

@@ -32,8 +32,17 @@ from priors.data import PriorWindowDataset
 from priors.d2ab import D2ABPriorWindowDataset, d2ab_hoi_training_losses
 from priors.d2z import D2ZPriorWindowDataset, d2z_hoi_training_losses
 from priors.diffusion import GaussianDiffusion, normalize_progress
+from priors.interaction_adapter import (
+    ADAPTER_PARAMETER_COUNT,
+    ASSIGNMENT_SHA256,
+    BPS_SHA256 as D2AC_BPS_SHA256,
+)
 from priors.losses import hoi_training_losses
-from priors.models import build_expert
+from priors.models import (
+    HOI_ARCHITECTURE_BASE,
+    HOI_ARCHITECTURE_D2AC,
+    build_expert,
+)
 from priors.representation import REPRESENTATION
 from priors.window_codec import BPS_SHA256
 
@@ -275,12 +284,15 @@ def _resume_commit_provenance(
     }
 
 
-def _model_config(cfg: DictConfig) -> Dict[str, int]:
-    return {
+def _model_config(cfg: DictConfig) -> Dict[str, object]:
+    value: Dict[str, object] = {
         "dim_model": int(cfg.dim_model),
         "num_heads": int(cfg.num_heads),
         "num_layers": int(cfg.num_layers),
     }
+    if bool(cfg.get("d2ac_interaction_adapter", False)):
+        value["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
+    return value
 
 
 def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
@@ -354,6 +366,11 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         contract["d2ab_support_metadata_sha256"] = str(
             cfg.get("d2ab_support_metadata_sha256")
         )
+    if _is_d2ac(cfg):
+        contract["d2ac_interaction_adapter"] = True
+        contract["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
+        contract["d2ac_bps_sha256"] = D2AC_BPS_SHA256
+        contract["d2ac_assignment_sha256"] = ASSIGNMENT_SHA256
     return contract
 
 
@@ -393,10 +410,15 @@ def _is_d2ab(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2ab_predicted_support_no_slip", False))
 
 
+def _is_d2ac(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2ac_interaction_adapter", False))
+
+
 def _uses_author_update_rule(cfg: DictConfig) -> bool:
     return (
         _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg)
         or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
+        or _is_d2ac(cfg)
     )
 
 
@@ -404,9 +426,12 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     routing = bool(cfg.get("fk_foot_temporal_routing", False))
     multiplier = float(cfg.get("routed_foot_residual_multiplier", 1.0))
     gating = bool(cfg.get("immutable_gt_near_ground_gating", False))
-    if routing and not (_is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)):
+    if routing and not (
+        _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
+        or _is_d2ac(cfg)
+    ):
         raise ValueError(
-            "FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z/D2-AB modes"
+            "FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z/D2-AB/D2-AC modes"
         )
     if multiplier != 1.0 and not (_is_d2y(cfg) or _is_d2z(cfg)):
         raise ValueError("routed-foot residual amplification is restricted to registered D2-Y/D2-Z")
@@ -418,6 +443,8 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         raise ValueError("D2-Z requires FK-foot routing and immutable-GT near-ground gating")
     if _is_d2ab(cfg) and not routing:
         raise ValueError("D2-AB predicted-support no-slip requires FK-foot routing")
+    if _is_d2ac(cfg) and not routing:
+        raise ValueError("D2-AC interaction adapter requires D2-X FK-foot routing")
     if _is_d2ab(cfg) and (
         bool(cfg.get("immutable_gt_near_ground_gating", False))
         or cfg.get("d2z_gate_audit_path") not in (None, "", False)
@@ -434,12 +461,20 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         or cfg.get("d2ab_support_metadata_sha256") not in (None, "", False)
     ):
         raise ValueError("D2-AB support metadata is forbidden outside registered D2-AB")
+    architecture_variant = str(
+        cfg.get("hoi_architecture_variant", HOI_ARCHITECTURE_BASE)
+    )
+    if _is_d2ac(cfg):
+        if architecture_variant != HOI_ARCHITECTURE_D2AC:
+            raise ValueError("D2-AC requires the registered interaction-adapter architecture")
+    elif architecture_variant != HOI_ARCHITECTURE_BASE:
+        raise ValueError("the D2-AC HOIPrior architecture is forbidden outside registered D2-AC")
 
 
 def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
     if (
         _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
-        or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
+        or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg) or _is_d2ac(cfg)
     ):
         return {
             "fk": 0.3569973401779424,
@@ -527,6 +562,17 @@ def _loss_routing_contract(cfg: DictConfig) -> Dict[str, object]:
             "weighted_slots": 8,
             "total_velocity_slots": 87,
         })
+    if _is_d2ac(cfg):
+        contract.update({
+            "d2ac_interaction_adapter": True,
+            "architecture_variant": HOI_ARCHITECTURE_D2AC,
+            "placement": "after_transformer_layer_4_before_layers_5_to_8",
+            "global_bps_token_preserved": True,
+            "bps_sha256": D2AC_BPS_SHA256,
+            "assignment_sha256": ASSIGNMENT_SHA256,
+            "adapter_parameters": ADAPTER_PARAMETER_COUNT,
+            "d2ab_predicted_support_no_slip": False,
+        })
     return contract
 
 
@@ -541,6 +587,7 @@ def _validate_d2t_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-T0",
         "run_id": str(cfg.run_id) == expected_run_id,
@@ -596,6 +643,7 @@ def _validate_d2u_contract(cfg: DictConfig, world_size: int) -> None:
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-U0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2u-balanced-author-update-s42-20260721",
         "seed": int(cfg.seed) == 42,
@@ -661,6 +709,7 @@ def _validate_d2v_contract(cfg: DictConfig, world_size: int) -> None:
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-V0",
         "run_id": str(cfg.run_id) == "p1-hoi-d2v-balanced-long-budget-s42-20260722",
         "seed": int(cfg.seed) == 42,
@@ -726,6 +775,7 @@ def _validate_d2x_contract(cfg: DictConfig, world_size: int) -> None:
         "d2y_mode_off": not _is_d2y(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-X0-r1",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723"
@@ -795,6 +845,7 @@ def _validate_d2y_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2z_mode_off": not _is_d2z(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-Y0",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2y-routed-foot-amplification-s42-20260723"
@@ -873,6 +924,7 @@ def _validate_d2z_contract(cfg: DictConfig, world_size: int) -> None:
         "d2x_mode_off": not _is_d2x(cfg),
         "d2y_mode_off": not _is_d2y(cfg),
         "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
         "subphase": str(cfg.subphase) == "1B-D2-Z0",
         "run_id": str(cfg.run_id) == (
             "p1-hoi-d2z-immutable-gt-near-ground-gating-s42-20260724"
@@ -1041,16 +1093,136 @@ def _validate_d2ab_contract(cfg: DictConfig, world_size: int) -> None:
         raise ValueError(f"D2-AB predicted-support no-slip contract mismatch: {failed}")
 
 
+def _validate_d2ac_contract(cfg: DictConfig, world_size: int) -> None:
+    if not _is_d2ac(cfg):
+        return
+    resume_value = cfg.resume_checkpoint
+    resume_allowed = (
+        resume_value in (None, "", False)
+        or (
+            Path(str(resume_value)).name.startswith(
+                "p1-hoi-d2ac-interaction-adapter-s42-20260726_windows"
+            )
+            and Path(str(resume_value)).suffix == ".pth"
+        )
+    )
+    split_path = Path(str(cfg.split_manifest)).resolve()
+    bps_path = Path(str(cfg.repo_root)).resolve() / "code/bps.pt"
+    exact = {
+        "mode": str(cfg.mode) == "d2ac-interaction-adapter",
+        "d2t_mode_off": not _is_d2t(cfg),
+        "d2u_mode_off": not _is_d2u(cfg),
+        "d2v_mode_off": not _is_d2v(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
+        "d2y_mode_off": not _is_d2y(cfg),
+        "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
+        "subphase": str(cfg.subphase) == "1B-D2-AC0",
+        "run_id": str(cfg.run_id) == (
+            "p1-hoi-d2ac-interaction-adapter-s42-20260726"
+        ),
+        "seed": int(cfg.seed) == 42,
+        "architecture_variant": (
+            str(cfg.get("hoi_architecture_variant")) == HOI_ARCHITECTURE_D2AC
+        ),
+        "model_config": _model_config(cfg) == {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AC,
+        },
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "dataset_limit": int(cfg.dataset_limit) == 0,
+        "max_processed_windows": int(cfg.max_processed_windows) == 61440000,
+        "processed_frames": int(cfg.max_processed_windows) * 16 == 983040000,
+        "optimizer_updates": (
+            int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 30000
+        ),
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "no_artificial_pause": cfg.pause_after_windows in (None, "", False),
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "balanced_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "d2x_fk_foot_temporal_routing_flag_off": not _is_d2x(cfg),
+        "fk_foot_temporal_routing_on": bool(cfg.fk_foot_temporal_routing),
+        "routed_foot_multiplier_unit": (
+            float(cfg.get("routed_foot_residual_multiplier", 1.0)) == 1.0
+        ),
+        "immutable_gt_gate_off": not bool(
+            cfg.get("immutable_gt_near_ground_gating", False)
+        ),
+        "d2ab_objective_off": not bool(
+            cfg.get("d2ab_predicted_support_no_slip", False)
+        ),
+        "d2ab_metadata_absent": (
+            cfg.get("d2ab_support_metadata_path") in (None, "", False)
+            and cfg.get("d2ab_support_metadata_sha256") in (None, "", False)
+        ),
+        "d2z_inputs_absent": (
+            cfg.get("d2z_gate_audit_path") in (None, "", False)
+            and cfg.get("d2z_gate_audit_sha256") in (None, "", False)
+        ),
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint, cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256, cfg.weight_init_variant, cfg.d2m_candidate,
+            )
+        ),
+        "resume_same_run_only": resume_allowed,
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "split_sha256": split_path.is_file() and _sha256(split_path) == (
+            "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e"
+        ),
+        "bps_sha256": bps_path.is_file() and _sha256(bps_path) == D2AC_BPS_SHA256,
+        "assignment_sha256_well_formed": (
+            len(ASSIGNMENT_SHA256) == 64
+            and all(character in "0123456789abcdef" for character in ASSIGNMENT_SHA256)
+        ),
+        "adapter_parameter_count": ADAPTER_PARAMETER_COUNT == 349697,
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AC interaction-adapter contract mismatch: {failed}")
+
+
 def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
     label = (
-        "D2-AB" if _is_d2ab(cfg)
+        "D2-AC" if _is_d2ac(cfg)
+        else ("D2-AB" if _is_d2ab(cfg)
         else ("D2-Z" if _is_d2z(cfg)
         else ("D2-Y" if _is_d2y(cfg)
         else ("D2-X" if _is_d2x(cfg)
         else ("D2-V" if _is_d2v(cfg) else ("D2-U" if _is_d2u(cfg) else "D2-T"))
-        )))
+        ))))
     )
     if socket.gethostname() != "node01":
         raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
@@ -1099,6 +1271,12 @@ def _validate_d2z_execution_host(cfg: DictConfig) -> None:
     _validate_author_update_execution_host(cfg)
 
 
+def _validate_d2ac_execution_host(cfg: DictConfig) -> None:
+    if not _is_d2ac(cfg):
+        return
+    _validate_author_update_execution_host(cfg)
+
+
 def _build_optimizer(
     cfg: DictConfig,
     parameters: Iterable[torch.nn.Parameter],
@@ -1133,6 +1311,75 @@ def _gradient_l2_norm(parameters: Iterable[torch.nn.Parameter]) -> torch.Tensor:
     if not norms:
         return torch.tensor(float("nan"))
     return torch.stack(norms).norm(2)
+
+
+def _d2ac_gradient_audit(model: torch.nn.Module, *, require_adapter_paths: bool) -> Dict[str, object]:
+    adapter = model.network.interaction_adapter
+    if adapter is None:
+        raise ValueError("D2-AC gradient audit requires the interaction adapter")
+
+    def record(name: str, value: Optional[torch.Tensor]) -> Dict[str, object]:
+        finite = value is not None and bool(torch.isfinite(value).all())
+        nonzero = value is not None and bool(torch.any(value != 0))
+        norm = (
+            float(value.detach().float().norm().item())
+            if finite and value is not None
+            else None
+        )
+        return {"name": name, "finite": finite, "nonzero": nonzero, "l2_norm": norm}
+
+    alpha = record("alpha", adapter.alpha.grad)
+    result: Dict[str, object] = {
+        "alpha": alpha,
+        "alpha_value": float(adapter.alpha.detach().item()),
+        "gate_value": float(torch.tanh(adapter.alpha.detach()).item()),
+    }
+    if not alpha["finite"] or not alpha["nonzero"]:
+        raise FloatingPointError("D2-AC alpha gradient must be finite and nonzero")
+    if not require_adapter_paths:
+        return result
+
+    in_projection = adapter.cross_attention.in_proj_weight.grad
+    qkv = [None, None, None]
+    if in_projection is not None:
+        qkv = list(in_projection.split(128, dim=0))
+    groups = {
+        "object_encoder": [
+            parameter.grad for parameter in adapter.object_encoder.parameters()
+        ],
+        "object_identity": [adapter.object_identity.grad],
+        "part_embedding": [adapter.part_embedding.grad],
+        "query_projection": [
+            parameter.grad for parameter in adapter.query_projection.parameters()
+        ],
+        "attention_q_projection": [qkv[0]],
+        "attention_k_projection": [qkv[1]],
+        "attention_v_projection": [qkv[2]],
+        "attention_out_projection": [
+            parameter.grad for parameter in adapter.cross_attention.out_proj.parameters()
+        ],
+        "writeback": [parameter.grad for parameter in adapter.writeback.parameters()],
+    }
+    group_records: Dict[str, object] = {}
+    for name, gradients in groups.items():
+        records = [record(f"{name}[{index}]", gradient) for index, gradient in enumerate(gradients)]
+        group_records[name] = {
+            "parameters": records,
+            "finite": all(item["finite"] for item in records),
+            "nonzero": all(item["nonzero"] for item in records),
+        }
+    result["adapter_groups"] = group_records
+    failed = sorted(
+        name for name, value in group_records.items()
+        if not value["finite"] or not value["nonzero"]
+    )
+    if failed:
+        raise FloatingPointError(
+            f"D2-AC activated adapter gradients must be finite/nonzero: {failed}"
+        )
+    if result["gate_value"] == 0.0:
+        raise FloatingPointError("D2-AC gate did not activate after the initial alpha update")
+    return result
 
 
 def _primary_validation_model(
@@ -1383,6 +1630,15 @@ def _checkpoint_value(
         "rng_pattern": rng_pattern,
         "weight_initialization": dict(weight_initialization),
     }
+    if _is_d2ac(cfg):
+        value["architecture_variant"] = HOI_ARCHITECTURE_D2AC
+        value["interaction_adapter_contract"] = {
+            "bps_sha256": D2AC_BPS_SHA256,
+            "assignment_sha256": ASSIGNMENT_SHA256,
+            "adapter_parameters": ADAPTER_PARAMETER_COUNT,
+            "alpha_initial": 0.0,
+            "placement": "after_transformer_layer_4_before_layers_5_to_8",
+        }
     if ema_models:
         # Retain the legacy name for pre-D2-T official evaluator compatibility.
         value["ema_model"] = ema_models["0.9999"].state_dict()
@@ -1450,6 +1706,18 @@ def _load_resume(
     checkpoint = torch.load(path, map_location=f"cuda:{rank}")
     if checkpoint.get("checkpoint_type") != "hoi_prior_phase1b":
         raise ValueError("resume checkpoint is not a Phase 1B HOIPrior checkpoint")
+    if _is_d2ac(cfg):
+        adapter_contract = checkpoint.get("interaction_adapter_contract")
+        if (
+            checkpoint.get("architecture_variant") != HOI_ARCHITECTURE_D2AC
+            or not isinstance(adapter_contract, dict)
+            or adapter_contract.get("bps_sha256") != D2AC_BPS_SHA256
+            or adapter_contract.get("assignment_sha256") != ASSIGNMENT_SHA256
+            or adapter_contract.get("adapter_parameters") != ADAPTER_PARAMETER_COUNT
+        ):
+            raise ValueError("D2-AC resume checkpoint architecture/provenance mismatch")
+    elif checkpoint.get("architecture_variant") == HOI_ARCHITECTURE_D2AC:
+        raise ValueError("D2-AC checkpoint cannot resume a base HOIPrior run")
     repo = Path(str(cfg.repo_root)).resolve()
     current_commit = _git_commit(repo)
     checkpoint_commit = str(checkpoint.get("git_commit"))
@@ -1513,6 +1781,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     _validate_d2y_contract(cfg, world_size)
     _validate_d2z_contract(cfg, world_size)
     _validate_d2ab_contract(cfg, world_size)
+    _validate_d2ac_contract(cfg, world_size)
     _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
@@ -1541,7 +1810,11 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         raise ValueError("HOIPrior diffusion_steps contract mismatch")
     if int(cfg.max_consecutive_amp_overflows) < 0:
         raise ValueError("max_consecutive_amp_overflows must be non-negative")
-    if _model_config(cfg) != {"dim_model": 512, "num_heads": 16, "num_layers": 8}:
+    if {
+        "dim_model": int(cfg.dim_model),
+        "num_heads": int(cfg.num_heads),
+        "num_layers": int(cfg.num_layers),
+    } != {"dim_model": 512, "num_heads": 16, "num_layers": 8}:
         raise ValueError("HOIPrior architecture must remain 512-wide, 16-head, 8-layer")
     if cfg.init_checkpoint not in (None, "", False):
         raise ValueError("HOIPrior training initialization must be random; init_checkpoint is forbidden")
@@ -1656,6 +1929,9 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     model = build_expert(
         "hoi", init_checkpoint=cfg.init_checkpoint, dim_model=int(cfg.dim_model),
         num_heads=int(cfg.num_heads), num_layers=int(cfg.num_layers),
+        architecture_variant=str(
+            cfg.get("hoi_architecture_variant", HOI_ARCHITECTURE_BASE)
+        ),
     ).to(device)
     weight_initialization = _load_weight_initialization(cfg, model)
     model = DistributedDataParallel(model, device_ids=[rank], broadcast_buffers=False)
@@ -1714,6 +1990,14 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     validation_records: List[Dict[str, object]] = []
     checkpoint_hashes: List[Dict[str, object]] = []
     training_rng_digest = hashlib.sha256() if bool(cfg.d2m_rng_audit) else None
+    interaction_gradient_audit_path = (
+        Path(str(cfg.output_dir)).resolve() / "interaction_gradient_audit.json"
+    )
+    interaction_gradient_audit: Dict[str, object] = {}
+    if _is_d2ac(cfg) and interaction_gradient_audit_path.is_file():
+        interaction_gradient_audit = json.loads(
+            interaction_gradient_audit_path.read_text(encoding="utf-8")
+        )
     optimizer.zero_grad(set_to_none=True)
     paused = False
     last_checkpoint_windows = -1
@@ -1787,6 +2071,37 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 continue
             if not torch.any(key_gradient != 0):
                 raise FloatingPointError("zero key HOIPrior gradient")
+            if _is_d2ac(cfg):
+                if (
+                    optimizer_updates == 0
+                    and "initial_zero_gate_alpha_gradient" not in interaction_gradient_audit
+                ):
+                    interaction_gradient_audit["initial_zero_gate_alpha_gradient"] = (
+                        _d2ac_gradient_audit(
+                            model.module, require_adapter_paths=False,
+                        )
+                    )
+                elif (
+                    optimizer_updates == 1
+                    and "activated_adapter_gradients" not in interaction_gradient_audit
+                ):
+                    interaction_gradient_audit["activated_adapter_gradients"] = (
+                        _d2ac_gradient_audit(
+                            model.module, require_adapter_paths=True,
+                        )
+                    )
+                    interaction_gradient_audit.update({
+                        "schema_version": 1,
+                        "run_id": str(cfg.run_id),
+                        "seed": int(cfg.seed),
+                        "optimizer_updates_observed": [0, 1],
+                        "probe_or_override_used": False,
+                    })
+                    if rank == 0:
+                        _atomic_json(
+                            interaction_gradient_audit_path,
+                            interaction_gradient_audit,
+                        )
             if bool(cfg.get("gradient_clipping", True)):
                 gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(cfg.gradient_clip_norm))
             else:
@@ -2019,6 +2334,22 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     "terminal_object_goal": float(cfg.goal_weight),
                 },
                 "loss_routing": _loss_routing_contract(cfg),
+                "interaction_gradient_audit": (
+                    interaction_gradient_audit if _is_d2ac(cfg) else None
+                ),
+                "interaction_adapter": (
+                    {
+                        "architecture_variant": HOI_ARCHITECTURE_D2AC,
+                        "alpha": float(
+                            model.module.network.interaction_adapter.alpha.detach().item()
+                        ),
+                        "gate": float(torch.tanh(
+                            model.module.network.interaction_adapter.alpha.detach()
+                        ).item()),
+                        "contract": model.module.network.interaction_adapter.contract_metadata(),
+                    }
+                    if _is_d2ac(cfg) else None
+                ),
                 "support_metadata": (
                     {
                         "path": str(Path(str(cfg.d2ab_support_metadata_path)).resolve()),
@@ -2049,6 +2380,7 @@ def main(cfg: DictConfig) -> None:
     _validate_d2y_contract(cfg, int(cfg.num_gpus))
     _validate_d2z_contract(cfg, int(cfg.num_gpus))
     _validate_d2ab_contract(cfg, int(cfg.num_gpus))
+    _validate_d2ac_contract(cfg, int(cfg.num_gpus))
     _validate_author_update_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")

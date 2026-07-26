@@ -62,6 +62,8 @@ d2x_fk_foot_temporal_routing: false
 d2y_routed_foot_amplification: false
 d2z_immutable_gt_near_ground_gating: false
 d2ab_predicted_support_no_slip: false
+d2ac_interaction_adapter: false
+hoi_architecture_variant: base
 fk_foot_temporal_routing: false
 routed_foot_residual_multiplier: 1.0
 immutable_gt_near_ground_gating: false
