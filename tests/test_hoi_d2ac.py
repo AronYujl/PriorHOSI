@@ -25,6 +25,17 @@ from priors.interaction_adapter import (  # noqa: E402
     cluster_bps_features,
     load_bps_partition,
 )
+from priors.interaction_diagnostic import (  # noqa: E402
+    PROTECTION_METRICS,
+    VARIANTS,
+    GT_CONTACT_FINITE_SEQUENCE_COUNT,
+    GT_CONTACT_FINITE_SEQUENCE_NAMES_SHA256,
+    attention_entropy,
+    gt_contact_frame_distance,
+    internal_mechanism_gate,
+    native_gate,
+    paired_finite_difference,
+)
 from priors.models import (  # noqa: E402
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
@@ -272,6 +283,198 @@ class D2ACGovernanceTests(unittest.TestCase):
             "stored_per_frame_bps", "future_gt", "contact_label",
         ):
             self.assertNotIn(forbidden, source)
+
+    def test_fixed_internal_and_native_runners_are_registered_and_static(self):
+        internal = (
+            ROOT / "tools/run_hoi_d2ac_internal.py"
+        ).read_text(encoding="utf-8")
+        native = (
+            ROOT / "tools/run_hoi_d2ac_native_evaluation.py"
+        ).read_text(encoding="utf-8")
+        smoke = (
+            ROOT / "tools/smoke_hoi_d2ac.py"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(
+            VARIANTS,
+            ("full", "gate_ablated", "local_correspondence_permuted"),
+        )
+        self.assertIn("set_interaction_diagnostic_variant", internal)
+        self.assertIn("paired_noise_identity", internal)
+        self.assertIn("official_test_used", native)
+        self.assertIn(
+            "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+            native,
+        )
+        self.assertNotIn("checkpoint_weight_variant=ema", native)
+        self.assertIn(
+            "registered_formal_cross_attention_score_elements_estimate",
+            smoke,
+        )
+        self.assertIn(
+            'RUN_ID = "p1-hoi-d2ac-gpu-smoke-r1-s42-20260726"',
+            smoke,
+        )
+        self.assertIn("if args.run_id != RUN_ID:", smoke)
+        self.assertNotIn("RUN_ID_RE", smoke)
+        diagnostic = (
+            ROOT / "tools/diagnose_hoi_d2ac.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'RUN_ID = "p1-hoi-d2ac-cpu-contract-r1-s42-20260726"',
+            diagnostic,
+        )
+        self.assertIn("if run_id != RUN_ID:", diagnostic)
+
+
+class D2ACDiagnosticMetricTests(unittest.TestCase):
+    def test_attention_entropy_is_role_preserving_and_normalized(self):
+        weights = torch.full((2, 16, 3, 4, 16), 1.0 / 16.0)
+        value = attention_entropy(weights)
+        self.assertEqual(tuple(value["nats"].shape), (2, 16, 3, 4))
+        torch.testing.assert_close(
+            value["normalized"], torch.ones_like(value["normalized"]),
+        )
+        concentrated = torch.zeros_like(weights)
+        concentrated[..., 0] = 1.0
+        concentrated_value = attention_entropy(concentrated)
+        torch.testing.assert_close(
+            concentrated_value["normalized"],
+            torch.zeros_like(concentrated_value["normalized"]),
+        )
+
+    def test_gt_contact_distance_uses_fixed_target_mask_without_imputation(self):
+        target = torch.tensor([
+            [0.01, 0.20],
+            [0.20, 0.02],
+            [0.20, 0.20],
+        ]).numpy()
+        predicted = torch.tensor([
+            [0.03, 0.30],
+            [0.40, 0.04],
+            [0.10, 0.10],
+        ]).numpy()
+        value = gt_contact_frame_distance(predicted, target)
+        self.assertEqual(value["union"]["frames"], 2)
+        self.assertAlmostEqual(value["union"]["mean_cm"], 3.5, places=6)
+        no_contact = gt_contact_frame_distance(
+            predicted, torch.full_like(torch.from_numpy(target), 0.20).numpy(),
+        )
+        self.assertIsNone(no_contact["union"]["mean_cm"])
+        self.assertFalse(no_contact["union"]["finite"])
+
+    def test_paired_finite_difference_reports_the_unimputed_sequence_mask(self):
+        value = paired_finite_difference(
+            [2.0, None, 4.0],
+            [1.0, None, 1.0],
+            ["a", "b", "c"],
+        )
+        self.assertEqual(value["finite_sequence_count"], 2)
+        self.assertEqual(value["finite_sequence_names"], ["a", "c"])
+        self.assertGreater(
+            value["paired_mean_first_minus_second"], 0.0,
+        )
+        self.assertEqual(GT_CONTACT_FINITE_SEQUENCE_COUNT, 57)
+        self.assertEqual(
+            GT_CONTACT_FINITE_SEQUENCE_NAMES_SHA256,
+            "2fa79d30ab6dd6a915098344c4aa7267cb6c3323c6d2a762b4b704f8757cebaa",
+        )
+
+    @staticmethod
+    def _positive_statistic():
+        return {"bootstrap_95_ci": [0.01, 0.02]}
+
+    def test_internal_gate_distinguishes_unused_and_locality_negative(self):
+        positive = self._positive_statistic()
+        comparisons = {
+            "full_vs_gate_ablated": {
+                "full_minus_other_direct_union_5cm_f1": positive,
+                "other_minus_full_gt_contact_distance_cm": positive,
+            },
+            "full_vs_local_correspondence_permuted": {
+                "full_minus_other_direct_union_5cm_f1": positive,
+                "other_minus_full_gt_contact_distance_cm": positive,
+            },
+        }
+        passed = internal_mechanism_gate({"finite": True}, comparisons)
+        self.assertTrue(passed["mechanism_passed"])
+        unused = json.loads(json.dumps(comparisons))
+        unused["full_vs_gate_ablated"][
+            "full_minus_other_direct_union_5cm_f1"
+        ]["bootstrap_95_ci"][0] = 0.0
+        self.assertEqual(
+            internal_mechanism_gate({"finite": True}, unused)["classification"],
+            "interaction-adapter-unused-optimization-negative-stop",
+        )
+        locality = json.loads(json.dumps(comparisons))
+        locality["full_vs_local_correspondence_permuted"][
+            "other_minus_full_gt_contact_distance_cm"
+        ]["bootstrap_95_ci"][0] = -0.01
+        self.assertEqual(
+            internal_mechanism_gate(
+                {"finite": True}, locality,
+            )["classification"],
+            "interaction-adapter-locality-negative-stop",
+        )
+
+    def test_native_gate_requires_transfer_protection_and_released_effectiveness(self):
+        comparison = {
+            "penetration_mask_contract": {"passed": True},
+            "target_minus_control_contact_f1": self._positive_statistic(),
+            "target_minus_control_contact_recall": self._positive_statistic(),
+            "target_minus_control_contact_precision": {
+                "bootstrap_95_ci": [-0.01, 0.01],
+            },
+            "contact_f1_released_gap_closure": 0.25,
+            "target_over_control_protection": {
+                metric: {"bootstrap_95_ci": [0.9, 1.0]}
+                for metric in PROTECTION_METRICS
+            },
+        }
+        baseline_ratios = {
+            "end_obj_trans_err": 1.0,
+            "xy_points_err": 1.0,
+            "foot_sliding": 1.0,
+            "human_pen_loss_infbagel": 1.0,
+            "mpjpe": 1.0,
+            "trans_dist": 1.0,
+            "obj_trans_dist": 1.0,
+            "obj_rot_dist": 1.0,
+            "contact_precision": 1.0,
+            "contact_recall": 1.0,
+            "contact_f1": 1.0,
+        }
+        internal = {
+            "contract_passed": True,
+            "adapter_used": True,
+            "locality_passed": True,
+            "mechanism_passed": True,
+        }
+        decision = native_gate(
+            contract_passed=True,
+            internal=internal,
+            comparison=comparison,
+            target_metrics={"contact_f1": 1.0},
+            baseline_ratios=baseline_ratios,
+        )
+        self.assertEqual(
+            decision["classification"],
+            "interaction-adapter-positive-candidate-stop",
+        )
+        self.assertTrue(decision["selectable_autonomous_diffusion_candidate"])
+        transfer_negative = json.loads(json.dumps(comparison))
+        transfer_negative["target_minus_control_contact_recall"][
+            "bootstrap_95_ci"
+        ][0] = 0.0
+        self.assertEqual(
+            native_gate(
+                contract_passed=True,
+                internal=internal,
+                comparison=transfer_negative,
+                target_metrics={"contact_f1": 1.0},
+                baseline_ratios=baseline_ratios,
+            )["classification"],
+            "interaction-adapter-transfer-negative-stop",
+        )
 
 
 if __name__ == "__main__":

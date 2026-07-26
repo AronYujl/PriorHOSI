@@ -38,6 +38,9 @@ from priors.models import (  # noqa: E402
 from train_hoi_prior import _d2ac_gradient_audit  # noqa: E402
 
 
+RUN_ID = "p1-hoi-d2ac-cpu-contract-r1-s42-20260726"
+
+
 def _state_hash(model: torch.nn.Module) -> str:
     digest = hashlib.sha256()
     for name, value in sorted(model.state_dict().items()):
@@ -61,7 +64,9 @@ def _inputs(batch: int = 2):
     )
 
 
-def run_contract(repo: Path) -> Dict[str, object]:
+def run_contract(repo: Path, run_id: str = RUN_ID) -> Dict[str, object]:
+    if run_id != RUN_ID:
+        raise ValueError(f"D2-AC CPU contract run id must be exactly {RUN_ID}")
     torch.manual_seed(42)
     basis, assignment, basis_means, sizes, partition = load_bps_partition(
         repo / "code/bps.pt"
@@ -173,7 +178,7 @@ def run_contract(repo: Path) -> Dict[str, object]:
 
     return {
         "schema_version": 1,
-        "run_id": "p1-hoi-d2ac-cpu-contract-s42-20260726",
+        "run_id": run_id,
         "classification": "cpu-contract-passed",
         "bps": partition,
         "feature_shape": list(features.shape),
@@ -201,13 +206,14 @@ def run_contract(repo: Path) -> Dict[str, object]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", type=Path, default=REPO)
+    parser.add_argument("--run-id", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
         raise FileExistsError(f"refusing to overwrite {output}")
     try:
-        result = run_contract(args.repo_root.resolve())
+        result = run_contract(args.repo_root.resolve(), args.run_id)
     except Exception as error:
         print(f"interaction-adapter-contract-failure-stop: {error}", flush=True)
         raise

@@ -43,10 +43,11 @@ from train_hoi_prior import (  # noqa: E402
 )
 
 
-RUN_ID = "p1-hoi-d2ac-gpu-smoke-s42-20260726"
+RUN_ID = "p1-hoi-d2ac-gpu-smoke-r1-s42-20260726"
 FORMAL_RUN_ID = "p1-hoi-d2ac-interaction-adapter-s42-20260726"
 EXPECTED_BATCH_SIZE = 8
 REGISTERED_TIMESTEPS = (0, 249, 499, 0, 249, 499, 0, 499)
+FORMAL_MICRO_BATCH_PER_GPU = 512
 
 
 def _atomic_json(path: Path, value: dict) -> None:
@@ -124,11 +125,14 @@ def main() -> int:
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=EXPECTED_BATCH_SIZE)
+    parser.add_argument("--run-id", default=RUN_ID)
     args = parser.parse_args()
     repo = args.repo_root.resolve()
     output = args.output.resolve()
     if args.batch_size != EXPECTED_BATCH_SIZE:
         raise ValueError("registered D2-AC GPU smoke batch size is exactly 8")
+    if args.run_id != RUN_ID:
+        raise ValueError(f"D2-AC GPU smoke run id must be exactly {RUN_ID}")
     if socket.gethostname() != "node01":
         raise RuntimeError("D2-AC GPU smoke is restricted to infbagel-4gpu/node01")
     if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
@@ -242,7 +246,7 @@ def main() -> int:
     result = {
         "schema_version": 1,
         "status": "stable",
-        "run_id": RUN_ID,
+        "run_id": args.run_id,
         "formal_run_id": FORMAL_RUN_ID,
         "subphase": "1B-D2-AC0-gpu-smoke",
         "seed": 42,
@@ -265,7 +269,18 @@ def main() -> int:
         "adapter_parameter_count": ADAPTER_PARAMETER_COUNT,
         "bps_sha256": BPS_SHA256,
         "assignment_sha256": ASSIGNMENT_SHA256,
-        "cross_attention_score_elements": args.batch_size * 16 * 3 * 16 * 16,
+        "smoke_cross_attention_score_shape": [
+            args.batch_size, 16, 3, 4, 16,
+        ],
+        "smoke_cross_attention_score_elements": (
+            args.batch_size * 16 * 3 * 4 * 16
+        ),
+        "registered_formal_cross_attention_score_shape_estimate": [
+            FORMAL_MICRO_BATCH_PER_GPU, 16, 3, 4, 16,
+        ],
+        "registered_formal_cross_attention_score_elements_estimate": (
+            FORMAL_MICRO_BATCH_PER_GPU * 16 * 3 * 4 * 16
+        ),
         "optimizer_created": False,
         "optimizer_updates": 0,
         "checkpoint_loads": 0,

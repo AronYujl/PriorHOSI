@@ -40,7 +40,9 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     "code/priors/representation.py": "a510b4ddfb4f6b60e3917219a87898a717d91cbfb858d0993f3e054b5a1abf74",
     "code/priors/window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
     "code/priors/data.py": "62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5",
-    "code/priors/models.py": "f7bb304a7358cb6a667756c14d6eed3eb3fb69644888d5aa1153a44b90ae71b0",
+    # D2-AC extends the shared model module behind an explicit architecture
+    # variant; tests.test_hoi_d2ac separately locks exact base-path parity.
+    "code/priors/models.py": "e3a5af3b19500e8ab89a0041c903114dbcab86ab1393aecbaa56704909e558f0",
     "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
     "code/priors/diffusion.py": "f006c89758807f4d23059f5d97e0b673dbd0d867f4f2859b832fcf37ac1e901a",
 }

@@ -1,7 +1,8 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
 状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AB 尚未形成 selectable HOIPrior，
-现已 plan-only 预注册 D2-AC part-aware local-object interaction adapter；Phase 1C 未启动；
+D2-AC0 part-aware local-object interaction adapter 正在执行已批准的 implementation/CPU/GPU
+lifecycle；Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
@@ -4175,6 +4176,62 @@ recorded a 62-character value that cannot be a SHA-256. D2-AC0 binds the valid c
 value. This correction changes no center, assignment, cluster size, token feature, model parameter,
 training/evaluation protocol, gate, or authorized scope; CPU validation must reproduce the canonical
 payload and corrected hash exactly and fail closed otherwise.
+
+#### 2026-07-26 Phase 1B D2-AC0 evaluator closure 与 GPU-smoke retry amendment
+
+在 implementation tree 的 authority 全套 CPU gate 中，323 项测试首次运行有 321 项通过；
+仅 `tests/test_hoi_d2t.py` 与 `tests/test_hoi_d2u.py` 的旧整文件冻结断言仍要求 D2-AC 之前的
+`code/priors/models.py` SHA-256。失败只涉及 approved D2-AC architecture-variant extension
+所在的 shared file；D2-AC exact shared-trunk、`eval()`、`alpha=0` parity 的 measured
+max-abs difference 为 `0.0`，representation/data/loss/diffusion hashes 均未改变。CPU gate
+closure 因此只允许把这两个 historical freeze 更新到 approved post-D2-AC model source，
+同时保留 exact base-path parity test；不得借此接受任何旧 HOIPrior 行为变化。
+
+本 amendment 也在任何 formal training 前封存剩余 evaluator implementation：
+
+- internal runner 只加载 fixed final-online D2-AC0 checkpoint，并在 sealed D2-O
+  `64×3` cohort 上运行 `full`、`gate_ablated`、`local_correspondence_permuted` 三路
+  production 500-step rollout；
+- primary direct-hand union 5-cm F1 与 GT-contact-frame distance 严格使用
+  indices `24/26`。GT-contact-frame 定义为 fixed target direct-hand union distance
+  `<5 cm`；无 GT-contact frame 的 sequence 不做零值代填，paired bootstrap 使用三路共享的
+  target-derived finite sequence mask，并在 artifact 中记录 count 与 identities；
+- 本 authority-only derivation fixes that mask at `57` sequences with ordered-name
+  SHA-256 `2fa79d30ab6dd6a915098344c4aa7267cb6c3323c6d2a762b4b704f8757cebaa`;
+- FK-palm `22/23`、semantic contact、2/5/7.5/10-cm physical contact、run length、
+  MPJPE、object/pelvis goal、FS、learned gate、per-role attention entropy 全部报告；
+  internal penetration 复用 official SDF formulas，在 internal native 10-Hz frames 上作为
+  descriptive metric，且沿用 official excluded object categories/finite mask，不参与
+  internal causal gate；
+- native wrapper 只生成 D2-AC target，复用 sealed D2-X aggregate/per-sequence hashes 与
+  released aggregate，执行既定 contact transfer、九项 protection、precision、penetration
+  finite-mask 和 released 95% gates；不重跑 control、不选择中间 checkpoint；
+- runner 接受既有 date-transition rule 下的 dated internal/native lifecycle identity，
+  但 scientific protocol、selection、seed、threshold、bootstrap 与 gates 不随日期变化。
+
+原 `p1-hoi-d2ac-gpu-smoke-s42-20260726` 已在 model/trainer implementation commit 上产生
+稳定 no-update artifact，但它先于 authority full-suite closure，且旧 smoke metadata 没有
+正确区分 batch-8 measured attention tensor 与 formal micro-batch-512 的 registered
+`1,572,864` score-element estimate。该 artifact 必须保留，不能覆盖或复用；它不作为
+formal-launch 的最终 smoke gate。完成本 amendment、authority full tests 和 clean commit
+后，唯一允许的 operational retry 是
+`p1-hoi-d2ac-gpu-smoke-r1-s42-20260726`（若未启动前跨日则按 date-transition rule 换新日期）。
+Retry 的 architecture/data/timesteps/batch/no-update/no-checkpoint protocol 不变，只绑定最终
+committed source tree并同时记录 batch-8 actual score-element shape、formal estimate 与实际
+CUDA peak/headroom。Formal training run id、预算、随机初始化与全部 scientific gates 不变。
+
+#### 2026-07-26 Phase 1B D2-AC0 authority CPU lifecycle retry amendment
+
+原 `p1-hoi-d2ac-cpu-contract-s42-20260726` 已在任何 CUDA/optimizer/checkpoint workload
+前因 resolved-config helper 错把 checkout root 推导为 `/data/yujinlun/code` 而中止；其
+manifest、operational failure、CPU log 和 resolved config 已以 `aborted` 状态封存并注册，
+不得覆盖或复用。该事件不构成 scientific contract failure，也没有产生模型、梯度或评测
+结果。为满足 append-only lifecycle，唯一的 CPU retry identity 是
+`p1-hoi-d2ac-cpu-contract-r1-s42-20260726`。Retry 只修复 run-root/path binding，保持
+同一 D2-AC0 source/config/test/seed/BPS hashes、CPU contract、无 optimizer/CUDA/checkpoint
+语义；必须在最终 logical implementation commit 的 clean tree 上重新创建 manifest，并在
+CPU gate 失败时于 GPU 前停止。该 retry 不改变 GPU smoke r1、formal training、internal/
+native run ids 或任何 scientific gate，也不授权 D2-AC1。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
