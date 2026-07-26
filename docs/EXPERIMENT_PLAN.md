@@ -4233,6 +4233,14 @@ manifest、operational failure、CPU log 和 resolved config 已以 `aborted` �
 CPU gate 失败时于 GPU 前停止。该 retry 不改变 GPU smoke r1、formal training、internal/
 native run ids 或任何 scientific gate，也不授权 D2-AC1。
 
+CPU retry `p1-hoi-d2ac-cpu-contract-r1-s42-20260726` 已于
+`a32707047014abb2618b0b2c0ca5a23f55bfcc69` 完成并封存：329 项 authority tests 全部通过，
+contract diagnostic 为 `cpu-contract-passed`，manifest/metrics SHA-256 分别为
+`151b49d01c0b16980b1607a8b32e5e2fff24752cb6f5b744b07cddff75d5ddea` /
+`b152ff16d90492a9010bab916035b8bd1c9179de38fef5965d05d5019f9d01ec`。该结果确认
+interaction-adapter contract 可进入 worker publication；它没有创建 optimizer、执行 CUDA、
+加载/写入 checkpoint 或进行 scientific selection。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
