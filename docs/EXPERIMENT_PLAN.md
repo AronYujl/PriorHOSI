@@ -4312,6 +4312,64 @@ selection、official-test use 或 consistency。
 metrics/gates/classification/artifact contract 全部不变。若 r1 再次 contract-fail，则封存并停止；
 不得继续 retry、改变 mask、删除 penetration、选择 checkpoint 或启动 D2-AC1/consistency。
 
+#### 2026-07-27 Phase 1B D2-AC0 internal zero-denominator summary r2/native continuation amendment
+
+Internal r1
+`p1-hoi-d2ac-interaction-adapter-internal-r1-s42-20260727` 已在 clean
+`7481c5ee2465725a857fd961876d8f1b997a0eed` 上从头完成 full、gate-ablated 与
+local-correspondence-permuted 三条 fixed 64-sequence paired rollout；三份 raw variant 均为
+64/64 sequences、finite、all-fields-reported，并共享 28-sequence official penetration
+finite cohort。最终汇总在计算 descriptive
+`full_mean / gate_ablated_mean` hand-penetration comparison 时失败，因为
+gate-ablated 的合法 `hand_pen_loss_omomo` mean 为严格 `0`，而继承的 D2-M ratio helper
+要求 denominator mean 严格大于 `0`。零 penetration 是合法且 lower-is-better 的 evaluator
+结果；该失败只说明比值在零 denominator 下数学上未定义，不得将它解释为 evaluator metric、
+mask、checkpoint 或 adapter contract 失败。
+
+r1 已以 `interaction-adapter-contract-failure-stop` 封存并由 worker 主动回收。Manifest、
+metrics、run-local registry 与 canonical artifact-tree SHA-256 分别为
+`073bdb39605e518fd08124ad5175380dab2e4afedb455f1fe39ad624b724f28c` /
+`ec79022477e5fb02cafaeb8329e0ee439c9d2612802aecda17607464fb582fa4` /
+`89221db4a4cf7195c5a652472f9039f262c21642e9b39f7dc5b7941a93f0eca8` /
+`2f7c013814fb294bedd5abe0d9c503e3ff1282369daa396ea1e3ac45ec5f9dd8`
+（11 files / 15,375,787 bytes）。Full/gate-ablated/locality-permuted raw SHA-256 分别为
+`7dc60b213777334d5e6d4a09bb78cf920a60c81858eedec384f3b5992370e472` /
+`761844422a42f5738d1611e4d68bee9963ba7c18b639dcb312bd0a1c84c5f192` /
+`f2abed08aa3eecf59179c03958f2e5a3e6671a0cb9409a9250ae727cb8a8ee9a`。
+没有 optimizer、training update、checkpoint write/selection、official-test use 或
+consistency。
+
+用户在检查该证据后明确授权修复并完成最终评估。只允许以下 deterministic evaluator-summary
+closure：
+
+1. 仅为 D2-AC internal descriptive nonnegative penetration comparison 增加显式
+   zero-denominator contract。原始 `hand_pen_loss_omomo` /
+   `human_pen_loss_infbagel`、official finite mask、per-sequence values、excluded categories、
+   SDF/SMPL-X 公式与 aggregate metric 均不变；
+2. denominator mean `>0` 时必须调用原 `paired_mean_ratio`，保持 seed 42、10,000 paired
+   sequence bootstrap、point estimate、CI 与 per-unit 数据逐字段一致；
+3. denominator mean `==0` 时不得加 epsilon/pseudocount、不得 clamp 成有限 ratio、不得用
+   infinity 或改变 metric。必须记录 `ratio_defined=false`、`mean_ratio=null`、
+   `bootstrap_95_ci=null` 与原因 `zero_denominator_mean`，同时用同一 paired sequence values
+   调用原 `paired_difference`，报告绝对 difference point estimate/95% CI；
+4. mismatched、empty、non-finite 或 negative penetration vectors 继续 fail-closed；
+5. 新 internal identity 唯一为
+   `p1-hoi-d2ac-interaction-adapter-internal-r2-s42-20260727`。r2 必须重新生成 resolved
+   config、same-context preflight/manifest，并从头运行完整三路 rollout；不得复用 r1 raw
+   output；
+6. primary internal mechanism/locality gates 仍只使用 registered direct-hand union 5-cm F1
+   paired differences 与 GT-contact-frame distance paired differences；descriptive penetration
+   ratio/difference 不参与 gate；
+7. r2 contract 完成后，无论 mechanism gate 正负，执行一次仍未启动的
+   `p1-hoi-d2ac-native-eval-s42-20260727`。Native 必须继续使用未修改的 official 438×3
+   production evaluator、sealed D2-X control、released aggregate、181-sequence penetration
+   mask、原 paired ratio/difference helpers、阈值与 gates；本 amendment 不改变 native
+   evaluator 数学或既有实验口径。
+
+若 r2 仍发生 contract failure，则封存并停止，不得继续 retry。D2-AC1、checkpoint
+selection、consistency、任何 architecture/token/parameter/placement sweep、新 loss、
+HSIPrior、Mixer 或其他 HOIPrior 搜索仍未授权。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
