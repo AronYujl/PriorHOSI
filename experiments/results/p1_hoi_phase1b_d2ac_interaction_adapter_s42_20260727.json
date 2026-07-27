@@ -1,0 +1,843 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2ac-interaction-adapter-s42-20260726",
+  "phase": "p1",
+  "subphase": "1B-D2-AC0",
+  "status": "completed",
+  "seed": 42,
+  "training_date": "2026-07-26",
+  "completion_date": "2026-07-27",
+  "classification": "interaction-adapter-locality-negative-stop",
+  "checkpoint_selected": false,
+  "selectable_autonomous_diffusion_candidate": false,
+  "d2ac1_eligible": false,
+  "d2ac1_authorized": false,
+  "consistency_authorized": false,
+  "consistency_started": false,
+  "hsiprior_authorized": false,
+  "mixer_authorized": false,
+  "implementation": {
+    "plan_handoff_commit": "61a989adab2f3053230bfcd0ebb702601fcdaab2",
+    "model_and_cpu_contract_commit": "4debaff90defca921daec0d141a83094da97caf1",
+    "gpu_smoke_commit": "88133ab397e45fcb26b15dc4d39a100878e67450",
+    "evaluator_and_lifecycle_commit": "a32707047014abb2618b0b2c0ca5a23f55bfcc69",
+    "cpu_completion_commit": "273e6d7e693f6664b3cd9d0c45b31b6b20c58496",
+    "evaluation_date_binding_commit": "655930f0d9b6bb47fbe116c1d779650cfd3dff63",
+    "internal_sdf_key_fix_commit": "7481c5ee2465725a857fd961876d8f1b997a0eed",
+    "zero_denominator_plan_commit": "ef39e62c2d30c9dd0d2575121a7806375d53e23b",
+    "zero_denominator_implementation_commit": "cc931b8b6272e323e25be6cc6c6a6e3a49076558",
+    "native_field_parity_plan_commit": "376950ea03652306e448bd8c7e7f27362860dd54",
+    "native_field_parity_implementation_commit": "e6ee3fd9611ede9ee8e0cad20b94bd81e9c13366",
+    "single_manipulated_factor": "one fixed part-aware local-object cross-attention interaction adapter inserted between HOIPrior trunk layers 4 and 5",
+    "representation_dimension": 232,
+    "base_parameter_count": 29673448,
+    "adapter_parameter_count": 349697,
+    "total_parameter_count": 30023145,
+    "parameter_increase_fraction": 0.011785,
+    "local_token_count": 16,
+    "local_feature_dimension": 10,
+    "adapter_dimension": 128,
+    "adapter_attention_heads": 4,
+    "adapter_attention_dropout": 0.0,
+    "roles": [
+      "left_hand",
+      "right_hand",
+      "object_motion"
+    ],
+    "rezero_gate": "tanh(alpha)",
+    "alpha_initial": 0.0,
+    "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "assignment_sha256": "b62f91f4eb6c4bf2a9211f0187cd1eb97c25394ee45de155f33607959fddeecd",
+    "center_indices": [
+      328,
+      903,
+      503,
+      817,
+      474,
+      1023,
+      382,
+      864,
+      640,
+      431,
+      445,
+      960,
+      547,
+      829,
+      545,
+      756
+    ],
+    "cluster_sizes": [
+      39,
+      40,
+      57,
+      61,
+      65,
+      68,
+      70,
+      134,
+      77,
+      64,
+      59,
+      79,
+      43,
+      46,
+      84,
+      38
+    ],
+    "global_bps_token_preserved": true,
+    "d2x_fk_foot_temporal_routing_preserved": true,
+    "d2ab_predicted_support_objective_enabled": false,
+    "loss_optimizer_data_sampler_changed": false,
+    "official_evaluator_changed": false,
+    "released_author_d2v_d2x_d2y_d2z_d2ab_prior_or_ema_checkpoint_loaded": false
+  },
+  "authority_cpu_contract": {
+    "initial_attempt": {
+      "run_id": "p1-hoi-d2ac-cpu-contract-s42-20260726",
+      "status": "aborted",
+      "classification": "operational-preworkload-path-resolution-failure",
+      "git_commit": "88133ab397e45fcb26b15dc4d39a100878e67450",
+      "failure": "resolved-config helper derived /data/yujinlun/code instead of the authority checkout root",
+      "optimizer_created": false,
+      "optimizer_updates": 0,
+      "cuda_calls": 0,
+      "checkpoint_loads": 0,
+      "checkpoint_writes": 0,
+      "overwritten": false
+    },
+    "completed_retry": {
+      "run_id": "p1-hoi-d2ac-cpu-contract-r1-s42-20260726",
+      "status": "completed",
+      "git_commit": "a32707047014abb2618b0b2c0ca5a23f55bfcc69",
+      "classification": "cpu-contract-passed",
+      "authority_tests_passed": 329,
+      "base_parity_max_abs": 0.0,
+      "feature_shape": [
+        2,
+        16,
+        10
+      ],
+      "feature_dtype": "torch.float32",
+      "feature_finite": true,
+      "parameter_count": 30023145,
+      "adapter_parameter_count": 349697,
+      "initial_alpha_gradient_finite_nonzero": true,
+      "activated_adapter_gradient_groups_finite_nonzero": [
+        "object_encoder",
+        "object_identity",
+        "part_embedding",
+        "query_projection",
+        "attention_q_projection",
+        "attention_k_projection",
+        "attention_v_projection",
+        "attention_out_projection",
+        "writeback"
+      ],
+      "local_permutation_max_abs": 0.00024044513702392578,
+      "checkpoint_variant_rejection": true,
+      "hsiprior_parameter_storage_independent": true,
+      "mixer_clean_output_shape": [
+        2,
+        16,
+        232
+      ],
+      "static_model_path_scan_passed": true,
+      "optimizer_created": false,
+      "optimizer_updates": 0,
+      "checkpoint_loads": 0,
+      "checkpoint_writes": 0,
+      "metrics_sha256": "b152ff16d90492a9010bab916035b8bd1c9179de38fef5965d05d5019f9d01ec",
+      "manifest_sha256": "151b49d01c0b16980b1607a8b32e5e2fff24752cb6f5b744b07cddff75d5ddea",
+      "cpu_tests_log_sha256": "a48090c18e72f4c9aeacabafa329ae25013f732378c351b52ce1481cd7476458",
+      "resolved_config_sha256": "eb4381f7185037ac566e0dc0ed46c69a696781cf5e332fbed800a1654dfdefb4"
+    },
+    "authority_artifact_snapshot": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-authority-artifacts-s42-20260727",
+      "sha256": "67a2cd8485f1f2b9cd408d9c9a58075b0b52458ec23b52d9986c3db19f0a69bd",
+      "files": 10,
+      "bytes": 162389
+    }
+  },
+  "gpu_smoke": {
+    "retained_original": {
+      "run_id": "p1-hoi-d2ac-gpu-smoke-s42-20260726",
+      "status": "completed",
+      "git_commit": "88133ab397e45fcb26b15dc4d39a100878e67450",
+      "final_formal_launch_gate": false,
+      "reason_not_final_gate": "the artifact preceded authority full-suite closure and conflated measured batch-8 attention elements with the registered formal micro-batch-512 estimate",
+      "optimizer_created": false,
+      "optimizer_updates": 0,
+      "checkpoint_loads": 0,
+      "checkpoint_writes": 0,
+      "metrics_sha256": "efaf3f36a29f783c6f283829753e8d56ccf569805ef087e49484b7236c87e4df",
+      "manifest_sha256": "2af12f53abe088d981976ea687b8f491c6c0d7e21019e4beedc77cf5361d48a3",
+      "artifact_tree": {
+        "sha256": "98beade0ac72aaa25bcbbec68d50c0106139d09628ea6b5602c19ac0cba40b63",
+        "files": 7,
+        "bytes": 56047,
+        "worker_authority_match": true
+      }
+    },
+    "registered_retry": {
+      "run_id": "p1-hoi-d2ac-gpu-smoke-r1-s42-20260726",
+      "status": "completed",
+      "git_commit": "273e6d7e693f6664b3cd9d0c45b31b6b20c58496",
+      "execution_host": "infbagel-4gpu/node01",
+      "device": "cuda:0",
+      "visible_cuda_devices": 4,
+      "batch_size": 8,
+      "registered_timesteps": [
+        0,
+        249,
+        499
+      ],
+      "random_initialization": true,
+      "initial_model_state_sha256": "dea5461e225b04cb0aae25601048a1383ca7b68bbdce3e02ee4ac918378f273c",
+      "loss_finite": true,
+      "initial_alpha_gradient_finite_nonzero": true,
+      "test_only_nonzero_gate_adapter_gradients_finite_nonzero": true,
+      "smoke_cross_attention_score_shape": [
+        8,
+        16,
+        3,
+        4,
+        16
+      ],
+      "smoke_cross_attention_score_elements": 24576,
+      "registered_formal_cross_attention_score_shape_estimate": [
+        512,
+        16,
+        3,
+        4,
+        16
+      ],
+      "registered_formal_cross_attention_score_elements_estimate": 1572864,
+      "peak_memory_allocated_bytes": 252510720,
+      "peak_memory_reserved_bytes": 304087040,
+      "memory_headroom_bytes": 24991956992,
+      "contention_before": false,
+      "optimizer_created": false,
+      "optimizer_updates": 0,
+      "checkpoint_loads": 0,
+      "checkpoint_writes": 0,
+      "checkpoint_selected": false,
+      "consistency_started": false,
+      "metrics_sha256": "d591a617eec41e18261239c4d692192bb5fb82299b788f427cf4e089a9e8f38e",
+      "manifest_sha256": "15a08b610dbba4c28ed1553664d7a1ffbb5bf288b3dab2d8dbd250133f0aa2eb",
+      "resolved_config_sha256": "3d18b60cdc44ab1c6845e1bae6731b6da99c91b657572870d698ab0edc6da82d",
+      "preflight_sha256": "f3d6629f79964085461763d5ee353e1d3c6ca0679334a8fcc3975a5777bd8d58",
+      "run_local_registry_sha256": "e62348e77857354009aebe872ad23df0ded2ce6225fb509e7440add70f66a665",
+      "artifact_tree": {
+        "sha256": "72b39d1d1e9b2cbb1197f141fddee50fac48e477e784ab373e4ef82c41983b1f",
+        "files": 9,
+        "bytes": 70470,
+        "worker_authority_match": true
+      }
+    }
+  },
+  "training": {
+    "run_id": "p1-hoi-d2ac-interaction-adapter-s42-20260726",
+    "status": "completed",
+    "git_commit": "273e6d7e693f6664b3cd9d0c45b31b6b20c58496",
+    "execution_host": "infbagel-4gpu/node01",
+    "random_initialization": true,
+    "initial_model_state_sha256": "260d12ed7e60774e9eb4280f3abc580a7af8b9d8a36d3c75b83a9bbf0021a1bc",
+    "source_checkpoint": null,
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "effective_batch_size": 2048,
+    "micro_batch_per_gpu": 512,
+    "world_size": 4,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "weight_decay": 0.0,
+    "warmup_updates": 0,
+    "scheduler": null,
+    "amp": false,
+    "gradient_clipping": false,
+    "ema": false,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "amp_overflow_skips": 0,
+    "mean_training_total": 0.044877018161017135,
+    "final_validation": {
+      "total": 0.04824259852784962,
+      "reconstruction": 0.040218644555238825,
+      "fk": 0.010632391654837647,
+      "object_surface": 0.008456835576339472,
+      "velocity": 0.00011056802272602084,
+      "contact": 0.013464949618096966,
+      "contact_accuracy": 0.9680045390377927
+    },
+    "wall_seconds": 19157.121451965068,
+    "throughput_windows_per_second": 3207.1624202026296,
+    "throughput_frames_per_second": 51314.598723242074,
+    "minimum_memory_headroom_bytes": 21074477056,
+    "checkpoint_count": 20,
+    "rng_sidecar_count": 80,
+    "first_resumable_checkpoint_sha256": "0f7d56a0e2c6e3a8cd6e394b00fcb002f10474a1804196da27f3bfceee609809",
+    "final_checkpoint_sha256": "fede1c2b2f331407ceba7db16e3a4b30ccc6ffb6c8fc252861662bdcc96c7b96",
+    "learned_alpha": 0.0907876044511795,
+    "learned_gate": 0.09053899347782135,
+    "manifest_sha256": "a0079817a209bb9dfaa985013018e82c19fb19712b509aa7ff947fe8ca69d775",
+    "metrics_sha256": "ee310732417818c8468589581d51b31077aa7dd64ff93be14e797c81fb675f4f",
+    "resolved_config_sha256": "3ffbf77038740c7425d22574b039e952efd570914ff87c456393d8689fcf320b",
+    "preflight_sha256": "379dc3f0a705d6fd2419ee515a6d0dc1539a679adad4c3c113d40e009304d03a",
+    "run_local_registry_sha256": "37297ea2e30e16ccadf0020d129e7b489fc8a00cda8a2cefbd659852a4f28a54",
+    "artifact_tree": {
+      "sha256": "d3784f0b01b8762ab1e6dcc7b0343ef2aa2147c1ca9672f516ae2f672cd92d98",
+      "files": 115,
+      "bytes": 7211816400,
+      "worker_authority_match": true
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2ac-interaction-adapter-internal-r2-s42-20260727",
+    "status": "completed",
+    "git_commit": "cc931b8b6272e323e25be6cc6c6a6e3a49076558",
+    "protocol": "sealed D2-O 64-sequence, 192-window cohort; three paired 500-step full/gate-ablated/local-correspondence-permuted rollouts",
+    "selection_sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "selection_sequences": 64,
+    "selection_windows": 192,
+    "phase_offsets": [
+      14,
+      56,
+      98
+    ],
+    "paired_unit": "sequence",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "official_test_used": false,
+    "learned_alpha": 0.0907876044511795,
+    "learned_gate": 0.09053899347782135,
+    "primary_comparisons": {
+      "full_minus_gate_ablated_direct_hand_union_5cm_f1": {
+        "full_mean": 0.6504506613243037,
+        "gate_ablated_mean": 0.028905836680205056,
+        "paired_mean_difference": 0.6215448246440987,
+        "bootstrap_95_ci": [
+          0.539764075939061,
+          0.7003120411866781
+        ],
+        "passed": true
+      },
+      "full_minus_local_correspondence_permuted_direct_hand_union_5cm_f1": {
+        "full_mean": 0.6504506613243037,
+        "permuted_mean": 0.6400586096712702,
+        "paired_mean_difference": 0.01039205165303356,
+        "bootstrap_95_ci": [
+          -0.017771593611029583,
+          0.037593455902500975
+        ],
+        "passed": false
+      },
+      "gate_ablated_minus_full_gt_contact_frame_distance_cm": {
+        "gate_ablated_mean": 96.12921404109254,
+        "full_mean": 5.151209043176329,
+        "paired_mean_difference": 90.9780049979162,
+        "bootstrap_95_ci": [
+          81.06025687926862,
+          100.8264304626676
+        ],
+        "finite_sequences": 57,
+        "passed": true
+      },
+      "local_correspondence_permuted_minus_full_gt_contact_frame_distance_cm": {
+        "permuted_mean": 5.165028881157893,
+        "full_mean": 5.151209043176329,
+        "paired_mean_difference": 0.01381983798156395,
+        "bootstrap_95_ci": [
+          -0.3039546464880631,
+          0.30927138286080674
+        ],
+        "finite_sequences": 57,
+        "passed": false
+      }
+    },
+    "zero_denominator_penetration_summary": {
+      "comparison": "full over gate_ablated hand_pen_loss_omomo",
+      "finite_sequences": 28,
+      "numerator_mean": 9.308420447138945e-07,
+      "denominator_mean": 0.0,
+      "ratio_defined": false,
+      "mean_ratio": null,
+      "ratio_bootstrap_95_ci": null,
+      "undefined_reason": "zero_denominator_mean",
+      "paired_difference_mean": 9.308420447138945e-07,
+      "paired_difference_bootstrap_95_ci": [
+        0.0,
+        2.7925261341416833e-06
+      ],
+      "epsilon_or_pseudocount_used": false,
+      "infinity_encoding_used": false,
+      "selection_use": false
+    },
+    "variant_summary": {
+      "full": {
+        "semantic_contact_threshold_0_5": {
+          "left_hand": {
+            "precision": 0.9241741741741741,
+            "recall": 0.8711960368011323,
+            "f1": 0.8969034608378871,
+            "coverage": 0.4955357142857143
+          },
+          "right_hand": {
+            "precision": 0.9475955610357584,
+            "recall": 0.9159713945172825,
+            "f1": 0.9315151515151516,
+            "coverage": 0.6034226190476191
+          },
+          "union": {
+            "precision": 0.9703296703296703,
+            "recall": 0.9459025174076058,
+            "f1": 0.9579604014103608,
+            "coverage": 0.6770833333333334,
+            "prediction_run_mean_frames": 42.325581395348834
+          }
+        },
+        "direct_hand_union_physical_contact": {
+          "2cm": {
+            "precision": 0.6961325966850829,
+            "recall": 0.3676148796498906,
+            "f1": 0.481145584725537,
+            "coverage": 0.2693452380952381
+          },
+          "5cm": {
+            "precision": 0.9589525831564049,
+            "recall": 0.6403591682419659,
+            "f1": 0.767922924341173,
+            "coverage": 0.5256696428571429,
+            "prediction_run_mean_frames": 12.504424778761061
+          },
+          "7.5cm": {
+            "precision": 0.9707401032702238,
+            "recall": 0.769090909090909,
+            "f1": 0.8582297742835405,
+            "coverage": 0.6484375
+          },
+          "10cm": {
+            "precision": 0.9846390168970814,
+            "recall": 0.856951871657754,
+            "f1": 0.9163688348820586,
+            "coverage": 0.7265625
+          }
+        },
+        "fk_palm_union_physical_contact": {
+          "2cm": {
+            "precision": 0.523680649526387,
+            "recall": 0.3739130434782609,
+            "f1": 0.4363021420518602,
+            "coverage": 0.27492559523809523
+          },
+          "5cm": {
+            "precision": 0.9081346423562412,
+            "recall": 0.6455633100697906,
+            "f1": 0.7546620046620046,
+            "coverage": 0.5305059523809523,
+            "prediction_run_mean_frames": 12.293103448275861
+          },
+          "7.5cm": {
+            "precision": 0.9770773638968482,
+            "recall": 0.7739446209714026,
+            "f1": 0.8637284701114488,
+            "coverage": 0.6491815476190477
+          },
+          "10cm": {
+            "precision": 0.9846704138988247,
+            "recall": 0.85950044603033,
+            "f1": 0.91783758037628,
+            "coverage": 0.7280505952380952
+          }
+        },
+        "kinematics": {
+          "mpjpe_cm": 12.009737014770508,
+          "object_goal_error_cm": 95.29520209133625,
+          "pelvis_goal_error_cm": 4.327780279020469,
+          "object_translation_mae_cm": 19.76476464793086,
+          "object_rotation_geodesic_deg": 43.41378330190977,
+          "foot_sliding": 0.8116035251517706
+        },
+        "penetration": {
+          "finite_sequences": 28,
+          "hand_pen_loss_omomo": 9.308420447138945e-07,
+          "human_pen_loss_infbagel": 0.016478964362029842
+        },
+        "attention_entropy_normalized": {
+          "left_hand": 0.48889955120564754,
+          "right_hand": 0.4898549450493107,
+          "object_motion": 0.48804020559539396
+        }
+      },
+      "gate_ablated": {
+        "semantic_contact_union_f1": 0.8882602545968883,
+        "direct_hand_union_5cm_f1": 0.03705419175544234,
+        "direct_hand_union_5cm_coverage": 0.015997023809523808,
+        "fk_palm_union_5cm_f1": 0.000996512207274539,
+        "mpjpe_cm": 208.036376953125,
+        "object_goal_error_cm": 335.0759279727936,
+        "pelvis_goal_error_cm": 63.50293133407831,
+        "foot_sliding": 0.9989078089065948,
+        "hand_pen_loss_omomo": 0.0,
+        "human_pen_loss_infbagel": 0.03768364736776521,
+        "attention_entropy_normalized": {
+          "left_hand": 0.5141046114281441,
+          "right_hand": 0.5151555363663162,
+          "object_motion": 0.5142564692335825
+        }
+      },
+      "local_correspondence_permuted": {
+        "semantic_contact_union_f1": 0.9571815718157181,
+        "direct_hand_union_5cm_f1": 0.7565714285714287,
+        "direct_hand_union_5cm_coverage": 0.5148809523809523,
+        "fk_palm_union_5cm_f1": 0.7416985013223626,
+        "mpjpe_cm": 12.442031860351562,
+        "object_goal_error_cm": 94.91223953664303,
+        "pelvis_goal_error_cm": 4.550269338457535,
+        "foot_sliding": 0.8203054195333725,
+        "hand_pen_loss_omomo": 1.032642988579064e-06,
+        "human_pen_loss_infbagel": 0.011493758755091812,
+        "attention_entropy_normalized": {
+          "left_hand": 0.5151402750518173,
+          "right_hand": 0.5164288588212802,
+          "object_motion": 0.5148000065342834
+        }
+      }
+    },
+    "contract_passed": true,
+    "adapter_used": true,
+    "locality_passed": false,
+    "mechanism_passed": false,
+    "classification": "interaction-adapter-locality-negative-stop",
+    "runtime_seconds": 244.4990446351003,
+    "optimizer_created": false,
+    "training_updates": 0,
+    "checkpoint_writes": 0,
+    "checkpoint_selected": false,
+    "consistency_started": false,
+    "raw_variant_sha256": {
+      "full": "f47ba461bdaf7d05b89afed50499d9bb1a44be514554c61094e94e6b47b53bcb",
+      "gate_ablated": "90267554a3df5b8172199e464571f62e764c08ebe482e639dba7674ea544983c",
+      "local_correspondence_permuted": "6245dc6d06c7efac404add3909ce78d39dbbdd1af54576bd20e453c280afbff0"
+    },
+    "paired_noise_sha256": "d0850bb7c9bbd57f4c3d6ad23ea02d4feaba94a7808998df3c37100c64220998",
+    "attention_appendix_sha256": "25392bf887b98ef761614d8a0608f3996ae1126994a40f89c7981a62fdd4ea99",
+    "metrics_sha256": "4c46b36637db5e99f2730b05503f23e8f729cb8c1b17bdf48612524ddc791109",
+    "manifest_sha256": "0f738c87ad1ff660dd65582a9f09323b5d5fc76f108ff3e77e1534b8dcdac357",
+    "resolved_config_sha256": "65d69c05531122bfbce7603f748ec8b9499610576cdc75173e90edba83a5f90f",
+    "preflight_sha256": "62dc7908fcc1534f357461f5b38db9b819271b7eca9074167da2ee5b2e6ff4ff",
+    "run_local_registry_sha256": "e69172cbf25d39ea5a332fcc90c519633719340cf8a28a1ef43e54b2b643166a",
+    "artifact_tree": {
+      "sha256": "62225323d8a5d3d252d34587165bd2da0ade4ed469ddae1c644e848cd391e753",
+      "files": 11,
+      "bytes": 26236078,
+      "worker_authority_match": true
+    }
+  },
+  "native_evaluation": {
+    "run_id": "p1-hoi-d2ac-native-eval-r1-s42-20260727",
+    "status": "completed",
+    "git_commit": "e6ee3fd9611ede9ee8e0cad20b94bd81e9c13366",
+    "protocol": "official 438 sequences, three windows per sequence, 500-step unguided production diffusion, fixed final-online checkpoint",
+    "official_sequences": 438,
+    "windows_per_sequence": 3,
+    "diffusion_steps": 500,
+    "cfg": false,
+    "dynamic_perception": false,
+    "guidance": false,
+    "scene_conditioning": false,
+    "consistency": false,
+    "paired_unit": "sequence",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "target_checkpoint_sha256": "fede1c2b2f331407ceba7db16e3a4b30ccc6ffb6c8fc252861662bdcc96c7b96",
+    "control_checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+    "control_aggregate_sha256": "3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b",
+    "control_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+    "control_regenerated": false,
+    "target_metrics": {
+      "end_obj_trans_err": 5.647257715463638,
+      "xy_points_err": 4.237934201955795,
+      "foot_sliding": 0.39861269376175856,
+      "contact_precision": 0.7875801947873912,
+      "contact_recall": 0.6041626782073188,
+      "contact_f1": 0.6479898220769479,
+      "contact_percent": 0.4913386968181489,
+      "human_pen_loss_infbagel": 4.012098772238745,
+      "hand_pen_loss_omomo": 0.25179312658108377,
+      "mpjpe": 12.426765263080597,
+      "trans_dist": 8.72291773557663,
+      "obj_trans_dist": 16.810992790037297,
+      "obj_rot_dist": 1.0305739241225504
+    },
+    "d2x_control_metrics": {
+      "end_obj_trans_err": 3.7402085959911346,
+      "xy_points_err": 4.050519689917564,
+      "foot_sliding": 0.3630100213939385,
+      "contact_precision": 0.7880618755952097,
+      "contact_recall": 0.5944546940443982,
+      "contact_f1": 0.6374259391059788,
+      "contact_percent": 0.4765528738131478,
+      "human_pen_loss_infbagel": 3.869084620991582,
+      "hand_pen_loss_omomo": 0.24535650279805918,
+      "mpjpe": 12.050843983888626,
+      "trans_dist": 8.170091360807419,
+      "obj_trans_dist": 15.994049727002507,
+      "obj_rot_dist": 1.0309440299298087
+    },
+    "native_transfer": {
+      "target_minus_control_contact_f1": {
+        "mean": 0.010563882970969003,
+        "bootstrap_95_ci": [
+          -0.008831991001821598,
+          0.030303551129109596
+        ],
+        "passed": false
+      },
+      "target_minus_control_contact_recall": {
+        "mean": 0.0097079841629206,
+        "bootstrap_95_ci": [
+          -0.012442085137174663,
+          0.03229832666837569
+        ],
+        "passed": false
+      },
+      "target_minus_control_contact_precision": {
+        "mean": -0.0004816808078184294,
+        "bootstrap_95_ci": [
+          -0.019171991198135046,
+          0.018557575613192774
+        ],
+        "passed": true
+      },
+      "contact_f1_released_gap_closure": 0.11759630950227098,
+      "minimum_gap_closure": 0.25,
+      "gap_closure_passed": false,
+      "passed": false
+    },
+    "protection_ratio_ci": {
+      "end_obj_trans_err": {
+        "mean_ratio": 1.503869023480123,
+        "bootstrap_95_ci": [
+          1.4238166194646191,
+          1.5899329029853244
+        ],
+        "passed": false
+      },
+      "xy_points_err": {
+        "mean_ratio": 1.0462692986483075,
+        "bootstrap_95_ci": [
+          1.0059230054509822,
+          1.088516939946423
+        ],
+        "passed": true
+      },
+      "foot_sliding": {
+        "mean_ratio": 1.0980762796330188,
+        "bootstrap_95_ci": [
+          1.0304893086375737,
+          1.1716455351196953
+        ],
+        "passed": false
+      },
+      "human_pen_loss_infbagel": {
+        "mean_ratio": 1.0369633040516206,
+        "bootstrap_95_ci": [
+          0.9023297639293887,
+          1.1981223273634631
+        ],
+        "passed": false
+      },
+      "hand_pen_loss_omomo": {
+        "mean_ratio": 1.0262337607099097,
+        "bootstrap_95_ci": [
+          0.8923163353846547,
+          1.187124492958939
+        ],
+        "passed": false
+      },
+      "mpjpe": {
+        "mean_ratio": 1.0311944349217106,
+        "bootstrap_95_ci": [
+          1.0115771792868882,
+          1.0512951811664013
+        ],
+        "passed": true
+      },
+      "trans_dist": {
+        "mean_ratio": 1.0676647672498287,
+        "bootstrap_95_ci": [
+          1.0449877029751409,
+          1.0902581637506545
+        ],
+        "passed": true
+      },
+      "obj_trans_dist": {
+        "mean_ratio": 1.0510779369189756,
+        "bootstrap_95_ci": [
+          1.0225987204127411,
+          1.0802365940997247
+        ],
+        "passed": true
+      },
+      "obj_rot_dist": {
+        "mean_ratio": 0.9996410030064472,
+        "bootstrap_95_ci": [
+          0.9700332812736256,
+          1.030632266915111
+        ],
+        "passed": true
+      }
+    },
+    "penetration_mask_contract": {
+      "passed": true,
+      "official_sequences": 438,
+      "finite_sequences": 181,
+      "sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec"
+    },
+    "released_95_percent_effectiveness_checks": {
+      "end_obj_trans_err": false,
+      "xy_points_err": false,
+      "foot_sliding": false,
+      "human_pen_loss_infbagel": false,
+      "mpjpe": true,
+      "trans_dist": false,
+      "obj_trans_dist": false,
+      "obj_rot_dist": true,
+      "contact_precision": true,
+      "contact_recall": false,
+      "contact_f1": false,
+      "passed": false
+    },
+    "internal_mechanism_passed": false,
+    "locality_passed": false,
+    "native_transfer_passed": false,
+    "protection_passed": false,
+    "released_95_percent_effectiveness_passed": false,
+    "classification": "interaction-adapter-locality-negative-stop",
+    "selectable": false,
+    "d2ac1_authorized": false,
+    "runtime_seconds": 353.8470253921114,
+    "generation_seconds": 64.49871797696687,
+    "end_to_end_generation_seconds": 347.193387970794,
+    "generated_frames": 55188,
+    "generation_fps": 855.6449140540775,
+    "timing_cuda_synchronized": true,
+    "fid_matching_rprecision_diversity_generated": false,
+    "fid_rprecision_used": false,
+    "optional_metric_status": "the fixed evaluator did not generate FID, Matching, R-Precision or Diversity; no optional field was deleted, substituted or used for selection",
+    "normalization_contract_passed": true,
+    "official_evaluator_parity": {
+      "official_test_sha256": "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+      "eval_metrics_sha256": "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+      "eval_config_sha256": "89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73",
+      "shared_d2x_wrapper_sha256": "b6753a66207492e6ee4addb8f450cb38c5d021401d43430faa9e5c9ed77c6e31",
+      "d2ac_native_wrapper_sha256": "04b49c17602d13da2f45f2ae47dba191c4a21a5e914ada560994cdde3c0c827c",
+      "resolved_target_semantic_diff_against_d2x_after_ignoring_run_output_checkpoint_identity": false,
+      "wrapper_fix_scope": [
+        "trans_dist -> trans_dist",
+        "obj_trans_dist -> obj_trans_dist",
+        "obj_rot_dist -> obj_rot_dist",
+        "hand_pen_loss_omomo -> hand_pen_loss_omomo",
+        "human_pen_loss_infbagel -> human_pen_loss_infbagel"
+      ],
+      "metric_formula_mask_bootstrap_threshold_or_gate_changed": false,
+      "retry_ran_from_scratch": true,
+      "failed_attempt_partial_output_reused": false,
+      "bitwise_identity_across_independent_gpu_reruns_claimed": false
+    },
+    "manifest_sha256": "31cbbbc51c60e5b7692ed6d4e7fb68cce75c3a8dc150855bf2e26123f561159b",
+    "metrics_sha256": "16d1ec9ea0341afeb3db4e5c5021eada36ab0aaf8f23e2f73c6a33c138becc81",
+    "aggregate_sha256": "3c996f0b3fcfb600b2dc7d88969b3f960799d57a98fad4562f9bbdd5ae88438c",
+    "per_sequence_sha256": "7cc9ab7688fd219b5c7fe9e22a373dbb93190cbfac1d6ba97593568946dfcb46",
+    "resolved_config_sha256": "5de930fe32e397172ec774d22a2fb0506f8661e3dccea0b845f25415ce6ec104",
+    "resolved_target_sha256": "131ec1b81d6a6331263b1bf52c8fa4a5c372f4aa5a82f0f8ddec62794da209e4",
+    "preflight_sha256": "2ccdc755b802847dec5f19121e2bd8cf75b00b5887a991499778f656d4c5dfca",
+    "run_local_registry_sha256": "7be4278c4cdb0074dd46a116c6fc692165887adad1f2d5f49f05d9cebffae1e1",
+    "artifact_tree": {
+      "sha256": "83b6a811eab7e519f5f15ce2cfeb36d12bb8814625905ac7f2378caeb8fefa34",
+      "files": 16,
+      "bytes": 1373268,
+      "worker_authority_match": true
+    }
+  },
+  "preserved_failures": [
+    {
+      "run_id": "p1-hoi-d2ac-interaction-adapter-internal-s42-20260727",
+      "status": "failed",
+      "classification": "interaction-adapter-contract-failure-stop",
+      "runtime_seconds": 21.50399721902795,
+      "failure": "internal penetration loader keyed floorlamp.ply.npy as floorlamp.ply instead of the official evaluator key floorlamp",
+      "scientific_metrics_observed": false,
+      "tree_sha256": "e9eaea941d71624152d7d4d05d4ffc162f8fcd02f9c4e0cdf28ce139ce31d7ce",
+      "tree_files": 10,
+      "tree_bytes": 46938
+    },
+    {
+      "run_id": "p1-hoi-d2ac-interaction-adapter-internal-r1-s42-20260727",
+      "status": "failed",
+      "classification": "interaction-adapter-contract-failure-stop",
+      "runtime_seconds": 253.6926543880254,
+      "failure": "a legal zero gate-ablated hand-penetration mean made a descriptive full/gate ratio mathematically undefined",
+      "completed_raw_variants_retained": true,
+      "tree_sha256": "2f7c013814fb294bedd5abe0d9c503e3ff1282369daa396ea1e3ac45ec5f9dd8",
+      "tree_files": 11,
+      "tree_bytes": 15375787
+    },
+    {
+      "run_id": "p1-hoi-d2ac-native-eval-s42-20260727",
+      "status": "failed",
+      "runtime_seconds": 380.5186162388418,
+      "failure": "the D2-AC post-evaluator summary requested nonexistent serialized aliases after the official evaluator had completed",
+      "official_evaluator_completed": true,
+      "scientific_gate_reached": false,
+      "tree_sha256": "ae7f0e3d9975a2bc4d96058dc1f3c5a965a4fb9870634d10889db97f2a0e1b27",
+      "tree_files": 14,
+      "tree_bytes": 339245
+    },
+    {
+      "run_id": "p1-hoi-d2ac-native-eval-r1-s42-20260727",
+      "event": "a control-only tmux quoting command created no pane, process, log, metrics, evaluation output or GPU allocation before the first real workload",
+      "workload_started": false,
+      "run_id_reused": false,
+      "operational_launch_log_sha256": "5deef8d76f2e39cbd6d6ef262bd4468df400db3c323c7923afb8299d3a593fec"
+    }
+  ],
+  "artifact_recovery": {
+    "training_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-interaction-adapter-s42-20260726",
+    "internal_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-interaction-adapter-internal-r2-s42-20260727",
+    "native_staging": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-native-eval-r1-s42-20260727",
+    "worker_preflight_logs": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-worker-preflight-logs-s42-20260727",
+      "sha256": "0d8c12f2530ae785bb8cce4b5fc4ff9a84fa33ff905136056f426d670dffff6b",
+      "files": 4,
+      "bytes": 67558,
+      "final_worker_suite_log_sha256": "d589f01d59af425945dc1edaaf10f6ffca1e69a5df27eb3a2adabd9dfd0e9cb3"
+    }
+  },
+  "scientific_interpretation": {
+    "verified_facts": [
+      "D2-AC0 completed the exact fixed-budget from-random training contract with finite losses, required gradients, zero AMP overflow skips, and no forbidden checkpoint initialization.",
+      "The learned ReZero gate was nonzero and full strongly outperformed gate ablation on both registered internal quantities, so the adapter was used.",
+      "The local-correspondence permutation confidence intervals included zero for both primary quantities, so the registered locality mechanism gate failed.",
+      "Native contact F1 and recall point estimates increased relative to D2-X, but neither paired confidence interval excluded zero and only 11.76 percent of the released contact-F1 gap was closed.",
+      "Native end-object, foot-sliding, hand-penetration and human-penetration protection confidence intervals exceeded the registered 1.10 upper bound.",
+      "The official evaluator, evaluator config, sealed D2-X records, finite penetration mask, bootstrap statistics, thresholds and gates were not changed by either summary repair."
+    ],
+    "evidence_based_inference": [
+      "The adapter learned a consequential route, but the registered permutation intervention did not establish that its benefit depended on the intended local object correspondence.",
+      "The result is therefore an interaction-adapter locality-negative controlled result rather than evidence of a confirmed original implementation defect.",
+      "The native result also fails transfer, protection and released-95-percent magnitude requirements, but classification precedence remains the earlier registered locality-negative stop."
+    ],
+    "unresolved_questions": [
+      "Whether another interaction representation could make local object correspondence causally necessary remains untested and is outside this completed subphase.",
+      "No unresolved question authorizes D2-AC1, checkpoint selection, consistency distillation, HSIPrior, Mixer, a sweep, a new loss or another HOIPrior search."
+    ]
+  },
+  "conclusion": "D2-AC0 is complete and non-selectable. The adapter was used, but the fixed local-correspondence causal gate failed; native transfer, protection and released-effectiveness gates also failed. The final classification is interaction-adapter-locality-negative-stop.",
+  "next_action": "Stop D2-AC. D2-AC1 is ineligible and unauthorized; do not select or resume the checkpoint and do not start consistency, HSIPrior, Mixer or another HOIPrior mechanism without a new dated plan and explicit authorization."
+}

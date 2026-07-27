@@ -1,8 +1,8 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AB 尚未形成 selectable HOIPrior，
-D2-AC0 part-aware local-object interaction adapter 正在执行已批准的 implementation/CPU/GPU
-lifecycle；Phase 1C 未启动；
+状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AC 尚未形成 selectable HOIPrior；
+D2-AC0 已完成并分类为 `interaction-adapter-locality-negative-stop`，checkpoint 不可选择，
+D2-AC1 不 eligible；Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
@@ -4485,6 +4485,86 @@ contact paired differences 均成功产生，penetration contract 恢复为精�
 `89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73`、shared D2-X
 wrapper `b6753a66207492e6ee4addb8f450cb38c5d021401d43430faa9e5c9ed77c6e31`、internal
 diagnostic `e9a0157f80695469a53a5333b20685cb3c66d042b0ccd621b86164238764bcc5`。
+
+#### 2026-07-27 Phase 1B D2-AC0 completion record
+
+D2-AC0 的全部已批准 lifecycle 已完成。最终 tracked compact result 为
+`experiments/results/p1_hoi_phase1b_d2ac_interaction_adapter_s42_20260727.json`，
+phase summary 为 `docs/phase_summaries/PHASE_1B_D2AC.md`。本 completion record 只封存
+已经执行的固定机制、失败与结果，不新增方向、训练、selection 或 fallback。
+
+1. **CPU、smoke 与 training。** Authority CPU retry
+   `p1-hoi-d2ac-cpu-contract-r1-s42-20260726` 通过 exact BPS/assignment、参数量、
+   `[B,16,232]` API、`alpha=0` base parity、初始/activated gradients、local permutation、
+   extreme-input、provenance、HSIPrior/Mixer independence 与 static path contract。
+   Registered final smoke
+   `p1-hoi-d2ac-gpu-smoke-r1-s42-20260726` 在 `cuda:0`、real-data batch 8 上通过，
+   measured attention score shape/elements 为 `[8,16,3,4,16] / 24,576`，formal
+   micro-batch-512 estimate 为 `1,572,864`，peak allocated/reserved/headroom 为
+   `252,510,720 / 304,087,040 / 24,991,956,992` bytes。Formal training
+   `p1-hoi-d2ac-interaction-adapter-s42-20260726` 从随机初始化完成
+   `61,440,000` windows / `983,040,000` frames / `30,000` updates，wall time
+   `19,157.121 s`，throughput `3,207.162 windows/s`，20 cadence checkpoints 与
+   80 rank RNG sidecars 完整；fixed final-online SHA-256 为
+   `fede1c2b2f331407ceba7db16e3a4b30ccc6ffb6c8fc252861662bdcc96c7b96`。
+   Learned alpha/gate 为 `0.0907876045 / 0.0905389935`。
+2. **Internal r2。**
+   `p1-hoi-d2ac-interaction-adapter-internal-r2-s42-20260727` 在 sealed
+   64-sequence/192-window cohort 上从头完成三路 paired 500-step rollout。Full minus
+   gate-ablated direct-hand union 5-cm F1 为 `+0.6215448246`，95% CI
+   `[0.5397640759,0.7003120412]`；gate-ablated minus full GT-contact distance 为
+   `+90.978005 cm`，CI `[81.0602569,100.8264305]`，证明 adapter 被使用。Full minus
+   locality-permuted F1 为 `+0.0103920517`，CI
+   `[-0.0177715936,0.0375934559]`；permuted minus full distance 为
+   `+0.013819838 cm`，CI `[-0.3039546465,0.3092713829]`，两项 locality gate 均失败。
+   合法零 hand-penetration denominator 显式记录为 `ratio_defined=false`、null ratio/CI，
+   并保留同一 paired values 的 difference `9.308420447e-07`、CI
+   `[0,2.792526134e-06]`；没有 epsilon、pseudocount、clamp 或 infinity encoding，
+   且该 helper 不进入 native evaluator。Internal classification 为
+   `interaction-adapter-locality-negative-stop`。
+3. **Official native parity 与结果。** Final native lifecycle
+   `p1-hoi-d2ac-native-eval-r1-s42-20260727` 在 clean
+   `e6ee3fd9611ede9ee8e0cad20b94bd81e9c13366` 上从头运行 official 438×3、
+   500-step unguided evaluator。D2-AC wrapper 的修复仅把五个 paired-summary
+   serialized-field aliases 路由到 official short keys：
+   `trans_dist`、`obj_trans_dist`、`obj_rot_dist`、`hand_pen_loss_omomo`、
+   `human_pen_loss_infbagel`。Official evaluator、eval metrics、eval config 与 shared
+   D2-X wrapper SHA-256 仍分别为
+   `22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524` /
+   `445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547` /
+   `89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73` /
+   `b6753a66207492e6ee4addb8f450cb38c5d021401d43430faa9e5c9ed77c6e31`。
+   与 sealed D2-X resolved target 对比，在排除 run/output/checkpoint identity 后无
+   semantic config difference；control aggregate/per-sequence 原 hash 复用且未重生成。
+4. **Native gates。** D2-AC target 的 end-object/Txy/FS/contact
+   precision/recall/F1/coverage/Pbody/hand penetration/MPJPE/Troot/Tobj/Oobj 为
+   `5.6473 / 4.2379 / 0.3986 / 0.7876 / 0.6042 / 0.6480 / 0.4913 /
+   4.0121 / 0.2518 / 12.4268 / 8.7229 / 16.8110 / 1.0306`。
+   Contact F1/recall paired differences 为 `+0.0105639`、`+0.0097080`，但 CI
+   `[-0.0088320,0.0303036]`、`[-0.0124421,0.0322983]` 均包含零；released
+   contact-F1 gap closure 仅 `0.1175963 < 0.25`。End-object、FS、Pbody 与 hand
+   penetration protection CI upper bounds 分别为
+   `1.58993 / 1.17165 / 1.19812 / 1.18712`，超过 `1.10`；181-sequence
+   penetration mask contract 通过。Released-95% effectiveness gate 也失败。Evaluator
+   未生成 FID、Matching、R-Precision 或 Diversity，缺失原样保留且
+   `fid_rprecision_used=false`。
+5. **Final decision 与 artifact recovery。** Classification precedence 由已经失败的
+   internal locality gate 决定，最终严格分类为
+   `interaction-adapter-locality-negative-stop`；即使 native transfer/protection/
+   effectiveness 也失败，不重新命名 classification。Training/internal/native recovered
+   tree SHA-256 分别为
+   `d3784f0b01b8762ab1e6dcc7b0343ef2aa2147c1ca9672f516ae2f672cd92d98` /
+   `62225323d8a5d3d252d34587165bd2da0ade4ed469ddae1c644e848cd391e753` /
+   `83b6a811eab7e519f5f15ce2cfeb36d12bb8814625905ac7f2378caeb8fefa34`。
+   Internal initial SDF failure、internal r1 zero-denominator failure、native initial
+   serialized-field failure 与原 smoke 均按 append-only contract 保留，未覆盖或删除。
+
+D2-AC0 fixed final-online checkpoint 不可选择、不可 resume、不可初始化后续 prior。
+D2-AC1 只有 `interaction-adapter-positive-but-not-effective-stop` 才 eligible；当前
+locality-negative classification 不满足该条件，因此 D2-AC1 严格 ineligible 且未授权。
+不得自动启动 consistency、HSIPrior、Mixer、checkpoint selection、任何 adapter/token/
+parameter/placement sweep、新 loss、SNR weighting、gradient projection、rollout exposure、
+CFG/guidance 或新的 HOIPrior 搜索。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
