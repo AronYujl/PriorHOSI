@@ -2,7 +2,8 @@
 
 状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AC 尚未形成 selectable HOIPrior；
 D2-AC0 已完成并分类为 `interaction-adapter-locality-negative-stop`，checkpoint 不可选择，
-D2-AC1 不 eligible；Phase 1C 未启动；
+D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已预注册但尚未实现；
+Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
@@ -4565,6 +4566,295 @@ locality-negative classification 不满足该条件，因此 D2-AC1 严格 ineli
 不得自动启动 consistency、HSIPrior、Mixer、checkpoint selection、任何 adapter/token/
 parameter/placement sweep、新 loss、SNR weighting、gradient projection、rollout exposure、
 CFG/guidance 或新的 HOIPrior 搜索。
+
+#### 2026-07-27 Phase 1B D2-AD0 human-local full-mesh BPS coordinate-contract repair 预注册（plan-only）
+
+本 amendment 只注册一个由 D2-AC0 封存结果直接触发、已经得到用户确认的单变量
+coordinate-contract repair，不重新开放 HOIPrior 搜索。Identifier audit 确认 D2-AD/`d2ad`
+在本 amendment 前未出现在 plan、registry、source、tests 或 lifecycle id 中，因此 D2-AD
+是下一个 unused Phase 1B identifier。当前 plan-only source HEAD 为
+`dcf871644b6a1b72116dbab03dcc4fafc755dc28`，branch 为 `phase/01b-hoi`，authority
+worktree 在修改前 clean。
+
+1. **封存证据与可证伪假设。** D2-AC0 已证明 adapter 被优化器强烈使用：full minus
+   gate-ablated direct-hand union 5-cm physical-contact F1 为 `+0.621545`，且
+   gate-ablated minus full GT-contact-frame hand-object distance 为 `+90.978 cm`；
+   但 full minus local-correspondence-permuted F1 仅 `+0.010392` 且 CI 包含零，
+   permutation minus full distance 仅 `+0.01382 cm` 且 CI 包含零。Native contact
+   F1/recall 相对 sealed D2-X 只增加约 `1.66%/1.63%`，同时 end-object 与 FS 分别退化
+   `50.99%/9.81%`。因此 D2-AC0 严格保持
+   `interaction-adapter-locality-negative-stop`，其 checkpoint 不得选择、resume 或初始化
+   D2-AD。
+
+   后续 code audit 发现一个更具体、可独立修复的 coordinate contract：
+
+   - 232-D human/object state 使用 Y-up、window-local XZ origin、initial-root-yaw aligned
+     frame；
+   - dataset 的 author BPS delta 已执行 `zup_to_yup`；
+   - D2-AC local token 的 cluster basis mean 却直接来自 raw `code/bps.pt`，仍是原
+     Z-up convention；
+   - 即使只把 raw basis mean 或 stored/global delta 做轴变换/旋转，也无法恢复正确
+     locality，因为 fixed global queries 的 nearest-point correspondence 会随共同 global
+     yaw 改变，component-wise RMS 也不是任意旋转下的不变量。
+
+   D2-AD0 的唯一科学假设是：若 D2-AC locality failure 的主要原因是 adapter-only local
+   geometry 没有与 human window-local frame 建立一致的 nearest-point correspondence，则
+   在同一 full rest mesh 上直接重算 human-local BPS，应使 causal locality gate 与 native
+   contact transfer 改善；这不预先声称该 coordinate mismatch 足以解释全部 HOIPrior
+   baseline gap。
+
+2. **只读 authority-CPU 原型证据。** Prototype 只读取 locked split、immutable PLY、
+   `code/bps.pt` 和当前首帧 pose，没有创建 checkpoint、optimizer、CUDA workload 或
+   per-window condition artifact。
+
+   - BPS file SHA-256：
+     `fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042`；
+   - fixed Y-up basis float32 tensor SHA-256：
+     `02b4f8f3510e723174010a823630f663ddda9875ad82a2f8de807d2bdccebd7d`；
+   - raw-versus-Y-up basis/cluster-mean max abs：
+     `1.3970013 / 1.1064382`；
+   - sealed D2-O 64-sequence × 3-window cohort selection SHA-256：
+     `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`；
+   - 192 windows cover all 13 object classes；在共同 global yaw
+     `{-179,-90,-37,53,120,179}` degrees 下，full-mesh local BPS max abs
+     `1.4901161e-7`，其 `[B,16,10]` cluster feature max abs
+     `2.3841858e-7`；
+   - exact query 的 worker-count `1/3/all` 输出逐位一致；
+   - 相同 real-window probe 中，只旋转旧/global BPS 的共同 37-degree yaw max-abs
+     error 平均 `0.6791 m`、最坏 `1.1257 m`；只修 basis 但保留 global delta 的
+     cluster-feature max-abs error 平均 `0.1541`、最坏 `0.5767`；
+   - full-local 与 rotate-old delta 的逐点 L2 差异平均 `0.5958 m`；
+   - 对 192-window cohort 滚动 relative object pose 后，local BPS 逐点 L2 平均改变
+     `0.1691 m`，证明 condition 不是 constant；
+   - batch-grouped exact query 在 authority CPU 上对 192 windows/13 objects、
+     3 query workers 耗时 `1.4742 s`；real DataLoader prototype 保留
+     `batch_size=512,num_workers=4` 时测得约 `308.84 windows/s/rank` 的 condition
+     delivery。该值只用于 wall-time planning；registered worker smoke 必须重新实测。
+
+3. **唯一 manipulated factor 与精确 local-BPS 方程。** D2-AD0 相对 D2-AC0 只修复
+   adapter local geometry 的 coordinate/query contract。Global BPS condition token、
+   232-D state、loss、trunk、adapter 参数、placement、sampler 和 evaluator 全部保持。
+   令固定 axis conversion 为 \(C_{Z\rightarrow Y}\)，raw BPS basis point 为
+   \(b_i^Z\)，则 human-local fixed query 为
+
+   \[
+   b_i^L=C_{Z\rightarrow Y}b_i^Z.
+   \]
+
+   对每个 current window，令 \(W\) 为 current human frame 的 world-to-local rotation，
+   \(R_O\) 为 current/global object rotation reference，immutable Y-up rest-mesh vertex
+   为 \(v_j\)。定义
+
+   \[
+   L_O=WR_O,\qquad
+   j^*(i)=\arg\min_j\lVert L_Ov_j-b_i^L\rVert_2^2,\qquad
+   d_i^L=L_Ov_{j^*(i)}-b_i^L .
+   \]
+
+   实现允许利用旋转保距性把 query 送回 rest-object frame 后做同一 exact nearest-vertex
+   查询，但输出必须与上述定义一致。共同 global yaw \(G\) 下
+   \(W'=WG^{-1},R'_O=GR_O\)，所以 \(W'R'_O=WR_O\)；local BPS 及其
+   component-wise RMS 必须保持不变。
+
+4. **Immutable geometry 与 exact builder contract。** 只读取
+   `data/object/rest_object_geo/*.ply` 的全部原始 vertices；禁止 100-point/1024-point/
+   任何新 mesh subsample、SDF/voxel approximation、mesh encoder、category embedding、
+   train-stat normalization 或 per-window local-BPS file/cache。13-file canonical
+   PLY manifest SHA-256 为
+   `ce8328ef2bf873a79d74fb5fd20cc488551a20d56fe5c5ecabf609824b0654d1`；
+   sorted object mapping 为
+   `[clothesstand,floorlamp,largebox,largetable,monitor,plasticbox,smallbox,smalltable,`
+   `suitcase,trashcan,tripod,whitechair,woodchair]`，mapping SHA-256 为
+   `424fc96102c576a1d11b0824cc0ee616d52cd9e39524819f49b207d1598fe41b`。
+
+   Builder 固定使用 `scipy.spatial.cKDTree.query(k=1,eps=0,p=2)`；tree 只缓存每类
+   immutable rest mesh 的 spatial index，不缓存任何 window condition。Training collate
+   按 object 分组并固定 `local_bps_query_workers=3`，继续使用
+   `num_workers=4`；query worker count 是 48-CPU worker 上的 operational ownership，
+   不是 scientific sweep。Authority/worker 必须记录 SciPy/dependency hash，并验证
+   worker-count 不改变 indices/output。输出固定 float32 `[B,1024,3]`，随后继续使用
+   D2-AC 同一 16-way assignment、cluster identities、cluster sizes 与
+   `[mean basis,mean delta,RMS delta,mean norm]` 10-D statistics。Cluster basis mean
+   改为同一 assignment 上的 \(b_i^L\) mean；assignment 不重新按 Y-up lexicographic
+   seed 派生，仍锁定：
+
+   - centers：
+     `[328,903,503,817,474,1023,382,864,640,431,445,960,547,829,545,756]`；
+   - sizes：
+     `[39,40,57,61,65,68,70,134,77,64,59,79,43,46,84,38]`；
+   - assignment SHA-256：
+     `b62f91f4eb6c4bf2a9211f0187cd1eb97c25394ee45de155f33607959fddeecd`。
+
+5. **Training/rollout causal availability。** Training 只能从 current window 第一帧的
+   human frame \(W\)、current object rotation reference \(R_O\) 和 immutable rest mesh
+   构造 adapter-only local BPS。不得读取 future pose/contact、stored future/per-frame
+   local BPS 或 evaluator statistics。Autoregressive rollout 的第一窗口使用 evaluator
+   已提供的 current history frame；后续窗口必须从 generated two-frame history 建立新的
+   `WindowFrame` 和 generated object reference，再重算 local BPS。Global BPS token 保持
+   D2-X/D2-AC author semantics：第一窗口读取既有 current BPS，后续窗口沿用既有
+   current-generated BPS replay。Local BPS 只送入 interaction adapter，不能进入 global
+   BPS encoder、loss、evaluator threshold、HSIPrior 或 Mixer。
+
+6. **Architecture 与 parameter lock。** 新 checkpoint variant 固定为
+   `d2ad_local_frame_interaction_adapter`。它复用 D2-AC：
+
+   - 512-wide、16-head、8-layer trunk；
+   - 4 condition tokens、16 motion tokens；
+   - layer 4 后、layer 5 前的单个 adapter；
+   - 16 object tokens、3 roles、128 adapter width、4 attention heads、dropout 0；
+   - `10→128→128` object encoder、`512→128` query、`384→512` writeback；
+   - single scalar `tanh(alpha)` ReZero gate，alpha 严格从 0 初始化；
+   - exact adapter/base/total parameters
+     `349,697 / 29,673,448 / 30,023,145`，增量 `1.1785% <=1.25%`。
+
+   不改变 role query、token 数、width/depth/placement、global BPS token 或任何 parameter。
+   D2-AD0 全部矩阵、embedding、gate 以 seed 42 从随机初始化；不得加载 released、author、
+   D2-V/X/Y/Z/AB/AC、prior、EMA、consistency 或任何 weight-init/resume checkpoint。
+   D2-AC checkpoint schema 必须被 D2-AD loader 拒绝，反之亦然。
+
+7. **保持不变的 optimization contract。** Fixed split 仍为
+   `experiments/splits/omomo_hoi_train_validation_seed42.json`，SHA-256
+   `019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e`。
+   D2-AD0 只在 `infbagel-4gpu/node01`、4×RTX 3090 上训练；per-GPU batch 512、
+   effective batch 2,048、accumulation 1；总预算
+   `61,440,000 windows / 983,040,000 frames / 30,000 updates`。Optimizer 仍为
+   FP32 Adam、LR `1e-4`、betas `(0.9,0.999)`、weight decay 0、无 warmup/scheduler、
+   AMP、gradient clipping、EMA；primary 为 fixed final-online。FK/object-surface/
+   velocity/terminal-goal weights 仍为
+   `0.3569973401779424 / 0.4772322188400037 / 0.1 / 1.0`；D2-X FK-foot routing
+   enabled，D2-AB support objective disabled。Formal run 必须从随机初始化持续完整预算，
+   不人为 pause、不选择中间 checkpoint。
+
+8. **Authority CPU fail-fast contract。** 任何 GPU 前必须以 authority Python 完成并归档：
+
+   - BPS、Y-up basis tensor、split、13 PLY、mapping 与 assignment hashes；
+   - raw-to-Y-up conversion、same assignment/cluster sizes、`[B,1024,3]` local BPS 与
+     `[B,16,10]` features 的 shape/dtype/finiteness；
+   - sealed 64×3 cohort、上述 6 yaw 的 local-BPS max abs `<=1e-6`，cluster-feature
+     max abs `<=1e-6`；
+   - query workers `1/3/all` indices/output exact parity；
+   - repeated-call determinism、batch ordering、all 13 object coverage、relative-pose
+     sensitivity、zero/constant/extreme input finiteness；
+   - dataset-collate 与 evaluation helper exact parity；
+   - first training window current-pose parity，以及 generated-history rollout 不读取
+     future GT/stored local BPS 的 static and runtime audit；
+   - exact parameter count、`[B,16,232]` output、alpha-zero shared-trunk parity
+     `<=1e-6`；
+   - initial alpha gradient finite/nonzero；test-only `tanh(alpha)=0.1` probe 下
+     object encoder/identity/query/QKV/out/writeback gradients finite/nonzero，probe
+     不保存、不训练；
+   - local correspondence permutation causal effect、role separation、dtype/device/
+     batch propagation；
+   - base/D2-AC/D2-AD checkpoint provenance rejection；
+   - HSIPrior parameter/storage/forward unchanged；Mixer 只消费 clean
+     `[B,16,232]` output；
+   - static scan 无 future GT、stored per-window local BPS、mesh subsample、evaluator
+     threshold/helper、new loss/guidance 进入 D2-AD model path。
+
+   任一失败在 CUDA 前分类并停止：
+   `local-frame-interaction-adapter-contract-failure-stop`。
+
+9. **Registered GPU smoke。** Implementation lifecycle 必须按真实日期绑定未使用 id。
+   Smoke 只在 worker `cuda:0`，real-data batch 8、timesteps `0/249/499`、random init、
+   no optimizer/update/checkpoint load/write；必须使用与 formal training 相同 exact
+   full-mesh collator，记录 local-BPS construction wall time、initial model/local-BPS
+   hashes、coordinate contract replay、alpha gradient、test-only nonzero-gate adapter
+   gradients、CUDA-synchronized peak allocated/reserved/headroom、四卡 visibility/
+   contention。Cross-attention score shape/element count不变；formal throughput/ETA 以
+   实测为准，不以 authority CPU prototype 代替。
+
+10. **Fixed internal causal diagnostic。** Training 完成后只加载 D2-AD0 fixed
+    final-online checkpoint，在 sealed D2-O 64×3 cohort、phase offsets
+    `(14,56,98)`、selection SHA-256
+    `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`
+    上运行与 D2-AC 相同的三条 paired 500-step rollout：
+
+    - `full`；
+    - `gate_ablated`：每一步强制 `tanh(alpha)=0`；
+    - `local_correspondence_permuted`：只将 human-local cluster delta statistics
+      `k<-(k+8) mod 16`，保留 local basis mean、learned object identity、global BPS
+      与其余 condition。
+
+    三条 path 共享 initial latent、每步 posterior noise、condition、window ordering 与
+    history restoration。指标、sequence-unit seed-42 10,000 bootstrap、attention entropy
+    appendix 和 primary mechanism/locality gates 与 D2-AC 完全相同；official test 禁止，
+    no optimizer/update/checkpoint write/selection。Primary gate 仍要求：
+
+    - full minus ablated direct-hand union 5-cm physical-contact F1 CI lower `>0`；
+    - full minus permuted 同一 F1 CI lower `>0`；
+    - ablated minus full GT-contact-frame hand-object distance CI lower `>0`；
+    - permuted minus full 同一 distance CI lower `>0`。
+
+11. **Fixed native evaluation 与 gates。** 无论 internal 正负，都必须执行一次与 sealed
+    D2-X/D2-AC protocol-identical 的 official 438 sequences × 3 windows、500-step、
+    unguided production evaluation；只改变 target run/checkpoint/architecture identity 和
+    adapter-only local-BPS construction。Official evaluator、metric keys、181-sequence
+    penetration finite mask、bootstrap seed/replicates 不得调整。Sealed D2-X checkpoint/
+    aggregate/per-sequence hashes仍为
+    `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+    `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+    `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`，
+    不重新生成。Released aggregate hash 仍为
+    `76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`。
+
+    Selection gates 完全复用 D2-AC：
+
+    - D2-AD minus D2-X contact F1 与 recall paired CI lower 均 `>0`；
+    - contact-F1 released-gap closure `>=0.25`，对应 point estimate 最低约
+      `0.6598838781`；
+    - end-object、Txy、FS、Pbody、hand penetration、MPJPE、Troot、Tobj、Oobj
+      paired mean-ratio CI upper 全部 `<=1.10`；
+    - contact precision difference CI lower `>=-0.02`，penetration finite-mask
+      contract 通过；
+    - released 95% point-effectiveness gate 保持原 lower/higher-is-better 公式。
+
+    Native output 还必须以 sealed artifacts 对 D2-AC0 作相同 sequence-paired、仅描述性
+    comparison，以量化 coordinate repair 相对唯一前驱的改变；该 secondary comparison 不
+    参与 checkpoint selection，不触发额外 generation。FID/Matching/R-Precision/Diversity/
+    timing 若 evaluator 生成必须原样保留和报告，FID/R-Precision 不参与 selection。
+
+12. **分类、授权边界与 lifecycle。** Classification precedence 固定为：
+
+    - contract failure：
+      `local-frame-interaction-adapter-contract-failure-stop`；
+    - adapter unused：
+      `local-frame-interaction-adapter-unused-optimization-negative-stop`；
+    - locality negative：
+      `local-frame-interaction-adapter-locality-negative-stop`；
+    - native transfer negative：
+      `local-frame-interaction-adapter-transfer-negative-stop`；
+    - protection conflict：
+      `local-frame-interaction-adapter-conflict-negative-stop`；
+    - mechanism/transfer/protection 通过但 released-95% 失败：
+      `local-frame-interaction-adapter-positive-but-not-effective-stop`；
+    - 全部通过：
+      `local-frame-interaction-adapter-positive-candidate-stop`。
+
+    只有最后一类允许把 fixed final-online checkpoint 标为 selectable autonomous
+    HOIPrior candidate；不得选择中间 checkpoint。D2-AD0 没有自动 longer-budget
+    extension 或 fallback；任何 D2-AD1、budget/LR/token/width/depth/placement/role/
+    query-worker scientific sweep、新 loss、SNR weighting、gradient projection、
+    rollout exposure、CFG/guidance、consistency、HSIPrior 或 Mixer 都需新的 dated plan、
+    append-only registry 和用户再次明确确认。
+
+    用户已授权在上述固定 D2-AD0 范围内连续完成 implementation、CPU tests、worker
+    publication、registered smoke、from-random full training、fixed internal/native
+    evaluation、artifact recovery、compact result、phase summary 与 completion record。
+    本 plan-only commit 不改 source、不创建 lifecycle run、不启动 CPU contract/GPU/
+    training/evaluation；implementation session 必须先重新读取真实 date，并以未使用的
+    dated lifecycle ids 写 implementation binding amendment。跨日的尚未启动 lifecycle
+    必须在 workload 前 append identity-only amendment，绝不复用或覆盖 id。
+
+13. **Artifact 与 closure。** 必须保留/hash verify resolved configs、authority CPU logs、
+    PLY/BPS/mapping manifests、worker preflight、smoke manifest/log/metrics、formal
+    training manifest/log/state、all cadence checkpoints/per-rank RNG、initial/final model
+    hashes、local-BPS construction throughput、wall time/ETA、internal full/ablated/permuted
+    artifacts、paired-noise/attention appendix、native aggregate/per-sequence/bootstrap/
+    penetration mask/optional metrics、run-local registry、dependency/hardware/data/evaluator
+    hashes、complete recovered tree、compact result、
+    `docs/phase_summaries/PHASE_1B_D2AD.md` 和全部 operational/scientific failures。
+    大 artifact 不进入 Git。Logical implementation commit 必须同时含 source、config、
+    tests、dated implementation amendment、registry binding 与必要 documentation。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
