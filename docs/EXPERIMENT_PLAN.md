@@ -4241,6 +4241,41 @@ contract diagnostic 为 `cpu-contract-passed`，manifest/metrics SHA-256 分别�
 interaction-adapter contract 可进入 worker publication；它没有创建 optimizer、执行 CUDA、
 加载/写入 checkpoint 或进行 scientific selection。
 
+#### 2026-07-27 Phase 1B D2-AC0 post-training evaluation lifecycle date-transition amendment
+
+D2-AC0 formal training lifecycle 已于注册日期 `2026-07-26` 使用
+`p1-hoi-d2ac-interaction-adapter-s42-20260726` 启动，并在 clean worker commit
+`273e6d7e693f6664b3cd9d0c45b31b6b20c58496` 上完成固定的 61,440,000-window /
+983,040,000-frame / 30,000-update from-random contract。训练 exit code 为 0；fixed
+final-online checkpoint SHA-256 为
+`fede1c2b2f331407ceba7db16e3a4b30ccc6ffb6c8fc252861662bdcc96c7b96`。完整 immutable
+training tree 已由 worker 主动回收到 authority
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-interaction-adapter-s42-20260726`，worker 与
+authority canonical tree SHA-256 均为
+`d3784f0b01b8762ab1e6dcc7b0343ef2aa2147c1ca9672f516ae2f672cd92d98`
+（115 files / 7,211,816,400 bytes）。
+
+在真实日期 `2026-07-27` 核验时，authority 与 worker 均为 clean
+`phase/01b-hoi@273e6d7e693f6664b3cd9d0c45b31b6b20c58496`；原绑定的 internal/native
+identities 尚未创建 manifest、加载 checkpoint 或启动 workload。依照既有 date-transition
+rule，只允许以下 identity-only replacement：
+
+1. internal diagnostic 改为
+   `p1-hoi-d2ac-interaction-adapter-internal-s42-20260727`，subphase 保持
+   `1B-D2-AC0-internal`；
+2. native evaluation 改为 `p1-hoi-d2ac-native-eval-s42-20260727`，subphase 保持
+   `1B-D2-AC0-native`；
+3. 未使用的 `p1-hoi-d2ac-interaction-adapter-internal-s42-20260726` 与
+   `p1-hoi-d2ac-native-eval-s42-20260726` 在任何 workload 前 supersede，永不创建、复用或
+   绑定 checkpoint；这不是 scientific/operational failure，也不产生 retry entitlement。
+
+本 amendment 不改变 training run/checkpoint、seed 42、sealed D2-O 64×3 cohort、三路 paired
+500-step rollout、10,000 次 sequence bootstrap、primary causal/locality gates、official
+438×3 evaluator、sealed D2-X/released controls、penetration finite mask、native
+transfer/protection/released-95% gates、classification 或 artifact contract。Internal 完成后仍
+必须无条件执行一次 fixed native evaluation。D2-AC1、checkpoint selection、consistency、
+HSIPrior、Mixer、任何 sweep 或新机制仍未授权。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
