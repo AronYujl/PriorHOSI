@@ -58,6 +58,9 @@ from tools.run_hoi_d2ac_internal import (  # noqa: E402
 )
 from tools.run_hoi_d2ac_native_evaluation import (  # noqa: E402
     INTERNAL_RUN_ID_RE as NATIVE_INTERNAL_RUN_ID_RE,
+    PER_SEQUENCE_KEYS,
+    RUN_ID_RE as NATIVE_RUN_ID_RE,
+    _metric_array as native_metric_array,
 )
 
 
@@ -353,6 +356,79 @@ class D2ACDiagnosticMetricTests(unittest.TestCase):
         )
         self.assertIsNotNone(INTERNAL_RUN_ID_RE.fullmatch(retry2))
         self.assertIsNotNone(NATIVE_INTERNAL_RUN_ID_RE.fullmatch(retry2))
+
+    def test_native_retry_uses_official_serialized_metric_keys(self):
+        retry = "p1-hoi-d2ac-native-eval-r1-s42-20260727"
+        self.assertIsNotNone(NATIVE_RUN_ID_RE.fullmatch(retry))
+        self.assertEqual(PER_SEQUENCE_KEYS["trans_dist"], "trans_dist")
+        self.assertEqual(PER_SEQUENCE_KEYS["obj_trans_dist"], "obj_trans_dist")
+        self.assertEqual(PER_SEQUENCE_KEYS["obj_rot_dist"], "obj_rot_dist")
+        self.assertEqual(
+            PER_SEQUENCE_KEYS["hand_pen_loss_omomo"],
+            "hand_pen_loss_omomo",
+        )
+        self.assertEqual(
+            PER_SEQUENCE_KEYS["human_pen_loss_infbagel"],
+            "human_pen_loss_infbagel",
+        )
+        records = {
+            "a": {
+                "trans_dist": 1.0,
+                "obj_trans_dist": 2.0,
+                "obj_rot_dist": 3.0,
+                "hand_pen_loss_omomo": 0.1,
+                "human_pen_loss_infbagel": 1.0,
+            },
+            "b": {
+                "trans_dist": 4.0,
+                "obj_trans_dist": 5.0,
+                "obj_rot_dist": 6.0,
+                "hand_pen_loss_omomo": 0.2,
+                "human_pen_loss_infbagel": 2.0,
+            },
+        }
+        self.assertEqual(
+            native_metric_array(records, "trans_dist").tolist(),
+            [1.0, 4.0],
+        )
+        self.assertEqual(
+            native_metric_array(records, "obj_trans_dist").tolist(),
+            [2.0, 5.0],
+        )
+        self.assertEqual(
+            native_metric_array(records, "obj_rot_dist").tolist(),
+            [3.0, 6.0],
+        )
+        self.assertEqual(
+            native_metric_array(records, "hand_pen_loss_omomo").tolist(),
+            [0.1, 0.2],
+        )
+        self.assertEqual(
+            native_metric_array(records, "human_pen_loss_infbagel").tolist(),
+            [1.0, 2.0],
+        )
+        with self.assertRaisesRegex(ValueError, "missing/nonfinite"):
+            native_metric_array(
+                {"a": {"trans_dist": float("nan")}},
+                "trans_dist",
+            )
+
+    def test_native_field_parity_does_not_change_locked_evaluator_sources(self):
+        locked = {
+            "code/test_infbagel_hoi.py":
+                "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+            "code/eval_metrics.py":
+                "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+            "code/config/config_eval_hoi_prior.yaml":
+                "89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73",
+            "tools/run_hoi_d2x_evaluation.py":
+                "b6753a66207492e6ee4addb8f450cb38c5d021401d43430faa9e5c9ed77c6e31",
+            "code/priors/interaction_diagnostic.py":
+                "e9a0157f80695469a53a5333b20685cb3c66d042b0ccd621b86164238764bcc5",
+        }
+        for relative, expected in locked.items():
+            actual = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+            self.assertEqual(actual, expected, relative)
 
     def test_positive_penetration_ratio_preserves_locked_ratio_fields(self):
         numerator = [0.1, 0.2, 0.3]

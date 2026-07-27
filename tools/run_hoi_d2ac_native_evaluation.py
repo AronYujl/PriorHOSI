@@ -32,7 +32,9 @@ _shared_resolved_config = shared.resolved_config
 
 
 SUBPHASE = "1B-D2-AC0-native"
-RUN_ID_RE = re.compile(r"^p1-hoi-d2ac-native-eval-s42-[0-9]{8}$")
+RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ac-native-eval(?:-r[1-9][0-9]*)?-s42-[0-9]{8}$"
+)
 TRAINING_RUN_ID = "p1-hoi-d2ac-interaction-adapter-s42-20260726"
 INTERNAL_RUN_ID_RE = re.compile(
     r"^p1-hoi-d2ac-interaction-adapter-internal(?:-r[1-9][0-9]*)?-s42-[0-9]{8}$"
@@ -60,12 +62,12 @@ PER_SEQUENCE_KEYS = {
     "end_obj_trans_err": "end_obj_trans_err",
     "xy_points_err": "pelvis_goal_error_cm",
     "foot_sliding": "foot_sliding",
-    "human_pen_loss_infbagel": "human_object_penetration",
-    "hand_pen_loss_omomo": "hand_object_penetration",
+    "human_pen_loss_infbagel": "human_pen_loss_infbagel",
+    "hand_pen_loss_omomo": "hand_pen_loss_omomo",
     "mpjpe": "mpjpe",
-    "trans_dist": "translation_difference",
-    "obj_trans_dist": "object_translation_difference",
-    "obj_rot_dist": "object_rotation_difference",
+    "trans_dist": "trans_dist",
+    "obj_trans_dist": "obj_trans_dist",
+    "obj_rot_dist": "obj_rot_dist",
     "contact_precision": "contact_precision",
     "contact_recall": "contact_recall",
     "contact_f1": "contact_f1",

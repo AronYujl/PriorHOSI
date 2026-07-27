@@ -4438,6 +4438,54 @@ closure：
 若 native r1 仍 contract-fail，则封存并停止，不得继续 retry、修改 evaluator/mask/gate、
 选择 checkpoint、启动 D2-AC1/consistency、HSIPrior、Mixer 或任何新 HOIPrior 搜索。
 
+#### 2026-07-27 Phase 1B D2-AC0 native serialized-field parity scope correction
+
+在上述 plan-only amendment 后、worker publication 或 native r1 启动前，authority 使用失败
+attempt 已回收的 immutable 438-sequence target records 与 sealed D2-X records 对修正后的
+paired-summary 做了只读 replay。Troot/Tobj/Oobj 已能完整计算，但 penetration mask contract
+显示 0 finite sequences。原始 records 的
+`hand_pen_loss_omomo` / `human_pen_loss_infbagel` 实际仍为两侧相同的 181 finite
+sequences；0-mask 同样来自 `PER_SEQUENCE_KEYS` 中不存在的
+`hand_object_penetration` / `human_object_penetration` aliases。
+
+因此 native field-parity fix 的完整范围校正为五个、且仅五个 official serialized short-key
+identity mappings：
+
+- `trans_dist -> trans_dist`；
+- `obj_trans_dist -> obj_trans_dist`；
+- `obj_rot_dist -> obj_rot_dist`；
+- `hand_pen_loss_omomo -> hand_pen_loss_omomo`；
+- `human_pen_loss_infbagel -> human_pen_loss_infbagel`。
+
+回归测试必须同时锁定五个 mappings、真实 missing/non-finite fail-closed behavior 与 sealed
+181-sequence penetration mask replay。该 scope correction 不改变 SDF/evaluator formulas、
+excluded categories、finite mask、paired statistics、native gates、retry identity 或从头重跑
+要求；前一 amendment 中“其他 key mapping 不变”应解释为除这五个已证实 alias defect 外
+全部不变。若五-key replay 不能通过完整 comparison contract，则不得发布 worker 或启动
+native r1。
+
+Authority implementation closure 在 plan-only commit
+`376950ea03652306e448bd8c7e7f27362860dd54` 后完成。D2-AC wrapper 只将五个 confirmed
+aliases 改为 official short-key identity mappings，并只扩展 lifecycle regex 以接受已登记的
+`p1-hoi-d2ac-native-eval-r1-s42-20260727`；没有改变 official evaluator、shared D2-X
+wrapper、internal diagnostic、paired statistics 或 gate code。修正后 native wrapper 与
+D2-AC tests SHA-256 分别为
+`04b49c17602d13da2f45f2ae47dba191c4a21a5e914ada560994cdde3c0c827c` /
+`1c51204f5f8140d95bc5a1abbd5e76cab4812759b349c8e3211385c2707a2c3f`。
+
+Authority targeted D2-AC tests 为 25 passed，full suite 为 335 passed，registry validation
+为 180 records valid，`py_compile` 与 `git diff --check` 通过；full-suite log SHA-256 为
+`528c707aa2413a23e007dc92580c954cf4832cf5dba7dc0d5bd452ae49264619`。对失败 native
+attempt 的 immutable raw records 做只读 replay 后，全部 9 个 protection ratios 与三条
+contact paired differences 均成功产生，penetration contract 恢复为精确 181 sequences /
+`2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec`，没有写回 artifact
+或用于正式 selection。Locked source SHA-256 仍为：official test
+`22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524`、eval metrics
+`445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547`、eval config
+`89c702d96b98289924225c4b163d3b29eb22efe27c50ac799ddd0c71c515aa73`、shared D2-X
+wrapper `b6753a66207492e6ee4addb8f450cb38c5d021401d43430faa9e5c9ed77c6e31`、internal
+diagnostic `e9a0157f80695469a53a5333b20685cb3c66d042b0ccd621b86164238764bcc5`。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
