@@ -133,9 +133,12 @@ class D2ACModelTests(unittest.TestCase):
         )
         self.assertEqual(float(model.network.interaction_adapter.alpha), 0.0)
         self.assertEqual(
-            list(inspect.signature(HOIPrior.forward).parameters),
+            list(inspect.signature(HOIPrior.forward).parameters)[:7],
             ["self", "noisy", "timesteps", "text_embedding", "object_bps", "goals", "progress"],
         )
+        local = inspect.signature(HOIPrior.forward).parameters["local_object_bps"]
+        self.assertEqual(local.kind, inspect.Parameter.KEYWORD_ONLY)
+        self.assertIsNone(local.default)
         output = model(*self.inputs(batch=2))
         self.assertEqual(tuple(output.shape), (2, 16, 232))
 

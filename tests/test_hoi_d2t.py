@@ -40,11 +40,11 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     "code/priors/representation.py": "a510b4ddfb4f6b60e3917219a87898a717d91cbfb858d0993f3e054b5a1abf74",
     "code/priors/window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
     "code/priors/data.py": "62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5",
-    # D2-AC extends the shared model module behind an explicit architecture
-    # variant; tests.test_hoi_d2ac separately locks exact base-path parity.
-    "code/priors/models.py": "e3a5af3b19500e8ab89a0041c903114dbcab86ab1393aecbaa56704909e558f0",
+    # D2-AC/D2-AD extend the shared model module behind explicit architecture
+    # variants; targeted tests lock exact base-path and parameter parity.
+    "code/priors/models.py": "0c783d50e023ae43ff42e2bebf79c756c24589baf98dfc0a9de353906fb38559",
     "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
-    "code/priors/diffusion.py": "f006c89758807f4d23059f5d97e0b673dbd0d867f4f2859b832fcf37ac1e901a",
+    "code/priors/diffusion.py": "e264ca65aacaf944e447ec41c56c23105888f87c35bc45490ef9a1a3f2006406",
 }
 
 

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import time
+from pathlib import Path
 from typing import Dict, Optional
 
 import torch
@@ -162,6 +165,7 @@ class GaussianDiffusion(nn.Module):
         goals: torch.Tensor,
         progress: torch.Tensor,
         *,
+        local_object_bps: Optional[torch.Tensor] = None,
         generator: Optional[torch.Generator] = None,
         paired_repeats: int = 1,
         object_so3_x0: bool = False,
@@ -177,7 +181,20 @@ class GaussianDiffusion(nn.Module):
         current[:, :REPRESENTATION.history_frames] = fixed_history
         for step in reversed(range(self.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=current.device)
-            clean = model(current, timesteps, text_embedding, object_bps, goals, progress)
+            if local_object_bps is None:
+                clean = model(
+                    current, timesteps, text_embedding, object_bps, goals, progress,
+                )
+            else:
+                clean = model(
+                    current,
+                    timesteps,
+                    text_embedding,
+                    object_bps,
+                    goals,
+                    progress,
+                    local_object_bps=local_object_bps,
+                )
             clean = prepare_clean_x0(
                 clean, fixed_history, object_so3_x0=object_so3_x0,
             )
@@ -222,18 +239,35 @@ class HOIPriorSampler:
             "object_outside_count": 0,
         }
         self.sample_calls = 0
+        self.local_bps_builder = None
+        self.local_bps_build_seconds = 0.0
+        self.local_bps_build_calls = 0
+        self.local_bps_digest = hashlib.sha256()
 
     def reset_sampling_audit(self) -> None:
         """Exclude evaluator warmup calls from deterministic samples and audits."""
         for key in self.audit:
             self.audit[key] = 0
         self.sample_calls = 0
+        self.local_bps_build_seconds = 0.0
+        self.local_bps_build_calls = 0
+        self.local_bps_digest = hashlib.sha256()
 
     def set_dataset_and_model(self, dataset, model: nn.Module) -> None:
         if getattr(dataset, "load_scene", None):
             raise ValueError("HOIPrior evaluation dataset must have load_scene=false")
         self.dataset = dataset
         self.student_model = model
+        if getattr(model, "architecture_variant", None) == (
+            "d2ad_local_frame_interaction_adapter"
+        ):
+            from .d2ad import DEFAULT_QUERY_WORKERS, LocalObjectBPSBuilder
+            self.local_bps_builder = LocalObjectBPSBuilder(
+                Path(__file__).resolve().parents[2],
+                query_workers=DEFAULT_QUERY_WORKERS,
+            )
+        else:
+            self.local_bps_builder = None
 
     @torch.no_grad()
     def p_sample_loop(
@@ -242,8 +276,8 @@ class HOIPriorSampler:
         obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict,
         obj_rot_mat_prefix=None, object_only=False,
     ):
-        del mat, scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
-        del is_loco, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict
+        del scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
+        del is_loco, object_points, obj_rest_verts
         del obj_rot_mat_prefix, object_only
         batch = fixed_points.shape[0]
         if not bool(torch.as_tensor(is_object).all()):
@@ -258,6 +292,20 @@ class HOIPriorSampler:
         goals[:, 6:9] = normalized_goal
         raw_progress = torch.stack((pi.reshape(-1), end_pi.reshape(-1), seq_length.reshape(-1)), dim=-1).float()
         progress = normalize_progress(raw_progress)
+        local_bps = None
+        if self.local_bps_builder is not None:
+            names = [str(seq_name_dict[index]) for index in range(batch)]
+            started = time.perf_counter()
+            local_bps = self.local_bps_builder.build_from_evaluator_inputs(
+                mat,
+                obj_rot_mat_ref,
+                names,
+            ).to(device=self.device, dtype=torch.float32)
+            self.local_bps_build_seconds += time.perf_counter() - started
+            self.local_bps_build_calls += 1
+            self.local_bps_digest.update(
+                local_bps.detach().cpu().contiguous().numpy().tobytes()
+            )
         generator = torch.Generator(device=self.device)
         generator.manual_seed((int(torch.initial_seed()) + self.sample_calls * 1000003) % (2 ** 63 - 1))
         self.sample_calls += 1
@@ -268,6 +316,7 @@ class HOIPriorSampler:
             bps,
             goals,
             progress,
+            local_object_bps=local_bps,
             generator=generator,
             object_so3_x0=self.object_so3_x0,
         )
@@ -297,5 +346,11 @@ class HOIPriorSampler:
         value["object_outside_rate"] = (
             self.audit["object_outside_count"] / self.audit["object_values"]
             if self.audit["object_values"] else None
+        )
+        value["local_bps_build_calls"] = self.local_bps_build_calls
+        value["local_bps_build_seconds"] = self.local_bps_build_seconds
+        value["local_bps_sha256"] = (
+            self.local_bps_digest.hexdigest()
+            if self.local_bps_build_calls else None
         )
         return value

@@ -2,7 +2,8 @@
 
 状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AC 尚未形成 selectable HOIPrior；
 D2-AC0 已完成并分类为 `interaction-adapter-locality-negative-stop`，checkpoint 不可选择，
-D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已预注册但尚未实现；
+D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已预注册并进入
+固定 implementation/CPU contract 阶段，尚未启动 worker CUDA、training 或 evaluation；
 Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
@@ -4855,6 +4856,94 @@ worktree 在修改前 clean。
     `docs/phase_summaries/PHASE_1B_D2AD.md` 和全部 operational/scientific failures。
     大 artifact 不进入 Git。Logical implementation commit 必须同时含 source、config、
     tests、dated implementation amendment、registry binding 与必要 documentation。
+
+#### 2026-07-27 Phase 1B D2-AD0 implementation/lifecycle binding amendment
+
+Authority 在 plan-only commit
+`ccc023f44056a056131c730ff39a2dfae447505b`、clean `phase/01b-hoi` 和真实日期
+`2026-07-27` 上进入已授权的 D2-AD0 implementation。以下 identities 在创建本
+amendment 前均未使用：
+
+- implementation logical change：
+  `p1-hoi-d2ad-local-frame-interaction-adapter-implementation-s42-20260727`；
+- authority CPU contract：
+  `p1-hoi-d2ad-cpu-contract-s42-20260727`；
+- registered GPU smoke：
+  `p1-hoi-d2ad-gpu-smoke-s42-20260727`；
+- formal from-random training：
+  `p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260727`；
+- fixed internal diagnostic：
+  `p1-hoi-d2ad-local-frame-interaction-adapter-internal-s42-20260727`；
+- fixed native evaluation：
+  `p1-hoi-d2ad-native-eval-s42-20260727`。
+
+Implementation logical commit 必须包含 source、config、tests、本 amendment、registry
+binding 和必要 documentation；在该 committed Git object 通过 authority CPU contract 前
+不得发布 worker 或启动 CUDA。若任一尚未启动 lifecycle 跨到新的真实日期，必须先追加
+identity-only date-transition amendment 并 supersede 旧 identity；不得创建、复用或覆盖旧
+run directory。Scope、single manipulated factor、training budget、random-init provenance、
+internal/native gates 和所有 forbidden items 完全继承 D2-AD0 plan-only preregistration。
+D2-AD1、checkpoint selection、consistency、HSIPrior 与 Mixer 仍未授权。
+
+#### 2026-07-27 Phase 1B D2-AD0 implementation pre-CUDA verification
+
+在进入正式 authority CPU lifecycle 前，D2-AD0 implementation 已完成并保持
+single-factor scope。提交内容包括 local-frame full-mesh builder、D2-AD architecture/config、
+training/sampler wiring、fixed internal/native wrappers、CPU tests、registry binding 与本
+dated amendment；没有启动 worker publication、CUDA、optimizer、training、checkpoint
+load/write、internal/native evaluation 或 selection。
+
+Authority verification 使用指定 `infbagel` Python 完成：
+
+- targeted D2-AD + D2-AC：42 tests passed；
+- full CPU suite：352 tests passed；
+- `tools/experiment.py validate`：192 registry records、2 splits、2 evaluators、
+  1 training protocol valid；
+- `py_compile`、`git diff --check` 与 internal/native `--resolve-only` 均通过；
+- read-only CPU contract prototype 通过 sealed D2-O 64-sequence × 3-window cohort
+  （selection SHA-256
+  `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`）：13/13 object classes、six common-yaw
+  checks、query workers 1/3/all、repeated/batch-order determinism、training/evaluator
+  parity、generated-history recomputation、parameter/gradient/provenance/static gates；
+  local-BPS 与 `[B,16,10]` feature common-yaw max abs 分别为
+  `1.1920928955078125e-7` 与 `2.384185791015625e-7`。
+
+该 prototype 未使用 official test、未创建 checkpoint/optimizer、未写入 lifecycle
+artifact，也不替代后续正式 CPU manifest。任何正式 GPU workload 仍须在 committed clean
+object、same-context preflight 与 registered smoke 通过后才可开始。
+
+#### 2026-07-28 Phase 1B D2-AD0 unstarted lifecycle date-transition amendment
+
+真实日期已跨至 `2026-07-28`。07-27 implementation identity
+`p1-hoi-d2ad-local-frame-interaction-adapter-implementation-s42-20260727`
+继续记录实际 implementation-start，不改名也不覆盖。跨日前尚未启动的 authority CPU、
+GPU smoke、formal training、internal 与 native lifecycle 均未创建 manifest、run directory
+或 workload，因此按既定 date-transition rule 将以下旧 identity 标为 superseded：
+
+- `p1-hoi-d2ad-cpu-contract-s42-20260727`；
+- `p1-hoi-d2ad-gpu-smoke-s42-20260727`；
+- `p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260727`；
+- `p1-hoi-d2ad-local-frame-interaction-adapter-internal-s42-20260727`；
+- `p1-hoi-d2ad-native-eval-s42-20260727`。
+
+后续唯一有效且此前未使用的 lifecycle identities 为：
+
+- authority CPU contract：
+  `p1-hoi-d2ad-cpu-contract-s42-20260728`；
+- registered GPU smoke：
+  `p1-hoi-d2ad-gpu-smoke-s42-20260728`；
+- formal from-random training：
+  `p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260728`；
+- fixed internal diagnostic：
+  `p1-hoi-d2ad-local-frame-interaction-adapter-internal-s42-20260728`；
+- fixed native evaluation：
+  `p1-hoi-d2ad-native-eval-s42-20260728`。
+
+本 amendment 只改变未启动 lifecycle 的日期 identity。D2-AD0 的 single manipulated
+factor、source implementation、random initialization、training budget、loss/optimizer、
+internal/native evaluator、gates、classification precedence、artifact contract 与全部
+forbidden items 均不变；不授权 D2-AD1、checkpoint selection、consistency、HSIPrior、
+Mixer 或任何 sweep。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 

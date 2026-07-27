@@ -37,6 +37,11 @@ ADAPTER_DIMENSION = 128
 ADAPTER_PARAMETER_COUNT = 349_697
 BASE_PARAMETER_COUNT_512 = 29_673_448
 TOTAL_PARAMETER_COUNT_512 = 30_023_145
+LEGACY_BASIS_COORDINATE_SYSTEM = "raw_z_up_global_query"
+LOCAL_BASIS_COORDINATE_SYSTEM = "human_window_local_y_up"
+LOCAL_BASIS_TENSOR_SHA256 = (
+    "02b4f8f3510e723174010a823630f663ddda9875ad82a2f8de807d2bdccebd7d"
+)
 
 
 def _sha256_file(path: Path) -> str:
@@ -45,6 +50,18 @@ def _sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _tensor_sha256(value: torch.Tensor) -> str:
+    return hashlib.sha256(
+        value.detach().cpu().contiguous().numpy().tobytes()
+    ).hexdigest()
+
+
+def _zup_to_yup(value: torch.Tensor) -> torch.Tensor:
+    converted = value[..., (0, 2, 1)].clone()
+    converted[..., 2] *= -1.0
+    return converted
 
 
 def _canonical_assignment_payload(centers: Tuple[int, ...], assignment: np.ndarray) -> Dict[str, object]:
@@ -218,16 +235,37 @@ class LocalObjectInteractionAdapter(nn.Module):
         dim_model: int = 512,
         *,
         bps_path: Optional[str | Path] = None,
+        basis_coordinate_system: str = LEGACY_BASIS_COORDINATE_SYSTEM,
     ) -> None:
         super().__init__()
         if dim_model != 512:
             raise ValueError("D2-AC is locked to a 512-wide HOIPrior trunk")
         basis, assignment, basis_means, cluster_sizes, metadata = load_bps_partition(bps_path)
+        if basis_coordinate_system == LOCAL_BASIS_COORDINATE_SYSTEM:
+            basis = _zup_to_yup(basis).contiguous()
+            if _tensor_sha256(basis) != LOCAL_BASIS_TENSOR_SHA256:
+                raise ValueError("D2-AD Y-up BPS basis tensor hash mismatch")
+            basis_means = torch.stack(
+                [
+                    basis[assignment == index].mean(dim=0)
+                    for index in range(LOCAL_TOKEN_COUNT)
+                ],
+                dim=0,
+            )
+        elif basis_coordinate_system != LEGACY_BASIS_COORDINATE_SYSTEM:
+            raise ValueError(
+                f"unknown interaction-adapter basis coordinate system: {basis_coordinate_system}"
+            )
         self.register_buffer("bps_basis", basis, persistent=False)
         self.register_buffer("cluster_assignment", assignment, persistent=False)
         self.register_buffer("cluster_basis_means", basis_means, persistent=False)
         self.register_buffer("cluster_sizes", cluster_sizes, persistent=False)
-        self.partition_metadata = metadata
+        self.partition_metadata = {
+            **metadata,
+            "basis_coordinate_system": basis_coordinate_system,
+            "basis_tensor_sha256": _tensor_sha256(basis),
+        }
+        self.basis_coordinate_system = basis_coordinate_system
 
         self.object_encoder = nn.Sequential(
             nn.Linear(LOCAL_FEATURE_DIMENSION, ADAPTER_DIMENSION),

@@ -12,13 +12,22 @@ from typing import Dict, Iterable, Optional, Tuple
 import torch
 from torch import nn
 
-from .interaction_adapter import LocalObjectInteractionAdapter
+from .interaction_adapter import (
+    LEGACY_BASIS_COORDINATE_SYSTEM,
+    LOCAL_BASIS_COORDINATE_SYSTEM,
+    LocalObjectInteractionAdapter,
+)
 from .representation import REPRESENTATION
 
 
 HOI_ARCHITECTURE_BASE = "base"
 HOI_ARCHITECTURE_D2AC = "d2ac_interaction_adapter"
-HOI_ARCHITECTURES = frozenset({HOI_ARCHITECTURE_BASE, HOI_ARCHITECTURE_D2AC})
+HOI_ARCHITECTURE_D2AD = "d2ad_local_frame_interaction_adapter"
+HOI_ARCHITECTURES = frozenset({
+    HOI_ARCHITECTURE_BASE,
+    HOI_ARCHITECTURE_D2AC,
+    HOI_ARCHITECTURE_D2AD,
+})
 
 
 def _time_embedding(timesteps: torch.Tensor, width: int) -> torch.Tensor:
@@ -66,8 +75,11 @@ class _HOICleanMotionNetwork(nn.Module):
         super().__init__()
         if architecture_variant not in HOI_ARCHITECTURES:
             raise ValueError(f"unknown HOIPrior architecture variant: {architecture_variant}")
-        if architecture_variant == HOI_ARCHITECTURE_D2AC and num_layers != 8:
-            raise ValueError("D2-AC requires the locked eight-layer HOIPrior trunk")
+        if (
+            architecture_variant in {HOI_ARCHITECTURE_D2AC, HOI_ARCHITECTURE_D2AD}
+            and num_layers != 8
+        ):
+            raise ValueError("interaction-adapter variants require the locked eight-layer HOIPrior trunk")
         self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
         self.text = nn.Sequential(
             nn.Linear(768, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
@@ -98,8 +110,19 @@ class _HOICleanMotionNetwork(nn.Module):
         self.dim_model = dim_model
         self.architecture_variant = architecture_variant
         self.interaction_adapter = (
-            LocalObjectInteractionAdapter(dim_model, bps_path=bps_path)
-            if architecture_variant == HOI_ARCHITECTURE_D2AC
+            LocalObjectInteractionAdapter(
+                dim_model,
+                bps_path=bps_path,
+                basis_coordinate_system=(
+                    LOCAL_BASIS_COORDINATE_SYSTEM
+                    if architecture_variant == HOI_ARCHITECTURE_D2AD
+                    else LEGACY_BASIS_COORDINATE_SYSTEM
+                ),
+            )
+            if architecture_variant in {
+                HOI_ARCHITECTURE_D2AC,
+                HOI_ARCHITECTURE_D2AD,
+            }
             else None
         )
 
@@ -143,6 +166,8 @@ class _HOICleanMotionNetwork(nn.Module):
         object_bps: torch.Tensor,
         goals: torch.Tensor,
         progress: torch.Tensor,
+        *,
+        local_object_bps: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if noisy.ndim != 3 or noisy.shape[1:] != (
             REPRESENTATION.window_frames, REPRESENTATION.dimension,
@@ -150,6 +175,22 @@ class _HOICleanMotionNetwork(nn.Module):
             raise ValueError(f"expected noisy [B,16,232], got {tuple(noisy.shape)}")
         if text_embedding.ndim == 3 and text_embedding.shape[1] == 1:
             text_embedding = text_embedding[:, 0]
+        if object_bps.ndim != 3 or object_bps.shape[1:] != (1024, 3):
+            raise ValueError(f"expected global object BPS [B,1024,3], got {tuple(object_bps.shape)}")
+        if self.architecture_variant == HOI_ARCHITECTURE_D2AD:
+            if (
+                local_object_bps is None
+                or local_object_bps.ndim != 3
+                or local_object_bps.shape != object_bps.shape
+            ):
+                raise ValueError(
+                    "D2-AD requires current human-local object BPS [B,1024,3]"
+                )
+            adapter_bps = local_object_bps
+        else:
+            if local_object_bps is not None:
+                raise ValueError("human-local object BPS is restricted to D2-AD")
+            adapter_bps = object_bps
         conditions = torch.stack((
             self.time(_time_embedding(timesteps, self.dim_model)),
             self.text(text_embedding),
@@ -158,7 +199,7 @@ class _HOICleanMotionNetwork(nn.Module):
         ), dim=1)
         motion = self.motion_input(noisy)
         tokens = torch.cat((conditions, motion), dim=1) + self.position
-        encoded = self._encode(tokens, object_bps)
+        encoded = self._encode(tokens, adapter_bps)
         return self.output(self.output_norm(encoded[:, -REPRESENTATION.window_frames:]))
 
 
@@ -186,8 +227,18 @@ class HOIPrior(nn.Module):
     def forward(
         self, noisy: torch.Tensor, timesteps: torch.Tensor, text_embedding: torch.Tensor,
         object_bps: torch.Tensor, goals: torch.Tensor, progress: torch.Tensor,
+        *,
+        local_object_bps: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        return self.network(noisy, timesteps, text_embedding, object_bps, goals, progress)
+        return self.network(
+            noisy,
+            timesteps,
+            text_embedding,
+            object_bps,
+            goals,
+            progress,
+            local_object_bps=local_object_bps,
+        )
 
 
 class HSIPrior(nn.Module):
@@ -262,19 +313,46 @@ def load_trained_hoi_prior(
     if architecture_variant not in HOI_ARCHITECTURES:
         raise ValueError(f"unknown HOIPrior checkpoint architecture variant: {architecture_variant}")
     checkpoint_variant = checkpoint.get("architecture_variant")
-    if architecture_variant == HOI_ARCHITECTURE_D2AC:
-        if checkpoint_variant != HOI_ARCHITECTURE_D2AC:
-            raise ValueError("D2-AC checkpoint is missing its architecture provenance")
+    if architecture_variant in {HOI_ARCHITECTURE_D2AC, HOI_ARCHITECTURE_D2AD}:
+        if checkpoint_variant != architecture_variant:
+            raise ValueError("interaction-adapter checkpoint is missing its architecture provenance")
         adapter_contract = checkpoint.get("interaction_adapter_contract")
         if not isinstance(adapter_contract, dict):
-            raise ValueError("D2-AC checkpoint is missing interaction-adapter provenance")
+            raise ValueError("checkpoint is missing interaction-adapter provenance")
         from .interaction_adapter import ASSIGNMENT_SHA256, BPS_SHA256
         if (
             adapter_contract.get("bps_sha256") != BPS_SHA256
             or adapter_contract.get("assignment_sha256") != ASSIGNMENT_SHA256
             or adapter_contract.get("adapter_parameters") != 349697
         ):
-            raise ValueError("D2-AC checkpoint interaction-adapter provenance mismatch")
+            raise ValueError("checkpoint interaction-adapter provenance mismatch")
+        if architecture_variant == HOI_ARCHITECTURE_D2AD:
+            from .d2ad import (
+                BPS_YUP_TENSOR_SHA256,
+                DEFAULT_QUERY_WORKERS,
+                OBJECT_MAPPING_SHA256,
+                REST_MESH_MANIFEST_SHA256,
+            )
+            if (
+                adapter_contract.get("basis_coordinate_system")
+                != LOCAL_BASIS_COORDINATE_SYSTEM
+                or adapter_contract.get("basis_yup_tensor_sha256")
+                != BPS_YUP_TENSOR_SHA256
+                or adapter_contract.get("rest_mesh_manifest_sha256")
+                != REST_MESH_MANIFEST_SHA256
+                or adapter_contract.get("object_mapping_sha256")
+                != OBJECT_MAPPING_SHA256
+                or adapter_contract.get("query_backend")
+                != "scipy.spatial.cKDTree.query"
+                or adapter_contract.get("query_parameters")
+                != {"k": 1, "eps": 0.0, "p": 2}
+                or adapter_contract.get("query_workers")
+                != DEFAULT_QUERY_WORKERS
+                or adapter_contract.get("full_rest_mesh") is not True
+                or adapter_contract.get("mesh_subsample") is not False
+                or adapter_contract.get("stored_per_window_local_bps") is not False
+            ):
+                raise ValueError("D2-AD checkpoint local-geometry provenance mismatch")
     elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
         raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
     if (
