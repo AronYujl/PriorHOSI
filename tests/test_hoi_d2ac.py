@@ -50,6 +50,13 @@ from train_hoi_prior import (  # noqa: E402
     _optimization_contract,
     _validate_d2ac_contract,
 )
+from tools.run_hoi_d2ac_internal import (  # noqa: E402
+    RUN_ID_RE as INTERNAL_RUN_ID_RE,
+    penetration_object_key,
+)
+from tools.run_hoi_d2ac_native_evaluation import (  # noqa: E402
+    INTERNAL_RUN_ID_RE as NATIVE_INTERNAL_RUN_ID_RE,
+)
 
 
 class D2ACPartitionTests(unittest.TestCase):
@@ -327,6 +334,17 @@ class D2ACGovernanceTests(unittest.TestCase):
 
 
 class D2ACDiagnosticMetricTests(unittest.TestCase):
+    def test_official_sdf_keying_and_internal_retry_identity(self):
+        self.assertEqual(
+            penetration_object_key(Path("floorlamp.ply.npy")),
+            "floorlamp",
+        )
+        retry = (
+            "p1-hoi-d2ac-interaction-adapter-internal-r1-s42-20260727"
+        )
+        self.assertIsNotNone(INTERNAL_RUN_ID_RE.fullmatch(retry))
+        self.assertIsNotNone(NATIVE_INTERNAL_RUN_ID_RE.fullmatch(retry))
+
     def test_attention_entropy_is_role_preserving_and_normalized(self):
         weights = torch.full((2, 16, 3, 4, 16), 1.0 / 16.0)
         value = attention_entropy(weights)

@@ -35,7 +35,7 @@ SUBPHASE = "1B-D2-AC0-native"
 RUN_ID_RE = re.compile(r"^p1-hoi-d2ac-native-eval-s42-[0-9]{8}$")
 TRAINING_RUN_ID = "p1-hoi-d2ac-interaction-adapter-s42-20260726"
 INTERNAL_RUN_ID_RE = re.compile(
-    r"^p1-hoi-d2ac-interaction-adapter-internal-s42-[0-9]{8}$"
+    r"^p1-hoi-d2ac-interaction-adapter-internal(?:-r[1-9][0-9]*)?-s42-[0-9]{8}$"
 )
 CONTROL_CHECKPOINT_SHA256 = (
     "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51"

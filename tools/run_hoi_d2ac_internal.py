@@ -87,7 +87,7 @@ from tools.evaluate_hoi_remediation import (  # noqa: E402
 
 SUBPHASE = "1B-D2-AC0-internal"
 RUN_ID_RE = re.compile(
-    r"^p1-hoi-d2ac-interaction-adapter-internal-s42-[0-9]{8}$"
+    r"^p1-hoi-d2ac-interaction-adapter-internal(?:-r[1-9][0-9]*)?-s42-[0-9]{8}$"
 )
 TRAINING_RUN_ID = "p1-hoi-d2ac-interaction-adapter-s42-20260726"
 EXPECTED_PYTHON = "/home/yujinlun/data/envs/infbagel/bin/python"
@@ -492,12 +492,20 @@ def rollout_chunk(
     }
 
 
+def penetration_object_key(path: Path) -> str:
+    """Match the official evaluator's key for `<object>.ply.npy` assets."""
+    name = path.name.split(".", 1)[0]
+    if not name:
+        raise ValueError(f"invalid penetration SDF filename: {path.name}")
+    return name
+
+
 def load_penetration_assets(repo: Path) -> Dict[str, object]:
     sdf_root = repo / "data/object/rest_object_sdf_256_npy_files"
     sdf = {}
     metadata = {}
     for path in sorted(sdf_root.glob("*.npy")):
-        name = path.stem
+        name = penetration_object_key(path)
         json_path = path.with_suffix(".json")
         sdf[name] = np.load(path)
         metadata[name] = json.loads(json_path.read_text(encoding="utf-8"))

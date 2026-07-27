@@ -4276,6 +4276,42 @@ transfer/protection/released-95% gates、classification 或 artifact contract。
 必须无条件执行一次 fixed native evaluation。D2-AC1、checkpoint selection、consistency、
 HSIPrior、Mixer、任何 sweep 或新机制仍未授权。
 
+#### 2026-07-27 Phase 1B D2-AC0 internal penetration-asset loader retry amendment
+
+第一次 replacement internal lifecycle
+`p1-hoi-d2ac-interaction-adapter-internal-s42-20260727` 在 clean
+`655930f0d9b6bb47fbe116c1d779650cfd3dff63` 上通过 resolved-config、manifest、fixed
+checkpoint hash 与 same-context GPU preflight 后启动，但在 21.504 秒后 fail-closed：
+`load_penetration_assets()` 对 official asset `floorlamp.ply.npy` 使用 `Path.stem`，错误地产生
+key `floorlamp.ply`；随后 fixed cohort 的 object category `floorlamp` 无法查到同一 SDF。Official
+evaluator 已封存的实现使用 `file.split('.')[0]`，对该文件产生正确 key `floorlamp`。因此这是
+一个确定的 internal evaluator asset-key transcription defect，不是 interaction adapter、
+checkpoint、cohort、penetration formula/mask、threshold 或 gate 的 scientific failure。
+
+失败 lifecycle 已以 `failed` finish/register，manifest/metrics/run-local registry SHA-256 分别为
+`6c17c6e3b73664927c2f8c432c90e8df0e69a025c0a63a6c818765c1be0ab574` /
+`2a1be5639174e7d85b46e7f6fd8fc1082077297d803584e1fd4bf207c7325e11` /
+`e59caad3066042779b1b80394d3649d17cfa5ab2db0df3b5c5217fcdf8a2bfd7`，并由 worker 主动
+回收到 authority；双端 canonical tree SHA-256 为
+`e9eaea941d71624152d7d4d05d4ffc162f8fcd02f9c4e0cdf28ce139ce31d7ce`
+（10 files / 46,938 bytes）。该 attempt 没有 optimizer、training update、checkpoint write/
+selection、official-test use 或 consistency。
+
+只允许以下最小 closure：
+
+1. penetration SDF key extraction 改为与 immutable official evaluator 完全相同的首个 `.` 前
+   basename；不改变 asset bytes、SDF/SMPL-X 公式、excluded categories、finite handling 或任何
+   reported metric；
+2. 加入 double-suffix regression test，并仅让 internal/native provenance regex 接受 append-only
+   retry identity `p1-hoi-d2ac-interaction-adapter-internal-r1-s42-20260727`；
+3. r1 必须重新生成 resolved config、same-context preflight 和 manifest，从头运行同一 64×3
+   full/gate-ablated/locality-permuted paired rollout；不得复用失败 attempt 的 partial output；
+4. native lifecycle 仍为 `p1-hoi-d2ac-native-eval-s42-20260727`，且仅在 r1 完成后运行一次。
+
+除上述 filename-key parity 外，source/config/checkpoint/seed/batch/cohort/noise/bootstrap/
+metrics/gates/classification/artifact contract 全部不变。若 r1 再次 contract-fail，则封存并停止；
+不得继续 retry、改变 mask、删除 penetration、选择 checkpoint 或启动 D2-AC1/consistency。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
