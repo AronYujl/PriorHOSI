@@ -4380,6 +4380,64 @@ mechanism classification 仍只由新 r2 lifecycle 决定。
 selection、consistency、任何 architecture/token/parameter/placement sweep、新 loss、
 HSIPrior、Mixer 或其他 HOIPrior 搜索仍未授权。
 
+#### 2026-07-27 Phase 1B D2-AC0 native serialized-field parity r1 amendment
+
+Internal r2 已完成全部 contract，并按预注册规则无条件启动 fixed native lifecycle
+`p1-hoi-d2ac-native-eval-s42-20260727`。该 lifecycle 在 clean
+`cc931b8b6272e323e25be6cc6c6a6e3a49076558` 上完整运行 immutable official
+438-sequence × 3-window、500-step production evaluator，生成了 438 条 target
+per-sequence records 和 finite aggregate metrics；official aggregate 中 Troot/Tobj/Oobj
+分别为 `8.722931146621704` / `16.810938650698322` / `1.0305662157312816`。Target 与
+sealed D2-X 的 `trans_dist`、`obj_trans_dist`、`obj_rot_dist` per-sequence fields 均为
+438/438 finite，target penetration fields 也严格保持 sealed 181-sequence finite mask。
+
+Official evaluator 完成后，D2-AC post-evaluator paired summary 在第一个 Troot protection
+comparison fail-closed，错误为
+`native metric trans_dist contains missing/nonfinite values`。根因是 D2-AC wrapper 的
+`PER_SEQUENCE_KEYS` 将 evaluator 已封存的 serialized keys `trans_dist` /
+`obj_trans_dist` / `obj_rot_dist` 错误映射成不存在的
+`translation_difference` / `object_translation_difference` /
+`object_rotation_difference`；这使 `_metric_array` 读到 `None`，并不表示 evaluator raw
+records 非有限。D2-X sealed wrapper 与 official records 始终直接使用短字段名，因此该问题是
+D2-AC paired-summary field routing defect，不是 checkpoint、sampler、official metric、
+finite mask 或 native gate 的科学结果。
+
+失败 lifecycle 已以 status `failed` 原样封存并由 worker 主动回收。Manifest、metrics、
+run-local registry、aggregate、per-sequence 与 canonical artifact-tree SHA-256 分别为
+`e3134b5567eac018a6b99c49c05276d802db3a4d2b6c7864adbbaac419bbd6d6` /
+`0ab818a018cd7465b8e25b831992d5bd2ba5f76a0b89af73c30c34394035218e` /
+`dead4f9ebbcb639da24b8629272daa7f9a82eded272c94bbf603cfe4b0433262` /
+`995acb311187a1f0bfd8abe2f74358da70998deb9ce5b8c98a99e9e36b99e6c3` /
+`dd8803c8efe4b836a09d31dc8c86b6f8230d3de6cb92aa2f30c574b96cb4ad6a` /
+`ae7f0e3d9975a2bc4d96058dc1f3c5a965a4fb9870634d10889db97f2a0e1b27`
+（14 files / 339,245 bytes）。Authority staging 为
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ac-native-eval-s42-20260727`；
+worker/authority tree hash 完全一致。该 attempt 没有训练、optimizer/update、
+checkpoint write/selection 或 consistency，也没有形成 native gate classification。
+
+用户已明确要求修复并完成与既有实验一致的最终评估。只允许以下 deterministic native
+closure：
+
+1. 将上述三个 D2-AC `PER_SEQUENCE_KEYS` value 改为 official evaluator 与 sealed D2-X
+   records 的原 serialized short keys；其他 key mapping、metric formula、aggregate、
+   finite handling、penetration mask、bootstrap helper、threshold 与 gate 全部不变；
+2. 增加基于 official per-sequence schema 的回归测试，证明 Troot/Tobj/Oobj 从 short keys
+   读取，旧的不存在 alias 不被要求；继续 fail-closed 于真实 missing/non-finite values；
+3. 用 source hash/test 证明 `code/test_infbagel_hoi.py`、`code/eval_metrics.py`、
+   `code/config/config_eval_hoi_prior.yaml`、shared D2-X wrapper、sealed control/baseline 与
+   internal zero-denominator helper 均未改变；
+4. 新 identity 唯一为 `p1-hoi-d2ac-native-eval-r1-s42-20260727`。必须重新生成 resolved
+   target/config、same-context preflight 和 manifest，并从头运行完整 official 438×3
+   evaluator；不得复用失败 attempt 的 aggregate/per-sequence/partial output；
+5. retry 仍只加载 D2-AC0 fixed final-online checkpoint，复用 sealed D2-X control，不重新生成
+   control；paired unit、seed 42、10,000 bootstrap、181-sequence penetration mask、
+   transfer/protection/released-95% gates 和 classification precedence 全部不变；
+6. 无论 native transfer 结果，最终 D2-AC0 classification 仍受已封存 internal locality
+   failure 约束，不得 selectable，也不 eligible for D2-AC1。
+
+若 native r1 仍 contract-fail，则封存并停止，不得继续 retry、修改 evaluator/mask/gate、
+选择 checkpoint、启动 D2-AC1/consistency、HSIPrior、Mixer 或任何新 HOIPrior 搜索。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
