@@ -35,6 +35,8 @@ from priors.interaction_diagnostic import (  # noqa: E402
     internal_mechanism_gate,
     native_gate,
     paired_finite_difference,
+    paired_nonnegative_ratio_fixed,
+    paired_ratio_fixed,
 )
 from priors.models import (  # noqa: E402
     HOI_ARCHITECTURE_BASE,
@@ -307,7 +309,9 @@ class D2ACGovernanceTests(unittest.TestCase):
         )
         self.assertIn("set_interaction_diagnostic_variant", internal)
         self.assertIn("paired_noise_identity", internal)
+        self.assertIn("paired_nonnegative_ratio_fixed", internal)
         self.assertIn("official_test_used", native)
+        self.assertNotIn("paired_nonnegative_ratio_fixed", native)
         self.assertIn(
             "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
             native,
@@ -344,6 +348,53 @@ class D2ACDiagnosticMetricTests(unittest.TestCase):
         )
         self.assertIsNotNone(INTERNAL_RUN_ID_RE.fullmatch(retry))
         self.assertIsNotNone(NATIVE_INTERNAL_RUN_ID_RE.fullmatch(retry))
+        retry2 = (
+            "p1-hoi-d2ac-interaction-adapter-internal-r2-s42-20260727"
+        )
+        self.assertIsNotNone(INTERNAL_RUN_ID_RE.fullmatch(retry2))
+        self.assertIsNotNone(NATIVE_INTERNAL_RUN_ID_RE.fullmatch(retry2))
+
+    def test_positive_penetration_ratio_preserves_locked_ratio_fields(self):
+        numerator = [0.1, 0.2, 0.3]
+        denominator = [0.2, 0.4, 0.6]
+        locked = paired_ratio_fixed(numerator, denominator)
+        value = paired_nonnegative_ratio_fixed(numerator, denominator)
+        self.assertTrue(value["ratio_defined"])
+        for key, expected in locked.items():
+            self.assertEqual(value[key], expected)
+        self.assertEqual(
+            value["paired_difference"]["bootstrap_replicates"],
+            10_000,
+        )
+        self.assertEqual(value["paired_difference"]["bootstrap_seed"], 42)
+
+    def test_zero_penetration_denominator_is_explicitly_undefined(self):
+        value = paired_nonnegative_ratio_fixed(
+            [0.0, 1.0e-6, 0.0],
+            [0.0, 0.0, 0.0],
+        )
+        self.assertFalse(value["ratio_defined"])
+        self.assertEqual(value["undefined_reason"], "zero_denominator_mean")
+        self.assertEqual(value["denominator_mean"], 0.0)
+        self.assertIsNone(value["mean_ratio"])
+        self.assertIsNone(value["bootstrap_95_ci"])
+        difference = value["paired_difference"]
+        self.assertEqual(difference["first_mean"], value["numerator_mean"])
+        self.assertEqual(difference["second_mean"], 0.0)
+        self.assertGreater(
+            difference["paired_mean_first_minus_second"],
+            0.0,
+        )
+        self.assertEqual(difference["bootstrap_replicates"], 10_000)
+        self.assertEqual(difference["bootstrap_seed"], 42)
+
+    def test_nonnegative_penetration_comparison_rejects_invalid_values(self):
+        with self.assertRaisesRegex(ValueError, "negative"):
+            paired_nonnegative_ratio_fixed([0.0, -1.0], [0.0, 0.0])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            paired_nonnegative_ratio_fixed([0.0, float("nan")], [0.0, 0.0])
+        with self.assertRaisesRegex(ValueError, "equal non-empty"):
+            paired_nonnegative_ratio_fixed([0.0], [0.0, 0.0])
 
     def test_attention_entropy_is_role_preserving_and_normalized(self):
         weights = torch.full((2, 16, 3, 4, 16), 1.0 / 16.0)

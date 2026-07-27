@@ -162,6 +162,52 @@ def paired_ratio_fixed(
     )
 
 
+def paired_nonnegative_ratio_fixed(
+    numerator: Sequence[float],
+    denominator: Sequence[float],
+) -> Dict[str, object]:
+    """Report a descriptive ratio without fabricating a zero denominator.
+
+    Positive-denominator inputs use the unchanged locked ratio helper.  A zero
+    denominator is a valid outcome for nonnegative penetration metrics, so its
+    ratio is explicitly undefined and the locked paired difference remains
+    available as the finite descriptive comparison.
+    """
+    top = np.asarray(numerator, dtype=np.float64)
+    bottom = np.asarray(denominator, dtype=np.float64)
+    if top.shape != bottom.shape or top.ndim != 1 or not len(top):
+        raise ValueError(
+            "D2-AC nonnegative ratios require equal non-empty vectors"
+        )
+    if not np.isfinite(top).all() or not np.isfinite(bottom).all():
+        raise ValueError("D2-AC nonnegative ratios require finite vectors")
+    if bool((top < 0).any()) or bool((bottom < 0).any()):
+        raise ValueError("D2-AC nonnegative ratios reject negative values")
+
+    difference = paired_difference_fixed(top, bottom)
+    denominator_mean = float(bottom.mean())
+    if denominator_mean > 0.0:
+        result = paired_ratio_fixed(top, bottom)
+        result["ratio_defined"] = True
+    else:
+        result = {
+            "numerator_mean": float(top.mean()),
+            "denominator_mean": denominator_mean,
+            "mean_ratio": None,
+            "bootstrap_95_ci": None,
+            "bootstrap_replicates": BOOTSTRAP_REPLICATES,
+            "bootstrap_seed": BOOTSTRAP_SEED,
+            "per_unit": {
+                "numerator": top.tolist(),
+                "denominator": bottom.tolist(),
+            },
+            "ratio_defined": False,
+            "undefined_reason": "zero_denominator_mean",
+        }
+    result["paired_difference"] = difference
+    return result
+
+
 def paired_finite_difference(
     first: Sequence[object],
     second: Sequence[object],

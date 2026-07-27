@@ -4366,6 +4366,16 @@ closure：
    mask、原 paired ratio/difference helpers、阈值与 gates；本 amendment 不改变 native
    evaluator 数学或既有实验口径。
 
+Authority implementation closure 在 plan-only commit
+`ef39e62c2d30c9dd0d2575121a7806375d53e23b` 之后完成：新增 helper 只由 internal penetration
+summary 调用，native wrapper 明确不引用它；既有 `paired_ratio_fixed` 函数 source SHA-256
+在修改前后均为
+`2d1e58aab9d340250eb90e3ea176132380e4d27fea069ec3c51d33ff90fe9b08`。
+Authority targeted tests 为 67 passed，full suite 为 333 passed，registry validation 为
+178 records valid。对 immutable r1 raw artifacts 的只读 summary replay 成功产生
+`ratio_defined=false` / null ratio 与原 paired-difference CI，没有写回或提升 r1；正式
+mechanism classification 仍只由新 r2 lifecycle 决定。
+
 若 r2 仍发生 contract failure，则封存并停止，不得继续 retry。D2-AC1、checkpoint
 selection、consistency、任何 architecture/token/parameter/placement sweep、新 loss、
 HSIPrior、Mixer 或其他 HOIPrior 搜索仍未授权。

@@ -59,6 +59,7 @@ from priors.interaction_diagnostic import (  # noqa: E402
     internal_mechanism_gate,
     paired_difference_fixed,
     paired_finite_difference,
+    paired_nonnegative_ratio_fixed,
     paired_ratio_fixed,
 )
 from priors.models import (  # noqa: E402
@@ -277,6 +278,15 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
                 "official SDF formulas at native internal 10Hz frames; "
                 "official excluded object categories remain non-finite"
             ),
+            "penetration_comparison": {
+                "positive_denominator": "unchanged paired mean ratio",
+                "zero_denominator": (
+                    "undefined ratio plus unchanged paired absolute difference"
+                ),
+                "epsilon_or_pseudocount": False,
+                "infinity_encoding": False,
+                "selection_use": False,
+            },
             "paired_unit": "sequence",
             "bootstrap_replicates": BOOTSTRAP_REPLICATES,
             "bootstrap_seed": BOOTSTRAP_SEED,
@@ -891,7 +901,7 @@ def paired_comparisons(
                 index for index, (left, right) in enumerate(zip(full, alternate))
                 if left is not None and right is not None
             ]
-            comparison["penetration"][metric] = paired_ratio_fixed(
+            comparison["penetration"][metric] = paired_nonnegative_ratio_fixed(
                 [float(full[index]) for index in keep],
                 [float(alternate[index]) for index in keep],
             )
@@ -1246,6 +1256,7 @@ def main() -> None:
                 parameter.grad is None for parameter in model.parameters()
             ),
             "attention_capture_descriptive_only": True,
+            "penetration_zero_denominator_explicit": True,
             "sampler_future_gt_absent": "future_gt" not in sampler_source,
             "sampler_stored_per_frame_bps_absent": (
                 "stored_per_frame_bps" not in sampler_source
