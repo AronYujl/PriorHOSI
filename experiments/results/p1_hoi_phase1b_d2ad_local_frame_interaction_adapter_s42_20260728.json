@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260728",
+  "phase": "p1",
+  "subphase": "1B-D2-AD0",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-07-28",
+  "classification": "local-frame-interaction-adapter-locality-negative-stop",
+  "checkpoint_selected": false,
+  "selectable_autonomous_diffusion_candidate": false,
+  "d2ad1_authorized": false,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "new_search_started": false,
+  "implementation": {
+    "plan_commit": "ccc023f44056a056131c730ff39a2dfae447505b",
+    "implementation_commit": "07c41cfc4d07b75cf4e34d7628b54bd5d654cefe",
+    "cpu_record_commit": "636296967546a4507a45adf9fc53c186223eb4c9",
+    "smoke_record_commit": "cff909188685f48b177c03de1c86964e4c43ec8b",
+    "training_record_commit": "eb61c3ac82cf162303e9ba8a2c43d98c0eed01b7",
+    "internal_record_commit": "82d8cbd453dbbfa2f5214eec8320628ea1fd2370",
+    "single_manipulated_factor": "recompute adapter-only local-object BPS from immutable full rest meshes in the current Y-up human-window-local frame",
+    "architecture_variant": "d2ad_local_frame_interaction_adapter",
+    "representation_dimension": 232,
+    "base_parameter_count": 29673448,
+    "adapter_parameter_count": 349697,
+    "total_parameter_count": 30023145,
+    "parameter_increase_fraction": 0.011785,
+    "new_trainable_parameters_vs_d2ac": 0,
+    "global_bps_token_preserved": true,
+    "trunk_adapter_losses_optimizer_sampler_changed_vs_d2ac": false,
+    "official_evaluator_changed": false,
+    "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042",
+    "basis_yup_tensor_sha256": "02b4f8f3510e723174010a823630f663ddda9875ad82a2f8de807d2bdccebd7d",
+    "assignment_sha256": "b62f91f4eb6c4bf2a9211f0187cd1eb97c25394ee45de155f33607959fddeecd",
+    "rest_mesh_manifest_sha256": "ce8328ef2bf873a79d74fb5fd20cc488551a20d56fe5c5ecabf609824b0654d1",
+    "object_mapping_sha256": "424fc96102c576a1d11b0824cc0ee616d52cd9e39524819f49b207d1598fe41b",
+    "future_gt_used": false,
+    "stored_per_window_local_bps_used": false,
+    "mesh_subsample_used": false
+  },
+  "authority_cpu_contract": {
+    "run_id": "p1-hoi-d2ad-cpu-contract-s42-20260728",
+    "status": "completed",
+    "classification": "cpu-contract-passed",
+    "authority_tests_passed": 352,
+    "parameter_count_exact": true,
+    "api_shape": [
+      2,
+      16,
+      232
+    ],
+    "base_parity_max_abs": 0.0,
+    "initial_alpha_gradient_finite_nonzero": true,
+    "activated_adapter_gradients_finite_nonzero": true,
+    "local_correspondence_permutation_max_abs": 0.0004273951,
+    "coordinate_equivariance_passed": true,
+    "query_worker_and_dataset_evaluator_parity_passed": true,
+    "checkpoint_variant_rejection_passed": true,
+    "hsiprior_storage_independence_passed": true,
+    "mixer_clean_output_contract_passed": true,
+    "static_forbidden_path_scan_passed": true,
+    "metrics_sha256": "500dc339e82f040d5c6cfc332356dc8f54ac0794af555ab9f03388252538210b",
+    "resolved_config_sha256": "2b26b93b7c5fc038f1538dcb90d676766efcdccc884ffb00b768c26f6020e738",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ad-cpu-contract-s42-20260728",
+      "sha256": "514163cc45801253f19dbb6e1789464e791f59a00aa6f1b44cdadf9f348eb7ce",
+      "files": 3,
+      "bytes": 32306
+    }
+  },
+  "gpu_smoke": {
+    "run_id": "p1-hoi-d2ad-gpu-smoke-s42-20260728",
+    "status": "completed",
+    "host": "infbagel-4gpu/node01",
+    "device": "cuda:0",
+    "visible_cuda_devices": 4,
+    "batch_size": 8,
+    "timesteps": [
+      0,
+      249,
+      499
+    ],
+    "random_initialization": true,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "losses_finite": true,
+    "required_gradients_finite_nonzero": true,
+    "peak_allocated_bytes": 252609024,
+    "peak_reserved_bytes": 304087040,
+    "memory_headroom_bytes": 24991956992,
+    "metrics_sha256": "7d4214a948243b5beb1ac78f55cddda0f6ef04fc47b503b4745d3d377544c371",
+    "manifest_sha256": "28aa7f263ae45e6410f9efe597337d5bbbe348410ba553fc050093cf93161430",
+    "resolved_config_sha256": "34dbead7d8fca31290a96f5759a11d3d5a73a8a09ccc375a441e8736ac24d219",
+    "preflight_sha256": "a1164ed417f98aa710e19574c1bb2f37124545b29a4056fef54d60966b112496",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ad-gpu-smoke-s42-20260728",
+      "sha256": "85ef57f3874ab113d4cac75b813259fb61ae5cff5d1b24ed9078b924223c621a",
+      "files": 7,
+      "bytes": 60861,
+      "worker_authority_match": true
+    }
+  },
+  "training": {
+    "run_id": "p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260728",
+    "status": "completed",
+    "worker_git_commit": "cff909188685f48b177c03de1c86964e4c43ec8b",
+    "random_initialization": true,
+    "initial_model_state_sha256": "260d12ed7e60774e9eb4280f3abc580a7af8b9d8a36d3c75b83a9bbf0021a1bc",
+    "source_checkpoint": null,
+    "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "wall_seconds": 47890.63281107391,
+    "throughput_windows_per_second": 1282.9231186478085,
+    "throughput_frames_per_second": 20526.769898364935,
+    "mean_training_total_loss": 0.0448804647674,
+    "final_validation": {
+      "total": 0.04838908755300508,
+      "reconstruction": 0.04030801546696239,
+      "fk": 0.010989119423641114,
+      "object_surface": 0.008184478784642124,
+      "velocity": 0.00011142740692893227,
+      "contact": 0.013657602339534947,
+      "contact_accuracy": 0.9676203421659011
+    },
+    "learned_alpha": 0.102385975420475,
+    "learned_gate": 0.1020297035574913,
+    "cadence_checkpoints": 20,
+    "rank_rng_sidecars": 80,
+    "first_resumable_checkpoint_sha256": "7a27edd434490579e54852bfe3321406948762aed72b9987e02c163a6918bbd9",
+    "fixed_final_online_checkpoint_sha256": "f527d970243a42a1534b8db4437cd09dbc25334c832c3a13eb011f81db101c06",
+    "metrics_sha256": "3d30f83d22d0a7421e8518ac0844e036103f940d3209c9acda9c17de58f11ba6",
+    "manifest_sha256": "bccfd482bd55f909aed0c2f6ab6461d260643e026a3adeb3d206f4d59cff767f",
+    "resolved_config_sha256": "fe6ae9e9c25beda4b610baf8fd3a0b6313ebdf57c89a08f3965415cc01592aa7",
+    "preflight_sha256": "7bce4a57dc88790e13dd17ebb799141bf0c4ff4240ee2f7cd54b906f943b90e7",
+    "training_state_sha256": "a82dfc6d7a73b1652d0cc7469bf5b9f4605d99c3d1d4885d4b8a5fcee83f29f7",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260728",
+      "sha256": "d694962309735ecae12f4480d4dcb52c8d191a9a453603fefd8e5f4bbd18b656",
+      "files": 114,
+      "bytes": 7211938158,
+      "worker_authority_match": true
+    }
+  },
+  "internal_diagnostic": {
+    "unstarted_preflight_failure": {
+      "run_id": "p1-hoi-d2ad-local-frame-interaction-adapter-internal-s42-20260728",
+      "classification": "operational-preworkload-evaluator-checkout-path-failure",
+      "workload_started": false,
+      "artifact_tree_sha256": "d0eda6ede4e692acb2ca52ed8286ba4e122b0fc1e4edc2845946d03714898a47",
+      "files": 1,
+      "bytes": 5348,
+      "overwritten": false
+    },
+    "run_id": "p1-hoi-d2ad-local-frame-interaction-adapter-internal-r1-s42-20260728",
+    "status": "completed",
+    "protocol": "sealed D2-O 64 sequences x 3 windows, three paired-noise 500-step rollouts",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "selection_sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "contract_passed": true,
+    "adapter_used": true,
+    "locality_passed": false,
+    "mechanism_passed": false,
+    "classification": "local-frame-interaction-adapter-locality-negative-stop",
+    "learned_alpha": 0.102385975420475,
+    "learned_gate": 0.1020297035574913,
+    "primary_comparisons": {
+      "full_minus_gate_ablated_direct_union_5cm_f1": {
+        "point": 0.6274720019211661,
+        "ci95": [
+          0.5403342657173801,
+          0.7116108804151913
+        ]
+      },
+      "gate_ablated_minus_full_gt_contact_distance_cm": {
+        "point": 97.93614037606025,
+        "ci95": [
+          87.31619355409941,
+          108.58261112256562
+        ]
+      },
+      "full_minus_permuted_direct_union_5cm_f1": {
+        "point": 0.013518269450655549,
+        "ci95": [
+          -0.0062331094930577705,
+          0.03421495573157144
+        ]
+      },
+      "permuted_minus_full_gt_contact_distance_cm": {
+        "point": 0.14327397348361542,
+        "ci95": [
+          -0.057879721350440325,
+          0.3549867423796764
+        ]
+      }
+    },
+    "representative_aggregate": {
+      "full": {
+        "direct_5cm_contact_f1": 0.7641025641025639,
+        "mpjpe_cm": 12.30096435546875,
+        "object_goal_cm": 93.29374926909804,
+        "pelvis_goal_cm": 5.104556068157156,
+        "foot_sliding": 0.8213847057141894
+      },
+      "gate_ablated": {
+        "direct_5cm_contact_f1": 0.007525870178739417,
+        "mpjpe_cm": 220.9187774658203,
+        "object_goal_cm": 324.6356294155121,
+        "pelvis_goal_cm": 74.67745342602332,
+        "foot_sliding": 1.1434295484323662
+      },
+      "local_correspondence_permuted": {
+        "direct_5cm_contact_f1": 0.7485615650172612,
+        "mpjpe_cm": 12.340066909790039,
+        "object_goal_cm": 93.30708387494087,
+        "pelvis_goal_cm": 5.109711854214159,
+        "foot_sliding": 0.8181428424926533
+      }
+    },
+    "metrics_sha256": "3fcb48355ec3a78ff4e44eb6ec9a91a184737f9c4819eecd0a12a6f7e536fe9b",
+    "manifest_sha256": "a69644a6ddd3bdb1d64cc619728227d854648989241f74c023a6dec1f61c7647",
+    "paired_noise_sha256": "775826e9431c3ccc291e07e2bbd146e0c0d77343c8d90bd90f1b5e69bb94b2a7",
+    "attention_appendix_sha256": "a317f58c07eabd68cfbe26b0c27bc0aaefce3b3160604f95d21ef74d2a7cef7a",
+    "local_bps_appendix_sha256": "c55c69ae10f7ac59cbaee022873961358f1db84f91872d6c8f3fb806bea86b59",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ad-local-frame-interaction-adapter-internal-r1-s42-20260728",
+      "sha256": "4b80a78745de4d3fecc23399f023d736d4b5ff1f9e7d12e043e70e6bf27055e3",
+      "files": 13,
+      "bytes": 24596627,
+      "worker_authority_match": true
+    }
+  },
+  "native_evaluation": {
+    "run_id": "p1-hoi-d2ad-native-eval-s42-20260728",
+    "status": "completed",
+    "protocol": "official 438 sequences x 3 windows, 500-step unguided production diffusion",
+    "official_evaluator_unchanged": true,
+    "sealed_d2x_control_reused_without_regeneration": true,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "target_metrics": {
+      "end_object_cm": 4.237286001443863,
+      "txy_cm": 4.803574085235596,
+      "foot_sliding": 0.4253870475606252,
+      "contact_precision": 0.767954358678166,
+      "contact_recall": 0.5329970615232079,
+      "contact_f1": 0.5868722517330082,
+      "contact_coverage": 0.4349677466115822,
+      "pbody": 3.4625336390647643,
+      "hand_penetration": 0.21655724070657326,
+      "mpjpe_cm": 12.384693324565887,
+      "troot_cm": 9.274658560752869,
+      "tobj_cm": 16.40763830005457,
+      "oobj": 1.0147842365742936
+    },
+    "paired_d2ad_minus_d2x": {
+      "contact_f1": {
+        "point": -0.050553687372970724,
+        "ci95": [
+          -0.07132162636005163,
+          -0.029303069550288188
+        ]
+      },
+      "contact_recall": {
+        "point": -0.0614576325211903,
+        "ci95": [
+          -0.0852767784,
+          -0.0377656884
+        ]
+      },
+      "contact_precision": {
+        "point": -0.020107516917043638,
+        "ci95": [
+          -0.04184022792911828,
+          0.0017592360178059097
+        ]
+      },
+      "released_contact_f1_gap_closure": -0.5627596484294947
+    },
+    "native_transfer_passed": false,
+    "protection_passed": false,
+    "released_95_percent_effectiveness_passed": false,
+    "penetration_finite_mask_contract_passed": true,
+    "penetration_finite_mask_sequences": 181,
+    "penetration_finite_mask_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec",
+    "metrics_sha256": "aac2919e6d2833d91c8dcda6088821af1e168bb74a02d3b683fa88581838d59b",
+    "manifest_sha256": "79127f64bf0743d6d4d6fd7c89abdaba339327e2deb1ed338b65d8763c1d2cd4",
+    "aggregate_sha256": "dab67e52af5a0a4cc443745fd9df713d445b06b069fc9469d7d3456b27f4fc27",
+    "per_sequence_sha256": "c6e15ab79c6d58bdc4419cd0ebe1ad260605d2ad310b611985ea117a26ef0460",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ad-native-eval-s42-20260728",
+      "sha256": "6d0bcf47eac49aaf1a10341d81bc8d4f1a518ed86344fd145283b17c236c7d0c",
+      "files": 16,
+      "bytes": 2416785,
+      "worker_authority_match": true
+    },
+    "fid_matching_rprecision_diversity_generated": false
+  },
+  "decision": {
+    "contract_passed": true,
+    "adapter_used": true,
+    "locality_passed": false,
+    "native_transfer_passed": false,
+    "protection_passed": false,
+    "released_95_percent_effectiveness_passed": false,
+    "classification": "local-frame-interaction-adapter-locality-negative-stop",
+    "checkpoint_selected": false,
+    "selectable": false,
+    "conclusion": "The coordinate/query-frame repair did not make the fixed local correspondence causally necessary and reduced native contact transfer while worsening several motion/goal protection metrics. D2-AD0 is closed as a negative result; the evidence does not support a longer-budget or parameter-tuning interpretation."
+  }
+}

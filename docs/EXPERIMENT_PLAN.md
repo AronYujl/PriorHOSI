@@ -1,9 +1,9 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划
 
-状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AC 尚未形成 selectable HOIPrior；
+状态：Phase 0、Phase 1A 已通过；Phase 1B D2-V--D2-AD 尚未形成 selectable HOIPrior；
 D2-AC0 已完成并分类为 `interaction-adapter-locality-negative-stop`，checkpoint 不可选择，
-D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已预注册并进入
-固定 implementation/CPU contract 阶段，尚未启动 worker CUDA、training 或 evaluation；
+D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已完成并分类为
+`local-frame-interaction-adapter-locality-negative-stop`，checkpoint 不可选择；
 Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
@@ -4944,6 +4944,72 @@ factor、source implementation、random initialization、training budget、loss/
 internal/native evaluator、gates、classification precedence、artifact contract 与全部
 forbidden items 均不变；不授权 D2-AD1、checkpoint selection、consistency、HSIPrior、
 Mixer 或任何 sweep。
+
+#### 2026-07-28 Phase 1B D2-AD0 completion record
+
+D2-AD0 的全部已批准 lifecycle 已完成。Tracked compact result 为
+`experiments/results/p1_hoi_phase1b_d2ad_local_frame_interaction_adapter_s42_20260728.json`，
+phase summary 为 `docs/phase_summaries/PHASE_1B_D2AD.md`。本 record 只封存固定
+coordinate-contract repair、运维失败、科学结果与 artifact；不新增 fallback 或研究方向。
+
+1. **CPU、smoke 与 formal training。** Authority CPU contract
+   `p1-hoi-d2ad-cpu-contract-s42-20260728` 以 352 tests、exact
+   parameter/API/base-parity、coordinate equivariance、query-worker/dataset/evaluator
+   parity、activated gradients、provenance、HSIPrior/Mixer independence 和 static scan
+   全部通过。Registered smoke `p1-hoi-d2ad-gpu-smoke-s42-20260728` 在
+   `cuda:0`、real-data batch 8、timesteps `0/249/499` 上通过，peak
+   allocated/reserved/headroom 为
+   `252,609,024 / 304,087,040 / 24,991,956,992` bytes，且没有 optimizer 或
+   checkpoint activity。Formal training
+   `p1-hoi-d2ad-local-frame-interaction-adapter-s42-20260728` 从随机初始化完成
+   `61,440,000` windows / `983,040,000` frames / `30,000` updates，wall time
+   `47,890.633 s`、throughput `1,282.923 windows/s`；20 cadence checkpoints 与
+   80 rank RNG sidecars 完整。Learned alpha/gate 为
+   `0.10238598 / 0.10202970`，fixed final-online SHA-256 为
+   `f527d970243a42a1534b8db4437cd09dbc25334c832c3a13eb011f81db101c06`。
+2. **Fixed internal diagnostic。** 原 internal identity 因 preflight 接收到错误的
+   CHOIS asset directory 而在 manifest/workload 前停止，1-file failure tree
+   `d0eda6ede4e692acb2ca52ed8286ba4e122b0fc1e4edc2845946d03714898a47`
+   原样保留。Corrected retry
+   `p1-hoi-d2ad-local-frame-interaction-adapter-internal-r1-s42-20260728`
+   从头完成 sealed 64×3 cohort 的三路 paired 500-step rollout。Full minus
+   gate-ablated direct-hand union 5-cm F1 为 `+0.6274720`，95% CI
+   `[0.5403343,0.7116109]`；gate-ablated minus full GT-contact distance 为
+   `+97.93614 cm`，CI `[87.31619,108.58261]`，证明 adapter 被使用。Full minus
+   locality-permuted F1 为 `+0.0135183`，CI
+   `[-0.0062331,0.0342150]`；permuted minus full distance 为
+   `+0.143274 cm`，CI `[-0.057880,0.354987]`，两个 locality gate 均失败。
+3. **Fixed official native evaluation。**
+   `p1-hoi-d2ad-native-eval-s42-20260728` 完成 official 438×3、500-step
+   unguided evaluator，复用 sealed D2-X control，未重生成 control，D2-AC 只作 sealed
+   descriptive comparison。D2-AD end-object/Txy/FS/contact
+   precision/recall/F1/coverage/Pbody/hand penetration/MPJPE/Troot/Tobj/Oobj 为
+   `4.2373 / 4.8036 / 0.42539 / 0.76795 / 0.53300 / 0.58687 /
+   0.43497 / 3.4625 / 0.21656 / 12.3847 / 9.2747 / 16.4076 / 1.01478`。
+   相对 D2-X，contact F1/recall differences 为
+   `-0.0505537 / -0.0614576`，95% CI 分别为
+   `[-0.0713216,-0.0293031] / [-0.0852768,-0.0377657]`；released contact-F1
+   gap closure 为 `-0.562760`。End-object/Txy/FS/Troot protection ratio CI upper
+   为 `1.19830 / 1.23695 / 1.25273 / 1.16017`，均超过 `1.10`；
+   precision difference CI lower `-0.0418402 < -0.02`。Native transfer、
+   protection 和 released-95% effectiveness gates 全部失败；181-sequence
+   penetration mask contract 通过。Evaluator 未生成 FID、Matching、R-Precision 或
+   Diversity，未代填。
+4. **Final decision 与 recovery。** Classification precedence 由固定 internal
+   locality failure 决定，最终为
+   `local-frame-interaction-adapter-locality-negative-stop`。CPU/smoke/training/
+   internal/native recovered tree SHA-256 分别为
+   `514163cc45801253f19dbb6e1789464e791f59a00aa6f1b44cdadf9f348eb7ce` /
+   `85ef57f3874ab113d4cac75b813259fb61ae5cff5d1b24ed9078b924223c621a` /
+   `d694962309735ecae12f4480d4dcb52c8d191a9a453603fefd8e5f4bbd18b656` /
+   `4b80a78745de4d3fecc23399f023d736d4b5ff1f9e7d12e043e70e6bf27055e3` /
+   `6d0bcf47eac49aaf1a10341d81bc8d4f1a518ed86344fd145283b17c236c7d0c`，
+   worker/authority 一致。
+
+D2-AD0 fixed final-online checkpoint 不可选择、不可 resume、不可初始化后续 prior。
+本 D2-AD0 计划没有 D2-AD1/longer-budget fallback；任何新机制、预算或参数方向都必须先有
+新的 dated plan、append-only registry hypothesis 和用户明确授权。不得自动启动
+checkpoint selection、consistency、HSIPrior、Mixer 或任何 sweep。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
