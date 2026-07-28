@@ -4,6 +4,8 @@
 D2-AC0 已完成并分类为 `interaction-adapter-locality-negative-stop`，checkpoint 不可选择，
 D2-AC1 不 eligible；D2-AD0 human-local BPS coordinate-contract repair 已完成并分类为
 `local-frame-interaction-adapter-locality-negative-stop`，checkpoint 不可选择；
+D2-AE0 GPU-native sparse current-state role-relative object-field routing 已于 2026-07-28
+完成 plan-only 预注册，尚未实施或启动 workload；
 Phase 1C 未启动；
 基线提交 `b9a158f75ab0740c91c9cfc8863a65fa381b014c`<br>
 创建：2026-07-11（Asia/Shanghai）<br>
@@ -5010,6 +5012,224 @@ D2-AD0 fixed final-online checkpoint 不可选择、不可 resume、不可初始
 本 D2-AD0 计划没有 D2-AD1/longer-budget fallback；任何新机制、预算或参数方向都必须先有
 新的 dated plan、append-only registry hypothesis 和用户明确授权。不得自动启动
 checkpoint selection、consistency、HSIPrior、Mixer 或任何 sweep。
+
+#### 2026-07-28 Phase 1B D2-AE0 GPU-native sparse current-state role-relative object-field routing 预注册（plan-only）
+
+本 amendment 只注册用户明确授权的一个新单变量 HOIPrior 实验，不重新开放 HOIPrior
+search。修改前的 authority 为 clean `phase/01b-hoi`、HEAD
+`45b59330f6d09da9050cedb01e5edb7fa5deefda`（`Close Phase 1B D2-AD0`）。Identifier audit
+对 tracked/untracked operational text、全部 reachable Git history/diffs/refs/reflogs、registry、
+authority/worker staging 文件名和现有 lifecycle identities 做了大小写不敏感扫描，确认
+D2-AE、`d2ae`、`D2-AE0`、`p1-hoi-d2ae-*` 与 `sparse-relation-field` 尚未使用。Locked baseline
+`b9a158f75ab0740c91c9cfc8863a65fa381b014c` 是 HEAD ancestor；
+`feature/independent-hoi-hsi-priors` 既不是 ancestor，也没有 patch-equivalent cherry-pick。
+
+1. **封存证据与可证伪假设。** D2-AC0/D2-AD0 的 adapter whole-gate ablation 很强，但
+   correspondence permutation 基本无效，且 native contact transfer 变差；D2-AD0 formal
+   throughput 还因 CPU full-mesh KD-tree path 从 D2-X 的
+   `3,243.0357134915853 windows/s` 降到 `1,282.923 windows/s`。作者 released InfBaGel 的
+   `occ_temp` 路径说明 current-state spatial relation 配合固定 temporal routing 可能是有用
+   归纳偏置，但其 training 使用 noisy object pose 与 clean future `x_start` human/grid anchor，
+   sampling 又使用 current `x` object pose 与 previous `x0` human anchor，并读取 synthesized
+   `Scene*`。D2-AE0 的唯一假设是：若每个 diffusion step 只从同一当前 `x_t` 构造结构性绑定
+   left hand/right hand/pelvis 与当前 sparse object surface 的明确相对场，并在 trunk 前按固定
+   temporal segments 写回，则 relation path 的 temporal correspondence 与 role identity 会在
+   paired causal diagnostic 中成为必要信息，并在不引入 scene/future leakage 或 CPU dynamic
+   geometry 的情况下改善 D2-X native contact transfer。
+
+2. **唯一 manipulated factor 与保持项。** D2-AE0 相对 sealed D2-X 只增加一个
+   GPU-native sparse current-state role-relative object-field residual。保持 `[B,16,232]`
+   clean-output API、232-D field semantics、16-frame window、2-frame history restoration、
+   500-step clean-x0 diffusion、512-wide/16-head/8-layer trunk、原四个 condition tokens、
+   global BPS token、D2-X FK-foot temporal routing、全部既有 losses/reductions/weights、
+   optimizer/LR/batch/split/budget/sampler、official evaluator，以及 HSIPrior/Mixer clean-output
+   contract 不变。不得扩大 D2-AC/D2-AD adapter，也不得改变 point count、width、depth、role、
+   placement、anchor、batch、LR、loss、threshold 或训练预算。
+
+3. **Current-state relation source 与 immutable sparse asset。** Relation builder 只接收当前
+   diffusion state `x_t [B,16,232]`、现有 `rest_object_points [B,100,3]`、
+   `world_to_local_rotation [B,3,3]`、`object_rotation_reference [B,3,3]`，以及 locked
+   position/object normalization tensors。D2-X data path 对每个 immutable rest mesh 使用
+   `trimesh.load_mesh(process=False)`、float32 Z-up→Y-up，再以
+   `linspace(0,N-1,100).round()` 选择固定 vertices；13 个对象在 real D2-X batch 中均为
+   100 points，并与该重建 byte-exact。以下 canonical hashes 在本 plan 中锁定：
+
+   - object-name mapping（`sequence-name-second-underscore-field-v1`）：
+     `1af35119c1dd54e2ad44c99f3cb91b62c1b88f62ca80cddcc96f4b201ffe0f5b`；
+   - per-object source/count/index/point manifest
+     （`d2x-rest-object-points-100-yup-linspace-vertex-v1`）：
+     `e88d74a7ee434f3e6320c95d1ebb74efdc8fe4740b70ff596e502666a096f7a7`；
+   - stacked tensor `[13,100,3]` in fixed object-name order：
+     `793dad6a805d0a908087b273590bf171e7bce4c026297cf94d40f8c651fe4cab`。
+
+   Training 已直接提供这 100 points；native evaluator 已加载同一 immutable rest meshes，
+   sampler 只允许在 diffusion loop 前以相同固定 indices 建立/缓存 13 个 100-point tensors，
+   随后每个 batch 只传 `[B,100,3]`。这不是 full-mesh nearest query、per-window relation cache
+   或 dynamic CPU geometry。Relation math 本身必须是 train/sample 共用的 pure PyTorch
+   function；不得使用 SciPy、NumPy、trimesh、KD-tree、full-mesh `cdist`、dense occupancy、
+   stored future relation 或 collator-side dynamic geometry。
+
+4. **精确几何方程。** 固定 temporal anchors `F=(0,5,10,15)`；固定 roles 按顺序为
+   `(left_hand_direct_joint_24,right_hand_direct_joint_26,pelvis_joint_0)`。对每个 anchor
+   `tau`，从当前 `x_t` 反归一化 28 个 local joints `J_tau` 与 object translation `o_tau`，
+   并计算
+
+   `R_local_tau = world_to_local_rotation @ project_to_so3(R_relative_tau @ object_rotation_reference)`。
+
+   当前 sparse object surface 为
+   `S_tau,n = P_rest,n @ R_local_tau^T + o_tau`。实现顺序必须与现有
+   `hoi_training_losses()` object-surface transform 逐点 parity：先投影 relative，随后
+   `project_to_so3(relative @ reference)`，再左乘 `world_to_local`，最后
+   `einsum("bpc,btdc->btpd") + translation`。Role anchor 分别为
+   `J_tau,24/J_tau,26/J_tau,0`；每点 feature 固定为
+   `[delta_x,delta_y,delta_z,||delta||_2]`，其中 `delta=S-h`。不得加入 contact label、
+   SDF、penetration label、scene/category embedding 或任何 threshold。
+
+5. **固定 sparse field encoder。** 所有 temporal/role sets 共享 point encoder
+   `phi: 4 -> 128 -> 128`，每层后使用 SiLU。每个 role 只做 point-set mean/max pooling，
+   得到 256-D；三个 role 按 left/right/pelvis 顺序结构性拼接为 768-D。Relation vector 为
+   `r_tau = LN(W_r g_tau + e_tau)`，其中 `W_r:768->512`，`e_tau` 是四个 learned
+   temporal-slot embeddings。不得复用 D2-AC 的“同一 motion token 加 additive role
+   embedding”设计。Point order permutation invariance 是预期性质，不得作为 locality
+   ablation。
+
+6. **固定 temporal writeback 与参数预算。** 保持原 20-token sequence，不插入 occupancy
+   tokens。先算 `H_t=motion_input(x_t)`，再以固定 mapping
+   `0..4->0, 5..9->5, 10..14->10, 15->15` 写回
+   `H'_t = H_t + tanh(alpha) * r_a(t)`。`alpha` 为单 scalar 且严格初始化为 0；writeback
+   位于 condition concat/position embedding 与完整 8-layer trunk 之前。`alpha=0` 时必须与
+   共享 D2-X trunk `eval()` max-abs parity `<=1e-6`。所有 sparse-field 和 trunk 参数均由
+   seed 42 随机初始化；不得加载 released/author/D2-V/X/Y/Z/AB/AC/AD/prior/EMA/
+   consistency checkpoint。Exact parameter contract 为：point encoder `17,152`、projection
+   `393,728`、temporal embeddings `2,048`、LayerNorm `1,024`、alpha `1`，increment
+   `413,953`；base `29,673,448`；total `30,087,401`；increase `1.3950283%`，硬上限
+   `1.50%`。若 CPU 实测不一致或超限，GPU 前分类
+   `sparse-relation-field-contract-failure-stop`，不得改 width。
+
+7. **独立 architecture/provenance 与 train/sample symmetry。** D2-AE 使用独立
+   architecture variant `d2ae_sparse_relation_field` 与独立 checkpoint contract；released、
+   D2-X/base、D2-AC、D2-AD schema 必须 fail-closed。Training 的 relation 只从
+   `GaussianDiffusion.q_sample()` 产生的 current `noisy` 构造，绝不读取 clean target。
+   Sampling 的每个 500-step model call 只从当步 current `x_t` 构造同一 relation，不得使用
+   previous predicted clean `x0` 作为专有 condition。两条路径共享同一 builder、normalization、
+   100-point tensor 和 frame/reference contract。HSIPrior 不接受该 variant、不共享参数或
+   storage；未来 Mixer 仍只接收 clean `[B,16,232]`。
+
+8. **Authority CPU hard gate。** 任何 GPU workload 前，registered authority CPU lifecycle
+   必须完成并归档：path/branch/commit/clean/date；identifier/provenance；100-point
+   asset/mapping/tensor hashes；loss surface parity；common global-yaw invariance；relative
+   translation/rotation sensitivity；left/right swap 精确 block exchange；nonzero-gate temporal
+   anchor permutation sensitivity；point-order invariance；zero/constant/extreme noisy-state 与
+   SO(3) finiteness；dtype/device/batch propagation；exact parameter/API/base parity；initial
+   alpha finite/nonzero gradient；test-only `tanh(alpha)=0.1` 下 point encoder/projection/
+   temporal embeddings/relevant trunk gradients finite/nonzero；probe 不保存且不进入训练；
+   train/sampler builder parity；relation source 无 clean/future/Scene/contact；checkpoint
+   rejection；HSIPrior independence；Mixer clean API；forbidden-path static scan；full authority
+   suite、registry validation 和 `git diff --check`。任一失败立即停止为
+   `sparse-relation-field-contract-failure-stop`。
+
+9. **固定 lifecycle identities。** 本 plan-only commit 不实施 source、不启动 CPU/GPU
+   workload。Implementation commit 后只允许绑定以下本日未使用 IDs；跨日或 unstarted
+   preflight failure 必须 append-only supersede/`-r1`，不得覆盖：
+
+   - plan：`p1-hoi-d2ae-sparse-relation-field-preregister-s42-20260728`；
+   - implementation：`p1-hoi-d2ae-sparse-relation-field-implementation-s42-20260728`；
+   - CPU：`p1-hoi-d2ae-cpu-contract-s42-20260728`；
+   - functional smoke：`p1-hoi-d2ae-gpu-functional-smoke-s42-20260728`；
+   - performance：`p1-hoi-d2ae-performance-benchmark-s42-20260728`；
+   - formal：`p1-hoi-d2ae-sparse-relation-field-s42-20260728`；
+   - internal：`p1-hoi-d2ae-sparse-relation-field-internal-s42-20260728`；
+   - native：`p1-hoi-d2ae-native-eval-s42-20260728`；
+   - completion：`p1-hoi-d2ae-completion-s42-20260728`。
+
+10. **Single-GPU functional smoke。** 在 exact committed clean worker object 上，以 verified
+    worker Python、`INFBAGEL_WORKER_EXPERT=hoi`、real-data batch 8、timesteps `0/249/499`、
+    seed 42、random initialization 执行。不得创建 optimizer、update 或 checkpoint；必须记录
+    relation values/shapes、alpha gradient、test-only activated gradients、loss/model finiteness、
+    peak allocated/reserved/headroom、visible GPUs、resolved config、same-context preflight 与
+    manifest。失败按 contract failure 停止。
+
+11. **4-GPU full-micro-batch performance hard gate。** Formal training 前必须在
+    `infbagel-4gpu/node01`、4×RTX 3090、per-GPU batch 512/effective 2048、FP32 Adam、seed 42、
+    random initialization 上完成独立 sacrificial benchmark：64 warm-up + 256 measured = 320
+    updates；measured windows `524,288`；不加载/保存 checkpoint，benchmark weights 不复用。
+    CUDA timing必须同步，分别报告 loader wait、H2D、GPU relation build、forward、backward、
+    optimizer、DDP、peak allocated/reserved/headroom、CPU/GPU utilization、contention 和
+    intermediate shapes。Measured throughput 必须
+    `>=2756.580356467847 windows/s`（sealed D2-X 的 85%），完整预算 ETA 必须
+    `<=6.20 h`；每卡 headroom 必须 `>=max(2 GiB,10% device memory)`，loss/gradients finite，
+    且无 CPU dynamic geometry。失败即
+    `sparse-relation-field-performance-negative-stop`；保留全部 benchmark artifacts，不得通过
+    point/width/depth/role/anchor/placement/batch/loss/budget 或 workers/threads sweep 重试。
+
+12. **Formal from-random training（仅 performance pass）。** 固定 split
+    `experiments/splits/omomo_hoi_train_validation_seed42.json`，SHA-256
+    `019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e`；只在
+    `infbagel-4gpu/node01` 4×RTX 3090 运行。Per-GPU batch 512、effective 2048、accumulation 1；
+    `61,440,000` windows / `983,040,000` frames / `30,000` updates；FP32 Adam、LR `1e-4`、
+    betas `(0.9,0.999)`、weight decay 0、no warmup/scheduler/AMP/clipping/EMA；primary
+    final-online；FK/object-surface/velocity/terminal-goal weights
+    `0.3569973401779424/0.4772322188400037/0.1/1.0`；D2-X FK-foot routing on，D2-AB/new
+    losses off。First start 的 init/weight-init/resume 全空，所有旧 model/optimizer/RNG/EMA/
+    scaler/scheduler load count 为 0。必须完整跑完预算，不得选择中间 checkpoint。通过 initial
+    stability、memory headroom、finite required gradients 和 resumable checkpoint 后记录实测
+    throughput/ETA/checkpoint hash，并按 multi-server policy 让 worker-owned persistent session
+    独立完成；不得因 control tunnel 中断 restart、复用 run id 或覆盖。
+
+13. **Fixed internal causal diagnostic。** 只加载 fixed final-online，在 sealed D2-O
+    64 sequences×3 windows、phase offsets `(14,56,98)`、selection SHA-256
+    `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a` 上运行四条 paired
+    500-step rollouts：`full`；每步 gate 强制 0 的 `relation_gate_ablated`；geometry anchor
+    block `k<-(k+2) mod 4` 但 target temporal embedding/routing slot 不变的
+    `temporal_correspondence_permuted`；projection 前交换 left/right pooled geometry blocks 的
+    `left_right_role_swapped`。四路共享 initial latent、每步 posterior noise、condition、ordering
+    与 history restoration；official test 禁止，无 optimizer/update/checkpoint write/selection。
+    统计 unit 为 sequence、seed 42、10,000 paired bootstrap。必须报告 semantic/direct/FK-palm
+    contact、多阈值、coverage/run length、GT-contact distance、penetration、MPJPE、object/pelvis
+    goal、FS、alpha/gate、temporal/role block norm/variance/permutation sensitivity 与 paired
+    uncertainty。Primary gates 固定为：full-gate-ablated direct union 5-cm F1 CI lower `>0`；
+    full-temporal-permuted 同指标 CI lower `>0`；full-role-swapped direct left/right macro-F1
+    CI lower `>0`；gate-ablated-full 与 temporal-permuted-full GT-contact mean distance CI lower
+    均 `>0`。Classification precedence 依次为 unused、temporal negative、role negative；无论
+    internal 正负都继续一次 fixed native evaluation。
+
+14. **Fixed native evaluation 与 selection gates。** 完全复用 D2-AC/D2-AD protocol：official
+    438 sequences×3 windows、500-step unguided production diffusion、final-online、seed 42、
+    10,000 paired sequence bootstrap；CFG/guidance/scene/dynamic perception/consistency 全 off；
+    不重新生成 sealed D2-X。Control checkpoint/aggregate/per-sequence SHA-256 分别为
+    `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+    `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+    `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`；released aggregate
+    `76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`；penetration 使用
+    sealed 181-sequence finite mask SHA-256
+    `2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec`。
+    Native transfer 要求 contact F1/recall difference CI lower `>0` 且 released gap closure
+    `>=25%`（F1 point estimate 约 `>=0.6598838781`）。Protection 继续要求 end-object/Txy/FS/
+    Pbody/hand penetration/MPJPE/Troot/Tobj/Oobj paired mean-ratio CI upper `<=1.10`，contact
+    precision difference CI lower `>=-0.02`，penetration mask contract 通过；released-95%
+    effectiveness gate不变。D2-AC/D2-AD 只作 sealed descriptive evidence；FID/R-Precision
+    即使生成也不参与 selection；evaluator 生成什么就保留什么，不删除、补值或改 metric math。
+
+15. **最终分类、artifact 与停止边界。** Classification precedence 固定为：
+    `sparse-relation-field-contract-failure-stop`；
+    `sparse-relation-field-performance-negative-stop`；
+    `sparse-relation-field-unused-optimization-negative-stop`；
+    `sparse-relation-field-temporal-routing-negative-stop`；
+    `sparse-relation-field-role-binding-negative-stop`；
+    `sparse-relation-field-transfer-negative-stop`；
+    `sparse-relation-field-conflict-negative-stop`；
+    `sparse-relation-field-positive-but-not-effective-stop`；
+    `sparse-relation-field-positive-candidate-stop`。只有最后一类可把 fixed final-online 标为
+    selectable autonomous diffusion HOIPrior candidate。所有 operational/scientific failures、
+    resolved configs、same-context preflights、manifests/logs/profile、checkpoints/RNG、paired noise、
+    internal/native raw/summary/bootstrap、mask、optional evaluator outputs、run-local registry、
+    dependency/hardware/data/evaluator hashes 与 recovered trees 必须保留并做 worker/authority
+    unified `sha256_path` 核验；worker 发起 non-destructive rsync，禁止 `--delete`。最终写 compact
+    result、`docs/phase_summaries/PHASE_1B_D2AE.md` 与 append-only completion record。
+    D2-AE1、longer budget、任何 sweep、D2-AC/D2-AD retrain/resume/selection、new loss、SNR/
+    timestep weighting、gradient projection、rollout exposure、CFG/guidance、distillation、
+    HSIPrior、Mixer、scene encoder/Scene*/occupancy、future clean/GT/stored relation 均未授权，
+    不得自动启动。
 
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
