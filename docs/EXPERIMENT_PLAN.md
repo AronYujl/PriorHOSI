@@ -5286,6 +5286,67 @@ contract、functional smoke、performance benchmark、formal training、internal
 single-GPU functional smoke 和 hash-bound 4-GPU performance gate 全部通过，formal training 才能
 启动；performance negative 时必须立即按已注册分类停止，不得 sweep 或修改机制。
 
+#### 2026-07-29 Phase 1B D2-AE0 unstarted lifecycle date-transition amendment
+
+真实日期已跨至 `2026-07-29`。Authority 在追加本 amendment 前为 clean
+`phase/01b-hoi@993934cb1d27a2fb406b4d3640eda90d8737767a`。已经启动或完成的
+2026-07-28 lifecycle identities 全部保持不变，特别是 formal retry
+`p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728`：它于
+`2026-07-28T19:43:17+08:00` 从随机初始化启动，于
+`2026-07-29T00:49:32+08:00` 在同一 run id 下完成，exit code `0`，没有 resume、重训或
+checkpoint selection。Formal 完成 `61,440,000` windows / `983,040,000` frames /
+`30,000` updates，final-online SHA-256 为
+`b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840`。
+
+完整 formal tree 已由 worker 发起 non-destructive recovery 到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728-recovery-r1`；
+worker/authority 统一 `sha256_path` 均为
+`3c8a987d54dfb63e89d7ec243fb065dc4f84c95808d92eee13b46ab621959428`
+（119 files / 7,226,999,632 bytes），随后 checksum dry-run 为零传输。较早的
+118-file pre-run-local-registry snapshot
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728`
+也原样保留，tree SHA-256
+`420e2f89d8059e4d9b5d0249001fbb9dbaffd5e591990f8ba7d6fbcdf6e44ae6`；
+不得删除或覆盖任一 recovery evidence。
+
+以下已经实际发生的 identities 继续作为唯一历史记录，不得改名、复用或 supersede：
+
+- plan `p1-hoi-d2ae-sparse-relation-field-preregister-s42-20260728`；
+- implementation `p1-hoi-d2ae-sparse-relation-field-implementation-s42-20260728`；
+- CPU `p1-hoi-d2ae-cpu-contract-s42-20260728`；
+- failed functional smoke base 与 completed retry
+  `p1-hoi-d2ae-gpu-functional-smoke[-r1]-s42-20260728`；
+- completed performance base
+  `p1-hoi-d2ae-performance-benchmark-s42-20260728`；
+- failed formal base
+  `p1-hoi-d2ae-sparse-relation-field-s42-20260728`；
+- completed performance retry
+  `p1-hoi-d2ae-performance-benchmark-r1-s42-20260728`；
+- completed formal retry
+  `p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728`。
+
+跨日前从未创建 manifest、run directory 或 workload 的旧 internal、native 和 completion
+identities 现被永久 supersede：
+
+- `p1-hoi-d2ae-sparse-relation-field-internal-s42-20260728`；
+- `p1-hoi-d2ae-native-eval-s42-20260728`；
+- `p1-hoi-d2ae-completion-s42-20260728`。
+
+后续唯一有效且 identifier audit 确认未使用的 identities 为：
+
+- fixed internal：
+  `p1-hoi-d2ae-sparse-relation-field-internal-s42-20260729`；
+- fixed native：
+  `p1-hoi-d2ae-native-eval-s42-20260729`；
+- completion：
+  `p1-hoi-d2ae-completion-s42-20260729`。
+
+本 amendment 只改变尚未启动 lifecycle 的日期 identity。D2-AE0 mechanism、final-online
+checkpoint、sealed cohort、四条 internal paths、500-step sampler、native evaluator、bootstrap、
+threshold、gate、classification precedence 与 artifact contract 全部不变；不授权新的
+performance benchmark、fresh formal training、resume、checkpoint selection、D2-AE1、
+longer budget、sweep、consistency、HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
