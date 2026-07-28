@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
@@ -52,9 +53,20 @@ from priors.models import (
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
+    HOI_ARCHITECTURE_D2AE,
     build_expert,
 )
 from priors.representation import REPRESENTATION
+from priors.sparse_relation import (
+    BASE_PARAMETER_COUNT as D2AE_BASE_PARAMETER_COUNT,
+    PARAMETER_INCREASE_FRACTION as D2AE_PARAMETER_INCREASE_FRACTION,
+    SPARSE_POINT_MANIFEST_SHA256,
+    SPARSE_POINT_MAPPING_SHA256,
+    SPARSE_POINT_TENSOR_SHA256,
+    SPARSE_RELATION_PARAMETER_COUNT,
+    TOTAL_PARAMETER_COUNT as D2AE_TOTAL_PARAMETER_COUNT,
+    validate_sparse_relation_contract,
+)
 from priors.window_codec import BPS_SHA256
 
 
@@ -62,6 +74,44 @@ LOSS_KEYS = (
     "total", "reconstruction", "joint_position", "joint_rotation", "object_translation",
     "object_rotation", "contact", "fk", "object_surface", "velocity", "object_goal", "contact_accuracy",
 )
+
+D2AE_FORMAL_RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ae-sparse-relation-field"
+    r"(?P<retry>-r[1-9][0-9]*)?-s42-(?P<date>[0-9]{8})$"
+)
+D2AE_PERFORMANCE_RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ae-performance-benchmark"
+    r"(?P<retry>-r[1-9][0-9]*)?-s42-(?P<date>[0-9]{8})$"
+)
+D2AE_MINIMUM_THROUGHPUT = 2756.580356467847
+D2AE_MAXIMUM_ETA_HOURS = 6.20
+D2AE_FORMAL_SOURCE_SCOPES = (
+    "code",
+    "tools/benchmark_hoi_d2ae.py",
+    "tools/smoke_hoi_d2ae.py",
+    "tools/smoke_hoi_d2ac.py",
+    "tools/capture_hoi_worker_preflight.py",
+    "tools/experiment.py",
+)
+
+
+def _validate_d2ae_formal_run_id(
+    run_id: str,
+    *,
+    require_actual_date: bool = True,
+) -> Dict[str, object]:
+    match = D2AE_FORMAL_RUN_ID_RE.fullmatch(str(run_id))
+    actual_date = datetime.now().astimezone().strftime("%Y%m%d")
+    if match is None or (
+        require_actual_date and match.group("date") != actual_date
+    ):
+        raise ValueError("D2-AE formal run id must use the locked stem and actual date")
+    return {
+        "run_id": str(run_id),
+        "date": match.group("date"),
+        "date_is_actual": match.group("date") == actual_date,
+        "retry": match.group("retry") is not None,
+    }
 
 
 def _free_port() -> int:
@@ -192,6 +242,173 @@ def _git_commit(repo: Path) -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
 
+def _d2ae_formal_source_contract(repo: Path) -> Dict[str, object]:
+    """Hash the tracked runtime tree shared by the benchmark and formal run."""
+    repo = repo.resolve()
+    output = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", *D2AE_FORMAL_SOURCE_SCOPES],
+        cwd=repo,
+    )
+    relative_paths = sorted(
+        item.decode("utf-8") for item in output.split(b"\0") if item
+    )
+    if not relative_paths:
+        raise ValueError("D2-AE formal source contract resolved no tracked files")
+    records = [
+        {"path": relative, "sha256": _sha256(repo / relative)}
+        for relative in relative_paths
+    ]
+    encoded = json.dumps(
+        records, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return {
+        "algorithm": "git-ls-files-path-content-sha256-v1",
+        "scopes": list(D2AE_FORMAL_SOURCE_SCOPES),
+        "tracked_file_count": len(records),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def _validate_d2ae_performance_gate(cfg: DictConfig) -> Dict[str, object]:
+    """Require an immutable passing benchmark before formal D2-AE training."""
+    path_value = cfg.get("d2ae_performance_benchmark_path")
+    configured_sha256 = cfg.get("d2ae_performance_benchmark_sha256")
+    if path_value in (None, "", False) or configured_sha256 in (None, "", False):
+        raise ValueError("D2-AE formal training requires a sealed performance benchmark")
+    path = Path(str(path_value))
+    if not path.is_absolute() or not path.is_file():
+        raise ValueError("D2-AE performance benchmark path must be an existing absolute file")
+    configured_sha256 = str(configured_sha256)
+    actual_sha256 = _sha256(path)
+    if (
+        re.fullmatch(r"[0-9a-f]{64}", configured_sha256) is None
+        or actual_sha256 != configured_sha256
+    ):
+        raise ValueError("D2-AE performance benchmark SHA-256 mismatch")
+    try:
+        benchmark = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("D2-AE performance benchmark is not valid JSON") from error
+    if not isinstance(benchmark, Mapping):
+        raise ValueError("D2-AE performance benchmark must be a JSON object")
+
+    repo = Path(str(cfg.repo_root)).resolve()
+    identity = benchmark.get("identity")
+    benchmark_run_id = str(benchmark.get("run_id", ""))
+    benchmark_run_match = D2AE_PERFORMANCE_RUN_ID_RE.fullmatch(
+        benchmark_run_id
+    )
+    formal_run_id = str(benchmark.get("formal_run_id", ""))
+    configured_formal_run_id = str(cfg.run_id)
+    configured_formal_match = D2AE_FORMAL_RUN_ID_RE.fullmatch(
+        configured_formal_run_id
+    )
+    benchmark_commit = (
+        identity.get("git_commit") if isinstance(identity, Mapping) else None
+    )
+    commit_valid = isinstance(benchmark_commit, str) and re.fullmatch(
+        r"[0-9a-f]{40}", benchmark_commit,
+    ) is not None
+    ancestor = False
+    if commit_valid:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", benchmark_commit, _git_commit(repo)],
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode == 0
+    throughput = benchmark.get("throughput_windows_per_second")
+    eta_hours = benchmark.get("full_budget_eta_hours")
+    headroom = benchmark.get("memory_headroom_min_bytes")
+    required_headroom = benchmark.get("memory_headroom_required_bytes")
+    numeric_metrics = (
+        isinstance(throughput, (int, float))
+        and not isinstance(throughput, bool)
+        and math.isfinite(float(throughput))
+        and isinstance(eta_hours, (int, float))
+        and not isinstance(eta_hours, bool)
+        and math.isfinite(float(eta_hours))
+    )
+    memory_metrics = (
+        isinstance(headroom, int)
+        and not isinstance(headroom, bool)
+        and isinstance(required_headroom, int)
+        and not isinstance(required_headroom, bool)
+        and headroom >= required_headroom
+        and required_headroom >= 2 * 1024**3
+    )
+    checks = {
+        "schema_version": benchmark.get("schema_version") == 1,
+        "status": benchmark.get("status") == "passed",
+        "classification": benchmark.get("classification") == "performance-gate-passed",
+        "run_id": benchmark_run_match is not None,
+        "formal_run_id": configured_formal_match is not None
+        and benchmark_run_match is not None
+        and formal_run_id == configured_formal_run_id
+        and configured_formal_match.group("date")
+        == benchmark_run_match.group("date"),
+        "formal_authorized": benchmark.get("formal_training_authorized") is True,
+        "seed": benchmark.get("seed") == 42,
+        "world_size": benchmark.get("world_size") == 4,
+        "micro_batch": benchmark.get("micro_batch_per_gpu") == 512,
+        "effective_batch": benchmark.get("effective_batch_size") == 2048,
+        "warmup_updates": benchmark.get("warmup_updates") == 64,
+        "measured_updates": benchmark.get("measured_updates") == 256,
+        "total_updates": benchmark.get("total_updates") == 320,
+        "measured_windows": benchmark.get("measured_windows") == 524288,
+        "numeric_metrics": numeric_metrics,
+        "throughput": numeric_metrics
+        and float(throughput) >= D2AE_MINIMUM_THROUGHPUT,
+        "eta": numeric_metrics and float(eta_hours) <= D2AE_MAXIMUM_ETA_HOURS,
+        "throughput_threshold": benchmark.get(
+            "minimum_throughput_windows_per_second"
+        ) == D2AE_MINIMUM_THROUGHPUT,
+        "eta_threshold": benchmark.get("maximum_full_budget_eta_hours")
+        == D2AE_MAXIMUM_ETA_HOURS,
+        "memory": benchmark.get("memory_headroom_pass") is True
+        and memory_metrics,
+        "losses": benchmark.get("losses_finite") is True,
+        "gradients": benchmark.get("gradients_finite") is True,
+        "relation_gpu_only": benchmark.get("relation_gpu_only") is True,
+        "all_rank_contract": benchmark.get("all_rank_contract_pass") is True,
+        "contention": benchmark.get("contention_pass") is True,
+        "cpu_dynamic_geometry": benchmark.get("cpu_dynamic_geometry") is False,
+        "relation_build_device": benchmark.get("relation_build_device") == "cuda",
+        "cuda_timing": benchmark.get("cuda_timing_synchronized") is True,
+        "optimizer": benchmark.get("optimizer") == "FP32 Adam",
+        "optimizer_updates": benchmark.get("optimizer_updates") == 320,
+        "checkpoint_loads": benchmark.get("checkpoint_loads") == 0,
+        "checkpoint_writes": benchmark.get("checkpoint_writes") == 0,
+        "benchmark_weights_reusable": benchmark.get("benchmark_weights_reusable") is False,
+        "sweep_on_failure": benchmark.get("sweep_authorized_on_failure") is False,
+        "identity_mapping": isinstance(identity, Mapping),
+        "identity_clean": isinstance(identity, Mapping)
+        and identity.get("worktree_clean") is True,
+        "benchmark_commit": commit_valid,
+        "benchmark_ancestor": ancestor,
+        "source_contract": benchmark.get("formal_source_contract")
+        == _d2ae_formal_source_contract(repo),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            "D2-AE performance benchmark contract mismatch: " + ", ".join(failed)
+        )
+    return {
+        "path": str(path.resolve()),
+        "sha256": actual_sha256,
+        "run_id": str(benchmark["run_id"]),
+        "formal_run_id": formal_run_id,
+        "git_commit": benchmark_commit,
+        "throughput_windows_per_second": float(throughput),
+        "full_budget_eta_hours": float(eta_hours),
+        "memory_headroom_min_bytes": int(headroom),
+        "formal_source_contract": dict(benchmark["formal_source_contract"]),
+        "checks": checks,
+    }
+
+
 _RESUME_TRANSITION_ALLOWED_PATHS = frozenset(
     {
         "code/config/config_train_hoi_prior.yaml",
@@ -301,8 +518,10 @@ def _model_config(cfg: DictConfig) -> Dict[str, object]:
         "num_heads": int(cfg.num_heads),
         "num_layers": int(cfg.num_layers),
     }
-    if bool(cfg.get("d2ac_interaction_adapter", False)) or bool(
-        cfg.get("d2ad_local_frame_interaction_adapter", False)
+    if (
+        bool(cfg.get("d2ac_interaction_adapter", False))
+        or bool(cfg.get("d2ad_local_frame_interaction_adapter", False))
+        or bool(cfg.get("d2ae_sparse_relation_field", False))
     ):
         value["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
     return value
@@ -344,6 +563,9 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         ),
         "d2ad_local_frame_interaction_adapter": bool(
             cfg.get("d2ad_local_frame_interaction_adapter", False)
+        ),
+        "d2ae_sparse_relation_field": bool(
+            cfg.get("d2ae_sparse_relation_field", False)
         ),
         "fk_foot_temporal_routing": bool(cfg.get("fk_foot_temporal_routing", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
@@ -396,6 +618,19 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         contract["d2ad_object_mapping_sha256"] = OBJECT_MAPPING_SHA256
         contract["d2ad_assignment_sha256"] = ASSIGNMENT_SHA256
         contract["local_bps_query_workers"] = int(cfg.local_bps_query_workers)
+    if _is_d2ae(cfg):
+        contract["d2ae_sparse_relation_field"] = True
+        contract["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
+        contract["d2ae_sparse_relation_parameters"] = SPARSE_RELATION_PARAMETER_COUNT
+        contract["d2ae_sparse_point_mapping_sha256"] = SPARSE_POINT_MAPPING_SHA256
+        contract["d2ae_sparse_point_manifest_sha256"] = SPARSE_POINT_MANIFEST_SHA256
+        contract["d2ae_sparse_point_tensor_sha256"] = SPARSE_POINT_TENSOR_SHA256
+        contract["d2ae_performance_benchmark_path"] = str(
+            Path(str(cfg.d2ae_performance_benchmark_path)).resolve()
+        )
+        contract["d2ae_performance_benchmark_sha256"] = str(
+            cfg.d2ae_performance_benchmark_sha256
+        )
     return contract
 
 
@@ -443,11 +678,15 @@ def _is_d2ad(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2ad_local_frame_interaction_adapter", False))
 
 
+def _is_d2ae(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2ae_sparse_relation_field", False))
+
+
 def _uses_author_update_rule(cfg: DictConfig) -> bool:
     return (
         _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg)
         or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
-        or _is_d2ac(cfg) or _is_d2ad(cfg)
+        or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_d2ae(cfg)
     )
 
 
@@ -457,10 +696,10 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     gating = bool(cfg.get("immutable_gt_near_ground_gating", False))
     if routing and not (
         _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
-        or _is_d2ac(cfg) or _is_d2ad(cfg)
+        or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_d2ae(cfg)
     ):
         raise ValueError(
-            "FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z/D2-AB/D2-AC/D2-AD modes"
+            "FK-foot temporal routing is restricted to registered D2-X/D2-Y/D2-Z/D2-AB/D2-AC/D2-AD/D2-AE modes"
         )
     if multiplier != 1.0 and not (_is_d2y(cfg) or _is_d2z(cfg)):
         raise ValueError("routed-foot residual amplification is restricted to registered D2-Y/D2-Z")
@@ -476,6 +715,8 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         raise ValueError("D2-AC interaction adapter requires D2-X FK-foot routing")
     if _is_d2ad(cfg) and not routing:
         raise ValueError("D2-AD interaction adapter requires D2-X FK-foot routing")
+    if _is_d2ae(cfg) and not routing:
+        raise ValueError("D2-AE sparse relation field requires D2-X FK-foot routing")
     if _is_d2ab(cfg) and (
         bool(cfg.get("immutable_gt_near_ground_gating", False))
         or cfg.get("d2z_gate_audit_path") not in (None, "", False)
@@ -495,17 +736,20 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     architecture_variant = str(
         cfg.get("hoi_architecture_variant", HOI_ARCHITECTURE_BASE)
     )
+    if sum(int(value) for value in (_is_d2ac(cfg), _is_d2ad(cfg), _is_d2ae(cfg))) > 1:
+        raise ValueError("D2-AC, D2-AD and D2-AE modes are mutually exclusive")
     if _is_d2ac(cfg):
         if architecture_variant != HOI_ARCHITECTURE_D2AC:
             raise ValueError("D2-AC requires the registered interaction-adapter architecture")
-        if _is_d2ad(cfg):
-            raise ValueError("D2-AC and D2-AD modes are mutually exclusive")
     elif _is_d2ad(cfg):
         if architecture_variant != HOI_ARCHITECTURE_D2AD:
             raise ValueError("D2-AD requires the registered local-frame adapter architecture")
+    elif _is_d2ae(cfg):
+        if architecture_variant != HOI_ARCHITECTURE_D2AE:
+            raise ValueError("D2-AE requires the registered sparse-relation architecture")
     elif architecture_variant != HOI_ARCHITECTURE_BASE:
         raise ValueError(
-            "interaction-adapter HOIPrior architectures are forbidden outside registered D2-AC/D2-AD"
+            "HOIPrior architecture variants are forbidden outside registered D2-AC/D2-AD/D2-AE"
         )
 
 
@@ -513,7 +757,7 @@ def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
     if (
         _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
         or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
-        or _is_d2ac(cfg) or _is_d2ad(cfg)
+        or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_d2ae(cfg)
     ):
         return {
             "fk": 0.3569973401779424,
@@ -628,6 +872,27 @@ def _loss_routing_contract(cfg: DictConfig) -> Dict[str, object]:
             "full_rest_mesh": True,
             "mesh_subsample": False,
             "stored_per_window_local_bps": False,
+            "d2ab_predicted_support_no_slip": False,
+        })
+    if _is_d2ae(cfg):
+        contract.update({
+            "d2ae_sparse_relation_field": True,
+            "architecture_variant": HOI_ARCHITECTURE_D2AE,
+            "placement": "after_motion_input_before_condition_concat_position_and_full_trunk",
+            "global_bps_token_preserved": True,
+            "temporal_anchors": [0, 5, 10, 15],
+            "roles": ["left_hand", "right_hand", "pelvis"],
+            "role_joints": [24, 26, 0],
+            "rest_object_points": [100, 3],
+            "mapping_sha256": SPARSE_POINT_MAPPING_SHA256,
+            "manifest_sha256": SPARSE_POINT_MANIFEST_SHA256,
+            "stacked_tensor_sha256": SPARSE_POINT_TENSOR_SHA256,
+            "sparse_relation_parameters": SPARSE_RELATION_PARAMETER_COUNT,
+            "current_state_only": True,
+            "clean_target_used": False,
+            "future_gt_used": False,
+            "scene_used": False,
+            "stored_relation_used": False,
             "d2ab_predicted_support_no_slip": False,
         })
     return contract
@@ -1420,28 +1685,187 @@ def _validate_d2ad_contract(cfg: DictConfig, world_size: int) -> None:
         raise ValueError(f"D2-AD local-frame interaction-adapter contract mismatch: {failed}")
 
 
+def _validate_d2ae_contract(
+    cfg: DictConfig,
+    world_size: int,
+    *,
+    require_performance_gate: bool = True,
+) -> Optional[Dict[str, object]]:
+    if not _is_d2ae(cfg):
+        return None
+    resume_value = cfg.resume_checkpoint
+    is_resume = resume_value not in (None, "", False)
+    run_id_contract = _validate_d2ae_formal_run_id(
+        str(cfg.run_id),
+        require_actual_date=not is_resume,
+    )
+    resume_allowed = (
+        resume_value in (None, "", False)
+        or (
+            Path(str(resume_value)).name.startswith(
+                f"{cfg.run_id}_windows"
+            )
+            and Path(str(resume_value)).suffix == ".pth"
+        )
+    )
+    split_path = Path(str(cfg.split_manifest)).resolve()
+    exact = {
+        "mode": str(cfg.mode) == "d2ae-sparse-relation-field",
+        "d2t_mode_off": not _is_d2t(cfg),
+        "d2u_mode_off": not _is_d2u(cfg),
+        "d2v_mode_off": not _is_d2v(cfg),
+        "d2x_mode_off": not _is_d2x(cfg),
+        "d2y_mode_off": not _is_d2y(cfg),
+        "d2z_mode_off": not _is_d2z(cfg),
+        "d2ab_mode_off": not _is_d2ab(cfg),
+        "d2ac_mode_off": not _is_d2ac(cfg),
+        "d2ad_mode_off": not _is_d2ad(cfg),
+        "subphase": str(cfg.subphase) == "1B-D2-AE0",
+        "run_id": run_id_contract["run_id"] == str(cfg.run_id),
+        "run_id_date": is_resume or run_id_contract["date_is_actual"],
+        "seed": int(cfg.seed) == 42,
+        "architecture_variant": (
+            str(cfg.get("hoi_architecture_variant")) == HOI_ARCHITECTURE_D2AE
+        ),
+        "model_config": _model_config(cfg) == {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AE,
+        },
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "num_workers": int(cfg.num_workers) == 4,
+        "local_bps_query_workers_absent": (
+            cfg.get("local_bps_query_workers") in (None, "", False)
+        ),
+        "dataset_limit": int(cfg.dataset_limit) == 0,
+        "max_processed_windows": int(cfg.max_processed_windows) == 61440000,
+        "processed_frames": int(cfg.max_processed_windows) * 16 == 983040000,
+        "optimizer_updates": (
+            int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 30000
+        ),
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "no_artificial_pause": cfg.pause_after_windows in (None, "", False),
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "balanced_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "fk_foot_temporal_routing_on": bool(cfg.fk_foot_temporal_routing),
+        "routed_foot_multiplier_unit": (
+            float(cfg.get("routed_foot_residual_multiplier", 1.0)) == 1.0
+        ),
+        "immutable_gt_gate_off": not bool(
+            cfg.get("immutable_gt_near_ground_gating", False)
+        ),
+        "d2ab_objective_off": not bool(
+            cfg.get("d2ab_predicted_support_no_slip", False)
+        ),
+        "d2ab_metadata_absent": (
+            cfg.get("d2ab_support_metadata_path") in (None, "", False)
+            and cfg.get("d2ab_support_metadata_sha256") in (None, "", False)
+        ),
+        "d2z_inputs_absent": (
+            cfg.get("d2z_gate_audit_path") in (None, "", False)
+            and cfg.get("d2z_gate_audit_sha256") in (None, "", False)
+        ),
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint,
+                cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256,
+                cfg.weight_init_variant,
+                cfg.d2m_candidate,
+            )
+        ),
+        "resume_same_run_only": resume_allowed,
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "split_sha256": split_path.is_file() and _sha256(split_path) == (
+            "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e"
+        ),
+        "base_parameter_count": D2AE_BASE_PARAMETER_COUNT == 29673448,
+        "sparse_relation_parameter_count": SPARSE_RELATION_PARAMETER_COUNT == 413953,
+        "total_parameter_count": D2AE_TOTAL_PARAMETER_COUNT == 30087401,
+        "parameter_increase_below_limit": D2AE_PARAMETER_INCREASE_FRACTION <= 0.015,
+        "mapping_sha256": len(SPARSE_POINT_MAPPING_SHA256) == 64,
+        "manifest_sha256": len(SPARSE_POINT_MANIFEST_SHA256) == 64,
+        "stacked_tensor_sha256": len(SPARSE_POINT_TENSOR_SHA256) == 64,
+        "performance_gate_binding": (
+            require_performance_gate
+            or (
+                cfg.get("d2ae_performance_benchmark_path") in (None, "", False)
+                and cfg.get("d2ae_performance_benchmark_sha256")
+                in (None, "", False)
+            )
+        ),
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AE sparse relation field contract mismatch: {failed}")
+    performance_gate = (
+        _validate_d2ae_performance_gate(cfg)
+        if require_performance_gate else None
+    )
+    return {
+        "run_id": run_id_contract,
+        "performance_gate_required": require_performance_gate,
+        "performance_gate": performance_gate,
+    }
+
+
 def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
-    label = (
-        "D2-AD" if _is_d2ad(cfg)
-        else ("D2-AC" if _is_d2ac(cfg)
-        else ("D2-AB" if _is_d2ab(cfg)
-        else ("D2-Z" if _is_d2z(cfg)
-        else ("D2-Y" if _is_d2y(cfg)
-        else ("D2-X" if _is_d2x(cfg)
-        else ("D2-V" if _is_d2v(cfg) else ("D2-U" if _is_d2u(cfg) else "D2-T"))
-        )))))
+    modes = (
+        (_is_d2ae(cfg), "D2-AE"),
+        (_is_d2ad(cfg), "D2-AD"),
+        (_is_d2ac(cfg), "D2-AC"),
+        (_is_d2ab(cfg), "D2-AB"),
+        (_is_d2z(cfg), "D2-Z"),
+        (_is_d2y(cfg), "D2-Y"),
+        (_is_d2x(cfg), "D2-X"),
+        (_is_d2v(cfg), "D2-V"),
+        (_is_d2u(cfg), "D2-U"),
+        (_is_d2t(cfg), "D2-T"),
     )
+    label = next(name for enabled, name in modes if enabled)
     if socket.gethostname() != "node01":
         raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
     if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
         raise RuntimeError(f"{label} requires INFBAGEL_WORKER_EXPERT=hoi")
-    expected_python = "/home/yujinlun/data/envs/infbagel/bin/python"
-    if os.environ.get("INFBAGEL_PYTHON") != expected_python:
-        raise RuntimeError(f"{label} requires INFBAGEL_PYTHON={expected_python}")
-    if Path(sys.executable).resolve() != Path(expected_python).resolve():
-        raise RuntimeError(f"{label} must execute with {expected_python}")
+    configured_python = os.environ.get("INFBAGEL_PYTHON")
+    if not configured_python or not Path(configured_python).is_absolute():
+        raise RuntimeError(f"{label} requires an absolute verified INFBAGEL_PYTHON")
+    if Path(sys.executable).resolve() != Path(configured_python).resolve():
+        raise RuntimeError(
+            f"{label} must execute with the verified INFBAGEL_PYTHON: "
+            f"{configured_python}"
+        )
 
 
 def _validate_d2t_execution_host(cfg: DictConfig) -> None:
@@ -1591,6 +2015,111 @@ def _d2ac_gradient_audit(model: torch.nn.Module, *, require_adapter_paths: bool)
     return result
 
 
+def _d2ae_gradient_audit(
+    model: torch.nn.Module,
+    *,
+    require_relation_paths: bool,
+) -> Dict[str, object]:
+    field = model.network.sparse_relation_field
+    if field is None:
+        raise ValueError("D2-AE gradient audit requires the sparse relation field")
+
+    def record(name: str, value: Optional[torch.Tensor]) -> Dict[str, object]:
+        finite = value is not None and bool(torch.isfinite(value).all())
+        nonzero = value is not None and bool(torch.any(value != 0))
+        norm = (
+            float(value.detach().float().norm().item())
+            if finite and value is not None
+            else None
+        )
+        return {"name": name, "finite": finite, "nonzero": nonzero, "l2_norm": norm}
+
+    alpha = record("alpha", field.alpha.grad)
+    result: Dict[str, object] = {
+        "alpha": alpha,
+        "alpha_value": float(field.alpha.detach().item()),
+        "gate_value": float(torch.tanh(field.alpha.detach()).item()),
+    }
+    if not alpha["finite"] or not alpha["nonzero"]:
+        raise FloatingPointError("D2-AE alpha gradient must be finite and nonzero")
+    if not require_relation_paths:
+        return result
+    groups = {
+        "point_encoder": [
+            parameter.grad for parameter in field.point_encoder.parameters()
+        ],
+        "projection": [parameter.grad for parameter in field.projection.parameters()],
+        "temporal_embeddings": [field.temporal_embeddings.grad],
+        "relation_norm": [parameter.grad for parameter in field.relation_norm.parameters()],
+        "motion_input": [model.network.motion_input.weight.grad],
+        "trunk_layer_0": [
+            model.network.transformer.layers[0].self_attn.in_proj_weight.grad
+        ],
+    }
+    group_records: Dict[str, object] = {}
+    for name, gradients in groups.items():
+        records = [
+            record(f"{name}[{index}]", gradient)
+            for index, gradient in enumerate(gradients)
+        ]
+        group_records[name] = {
+            "parameters": records,
+            "finite": all(item["finite"] for item in records),
+            "nonzero": all(item["nonzero"] for item in records),
+        }
+    result["relation_groups"] = group_records
+    failed = sorted(
+        name for name, value in group_records.items()
+        if not value["finite"] or not value["nonzero"]
+    )
+    if failed:
+        raise FloatingPointError(
+            f"D2-AE activated relation gradients must be finite/nonzero: {failed}"
+        )
+    if result["gate_value"] == 0.0 and field._gate_override is None:
+        raise FloatingPointError("D2-AE gate did not activate after the initial alpha update")
+    return result
+
+
+def _validate_d2ae_model_instance(
+    model: torch.nn.Module,
+    *,
+    require_zero_alpha: bool,
+) -> Dict[str, object]:
+    field = model.network.sparse_relation_field
+    if field is None:
+        raise ValueError("D2-AE model instance is missing the sparse relation field")
+    total_parameters = sum(parameter.numel() for parameter in model.parameters())
+    relation_parameters = sum(parameter.numel() for parameter in field.parameters())
+    checks = {
+        "base_parameters": total_parameters - relation_parameters == D2AE_BASE_PARAMETER_COUNT,
+        "relation_parameters": relation_parameters == SPARSE_RELATION_PARAMETER_COUNT,
+        "total_parameters": total_parameters == D2AE_TOTAL_PARAMETER_COUNT,
+        "parameter_increase_below_limit": (
+            relation_parameters / (total_parameters - relation_parameters) <= 0.015
+        ),
+        "diagnostic_variant_full": field._diagnostic_variant == "full",
+        "gate_override_absent": field._gate_override is None,
+        "capture_disabled": field._capture is False,
+        "alpha_finite": bool(torch.isfinite(field.alpha.detach())),
+        "alpha_zero_when_required": (
+            not require_zero_alpha or float(field.alpha.detach().item()) == 0.0
+        ),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AE model instance contract mismatch: {failed}")
+    return {
+        "checks": checks,
+        "base_parameters": total_parameters - relation_parameters,
+        "relation_parameters": relation_parameters,
+        "total_parameters": total_parameters,
+        "parameter_increase_fraction": (
+            relation_parameters / (total_parameters - relation_parameters)
+        ),
+    }
+
+
 def _primary_validation_model(
     cfg: DictConfig,
     model: DistributedDataParallel,
@@ -1667,6 +2196,17 @@ def _forward_losses(
         prediction = model(
             *model_arguments,
             local_object_bps=batch["local_object_bps"],
+        )
+    elif _is_d2ae(cfg):
+        prediction = model(
+            *model_arguments,
+            rest_object_points=batch["rest_object_points"],
+            world_to_local_rotation=batch["world_to_local_rotation"],
+            object_rotation_reference=batch["object_rotation_reference"],
+            position_minimum=minimum,
+            position_maximum=maximum,
+            object_minimum=object_minimum,
+            object_maximum=object_maximum,
         )
     else:
         prediction = model(*model_arguments)
@@ -1878,6 +2418,11 @@ def _checkpoint_value(
             "mesh_subsample": False,
             "stored_per_window_local_bps": False,
         }
+    if _is_d2ae(cfg):
+        value["architecture_variant"] = HOI_ARCHITECTURE_D2AE
+        value["sparse_relation_contract"] = (
+            model.module.network.sparse_relation_field.contract_metadata()
+        )
     if ema_models:
         # Retain the legacy name for pre-D2-T official evaluator compatibility.
         value["ema_model"] = ema_models["0.9999"].state_dict()
@@ -1932,6 +2477,89 @@ def _save_checkpoint(
     return checkpoint_path
 
 
+def _validate_d2ae_random_origin_checkpoint(
+    checkpoint: Mapping[str, object],
+    expected_initial_model_state_sha256: str,
+) -> Dict[str, object]:
+    """Reject a D2-AE resume artifact without exact random-origin provenance."""
+    initialization = checkpoint.get("weight_initialization")
+    expected_initialization_keys = {
+        "mode",
+        "source_checkpoint",
+        "source_checkpoint_sha256",
+        "source_model_state_sha256",
+        "initial_model_state_sha256",
+        "restored_components",
+        "old_optimizer_states_loaded",
+        "old_ema_models_loaded",
+        "old_scheduler_states_loaded",
+        "old_scaler_states_loaded",
+        "old_rng_states_loaded",
+    }
+    checks = {
+        "schema_version": checkpoint.get("schema_version") == 2,
+        "checkpoint_type": checkpoint.get("checkpoint_type") == "hoi_prior_phase1b",
+        "window_state_codec": checkpoint.get("window_state_codec")
+        == "state-compositional-v1",
+        "expert": checkpoint.get("expert") == "hoi",
+        "initialization": checkpoint.get("initialization") == "random",
+        "architecture_variant": checkpoint.get("architecture_variant")
+        == HOI_ARCHITECTURE_D2AE,
+        "weight_initialization_mapping": isinstance(initialization, Mapping),
+        "weight_initialization_keys": (
+            isinstance(initialization, Mapping)
+            and set(initialization) == expected_initialization_keys
+        ),
+        "weight_initialization_mode": (
+            isinstance(initialization, Mapping)
+            and initialization.get("mode") == "random"
+        ),
+        "weight_initialization_sources_absent": (
+            isinstance(initialization, Mapping)
+            and all(
+                initialization.get(name) is None
+                for name in (
+                    "source_checkpoint",
+                    "source_checkpoint_sha256",
+                    "source_model_state_sha256",
+                )
+            )
+        ),
+        "restored_components_empty": (
+            isinstance(initialization, Mapping)
+            and initialization.get("restored_components") == []
+        ),
+        "old_state_load_counts_zero": (
+            isinstance(initialization, Mapping)
+            and all(
+                initialization.get(name) == 0
+                for name in (
+                    "old_optimizer_states_loaded",
+                    "old_ema_models_loaded",
+                    "old_scheduler_states_loaded",
+                    "old_scaler_states_loaded",
+                    "old_rng_states_loaded",
+                )
+            )
+        ),
+        "initial_model_state_sha256_exact": (
+            isinstance(initialization, Mapping)
+            and initialization.get("initial_model_state_sha256")
+            == expected_initial_model_state_sha256
+        ),
+        "ema_absent": checkpoint.get("ema_models") == {},
+        "primary_online": checkpoint.get("primary_weight_variant") == "online",
+        "model_present": isinstance(checkpoint.get("model"), Mapping),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            "D2-AE resume checkpoint random-origin provenance mismatch: "
+            + ", ".join(failed)
+        )
+    return {"checks": checks, "weight_initialization": dict(initialization)}
+
+
 def _load_resume(
     rank: int,
     cfg: DictConfig,
@@ -1982,11 +2610,25 @@ def _load_resume(
             or adapter_contract.get("stored_per_window_local_bps") is not False
         ):
             raise ValueError("D2-AD resume checkpoint architecture/provenance mismatch")
+    elif _is_d2ae(cfg):
+        _validate_d2ae_random_origin_checkpoint(
+            checkpoint,
+            _state_dict_sha256(model.module.state_dict()),
+        )
+        try:
+            validate_sparse_relation_contract(
+                checkpoint.get("sparse_relation_contract")
+            )
+        except ValueError as error:
+            raise ValueError(
+                "D2-AE resume checkpoint architecture/provenance mismatch"
+            ) from error
     elif checkpoint.get("architecture_variant") in {
         HOI_ARCHITECTURE_D2AC,
         HOI_ARCHITECTURE_D2AD,
+        HOI_ARCHITECTURE_D2AE,
     }:
-        raise ValueError("interaction-adapter checkpoint cannot resume a base HOIPrior run")
+        raise ValueError("variant checkpoint cannot resume a base HOIPrior run")
     repo = Path(str(cfg.repo_root)).resolve()
     current_commit = _git_commit(repo)
     checkpoint_commit = str(checkpoint.get("git_commit"))
@@ -2052,6 +2694,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     _validate_d2ab_contract(cfg, world_size)
     _validate_d2ac_contract(cfg, world_size)
     _validate_d2ad_contract(cfg, world_size)
+    d2ae_lifecycle_contract = _validate_d2ae_contract(cfg, world_size)
     _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
@@ -2263,6 +2906,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     if cfg.resume_checkpoint not in (None, "", False):
         state = _load_resume(rank, cfg, model, ema_models, optimizer, scheduler, scaler)
         resumed_from = str(Path(str(cfg.resume_checkpoint)).resolve())
+    d2ae_model_contract = (
+        _validate_d2ae_model_instance(
+            model.module,
+            require_zero_alpha=resumed_from is None,
+        )
+        if _is_d2ae(cfg) else None
+    )
     processed_windows = state["processed_windows"]
     optimizer_updates = state["optimizer_updates"]
     amp_overflow_skips = state["amp_overflow_skips"]
@@ -2289,6 +2939,14 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     if (_is_d2ac(cfg) or _is_d2ad(cfg)) and interaction_gradient_audit_path.is_file():
         interaction_gradient_audit = json.loads(
             interaction_gradient_audit_path.read_text(encoding="utf-8")
+        )
+    sparse_relation_gradient_audit_path = (
+        Path(str(cfg.output_dir)).resolve() / "sparse_relation_gradient_audit.json"
+    )
+    sparse_relation_gradient_audit: Dict[str, object] = {}
+    if _is_d2ae(cfg) and sparse_relation_gradient_audit_path.is_file():
+        sparse_relation_gradient_audit = json.loads(
+            sparse_relation_gradient_audit_path.read_text(encoding="utf-8")
         )
     local_bps_build_seconds = 0.0
     local_bps_build_batches = 0
@@ -2399,6 +3057,41 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                             interaction_gradient_audit_path,
                             interaction_gradient_audit,
                         )
+            if _is_d2ae(cfg):
+                if (
+                    optimizer_updates == 0
+                    and "initial_zero_gate_alpha_gradient"
+                    not in sparse_relation_gradient_audit
+                ):
+                    sparse_relation_gradient_audit[
+                        "initial_zero_gate_alpha_gradient"
+                    ] = _d2ae_gradient_audit(
+                        model.module,
+                        require_relation_paths=False,
+                    )
+                elif (
+                    optimizer_updates == 1
+                    and "activated_relation_gradients"
+                    not in sparse_relation_gradient_audit
+                ):
+                    sparse_relation_gradient_audit[
+                        "activated_relation_gradients"
+                    ] = _d2ae_gradient_audit(
+                        model.module,
+                        require_relation_paths=True,
+                    )
+                    sparse_relation_gradient_audit.update({
+                        "schema_version": 1,
+                        "run_id": str(cfg.run_id),
+                        "seed": int(cfg.seed),
+                        "optimizer_updates_observed": [0, 1],
+                        "probe_or_override_used": False,
+                    })
+                    if rank == 0:
+                        _atomic_json(
+                            sparse_relation_gradient_audit_path,
+                            sparse_relation_gradient_audit,
+                        )
             if bool(cfg.get("gradient_clipping", True)):
                 gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float(cfg.gradient_clip_norm))
             else:
@@ -2475,6 +3168,30 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             break
         epoch += 1
         resume_batches = 0
+
+    final_d2ae_model_contract = None
+    if _is_d2ae(cfg):
+        required_audit = {
+            "initial_zero_gate_alpha_gradient",
+            "activated_relation_gradients",
+            "schema_version",
+            "run_id",
+            "seed",
+            "optimizer_updates_observed",
+            "probe_or_override_used",
+        }
+        missing_audit = sorted(
+            required_audit - set(sparse_relation_gradient_audit)
+        )
+        if missing_audit:
+            raise RuntimeError(
+                "D2-AE training ended without the locked gradient audit: "
+                + ", ".join(missing_audit)
+            )
+        final_d2ae_model_contract = _validate_d2ae_model_instance(
+            model.module,
+            require_zero_alpha=False,
+        )
 
     if not paused and validation_loader is not None:
         if not validation_records or validation_records[-1]["processed_windows"] != processed_windows:
@@ -2669,6 +3386,63 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     }
                     if (_is_d2ac(cfg) or _is_d2ad(cfg)) else None
                 ),
+                "sparse_relation_gradient_audit": (
+                    sparse_relation_gradient_audit if _is_d2ae(cfg) else None
+                ),
+                "d2ae_lifecycle_contract": (
+                    d2ae_lifecycle_contract if _is_d2ae(cfg) else None
+                ),
+                "sparse_relation_field": (
+                    {
+                        "architecture_variant": HOI_ARCHITECTURE_D2AE,
+                        "alpha": float(
+                            model.module.network.sparse_relation_field.alpha.detach().item()
+                        ),
+                        "gate": float(torch.tanh(
+                            model.module.network.sparse_relation_field.alpha.detach()
+                        ).item()),
+                        "contract": (
+                            model.module.network.sparse_relation_field.contract_metadata()
+                        ),
+                        "initial_model_instance_contract": d2ae_model_contract,
+                        "final_model_instance_contract": final_d2ae_model_contract,
+                        "diagnostic_variant": (
+                            model.module.network.sparse_relation_field._diagnostic_variant
+                        ),
+                        "gate_override": (
+                            model.module.network.sparse_relation_field._gate_override
+                        ),
+                        "capture_enabled": (
+                            model.module.network.sparse_relation_field._capture
+                        ),
+                        "builder": {
+                            "backend": "pure_pytorch",
+                            "runtime_device": "gpu",
+                            "source": "current_diffusion_state_x_t",
+                            "cpu_dynamic_geometry": False,
+                            "collator_dynamic_geometry": False,
+                            "stored_relation": False,
+                            "full_mesh_query": False,
+                            "point_features_shape_per_batch": [
+                                int(cfg.batch_size), 4, 3, 100, 4,
+                            ],
+                            "encoded_points_shape_per_batch": [
+                                int(cfg.batch_size), 4, 3, 100, 128,
+                            ],
+                            "pooled_blocks_shape_per_batch": [
+                                int(cfg.batch_size), 4, 3, 256,
+                            ],
+                            "relation_vectors_shape_per_batch": [
+                                int(cfg.batch_size), 4, 512,
+                            ],
+                        },
+                    }
+                    if _is_d2ae(cfg) else None
+                ),
+                "terminal_model_state_sha256": (
+                    _state_dict_sha256(model.module.state_dict())
+                    if _is_d2ae(cfg) else None
+                ),
                 "local_bps_builder": (
                     {
                         "basis_coordinate_system": LOCAL_BASIS_COORDINATE_SYSTEM,
@@ -2716,6 +3490,7 @@ def main(cfg: DictConfig) -> None:
     _validate_d2ab_contract(cfg, int(cfg.num_gpus))
     _validate_d2ac_contract(cfg, int(cfg.num_gpus))
     _validate_d2ad_contract(cfg, int(cfg.num_gpus))
+    _validate_d2ae_contract(cfg, int(cfg.num_gpus))
     _validate_author_update_execution_host(cfg)
     if not torch.cuda.is_available() or torch.cuda.device_count() < int(cfg.num_gpus):
         raise RuntimeError(f"requires {cfg.num_gpus} visible CUDA devices")

@@ -64,6 +64,7 @@ d2z_immutable_gt_near_ground_gating: false
 d2ab_predicted_support_no_slip: false
 d2ac_interaction_adapter: false
 d2ad_local_frame_interaction_adapter: false
+d2ae_sparse_relation_field: false
 hoi_architecture_variant: base
 local_bps_query_workers: null
 fk_foot_temporal_routing: false

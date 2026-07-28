@@ -18,6 +18,11 @@ from .interaction_adapter import (
     LocalObjectInteractionAdapter,
 )
 from .representation import REPRESENTATION
+from .sparse_relation import (
+    ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AE,
+    SparseCurrentStateRelationField,
+    validate_sparse_relation_contract,
+)
 
 
 HOI_ARCHITECTURE_BASE = "base"
@@ -27,6 +32,7 @@ HOI_ARCHITECTURES = frozenset({
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
+    HOI_ARCHITECTURE_D2AE,
 })
 
 
@@ -75,11 +81,16 @@ class _HOICleanMotionNetwork(nn.Module):
         super().__init__()
         if architecture_variant not in HOI_ARCHITECTURES:
             raise ValueError(f"unknown HOIPrior architecture variant: {architecture_variant}")
-        if (
-            architecture_variant in {HOI_ARCHITECTURE_D2AC, HOI_ARCHITECTURE_D2AD}
-            and num_layers != 8
+        if architecture_variant in {
+            HOI_ARCHITECTURE_D2AC,
+            HOI_ARCHITECTURE_D2AD,
+            HOI_ARCHITECTURE_D2AE,
+        } and num_layers != 8:
+            raise ValueError("D2-AC/D2-AD/D2-AE require the locked eight-layer HOIPrior trunk")
+        if architecture_variant == HOI_ARCHITECTURE_D2AE and (
+            dim_model != 512 or num_heads != 16
         ):
-            raise ValueError("interaction-adapter variants require the locked eight-layer HOIPrior trunk")
+            raise ValueError("D2-AE requires the locked 512-wide, 16-head HOIPrior trunk")
         self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
         self.text = nn.Sequential(
             nn.Linear(768, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
@@ -125,6 +136,11 @@ class _HOICleanMotionNetwork(nn.Module):
             }
             else None
         )
+        self.sparse_relation_field = (
+            SparseCurrentStateRelationField(dim_model)
+            if architecture_variant == HOI_ARCHITECTURE_D2AE
+            else None
+        )
 
     def _encode(
         self, tokens: torch.Tensor, object_bps: torch.Tensor,
@@ -158,6 +174,26 @@ class _HOICleanMotionNetwork(nn.Module):
             raise ValueError("HOIPrior has no D2-AC interaction adapter")
         return self.interaction_adapter.attention_snapshot()
 
+    def set_sparse_relation_diagnostic_variant(self, variant: str) -> None:
+        if self.sparse_relation_field is None:
+            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+        self.sparse_relation_field.set_diagnostic_variant(variant)
+
+    def set_sparse_relation_gate_override(self, value: Optional[float]) -> None:
+        if self.sparse_relation_field is None:
+            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+        self.sparse_relation_field.set_gate_override(value)
+
+    def set_sparse_relation_capture(self, enabled: bool) -> None:
+        if self.sparse_relation_field is None:
+            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+        self.sparse_relation_field.set_capture(enabled)
+
+    def sparse_relation_snapshot(self):
+        if self.sparse_relation_field is None:
+            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+        return self.sparse_relation_field.snapshot()
+
     def forward(
         self,
         noisy: torch.Tensor,
@@ -168,6 +204,13 @@ class _HOICleanMotionNetwork(nn.Module):
         progress: torch.Tensor,
         *,
         local_object_bps: Optional[torch.Tensor] = None,
+        rest_object_points: Optional[torch.Tensor] = None,
+        world_to_local_rotation: Optional[torch.Tensor] = None,
+        object_rotation_reference: Optional[torch.Tensor] = None,
+        position_minimum: Optional[torch.Tensor] = None,
+        position_maximum: Optional[torch.Tensor] = None,
+        object_minimum: Optional[torch.Tensor] = None,
+        object_maximum: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if noisy.ndim != 3 or noisy.shape[1:] != (
             REPRESENTATION.window_frames, REPRESENTATION.dimension,
@@ -191,6 +234,20 @@ class _HOICleanMotionNetwork(nn.Module):
             if local_object_bps is not None:
                 raise ValueError("human-local object BPS is restricted to D2-AD")
             adapter_bps = object_bps
+        relation_values = (
+            rest_object_points,
+            world_to_local_rotation,
+            object_rotation_reference,
+            position_minimum,
+            position_maximum,
+            object_minimum,
+            object_maximum,
+        )
+        if self.architecture_variant == HOI_ARCHITECTURE_D2AE:
+            if any(value is None for value in relation_values):
+                raise ValueError("D2-AE requires current-state sparse relation metadata")
+        elif any(value is not None for value in relation_values):
+            raise ValueError("sparse relation metadata is restricted to D2-AE")
         conditions = torch.stack((
             self.time(_time_embedding(timesteps, self.dim_model)),
             self.text(text_embedding),
@@ -198,6 +255,18 @@ class _HOICleanMotionNetwork(nn.Module):
             self.goal_progress(torch.cat((goals, progress), dim=-1)),
         ), dim=1)
         motion = self.motion_input(noisy)
+        if self.sparse_relation_field is not None:
+            motion = self.sparse_relation_field(
+                motion,
+                noisy,
+                rest_object_points,
+                world_to_local_rotation,
+                object_rotation_reference,
+                position_minimum,
+                position_maximum,
+                object_minimum,
+                object_maximum,
+            )
         tokens = torch.cat((conditions, motion), dim=1) + self.position
         encoded = self._encode(tokens, adapter_bps)
         return self.output(self.output_norm(encoded[:, -REPRESENTATION.window_frames:]))
@@ -229,6 +298,13 @@ class HOIPrior(nn.Module):
         object_bps: torch.Tensor, goals: torch.Tensor, progress: torch.Tensor,
         *,
         local_object_bps: Optional[torch.Tensor] = None,
+        rest_object_points: Optional[torch.Tensor] = None,
+        world_to_local_rotation: Optional[torch.Tensor] = None,
+        object_rotation_reference: Optional[torch.Tensor] = None,
+        position_minimum: Optional[torch.Tensor] = None,
+        position_maximum: Optional[torch.Tensor] = None,
+        object_minimum: Optional[torch.Tensor] = None,
+        object_maximum: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         return self.network(
             noisy,
@@ -238,6 +314,13 @@ class HOIPrior(nn.Module):
             goals,
             progress,
             local_object_bps=local_object_bps,
+            rest_object_points=rest_object_points,
+            world_to_local_rotation=world_to_local_rotation,
+            object_rotation_reference=object_rotation_reference,
+            position_minimum=position_minimum,
+            position_maximum=position_maximum,
+            object_minimum=object_minimum,
+            object_maximum=object_maximum,
         )
 
 
@@ -353,6 +436,17 @@ def load_trained_hoi_prior(
                 or adapter_contract.get("stored_per_window_local_bps") is not False
             ):
                 raise ValueError("D2-AD checkpoint local-geometry provenance mismatch")
+    elif architecture_variant == HOI_ARCHITECTURE_D2AE:
+        if model_config != {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AE,
+        }:
+            raise ValueError("D2-AE checkpoint model_config violates the locked trunk")
+        if checkpoint_variant != HOI_ARCHITECTURE_D2AE:
+            raise ValueError("D2-AE checkpoint is missing its architecture provenance")
+        validate_sparse_relation_contract(checkpoint.get("sparse_relation_contract"))
     elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
         raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
     if (
@@ -399,6 +493,7 @@ def load_trained_hoi_prior(
             "schema_version", "checkpoint_type", "expert", "initialization", "run_id",
             "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
             "model_config", "architecture_variant", "interaction_adapter_contract",
+            "sparse_relation_contract",
             "data_contract_sha256", "split_sha256", "window_state_codec",
         )
     }

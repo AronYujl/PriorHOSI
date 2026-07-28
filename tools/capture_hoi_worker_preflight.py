@@ -164,6 +164,7 @@ def main() -> int:
         "'torch_cuda':torch.version.cuda,'pytorch3d':pytorch3d.__version__,"
         "'cuda_available':torch.cuda.is_available(),'cuda_device_count':torch.cuda.device_count()}))",
     ]))
+    configured_python = os.environ.get("INFBAGEL_PYTHON")
     checks = {
         "hostname_node01": socket.gethostname() == "node01",
         "branch_phase_01b_hoi": run(["git", "branch", "--show-current"], repo) == "phase/01b-hoi",
@@ -173,7 +174,13 @@ def main() -> int:
         "audit_hash_exact": audit_hash == EXPECTED_AUDIT_SHA256,
         "contract_hash_exact": contract.get("contract_sha256") == EXPECTED_CONTRACT_SHA256,
         "four_rtx_3090": len(gpus) == 4 and all(gpu["name"] == "NVIDIA GeForce RTX 3090" for gpu in gpus),
-        "python_exact": args.python.resolve() == Path("/home/yujinlun/data/envs/infbagel/bin/python").resolve(),
+        "python_exact": (
+            bool(configured_python)
+            and Path(configured_python).is_absolute()
+            and args.python.is_absolute()
+            and args.python.resolve() == Path(configured_python).resolve()
+            and Path(python_details["executable"]).resolve() == args.python.resolve()
+        ),
         "cuda_four_visible": python_details["cuda_available"] and python_details["cuda_device_count"] == 4,
         "ntp_synchronized": "NTPSynchronized=yes" in run([
             "timedatectl", "show", "-p", "Timezone", "-p", "NTPSynchronized", "-p", "LocalRTC",

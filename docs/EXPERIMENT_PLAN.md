@@ -5231,6 +5231,61 @@ D2-AE、`d2ae`、`D2-AE0`、`p1-hoi-d2ae-*` 与 `sparse-relation-field` 尚未�
     HSIPrior、Mixer、scene encoder/Scene*/occupancy、future clean/GT/stored relation 均未授权，
     不得自动启动。
 
+#### 2026-07-28 Phase 1B D2-AE0 implementation / pre-GPU lifecycle binding amendment
+
+本 amendment 实现且只实现上节 plan-only 已锁定的 D2-AE0 机制，并在任何 reportable CPU/GPU
+workload 前封存 source、config、tests 与 lifecycle hard binding。Implementation source head 为
+`eded185f7e5ba075ba83fde97282cb1464ddb08f`（`Preregister D2-AE sparse relation routing`）；
+截至本记录，authority 未创建 optimizer、未加载/写入 checkpoint，worker publication、CPU
+contract、functional smoke、performance benchmark、formal training、internal 与 native 均未启动。
+
+1. **实现边界。** 新 architecture variant `d2ae_sparse_relation_field` 使用 train/sample 共用的
+   pure-PyTorch builder，只从当前 `x_t`、现有 immutable `[B,100,3]` rest-object points、
+   history-derived window/reference rotations 与 locked normalization 构造
+   `[B,4,3,100,4]` role-relative point field。共享 `4->128->128` encoder、mean/max pooling、
+   fixed left/right/pelvis concatenation、`768->512` projection、four temporal embeddings、LN 与
+   zero-init scalar ReZero gate 按 `0/5/10/15` segments 在全部八层 trunk 前写回。普通
+   `PriorWindowDataset` 保持不变；没有 D2-AD collator、SciPy/KD-tree/full-mesh query、CPU dynamic
+   geometry、dense occupancy、Scene、contact/clean/future/stored relation 或 evaluator change。
+2. **参数、API 与 provenance。** CPU recomputation 锁定 base/increment/total 为
+   `29,673,448 / 413,953 / 30,087,401`，increase `1.3950283% <= 1.50%`；输出仍为
+   `[B,16,232]`。Seed-42 shared D2-X state 共 119 keys byte-exact，只有 10 个 sparse-field keys
+   新增，alpha 初始精确为 0。Released、D2-X、D2-AC、D2-AD schemas 均 fail-closed；resume 还必须
+   将 checkpoint 自报的 random/no-source/no-old-state provenance 与当前 fresh seed-42 D2-AE
+   initial state hash 精确匹配。HSIPrior 参数/storage independence 与 Mixer clean-output API 不变。
+3. **Train/sample 与 causal diagnostic binding。** Training relation 只从 `q_sample()` 返回的
+   current noisy state 建立；500-step sampler 每步只用当步 current state，并通过真实
+   `HOIPriorSampler` metadata reconstruction 与 real `PriorWindowDataset` window 对七项 metadata、
+   surface/features 做 exact parity。Internal runner 固定四路、共享 initial latent 与 499 次
+   posterior draws；首窗 exogenous condition/history 共享，分叉后 frame/BPS/local-goal/relation
+   metadata 保持各 path-local。Sealed `(14,56,98)` cohort runtime proof 锁定 source starts
+   `(0,42,84)`，前窗 sampled tail `[start+42,start+45]` 精确成为下一窗 history。
+4. **Performance hard gate 现在 fail-closed。** Registered 4-GPU benchmark 保持
+   `4x512`、64 warm-up、256 measured、FP32 Adam，并记录 loader/H2D/relation/forward/backward/
+   optimizer/DDP、四 rank relation shapes/device、memory、utilization 与 compute contention。
+   Benchmark CLI 必须显式接收 actual-date performance run id 与 intended formal run id（含可选
+   严格 `-rN`），summary 中的 `formal_run_id` 必须与 formal config `run_id` 精确一致且两者
+   与 benchmark run id 使用同一实际日期。Formal config 新增必填 benchmark summary absolute
+   path 与 SHA-256；trainer 必须验证 passing
+   classification、`>=2756.580356467847 windows/s`、ETA `<=6.20 h`、headroom、finite losses/
+   gradients、四 rank GPU-only relation、无外部 compute contention、零 checkpoint activity，
+   并验证 benchmark commit 是 current commit ancestor 且 benchmark/formal tracked runtime source-tree
+   hash 完全一致。缺失、tamper 或任何 gate failure 都在 optimizer/GPU training 前拒绝。
+5. **Lifecycle identity 与 verification。** CPU/smoke/performance/internal/native IDs 使用 locked stem、
+   actual start date 和可选严格 `-rN`；fresh formal start 也要求 actual date，same-run resume 则保留
+   checkpoint-bound 原 run id，允许跨午夜而不伪造新 identity。Authority 已通过 D2-AE targeted
+   `26/26`、D2-AC/D2-AD/independent/remediation/D2-T/D2-U regressions `115/115`、full suite
+   `378/378`（authority 未启用 worker-only LINGO skip）、`py_compile`、registry validation
+   （implementation record 前 200 records；包含该 record 后 201 records）与
+   `git diff --check`。HOI worker 环境预期在同一 378 项中 skip 2 个 real-LINGO-only tests；
+   Official evaluator 与 locked
+   metric/helper sources未修改。
+
+下一步只能先提交本 logical implementation，使 authority clean；随后以
+`p1-hoi-d2ae-cpu-contract[-rN]-s42-<actual-date>` 注册并执行 authority CPU hard gate。只有 CPU、
+single-GPU functional smoke 和 hash-bound 4-GPU performance gate 全部通过，formal training 才能
+启动；performance negative 时必须立即按已注册分类停止，不得 sweep 或修改机制。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

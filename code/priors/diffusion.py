@@ -11,6 +11,13 @@ import torch
 from torch import nn
 
 from .representation import REPRESENTATION
+from .sparse_relation import (
+    SPARSE_POINT_MANIFEST_SHA256,
+    SPARSE_POINT_MAPPING_SHA256,
+    SPARSE_POINT_TENSOR_SHA256,
+    sparse_rest_object_point_cache,
+    verify_sparse_rest_object_assets,
+)
 from .window_codec import project_to_so3
 
 
@@ -166,6 +173,13 @@ class GaussianDiffusion(nn.Module):
         progress: torch.Tensor,
         *,
         local_object_bps: Optional[torch.Tensor] = None,
+        rest_object_points: Optional[torch.Tensor] = None,
+        world_to_local_rotation: Optional[torch.Tensor] = None,
+        object_rotation_reference: Optional[torch.Tensor] = None,
+        position_minimum: Optional[torch.Tensor] = None,
+        position_maximum: Optional[torch.Tensor] = None,
+        object_minimum: Optional[torch.Tensor] = None,
+        object_maximum: Optional[torch.Tensor] = None,
         generator: Optional[torch.Generator] = None,
         paired_repeats: int = 1,
         object_so3_x0: bool = False,
@@ -179,13 +193,40 @@ class GaussianDiffusion(nn.Module):
             (base_batch, *shape[1:]), device=fixed_history.device, generator=generator,
         ).repeat(paired_repeats, 1, 1)
         current[:, :REPRESENTATION.history_frames] = fixed_history
+        relation_values = (
+            rest_object_points,
+            world_to_local_rotation,
+            object_rotation_reference,
+            position_minimum,
+            position_maximum,
+            object_minimum,
+            object_maximum,
+        )
+        if any(value is not None for value in relation_values) and any(
+            value is None for value in relation_values
+        ):
+            raise ValueError("D2-AE sampling requires a complete sparse relation metadata set")
         for step in reversed(range(self.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=current.device)
-            if local_object_bps is None:
+            if all(value is not None for value in relation_values):
+                if local_object_bps is not None:
+                    raise ValueError("D2-AE sparse relation metadata cannot be combined with D2-AD local BPS")
                 clean = model(
-                    current, timesteps, text_embedding, object_bps, goals, progress,
+                    current,
+                    timesteps,
+                    text_embedding,
+                    object_bps,
+                    goals,
+                    progress,
+                    rest_object_points=rest_object_points,
+                    world_to_local_rotation=world_to_local_rotation,
+                    object_rotation_reference=object_rotation_reference,
+                    position_minimum=position_minimum,
+                    position_maximum=position_maximum,
+                    object_minimum=object_minimum,
+                    object_maximum=object_maximum,
                 )
-            else:
+            elif local_object_bps is not None:
                 clean = model(
                     current,
                     timesteps,
@@ -194,6 +235,10 @@ class GaussianDiffusion(nn.Module):
                     goals,
                     progress,
                     local_object_bps=local_object_bps,
+                )
+            else:
+                clean = model(
+                    current, timesteps, text_embedding, object_bps, goals, progress,
                 )
             clean = prepare_clean_x0(
                 clean, fixed_history, object_so3_x0=object_so3_x0,
@@ -243,6 +288,11 @@ class HOIPriorSampler:
         self.local_bps_build_seconds = 0.0
         self.local_bps_build_calls = 0
         self.local_bps_digest = hashlib.sha256()
+        self.sparse_relation_enabled = False
+        self.sparse_rest_point_cache = None
+        self.sparse_relation_asset_contract = None
+        self.sparse_relation_metadata_calls = 0
+        self.sparse_relation_metadata_seconds = 0.0
 
     def reset_sampling_audit(self) -> None:
         """Exclude evaluator warmup calls from deterministic samples and audits."""
@@ -252,6 +302,8 @@ class HOIPriorSampler:
         self.local_bps_build_seconds = 0.0
         self.local_bps_build_calls = 0
         self.local_bps_digest = hashlib.sha256()
+        self.sparse_relation_metadata_calls = 0
+        self.sparse_relation_metadata_seconds = 0.0
 
     def set_dataset_and_model(self, dataset, model: nn.Module) -> None:
         if getattr(dataset, "load_scene", None):
@@ -268,6 +320,17 @@ class HOIPriorSampler:
             )
         else:
             self.local_bps_builder = None
+        self.sparse_relation_enabled = (
+            getattr(model, "architecture_variant", None)
+            == "d2ae_sparse_relation_field"
+        )
+        self.sparse_rest_point_cache = None
+        self.sparse_relation_asset_contract = None
+        if self.sparse_relation_enabled:
+            required = ("min_torch", "max_torch", "obj_min_torch", "obj_max_torch")
+            missing = [name for name in required if not hasattr(dataset, name)]
+            if missing:
+                raise ValueError(f"D2-AE evaluator dataset is missing normalization tensors: {missing}")
 
     @torch.no_grad()
     def p_sample_loop(
@@ -277,7 +340,7 @@ class HOIPriorSampler:
         obj_rot_mat_prefix=None, object_only=False,
     ):
         del scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
-        del is_loco, object_points, obj_rest_verts
+        del is_loco, object_points
         del obj_rot_mat_prefix, object_only
         batch = fixed_points.shape[0]
         if not bool(torch.as_tensor(is_object).all()):
@@ -306,6 +369,47 @@ class HOIPriorSampler:
             self.local_bps_digest.update(
                 local_bps.detach().cpu().contiguous().numpy().tobytes()
             )
+        relation_arguments = {}
+        if self.sparse_relation_enabled:
+            started = time.perf_counter()
+            if self.sparse_rest_point_cache is None:
+                self.sparse_relation_asset_contract = verify_sparse_rest_object_assets(
+                    obj_rest_verts,
+                )
+                self.sparse_rest_point_cache = sparse_rest_object_point_cache(
+                    obj_rest_verts,
+                )
+            names = [str(seq_name_dict[index]) for index in range(batch)]
+            object_names = [name.split("_")[1] for name in names]
+            rest_points = torch.stack([
+                self.sparse_rest_point_cache[name]
+                for name in object_names
+            ]).to(device=self.device, dtype=torch.float32)
+            transform = mat.reshape(batch, 4, 4).to(
+                device=self.device, dtype=torch.float32,
+            )
+            reference = obj_rot_mat_ref.reshape(batch, -1, 3, 3)[:, 0].to(
+                device=self.device, dtype=torch.float32,
+            )
+            relation_arguments = {
+                "rest_object_points": rest_points,
+                "world_to_local_rotation": transform[:, :3, :3].transpose(-1, -2),
+                "object_rotation_reference": reference,
+                "position_minimum": self.dataset.min_torch.to(
+                    device=self.device, dtype=torch.float32,
+                ),
+                "position_maximum": self.dataset.max_torch.to(
+                    device=self.device, dtype=torch.float32,
+                ),
+                "object_minimum": self.dataset.obj_min_torch.to(
+                    device=self.device, dtype=torch.float32,
+                ),
+                "object_maximum": self.dataset.obj_max_torch.to(
+                    device=self.device, dtype=torch.float32,
+                ),
+            }
+            self.sparse_relation_metadata_seconds += time.perf_counter() - started
+            self.sparse_relation_metadata_calls += 1
         generator = torch.Generator(device=self.device)
         generator.manual_seed((int(torch.initial_seed()) + self.sample_calls * 1000003) % (2 ** 63 - 1))
         self.sample_calls += 1
@@ -317,6 +421,7 @@ class HOIPriorSampler:
             goals,
             progress,
             local_object_bps=local_bps,
+            **relation_arguments,
             generator=generator,
             object_so3_x0=self.object_so3_x0,
         )
@@ -353,4 +458,13 @@ class HOIPriorSampler:
             self.local_bps_digest.hexdigest()
             if self.local_bps_build_calls else None
         )
+        value["sparse_relation_metadata_calls"] = self.sparse_relation_metadata_calls
+        value["sparse_relation_metadata_seconds"] = self.sparse_relation_metadata_seconds
+        value["sparse_relation_asset_contract"] = self.sparse_relation_asset_contract
+        if self.sparse_relation_enabled:
+            value["sparse_relation_expected_hashes"] = {
+                "mapping_sha256": SPARSE_POINT_MAPPING_SHA256,
+                "manifest_sha256": SPARSE_POINT_MANIFEST_SHA256,
+                "stacked_tensor_sha256": SPARSE_POINT_TENSOR_SHA256,
+            }
         return value
