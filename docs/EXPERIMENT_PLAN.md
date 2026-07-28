@@ -5347,6 +5347,67 @@ threshold、gate、classification precedence 与 artifact contract 全部不变�
 performance benchmark、fresh formal training、resume、checkpoint selection、D2-AE1、
 longer budget、sweep、consistency、HSIPrior 或 Mixer。
 
+#### 2026-07-29 Phase 1B D2-AE0 fixed internal causal diagnostic completion
+
+Fixed internal lifecycle 在 clean worker `phase/01b-hoi@190d95d1c634299407b398946b2a01d5737b45d7`
+上执行。Base identity
+`p1-hoi-d2ae-sparse-relation-field-internal-s42-20260729` 与 retry `-r1`
+均在 manifest 和 GPU workload 前停止：两次 preflight 均确认四卡显存、利用率、compute
+process、Git、Python、数据、CHOIS checkout/checkpoint 与 NTP contract 正常，但单次快照分别
+观察到 GPU 1 和 GPU 3 为瞬时 `P5`，利用率仍为 `0%`、compute process 为空。两个目录不覆盖、
+不复用，分别以 2 files / 10,311 bytes /
+`015e180d5aa21f093fe7f712d576150f12d47203aac26269f28f56c0015336e3` 和
+2 files / 10,320 bytes /
+`88f20c8ba3f0c013ba475e04551706ce2194c1904d33db2738dde497175de8bd`
+原样保留。随后 20 次一秒间隔只读采样均为四卡 `P8`、`0%`，未改变 idle 判据；`-r2`
+从头生成 resolved config 和 preflight，未复用任何 partial output。
+
+成功 run
+`p1-hoi-d2ae-sparse-relation-field-internal-r2-s42-20260729` 只加载 fixed final-online
+checkpoint SHA-256
+`b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840`，
+在 sealed D2-O 64-sequence / 192-window cohort
+`1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`
+上完成四条 paired 500-step causal rollout。Exit code 为 `0`，runtime
+`332.670974 s`；29 项 runtime contract 全真，四路径各 64 sequences、24 causal
+batch-windows、每 window 500 次 relation forward，paired noise/exogenous condition/initial
+history、57-sequence GT-contact finite mask、causal overlap、history restoration、model-state
+unchanged 与 GPU current-state relation capture 全部通过。未创建 optimizer，training update、
+checkpoint write、checkpoint selection 与 official-test use 均为零。
+
+五个 primary mechanism gates 全部通过：
+
+| comparison | paired point | sequence-bootstrap 95% CI |
+|---|---:|---:|
+| full − gate-ablated direct-hand union 5-cm F1 | +0.236691 | [0.148411, 0.326983] |
+| full − temporal-permuted direct-hand union 5-cm F1 | +0.153893 | [0.081493, 0.226123] |
+| full − left/right-swapped direct-hand macro-F1 | +0.178708 | [0.122784, 0.232256] |
+| gate-ablated − full GT-contact-frame distance (cm) | +3.509101 | [2.090270, 4.957889] |
+| temporal-permuted − full GT-contact-frame distance (cm) | +4.010482 | [2.072867, 6.222641] |
+
+因此 internal classification 为
+`sparse-relation-field-internal-positive-continue`：relation path 被使用，固定 temporal
+correspondence 与结构性 left/right role binding 均有正 causal evidence。Learned
+`alpha=-0.1493664682`、`tanh(alpha)=-0.1482654959`。Full frame-aggregate direct-hand
+union 5-cm F1 为 `0.778771`，MPJPE `11.985653 cm`、object goal `94.125465 cm`、
+pelvis goal `5.238491 cm`、FS `0.799586`；这些 internal descriptive values 不替代 sealed
+D2-X native control，也不用于 checkpoint selection。
+
+Worker 发起 non-destructive recovery 后，成功树在两端均为 17 files /
+37,798,242 bytes，tree SHA-256
+`044f98f78d52347af0c3120a1a5ca4df25c5e4773256c89c2fd5e6bd77fd0b21`，
+checksum dry-run 为零差异。Metrics/manifest/paired-noise/paired-conditioning/
+sparse-relation-appendix SHA-256 分别为
+`0d1e422386bd181e86ef5d77be80d05972bea92411cbb716644ff0a5f2811ba9` /
+`811cb1be8e3383295b7d60b8d8f488a2ddafd5d9d829a652e2a5e894325c80b2` /
+`1f4123945ae576b8a12ed83fa115dc32d9bea6df81b67c759f1cf482f088988c` /
+`1eaa2380f26368ae8dd754c3be5452949f44492eba9f480ee71078a188434b9d` /
+`a38693f5743be3b06b05097c1dc0129f6968eff0ea6e22ce70985c6df6a60815`。
+
+下一步只允许将本 append-only record 提交并 fast-forward 到 worker，然后运行一次固定
+`p1-hoi-d2ae-native-eval-s42-20260729`。Internal 正结果不授权 checkpoint selection、
+D2-AE1、consistency、longer budget、任何 sweep、HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
