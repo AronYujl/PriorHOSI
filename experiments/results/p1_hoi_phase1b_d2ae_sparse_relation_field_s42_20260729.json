@@ -1,0 +1,623 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728",
+  "phase": "p1",
+  "subphase": "1B-D2-AE0",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-07-29",
+  "classification": "sparse-relation-field-transfer-negative-stop",
+  "checkpoint_selected": false,
+  "selectable_autonomous_diffusion_candidate": false,
+  "d2ae1_authorized": false,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "new_search_started": false,
+  "implementation": {
+    "plan_commit": "eded185f7e5ba075ba83fde97282cb1464ddb08f",
+    "implementation_commit": "20d989b59cc894ce48cd65b33abb207a7399d099",
+    "cpu_record_commit": "eda6db650343f971215cc8df0401cdf6c07e90fe",
+    "functional_record_commit": "17c56505f3257adc80ccd9a7af46c2f5fbe42c43",
+    "performance_record_commit": "5ff7a4d98c50db0c10d0c6fe51fb85574b6d40be",
+    "formal_retry_record_commit": "f61d0f29de6702bcc99120ddb2218c342c60b558",
+    "formal_record_commit": "993934cb1d27a2fb406b4d3640eda90d8737767a",
+    "date_transition_commit": "190d95d1c634299407b398946b2a01d5737b45d7",
+    "internal_record_commit": "5a167347ec4761ec8427b518a36da9157b8fe033",
+    "single_manipulated_factor": "GPU-native sparse current-state role-relative object-field residual with fixed 0/5/10/15 temporal writeback before the complete D2-X trunk",
+    "architecture_variant": "d2ae_sparse_relation_field",
+    "representation_dimension": 232,
+    "base_parameter_count": 29673448,
+    "relation_parameter_count": 413953,
+    "total_parameter_count": 30087401,
+    "parameter_increase_fraction": 0.013950283094839535,
+    "parameter_limit": 0.015,
+    "temporal_anchors": [
+      0,
+      5,
+      10,
+      15
+    ],
+    "roles": [
+      "left_hand_direct_joint_24",
+      "right_hand_direct_joint_26",
+      "pelvis_joint_0"
+    ],
+    "rest_object_points": [
+      100,
+      3
+    ],
+    "sparse_mapping_sha256": "1af35119c1dd54e2ad44c99f3cb91b62c1b88f62ca80cddcc96f4b201ffe0f5b",
+    "sparse_manifest_sha256": "e88d74a7ee434f3e6320c95d1ebb74efdc8fe4740b70ff596e502666a096f7a7",
+    "sparse_tensor_sha256": "793dad6a805d0a908087b273590bf171e7bce4c026297cf94d40f8c651fe4cab",
+    "global_bps_token_preserved": true,
+    "current_diffusion_state_only": true,
+    "future_gt_used": false,
+    "previous_predicted_x0_relation_used": false,
+    "stored_relation_used": false,
+    "scene_or_occupancy_used": false,
+    "cpu_dynamic_geometry_used": false,
+    "official_evaluator_changed": false
+  },
+  "authority_cpu_contract": {
+    "run_id": "p1-hoi-d2ae-cpu-contract-s42-20260728",
+    "status": "completed",
+    "classification": "cpu-contract-passed",
+    "targeted_d2ae_tests_passed": 26,
+    "full_authority_tests_passed": 378,
+    "parameter_count_exact": true,
+    "api_shape": [
+      1,
+      16,
+      232
+    ],
+    "base_parity_max_abs": 0.0,
+    "surface_loss_transform_parity_max_abs": 0.0,
+    "common_global_yaw_relation_max_abs": 7.152557373046875e-07,
+    "common_global_yaw_surface_max_abs": 9.5367431640625e-07,
+    "left_right_pooled_exchange_max_abs": 0.0,
+    "point_permutation_relation_max_abs": 4.76837158203125e-07,
+    "point_permutation_output_max_abs": 9.5367431640625e-07,
+    "relative_rotation_relation_max_abs": 0.38049954175949097,
+    "relative_translation_relation_max_abs": 0.19565725326538086,
+    "temporal_permutation_output_max_abs": 0.29133903980255127,
+    "initial_alpha_gradient_finite_nonzero": true,
+    "activated_relation_and_trunk_gradients_finite_nonzero": true,
+    "train_sampler_surface_parity_max_abs": 0.0,
+    "train_sampler_feature_parity_max_abs": 0.0,
+    "checkpoint_variant_rejection_passed": true,
+    "hsiprior_storage_independence_passed": true,
+    "mixer_clean_output_contract_passed": true,
+    "static_forbidden_path_scan_passed": true,
+    "metrics_sha256": "b1bfd61e9c754957855d31247b81a09c191801c51184fb2b08e1b91e5281d605",
+    "resolved_config_sha256": "b870852873f6d4a83e1032ade2b237d2ae7476bc9fb27829f9710ab953478f14",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-cpu-contract-s42-20260728",
+      "sha256": "662cf1fa37121d24b660334fa22c5fec1d5114e980271d6e1df58aa67973fae5",
+      "files": 3,
+      "bytes": 81347
+    }
+  },
+  "functional_smoke": {
+    "preflight_failure": {
+      "run_id": "p1-hoi-d2ae-gpu-functional-smoke-s42-20260728",
+      "classification": "operational-preworkload-visible-device-scope-failure",
+      "cause": "the preflight command inherited CUDA_VISIBLE_DEVICES=0 and therefore saw one rather than four devices",
+      "gpu_workload_started": false,
+      "artifact_tree_sha256": "d2bd049d7688c8f5493c0698066f79dcfceeb90f8ff34530da4b4035db4170b5",
+      "files": 4,
+      "bytes": 57187,
+      "overwritten": false
+    },
+    "run_id": "p1-hoi-d2ae-gpu-functional-smoke-r1-s42-20260728",
+    "status": "completed",
+    "classification": "functional-smoke-passed",
+    "host": "infbagel-4gpu/node01",
+    "device": "cuda:0",
+    "batch_size": 8,
+    "required_timesteps": [
+      0,
+      249,
+      499
+    ],
+    "executed_timestep_sequence": [
+      0,
+      249,
+      499,
+      0,
+      249,
+      499,
+      0,
+      499
+    ],
+    "random_initialization": true,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "losses_finite": true,
+    "required_gradients_finite_nonzero": true,
+    "relation_build_device": "cuda:0",
+    "peak_allocated_bytes": 281199616,
+    "peak_reserved_bytes": 322961408,
+    "memory_headroom_bytes": 24973082624,
+    "metrics_sha256": "1d9a8dabf46533b5b185898f0e50435a13b2de201ca8ddf87374c9a436966787",
+    "manifest_sha256": "74303f569a78e482c75d9f758314f05f0665eb8f47898ed94f5badf71dd29b66",
+    "resolved_config_sha256": "b7266bad9c767d5cd24254734fbfe3a0b6178c8c776e398f86446a6405249b5e",
+    "preflight_sha256": "b11018898e804a300d50e93c2fe340936ab6cd3e25cff9b4e4cc961077ceaba3",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-gpu-functional-smoke-r1-s42-20260728",
+      "sha256": "c2eed8eef78c720db46fd4064d78bad07fb85f1462e25d113a99a69cea474259",
+      "files": 5,
+      "bytes": 58333,
+      "worker_authority_match": true
+    }
+  },
+  "performance_benchmark": {
+    "initial_binding": {
+      "run_id": "p1-hoi-d2ae-performance-benchmark-s42-20260728",
+      "status": "completed",
+      "classification": "performance-gate-passed",
+      "throughput_windows_per_second": 3199.621672744641,
+      "throughput_fraction_of_sealed_d2x": 0.986613147500555,
+      "full_budget_eta_hours": 5.333963953315409,
+      "artifact_tree_sha256": "0d62d1c5e1da2272c309cbd1882ebbd785897690f2f5ed02750ee87542ba59bb",
+      "files": 10,
+      "bytes": 1287739
+    },
+    "run_id": "p1-hoi-d2ae-performance-benchmark-r1-s42-20260728",
+    "status": "completed",
+    "classification": "performance-gate-passed",
+    "host": "infbagel-4gpu/node01",
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "warmup_updates": 64,
+    "measured_updates": 256,
+    "measured_windows": 524288,
+    "throughput_windows_per_second": 3500.3378855257,
+    "minimum_throughput_windows_per_second": 2756.580356467847,
+    "throughput_fraction_of_sealed_d2x": 1.0793399132065347,
+    "full_budget_eta_hours": 4.875719780435854,
+    "maximum_full_budget_eta_hours": 6.2,
+    "memory_headroom_min_bytes": 18989383680,
+    "memory_headroom_required_bytes": 2529604403,
+    "losses_finite": true,
+    "gradients_finite": true,
+    "relation_gpu_only": true,
+    "cpu_dynamic_geometry": false,
+    "external_contention": false,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "relation_intermediate_shapes": {
+      "current": [
+        512,
+        16,
+        232
+      ],
+      "rest_object_points": [
+        512,
+        100,
+        3
+      ],
+      "features": [
+        512,
+        4,
+        3,
+        100,
+        4
+      ],
+      "surface": [
+        512,
+        4,
+        100,
+        3
+      ],
+      "encoded_points": [
+        512,
+        4,
+        3,
+        100,
+        128
+      ],
+      "pooled_blocks": [
+        512,
+        4,
+        3,
+        256
+      ],
+      "projection_input": [
+        512,
+        4,
+        768
+      ],
+      "relation_vectors": [
+        512,
+        4,
+        512
+      ],
+      "routed_relation": [
+        512,
+        16,
+        512
+      ]
+    },
+    "mean_profile_seconds_across_ranks": {
+      "loader_wait": 35.66869881405728,
+      "h2d": 0.38822563964128487,
+      "gpu_relation_geometry": 0.5383417515158655,
+      "gpu_relation_module": 1.957027975916862,
+      "forward_and_loss": 15.923051936149594,
+      "backward_inclusive_ddp": 89.92094805526733,
+      "optimizer": 3.0833300933837906,
+      "ddp_bucket_wall_nonadditive": 0.2529760269680992
+    },
+    "mean_cpu_utilization_percent": 39.89751137237726,
+    "benchmark_summary_sha256": "975a9b6dca4d1a4613af604dfca6420be7e056ea055566d6b3573397e3d914d9",
+    "manifest_sha256": "e1ef238f762015213b9fafb6f8ee4f9bb57c71dfb64d714b50f066731aea4bec",
+    "resolved_config_sha256": "8f92e5e6f3f212fe05952ff43c61e8a64d484099749ed071bad5050ef5e1961a",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-performance-benchmark-r1-s42-20260728",
+      "sha256": "b7042d965a8483afd8b1306e7a81d2a30d067f54f1094dfc8910d88fcb4882c7",
+      "files": 10,
+      "bytes": 1242098,
+      "worker_authority_match": true
+    }
+  },
+  "formal_training": {
+    "unstarted_preflight_failure": {
+      "run_id": "p1-hoi-d2ae-sparse-relation-field-s42-20260728",
+      "classification": "operational-formal-preflight-failure",
+      "cause": "an auxiliary contract inspection used the invalid import path code.train_hoi_prior",
+      "gpu_workload_started": false,
+      "artifact_tree_sha256": "620c4cd5d6361036d15e0adac58a40adb503e7196a2946c7c25ebc4cd43c0136",
+      "files": 4,
+      "bytes": 22853,
+      "overwritten": false
+    },
+    "run_id": "p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728",
+    "status": "completed",
+    "worker_git_commit": "f61d0f29de6702bcc99120ddb2218c342c60b558",
+    "random_initialization": true,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "terminal_model_state_sha256": "2f80498d3fea1adcbea244ee58dbbe466dd6df631bb7ba4a738e1275cac87e61",
+    "source_checkpoint": null,
+    "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "wall_seconds": 18356.507242536172,
+    "throughput_windows_per_second": 3347.0419610997483,
+    "throughput_frames_per_second": 53552.67137759597,
+    "mean_training_total_loss": 0.043423094012122604,
+    "final_validation": {
+      "total": 0.048645551553363475,
+      "reconstruction": 0.04092779792881629,
+      "fk": 0.010167629175953152,
+      "object_surface": 0.008255286565542974,
+      "velocity": 0.0001026993699417833,
+      "contact": 0.014127822801540901,
+      "contact_accuracy": 0.966831791894947
+    },
+    "learned_alpha": -0.14936646819114685,
+    "learned_gate": -0.14826549589633942,
+    "cadence_checkpoints": 20,
+    "rank_rng_sidecars": 80,
+    "first_resumable_checkpoint_sha256": "dd3540aa01931354dd52ed79410c456cafa3823b55350549c0354d7eadfd869c",
+    "fixed_final_online_checkpoint_sha256": "b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840",
+    "metrics_sha256": "f8b9ca00a0c7aecea0d6af7cdc9a4a2612f429f878967937300e0c4232f48590",
+    "manifest_sha256": "da09e26e40eac873ba2404ff7fa44f384122b876735fb741ff55ea4dcb368d0d",
+    "resolved_config_sha256": "1b113e819914d8186b2fbee5730ac75ec67eaa1960cb3326a0183c333c8ce150",
+    "preflight_sha256": "6f02903d1eaeafd35b580701b511e57b784c83ef72b040de5e71a7200e2db958",
+    "training_state_sha256": "ea42a2fca485c7e8e14c68d9c7e3952b910b6feb72e0c95b0fcdd6a7e213df69",
+    "gradient_audit_sha256": "83044e8b25e114bd5879d0bc8e09532e5c9dd84503ee56ae03c7866d7da89068",
+    "complete_artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728-recovery-r1",
+      "sha256": "3c8a987d54dfb63e89d7ec243fb065dc4f84c95808d92eee13b46ab621959428",
+      "files": 119,
+      "bytes": 7226999632,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    },
+    "earlier_preserved_snapshot": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728",
+      "sha256": "420e2f89d8059e4d9b5d0249001fbb9dbaffd5e591990f8ba7d6fbcdf6e44ae6",
+      "files": 118,
+      "bytes": 7226961724,
+      "overwritten": false
+    }
+  },
+  "internal_diagnostic": {
+    "preflight_failures": [
+      {
+        "run_id": "p1-hoi-d2ae-sparse-relation-field-internal-s42-20260729",
+        "cause": "transient GPU 1 P5 with zero utilization and no compute process",
+        "gpu_workload_started": false,
+        "artifact_tree_sha256": "015e180d5aa21f093fe7f712d576150f12d47203aac26269f28f56c0015336e3",
+        "files": 2,
+        "bytes": 10311,
+        "overwritten": false
+      },
+      {
+        "run_id": "p1-hoi-d2ae-sparse-relation-field-internal-r1-s42-20260729",
+        "cause": "transient GPU 3 P5 with zero utilization and no compute process",
+        "gpu_workload_started": false,
+        "artifact_tree_sha256": "88f20c8ba3f0c013ba475e04551706ce2194c1904d33db2738dde497175de8bd",
+        "files": 2,
+        "bytes": 10320,
+        "overwritten": false
+      }
+    ],
+    "run_id": "p1-hoi-d2ae-sparse-relation-field-internal-r2-s42-20260729",
+    "status": "completed",
+    "protocol": "sealed D2-O 64 sequences x 3 windows, four paired-noise 500-step causal rollouts",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "selection_sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "contract_passed": true,
+    "relation_path_used": true,
+    "temporal_routing_passed": true,
+    "role_binding_passed": true,
+    "mechanism_passed": true,
+    "classification": "sparse-relation-field-internal-positive-continue",
+    "learned_alpha": -0.14936646819114685,
+    "learned_gate": -0.14826549589633942,
+    "primary_comparisons": {
+      "full_minus_gate_ablated_direct_union_5cm_f1": {
+        "point": 0.2366906004706135,
+        "ci95": [
+          0.14841148198833312,
+          0.3269832292733692
+        ]
+      },
+      "full_minus_temporal_permuted_direct_union_5cm_f1": {
+        "point": 0.15389257665648856,
+        "ci95": [
+          0.081493073447858,
+          0.2261234601163364
+        ]
+      },
+      "full_minus_role_swapped_direct_macro_5cm_f1": {
+        "point": 0.17870830388140863,
+        "ci95": [
+          0.12278407978965263,
+          0.23225557942417632
+        ]
+      },
+      "gate_ablated_minus_full_gt_contact_distance_cm": {
+        "point": 3.509101284900745,
+        "ci95": [
+          2.090269510172182,
+          4.957888713337694
+        ]
+      },
+      "temporal_permuted_minus_full_gt_contact_distance_cm": {
+        "point": 4.010482086842813,
+        "ci95": [
+          2.0728669070092676,
+          6.222640597918754
+        ]
+      }
+    },
+    "full_descriptive": {
+      "direct_union_5cm_f1_frame_aggregate": 0.7787709497206704,
+      "direct_union_5cm_f1_sequence_mean": 0.6376706586301786,
+      "mpjpe_cm": 11.985652923583984,
+      "object_goal_cm": 94.12546483427286,
+      "pelvis_goal_cm": 5.238490795716643,
+      "foot_sliding": 0.7995855430072838
+    },
+    "metrics_sha256": "0d1e422386bd181e86ef5d77be80d05972bea92411cbb716644ff0a5f2811ba9",
+    "manifest_sha256": "811cb1be8e3383295b7d60b8d8f488a2ddafd5d9d829a652e2a5e894325c80b2",
+    "paired_noise_sha256": "1f4123945ae576b8a12ed83fa115dc32d9bea6df81b67c759f1cf482f088988c",
+    "paired_conditioning_sha256": "1eaa2380f26368ae8dd754c3be5452949f44492eba9f480ee71078a188434b9d",
+    "sparse_relation_appendix_sha256": "a38693f5743be3b06b05097c1dc0129f6968eff0ea6e22ce70985c6df6a60815",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-sparse-relation-field-internal-r2-s42-20260729",
+      "sha256": "044f98f78d52347af0c3120a1a5ca4df25c5e4773256c89c2fd5e6bd77fd0b21",
+      "files": 17,
+      "bytes": 37798242,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    }
+  },
+  "native_evaluation": {
+    "run_id": "p1-hoi-d2ae-native-eval-s42-20260729",
+    "status": "completed",
+    "protocol": "official 438 sequences x 3 windows, 500-step unguided production diffusion",
+    "runtime_seconds": 383.20060334308073,
+    "generation_seconds": 71.08584367996082,
+    "end_to_end_seconds": 375.21392615302466,
+    "generation_fps_descriptive": 776.3571077311074,
+    "official_evaluator_unchanged": true,
+    "sealed_d2x_control_reused_without_regeneration": true,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "target_metrics": {
+      "end_object_cm": 4.299027472734451,
+      "txy_cm": 3.989427164196968,
+      "foot_sliding": 0.3989576755482311,
+      "contact_precision": 0.8036319597793999,
+      "contact_recall": 0.5961386226560761,
+      "contact_f1": 0.6419438531625619,
+      "contact_coverage": 0.4766253533376821,
+      "pbody": 2.8603306929169325,
+      "hand_penetration": 0.17937916498745957,
+      "mpjpe_cm": 12.15578094124794,
+      "troot_cm": 8.16512480378151,
+      "tobj_cm": 15.955253528138119,
+      "oobj": 1.003238229324793
+    },
+    "sealed_d2x_metrics": {
+      "end_object_cm": 3.7402085959911346,
+      "txy_cm": 4.050519689917564,
+      "foot_sliding": 0.3630100213939385,
+      "contact_precision": 0.7880618755952097,
+      "contact_recall": 0.5944546940443982,
+      "contact_f1": 0.6374259391059788,
+      "contact_coverage": 0.4765528738131478,
+      "pbody": 3.869084620991582,
+      "hand_penetration": 0.24535650279805918,
+      "mpjpe_cm": 12.050843983888626,
+      "troot_cm": 8.170091360807419,
+      "tobj_cm": 15.994049727002507,
+      "oobj": 1.0309440299298087
+    },
+    "paired_d2ae_minus_d2x": {
+      "contact_f1": {
+        "point": 0.004517914056583,
+        "ci95": [
+          -0.01809406049452261,
+          0.02684589187183764
+        ]
+      },
+      "contact_recall": {
+        "point": 0.001683928611677855,
+        "ci95": [
+          -0.02313870299143617,
+          0.026381165775851114
+        ]
+      },
+      "contact_precision": {
+        "point": 0.015570084184190374,
+        "ci95": [
+          -0.005193560429915042,
+          0.03679140600621204
+        ]
+      },
+      "released_contact_f1_gap_closure": 0.050293061856389105
+    },
+    "protection_mean_ratios": {
+      "end_object": {
+        "point": 1.1476572117729698,
+        "ci95": [
+          1.0842500962228747,
+          1.2138219697197277
+        ]
+      },
+      "txy": {
+        "point": 0.9849174644238269,
+        "ci95": [
+          0.9487141484192348,
+          1.0224433492495029
+        ]
+      },
+      "foot_sliding": {
+        "point": 1.0990266164450655,
+        "ci95": [
+          1.0323296978333265,
+          1.1734663995720027
+        ]
+      },
+      "pbody": {
+        "point": 0.7392784012524073,
+        "ci95": [
+          0.6152061210307906,
+          0.8828794856619933
+        ]
+      },
+      "hand_penetration": {
+        "point": 0.7310960294176417,
+        "ci95": [
+          0.6070412666891791,
+          0.8745867079076676
+        ]
+      },
+      "mpjpe": {
+        "point": 1.0087079740432994,
+        "ci95": [
+          0.9888915847337686,
+          1.0291641465456949
+        ]
+      },
+      "troot": {
+        "point": 0.9993921265894368,
+        "ci95": [
+          0.9771726002297405,
+          1.0211729104050982
+        ]
+      },
+      "tobj": {
+        "point": 0.9975743354855969,
+        "ci95": [
+          0.969977122647166,
+          1.0257647588749652
+        ]
+      },
+      "oobj": {
+        "point": 0.9731257955808588,
+        "ci95": [
+          0.9399965234575424,
+          1.0078904150554666
+        ]
+      }
+    },
+    "native_transfer_passed": false,
+    "native_transfer_checks": {
+      "contact_f1_ci_lower_gt_zero": false,
+      "contact_recall_ci_lower_gt_zero": false,
+      "contact_f1_released_gap_closure_ge_0.25": false,
+      "contact_f1_point_estimate_ge_0.6598838781": false
+    },
+    "protection_passed": false,
+    "protection_failures": [
+      "end_obj_trans_err_ratio_ci_upper_le_1.10",
+      "foot_sliding_ratio_ci_upper_le_1.10"
+    ],
+    "released_95_percent_effectiveness_passed": false,
+    "penetration_finite_mask_contract_passed": true,
+    "penetration_finite_mask_sequences": 181,
+    "penetration_finite_mask_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec",
+    "local_bps_build_calls": 0,
+    "sparse_relation_metadata_calls": 3,
+    "normalization_nonfinite_values": 0,
+    "metrics_sha256": "55927debc01eba5a2a07484695b62aed9cb1f7c29e30d289e84e4371229d60f8",
+    "manifest_sha256": "419be60fc35c747c27d585270ff0f504921c79f8993004a48fbebd66b2f4d8db",
+    "aggregate_sha256": "157acda463036bdf787618c217262c14c77a09a3f409cbeada03de06e9b902a1",
+    "per_sequence_sha256": "8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c",
+    "resolved_config_sha256": "d747b549190c1e3fd8e5f91b12ae8c51db405e0a7e4495d556e94ad63fa7a378",
+    "resolved_target_sha256": "4ee5916806c3aafb600054641a0b7baaa17db8d9479c949a1d7fd4e7f7530ad8",
+    "preflight_sha256": "5572d7f53913e50b763da5772dfb4bb2d336bcd42f925916a960e2c64833487e",
+    "run_local_registry_sha256": "8fb263138e5bc2f429630dc8e5c57b93fe4019ab818cf062a1dddaf82cc1e972",
+    "raw_exit_code": {
+      "bytes_hex": "306e",
+      "sha256": "3ad4ee182e21c25db763cda6359ecc441b8ea32ea4d6631c012aac7fa7d362dc",
+      "parsed_return_code": 0,
+      "preserved_without_overwrite": true,
+      "note": "the detached wrapper serialized the intended newline as a literal trailing n"
+    },
+    "postflight_verification": {
+      "initial_schema_assumption_failure_sha256": "05133fc6afc981ec8b28d7b3ede5c938da9110fc0146a704858045289ed50e15",
+      "initial_failure": "aggregate-only fields were incorrectly required on per-sequence rows",
+      "corrected_schema_parity_sha256": "c4f2f86ccc341e835fdfe6f87f11fb9ec3d7dfa5db8c1bb4d4abba073ba28d18",
+      "corrected_passed": true,
+      "metric_or_threshold_changed": false,
+      "native_rerun": false
+    },
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ae-native-eval-s42-20260729",
+      "sha256": "4f31bb8f61bd40eb4604a25a0802a970686092306faf86efa0b289c856cd34b5",
+      "files": 18,
+      "bytes": 3474559,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    },
+    "fid_matching_rprecision_diversity_generated": false
+  },
+  "decision": {
+    "contract_passed": true,
+    "relation_path_used": true,
+    "temporal_routing_passed": true,
+    "role_binding_passed": true,
+    "native_transfer_passed": false,
+    "protection_passed": false,
+    "released_95_percent_effectiveness_passed": false,
+    "classification": "sparse-relation-field-transfer-negative-stop",
+    "checkpoint_selected": false,
+    "selectable": false,
+    "conclusion": "The fixed sparse relation field learned genuine path, temporal and left/right-role dependence and eliminated the D2-AD CPU full-mesh bottleneck, but that causal internal structure did not transfer into a statistically reliable official-test contact gain. D2-AE0 is closed as a transfer-negative result; its final-online checkpoint is not selectable and the result does not authorize a longer budget, consistency, a sweep or D2-AE1."
+  }
+}

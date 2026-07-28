@@ -5408,6 +5408,131 @@ sparse-relation-appendix SHA-256 分别为
 `p1-hoi-d2ae-native-eval-s42-20260729`。Internal 正结果不授权 checkpoint selection、
 D2-AE1、consistency、longer budget、任何 sweep、HSIPrior 或 Mixer。
 
+#### 2026-07-29 Phase 1B D2-AE0 fixed native evaluation completion
+
+Fixed native run `p1-hoi-d2ae-native-eval-s42-20260729` 在 clean worker
+`phase/01b-hoi@5a167347ec4761ec8427b518a36da9157b8fe033` 上只加载 fixed final-online
+checkpoint SHA-256
+`b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840`。
+协议为 official 438 sequences × 3 windows、500-step unguided production diffusion、
+online/final-online weights、seed 42 与 10,000 次 paired sequence bootstrap；CFG、guidance、
+scene conditioning、dynamic perception 与 consistency 均关闭。Sealed D2-X aggregate /
+per-sequence SHA-256
+`3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+`69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`
+直接复用且未重新生成，sealed D2-X checkpoint SHA-256 为
+`b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51`；
+released aggregate SHA-256 为
+`76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`。
+D2-AC/D2-AD 只作 sealed descriptive evidence。Run local start/end 为
+`2026-07-29T01:54:02+08:00` / `2026-07-29T02:07:31+08:00`，exit status 为 completed，
+runtime/end-to-end 为 `383.200603 / 375.213926 s`，55,188 frames 的 synchronized
+generation 为 `71.085844 s`。未进行 optimizer update、checkpoint write、checkpoint
+selection 或训练；FID、Matching、R-Precision 与 Diversity 均未生成。
+
+Internal path/temporal/role mechanism gates 保持全通过，但 native transfer 未通过：
+
+- D2-AE contact F1 `0.64194385`，sealed D2-X 为 `0.63742594`；paired difference
+  `+0.00451791`，95% CI `[-0.01809406, 0.02684589]`；
+- contact recall difference `+0.00168393`，95% CI
+  `[-0.02313870, 0.02638117]`；
+- contact precision difference `+0.01557008`，95% CI
+  `[-0.00519356, 0.03679141]`；
+- released contact-F1 gap closure `0.05029306 < 0.25`；
+- target contact F1 `0.64194385 < 0.6598838781`。
+
+Protection gate 也未通过：end-object target/control mean-ratio CI 为
+`[1.08425, 1.21382]`，FS ratio CI 为 `[1.03233, 1.17347]`，其 upper bounds 均超过
+`1.10`。181-sequence penetration finite-mask contract 通过，finite-mask sequence-ID
+SHA-256 为
+`2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec`。
+Classification precedence 因而首先停在
+`sparse-relation-field-transfer-negative-stop`；后续 protection 与 released-95%
+failures 保留为证据但不覆盖该 classification。Checkpoint selected/selectable 均为 false。
+
+Metrics/manifest/aggregate/per-sequence/resolved-config/resolved-target/preflight/
+run-local-registry SHA-256 分别为
+`55927debc01eba5a2a07484695b62aed9cb1f7c29e30d289e84e4371229d60f8` /
+`419be60fc35c747c27d585270ff0f504921c79f8993004a48fbebd66b2f4d8db` /
+`157acda463036bdf787618c217262c14c77a09a3f409cbeada03de06e9b902a1` /
+`8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c` /
+`d747b549190c1e3fd8e5f91b12ae8c51db405e0a7e4495d556e94ad63fa7a378` /
+`4ee5916806c3aafb600054641a0b7baaa17db8d9479c949a1d7fd4e7f7530ad8` /
+`5572d7f53913e50b763da5772dfb4bb2d336bcd42f925916a960e2c64833487e` /
+`8fb263138e5bc2f429630dc8e5c57b93fe4019ab818cf062a1dddaf82cc1e972`。
+Worker 发起 non-destructive recovery 后，两端完整 native tree 均为 18 files /
+3,474,559 bytes，SHA-256
+`4f31bb8f61bd40eb4604a25a0802a970686092306faf86efa0b289c856cd34b5`，
+checksum dry-run 为零差异。
+
+Detached wrapper 的 `exit_code` 原始 bytes 为 literal `0n`，SHA-256
+`3ad4ee182e21c25db763cda6359ecc441b8ea32ea4d6631c012aac7fa7d362dc`；
+文件未覆盖，postflight 按 leading return code 解析为 `0`。首次 postflight verifier
+错误要求 aggregate-only aliases 出现在 per-sequence rows，失败 artifact SHA-256
+`05133fc6afc981ec8b28d7b3ede5c938da9110fc0146a704858045289ed50e15`
+原样保留；只修 serialized schema mapping 的 append-only r1 verifier 通过，SHA-256
+`c4f2f86ccc341e835fdfe6f87f11fb9ec3d7dfa5db8c1bb4d4abba073ba28d18`。
+未改变或重跑任何 metric、mask、reduction、threshold、evaluator 或 native workload。
+
+#### 2026-07-29 Phase 1B D2-AE0 completion record
+
+Completion identity 为 `p1-hoi-d2ae-completion-s42-20260729`。D2-AE0 的
+identifier/source/provenance audit、plan-only registration、implementation、
+authority CPU contract、functional smoke、4-GPU full-micro-batch performance benchmark、
+一次从 seed-42 random initialization 完整运行的 61,440,000-window formal training、
+fixed internal causal diagnostic、fixed native evaluation、non-destructive artifact recovery
+与 hash verification 均已完成。所有 operational failures、完整 formal tree、20 cadence
+checkpoints、80 per-rank RNG sidecars、paired internal artifacts、native raw outputs 与
+postflight schema failure/r1 correction均保留且未覆盖。
+
+Performance gate 通过，formal throughput 为 `3,347.042 windows/s`；internal path、
+temporal correspondence 与 left/right role-binding gates 全通过。但 native contact F1/
+recall improvement 无显著 paired evidence、contact-F1 point/gap-closure gates失败，因此
+最终 classification 锁定为
+`sparse-relation-field-transfer-negative-stop`。Fixed final-online checkpoint
+`b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840`
+不可选择、不可 resume、不可初始化后续 prior。
+
+Lifecycle tree SHA-256 完整绑定如下：
+
+- authority CPU：
+  `662cf1fa37121d24b660334fa22c5fec1d5114e980271d6e1df58aa67973fae5`；
+- functional preflight failure / successful r1：
+  `d2bd049d7688c8f5493c0698066f79dcfceeb90f8ff34530da4b4035db4170b5` /
+  `c2eed8eef78c720db46fd4064d78bad07fb85f1462e25d113a99a69cea474259`；
+- performance base / formal-bound r1：
+  `0d62d1c5e1da2272c309cbd1882ebbd785897690f2f5ed02750ee87542ba59bb` /
+  `b7042d965a8483afd8b1306e7a81d2a30d067f54f1094dfc8910d88fcb4882c7`；
+- formal preworkload failure / complete r1 / earlier preserved snapshot：
+  `620c4cd5d6361036d15e0adac58a40adb503e7196a2946c7c25ebc4cd43c0136` /
+  `3c8a987d54dfb63e89d7ec243fb065dc4f84c95808d92eee13b46ab621959428` /
+  `420e2f89d8059e4d9b5d0249001fbb9dbaffd5e591990f8ba7d6fbcdf6e44ae6`；
+- internal base / r1 preflight failures / successful r2：
+  `015e180d5aa21f093fe7f712d576150f12d47203aac26269f28f56c0015336e3` /
+  `88f20c8ba3f0c013ba475e04551706ce2194c1904d33db2738dde497175de8bd` /
+  `044f98f78d52347af0c3120a1a5ca4df25c5e4773256c89c2fd5e6bd77fd0b21`；
+- fixed native：
+  `4f31bb8f61bd40eb4604a25a0802a970686092306faf86efa0b289c856cd34b5`。
+
+Final decision booleans 为：contract/performance/internal mechanism/path/temporal/role
+均 `true`；native transfer/protection/released-95% effectiveness 均 `false`；
+checkpoint selected/selectable 均 `false`。
+
+Compact result：
+`experiments/results/p1_hoi_phase1b_d2ae_sparse_relation_field_s42_20260729.json`
+（SHA-256
+`13311ea2cea311904225d22bb20fd88f652f32c5612a84d66c7d2b93b96a4036`）；
+phase summary：
+`docs/phase_summaries/PHASE_1B_D2AE.md`
+（SHA-256
+`54bd808a8f01c3d1d538c4c5f9f0e0932e078ef431c14b30a9acc19ee8e0c206`）。
+
+Phase 1B D2-AE0 在此停止。未启动 D2-AE1、longer-budget extension、consistency、
+任何 point/width/depth/role/placement/LR/batch/threshold sweep、D2-AC/D2-AD retrain/
+resume/selection、新 loss、timestep weighting、rollout exposure、CFG、HSIPrior 或 Mixer；
+也不 merge/tag。任何后续 HOIPrior direction 必须重新获得授权并先做 dated plan 与
+append-only registry hypothesis。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
