@@ -663,6 +663,66 @@ class D2AFPerformanceWaiverTests(unittest.TestCase):
         )
         self.assertTrue(all(result["checks"].values()))
 
+    def test_changed_source_resume_requires_exact_operational_continuation(self):
+        changed_contract = {
+            **self.TARGET_CONTRACT,
+            "sha256": "c" * 64,
+        }
+        continuation = {
+            "source_formal_contract": dict(self.TARGET_CONTRACT),
+            "target_formal_contract": dict(changed_contract),
+            "checks": {"exact_operational_resume": True},
+        }
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark_path = directory / "benchmark.json"
+            benchmark_sha256 = self._write_json(
+                benchmark_path,
+                self._benchmark(),
+            )
+            waiver_path = directory / "waiver.json"
+            waiver_sha256 = self._write_json(
+                waiver_path,
+                self._waiver(benchmark_sha256),
+            )
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=benchmark_sha256,
+                waiver_path=waiver_path,
+                waiver_sha256=waiver_sha256,
+            )
+            cfg.resume_checkpoint = str(
+                directory / hoi_trainer.D2AF_CHECKPOINT_RACE_CHECKPOINT_BASENAME
+            )
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=changed_contract,
+            ), mock.patch.object(
+                hoi_trainer,
+                "_validate_d2af_checkpoint_race_continuation",
+                return_value=continuation,
+            ) as validate_continuation:
+                result = hoi_trainer._validate_d2af_performance_gate(cfg)
+            validate_continuation.assert_called_once()
+            self.assertEqual(
+                result["waiver"]["operational_continuation"],
+                continuation,
+            )
+            self.assertEqual(
+                result["formal_source_contract"],
+                changed_contract,
+            )
+
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=changed_contract,
+            ):
+                with self.assertRaisesRegex(
+                    ValueError, "sealed checkpoint-race contract",
+                ):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
+
     def test_exact_failed_benchmark_without_waiver_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory_value:
             directory = Path(directory_value)
@@ -785,6 +845,441 @@ class D2AFPerformanceWaiverTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(ValueError, "waiver_absent"):
                     hoi_trainer._validate_d2af_performance_gate(cfg)
+
+
+class D2AFCheckpointRaceTests(unittest.TestCase):
+    @staticmethod
+    def _write_json(path: Path, value: dict) -> str:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(value, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_checkpoint_collision_preflight_ignores_peer_sidecars(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            checkpoint = directory / "run_windows009216000.pth"
+            own_rng = directory / "run_windows009216000.rank2.rng.pth"
+            (directory / "run_windows009216000.rank0.rng.pth").write_bytes(
+                b"peer"
+            )
+            calls = []
+
+            def all_reduce(value, *, op):
+                calls.append(("all_reduce", int(value.item()), op))
+
+            with mock.patch.object(
+                torch.distributed, "all_reduce", side_effect=all_reduce,
+            ), mock.patch.object(
+                torch.distributed,
+                "barrier",
+                side_effect=lambda: calls.append(("barrier",)),
+            ):
+                hoi_trainer._checkpoint_collision_preflight(
+                    2,
+                    checkpoint_path=checkpoint,
+                    rng_path=own_rng,
+                    device=torch.device("cpu"),
+                )
+            self.assertEqual(calls[0][0:2], ("all_reduce", 0))
+            self.assertEqual(calls[0][2], torch.distributed.ReduceOp.MAX)
+            self.assertEqual(calls[1], ("barrier",))
+
+    def test_checkpoint_collision_preflight_fails_collectively(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            checkpoint = directory / "run_windows009216000.pth"
+            own_rng = directory / "run_windows009216000.rank2.rng.pth"
+            own_rng.write_bytes(b"existing")
+            with mock.patch.object(
+                torch.distributed, "all_reduce",
+            ) as all_reduce, mock.patch.object(
+                torch.distributed, "barrier",
+            ) as barrier:
+                with self.assertRaisesRegex(
+                    FileExistsError, "rank-local RNG sidecar",
+                ):
+                    hoi_trainer._checkpoint_collision_preflight(
+                        2,
+                        checkpoint_path=checkpoint,
+                        rng_path=own_rng,
+                        device=torch.device("cpu"),
+                    )
+            all_reduce.assert_called_once()
+            barrier.assert_not_called()
+
+            own_rng.unlink()
+
+            def remote_collision(value, *, op):
+                self.assertEqual(op, torch.distributed.ReduceOp.MAX)
+                value.fill_(1)
+
+            with mock.patch.object(
+                torch.distributed,
+                "all_reduce",
+                side_effect=remote_collision,
+            ), mock.patch.object(
+                torch.distributed, "barrier",
+            ) as barrier:
+                with self.assertRaisesRegex(
+                    FileExistsError, "another rank detected",
+                ):
+                    hoi_trainer._checkpoint_collision_preflight(
+                        2,
+                        checkpoint_path=checkpoint,
+                        rng_path=own_rng,
+                        device=torch.device("cpu"),
+                    )
+            barrier.assert_not_called()
+
+    def test_rank_zero_still_rejects_existing_main_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            checkpoint = directory / "run_windows009216000.pth"
+            checkpoint.write_bytes(b"existing")
+            with mock.patch.object(
+                torch.distributed, "all_reduce",
+            ), mock.patch.object(
+                torch.distributed, "barrier",
+            ) as barrier:
+                with self.assertRaisesRegex(
+                    FileExistsError, str(checkpoint),
+                ):
+                    hoi_trainer._checkpoint_collision_preflight(
+                        0,
+                        checkpoint_path=checkpoint,
+                        rng_path=directory / (
+                            "run_windows009216000.rank0.rng.pth"
+                        ),
+                        device=torch.device("cpu"),
+                    )
+            barrier.assert_not_called()
+
+    def test_operational_continuation_binds_all_preserved_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            run_dir = directory / "run"
+            checkpoint_dir = run_dir / "checkpoints"
+            checkpoint_dir.mkdir(parents=True)
+            checkpoint = (
+                checkpoint_dir
+                / hoi_trainer.D2AF_CHECKPOINT_RACE_CHECKPOINT_BASENAME
+            )
+            checkpoint.write_bytes(b"checkpoint")
+            checkpoint_sha256 = hashlib.sha256(
+                checkpoint.read_bytes()
+            ).hexdigest()
+            rng_records = []
+            rng_sha256 = {}
+            for rank in range(4):
+                rng_path = checkpoint_dir / (
+                    f"{checkpoint.stem}.rank{rank}.rng.pth"
+                )
+                rng_path.write_bytes(f"rng-{rank}".encode("ascii"))
+                sha256 = hashlib.sha256(rng_path.read_bytes()).hexdigest()
+                rng_sha256[rank] = sha256
+                rng_records.append({
+                    "rank": rank,
+                    "basename": rng_path.name,
+                    "sha256": sha256,
+                    "bytes": rng_path.stat().st_size,
+                })
+            manifest_path = run_dir / "manifest.json"
+            manifest = {
+                "experiment_id": (
+                    "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729"
+                ),
+                "status": "running",
+                "ended_at": None,
+                "metrics": None,
+                "git": {
+                    "commit": hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+                },
+            }
+            self._write_json(manifest_path, manifest)
+            failure_path = run_dir / "operational_checkpoint_race_failure.json"
+            failure = {
+                "run_id": manifest["experiment_id"],
+                "status": "operational-failure-preserved",
+                "classification": (
+                    "ddp-checkpoint-sidecar-existence-race-operational-failure"
+                ),
+                "return_code": 1,
+                "failure_progress": {
+                    "processed_windows_attempted": 9216000,
+                    "optimizer_updates_attempted": 4500,
+                },
+                "last_complete_resume_checkpoint": {
+                    "sha256": checkpoint_sha256,
+                },
+            }
+            self._write_json(failure_path, failure)
+            partial_dir = (
+                run_dir
+                / "operational_failures/checkpoint_race_windows009216000"
+            )
+            partial_dir.mkdir(parents=True)
+            for rank in (0, 1, 3):
+                (partial_dir / f"rank{rank}.rng.pth").write_bytes(
+                    f"partial-{rank}".encode("ascii")
+                )
+            partial_record = hoi_trainer._sha256_path_record(partial_dir)
+
+            source_contract = {
+                "algorithm": "git-ls-files-path-content-sha256-v1",
+                "scopes": ["code"],
+                "tracked_file_count": 1,
+                "sha256": "a" * 64,
+            }
+            target_contract = {
+                **source_contract,
+                "sha256": "b" * 64,
+            }
+            implementation_commit = "1" * 40
+            current_commit = "2" * 40
+            implementation_transition = {
+                "source_commit": (
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                ),
+                "target_commit": implementation_commit,
+                "changed_paths": [
+                    "code/config/config_train_hoi_prior.yaml",
+                    "code/config/config_train_hoi_prior_d2af.yaml",
+                    "code/train_hoi_prior.py",
+                    "docs/EXPERIMENT_PLAN.md",
+                    "experiments/registry.jsonl",
+                    "tests/test_hoi_d2af.py",
+                ],
+                "diff_sha256": "c" * 64,
+            }
+            execution_transition = {
+                "source_commit": (
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                ),
+                "target_commit": current_commit,
+                "changed_paths": [
+                    *implementation_transition["changed_paths"],
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
+                ],
+                "diff_sha256": "d" * 64,
+            }
+            post_transition = {
+                "source_commit": implementation_commit,
+                "target_commit": current_commit,
+                "changed_paths": [
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
+                    "docs/EXPERIMENT_PLAN.md",
+                    "experiments/registry.jsonl",
+                ],
+                "diff_sha256": "e" * 64,
+            }
+            contract = {
+                "schema_version": 1,
+                "run_id": (
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_CONTINUATION_RUN_ID
+                ),
+                "status": "authorized",
+                "classification": (
+                    hoi_trainer.
+                    D2AF_CHECKPOINT_RACE_CONTINUATION_CLASSIFICATION
+                ),
+                "formal_run_id": manifest["experiment_id"],
+                "seed": 42,
+                "checkpoint": {
+                    "basename": checkpoint.name,
+                    "sha256": checkpoint_sha256,
+                    "bytes": checkpoint.stat().st_size,
+                    "processed_windows": 6144000,
+                    "optimizer_updates": 3000,
+                    "source_commit": (
+                        hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                    ),
+                    "rng_sidecars": rng_records,
+                },
+                "failure": {
+                    "relative_path": failure_path.name,
+                    "sha256": hashlib.sha256(
+                        failure_path.read_bytes()
+                    ).hexdigest(),
+                },
+                "partial_archive": {
+                    "relative_path": (
+                        "operational_failures/"
+                        "checkpoint_race_windows009216000"
+                    ),
+                    "sha256": partial_record["sha256"],
+                    "files": partial_record["files"],
+                    "bytes": partial_record["bytes"],
+                },
+                "source_transition": {
+                    "source_commit": (
+                        hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                    ),
+                    "target_implementation_commit": implementation_commit,
+                    "changed_paths": implementation_transition["changed_paths"],
+                    "diff_sha256": implementation_transition["diff_sha256"],
+                    "source_formal_contract": source_contract,
+                    "target_formal_contract": target_contract,
+                },
+                "execution_transition": {
+                    "allowed_changed_paths": sorted(
+                        hoi_trainer.
+                        D2AF_CHECKPOINT_RACE_EXECUTION_ALLOWED_PATHS
+                    ),
+                    "target_must_equal_current_head": True,
+                    "diff_sha256_bound_in_resolved_config": True,
+                },
+                "continuation": {
+                    "same_run_only": True,
+                    "new_formal_run": False,
+                    "from_random_restart": False,
+                    "resume_processed_windows": 6144000,
+                    "resume_optimizer_updates": 3000,
+                    "target_processed_windows": 61440000,
+                    "target_optimizer_updates": 30000,
+                    "accepted_lineage_optimizer_updates": 30000,
+                    "actual_total_gpu_optimizer_updates": 31500,
+                    "checkpoint_selection": False,
+                    "budget_extension": False,
+                },
+                "scientific_conditions": {
+                    "model_math_changed": False,
+                    "relation_builder_or_routing_changed": False,
+                    "loss_or_optimizer_changed": False,
+                    "batch_or_budget_changed": False,
+                    "data_loader_or_worker_configuration_changed": False,
+                    "evaluation_protocol_changed": False,
+                },
+            }
+            contract_path = directory / "continuation.json"
+            contract_sha256 = self._write_json(contract_path, contract)
+            cfg = OmegaConf.create({
+                "run_id": manifest["experiment_id"],
+                "seed": 42,
+                "repo_root": str(directory),
+                "resume_checkpoint": str(checkpoint),
+                "resume_commit_transition_authorized": True,
+                "resume_source_commit": (
+                    hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                ),
+                "resume_target_commit": current_commit,
+                "resume_transition_diff_sha256": (
+                    execution_transition["diff_sha256"]
+                ),
+                "d2af_checkpoint_race_continuation_path": str(contract_path),
+                "d2af_checkpoint_race_continuation_sha256": contract_sha256,
+            })
+
+            def contract_at_commit(_repo, commit):
+                if commit == hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT:
+                    return source_contract
+                if commit == implementation_commit:
+                    return target_contract
+                raise AssertionError(commit)
+
+            def transition(_repo, source, target):
+                if (
+                    source
+                    == hoi_trainer.D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+                    and target == current_commit
+                ):
+                    return execution_transition
+                if source == implementation_commit and target == current_commit:
+                    return post_transition
+                raise AssertionError((source, target))
+
+            patches = (
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_CHECKPOINT_SHA256",
+                    checkpoint_sha256,
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_CHECKPOINT_BYTES",
+                    checkpoint.stat().st_size,
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_MANIFEST_SHA256",
+                    hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_FAILURE_SHA256",
+                    hashlib.sha256(failure_path.read_bytes()).hexdigest(),
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_SHA256",
+                    partial_record["sha256"],
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_FILES",
+                    partial_record["files"],
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_BYTES",
+                    partial_record["bytes"],
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_RNG_SHA256",
+                    rng_sha256,
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "D2AF_CHECKPOINT_RACE_SOURCE_FORMAL_CONTRACT_SHA256",
+                    source_contract["sha256"],
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "_validate_tracked_d2af_checkpoint_race_path",
+                    return_value=(
+                        hoi_trainer.
+                        D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH
+                    ),
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "_d2af_checkpoint_race_source_transition",
+                    return_value=implementation_transition,
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "_d2af_formal_source_contract_at_commit",
+                    side_effect=contract_at_commit,
+                ),
+                mock.patch.object(
+                    hoi_trainer,
+                    "_d2af_formal_source_contract",
+                    return_value=target_contract,
+                ),
+                mock.patch.object(
+                    hoi_trainer, "_git_commit", return_value=current_commit,
+                ),
+                mock.patch.object(
+                    hoi_trainer, "_git_transition", side_effect=transition,
+                ),
+            )
+            with ExitStack() as stack:
+                for patch in patches:
+                    stack.enter_context(patch)
+                result = (
+                    hoi_trainer._validate_d2af_checkpoint_race_continuation(
+                        cfg,
+                        repo=directory,
+                        waiver_target_contract=source_contract,
+                    )
+                )
+            self.assertTrue(all(result["checks"].values()))
+            self.assertEqual(
+                result["resume_checkpoint_sha256"], checkpoint_sha256,
+            )
 
 
 class D2AFSamplerTests(unittest.TestCase):

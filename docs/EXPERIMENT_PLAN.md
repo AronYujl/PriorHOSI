@@ -6384,6 +6384,53 @@ worker artifacts后，
 implementation commit的immutable continuation contract。所有authority/worker CPU与
 preflight contracts通过前不得恢复GPU训练。
 
+#### 2026-07-29 Phase 1B D2-AF0 checkpoint-race continuation implementation record
+
+上述plan-only amendment已提交为
+`3b9c0c53bff1e09ec880a6795fd1fad550bc2495`。本logical implementation严格限制为checkpoint
+save同步、D2-AF resume provenance config/validator与regression tests；未修改model、
+diffusion schedule、relation builder/encoder/routing、loss、optimizer、DataLoader、
+batch、budget、sampler或evaluator。
+
+- `_save_checkpoint()`不再由每个rank扫描全部peer sidecar。每个rank只形成own-sidecar
+  collision flag，rank 0额外形成main-checkpoint flag；NCCL collective MAX使任一collision
+  在全部rank同步失败。collective通过后另有pre-write barrier，随后保持原own-sidecar
+  atomic write、post-sidecar barrier、rank-0 main atomic write和final barrier。
+- Base/D2-AF config只新增默认null的tracked continuation path/SHA字段；这些字段不进入
+  scientific `_resume_contract`，因此不会改变旧checkpoint的model/optimizer/data contract。
+- 原performance waiver仍要求其旧target formal-source contract。只有same-run resume且
+  current source因本次registered fix变化时，validator才进一步要求一份exact
+  checkpoint-race continuation contract；fresh run、其他checkpoint或无contract的
+  changed-source resume继续fail closed。
+- Continuation validator绑定原manifest、6,144,000-window checkpoint及四rank RNG、
+  failure JSON、9,216,000 partial archive、原waiver target source contract、
+  source-to-implementation binary diff、current execution diff和scientific-unchanged
+  booleans。Generic resume commit-transition allowlist只增加本次D2-AF config/tests/contract
+  paths；D2-AB exact/guard behavior保持通过。
+- Regression覆盖peer sidecar不构成collision、own sidecar/main checkpoint仍拒绝、
+  remote collision collective传播、changed-source waiver必须有continuation，以及
+  checkpoint/RNG/failure/partial/source/execution/science全部绑定的positive fixture。
+
+Implementation-stage定向verification为：D2-AF core `22/22`、D2-AF CPU/GPU lifecycle
+`15/15`、D2-AB resume regression `16/16`通过，`py_compile`通过。此时尚未创建immutable
+continuation JSON，未加载worker checkpoint，未启动GPU、optimizer、internal或native。
+下一步先运行完整authority suite、registry validation、static diff audit并提交本logical
+implementation；随后以该commit为唯一implementation target创建tracked contract和
+append-only binding record。Contract commit不得修改formal runtime source。
+
+完整authority verification随后通过：`unittest discover`为`424/424`，registry
+validation为222 records，`py_compile`和`git diff --check`通过。Source commit
+`7202d32a7375e7197886c4f873688fd472e2c803`的D2-AF formal-source contract重算为
+91 files /
+`299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e`；
+implementation worktree同算法为91 files /
+`daa57294f4d25db4591a2ef6bcbe8157ca812b99b3b1dfe4c6c01aaf23c2ffd4`。
+Changed paths严格为base/D2-AF config、trainer、D2-AF tests和既有plan/registry六项；
+models、diffusion、relation、loss、DataLoader、sampler、evaluator、`tools/experiment.py`
+均无diff。额外4-process CPU Gloo contract证明无collision时四rank全部通过、rank 2
+own-sidecar collision时四rank全部同步拒绝。上述verification仍未读取scientific
+checkpoint或启动GPU workload。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

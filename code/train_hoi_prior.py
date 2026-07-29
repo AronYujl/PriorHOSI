@@ -133,6 +133,47 @@ D2AF_PERFORMANCE_FAILURE_CLASSIFICATION = (
 D2AF_PERFORMANCE_WAIVER_CLASSIFICATION = (
     "user-authorized-performance-waiver"
 )
+D2AF_CHECKPOINT_RACE_CONTINUATION_RUN_ID = (
+    "p1-hoi-d2af-checkpoint-race-continuation-s42-20260729"
+)
+D2AF_CHECKPOINT_RACE_CONTINUATION_CLASSIFICATION = (
+    "ddp-checkpoint-sidecar-existence-race-operational-continuation"
+)
+D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH = (
+    "experiments/contracts/"
+    "p1_hoi_d2af_checkpoint_race_continuation_s42_20260729.json"
+)
+D2AF_CHECKPOINT_RACE_SOURCE_COMMIT = (
+    "7202d32a7375e7197886c4f873688fd472e2c803"
+)
+D2AF_CHECKPOINT_RACE_SOURCE_FORMAL_CONTRACT_SHA256 = (
+    "299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e"
+)
+D2AF_CHECKPOINT_RACE_CHECKPOINT_BASENAME = (
+    "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729"
+    "_windows006144000.pth"
+)
+D2AF_CHECKPOINT_RACE_CHECKPOINT_SHA256 = (
+    "3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e"
+)
+D2AF_CHECKPOINT_RACE_CHECKPOINT_BYTES = 361283695
+D2AF_CHECKPOINT_RACE_FAILURE_SHA256 = (
+    "a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1"
+)
+D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_SHA256 = (
+    "b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd"
+)
+D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_FILES = 3
+D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_BYTES = 45977
+D2AF_CHECKPOINT_RACE_MANIFEST_SHA256 = (
+    "985192f686de2d4330cb82c826b648a08d12b7ed55c0bd4c8d196951d05b589b"
+)
+D2AF_CHECKPOINT_RACE_RNG_SHA256 = {
+    0: "ebc379497baa4da38c71b5d100ccb179afd6cbf7f629f6d9ba4cd0bf3abfaaae",
+    1: "ac0184e9746b55fc1e6bde4bfba6f6038951587d782e520fd2884e89036b2ecc",
+    2: "91ddfbd38b8781dd82f112180ade468372e164075b679b65c8368e102ae24229",
+    3: "f5063b69ff77d837a9f223744b826e0f93176004b955037b5538b502a32d353d",
+}
 D2AF_WAIVER_ALLOWED_CHANGED_PATHS = frozenset(
     {
         "code/config/config_train_hoi_prior.yaml",
@@ -141,6 +182,23 @@ D2AF_WAIVER_ALLOWED_CHANGED_PATHS = frozenset(
         "docs/EXPERIMENT_PLAN.md",
         "experiments/registry.jsonl",
         "tests/test_hoi_d2af.py",
+    }
+)
+D2AF_CHECKPOINT_RACE_IMPLEMENTATION_ALLOWED_PATHS = frozenset(
+    {
+        "code/config/config_train_hoi_prior.yaml",
+        "code/config/config_train_hoi_prior_d2af.yaml",
+        "code/train_hoi_prior.py",
+        "docs/EXPERIMENT_PLAN.md",
+        "experiments/registry.jsonl",
+        "tests/test_hoi_d2af.py",
+        "tests/test_hoi_d2af_lifecycle_cpu.py",
+    }
+)
+D2AF_CHECKPOINT_RACE_EXECUTION_ALLOWED_PATHS = frozenset(
+    {
+        *D2AF_CHECKPOINT_RACE_IMPLEMENTATION_ALLOWED_PATHS,
+        D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
     }
 )
 D2AF_FORMAL_SOURCE_SCOPES = (
@@ -489,6 +547,125 @@ def _d2af_source_transition(
     }
 
 
+def _d2af_checkpoint_race_source_transition(
+    repo: Path,
+    source_commit: str,
+    target_commit: str,
+) -> Dict[str, object]:
+    """Resolve the one operational D2-AF checkpoint-race implementation diff."""
+    commit_pattern = re.compile(r"^[0-9a-f]{40}$")
+    if (
+        commit_pattern.fullmatch(str(source_commit)) is None
+        or commit_pattern.fullmatch(str(target_commit)) is None
+    ):
+        raise ValueError(
+            "D2-AF checkpoint-race transition requires full Git object ids"
+        )
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source_commit, target_commit],
+        cwd=str(repo),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if ancestor.returncode != 0:
+        raise ValueError(
+            "D2-AF checkpoint-race target is not a descendant of its source"
+        )
+    if not _git_commit_is_ancestor(repo, target_commit):
+        raise ValueError(
+            "D2-AF checkpoint-race target is not an ancestor of current HEAD"
+        )
+    changed_paths = tuple(
+        line
+        for line in subprocess.check_output(
+            ["git", "diff", "--name-only", source_commit, target_commit],
+            cwd=str(repo),
+            text=True,
+        ).splitlines()
+        if line
+    )
+    unexpected = sorted(
+        set(changed_paths) - D2AF_CHECKPOINT_RACE_IMPLEMENTATION_ALLOWED_PATHS
+    )
+    if unexpected:
+        raise ValueError(
+            "D2-AF checkpoint-race transition changes non-authorized paths: "
+            + ", ".join(unexpected)
+        )
+    diff_bytes = subprocess.check_output(
+        ["git", "diff", "--binary", source_commit, target_commit],
+        cwd=str(repo),
+    )
+    return {
+        "source_commit": source_commit,
+        "target_commit": target_commit,
+        "changed_paths": list(changed_paths),
+        "diff_sha256": hashlib.sha256(diff_bytes).hexdigest(),
+    }
+
+
+def _git_transition(
+    repo: Path,
+    source_commit: str,
+    target_commit: str,
+) -> Dict[str, object]:
+    """Return a byte-exact Git transition without applying a path policy."""
+    changed_paths = [
+        line
+        for line in subprocess.check_output(
+            ["git", "diff", "--name-only", source_commit, target_commit],
+            cwd=str(repo),
+            text=True,
+        ).splitlines()
+        if line
+    ]
+    diff_bytes = subprocess.check_output(
+        ["git", "diff", "--binary", source_commit, target_commit],
+        cwd=str(repo),
+    )
+    return {
+        "source_commit": source_commit,
+        "target_commit": target_commit,
+        "changed_paths": changed_paths,
+        "diff_sha256": hashlib.sha256(diff_bytes).hexdigest(),
+    }
+
+
+def _sha256_path_record(path: Path) -> Dict[str, object]:
+    """Hash a file/directory using the reportable-manifest tree algorithm."""
+    path = path.resolve()
+    if not path.exists():
+        raise ValueError(f"artifact path does not exist: {path}")
+    if path.is_symlink():
+        raise ValueError(f"top-level artifact must not be a symlink: {path}")
+    if path.is_file():
+        return {
+            "kind": "file",
+            "sha256": _sha256(path),
+            "bytes": path.stat().st_size,
+        }
+    digest = hashlib.sha256()
+    files = 0
+    total_bytes = 0
+    for child in sorted(value for value in path.rglob("*") if value.is_file()):
+        if child.is_symlink():
+            raise ValueError(f"artifact tree contains a symlink: {child}")
+        relative = child.relative_to(path).as_posix().encode("utf-8")
+        file_hash = _sha256(child).encode("ascii")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(file_hash)
+        files += 1
+        total_bytes += child.stat().st_size
+    return {
+        "kind": "directory",
+        "sha256": digest.hexdigest(),
+        "files": files,
+        "bytes": total_bytes,
+    }
+
+
 def _validate_tracked_d2af_waiver_path(repo: Path, path: Path) -> str:
     """Require the immutable waiver to be a tracked experiments/contracts file."""
     try:
@@ -507,6 +684,326 @@ def _validate_tracked_d2af_waiver_path(repo: Path, path: Path) -> str:
     if tracked.returncode != 0:
         raise ValueError("D2-AF performance waiver must be tracked by Git")
     return relative
+
+
+def _validate_tracked_d2af_checkpoint_race_path(repo: Path, path: Path) -> str:
+    """Require the operational continuation to be the one tracked contract."""
+    try:
+        relative = path.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError as error:
+        raise ValueError(
+            "D2-AF checkpoint-race continuation must be inside the repository"
+        ) from error
+    if relative != D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH:
+        raise ValueError(
+            "D2-AF checkpoint-race continuation path is not the registered contract"
+        )
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", relative],
+        cwd=str(repo),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if tracked.returncode != 0:
+        raise ValueError(
+            "D2-AF checkpoint-race continuation must be tracked by Git"
+        )
+    return relative
+
+
+def _validate_d2af_checkpoint_race_continuation(
+    cfg: DictConfig,
+    *,
+    repo: Path,
+    waiver_target_contract: Mapping[str, object],
+) -> Dict[str, object]:
+    """Validate the one exact same-run operational continuation."""
+    if cfg.resume_checkpoint in (None, "", False):
+        raise ValueError(
+            "D2-AF checkpoint-race continuation requires its exact resume checkpoint"
+        )
+    path_value = cfg.get("d2af_checkpoint_race_continuation_path")
+    configured_sha256 = cfg.get("d2af_checkpoint_race_continuation_sha256")
+    if path_value in (None, "", False) or configured_sha256 in (None, "", False):
+        raise ValueError(
+            "D2-AF changed-source resume requires a sealed checkpoint-race contract"
+        )
+    path = Path(str(path_value))
+    if not path.is_absolute() or not path.is_file():
+        raise ValueError(
+            "D2-AF checkpoint-race continuation path must be an existing absolute file"
+        )
+    actual_sha256 = _sha256(path)
+    if (
+        re.fullmatch(r"[0-9a-f]{64}", str(configured_sha256)) is None
+        or actual_sha256 != str(configured_sha256)
+    ):
+        raise ValueError("D2-AF checkpoint-race continuation SHA-256 mismatch")
+    relative_path = _validate_tracked_d2af_checkpoint_race_path(repo, path)
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(
+            "D2-AF checkpoint-race continuation is not valid JSON"
+        ) from error
+    if not isinstance(value, Mapping):
+        raise ValueError(
+            "D2-AF checkpoint-race continuation must be a JSON object"
+        )
+
+    resume_path = Path(str(cfg.resume_checkpoint)).resolve()
+    run_dir = resume_path.parent.parent
+    checkpoint_dir = run_dir / "checkpoints"
+    expected_checkpoint = checkpoint_dir / D2AF_CHECKPOINT_RACE_CHECKPOINT_BASENAME
+    failure_path = run_dir / "operational_checkpoint_race_failure.json"
+    manifest_path = run_dir / "manifest.json"
+    partial_archive_path = (
+        run_dir / "operational_failures/checkpoint_race_windows009216000"
+    )
+    if resume_path != expected_checkpoint.resolve() or not resume_path.is_file():
+        raise ValueError(
+            "D2-AF checkpoint-race continuation resume checkpoint is not exact"
+        )
+    try:
+        failure = (
+            json.loads(failure_path.read_text(encoding="utf-8"))
+            if failure_path.is_file() else None
+        )
+        manifest = (
+            json.loads(manifest_path.read_text(encoding="utf-8"))
+            if manifest_path.is_file() else None
+        )
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(
+            "D2-AF checkpoint-race run artifacts are not valid JSON"
+        ) from error
+    partial_archive = (
+        _sha256_path_record(partial_archive_path)
+        if partial_archive_path.is_dir() else None
+    )
+    checkpoint_binding = value.get("checkpoint")
+    failure_binding = value.get("failure")
+    partial_binding = value.get("partial_archive")
+    source_transition_binding = value.get("source_transition")
+    execution_binding = value.get("execution_transition")
+    continuation = value.get("continuation")
+    scientific = value.get("scientific_conditions")
+    if not isinstance(source_transition_binding, Mapping):
+        raise ValueError(
+            "D2-AF checkpoint-race continuation source transition is missing"
+        )
+    implementation_target = str(
+        source_transition_binding.get("target_implementation_commit", "")
+    )
+    implementation_transition = _d2af_checkpoint_race_source_transition(
+        repo,
+        D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+        implementation_target,
+    )
+    source_contract = _d2af_formal_source_contract_at_commit(
+        repo, D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+    )
+    target_contract = _d2af_formal_source_contract_at_commit(
+        repo, implementation_target,
+    )
+    current_commit = _git_commit(repo)
+    current_contract = _d2af_formal_source_contract(repo)
+    execution_transition = _git_transition(
+        repo, D2AF_CHECKPOINT_RACE_SOURCE_COMMIT, current_commit,
+    )
+    post_implementation_transition = _git_transition(
+        repo, implementation_target, current_commit,
+    )
+    unexpected_execution_paths = sorted(
+        set(execution_transition["changed_paths"])
+        - D2AF_CHECKPOINT_RACE_EXECUTION_ALLOWED_PATHS
+    )
+    unexpected_post_paths = sorted(
+        set(post_implementation_transition["changed_paths"])
+        - {
+            D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
+            "docs/EXPERIMENT_PLAN.md",
+            "experiments/registry.jsonl",
+        }
+    )
+    rng_bindings = (
+        checkpoint_binding.get("rng_sidecars")
+        if isinstance(checkpoint_binding, Mapping) else None
+    )
+    rng_records = []
+    for rank in range(4):
+        rng_path = checkpoint_dir / (
+            f"{expected_checkpoint.stem}.rank{rank}.rng.pth"
+        )
+        rng_records.append({
+            "rank": rank,
+            "basename": rng_path.name,
+            "sha256": _sha256(rng_path) if rng_path.is_file() else None,
+            "bytes": rng_path.stat().st_size if rng_path.is_file() else None,
+        })
+    partial_checkpoint_files = sorted(
+        item.name
+        for item in checkpoint_dir.glob(
+            f"{cfg.run_id}_windows009216000*"
+        )
+    )
+
+    checks = {
+        "schema_version": value.get("schema_version") == 1,
+        "run_id": value.get("run_id")
+        == D2AF_CHECKPOINT_RACE_CONTINUATION_RUN_ID,
+        "status": value.get("status") == "authorized",
+        "classification": value.get("classification")
+        == D2AF_CHECKPOINT_RACE_CONTINUATION_CLASSIFICATION,
+        "formal_run_id": value.get("formal_run_id") == str(cfg.run_id)
+        == D2AF_WAIVED_FORMAL_RUN_ID,
+        "seed": value.get("seed") == int(cfg.seed) == 42,
+        "tracked_contract": relative_path
+        == D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
+        "manifest": isinstance(manifest, Mapping)
+        and _sha256(manifest_path) == D2AF_CHECKPOINT_RACE_MANIFEST_SHA256
+        and manifest.get("experiment_id") == str(cfg.run_id)
+        and manifest.get("status") == "running"
+        and manifest.get("ended_at") is None
+        and manifest.get("metrics") is None
+        and manifest.get("git", {}).get("commit")
+        == D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+        "checkpoint_binding": isinstance(checkpoint_binding, Mapping)
+        and resume_path == expected_checkpoint.resolve()
+        and checkpoint_binding.get("basename")
+        == D2AF_CHECKPOINT_RACE_CHECKPOINT_BASENAME
+        and checkpoint_binding.get("sha256")
+        == _sha256(resume_path)
+        == D2AF_CHECKPOINT_RACE_CHECKPOINT_SHA256
+        and checkpoint_binding.get("bytes") == resume_path.stat().st_size
+        == D2AF_CHECKPOINT_RACE_CHECKPOINT_BYTES
+        and checkpoint_binding.get("processed_windows") == 6144000
+        and checkpoint_binding.get("optimizer_updates") == 3000
+        and checkpoint_binding.get("source_commit")
+        == D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+        "rng_sidecars": isinstance(rng_bindings, list)
+        and rng_bindings == rng_records
+        and all(
+            record["sha256"] == D2AF_CHECKPOINT_RACE_RNG_SHA256[record["rank"]]
+            for record in rng_records
+        ),
+        "failure_binding": isinstance(failure_binding, Mapping)
+        and isinstance(failure, Mapping)
+        and failure_binding.get("relative_path")
+        == "operational_checkpoint_race_failure.json"
+        and failure_binding.get("sha256")
+        == _sha256(failure_path)
+        == D2AF_CHECKPOINT_RACE_FAILURE_SHA256
+        and failure.get("run_id") == str(cfg.run_id)
+        and failure.get("status") == "operational-failure-preserved"
+        and failure.get("classification")
+        == "ddp-checkpoint-sidecar-existence-race-operational-failure"
+        and failure.get("return_code") == 1
+        and failure.get("failure_progress", {}).get(
+            "processed_windows_attempted"
+        ) == 9216000
+        and failure.get("failure_progress", {}).get(
+            "optimizer_updates_attempted"
+        ) == 4500
+        and failure.get("last_complete_resume_checkpoint", {}).get("sha256")
+        == D2AF_CHECKPOINT_RACE_CHECKPOINT_SHA256,
+        "partial_archive": isinstance(partial_binding, Mapping)
+        and partial_archive == {
+            "kind": "directory",
+            "sha256": D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_SHA256,
+            "files": D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_FILES,
+            "bytes": D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_BYTES,
+        }
+        and partial_binding.get("relative_path")
+        == "operational_failures/checkpoint_race_windows009216000"
+        and partial_binding.get("sha256")
+        == D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_SHA256
+        and partial_binding.get("files")
+        == D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_FILES
+        and partial_binding.get("bytes")
+        == D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_BYTES
+        and partial_checkpoint_files == [],
+        "source_identity": source_transition_binding.get("source_commit")
+        == D2AF_CHECKPOINT_RACE_SOURCE_COMMIT,
+        "implementation_transition": (
+            source_transition_binding.get("changed_paths")
+            == implementation_transition["changed_paths"]
+            and source_transition_binding.get("diff_sha256")
+            == implementation_transition["diff_sha256"]
+        ),
+        "source_formal_contract": source_contract
+        == source_transition_binding.get("source_formal_contract")
+        == waiver_target_contract
+        and source_contract.get("sha256")
+        == D2AF_CHECKPOINT_RACE_SOURCE_FORMAL_CONTRACT_SHA256,
+        "target_formal_contract": target_contract
+        == source_transition_binding.get("target_formal_contract")
+        == current_contract,
+        "execution_transition": isinstance(execution_binding, Mapping)
+        and execution_binding.get("allowed_changed_paths")
+        == sorted(D2AF_CHECKPOINT_RACE_EXECUTION_ALLOWED_PATHS)
+        and execution_binding.get("target_must_equal_current_head") is True
+        and execution_binding.get(
+            "diff_sha256_bound_in_resolved_config"
+        ) is True
+        and not unexpected_execution_paths
+        and not unexpected_post_paths
+        and bool(cfg.get("resume_commit_transition_authorized", False))
+        and str(cfg.get("resume_source_commit"))
+        == D2AF_CHECKPOINT_RACE_SOURCE_COMMIT
+        and str(cfg.get("resume_target_commit")) == current_commit
+        and str(cfg.get("resume_transition_diff_sha256"))
+        == execution_transition["diff_sha256"],
+        "continuation": isinstance(continuation, Mapping)
+        and continuation.get("same_run_only") is True
+        and continuation.get("new_formal_run") is False
+        and continuation.get("from_random_restart") is False
+        and continuation.get("resume_processed_windows") == 6144000
+        and continuation.get("resume_optimizer_updates") == 3000
+        and continuation.get("target_processed_windows") == 61440000
+        and continuation.get("target_optimizer_updates") == 30000
+        and continuation.get("accepted_lineage_optimizer_updates") == 30000
+        and continuation.get("actual_total_gpu_optimizer_updates") == 31500
+        and continuation.get("checkpoint_selection") is False
+        and continuation.get("budget_extension") is False,
+        "scientific_conditions": isinstance(scientific, Mapping)
+        and all(
+            scientific.get(name) is False
+            for name in (
+                "model_math_changed",
+                "relation_builder_or_routing_changed",
+                "loss_or_optimizer_changed",
+                "batch_or_budget_changed",
+                "data_loader_or_worker_configuration_changed",
+                "evaluation_protocol_changed",
+            )
+        ),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            "D2-AF checkpoint-race continuation contract mismatch: "
+            + ", ".join(failed)
+        )
+    return {
+        "path": str(path.resolve()),
+        "relative_path": relative_path,
+        "sha256": actual_sha256,
+        "run_id": str(value["run_id"]),
+        "classification": D2AF_CHECKPOINT_RACE_CONTINUATION_CLASSIFICATION,
+        "resume_checkpoint": str(resume_path),
+        "resume_checkpoint_sha256": D2AF_CHECKPOINT_RACE_CHECKPOINT_SHA256,
+        "failure_path": str(failure_path),
+        "failure_sha256": D2AF_CHECKPOINT_RACE_FAILURE_SHA256,
+        "partial_archive_path": str(partial_archive_path),
+        "partial_archive_sha256": D2AF_CHECKPOINT_RACE_PARTIAL_ARCHIVE_SHA256,
+        "source_transition": implementation_transition,
+        "execution_transition": execution_transition,
+        "source_formal_contract": source_contract,
+        "target_formal_contract": target_contract,
+        "checks": checks,
+    }
 
 
 def _validate_d2ae_performance_gate(cfg: DictConfig) -> Dict[str, object]:
@@ -880,6 +1377,13 @@ def _validate_d2af_performance_waiver(
     target_contract = _d2af_formal_source_contract_at_commit(repo, target_commit)
     current_contract = _d2af_formal_source_contract(repo)
     is_resume = cfg.resume_checkpoint not in (None, "", False)
+    operational_continuation = None
+    if is_resume and current_contract != target_contract:
+        operational_continuation = _validate_d2af_checkpoint_race_continuation(
+            cfg,
+            repo=repo,
+            waiver_target_contract=target_contract,
+        )
     checkpoint_dir = Path(str(cfg.checkpoint_dir)).resolve()
     initial_outputs_absent = (
         not Path(str(cfg.metrics_path)).resolve().exists()
@@ -934,9 +1438,22 @@ def _validate_d2af_performance_waiver(
         == transition_binding.get("source_formal_contract")
         and source_contract.get("sha256")
         == D2AF_WAIVED_SOURCE_CONTRACT_SHA256,
-        "target_contract": target_contract
-        == transition_binding.get("target_formal_contract")
-        == current_contract,
+        "target_contract": (
+            target_contract
+            == transition_binding.get("target_formal_contract")
+            and (
+                current_contract == target_contract
+                or (
+                    isinstance(operational_continuation, Mapping)
+                    and operational_continuation.get(
+                        "source_formal_contract"
+                    ) == target_contract
+                    and operational_continuation.get(
+                        "target_formal_contract"
+                    ) == current_contract
+                )
+            )
+        ),
         "transition": transition_binding.get("diff_sha256")
         == transition["diff_sha256"]
         and transition_binding.get("changed_paths")
@@ -982,7 +1499,9 @@ def _validate_d2af_performance_waiver(
         "formal_run_id": str(cfg.run_id),
         "source_transition": transition,
         "source_formal_contract": source_contract,
-        "target_formal_contract": target_contract,
+        "target_formal_contract": current_contract,
+        "original_waiver_target_formal_contract": target_contract,
+        "operational_continuation": operational_continuation,
         "checks": checks,
     }
 
@@ -1191,10 +1710,14 @@ def _validate_d2af_performance_gate(cfg: DictConfig) -> Dict[str, object]:
 _RESUME_TRANSITION_ALLOWED_PATHS = frozenset(
     {
         "code/config/config_train_hoi_prior.yaml",
+        "code/config/config_train_hoi_prior_d2af.yaml",
         "code/train_hoi_prior.py",
         "docs/EXPERIMENT_PLAN.md",
         "experiments/registry.jsonl",
         "tests/test_hoi_d2ab.py",
+        "tests/test_hoi_d2af.py",
+        "tests/test_hoi_d2af_lifecycle_cpu.py",
+        D2AF_CHECKPOINT_RACE_CONTINUATION_RELATIVE_PATH,
     }
 )
 
@@ -2849,6 +3372,15 @@ def _validate_d2af_contract(
                 in (None, "", False)
             )
         ),
+        "checkpoint_race_continuation_binding": (
+            is_resume
+            or (
+                cfg.get("d2af_checkpoint_race_continuation_path")
+                in (None, "", False)
+                and cfg.get("d2af_checkpoint_race_continuation_sha256")
+                in (None, "", False)
+            )
+        ),
         "profile_every_update": bool(cfg.get("profile_every_update")) is True,
     }
     failed = sorted(name for name, passed in exact.items() if not passed)
@@ -3486,6 +4018,44 @@ def _checkpoint_value(
     return value
 
 
+def _checkpoint_collision_preflight(
+    rank: int,
+    *,
+    checkpoint_path: Path,
+    rng_path: Path,
+    device: torch.device,
+) -> None:
+    """Synchronize rank-local checkpoint collision checks before any write."""
+    local_collisions = []
+    if rng_path.exists():
+        local_collisions.append(rng_path)
+    if rank == 0 and checkpoint_path.exists():
+        local_collisions.append(checkpoint_path)
+    collision_flag = torch.tensor(
+        [1 if local_collisions else 0],
+        dtype=torch.int32,
+        device=device,
+    )
+    torch.distributed.all_reduce(
+        collision_flag,
+        op=torch.distributed.ReduceOp.MAX,
+    )
+    if int(collision_flag.item()) != 0:
+        detail = (
+            ", ".join(str(path) for path in local_collisions)
+            if local_collisions
+            else "another rank detected an existing checkpoint artifact"
+        )
+        raise FileExistsError(
+            "refusing to overwrite checkpoint or rank-local RNG sidecar: "
+            + detail
+        )
+    # The collective reports a global pass; this explicit barrier keeps every
+    # rank behind the preflight until no rank can still be checking peer-visible
+    # filesystem state.
+    torch.distributed.barrier()
+
+
 def _save_checkpoint(
     rank: int,
     world_size: int,
@@ -3507,19 +4077,13 @@ def _save_checkpoint(
     checkpoint_dir = Path(str(cfg.checkpoint_dir)).resolve()
     checkpoint_path = checkpoint_dir / f"{cfg.run_id}_windows{processed_windows:09d}.pth"
     rng_path = checkpoint_dir / f"{checkpoint_path.stem}.rank{rank}.rng.pth"
-    existing_paths = [
-        checkpoint_path,
-        *[
-            checkpoint_dir / f"{checkpoint_path.stem}.rank{value}.rng.pth"
-            for value in range(world_size)
-        ],
-    ]
-    collisions = [path for path in existing_paths if path.exists()]
-    if collisions:
-        raise FileExistsError(
-            "refusing to overwrite checkpoint or RNG sidecar: "
-            + ", ".join(str(path) for path in collisions)
-        )
+    device = next(model.module.parameters()).device
+    _checkpoint_collision_preflight(
+        rank,
+        checkpoint_path=checkpoint_path,
+        rng_path=rng_path,
+        device=device,
+    )
     _atomic_torch_save(rng_path, _rng_state())
     torch.distributed.barrier()
     if rank == 0:
