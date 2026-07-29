@@ -5982,6 +5982,52 @@ selection、formal training、consistency、HSIPrior或Mixer。下一步只允�
 record，然后由worker发起Git fast-forward并执行same-context preflight与注册的single-GPU
 functional smoke。
 
+#### 2026-07-29 Phase 1B D2-AF0 single-GPU functional smoke completion record
+
+Reportable worker run `p1-hoi-d2af-gpu-functional-smoke-s42-20260729` 在
+infbagel-4gpu/node01 的 clean commit
+`758d54897640e93cc60ac76050b9e769ddf4afbc` 上完成，status/classification为
+`stable / functional-smoke-passed`。Manifest在任何CUDA workload前由
+`tools/experiment.py start`从与workload相同的worker execution context创建；live
+preflight连续三次确认4×RTX 3090无compute process且通过全部host/Python/data/evaluator/
+clock/tunnel checks。归档的worker完整suite为`414/414` pass、按HOI-only contract仅skip
+2个真实LINGO asset测试；registry validation为216条记录前的215条全部有效。
+
+固定real-data batch 8、mixed timesteps
+`(0,249,499,0,249,499,0,499)` 的结果：
+
+- relation surface/features/point encodings/pooled blocks/relation vectors及raw/attenuated
+  writeback全部finite、`torch.float32`且位于`cuda:0`，没有collator/CPU dynamic geometry；
+- canonical rho严格为
+  `0.9999499917030334 / 0.5297974348068237 / 0.0797039046883583`，
+  `attenuated-rho*unit` max abs为
+  `1.2153759598731995e-07`，低于注册的`1e-6`；
+- seed-42 initial model-state SHA-256严格为
+  `b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c`，
+  field/diffusion schedule SHA-256均严格为
+  `5d25c63d6618c77cc31976ee9e2c5645aa41653030fca210594a05254323b440`；
+- loss、initial alpha gradient，以及`t=0/249/499` test-only activated
+  point-encoder/projection/temporal-embedding/relevant-trunk gradients全部
+  finite/nonzero；probe未保存；
+- peak allocated/reserved为`270,197,248 / 325,058,560` bytes，device headroom为
+  `24,970,985,472` bytes；
+- optimizer未创建，update、checkpoint load/write、selection均为0，formal training未启动。
+
+Resolved config、metrics、completed manifest与worker preflight SHA-256分别为
+`d3c6865611a258e76a0c22306ab56686c8ac1543f1014ed702ec08b0b5354dec`、
+`43862309e7758af25b99c7ad7f45d5882d2010912d48d54b8dabe0877fe9c8af`、
+`47cff55236bf2f8698b6db74e17001419c0e058e11188e0a681e441f938f7e1a`和
+`86638b0992c16a69ae1da70c4bc37912dbaa171bf7db1ad2f88f7d583dd8e369`。
+Worker发起无`--delete` recovery后，checksum dry-run传输0 files；worker与authority的
+10-file / 149,421-byte tree统一`sha256_path`为
+`61fc8d844c68637e7cf34af4bb9e9b4dc969b71bb001af003fe22309247c0747`，
+authority路径为
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-gpu-functional-smoke-s42-20260729`。
+
+下一步只允许提交本append-only lifecycle record，然后在authority运行唯一注册的
+216-sequence、29,382-window no-model/no-optimizer clean-signal eligibility。该premise gate
+通过并恢复/注册前，不得运行4-GPU performance benchmark或formal training。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
