@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
+import hashlib
 import inspect
+import json
 import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
 import sys
+from typing import Optional
 
 import torch
 from omegaconf import OmegaConf
@@ -40,6 +44,7 @@ from priors.sparse_relation import (  # noqa: E402
     validate_diffusion_reliability_contract,
 )
 from tools.diagnose_hoi_d2ae import synthetic_inputs  # noqa: E402
+import train_hoi_prior as hoi_trainer  # noqa: E402
 from train_hoi_prior import (  # noqa: E402
     D2AF_MAXIMUM_ETA_HOURS,
     D2AF_MINIMUM_THROUGHPUT,
@@ -334,6 +339,8 @@ class D2AFCheckpointAndConfigTests(unittest.TestCase):
             "d2af_clean_signal_eligibility_sha256",
             "d2af_performance_benchmark_path",
             "d2af_performance_benchmark_sha256",
+            "d2af_performance_waiver_path",
+            "d2af_performance_waiver_sha256",
         }
         ae_values = OmegaConf.to_container(ae, resolve=False)
         af_values = OmegaConf.to_container(af, resolve=False)
@@ -368,6 +375,416 @@ class D2AFCheckpointAndConfigTests(unittest.TestCase):
             self.assertNotIn(forbidden, field_source)
         self.assertNotIn("d2af_timestep_loss_weight", trainer_source)
         self.assertNotIn("d2af_snr_weight", trainer_source)
+
+
+class D2AFPerformanceWaiverTests(unittest.TestCase):
+    FORMAL_RUN_ID = "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729"
+    BENCHMARK_RUN_ID = "p1-hoi-d2af-performance-benchmark-s42-20260729"
+    WAIVER_RUN_ID = "p1-hoi-d2af-performance-waiver-s42-20260729"
+    SOURCE_COMMIT = "1c6c3058478411361bf3e73830f900f660ae516b"
+    TARGET_COMMIT = "2" * 40
+    SOURCE_CONTRACT = {
+        "algorithm": "git-ls-files-path-content-sha256-v1",
+        "scopes": ["code"],
+        "tracked_file_count": 1,
+        "sha256": (
+            "68269a2cac8eaf6fd2b55b139bb2be5b5dbafde6e7f22496f5a894f18b843145"
+        ),
+    }
+    TARGET_CONTRACT = {
+        "algorithm": "git-ls-files-path-content-sha256-v1",
+        "scopes": ["code"],
+        "tracked_file_count": 1,
+        "sha256": "b" * 64,
+    }
+    TRANSITION = {
+        "source_commit": SOURCE_COMMIT,
+        "target_commit": TARGET_COMMIT,
+        "changed_paths": ["code/train_hoi_prior.py"],
+        "diff_sha256": "d" * 64,
+    }
+
+    @staticmethod
+    def _sha256(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    @classmethod
+    def _write_json(cls, path: Path, value: dict) -> str:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(value, sort_keys=True, separators=(",", ":")),
+            encoding="utf-8",
+        )
+        return cls._sha256(path)
+
+    @classmethod
+    def _benchmark(cls, *, passing: bool = False) -> dict:
+        return {
+            "schema_version": 1,
+            "status": "passed" if passing else "failed",
+            "classification": (
+                "performance-gate-passed"
+                if passing
+                else hoi_trainer.D2AF_PERFORMANCE_FAILURE_CLASSIFICATION
+            ),
+            "run_id": cls.BENCHMARK_RUN_ID,
+            "formal_run_id": cls.FORMAL_RUN_ID,
+            "seed": 42,
+            "world_size": 4,
+            "micro_batch_per_gpu": 512,
+            "effective_batch_size": 2048,
+            "warmup_updates": 64,
+            "measured_updates": 256,
+            "total_updates": 320,
+            "measured_windows": 524288,
+            "throughput_windows_per_second": (
+                D2AF_MINIMUM_THROUGHPUT
+                if passing
+                else hoi_trainer.D2AF_WAIVED_THROUGHPUT
+            ),
+            "full_budget_eta_hours": (
+                D2AF_MAXIMUM_ETA_HOURS
+                if passing
+                else hoi_trainer.D2AF_WAIVED_ETA_HOURS
+            ),
+            "minimum_throughput_windows_per_second": D2AF_MINIMUM_THROUGHPUT,
+            "maximum_full_budget_eta_hours": D2AF_MAXIMUM_ETA_HOURS,
+            "memory_headroom_min_bytes": 4 * 1024**3,
+            "memory_headroom_required_bytes": 2 * 1024**3,
+            "memory_headroom_pass": True,
+            "losses_finite": True,
+            "gradients_finite": True,
+            "relation_gpu_only": True,
+            "cpu_dynamic_geometry": False,
+            "relation_build_device": "cuda",
+            "cuda_timing_synchronized": True,
+            "optimizer": "FP32 Adam",
+            "optimizer_updates": 320,
+            "checkpoint_loads": 0,
+            "checkpoint_writes": 0,
+            "benchmark_weights_reusable": False,
+            "all_rank_contract_pass": True,
+            "four_rank_schedule_hash_pass": True,
+            "four_rank_initial_model_hash_pass": True,
+            "contention_pass": True,
+            "sqrt_alpha_bar_sha256": SQRT_ALPHA_BAR_SHA256,
+            "eligibility_sha256": hoi_trainer.D2AF_WAIVED_ELIGIBILITY_SHA256,
+            "formal_source_contract": dict(cls.SOURCE_CONTRACT),
+            "identity": {
+                "git_commit": cls.SOURCE_COMMIT,
+                "worktree_clean": True,
+            },
+            "formal_training_authorized": passing,
+            "sweep_authorized_on_failure": False,
+        }
+
+    @classmethod
+    def _waiver(cls, benchmark_sha256: str) -> dict:
+        return {
+            "schema_version": 1,
+            "status": "authorized",
+            "classification": hoi_trainer.D2AF_PERFORMANCE_WAIVER_CLASSIFICATION,
+            "run_id": cls.WAIVER_RUN_ID,
+            "formal_run_id": cls.FORMAL_RUN_ID,
+            "seed": 42,
+            "benchmark": {
+                "run_id": cls.BENCHMARK_RUN_ID,
+                "sha256": benchmark_sha256,
+                "status": "failed",
+                "classification": (
+                    hoi_trainer.D2AF_PERFORMANCE_FAILURE_CLASSIFICATION
+                ),
+                "throughput_windows_per_second": (
+                    hoi_trainer.D2AF_WAIVED_THROUGHPUT
+                ),
+                "full_budget_eta_hours": hoi_trainer.D2AF_WAIVED_ETA_HOURS,
+                "formal_training_authorized": False,
+                "failed_checks": [
+                    "classification",
+                    "eta",
+                    "formal_authorized",
+                    "status",
+                    "throughput",
+                ],
+                "non_speed_contracts_passed": True,
+            },
+            "eligibility_sha256": hoi_trainer.D2AF_WAIVED_ELIGIBILITY_SHA256,
+            "source_transition": {
+                **cls.TRANSITION,
+                "source_formal_contract": dict(cls.SOURCE_CONTRACT),
+                "target_formal_contract": dict(cls.TARGET_CONTRACT),
+            },
+            "authorization": {
+                "user_accepted_full_budget_eta_hours": (
+                    hoi_trainer.D2AF_WAIVED_ETA_HOURS
+                ),
+                "formal_runs_maximum": 1,
+                "random_initialization": True,
+                "benchmark_retry_authorized": False,
+                "execution_sweep_authorized": False,
+                "benchmark_reclassification_authorized": False,
+                "training_conditions_unchanged": True,
+                "profile_every_update": True,
+            },
+            "preexisting_formal_artifacts": {
+                "formal_output_directory_existed": False,
+                "training_state_existed": False,
+                "training_metrics_existed": False,
+                "checkpoint_count": 0,
+            },
+        }
+
+    @classmethod
+    def _config(
+        cls,
+        directory: Path,
+        *,
+        benchmark_path: Path,
+        benchmark_sha256: str,
+        waiver_path: Optional[Path],
+        waiver_sha256: Optional[str],
+    ):
+        output = directory / "formal-output"
+        return OmegaConf.create({
+            "run_id": cls.FORMAL_RUN_ID,
+            "seed": 42,
+            "repo_root": str(directory),
+            "resume_checkpoint": None,
+            "checkpoint_dir": str(output / "checkpoints"),
+            "metrics_path": str(output / "metrics.json"),
+            "state_path": str(output / "training_state.json"),
+            "profile_every_update": True,
+            "d2af_clean_signal_eligibility_path": str(
+                directory / "eligibility.json"
+            ),
+            "d2af_clean_signal_eligibility_sha256": (
+                hoi_trainer.D2AF_WAIVED_ELIGIBILITY_SHA256
+            ),
+            "d2af_performance_benchmark_path": str(benchmark_path),
+            "d2af_performance_benchmark_sha256": benchmark_sha256,
+            "d2af_performance_waiver_path": (
+                None if waiver_path is None else str(waiver_path)
+            ),
+            "d2af_performance_waiver_sha256": waiver_sha256,
+        })
+
+    @classmethod
+    def _validator_patches(
+        cls,
+        benchmark_sha256: str,
+        *,
+        current_contract: dict,
+    ) -> ExitStack:
+        def contract_at_commit(_repo, commit):
+            if commit == cls.SOURCE_COMMIT:
+                return dict(cls.SOURCE_CONTRACT)
+            if commit == cls.TARGET_COMMIT:
+                return dict(cls.TARGET_CONTRACT)
+            raise AssertionError(f"unexpected source-contract commit: {commit}")
+
+        stack = ExitStack()
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "D2AF_WAIVED_BENCHMARK_SHA256",
+            benchmark_sha256,
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_validate_d2af_eligibility_gate",
+            return_value={
+                "sha256": hoi_trainer.D2AF_WAIVED_ELIGIBILITY_SHA256,
+                "checks": {"eligible": True},
+            },
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_git_commit_is_ancestor",
+            return_value=True,
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_validate_tracked_d2af_waiver_path",
+            return_value=(
+                "experiments/contracts/"
+                "p1_hoi_d2af_performance_waiver_s42_20260729.json"
+            ),
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_d2af_source_transition",
+            return_value=dict(cls.TRANSITION),
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_d2af_formal_source_contract_at_commit",
+            side_effect=contract_at_commit,
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer,
+            "_d2af_formal_source_contract",
+            return_value=dict(current_contract),
+        ))
+        return stack
+
+    def test_exact_failed_benchmark_and_waiver_authorize_one_formal_run(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark_path = directory / "benchmark.json"
+            benchmark_sha256 = self._write_json(
+                benchmark_path,
+                self._benchmark(),
+            )
+            waiver_path = directory / "waiver.json"
+            waiver_sha256 = self._write_json(
+                waiver_path,
+                self._waiver(benchmark_sha256),
+            )
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=benchmark_sha256,
+                waiver_path=waiver_path,
+                waiver_sha256=waiver_sha256,
+            )
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=self.TARGET_CONTRACT,
+            ):
+                result = hoi_trainer._validate_d2af_performance_gate(cfg)
+        self.assertEqual(result["status"], "failed-waived")
+        self.assertFalse(result["original_gate_passed"])
+        self.assertEqual(
+            result["formal_authorization"],
+            "explicit-single-run-waiver",
+        )
+        self.assertEqual(
+            result["benchmark_failed_checks"],
+            ["classification", "eta", "formal_authorized", "status", "throughput"],
+        )
+        self.assertTrue(all(result["checks"].values()))
+
+    def test_exact_failed_benchmark_without_waiver_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark_path = directory / "benchmark.json"
+            benchmark_sha256 = self._write_json(
+                benchmark_path,
+                self._benchmark(),
+            )
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=benchmark_sha256,
+                waiver_path=None,
+                waiver_sha256=None,
+            )
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=self.TARGET_CONTRACT,
+            ):
+                with self.assertRaisesRegex(ValueError, "explicit sealed waiver"):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
+
+    def test_additional_non_speed_benchmark_failure_is_not_waivable(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark = self._benchmark()
+            benchmark["contention_pass"] = False
+            benchmark_path = directory / "benchmark.json"
+            benchmark_sha256 = self._write_json(benchmark_path, benchmark)
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=benchmark_sha256,
+                waiver_path=None,
+                waiver_sha256=None,
+            )
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=self.TARGET_CONTRACT,
+            ):
+                with self.assertRaisesRegex(ValueError, "contention"):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
+
+    def test_benchmark_and_waiver_content_tampering_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark_path = directory / "benchmark.json"
+            original_benchmark = self._benchmark()
+            original_benchmark_sha256 = self._write_json(
+                benchmark_path,
+                original_benchmark,
+            )
+            waiver_path = directory / "waiver.json"
+            waiver = self._waiver(original_benchmark_sha256)
+            waiver_sha256 = self._write_json(waiver_path, waiver)
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=original_benchmark_sha256,
+                waiver_path=waiver_path,
+                waiver_sha256=waiver_sha256,
+            )
+
+            tampered_benchmark = dict(original_benchmark)
+            tampered_benchmark["throughput_windows_per_second"] += 1.0
+            cfg.d2af_performance_benchmark_sha256 = self._write_json(
+                benchmark_path,
+                tampered_benchmark,
+            )
+            with self._validator_patches(
+                original_benchmark_sha256,
+                current_contract=self.TARGET_CONTRACT,
+            ):
+                with self.assertRaisesRegex(ValueError, "exact waived failure"):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
+
+            self._write_json(benchmark_path, original_benchmark)
+            cfg.d2af_performance_benchmark_sha256 = original_benchmark_sha256
+            tampered_waiver = self._waiver(original_benchmark_sha256)
+            tampered_waiver["authorization"]["formal_runs_maximum"] = 2
+            cfg.d2af_performance_waiver_sha256 = self._write_json(
+                waiver_path,
+                tampered_waiver,
+            )
+            with self._validator_patches(
+                original_benchmark_sha256,
+                current_contract=self.TARGET_CONTRACT,
+            ):
+                with self.assertRaisesRegex(ValueError, "authorization"):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
+
+    def test_passing_benchmark_requires_waiver_fields_to_be_empty(self):
+        with tempfile.TemporaryDirectory() as directory_value:
+            directory = Path(directory_value)
+            benchmark_path = directory / "benchmark.json"
+            benchmark_sha256 = self._write_json(
+                benchmark_path,
+                self._benchmark(passing=True),
+            )
+            cfg = self._config(
+                directory,
+                benchmark_path=benchmark_path,
+                benchmark_sha256=benchmark_sha256,
+                waiver_path=None,
+                waiver_sha256=None,
+            )
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=self.SOURCE_CONTRACT,
+            ):
+                result = hoi_trainer._validate_d2af_performance_gate(cfg)
+            self.assertTrue(result["original_gate_passed"])
+            self.assertIsNone(result["waiver"])
+
+            cfg.d2af_performance_waiver_path = str(directory / "unused.json")
+            cfg.d2af_performance_waiver_sha256 = "0" * 64
+            with self._validator_patches(
+                benchmark_sha256,
+                current_contract=self.SOURCE_CONTRACT,
+            ):
+                with self.assertRaisesRegex(ValueError, "waiver_absent"):
+                    hoi_trainer._validate_d2af_performance_gate(cfg)
 
 
 class D2AFSamplerTests(unittest.TestCase):
