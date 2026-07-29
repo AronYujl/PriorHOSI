@@ -6134,6 +6134,80 @@ Performance gate失败后已现场验证intended formal目录
 formal optimizer/checkpoint、internal和native均未启动。不得retry、调参、运行D2-AF1或
 启动任何新的HOIPrior方向。
 
+#### 2026-07-29 Phase 1B D2-AF0 one-time user-authorized performance waiver（plan-only）
+
+在上述失败被完整保留并报告后，用户明确接受已测完整预算ETA
+`8.166477355310539 h`，并授权：若没有确定、简单且不改变科学条件的训练时间优化，则直接
+运行现有D2-AF0唯一formal budget。该新授权覆盖原先“performance失败即不训练”的执行
+stop rule，但不回写历史、不把benchmark改成passed，也不改变其
+`diffusion-reliability-performance-negative-stop`分类。
+
+1. **ETA与根因解释锁定。** ETA只由固定预算和实测端到端吞吐外推：
+
+   \[
+   61{,}440{,}000 / 2{,}089.8443630127094 / 3600
+   = 8.166477355310539\ {\rm h}.
+   \]
+
+   即每个2048-window update约`0.9800 s`。新增
+   `sqrt(alpha_bar)`/rho并非主要计算开销：256个measured updates中，D2-AF relation
+   module为`2.0323810 s`（约`7.94 ms/update`），sealed D2-AE为`1.9570280 s`
+   （约`7.64 ms/update`）；完整forward分别为`16.0291985 / 15.9230519 s`，仅增加约
+   `0.41 ms/update`。主要wall增长来自rank-skewed DataLoader/DDP critical-path wait：
+   rank-1 loader wait为`154.4085614 s`，其他rank为
+   `53.4023972 / 9.5764329 / 7.5339022 s`，其余rank相应在inclusive backward/DDP中等待。
+
+2. **不做post-hoc execution sweep。** 当前没有已证实能够消除上述rank skew的单一安全
+   toggle。`num_workers`、CPU affinity、prefetch/pinning、线程或I/O布局变更都需要新的
+   full-micro-batch比较才能证明有效；第二次benchmark和这些sweep继续禁止。
+   `profile_every_update=true`也保持不变：其同步不是已测rank-1 loader stall的根因，事后
+   改动会改变注册execution contract而没有可报告的同条件证据。因此本waiver选择用户授权的
+   “直接训练”分支，不改模型数学、训练循环计算、data loader配置或instrumentation。
+
+3. **Waiver的精确范围。** 只允许启动一次原intended formal identity
+   `p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`；启动时仍须满足actual-date规则，
+   且该目录必须此前不存在。原benchmark不重跑，320-update sacrificial weights仍不可复用。
+   Formal仍从seed-42随机初始化，4×512/effective 2048、30,000 updates、61.44M windows、
+   FP32 Adam、LR/loss/budget/split/checkpoint cadence和全部D2-AF0科学条件完全不变。
+   不允许第二次formal、resume旧方向、checkpoint selection、D2-AF1、longer budget、
+   consistency、HSIPrior或Mixer。
+
+4. **Fail-closed implementation。** Formal trainer不得简单删除performance检查或伪造
+   passing summary。它必须同时绑定：
+
+   - 原failed benchmark JSON的absolute path、SHA-256、run id、failed status/
+     classification、实测throughput/ETA及全部non-speed contracts；
+   - 一份tracked、immutable、SHA-bound waiver JSON；
+   - waiver中的唯一formal run id、用户授权事实、benchmark SHA、原/目标Git commit、
+     exact transition diff SHA、允许改变的governance/validator/config/test路径和目标
+     formal source-tree contract；
+   - `formal_runs_maximum=1`、benchmark retry/sweep=false、training conditions
+     unchanged=true、random initialization=true。
+
+   原benchmark的throughput/ETA checks必须在formal lifecycle中继续保存为false；
+   新状态只能表示为`failed-waived / user-authorized-performance-waiver`，不得表示为
+   `performance-gate-passed`。Benchmark中memory、finite loss/gradient、GPU-only relation、
+   optimizer/checkpoint I/O、four-rank identity、contention、eligibility和schedule等任一
+   non-speed contract不通过时，waiver无效并停止。
+
+5. **Source transition与重新验证。** 为接受waiver所需的source修改只允许涉及performance
+   validator、base/D2-AF config binding及对应tests/documentation；不得修改models、
+   diffusion schedule、relation builder/encoder/routing、loss、optimizer或training-loop
+   数学。由于原CPU/smoke/eligibility/benchmark是在旧formal source hash上完成，waiver必须
+   以source/target commit和exact Git diff hash显式授权这次validator-only transition，
+   而不是重写旧artifact。目标commit上必须重新通过完整authority suite、registry
+   validation、static source/diff audit和resolved-config fail-closed测试；不重跑scientific
+   performance benchmark。
+
+6. **Formal后的原评测不变。** 训练完成后仍只使用fixed final-online，依次执行已注册的
+   five-path internal和一次fixed native evaluation。Internal/native gates、统计、sealed
+   controls、最终科学分类和selectability条件全部不变；compact result和phase summary必须
+   同时报告原performance failure、用户waiver、实际formal wall/throughput及最终结果。
+
+下一步仅允许提交本plan-only waiver和append-only registry hypothesis；随后实现上述最小
+hash-bound validator/config/tests，创建并提交immutable waiver contract，通过authority
+verification后由worker fast-forward相同clean Git object并启动唯一formal run。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
