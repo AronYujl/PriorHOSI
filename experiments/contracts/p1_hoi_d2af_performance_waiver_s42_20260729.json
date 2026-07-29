@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "run_id": "p1-hoi-d2af-performance-waiver-s42-20260729",
+  "status": "authorized",
+  "classification": "user-authorized-performance-waiver",
+  "authorized_at": "2026-07-29T18:21:52+08:00",
+  "contract_created_at": "2026-07-29T18:41:30+08:00",
+  "formal_run_id": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729",
+  "seed": 42,
+  "benchmark": {
+    "run_id": "p1-hoi-d2af-performance-benchmark-s42-20260729",
+    "sha256": "53e9842d0522cf456a86eedc25d2a972cd00db3fb067113ff25f31f6117e1f33",
+    "status": "failed",
+    "classification": "diffusion-reliability-performance-negative-stop",
+    "throughput_windows_per_second": 2089.8443630127094,
+    "full_budget_eta_hours": 8.166477355310539,
+    "formal_training_authorized": false,
+    "failed_checks": [
+      "classification",
+      "eta",
+      "formal_authorized",
+      "status",
+      "throughput"
+    ],
+    "non_speed_contracts_passed": true,
+    "artifact_tree_sha256": "076ed5e3ee80bd5325c661f9a3adbe225e45be963cc2166128cdc5c0faadf895"
+  },
+  "eligibility_sha256": "c52c0536423d7a17101829cb2b020316b9c6e0f7aa2cf39f33b984ffb39896b4",
+  "source_transition": {
+    "source_commit": "1c6c3058478411361bf3e73830f900f660ae516b",
+    "target_commit": "9c908ad87dce8806eb052b2a2627160b0a1bbe72",
+    "changed_paths": [
+      "code/config/config_train_hoi_prior.yaml",
+      "code/config/config_train_hoi_prior_d2af.yaml",
+      "code/train_hoi_prior.py",
+      "docs/EXPERIMENT_PLAN.md",
+      "experiments/registry.jsonl",
+      "tests/test_hoi_d2af.py"
+    ],
+    "diff_sha256": "24d0dbb8abd96b56f6e745b0f08fcabeb0a50792a4737d8332ca6158aadec7c3",
+    "source_formal_contract": {
+      "algorithm": "git-ls-files-path-content-sha256-v1",
+      "scopes": [
+        "code",
+        "tools/benchmark_hoi_d2af.py",
+        "tools/benchmark_hoi_d2ae.py",
+        "tools/smoke_hoi_d2af.py",
+        "tools/smoke_hoi_d2ae.py",
+        "tools/diagnose_hoi_d2af.py",
+        "tools/diagnose_hoi_d2ae.py",
+        "tools/run_hoi_d2af_eligibility.py",
+        "tools/smoke_hoi_d2ac.py",
+        "tools/capture_hoi_worker_preflight.py",
+        "tools/experiment.py"
+      ],
+      "tracked_file_count": 91,
+      "sha256": "68269a2cac8eaf6fd2b55b139bb2be5b5dbafde6e7f22496f5a894f18b843145"
+    },
+    "target_formal_contract": {
+      "algorithm": "git-ls-files-path-content-sha256-v1",
+      "scopes": [
+        "code",
+        "tools/benchmark_hoi_d2af.py",
+        "tools/benchmark_hoi_d2ae.py",
+        "tools/smoke_hoi_d2af.py",
+        "tools/smoke_hoi_d2ae.py",
+        "tools/diagnose_hoi_d2af.py",
+        "tools/diagnose_hoi_d2ae.py",
+        "tools/run_hoi_d2af_eligibility.py",
+        "tools/smoke_hoi_d2ac.py",
+        "tools/capture_hoi_worker_preflight.py",
+        "tools/experiment.py"
+      ],
+      "tracked_file_count": 91,
+      "sha256": "299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e"
+    }
+  },
+  "authorization": {
+    "user_accepted_full_budget_eta_hours": 8.166477355310539,
+    "formal_runs_maximum": 1,
+    "random_initialization": true,
+    "benchmark_retry_authorized": false,
+    "execution_sweep_authorized": false,
+    "benchmark_reclassification_authorized": false,
+    "training_conditions_unchanged": true,
+    "profile_every_update": true
+  },
+  "preexisting_formal_artifacts": {
+    "formal_output_directory_existed": false,
+    "training_state_existed": false,
+    "training_metrics_existed": false,
+    "checkpoint_count": 0
+  },
+  "scientific_conditions": {
+    "model_math_changed": false,
+    "relation_builder_or_routing_changed": false,
+    "loss_or_optimizer_changed": false,
+    "batch_or_budget_changed": false,
+    "data_loader_or_worker_configuration_changed": false,
+    "checkpoint_initialization_or_reuse": false
+  }
+}
