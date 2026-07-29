@@ -10,6 +10,7 @@ from typing import Dict, Optional
 import torch
 from torch import nn
 
+from .diffusion_schedule import canonical_diffusion_schedule
 from .representation import REPRESENTATION
 from .sparse_relation import (
     SPARSE_POINT_MANIFEST_SHA256,
@@ -70,16 +71,18 @@ class GaussianDiffusion(nn.Module):
 
     def __init__(self, timesteps: int = 500) -> None:
         super().__init__()
-        if timesteps != REPRESENTATION.diffusion_steps:
-            raise ValueError(f"HOIPrior diffusion must use {REPRESENTATION.diffusion_steps} steps")
-        betas = torch.linspace(0.0001, 0.02, timesteps, dtype=torch.float32)
-        alphas = 1.0 - betas
-        alpha_bar = torch.cumprod(alphas, dim=0)
+        schedule = canonical_diffusion_schedule(timesteps)
+        betas = schedule["betas"]
+        alphas = schedule["alphas"]
+        alpha_bar = schedule["alpha_bar"]
         alpha_bar_previous = torch.nn.functional.pad(alpha_bar[:-1], (1, 0), value=1.0)
         posterior_variance = betas * (1.0 - alpha_bar_previous) / (1.0 - alpha_bar)
         self.register_buffer("betas", betas)
-        self.register_buffer("sqrt_alpha_bar", alpha_bar.sqrt())
-        self.register_buffer("sqrt_one_minus_alpha_bar", (1.0 - alpha_bar).sqrt())
+        self.register_buffer("sqrt_alpha_bar", schedule["sqrt_alpha_bar"])
+        self.register_buffer(
+            "sqrt_one_minus_alpha_bar",
+            schedule["sqrt_one_minus_alpha_bar"],
+        )
         self.register_buffer("posterior_variance", posterior_variance)
         self.register_buffer("posterior_log_variance", posterior_variance.clamp_min(1e-20).log())
         self.register_buffer(
@@ -322,7 +325,10 @@ class HOIPriorSampler:
             self.local_bps_builder = None
         self.sparse_relation_enabled = (
             getattr(model, "architecture_variant", None)
-            == "d2ae_sparse_relation_field"
+            in {
+                "d2ae_sparse_relation_field",
+                "d2af_sqrt_alpha_bar_reliability",
+            }
         )
         self.sparse_rest_point_cache = None
         self.sparse_relation_asset_contract = None
@@ -330,7 +336,10 @@ class HOIPriorSampler:
             required = ("min_torch", "max_torch", "obj_min_torch", "obj_max_torch")
             missing = [name for name in required if not hasattr(dataset, name)]
             if missing:
-                raise ValueError(f"D2-AE evaluator dataset is missing normalization tensors: {missing}")
+                raise ValueError(
+                    "sparse-relation evaluator dataset is missing normalization "
+                    f"tensors: {missing}"
+                )
 
     @torch.no_grad()
     def p_sample_loop(

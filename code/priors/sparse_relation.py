@@ -15,11 +15,19 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple
 import torch
 from torch import nn
 
+from .diffusion_schedule import (
+    DIFFUSION_STEPS,
+    SQRT_ALPHA_BAR_SHA256,
+    canonical_diffusion_schedule,
+    diffusion_schedule_contract_metadata,
+    tensor_sha256,
+)
 from .representation import REPRESENTATION
 from .window_codec import project_to_so3
 
 
 ARCHITECTURE_VARIANT = "d2ae_sparse_relation_field"
+D2AF_ARCHITECTURE_VARIANT = "d2af_sqrt_alpha_bar_reliability"
 TEMPORAL_ANCHORS: Tuple[int, ...] = (0, 5, 10, 15)
 ROLE_JOINTS: Tuple[int, ...] = (24, 26, 0)
 ROLE_NAMES: Tuple[str, ...] = ("left_hand", "right_hand", "pelvis")
@@ -37,6 +45,7 @@ DIAGNOSTIC_VARIANTS = frozenset({
     "temporal_correspondence_permuted",
     "left_right_role_swapped",
 })
+D2AF_DIAGNOSTIC_VARIANTS = frozenset((*DIAGNOSTIC_VARIANTS, "unit_rho"))
 
 POINT_ENCODER_PARAMETER_COUNT = 17_152
 PROJECTION_PARAMETER_COUNT = 393_728
@@ -275,6 +284,52 @@ def validate_sparse_relation_contract(value: object) -> Dict[str, object]:
     return dict(value)
 
 
+def diffusion_reliability_contract_metadata() -> Dict[str, object]:
+    """Return the independent D2-AF architecture/provenance contract."""
+    value = sparse_relation_contract_metadata()
+    value.update({
+        "architecture_variant": D2AF_ARCHITECTURE_VARIANT,
+        "writeback": (
+            "motion + sqrt_alpha_bar[current_timestep] "
+            "* tanh(alpha) * routed_relation"
+        ),
+        "current_timestep_per_sample": True,
+        "train_sample_symmetric": True,
+        "unit_rho_training": False,
+        "unit_rho_diagnostic_only": True,
+        "global_scaling_including_history_anchor": True,
+        "per_anchor_scaling": False,
+        "learned_schedule": False,
+        "loss_or_snr_weighting": False,
+        "schedule_buffer_persistent": False,
+        "schedule": diffusion_schedule_contract_metadata(),
+    })
+    return value
+
+
+def validate_diffusion_reliability_contract(value: object) -> Dict[str, object]:
+    """Reject checkpoints that do not carry the complete locked D2-AF contract."""
+    if not isinstance(value, Mapping):
+        raise ValueError("D2-AF checkpoint is missing diffusion-reliability provenance")
+    expected = diffusion_reliability_contract_metadata()
+    mismatches = sorted(
+        key for key, expected_value in expected.items()
+        if value.get(key) != expected_value
+    )
+    unexpected = sorted(set(value) - set(expected))
+    if mismatches or unexpected:
+        detail = []
+        if mismatches:
+            detail.append("mismatched=" + ",".join(mismatches))
+        if unexpected:
+            detail.append("unexpected=" + ",".join(unexpected))
+        raise ValueError(
+            "D2-AF checkpoint diffusion-reliability provenance mismatch: "
+            + "; ".join(detail)
+        )
+    return dict(value)
+
+
 def _metadata_tensor(
     value: torch.Tensor,
     current: torch.Tensor,
@@ -374,12 +429,18 @@ def build_sparse_relation_geometry(
 
 
 class SparseCurrentStateRelationField(nn.Module):
-    """Encode and route the fixed D2-AE sparse relation residual."""
+    """Encode and route the fixed D2-AE/D2-AF sparse relation residual."""
 
-    def __init__(self, dim_model: int) -> None:
+    def __init__(
+        self,
+        dim_model: int,
+        *,
+        diffusion_reliability: bool = False,
+    ) -> None:
         super().__init__()
         if int(dim_model) != 512:
-            raise ValueError("D2-AE sparse relation field requires dim_model=512")
+            raise ValueError("sparse relation field requires dim_model=512")
+        self.diffusion_reliability = bool(diffusion_reliability)
         self.point_encoder = nn.Sequential(
             nn.Linear(4, 128),
             nn.SiLU(),
@@ -396,20 +457,47 @@ class SparseCurrentStateRelationField(nn.Module):
             torch.as_tensor(ROUTING_SLOTS, dtype=torch.long),
             persistent=False,
         )
+        if self.diffusion_reliability:
+            schedule = canonical_diffusion_schedule()["sqrt_alpha_bar"]
+            if tensor_sha256(schedule) != SQRT_ALPHA_BAR_SHA256:
+                raise ValueError("D2-AF sqrt(alpha_bar) schedule hash mismatch")
+            self.register_buffer(
+                "sqrt_alpha_bar",
+                schedule,
+                persistent=False,
+            )
+        else:
+            self.sqrt_alpha_bar = None
         self._diagnostic_variant = "full"
         self._gate_override: Optional[float] = None
+        self._rho_override: Optional[float] = None
         self._capture = False
         self._snapshot: Optional[Dict[str, torch.Tensor]] = None
 
     def set_diagnostic_variant(self, variant: str) -> None:
-        if variant not in DIAGNOSTIC_VARIANTS:
-            raise ValueError(f"unknown D2-AE diagnostic variant: {variant}")
+        allowed = (
+            D2AF_DIAGNOSTIC_VARIANTS
+            if self.diffusion_reliability
+            else DIAGNOSTIC_VARIANTS
+        )
+        if variant not in allowed:
+            raise ValueError(f"unknown sparse-relation diagnostic variant: {variant}")
         self._diagnostic_variant = variant
 
     def set_gate_override(self, value: Optional[float]) -> None:
         if value is not None and not (-1.0 <= float(value) <= 1.0):
-            raise ValueError("D2-AE gate override must be in [-1,1]")
+            raise ValueError("sparse-relation gate override must be in [-1,1]")
         self._gate_override = None if value is None else float(value)
+
+    def set_rho_override(self, value: Optional[float]) -> None:
+        if not self.diffusion_reliability:
+            if value is not None:
+                raise ValueError("rho override is restricted to D2-AF")
+            self._rho_override = None
+            return
+        if value is not None and float(value) != 1.0:
+            raise ValueError("D2-AF rho override is fixed to unit-rho only")
+        self._rho_override = None if value is None else 1.0
 
     def set_capture(self, enabled: bool) -> None:
         self._capture = bool(enabled)
@@ -438,9 +526,41 @@ class SparseCurrentStateRelationField(nn.Module):
         position_maximum: torch.Tensor,
         object_minimum: torch.Tensor,
         object_maximum: torch.Tensor,
+        *,
+        timesteps: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if motion.shape != (current.shape[0], REPRESENTATION.window_frames, 512):
-            raise ValueError(f"expected D2-AE motion embedding [B,16,512], got {tuple(motion.shape)}")
+            raise ValueError(
+                "expected sparse-relation motion embedding [B,16,512], "
+                f"got {tuple(motion.shape)}"
+            )
+        rho: Optional[torch.Tensor] = None
+        if self.diffusion_reliability:
+            if not torch.is_tensor(timesteps):
+                raise ValueError("D2-AF requires current timesteps [B]")
+            if timesteps.shape != (current.shape[0],):
+                raise ValueError(
+                    f"D2-AF expected timesteps [{current.shape[0]}], got {timesteps.shape}"
+                )
+            if timesteps.dtype != torch.long:
+                raise ValueError("D2-AF timesteps must be torch.long")
+            if timesteps.device != current.device:
+                raise ValueError("D2-AF timesteps must share the current-state device")
+            if bool(
+                ((timesteps < 0) | (timesteps >= DIFFUSION_STEPS)).any()
+            ):
+                raise ValueError("D2-AF timestep is outside the canonical schedule")
+            if self._rho_override is not None or self._diagnostic_variant == "unit_rho":
+                rho = motion.new_ones((current.shape[0], 1, 1))
+            else:
+                assert self.sqrt_alpha_bar is not None
+                rho = self.sqrt_alpha_bar.gather(0, timesteps).to(
+                    device=motion.device,
+                    dtype=motion.dtype,
+                ).reshape(current.shape[0], 1, 1)
+        elif timesteps is not None:
+            if timesteps.shape != (current.shape[0],):
+                raise ValueError("D2-AE optional timesteps must match the batch")
         geometry = build_sparse_relation_geometry(
             current,
             rest_object_points,
@@ -488,6 +608,10 @@ class SparseCurrentStateRelationField(nn.Module):
             gate = torch.tanh(self.alpha).to(motion)
         else:
             gate = motion.new_tensor(self._gate_override)
+        raw_writeback = gate * routed
+        attenuated_writeback = (
+            raw_writeback if rho is None else rho * raw_writeback
+        )
         if self._capture:
             assert temporal_relation is not None and role_relation is not None
             with torch.no_grad():
@@ -505,7 +629,19 @@ class SparseCurrentStateRelationField(nn.Module):
                     ).norm(dim=-1).mean(dim=0),
                     "gate": gate.detach().float().reshape(1),
                 }
-        return motion + gate * routed
+                if rho is not None:
+                    self._snapshot.update({
+                        "rho": rho.detach().float().reshape(-1),
+                        "raw_writeback_norm": raw_writeback.detach().float().norm(
+                            dim=-1,
+                        ).mean(dim=0),
+                        "attenuated_writeback_norm": (
+                            attenuated_writeback.detach().float().norm(dim=-1).mean(dim=0)
+                        ),
+                    })
+        return motion + attenuated_writeback
 
     def contract_metadata(self) -> Dict[str, object]:
+        if self.diffusion_reliability:
+            return diffusion_reliability_contract_metadata()
         return sparse_relation_contract_metadata()

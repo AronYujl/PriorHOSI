@@ -10,6 +10,7 @@ import os
 import shutil
 import socket
 import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Sequence
@@ -23,6 +24,8 @@ EXPECTED_CHOIS_CHECKPOINT_SHA256 = "a125bc15ffd9772686737111c7501ecee0a2d8571d9a
 IDLE_MEMORY_USED_MIB_MAX = 128
 DISPLAY_ONLY_UTILIZATION_PERCENT_MAX = 1
 IDLE_PSTATE = "P8"
+IDLE_SAMPLE_COUNT = 3
+IDLE_SAMPLE_INTERVAL_SECONDS = 1.0
 
 
 def run(command: Sequence[str], cwd: Optional[Path] = None, check: bool = True) -> str:
@@ -75,27 +78,25 @@ def compute_processes() -> list[str]:
 
 
 def four_gpu_idle(gpus: list[dict], processes: list[str]) -> bool:
-    """Accept the bounded display-only Xorg floor, never a CUDA compute allocation."""
+    """Accept bounded display-only load; P-state is descriptive, not binding."""
     return (
         len(gpus) == 4
         and not processes
         and all(
             gpu["memory_used_mib"] <= IDLE_MEMORY_USED_MIB_MAX
             and gpu["utilization_percent"] <= DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
-            and gpu["pstate"] == IDLE_PSTATE
             for gpu in gpus
         )
     )
 
 
 def four_gpu_evaluation_idle(gpus: list[dict], processes: list[str]) -> bool:
-    """Ignore only GPU 0 display utilization for an explicitly opted-in evaluation."""
+    """Ignore only GPU 0 display utilization; P-state remains descriptive."""
     return (
         len(gpus) == 4
         and not processes
         and all(
             gpu["memory_used_mib"] <= IDLE_MEMORY_USED_MIB_MAX
-            and gpu["pstate"] == IDLE_PSTATE
             and (
                 gpu["index"] == 0
                 or gpu["utilization_percent"] <= DISPLAY_ONLY_UTILIZATION_PERCENT_MAX
@@ -139,12 +140,23 @@ def main() -> int:
     if not data_link.is_symlink():
         raise RuntimeError(f"worker data must be a checkout-local symlink: {data_link}")
     data = data_link.resolve()
-    gpus = gpu_snapshot()
-    processes = compute_processes()
-    idle = (
-        four_gpu_evaluation_idle(gpus, processes)
+    gpu_samples = []
+    process_samples = []
+    for sample_index in range(IDLE_SAMPLE_COUNT):
+        gpu_samples.append(gpu_snapshot())
+        process_samples.append(compute_processes())
+        if sample_index + 1 < IDLE_SAMPLE_COUNT:
+            time.sleep(IDLE_SAMPLE_INTERVAL_SECONDS)
+    gpus = gpu_samples[-1]
+    processes = process_samples[-1]
+    idle_function = (
+        four_gpu_evaluation_idle
         if args.allow_gpu0_display_utilization
-        else four_gpu_idle(gpus, processes)
+        else four_gpu_idle
+    )
+    idle = all(
+        idle_function(sample_gpus, sample_processes)
+        for sample_gpus, sample_processes in zip(gpu_samples, process_samples)
     )
     disk = shutil.disk_usage(repo)
     contract = json.loads((
@@ -209,6 +221,8 @@ def main() -> int:
         "python": python_details,
         "gpus": gpus,
         "compute_processes": processes,
+        "gpu_samples": gpu_samples,
+        "compute_process_samples": process_samples,
         "four_gpu_idle": idle,
         "idle_contract": {
             "gpu_count": 4,
@@ -220,7 +234,10 @@ def main() -> int:
             "gpu0_display_utilization_ignored": bool(
                 args.allow_gpu0_display_utilization
             ),
-            "required_pstate": IDLE_PSTATE,
+            "pstate_binding": False,
+            "preferred_idle_pstate": IDLE_PSTATE,
+            "sample_count": IDLE_SAMPLE_COUNT,
+            "sample_interval_seconds": IDLE_SAMPLE_INTERVAL_SECONDS,
             "scope": "display-only Xorg driver floor; CUDA compute contention remains forbidden",
         },
         "filesystem": {"total_bytes": disk.total, "used_bytes": disk.used, "free_bytes": disk.free},

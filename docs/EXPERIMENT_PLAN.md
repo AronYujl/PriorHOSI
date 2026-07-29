@@ -5828,6 +5828,110 @@ registry；不得包含 source change、checkpoint load、GPU workload、训练�
     本 session 均在关闭 Phase 1B 后停止，不自动开始 Phase 1C；下一独立 session 的唯一
     entry point 是 HSIPrior plan-only preregistration。
 
+#### 2026-07-29 Phase 1B D2-AF0 implementation / pre-GPU lifecycle binding amendment
+
+本 amendment 在 plan-only commit
+`cbf55ef2c5d667d28698597127767e0b14151f06` 上实现且只实现已经预注册的
+D2-AF0。核验时间为 `2026-07-29T17:01:41+08:00`；authority path、branch 和 dirty
+状态分别为 `/data/yujinlun/InfBaGel-release`、`phase/01b-hoi` 和仅包含本 logical
+implementation 的预期修改。当前没有启动 CPU reportable lifecycle、worker publication、
+CUDA workload、optimizer update、checkpoint load/write、训练或评测。
+
+1. **Single-factor source implementation。** 新 architecture variant
+   `d2af_sqrt_alpha_bar_reliability` 完整复用 D2-AE 的 current-state geometry、100-point
+   sparse assets、roles、anchors、point encoder、pooling、projection、temporal embeddings、
+   LayerNorm、single alpha、routing 和 D2-X trunk，只将 field writeback 固定为
+
+   \[
+   H'_t=H_t+\sqrt{\bar\alpha_d}\tanh(\alpha)r_{a(t)}.
+   \]
+
+   Model 对逐样本 `torch.long[B]` timestep fail closed；training 中同一个 tensor object
+   同时交给 `q_sample` 和 model，production sampler 按 `499,...,0` 将当前 reverse
+   timestep 交给同一 field。没有 clean/future `x0`、previous predicted `x0`、Scene、
+   contact、stored relation、sampler-only relation source、gamma/exponent/threshold、
+   per-anchor/learned gate、loss/SNR weighting或第二 writeback。
+
+2. **Canonical schedule 与 model/checkpoint contract。** 新增唯一 project helper
+   `code/priors/diffusion_schedule.py`；`GaussianDiffusion` 与 D2-AF field byte-exact
+   复用注册的 500-step float32 linear schedule。Field schedule 是 non-persistent buffer，
+   不增加 parameter、learned state 或 optimizer state。D2-AF parameter count仍严格为
+   base/relation/total `29,673,448 / 413,953 / 30,087,401`，seed-42 initial model-state
+   SHA-256仍为
+   `b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c`。
+   Checkpoint metadata使用独立 `diffusion_reliability_contract`；D2-AE 与 D2-AF loader
+   双向拒绝对方 provenance，base/released/D2-X/D2-AC/D2-AD 继续被拒绝。Formal resume
+   还绑定 random origin、same-run identity、eligibility/performance path与SHA、source
+   contract、schedule/assets以及每 rank RNG sidecar；checkpoint及任一 rank sidecar已存在
+   时一律拒绝覆盖。
+
+3. **Pre-training lifecycle implementation。** 新增 authority CPU runner、single-GPU
+   functional smoke、no-checkpoint clean-signal eligibility和4-GPU full-micro-batch
+   benchmark。所有工具要求现场 actual-date run id、clean exact Git object、resolved config
+   先落盘且无 interpolation、exclusive output，并支持 `--resolve-only`。Eligibility不创建
+   model/optimizer、不加载 checkpoint，只遍历完整216-sequence internal validation、
+   canonical 29,382 windows，以注册的CPU noise streams检验 anchor `5/10/15` relation
+   corruption单调性和anchor 0 history exactness；其summary同时绑定已通过的authority CPU
+   与worker smoke artifact、SHA及相同 formal source-tree hash。Benchmark固定
+   4×512、64 warm-up + 256 measured updates、FP32 Adam、zero checkpoint I/O，并将passing
+   eligibility SHA和唯一 intended formal id写入summary；formal trainer在启动前重新验证
+   eligibility和performance每个字段。
+
+4. **Performance/preflight hardening。** Worker idle preflight改为3次、间隔1秒的GPU/
+   compute-process采样；memory、utilization和external CUDA process仍是硬门禁，P-state只作
+   描述性记录，避免D2-AE internal曾发生的瞬时P5误停。Benchmark仍要求无contention、
+   CUDA synchronized timing、loss/gradient finite、GPU-only relation build、4-rank schedule/
+   source/model identity、memory headroom和
+   `throughput >= 3179.689863044761 windows/s`、ETA
+   `<=5.367399778519349 h`。失败后禁止任何architecture、batch、worker、thread或科学条件
+   sweep。
+
+5. **Fixed post-training tools。** Internal runner固定五路
+   `full_rho / unit_rho / relation_gate_ablated /
+   temporal_correspondence_permuted / left_right_role_swapped`，共享initial latent、
+   每步posterior noise、conditions、history与window ordering；另外保存raw relation、
+   canonical rho、raw/attenuated writeback的timestep/anchor/role appendix。Native runner
+   即使internal mechanism为负也继续唯一一次official evaluation，只复用sealed D2-AE与
+   D2-X aggregate/per-sequence artifacts，不加载/重跑D2-AE checkpoint；AE-repair、D2-X
+   transfer、protection、released effectiveness和最终classification precedence均逐项
+   fail closed。Official evaluator source、threshold、mask和reduction未修改。
+
+6. **Implemented paths and hashes。** Logical implementation覆盖：
+
+   - base/D2-AF configs：
+     `fe7619fbaa8256d664d5f68247ef9ebd56738db05e942bafab659b8eac5186e2` /
+     `f248bdd118b1d14275867670f32e5973271c93a9d5a2a991df6c36cb4dc73876`；
+   - schedule/diffusion/models/sparse relation：
+     `b4d9cf74174d63de30f75acb3f687e87f824e75b147f3a2efcfd3d76befd5b09` /
+     `fd8d05c34689cf4697920097bd330e6a25e3424c7460eb3a4e7ef12f45ed17a2` /
+     `f7d464e48629a5e6420ea6a21f1ff8130980223cb6f59944a6226a83a952dd12` /
+     `d86b49dc4030c5621510e3c66345e592235b03350fca767216de56ab78350ba3`；
+   - trainer：
+     `0f07d4d0060b4394bbe75e2f86bca385f6c720fdd06abc42fa7099339bba3e2d`；
+   - CPU/eligibility/smoke/benchmark：
+     `5d741c3f863b577ce3f8eba32b77d11fe4ffdd556a98fdf24ca84fba52c2b3c3` /
+     `7c75db0ff38786b240cda39d6c95335ff35d6cac6f542a3ffd7a82b8ac26378d` /
+     `71754e302215e8d5dcf37e76ef044ea504a8308d2dfaf3015b63d2d885e6b681` /
+     `309fd5c0d4556ce902757b56ee92abed184f83e41fed8670c38e79d3bd69ca4f`；
+   - internal/native：
+     `29f542ba999c3d00b7a0b0d08814114f1803ca4a7e297bb75bd6c3f2b363109c` /
+     `581efaac439e51721a4ada83ff6c852ab2f61be7d7039159539eecd81275ea6a`。
+
+7. **Authority verification before this record。** 使用锁定authority Python完成：
+
+   - D2-AF core/eval/CPU-lifecycle/GPU-lifecycle定向测试 `36/36`；
+   - 完整 `unittest discover`：`414/414` pass，0 failure；
+   - 全部新增/修改Python文件 `py_compile`；
+   - `tools/experiment.py validate`：implementation record前213条registry记录有效；
+   - `git diff --check`。
+
+   本 implementation record加入后必须重新运行完整suite、registry validation、
+   `py_compile`与diff check，然后提交一个clean logical implementation object。只有该
+   object上的reportable authority CPU hard gate通过，才允许worker从authority发起Git
+   fast-forward；之后依次为functional smoke、authority eligibility、4-GPU benchmark。
+   Formal training仍严格条件化于所有pretraining gates，且无论D2-AF0最终结果如何都不再
+   启动下一次HOIPrior实验。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

@@ -65,6 +65,7 @@ d2ab_predicted_support_no_slip: false
 d2ac_interaction_adapter: false
 d2ad_local_frame_interaction_adapter: false
 d2ae_sparse_relation_field: false
+d2af_sqrt_alpha_bar_reliability: false
 hoi_architecture_variant: base
 local_bps_query_workers: null
 fk_foot_temporal_routing: false
@@ -74,6 +75,10 @@ d2z_gate_audit_path: null
 d2z_gate_audit_sha256: null
 d2ab_support_metadata_path: null
 d2ab_support_metadata_sha256: null
+d2af_clean_signal_eligibility_path: null
+d2af_clean_signal_eligibility_sha256: null
+d2af_performance_benchmark_path: null
+d2af_performance_benchmark_sha256: null
 profile_every_update: true
 
 output_dir: ${repo_root}/results/experiments/${run_id}

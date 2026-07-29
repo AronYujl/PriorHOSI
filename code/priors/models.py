@@ -20,7 +20,9 @@ from .interaction_adapter import (
 from .representation import REPRESENTATION
 from .sparse_relation import (
     ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AE,
+    D2AF_ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AF,
     SparseCurrentStateRelationField,
+    validate_diffusion_reliability_contract,
     validate_sparse_relation_contract,
 )
 
@@ -33,6 +35,7 @@ HOI_ARCHITECTURES = frozenset({
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
     HOI_ARCHITECTURE_D2AE,
+    HOI_ARCHITECTURE_D2AF,
 })
 
 
@@ -85,12 +88,21 @@ class _HOICleanMotionNetwork(nn.Module):
             HOI_ARCHITECTURE_D2AC,
             HOI_ARCHITECTURE_D2AD,
             HOI_ARCHITECTURE_D2AE,
+            HOI_ARCHITECTURE_D2AF,
         } and num_layers != 8:
-            raise ValueError("D2-AC/D2-AD/D2-AE require the locked eight-layer HOIPrior trunk")
-        if architecture_variant == HOI_ARCHITECTURE_D2AE and (
+            raise ValueError(
+                "D2-AC/D2-AD/D2-AE/D2-AF require the locked eight-layer "
+                "HOIPrior trunk"
+            )
+        if architecture_variant in {
+            HOI_ARCHITECTURE_D2AE,
+            HOI_ARCHITECTURE_D2AF,
+        } and (
             dim_model != 512 or num_heads != 16
         ):
-            raise ValueError("D2-AE requires the locked 512-wide, 16-head HOIPrior trunk")
+            raise ValueError(
+                "D2-AE/D2-AF require the locked 512-wide, 16-head HOIPrior trunk"
+            )
         self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
         self.text = nn.Sequential(
             nn.Linear(768, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
@@ -137,8 +149,16 @@ class _HOICleanMotionNetwork(nn.Module):
             else None
         )
         self.sparse_relation_field = (
-            SparseCurrentStateRelationField(dim_model)
-            if architecture_variant == HOI_ARCHITECTURE_D2AE
+            SparseCurrentStateRelationField(
+                dim_model,
+                diffusion_reliability=(
+                    architecture_variant == HOI_ARCHITECTURE_D2AF
+                ),
+            )
+            if architecture_variant in {
+                HOI_ARCHITECTURE_D2AE,
+                HOI_ARCHITECTURE_D2AF,
+            }
             else None
         )
 
@@ -176,22 +196,27 @@ class _HOICleanMotionNetwork(nn.Module):
 
     def set_sparse_relation_diagnostic_variant(self, variant: str) -> None:
         if self.sparse_relation_field is None:
-            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+            raise ValueError("HOIPrior has no sparse relation field")
         self.sparse_relation_field.set_diagnostic_variant(variant)
 
     def set_sparse_relation_gate_override(self, value: Optional[float]) -> None:
         if self.sparse_relation_field is None:
-            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+            raise ValueError("HOIPrior has no sparse relation field")
         self.sparse_relation_field.set_gate_override(value)
+
+    def set_sparse_relation_rho_override(self, value: Optional[float]) -> None:
+        if self.sparse_relation_field is None:
+            raise ValueError("HOIPrior has no sparse relation field")
+        self.sparse_relation_field.set_rho_override(value)
 
     def set_sparse_relation_capture(self, enabled: bool) -> None:
         if self.sparse_relation_field is None:
-            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+            raise ValueError("HOIPrior has no sparse relation field")
         self.sparse_relation_field.set_capture(enabled)
 
     def sparse_relation_snapshot(self):
         if self.sparse_relation_field is None:
-            raise ValueError("HOIPrior has no D2-AE sparse relation field")
+            raise ValueError("HOIPrior has no sparse relation field")
         return self.sparse_relation_field.snapshot()
 
     def forward(
@@ -243,11 +268,16 @@ class _HOICleanMotionNetwork(nn.Module):
             object_minimum,
             object_maximum,
         )
-        if self.architecture_variant == HOI_ARCHITECTURE_D2AE:
+        if self.architecture_variant in {
+            HOI_ARCHITECTURE_D2AE,
+            HOI_ARCHITECTURE_D2AF,
+        }:
             if any(value is None for value in relation_values):
-                raise ValueError("D2-AE requires current-state sparse relation metadata")
+                raise ValueError(
+                    "D2-AE/D2-AF require current-state sparse relation metadata"
+                )
         elif any(value is not None for value in relation_values):
-            raise ValueError("sparse relation metadata is restricted to D2-AE")
+            raise ValueError("sparse relation metadata is restricted to D2-AE/D2-AF")
         conditions = torch.stack((
             self.time(_time_embedding(timesteps, self.dim_model)),
             self.text(text_embedding),
@@ -266,6 +296,11 @@ class _HOICleanMotionNetwork(nn.Module):
                 position_maximum,
                 object_minimum,
                 object_maximum,
+                timesteps=(
+                    timesteps
+                    if self.architecture_variant == HOI_ARCHITECTURE_D2AF
+                    else None
+                ),
             )
         tokens = torch.cat((conditions, motion), dim=1) + self.position
         encoded = self._encode(tokens, adapter_bps)
@@ -447,6 +482,19 @@ def load_trained_hoi_prior(
         if checkpoint_variant != HOI_ARCHITECTURE_D2AE:
             raise ValueError("D2-AE checkpoint is missing its architecture provenance")
         validate_sparse_relation_contract(checkpoint.get("sparse_relation_contract"))
+    elif architecture_variant == HOI_ARCHITECTURE_D2AF:
+        if model_config != {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AF,
+        }:
+            raise ValueError("D2-AF checkpoint model_config violates the locked trunk")
+        if checkpoint_variant != HOI_ARCHITECTURE_D2AF:
+            raise ValueError("D2-AF checkpoint is missing its architecture provenance")
+        validate_diffusion_reliability_contract(
+            checkpoint.get("diffusion_reliability_contract")
+        )
     elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
         raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
     if (
@@ -493,7 +541,7 @@ def load_trained_hoi_prior(
             "schema_version", "checkpoint_type", "expert", "initialization", "run_id",
             "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
             "model_config", "architecture_variant", "interaction_adapter_contract",
-            "sparse_relation_contract",
+            "sparse_relation_contract", "diffusion_reliability_contract",
             "data_contract_sha256", "split_sha256", "window_state_codec",
         )
     }

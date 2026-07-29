@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from priors.data import PriorWindowDataset
+from priors.diffusion_schedule import canonical_diffusion_schedule
 from priors.models import build_expert
 from priors.representation import REPRESENTATION, masked_reconstruction_loss
 
@@ -27,8 +28,9 @@ def _free_port() -> int:
 
 
 def _diffuse(clean: torch.Tensor, timesteps: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
-    betas = torch.linspace(0.0001, 0.02, REPRESENTATION.diffusion_steps, device=clean.device)
-    alpha_bar = torch.cumprod(1.0 - betas, dim=0)[timesteps]
+    alpha_bar = canonical_diffusion_schedule()["alpha_bar"].to(
+        device=clean.device,
+    )[timesteps]
     noisy = alpha_bar.sqrt()[:, None, None] * clean + (1.0 - alpha_bar).sqrt()[:, None, None] * noise
     noisy[:, :REPRESENTATION.history_frames] = clean[:, :REPRESENTATION.history_frames]
     return noisy
