@@ -5533,6 +5533,301 @@ resume/selection、新 loss、timestep weighting、rollout exposure、CFG、HSIP
 也不 merge/tag。任何后续 HOIPrior direction 必须重新获得授权并先做 dated plan 与
 append-only registry hypothesis。
 
+#### 2026-07-29 Phase 1B D2-AF0 sqrt-alpha-bar current-state reliability routing 预注册（plan-only）
+
+用户在完整审阅 D2-AE0 后，只授权最后一次 HOIPrior 方向预算；该方向结束后，无论结果
+正负，Phase 1B 均停止继续搜索，下一次独立 session 从 Phase 1C HSIPrior 的 dated
+preregistration 开始。本 amendment 执行前，authority checkout 为
+`/data/yujinlun/InfBaGel-release`、branch `phase/01b-hoi`、HEAD
+`8c4f731846645a4b0a422c6a1bd0405552b831a9`
+（`Close Phase 1B D2-AE0`），worktree clean；核验时间为
+`2026-07-29T15:31:12+08:00`。重新扫描 working tree、全部 Git objects/refs/reflogs、
+append-only registry、authority/worker staging names 与 worker checkout 后，D2-AF、
+`d2af`、`D2-AF0`、`p1-hoi-d2af-*` 和 `sqrt-alpha-bar-reliability` 均未被用作
+identifier；历史 JSON SHA 中偶然出现的 `d2af` 字节子串不构成 identifier。Integration
+baseline `b9a158f75ab0740c91c9cfc8863a65fa381b014c` 是当前 HEAD ancestor，禁止分支
+`feature/independent-hoi-hsi-priors` 不是 ancestor。Source audit 证明下述机制可由现有
+train/sample 共用 timestep API 实现，没有结构性阻塞。本 commit 只允许修改本 plan 和
+registry；不得包含 source change、checkpoint load、GPU workload、训练或评测。
+
+1. **Sealed evidence 与唯一假设。** D2-AE0 的 fixed internal diagnostic 已证明 sparse
+   relation path 被使用、固定 temporal correspondence 有因果作用、left/right role binding
+   是结构性的；但 native contact F1/recall 相对 D2-X 只有
+   `+0.004518/+0.001684`，paired 95% CI 均跨零，contact F1 仅 `0.641944`，released
+   gap closure 仅 `5.03%`，并出现 end-object 与 FS protection failure。D2-AF0 的唯一
+   假设是：D2-AE 在高 diffusion noise 的 early reverse steps 对当前 `x_t` 几何给予了与
+   late clean steps 相同的 residual scale，因而把不可靠 relation 当作强条件写入 trunk；
+   使用同一 diffusion schedule 的 clean-signal reliability
+   `sqrt(alpha_bar_d)` 衰减该 residual，可能保留 D2-AE 已证实的 relation/temporal/role
+   结构，同时修复 official rollout 的 contact transfer、end-object 和 FS。不得把本
+   hypothesis 扩展为 learned timestep gate、SNR/loss weighting、exposure、guidance、
+   consistency 或任何新 loss。
+
+2. **唯一 manipulated factor。** D2-AF0 相对 D2-AE0 只将 writeback 从
+
+   \[
+   H'_t=H_t+\tanh(\alpha)r_{a(t)}
+   \]
+
+   改为
+
+   \[
+   \rho(d)=\sqrt{\bar\alpha_d},\qquad
+   H'_t=H_t+\rho(d)\tanh(\alpha)r_{a(t)}.
+   \]
+
+   `d` 是 model 当前收到的逐样本 diffusion timestep `[B]`；training 必须使用生成当前
+   `x_t` 的同一个 `d`，sampling 必须使用 reverse loop 当前的同一个 `d`，mixed-timestep
+   batch 必须逐样本 index。`d=499` 是最 noisy/最早 reverse step，`d=0` 是最 clean/最后
+   reverse step。不得使用 clean target、predicted `x0`、previous `x0`、future GT、
+   contact、Scene、stored relation 或 sampler-only source 计算 `rho`。`rho=1` 只允许作为
+   注册的 test/internal counterfactual，不允许用于训练、checkpoint selection 或第二次
+   formal run。
+
+3. **Canonical schedule contract。** `rho` 必须直接来自与 `GaussianDiffusion` 共用的
+   PyTorch-1.13.1 float32、500-step linear-beta schedule：
+   `betas=torch.linspace(0.0001,0.02,500,float32)`，
+   `alpha_bar=cumprod(1-betas)`。必须只有一个 project canonical schedule constructor；
+   released author utility 不得改动。Canonical raw float32 tensor hashes 为：
+
+   - beta SHA-256：
+     `496ec54f35af6fe7b92417f7da8b442f31c9c0070bfdd62dbb16fefc426c8f3e`；
+   - alpha-bar SHA-256：
+     `55f162cebbe109c67a75b00a10a1d23ea85fb1d18df9a372a3e237df5a8f48d4`；
+   - sqrt-alpha-bar SHA-256：
+     `5d25c63d6618c77cc31976ee9e2c5645aa41653030fca210594a05254323b440`。
+
+   `rho[0/100/249/400/499]` 必须分别为
+   `0.9999499917030334 / 0.8995221257209778 / 0.5297974348068237 /
+   0.19632703065872192 / 0.0797039046883583`，并严格单调递减。Model-side schedule
+   buffer 必须是 canonical、non-persistent、无参数、无 optimizer state；checkpoint
+   metadata 必须记录完整 schedule contract/hash，loader 必须在 `load_state_dict` 前验证
+   独立 D2-AF architecture/provenance。D2-AE 与 D2-AF learned `state_dict` schema 可以
+   相同，但 D2-AE/released/base/D2-AC/D2-AD checkpoint 即使 tensor shapes 相容也必须被
+   D2-AF loader 拒绝；D2-AE loader 也必须反向拒绝 D2-AF。
+
+4. **全部保持项。** D2-AE 的 current-state relation builder、100 immutable rest-object
+   points、surface transform、roles `(joint 24,joint 26,joint 0)`、temporal anchors
+   `(0,5,10,15)`、`4→128→128` point encoder、mean/max pooling、role concat order、
+   `768→512` projection、four temporal embeddings、LayerNorm、single scalar
+   `tanh(alpha)`、alpha exact-zero initialization、fixed segment routing、full-trunk
+   placement、20 tokens、4 condition tokens、global BPS、D2-X FK-foot routing、
+   `[B,16,232]` clean output、2-frame history restoration、500-step clean-x0 diffusion、
+   losses/reductions/weights、optimizer、LR、batch、split、budget、sampler 和 official
+   evaluator 全部不变。Global `rho(d)` 会同时衰减 anchor 0 的 clean-history relation；
+   这是本单变量设计预先承认的代价，不得事后改为 per-anchor gate。参数必须仍为
+   base `29,673,448`、relation `413,953`、total `30,087,401`，增量
+   `1.3950283%`；不得新增 learnable parameter。Seed-42 fresh initialization 的完整
+   non-persistent-buffer model-state SHA-256 必须继续精确为
+   `b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c`，
+   否则 GPU 前停止。
+
+5. **Authority CPU hard gate。** D2-AF 必须继承 D2-AE 全部 geometry、asset、SO(3)、
+   invariance/sensitivity、point permutation、finite、dtype/device/batch、parameter/API、
+   train/sample builder parity、checkpoint provenance、HSIPrior/Mixer independence、
+   forbidden-source static scan、full suite 与 registry validation contracts，并新增：
+
+   - canonical helper、`GaussianDiffusion.sqrt_alpha_bar` 与 field buffer byte-exact；
+   - timestep 必须是与 batch 同 device 的 `torch.long[B]`，负值、`>=500`、错误 shape/
+     dtype/device 全部 fail closed；
+   - mixed batch `[0,249,499]` 必须逐样本得到注册的三个 `rho`；
+   - test-only `tanh(alpha)=0.1` 时，field-level
+     `delta_AF(d)=rho(d)*delta_unit_rho`，float32 max abs `<=1e-6`；
+   - `alpha=0`、shared D2-X trunk、`eval()` output max abs `<=1e-6`，并要求实际 exact
+     zero where representable；
+   - initial alpha gradient与 activated point-encoder/projection/temporal-embedding/
+     relevant-trunk gradients在 `d=0/249/499` 均 finite/nonzero；
+   - training q-sample 的 timestep 与 model timestep exact same；sampler capture 必须
+     exact 为 `499,498,...,0`；
+   - D2-AE/D2-AF resolved configs 除 identity、mechanism flag/variant、eligibility/
+     performance binding 外 exact equivalent；
+   - four-rank schedule hash一致，raw relation norm、`rho` 和 attenuated writeback norm
+     分开记录；
+   - 无 loss/SNR/timestep weighting、gamma/exponent/threshold/clamp、learned schedule、
+     per-anchor reliability 或第二 writeback。
+
+   任一失败分类为 `diffusion-reliability-contract-failure-stop`，不得开始任何 GPU
+   workload。
+
+6. **One-GPU functional smoke。** 注册 stem 为
+   `p1-hoi-d2af-gpu-functional-smoke[-rN]-s42-<actual-date>`，worker 固定
+   infbagel-4gpu/node01、1×RTX 3090、real-data batch 8、timesteps
+   `0/249/499`、seed 42 random initialization、无 optimizer、zero updates、
+   zero checkpoint writes。除 D2-AE smoke 内容外，必须记录三个 `rho`、mixed-batch
+   per-sample scaling、raw/attenuated relation values、initial alpha gradient、
+   activated gradients、peak allocated/reserved/headroom 和 model/schedule hashes。
+   Operational preflight failure保留原目录并使用新 run id；scientific contract failure
+   立即停止。
+
+7. **No-training clean-signal premise gate。** Functional smoke 通过后、performance/
+   formal 前，运行唯一注册的
+   `p1-hoi-d2af-clean-signal-eligibility[-rN]-s42-<actual-date>`。该 diagnostic 不加载
+   任何 checkpoint，不创建 model/optimizer，不做 update、rollout、official test 或
+   downstream contact/goal/FS 指标；它只检验本方向的输入前提，不能选择旧 checkpoint
+   或从多个可训练方向中择优。
+
+   - 数据为完整 internal-validation split：216 sequences、29,382 windows，canonical
+     non-shuffle global-index SHA-256
+     `eab0bde2dc2ddad7ce2cc1817973ca46b9adaf24b1c906307f865930aeb11eb9`，
+     sorted sequence-name SHA-256
+     `472768c85c6d6c5b682a31a4d40a879d7a1e3d0b16085923c153db1045223fd8`；
+     `num_workers=0`、batch 128。
+   - timesteps 固定为 `0/249/499`。每个 timestep 使用 CPU float32
+     `torch.Generator`，seed 为 `42 + 1,000,003*d`，按上述 canonical order/batch
+     产生 Gaussian noise并记录完整 stream hash；`q_sample` 必须保持原 2-frame history。
+   - 对 clean `x0` 和相应 `x_d` 运行完全相同的 pre-encoder pure-PyTorch relation
+     builder。每个 window 的 mutable-anchor corruption 定义为 anchors `5/10/15` 上
+     `[role,point,delta_xyz+distance]` 的
+     `C_d=sqrt(mean((feature_d-feature_clean)^2))`。先在 sequence 内平均，再以 sequence
+     为 paired unit、seed 42、10,000 bootstrap。
+   - `C249-C0` 与 `C499-C249` 的 paired 95% CI lower 必须都 `>0`；anchor 0 因属于
+     immutable history，其 scaling 前 feature 在三 timestep 间 max abs 必须 `<=1e-6`。
+     Eligibility manifest 必须绑定已通过的 CPU/smoke summary absolute path、SHA-256
+     与相同 source-tree hash；任何相关 code change 都使该 eligibility失效并要求新 id
+     从头执行，但不得因此改变科学条件。
+
+   Contract/implementation failure 分类为 `clean-signal-contract-failure-stop`；corruption
+   单调 premise gate失败分类为 `clean-signal-premise-negative-stop`。任一失败均停止
+   D2-AF0，不运行 performance/formal，也不得换 timestep、subset、noise、metric、anchor
+   或改成 per-anchor scaling。
+
+8. **4-GPU full-micro-batch performance hard gate。** 只有上述三层 gate全部通过，才在
+   clean、identical committed worker object 上运行
+   `p1-hoi-d2af-performance-benchmark[-rN]-s42-<actual-date>`：4×RTX 3090、
+   per-GPU batch 512、effective batch 2048、FP32 Adam、64 warm-up + 256 measured
+   updates、524,288 measured windows、CUDA synchronized timing、random initialization、
+   checkpoint load/write均为零、benchmark weights禁止复用。必须记录 loader wait、H2D、
+   GPU relation build、rho lookup/writeback、forward、backward、optimizer、DDP、CPU/GPU
+   utilization、contention、intermediate shapes、四 rank schedule hash和 peak/headroom。
+   Idle hard gate使用多次 compute-process/memory/utilization采样；P-state单独记录但不因
+   单次非 P8 独立否决。
+
+   Sealed D2-AE formal throughput 为 `3,347.0419610997483 windows/s`；D2-AF0 的
+   预注册门槛固定为其 95%：
+
+   \[
+   throughput\ge 3,179.689863044761\ {\rm windows/s},
+   \]
+
+   对应 61.44M-window ETA `<=5.367399778519349 h`。同时 memory headroom 必须
+   `>=max(2 GiB,10% device memory)`、losses/gradients finite、无 CPU dynamic
+   geometry、无 contention。Benchmark必须一对一绑定 intended formal run id/source
+   hashes；formal pre-workload retry 需要新的 benchmark retry identity。Completed
+   scientific benchmark未过即分类
+   `diffusion-reliability-performance-negative-stop`，不得通过 batch/worker/thread/
+   architecture/point/width/role/routing或任何 sweep重试。
+
+9. **唯一 formal training。** 只有 contract、smoke、clean-signal premise 和 performance
+   全通过，才运行
+   `p1-hoi-d2af-sqrt-alpha-bar-reliability[-rN]-s42-<actual-date>`。固定 seed 42、
+   split `experiments/splits/omomo_hoi_train_validation_seed42.json`（SHA-256
+   `019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e`）、
+   4×RTX 3090、batch 512/GPU、effective 2048、accumulation 1、61,440,000 windows、
+   983,040,000 frames、30,000 updates、FP32 Adam、LR `1e-4`、betas
+   `(0.9,0.999)`、weight decay 0、no warmup/scheduler/AMP/clipping/EMA。
+   FK/object-surface/velocity/terminal-goal weights继续为
+   `0.3569973401779424 / 0.4772322188400037 / 0.1 / 1.0`，D2-X FK-foot routing
+   enabled，全部新 loss disabled。必须从 seed-42 random initialization 开始；
+   init/weight-init/resume均为空，released/D2-X/D2-AC/D2-AD/D2-AE/任何 prior/
+   EMA/consistency checkpoint load count全为零。完整运行 fixed budget，只使用
+   online/final-online；不得选择 cadence/best-validation checkpoint。稳定区间和至少一个
+   resumable checkpoint通过后，按 worker-owned persistent-session规则报告 throughput/
+   ETA/hash并停止主动轮询。
+
+10. **Fixed five-path internal causal diagnostic。** Formal完成后只加载 fixed
+    final-online，复用 sealed D2-O 64 sequences × 3 windows、phase offsets
+    `(14,56,98)`、selection SHA-256
+    `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`。
+    五条 paired 500-step rollout固定为：
+
+    - `full_rho`；
+    - `unit_rho`：每一步只将 `rho(d)` 强制为 1；
+    - `relation_gate_ablated`：每一步 `tanh(alpha)=0`；
+    - `temporal_correspondence_permuted`：沿用 D2-AE `k<-(k+2) mod 4`；
+    - `left_right_role_swapped`：projection前只交换 left/right pooled blocks。
+
+    除被操纵因子外，五路共享 initial latent、每一步 posterior noise、condition、history、
+    ordering 和 restoration；permuted/swapped paths继续使用 canonical `rho(d)`。统计、全部
+    contact/distance/penetration/goal/FS/uncertainty和描述性 relation appendix沿用 D2-AE，
+    并额外报告每个 timestep/anchor/role 的 raw relation、rho、attenuated writeback norm/
+    variance/sensitivity。Primary gates全部 conjunctive：
+
+    - `full_rho-unit_rho` direct-hand union 5-cm F1 CI lower `>0`；
+    - `unit_rho-full_rho` GT-contact-frame mean distance CI lower `>0`；
+    - D2-AE 原五个 path/temporal/role/distance gates原阈值全部通过。
+
+    `unit_rho` 只证明同一 D2-AF trained model 是否依赖 schedule，不等同于 D2-AF 与
+    separately trained D2-AE 的模型比较。结果必须分别保存
+    `internal_status={unused|schedule-negative|temporal-negative|role-negative|passed}`；
+    internal无论正负都执行下面唯一一次 fixed native，不得以 internal cohort过滤 official
+    result。
+
+11. **Fixed native evaluation 与双重比较。** 协议严格沿用 D2-AE：official 438
+    sequences × 3 windows、500-step unguided production diffusion、final-online、
+    CFG/guidance/scene/dynamic perception/consistency全部 off，paired sequence unit、
+    seed 42、10,000 bootstrap、sealed D2-X 181-sequence penetration mask、official
+    evaluator/hash/helper/threshold不变。D2-X checkpoint/aggregate/per-sequence继续为
+    `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+    `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+    `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`，
+    不重新生成。D2-AE 只复用
+    sealed aggregate
+    `157acda463036bdf787618c217262c14c77a09a3f409cbeada03de06e9b902a1`
+    和 per-sequence
+    `8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c`；
+    不加载/重跑其 checkpoint，不把它作为 initializer、resume、checkpoint selector 或
+    candidate。
+
+    Native必须同时通过两层 gate：
+
+    - **D2-AE single-factor repair：** AF−AE contact F1 和 recall paired CI lower
+      均 `>0`；AF/AE end-object 与 FS paired mean-ratio CI upper均 `<1.0`；
+    - **D2-X candidate：** AF−X contact F1/recall CI lower均 `>0`，contact F1
+      `>=0.6598838781`，released–D2-X contact-F1 gap closure `>=25%`。
+
+    D2-AC/D2-AD protection contract原样继承：AF/X end-object、Txy、FS、Pbody、
+    hand penetration、MPJPE、Troot、Tobj、Oobj mean-ratio CI upper均 `<=1.10`，
+    contact precision difference CI lower `>=-0.02`，penetration finite mask exact；
+    released-baseline 95% effectiveness gate原样继承。所有条件均为 AND，不允许
+    composite、best-of、metric替换或阈值修改。
+
+12. **Decision、lifecycle 与 stop rule。** Post-training同时保存 `internal_status` 和
+    `native_status`；native negative是 headline，internal positive不能救回。单线终态顺序为：
+
+    - `diffusion-reliability-contract-failure-stop`；
+    - `clean-signal-contract-failure-stop`；
+    - `clean-signal-premise-negative-stop`；
+    - `diffusion-reliability-performance-negative-stop`；
+    - `diffusion-reliability-ae-repair-negative-stop`；
+    - `diffusion-reliability-d2x-transfer-negative-stop`；
+    - `diffusion-reliability-conflict-negative-stop`；
+    - `diffusion-reliability-positive-but-not-effective-stop`；
+    - native全部通过但任一internal gate失败：
+      `diffusion-reliability-native-positive-mechanism-unverified-stop`；
+    - 全部通过：
+      `diffusion-reliability-positive-candidate-stop`。
+
+    只有最后一类可将 fixed final-online 标为 selectable autonomous HOIPrior candidate。
+    Lifecycle stems固定为
+    `p1-hoi-d2af-{cpu-contract|gpu-functional-smoke|clean-signal-eligibility|
+    performance-benchmark|sqrt-alpha-bar-reliability|
+    sqrt-alpha-bar-reliability-internal|native-eval|completion}[-rN]-s42-<actual-date>`；
+    config default `run_id=null`，每次实际 date现场生成，失败目录保留且retry使用新 id。
+    所有 resolved config、same-context manifest/preflight、logs/profile、failure trees、
+    checkpoints/RNG、internal five paths/paired noise、native raw/optional outputs、run-local
+    registry、hardware/data/dependency/evaluator hashes必须由worker发起non-destructive
+    recovery，双端统一 `sha256_path` 和 checksum dry-run；不得 `--delete`。
+
+    本方向禁止任何 gamma/exponent/threshold、learned schedule、per-anchor gate、LR/batch/
+    budget/point/width/depth/role/placement sweep，禁止第二次 formal run、longer budget、
+    D2-AF1、D2-AE/D2-AC/D2-AD resume/retrain/selection、新 loss、SNR/timestep loss
+    weighting、gradient projection、rollout exposure、CFG、consistency、scene、HSIPrior 或
+    Mixer。若 pretraining gate失败，formal budget不消耗但本次最后 HOIPrior direction仍
+    结束；若formal启动则只允许完整运行该一次预算。最终必须写 compact result、
+    `docs/phase_summaries/PHASE_1B_D2AF.md` 和 append-only completion。无论最终分类，
+    本 session 均在关闭 Phase 1B 后停止，不自动开始 Phase 1C；下一独立 session 的唯一
+    entry point 是 HSIPrior plan-only preregistration。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
