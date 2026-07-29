@@ -6208,6 +6208,70 @@ stop rule，但不回写历史、不把benchmark改成passed，也不改变其
 hash-bound validator/config/tests，创建并提交immutable waiver contract，通过authority
 verification后由worker fast-forward相同clean Git object并启动唯一formal run。
 
+#### 2026-07-29 Phase 1B D2-AF0 performance waiver implementation / contract record
+
+一次性waiver已按上述plan实现，且未改写原benchmark。Validator/config/tests logical
+implementation commit为
+`9c908ad87dce8806eb052b2a2627160b0a1bbe72`；tracked immutable contract commit为
+`69d8cb025c89c0e776d0a4c03a8c158bbd0a3265`，文件
+`experiments/contracts/p1_hoi_d2af_performance_waiver_s42_20260729.json` 的SHA-256为
+`8a2d11c0febea603ac74328fbcd51622982740c4bef48597a0af71de7a53da97`。
+
+实现保持两条分离路径：
+
+- 原passing benchmark仍要求`status/classification/throughput/eta/formal_authorized`
+  全部通过，且waiver fields必须为空；
+- 原failed benchmark只允许exact五项
+  `classification / eta / formal_authorized / status / throughput`为false，其他
+  memory、finite、GPU-only、timing、optimizer/checkpoint I/O、four-rank identity、
+  contention、schedule、eligibility、source identity和sweep contracts必须全通过。
+  之后才读取tracked waiver，并返回
+  `status=failed-waived`、
+  `classification=user-authorized-performance-waiver`、
+  `formal_authorization=explicit-single-run-waiver`和
+  `original_gate_passed=false`。
+
+Waiver exact绑定：
+
+- benchmark summary：
+  `53e9842d0522cf456a86eedc25d2a972cd00db3fb067113ff25f31f6117e1f33`；
+- eligibility：
+  `c52c0536423d7a17101829cb2b020316b9c6e0f7aa2cf39f33b984ffb39896b4`；
+- source commit/contract：
+  `1c6c3058478411361bf3e73830f900f660ae516b` /
+  `68269a2cac8eaf6fd2b55b139bb2be5b5dbafde6e7f22496f5a894f18b843145`；
+- target implementation commit/contract：
+  `9c908ad87dce8806eb052b2a2627160b0a1bbe72` /
+  `299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e`；
+- exact binary Git diff：
+  `24d0dbb8abd96b56f6e745b0f08fcabeb0a50792a4737d8332ca6158aadec7c3`；
+- changed paths严格为base/D2-AF config、trainer performance validator、
+  `tests/test_hoi_d2af.py`和既有plan/registry六项；models、diffusion、relation、
+  loss、optimizer、training loop、DataLoader和profiling均未修改；
+- 唯一formal id：
+  `p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`，formal runs maximum 1，
+  random initialization，benchmark retry/sweep/reclassification均false。
+
+Authority在clean contract commit上使用真实recovered eligibility/benchmark和tracked
+waiver直接调用formal validator，全部authorization与waiver checks为true；原五项
+benchmark failed checks继续原样保存。Target source contract由current worktree与target
+Git object两种算法独立重算，均为91 files /
+`299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e`。
+
+Source implementation提交前的authority verification为：
+
+- 完整`unittest discover`：`419/419` pass；
+- D2-AF waiver定向测试：passing path、exact failure+waiver、missing waiver、
+  extra non-speed failure、benchmark/waiver tamper全部通过；
+- `py_compile`、registry validation（219 records）和`git diff --check`通过；
+- formal output、metrics、state和checkpoint均不存在；CUDA workload、optimizer update、
+  checkpoint load/write、internal和native均未启动。
+
+下一步只允许提交本append-only lifecycle record，随后由worker发起Git fast-forward到相同
+clean object；现场验证worker Python/data/artifacts、actual date、formal目录不存在、
+resolved config无interpolation、same-context manifest/preflight和waiver validator后，
+启动唯一formal run。不得运行第二次performance benchmark或任何优化sweep。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
