@@ -6028,6 +6028,56 @@ authority路径为
 216-sequence、29,382-window no-model/no-optimizer clean-signal eligibility。该premise gate
 通过并恢复/注册前，不得运行4-GPU performance benchmark或formal training。
 
+#### 2026-07-29 Phase 1B D2-AF0 clean-signal eligibility completion record
+
+Reportable authority run
+`p1-hoi-d2af-clean-signal-eligibility-s42-20260729` 在clean commit
+`d12036e5e79d0e7142e8d163fc9a80a62fea317c` 上完成，status/classification为
+`passed / clean-signal-premise-passed`，runtime为`105.1356934551 s`。它绑定已通过的
+authority CPU metrics
+`8726ad247b4b9b3828bbdef444426fa197cdb1b2f4333bfcd663fe6e4308eb7f`
+和recovered worker smoke metrics
+`43862309e7758af25b99c7ad7f45d5882d2010912d48d54b8dabe0877fe9c8af`，
+三者formal source-tree contract均严格为91 files /
+`68269a2cac8eaf6fd2b55b139bb2be5b5dbafde6e7f22496f5a894f18b843145`。
+Smoke JSON未被改写；其worker绝对resolved-config引用通过authority只读symlink解析到已恢复、
+SHA-256相同的staging artifact，最终prerequisite record保存的是该canonical recovered path。
+
+Diagnostic完整遍历locked internal-validation的216 sequences / 29,382 windows，selection
+hash严格为：
+
+- global indices：
+  `eab0bde2dc2ddad7ce2cc1817973ca46b9adaf24b1c906307f865930aeb11eb9`；
+- sorted sequence names：
+  `472768c85c6d6c5b682a31a4d40a879d7a1e3d0b16085923c153db1045223fd8`。
+
+固定CPU noise streams与pre-encoder relation corruption结果：
+
+- `C0 / C249 / C499` sequence mean分别为
+  `0.037421006676433013 / 3.7462720501557163 / 4.458573468406191`；
+- `C249-C0` paired mean为`3.7088510434792834`，10,000-replicate paired
+  bootstrap 95% CI为`[3.6977504341815073,3.720119281574443]`；
+- `C499-C249` paired mean为`0.7123014182504745`，95% CI为
+  `[0.698195667507825,0.7267265609093563]`；
+- 两个CI lower均严格`>0`；frame-0 immutable history在全部timestep与cross-timestep的
+  max abs均exact `0.0`，低于`1e-6`。
+
+因此全部三个premise gates通过，performance benchmark与formal training的premise flag为
+true。该run没有创建model/optimizer，没有update、checkpoint load/write、rollout、official
+test、downstream metric或checkpoint selection。
+
+Metrics、resolved config与completed manifest SHA-256分别为
+`c52c0536423d7a17101829cb2b020316b9c6e0f7aa2cf39f33b984ffb39896b4`、
+`bf0646a3ec69453a17f54de78a5c7b477a6c0334bab8924e5afdad1cd39a1173`和
+`83d1b5b1a6db9b4d1cea8052abadebc6d901fd08229057de4ea1d408ea78b763`。
+Authority staging包含4 files / 190,598 bytes，统一`sha256_path`为
+`1a9b9a2c6779d9971046ded5bc5ac23639aa73926690a8076b3c018b638bef52`。
+
+下一步只允许提交本append-only lifecycle record，将完全相同的clean Git object和immutable
+eligibility summary发布到worker，然后运行唯一注册的4×512、64 warm-up + 256 measured
+performance benchmark。若其任一hard gate失败，D2-AF0与Phase 1B立即以
+`diffusion-reliability-performance-negative-stop`关闭，不得启动formal training或调整条件。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
