@@ -6078,6 +6078,62 @@ eligibility summary发布到worker，然后运行唯一注册的4×512、64 warm
 performance benchmark。若其任一hard gate失败，D2-AF0与Phase 1B立即以
 `diffusion-reliability-performance-negative-stop`关闭，不得启动formal training或调整条件。
 
+#### 2026-07-29 Phase 1B D2-AF0 performance benchmark failure record
+
+Reportable worker run
+`p1-hoi-d2af-performance-benchmark-s42-20260729` 在clean commit
+`1c6c3058478411361bf3e73830f900f660ae516b` 上完成。Process return code为0，固定
+64 warm-up + 256 measured updates、4×512 effective batch 2048、524,288 measured
+windows全部执行；scientific status/classification为
+`failed / diffusion-reliability-performance-negative-stop`。
+
+Hard-gate结果：
+
+- measured synchronized wall：`250.8741843551 s`；
+- throughput：`2089.8443630127094 windows/s`，低于注册门槛
+  `3179.689863044761`；
+- sealed D2-AE throughput fraction：`0.6243854685126333`，低于`0.95`；
+- full 61.44M-window ETA：`8.166477355310539 h`，高于上限
+  `5.367399778519349 h`；
+- minimum memory headroom：`18,993,577,984` bytes，高于要求
+  `2,529,604,403`；
+- losses/gradients finite、relation GPU-only、四rank relation shapes、initial-state/
+  schedule hashes、memory和无external contention contracts全部通过；
+- checkpoint load/write为0，320-update sacrificial weights未保存且不可复用。
+
+Mean measured profile totals across ranks为：
+
+- loader wait/H2D：`56.2303234 / 0.3658839 s`；
+- relation geometry/point encoder/projection/norm/derived pool-route-rho-writeback/
+  complete module：
+  `0.5566526 / 1.1547405 / 0.0265346 / 0.0036046 / 0.2908488 /
+  2.0323810 s`；
+- forward+loss/backward-inclusive-DDP/gradient validation/optimizer：
+  `16.0291985 / 170.9401413 / 3.9957207 / 3.0369855 s`。
+
+Relation module和完整forward与sealed D2-AE benchmark的
+`1.9570280 / 15.9230519 s`接近；本次固定run的主要descriptive异常是rank-1 loader wait
+`154.4085614 s`，其他rank为`53.4023972 / 9.5764329 / 7.5339022 s`，并在其他rank形成
+inclusive backward/DDP等待。该证据不能事后授权retry：preregistration明确禁止第二次
+benchmark、num-worker/thread/architecture sweep或改变任何科学/执行条件，因此不在
+transient rank stall和可复现固定stack bottleneck之间做post-hoc选择。
+
+Benchmark summary、completed manifest、resolved config和preflight SHA-256分别为
+`53e9842d0522cf456a86eedc25d2a972cd00db3fb067113ff25f31f6117e1f33`、
+`97d13c60dd0e073fdd649aec7b76bde4dad23fdf0fd7e8cef9b9ca04b6a04e54`、
+`04f747890fd9e7ad3d40a580223783da849ac80a5eae1d826c9bc9af2f4b45a9`和
+`e238a8242f31b5a08b083f1e11044834d922babe5c29681754d0a755396613d1`。
+Worker发起无`--delete` recovery后，checksum dry-run传输0 files；worker/authority的
+14-file / 1,914,984-byte tree统一`sha256_path`为
+`076ed5e3ee80bd5325c661f9a3adbe225e45be963cc2166128cdc5c0faadf895`，
+authority路径为
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-performance-benchmark-s42-20260729`。
+
+Performance gate失败后已现场验证intended formal目录
+`p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`不存在。Formal training、
+formal optimizer/checkpoint、internal和native均未启动。不得retry、调参、运行D2-AF1或
+启动任何新的HOIPrior方向。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
