@@ -6272,6 +6272,118 @@ clean object；现场验证worker Python/data/artifacts、actual date、formal�
 resolved config无interpolation、same-context manifest/preflight和waiver validator后，
 启动唯一formal run。不得运行第二次performance benchmark或任何优化sweep。
 
+#### 2026-07-29 Phase 1B D2-AF0 checkpoint-race operational continuation（plan-only）
+
+用户报告GPU workload早于ETA结束后，authority通过worker的loopback-only control channel
+完成只读取证。核验时authority为`/data/yujinlun/InfBaGel-release`、branch
+`phase/01b-hoi`、HEAD
+`7202d32a7375e7197886c4f873688fd472e2c803`、worktree clean；worker checkout为
+`/home/yujinlun/data/work/InfBaGel-release`、相同branch/HEAD且clean；核验时间为
+`2026-07-29T23:15:09+08:00`至`2026-07-29T23:22:30+08:00`。重新扫描authority
+working tree、Git history/refs/reflogs、registry、authority staging、worker checkout与
+worker artifacts后，
+`p1-hoi-d2af-checkpoint-race-continuation-s42-20260729`及stem
+`d2af-checkpoint-race-continuation`均未使用。本commit只允许追加本plan与registry，
+不得修改source、config或tests，不得加载checkpoint或启动GPU workload。
+
+1. **失败事实与分类。** 唯一formal run
+   `p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`并未完成。它从seed-42随机初始化
+   正常运行到第三次cadence save，在attempted `9,216,000` windows /
+   `4,500` updates处以return code `1`退出；没有`training_state.json`或
+   `metrics.json`，manifest继续保留`running`，internal/native均未启动。失败记录
+   `operational_checkpoint_race_failure.json`的SHA-256为
+   `a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1`。
+   根因是`code/train_hoi_prior.py::_save_checkpoint()`中每个rank在写自己的RNG
+   sidecar前检查了主checkpoint和全部rank sidecar；rank 0/1/3先写后，rank 2把这些合法
+   peer文件误判成overwrite collision。该错误不涉及D2-AF relation数学、loss、gradient、
+   CUDA OOM、数据、磁盘容量或scientific gate，分类固定为
+   `ddp-checkpoint-sidecar-existence-race-operational-failure`。
+
+2. **失败与可恢复状态均不可改写。** 最后完整checkpoint固定为
+   `6,144,000` windows / `3,000` updates，SHA-256
+   `3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e`，
+   四个rank RNG sidecar均存在并已逐文件hash。第三次cadence已写出的rank 0/1/3
+   partial sidecar已无损移动到
+   `operational_failures/checkpoint_race_windows009216000`；3 files /
+   45,977 bytes，tree SHA-256
+   `b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd`，
+   内容未修改、未删除。原`train.log`、`returncode.txt`、resolved config、manifest、
+   preflight、initial-stability和checkpoint artifacts全部保留，不得覆盖或伪装成成功。
+
+3. **同一scientific lineage，而非第二次实验预算。** 唯一允许动作是从上述exact
+   `6,144,000`-window checkpoint在同一formal run id内继续到原固定
+   `61,440,000` windows / `30,000` updates。seed、split、model、sqrt-alpha-bar
+   routing、100-point relation、loss/reduction/weight、optimizer及其state、LR、batch、
+   DataLoader、profiling、checkpoint/validation cadence、budget和final-online规则全部
+   不变；不得从`9,216,000` partial state恢复，不得重启from-random、创建第二manifest/
+   formal id、延长预算或选择中间checkpoint。崩溃前未保存的1,500 updates丢弃并由exact
+   RNG/optimizer state重放；accepted lineage仍为30,000 updates，但实际GPU总成本须另报
+   已失败的4,500加continuation的27,000 updates，不得把重放隐藏为正常30,000-update wall。
+   该continuation不授权D2-AF1、任何sweep、consistency、HSIPrior或Mixer。
+
+4. **唯一source修复。** `_save_checkpoint()`只允许：
+
+   - 每个rank在任何write前检查自己的RNG sidecar是否已存在；
+   - 只有rank 0检查共享主checkpoint是否已存在；
+   - 通过collective collision flag使任一rank发现collision时全部rank同步fail closed；
+   - 全部rank通过collision preflight后增加barrier，再写各自sidecar；
+   - 保留sidecar写完后的barrier、rank-0主checkpoint atomic write和最终barrier。
+
+   peer sidecar绝不再作为collision；own sidecar或主checkpoint仍必须fail closed。不得修改
+   checkpoint cadence/schema/value、RNG内容、optimizer/model state、训练循环数学或任何
+   D2-AF source。必须增加collective顺序、peer-sidecar、own-sidecar和main-checkpoint
+   collision regression tests。
+
+5. **Hash-bound operational resume contract。** 修复后HEAD与checkpoint commit不同，
+   因此resume只能通过tracked immutable continuation JSON和既有generic commit-transition
+   guard共同授权。continuation contract必须精确绑定：
+
+   - same formal run id与seed 42；
+   - source/checkpoint commit `7202d32a7375e7197886c4f873688fd472e2c803`；
+   - exact checkpoint path/basename/SHA和`6,144,000` windows / `3,000` updates；
+   - 四个rank RNG sidecar SHA；
+   - exact failure-record path/SHA/classification/return code；
+   - exact partial archive path/tree SHA、文件数/bytes及原checkpoint目录已只清除该组
+     partial files；
+   - 原performance waiver target formal-source contract
+     `299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e`；
+   - source commit到唯一implementation target commit的
+     `git diff --binary` SHA、changed paths与target formal-source contract；
+   - science/config/budget unchanged、same-run only、new formal budget false。
+
+   允许的source-transition paths仅为base/D2-AF config、trainer checkpoint/provenance
+   guards、D2-AF regression tests及本plan/registry。任何checkpoint/RNG/failure/contract/
+   diff tamper、额外source path或current formal-source drift必须在GPU前停止。原failed
+   performance benchmark和one-time waiver仍原样保留；不得重分类为performance passed。
+
+6. **Resume execution与artifact规则。** Worker必须由authority committed clean object
+   fast-forward到完全相同的target commit，现场验证machine-local Python、四卡空闲、
+   data/assets/hash、checkpoint/failure/partial archive和source-transition。原manifest不
+   重建；新增且不覆盖
+   `resolved_hydra_config_resume.yaml`、`resume_preflight.json`、
+   `resume_contract.json`、`resume.log`、`resume_returncode.txt`和
+   `resume_initial_stability.json`。Resolved config必须无interpolation，并包含exact
+   checkpoint、continuation contract及source/target/diff binding。续训在worker-owned
+   persistent session运行；初始稳定、finite loss/gradient、显存和下一个完整cadence
+   checkpoint验证后停止主动轮询。
+
+7. **完成路径不变。** 训练完整结束后，`metrics.json`和`training_state.json`必须记录
+   resumed-from checkpoint、source/target/diff provenance及完整30,000-update结果。
+   Resume进程的内置wall/loss/validation/checkpoint-hash accumulators会从continuation
+   启动点重新累计，且raw throughput以累计processed windows为分子，因此不得把该raw值
+   报作完整run throughput；必须分别报告continuation wall/throughput、accepted-lineage
+   active wall/throughput和包含失败重放的总GPU cost。`tools/experiment.py finish`使用
+   既有hash-bound manifest transition，不修改该工具、不放宽dirty/overwrite检查。随后才按
+   原注册顺序执行fixed five-path internal、fixed native、non-destructive worker-initiated
+   recovery、双端tree/hash验证、compact result、`PHASE_1B_D2AF.md`和append-only
+   completion record。任何新的operational failure均保留，不自动改run id、删artifact或
+   改变科学协议。
+
+下一步仅允许提交本plan-only amendment与append-only registry hypothesis；随后实现上述
+最小checkpoint-race fix、D2-AF专用continuation validator/config/tests，并创建绑定唯一
+implementation commit的immutable continuation contract。所有authority/worker CPU与
+preflight contracts通过前不得恢复GPU训练。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
