@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "run_id": "p1-hoi-d2af-checkpoint-race-continuation-s42-20260729",
+  "status": "authorized",
+  "classification": "ddp-checkpoint-sidecar-existence-race-operational-continuation",
+  "authorized_at": "2026-07-29T23:49:03+08:00",
+  "formal_run_id": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729",
+  "seed": 42,
+  "manifest": {
+    "relative_path": "manifest.json",
+    "sha256": "985192f686de2d4330cb82c826b648a08d12b7ed55c0bd4c8d196951d05b589b",
+    "bytes": 11782,
+    "status": "running",
+    "source_commit": "7202d32a7375e7197886c4f873688fd472e2c803"
+  },
+  "checkpoint": {
+    "basename": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows006144000.pth",
+    "sha256": "3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e",
+    "bytes": 361283695,
+    "processed_windows": 6144000,
+    "optimizer_updates": 3000,
+    "epoch": 10,
+    "batches_consumed_in_epoch": 230,
+    "source_commit": "7202d32a7375e7197886c4f873688fd472e2c803",
+    "rng_sidecars": [
+      {
+        "rank": 0,
+        "basename": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows006144000.rank0.rng.pth",
+        "sha256": "ebc379497baa4da38c71b5d100ccb179afd6cbf7f629f6d9ba4cd0bf3abfaaae",
+        "bytes": 15347
+      },
+      {
+        "rank": 1,
+        "basename": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows006144000.rank1.rng.pth",
+        "sha256": "ac0184e9746b55fc1e6bde4bfba6f6038951587d782e520fd2884e89036b2ecc",
+        "bytes": 15283
+      },
+      {
+        "rank": 2,
+        "basename": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows006144000.rank2.rng.pth",
+        "sha256": "91ddfbd38b8781dd82f112180ade468372e164075b679b65c8368e102ae24229",
+        "bytes": 15283
+      },
+      {
+        "rank": 3,
+        "basename": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows006144000.rank3.rng.pth",
+        "sha256": "f5063b69ff77d837a9f223744b826e0f93176004b955037b5538b502a32d353d",
+        "bytes": 15347
+      }
+    ]
+  },
+  "failure": {
+    "relative_path": "operational_checkpoint_race_failure.json",
+    "sha256": "a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1",
+    "status": "operational-failure-preserved",
+    "classification": "ddp-checkpoint-sidecar-existence-race-operational-failure",
+    "return_code": 1,
+    "processed_windows_attempted": 9216000,
+    "optimizer_updates_attempted": 4500,
+    "scientific_math_involved": false
+  },
+  "partial_archive": {
+    "relative_path": "operational_failures/checkpoint_race_windows009216000",
+    "sha256": "b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd",
+    "files": 3,
+    "bytes": 45977,
+    "content_modified": false,
+    "deleted": false,
+    "checkpoint_directory_partial_files_remaining": 0
+  },
+  "source_transition": {
+    "source_commit": "7202d32a7375e7197886c4f873688fd472e2c803",
+    "target_implementation_commit": "b7248bba3e77234c8f2a5993d8bf3ee8a1db2757",
+    "changed_paths": [
+      "code/config/config_train_hoi_prior.yaml",
+      "code/config/config_train_hoi_prior_d2af.yaml",
+      "code/train_hoi_prior.py",
+      "docs/EXPERIMENT_PLAN.md",
+      "experiments/registry.jsonl",
+      "tests/test_hoi_d2af.py"
+    ],
+    "diff_sha256": "19778c2dac54ae080b241dabb1215dd55d6defa0e231c301ccee2ed48d43498a",
+    "source_formal_contract": {
+      "algorithm": "git-ls-files-path-content-sha256-v1",
+      "scopes": [
+        "code",
+        "tools/benchmark_hoi_d2af.py",
+        "tools/benchmark_hoi_d2ae.py",
+        "tools/smoke_hoi_d2af.py",
+        "tools/smoke_hoi_d2ae.py",
+        "tools/diagnose_hoi_d2af.py",
+        "tools/diagnose_hoi_d2ae.py",
+        "tools/run_hoi_d2af_eligibility.py",
+        "tools/smoke_hoi_d2ac.py",
+        "tools/capture_hoi_worker_preflight.py",
+        "tools/experiment.py"
+      ],
+      "tracked_file_count": 91,
+      "sha256": "299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e"
+    },
+    "target_formal_contract": {
+      "algorithm": "git-ls-files-path-content-sha256-v1",
+      "scopes": [
+        "code",
+        "tools/benchmark_hoi_d2af.py",
+        "tools/benchmark_hoi_d2ae.py",
+        "tools/smoke_hoi_d2af.py",
+        "tools/smoke_hoi_d2ae.py",
+        "tools/diagnose_hoi_d2af.py",
+        "tools/diagnose_hoi_d2ae.py",
+        "tools/run_hoi_d2af_eligibility.py",
+        "tools/smoke_hoi_d2ac.py",
+        "tools/capture_hoi_worker_preflight.py",
+        "tools/experiment.py"
+      ],
+      "tracked_file_count": 91,
+      "sha256": "daa57294f4d25db4591a2ef6bcbe8157ca812b99b3b1dfe4c6c01aaf23c2ffd4"
+    }
+  },
+  "execution_transition": {
+    "allowed_changed_paths": [
+      "code/config/config_train_hoi_prior.yaml",
+      "code/config/config_train_hoi_prior_d2af.yaml",
+      "code/train_hoi_prior.py",
+      "docs/EXPERIMENT_PLAN.md",
+      "experiments/contracts/p1_hoi_d2af_checkpoint_race_continuation_s42_20260729.json",
+      "experiments/registry.jsonl",
+      "tests/test_hoi_d2af.py",
+      "tests/test_hoi_d2af_lifecycle_cpu.py"
+    ],
+    "target_must_equal_current_head": true,
+    "diff_sha256_bound_in_resolved_config": true
+  },
+  "continuation": {
+    "same_run_only": true,
+    "new_formal_run": false,
+    "from_random_restart": false,
+    "resume_processed_windows": 6144000,
+    "resume_optimizer_updates": 3000,
+    "replayed_uncheckpointed_updates": 1500,
+    "continuation_optimizer_updates": 27000,
+    "target_processed_windows": 61440000,
+    "target_optimizer_updates": 30000,
+    "accepted_lineage_optimizer_updates": 30000,
+    "actual_total_gpu_optimizer_updates": 31500,
+    "checkpoint_selection": false,
+    "budget_extension": false,
+    "second_formal_budget": false,
+    "original_manifest_reused": true
+  },
+  "scientific_conditions": {
+    "model_math_changed": false,
+    "relation_builder_or_routing_changed": false,
+    "loss_or_optimizer_changed": false,
+    "batch_or_budget_changed": false,
+    "data_loader_or_worker_configuration_changed": false,
+    "evaluation_protocol_changed": false
+  },
+  "reporting": {
+    "raw_resume_throughput_is_not_full_lineage_throughput": true,
+    "continuation_wall_and_throughput_required": true,
+    "accepted_lineage_active_wall_and_throughput_required": true,
+    "failed_replay_total_gpu_cost_required": true
+  }
+}

@@ -6431,6 +6431,46 @@ models、diffusion、relation、loss、DataLoader、sampler、evaluator、`tools
 own-sidecar collision时四rank全部同步拒绝。上述verification仍未读取scientific
 checkpoint或启动GPU workload。
 
+#### 2026-07-29 Phase 1B D2-AF0 checkpoint-race continuation contract binding
+
+唯一immutable continuation contract已在implementation commit
+`b7248bba3e77234c8f2a5993d8bf3ee8a1db2757`之后创建为
+`experiments/contracts/p1_hoi_d2af_checkpoint_race_continuation_s42_20260729.json`，
+SHA-256为
+`1a4ddf3b220b96f7aea0f1de7c0b8fd3fd9458eb913d284aaacc85a7fa226424`。
+该contract只授权原run
+`p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`从唯一完整的
+6,144,000-window / 3,000-update checkpoint继续同一manifest；不创建新formal run、
+不从随机初始化重启、不使用不完整的9,216,000-window保存点，也不改变模型、relation、
+loss、optimizer、batch、budget、DataLoader或evaluation协议。
+
+Contract精确绑定：
+
+- 原running manifest SHA-256
+  `985192f686de2d4330cb82c826b648a08d12b7ed55c0bd4c8d196951d05b589b`；
+- resume checkpoint SHA-256
+  `3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e`
+  及四rank RNG sidecar hashes；
+- preserved operational failure SHA-256
+  `a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1`
+  与partial archive tree SHA-256
+  `b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd`；
+- source commit `7202d32a7375e7197886c4f873688fd472e2c803`、implementation target
+  `b7248bba3e77234c8f2a5993d8bf3ee8a1db2757`及binary diff SHA-256
+  `19778c2dac54ae080b241dabb1215dd55d6defa0e231c301ccee2ed48d43498a`；
+- source/target formal-source contract SHA-256分别为
+  `299d7a900c6a96264dd698c50ef476ea78d2b2efdfbb3b0e375d27d99101cc3e`
+  和
+  `daa57294f4d25db4591a2ef6bcbe8157ca812b99b3b1dfe4c6c01aaf23c2ffd4`。
+
+JSON syntax、contract SHA、source transition diff与changed paths均在authority重算通过。
+Continuation最终accepted lineage仍固定为61,440,000 windows / 30,000 updates；失败尝试
+执行4,500 updates，continuation从3,000继续27,000 updates，因此实际GPU执行成本必须显式
+报告为31,500 updates，不能将重放隐藏在raw resumed throughput中。本binding commit之后，
+formal workload完成并关闭manifest前不得再改变execution HEAD。下一步仅允许worker发起
+Git fast-forward、验证相同clean object与machine-local Python，生成不覆盖原文件的resolved
+resume config/preflight/contract/log artifacts，并恢复原persistent lineage。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
