@@ -5932,6 +5932,56 @@ CUDA workload、optimizer update、checkpoint load/write、训练或评测。
    Formal training仍严格条件化于所有pretraining gates，且无论D2-AF0最终结果如何都不再
    启动下一次HOIPrior实验。
 
+#### 2026-07-29 Phase 1B D2-AF0 authority CPU contract completion record
+
+Reportable authority run `p1-hoi-d2af-cpu-contract-s42-20260729` 在 clean
+implementation commit
+`cae7d4ed64fbc6c15b046c0d17b0cbdefd365b41` 上完成，classification为
+`cpu-contract-passed`，runtime `9.5093920920 s`。Manifest在workload前由
+`tools/experiment.py start`创建，resolved config先独占落盘且SHA-256为
+`4377122c4f8abbba1c175f15f97f61e7e4034cac0cae3e6908c9aba01da21c45`；
+manifest完成后SHA-256为
+`9c7a05305a71f7907f1f056c3163037ebaa0daf0781753474e0da55d4fe50476`。
+
+CPU hard gate结果：
+
+- canonical schedule、`GaussianDiffusion`和四个模拟rank field buffer byte-exact，
+  sqrt-alpha-bar SHA-256为
+  `5d25c63d6618c77cc31976ee9e2c5645aa41653030fca210594a05254323b440`，
+  buffer均不进入`state_dict`；
+- mixed timesteps `(0,249,499)` 的
+  `delta_AF-rho*delta_unit` max abs为 `2.384185791015625e-07`，低于注册的
+  `1e-6`；错误shape/dtype/device/range全部被拒绝；
+- base/relation/total参数严格为
+  `29,673,448 / 413,953 / 30,087,401`，seed-42 initial state SHA-256严格为
+  `b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c`；
+- alpha=0与shared D2-X trunk output max abs为exact `0.0`；timestep
+  `0/249/499` 的initial alpha及test-only activated point/projection/norm/temporal/trunk
+  gradients全部finite/nonzero，probe未保存且optimizer update为0；
+- training中`q_sample`和model收到同一个timestep tensor object；sampler trace严格为
+  `499,...,0`，SHA-256为
+  `a3b41318496c448ebc2cfe9a9c2b727b777e00188ac8672160b6b51de2817661`；
+- D2-AF拒绝released/base/D2-X/D2-AC/D2-AD/D2-AE及缺失contract的伪D2-AF，
+  D2-AE反向拒绝D2-AF；scientific checkpoint load为0；
+- 全部继承的D2-AE sparse asset、surface-loss parity、yaw invariance、relative-pose
+  sensitivity、left/right exchange、temporal permutation、point-set invariance、
+  SO(3)/finite、train/sample builder、HSIPrior storage与Mixer clean-output contracts通过；
+- source static scan确认无Scene、future/clean target、previous `x0`、contact、
+  stored relation、NumPy/SciPy/trimesh/KD-tree、loss/SNR weighting、learned/per-anchor
+  schedule或第二writeback；
+- D2-AE与D2-AF resolved formal configs除注册identity/mechanism/eligibility/performance
+  bindings外无差异；formal source-tree contract为91 files，SHA-256
+  `68269a2cac8eaf6fd2b55b139bb2be5b5dbafde6e7f22496f5a894f18b843145`。
+
+Metrics和完整stdout log均为66,188 bytes、SHA-256
+`8726ad247b4b9b3828bbdef444426fa197cdb1b2f4333bfcd663fe6e4308eb7f`。
+Authority staging tree包含3 files / 135,456 bytes，统一`sha256_path`为
+`df730afb3685171099a7296fee87538e41cc64ae3ea61d50056eb87632221cd2`。
+本 lifecycle没有CUDA、optimizer、update、checkpoint load/write、official test、
+selection、formal training、consistency、HSIPrior或Mixer。下一步只允许提交本append-only
+record，然后由worker发起Git fast-forward并执行same-context preflight与注册的single-GPU
+functional smoke。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
