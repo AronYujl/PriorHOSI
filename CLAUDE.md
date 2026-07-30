@@ -13,3 +13,23 @@ an experiment:
 
 The proposal stage is read-only. Model/source changes and GPU workloads require the
 user's explicit approval of one concrete experiment.
+
+## Standing subagent authorization
+
+Dispatching subagents is pre-authorized; no per-turn request is required. Keep the
+main session on dispatch, progress tracking, and aggregation, and delegate concrete
+work to the `.claude/agents/` types by difficulty:
+
+- `worker-medium` — the spec and pass criteria are already fixed.
+- `worker-high` — cross-file implementation, refactoring, or non-trivial diagnosis.
+- `worker-max` — high-risk, hard to reverse, or requiring adversarial self-doubt.
+
+Subagents run with the same tools and permissions as the main session, so every rule
+above and in `AGENTS.md` binds them identically. In particular, no agent may create a
+commit or tag, allocate a run id, run `tools/experiment.py start`, or launch a GPU
+workload without the user's explicit approval of one concrete experiment.
+
+Subagents write long logs, tables, and diffs to `.claude/scratch/` (git-ignored) and
+return bounded structured summaries instead of pasted file contents. They must not
+create an untracked file anywhere else in the checkout: `tools/experiment.py` counts
+one as a dirty worktree and refuses to start a reportable run.

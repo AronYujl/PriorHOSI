@@ -26,3 +26,8 @@ data
 !experiments/**/*.jsonl
 !experiments/**/*.csv
 third_party/
+
+# Agent scratch space. Subagents write long logs/tables/diffs here instead of
+# returning them inline. Must stay ignored: tools/experiment.py treats any
+# untracked file as a dirty worktree and refuses to start a reportable run.
+.claude/scratch/
