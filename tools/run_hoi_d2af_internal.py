@@ -16,7 +16,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Mapping, Sequence
+from typing import Callable, Dict, List, Mapping, Optional, Sequence
 
 import numpy as np
 import torch
@@ -84,6 +84,79 @@ FAILURE_CLASSIFICATION = "diffusion-reliability-contract-failure-stop"
 EXPECTED_INITIAL_MODEL_STATE_SHA256 = (
     "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c"
 )
+FORMAL_TRAINING_RUN_ID = (
+    "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729"
+)
+FORMAL_CHECKPOINT_SOURCE_COMMIT = (
+    "7202d32a7375e7197886c4f873688fd472e2c803"
+)
+FORMAL_EXECUTION_TARGET_COMMIT = (
+    "044227fe512a9ee6d1c2a1bc898d3b8a2c6ca706"
+)
+FORMAL_EXECUTION_DIFF_SHA256 = (
+    "f0cba48ae5d1ba271750ef5d7c042d1b04e8ec6b5e60df00fca5f19c1db8f609"
+)
+FORMAL_MANIFEST_SHA256 = (
+    "49371a577a037444aef47fd5fda64f5d147ecd712247308b99b675d1edee55d3"
+)
+FORMAL_METRICS_SHA256 = (
+    "25b172f21d78d97412cb4eeeb79b43566d7e488286c383127a4edf0272c11903"
+)
+FORMAL_TRAINING_STATE_SHA256 = (
+    "8dcb3ea4e1e39d661bcef138de6ff347731db8eeb88213fe0b4e0ba83204f8a4"
+)
+FORMAL_RESUME_CONTRACT_SHA256 = (
+    "35240fb486b891a520ad3f08c9e557594349adc77b4868eca9547b845f540f2f"
+)
+FORMAL_COMPLETION_VERIFICATION_SHA256 = (
+    "a6263835cf79c6b803275c3d9c96c269aa1c2e75b1c8fea3fce4b4b56f7f1ec1"
+)
+FORMAL_CONTINUATION_CONTRACT_SHA256 = (
+    "1a4ddf3b220b96f7aea0f1de7c0b8fd3fd9458eb913d284aaacc85a7fa226424"
+)
+FORMAL_RESUME_CHECKPOINT_SHA256 = (
+    "3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e"
+)
+FORMAL_FINAL_CHECKPOINT_SHA256 = (
+    "483c63ecaeb6dbf5a0a54400e0eecec722ff6df6d72226ce263e7fe053e412e2"
+)
+FORMAL_FINAL_MODEL_STATE_SHA256 = (
+    "7b6e333724f21490c96a0599103cc7eb087b9452e64a8d3c2b9a5ce85ae704bb"
+)
+FORMAL_CADENCE_WINDOWS = tuple(
+    range(3_072_000, 61_440_000 + 1, 3_072_000)
+)
+FIRST_WINDOW_MODEL_INPUT_KEYS = {
+    "fixed_history",
+    "global_bps",
+    "local_goals",
+    "normalized_progress",
+    "rest_object_points",
+    "world_to_local_rotation",
+    "object_rotation_reference",
+    "position_minimum",
+    "position_maximum",
+    "object_minimum",
+    "object_maximum",
+}
+FIRST_WINDOW_MODEL_INPUT_SHAPES = {
+    "fixed_history": [8, 2, 232],
+    "global_bps": [8, 1024, 3],
+    "local_goals": [8, 9],
+    "normalized_progress": [8, 3],
+    "rest_object_points": [8, 100, 3],
+    "world_to_local_rotation": [8, 3, 3],
+    "object_rotation_reference": [8, 3, 3],
+    "position_minimum": [3],
+    "position_maximum": [3],
+    "object_minimum": [3],
+    "object_maximum": [3],
+}
+EXPECTED_INTERNAL_STREAM_COORDINATES = tuple(
+    (chunk_index, window_index)
+    for chunk_index in range(8)
+    for window_index in range(3)
+)
 DIFFUSION_STEPS = 500
 
 
@@ -106,6 +179,721 @@ def sha256_json(value: object) -> str:
     ).hexdigest()
 
 
+def state_mapping_sha256(state: Mapping[str, torch.Tensor]) -> str:
+    digest = hashlib.sha256()
+    for name, value in sorted(state.items()):
+        tensor = value.detach().contiguous().cpu()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(tuple(tensor.shape)).encode("ascii"))
+        digest.update(str(tensor.dtype).encode("ascii"))
+        digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def load_json_object(path: Path) -> Dict[str, object]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"D2-AF expected JSON object: {path}")
+    return value
+
+
+def expected_formal_cadence_names(training_run_id: str) -> List[str]:
+    names = []
+    for processed_windows in FORMAL_CADENCE_WINDOWS:
+        stem = f"{training_run_id}_windows{processed_windows:09d}"
+        names.append(f"{stem}.pth")
+        names.extend(f"{stem}.rank{rank}.rng.pth" for rank in range(4))
+    return sorted(names)
+
+
+def inspect_formal_cadence_checkpoint(
+    path: Path,
+    *,
+    processed_windows: int,
+    optimizer_updates: int,
+) -> Dict[str, object]:
+    checkpoint = torch.load(path, map_location="cpu")
+    expected_commit = (
+        FORMAL_CHECKPOINT_SOURCE_COMMIT
+        if processed_windows <= 6_144_000
+        else FORMAL_EXECUTION_TARGET_COMMIT
+    )
+    expected_stem = (
+        f"{FORMAL_TRAINING_RUN_ID}_windows{processed_windows:09d}"
+    )
+    checks = {
+        "mapping": isinstance(checkpoint, Mapping),
+        "schema_version": checkpoint.get("schema_version") == 2,
+        "checkpoint_type": (
+            checkpoint.get("checkpoint_type") == "hoi_prior_phase1b"
+        ),
+        "run_id": checkpoint.get("run_id") == FORMAL_TRAINING_RUN_ID,
+        "seed": checkpoint.get("seed") == 42,
+        "processed_windows": (
+            checkpoint.get("processed_windows") == processed_windows
+        ),
+        "processed_frames": (
+            checkpoint.get("processed_frames") == processed_windows * 16
+        ),
+        "optimizer_updates": (
+            checkpoint.get("optimizer_updates") == optimizer_updates
+        ),
+        "architecture_variant": (
+            checkpoint.get("architecture_variant") == HOI_ARCHITECTURE_D2AF
+            and checkpoint.get("model_config", {}).get(
+                "architecture_variant"
+            ) == HOI_ARCHITECTURE_D2AF
+        ),
+        "rng_pattern": checkpoint.get("rng_pattern") == (
+            f"{expected_stem}.rank{{rank}}.rng.pth"
+        ),
+        "git_commit": checkpoint.get("git_commit") == expected_commit,
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            f"D2-AF cadence checkpoint schema mismatch for {path.name}: "
+            f"{failed}"
+        )
+    return {
+        "checks": checks,
+        "git_commit": expected_commit,
+        "processed_windows": processed_windows,
+        "processed_frames": processed_windows * 16,
+        "optimizer_updates": optimizer_updates,
+        "rng_pattern": f"{expected_stem}.rank{{rank}}.rng.pth",
+    }
+
+
+def inspect_formal_rng_sidecar(path: Path) -> Dict[str, object]:
+    state = torch.load(path, map_location="cpu")
+    checks = {
+        "mapping": isinstance(state, Mapping),
+        "exact_keys": (
+            isinstance(state, Mapping)
+            and set(state) == {"cuda", "numpy", "python", "torch"}
+        ),
+        "torch_tensor": (
+            isinstance(state, Mapping)
+            and torch.is_tensor(state.get("torch"))
+            and state["torch"].numel() > 0
+        ),
+        "cuda_tensor": (
+            isinstance(state, Mapping)
+            and torch.is_tensor(state.get("cuda"))
+            and state["cuda"].numel() > 0
+        ),
+        "python_tuple": (
+            isinstance(state, Mapping)
+            and isinstance(state.get("python"), tuple)
+            and bool(state["python"])
+        ),
+        "numpy_tuple": (
+            isinstance(state, Mapping)
+            and isinstance(state.get("numpy"), tuple)
+            and bool(state["numpy"])
+        ),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            f"D2-AF cadence RNG schema mismatch for {path.name}: {failed}"
+        )
+    return {"checks": checks, "schema_keys": sorted(state)}
+
+
+def _inspection_passed(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    checks = value.get("checks", {})
+    return (
+        isinstance(checks, Mapping)
+        and bool(checks)
+        and all(bool(passed) for passed in checks.values())
+    )
+
+
+def _formal_cadence_record_path_exact(
+    record_path: object,
+    expected_name: str,
+) -> bool:
+    if not isinstance(record_path, str):
+        return False
+    parts = Path(record_path).parts
+    return (
+        len(parts) >= 2
+        and tuple(parts[-2:]) == ("checkpoints", expected_name)
+    )
+
+
+def validate_formal_completion_verification(
+    *,
+    payload: Mapping[str, object],
+    checkpoint_directory: Path,
+    resume_contract: Mapping[str, object],
+    file_sha256: Optional[Callable[[Path], str]] = None,
+    checkpoint_inspector: Optional[
+        Callable[..., Mapping[str, object]]
+    ] = None,
+    rng_inspector: Optional[Callable[[Path], Mapping[str, object]]] = None,
+) -> Dict[str, object]:
+    file_sha256 = file_sha256 or sha256_file
+    checkpoint_inspector = (
+        checkpoint_inspector or inspect_formal_cadence_checkpoint
+    )
+    rng_inspector = rng_inspector or inspect_formal_rng_sidecar
+    checkpoint_directory = checkpoint_directory.resolve()
+    expected_names = expected_formal_cadence_names(FORMAL_TRAINING_RUN_ID)
+    directory_names = sorted(path.name for path in checkpoint_directory.iterdir())
+    top_checks = {
+        "schema_version": payload.get("schema_version") == 1,
+        "status": (
+            payload.get("status") == "formal-training-completion-verified"
+        ),
+        "classification": payload.get("classification")
+        == "d2af-formal-continuation-completion-verification",
+        "run_id": payload.get("run_id") == FORMAL_TRAINING_RUN_ID,
+        "execution_head": (
+            payload.get("execution_head") == FORMAL_EXECUTION_TARGET_COMMIT
+        ),
+        "all_checks_passed": payload.get("all_checks_passed") is True,
+        "failed_checks": payload.get("failed_checks") == [],
+        "registered_checks": (
+            isinstance(payload.get("checks"), Mapping)
+            and bool(payload["checks"])
+            and all(bool(value) for value in payload["checks"].values())
+        ),
+        "directory_file_set": directory_names == expected_names,
+    }
+    failed = sorted(name for name, passed in top_checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            f"D2-AF formal completion verification mismatch: {failed}"
+        )
+
+    rows = payload.get("cadence_checkpoints", [])
+    if not isinstance(rows, list) or len(rows) != len(FORMAL_CADENCE_WINDOWS):
+        raise ValueError(
+            "D2-AF formal completion verification cadence row count mismatch"
+        )
+    cadence_artifacts = []
+    resume_row_files = None
+    for row_index, (row, processed_windows) in enumerate(
+        zip(rows, FORMAL_CADENCE_WINDOWS)
+    ):
+        optimizer_updates = processed_windows // 2048
+        if (
+            not isinstance(row, Mapping)
+            or row.get("processed_windows") != processed_windows
+            or row.get("optimizer_updates") != optimizer_updates
+        ):
+            raise ValueError(
+                "D2-AF formal completion verification cadence progress "
+                f"mismatch at row {row_index}"
+            )
+        file_records = row.get("files", [])
+        if not isinstance(file_records, list) or len(file_records) != 5:
+            raise ValueError(
+                "D2-AF formal completion verification cadence files "
+                f"mismatch at row {row_index}"
+            )
+        expected_stem = (
+            f"{FORMAL_TRAINING_RUN_ID}_windows{processed_windows:09d}"
+        )
+        expected_specs = [
+            ("checkpoint", None, f"{expected_stem}.pth"),
+            *[
+                (
+                    "rng_sidecar",
+                    rank,
+                    f"{expected_stem}.rank{rank}.rng.pth",
+                )
+                for rank in range(4)
+            ],
+        ]
+        row_files = []
+        for record, (kind, rank, expected_name) in zip(
+            file_records, expected_specs
+        ):
+            expected_keys = (
+                {"bytes", "kind", "path", "sha256"}
+                if kind == "checkpoint"
+                else {
+                    "bytes",
+                    "kind",
+                    "path",
+                    "rank",
+                    "schema_valid",
+                    "sha256",
+                }
+            )
+            if (
+                not isinstance(record, Mapping)
+                or set(record) != expected_keys
+                or record.get("kind") != kind
+                or (
+                    rank is not None
+                    and (
+                        record.get("rank") != rank
+                        or record.get("schema_valid") is not True
+                    )
+                )
+                or not _formal_cadence_record_path_exact(
+                    record.get("path"), expected_name
+                )
+                or not isinstance(record.get("bytes"), int)
+                or int(record["bytes"]) <= 0
+                or re.fullmatch(
+                    r"[0-9a-f]{64}", str(record.get("sha256", ""))
+                )
+                is None
+            ):
+                raise ValueError(
+                    "D2-AF formal completion verification file record "
+                    f"mismatch: {expected_name}"
+                )
+            actual_path = checkpoint_directory / expected_name
+            if actual_path.is_symlink() or not actual_path.is_file():
+                raise ValueError(
+                    "D2-AF formal completion verification requires a "
+                    f"regular non-symlink file: {expected_name}"
+                )
+            actual_bytes = actual_path.stat().st_size
+            actual_sha256 = file_sha256(actual_path)
+            if (
+                actual_bytes != record["bytes"]
+                or actual_sha256 != record["sha256"]
+            ):
+                raise ValueError(
+                    "D2-AF formal completion verification file content "
+                    f"mismatch: {expected_name}"
+                )
+            if kind == "checkpoint":
+                inspection = checkpoint_inspector(
+                    actual_path,
+                    processed_windows=processed_windows,
+                    optimizer_updates=optimizer_updates,
+                )
+            else:
+                inspection = rng_inspector(actual_path)
+            if not _inspection_passed(inspection):
+                raise ValueError(
+                    "D2-AF formal completion verification file schema "
+                    f"mismatch: {expected_name}"
+                )
+            closed = {
+                "kind": kind,
+                "rank": rank,
+                "relative_path": f"checkpoints/{expected_name}",
+                "path": str(actual_path),
+                "bytes": actual_bytes,
+                "sha256": actual_sha256,
+                "inspection": dict(inspection),
+            }
+            row_files.append(closed)
+            cadence_artifacts.append(closed)
+        if processed_windows == 6_144_000:
+            resume_row_files = row_files
+
+    if resume_row_files is None:
+        raise ValueError("D2-AF formal completion resume cadence row is missing")
+    resume_checkpoint = resume_contract.get("checkpoint", {})
+    completion_resume_checkpoint = resume_row_files[0]
+    resume_checkpoint_exact = (
+        isinstance(resume_checkpoint, Mapping)
+        and resume_checkpoint.get("processed_windows") == 6_144_000
+        and resume_checkpoint.get("optimizer_updates") == 3_000
+        and resume_checkpoint.get("bytes")
+        == completion_resume_checkpoint["bytes"]
+        and resume_checkpoint.get("sha256")
+        == completion_resume_checkpoint["sha256"]
+        and _formal_cadence_record_path_exact(
+            resume_checkpoint.get("path"),
+            Path(completion_resume_checkpoint["path"]).name,
+        )
+    )
+    resume_rng = resume_contract.get("rng_sidecars", [])
+    completion_rng = resume_row_files[1:]
+    resume_rng_exact = (
+        isinstance(resume_rng, list)
+        and len(resume_rng) == 4
+        and all(
+            isinstance(record, Mapping)
+            and record.get("rank") == rank
+            and record.get("bytes") == completion_rng[rank]["bytes"]
+            and record.get("sha256") == completion_rng[rank]["sha256"]
+            and record.get("schema_valid") is True
+            and record.get("binding_exact") is True
+            and record.get("schema_keys")
+            == ["cuda", "numpy", "python", "torch"]
+            and _formal_cadence_record_path_exact(
+                record.get("path"),
+                Path(completion_rng[rank]["path"]).name,
+            )
+            for rank, record in enumerate(resume_rng)
+        )
+    )
+    if not resume_checkpoint_exact or not resume_rng_exact:
+        raise ValueError(
+            "D2-AF formal completion verification resume binding mismatch"
+        )
+
+    final_checkpoint = payload.get("final_checkpoint", {})
+    final_artifact = cadence_artifacts[-5]
+    if not (
+        isinstance(final_checkpoint, Mapping)
+        and final_checkpoint.get("processed_windows") == 61_440_000
+        and final_checkpoint.get("processed_frames") == 983_040_000
+        and final_checkpoint.get("optimizer_updates") == 30_000
+        and final_checkpoint.get("bytes") == final_artifact["bytes"]
+        and final_checkpoint.get("sha256") == FORMAL_FINAL_CHECKPOINT_SHA256
+        and final_checkpoint.get("sha256") == final_artifact["sha256"]
+        and final_checkpoint.get("model_state_sha256")
+        == FORMAL_FINAL_MODEL_STATE_SHA256
+        and _formal_cadence_record_path_exact(
+            final_checkpoint.get("path"), Path(final_artifact["path"]).name
+        )
+    ):
+        raise ValueError(
+            "D2-AF formal completion verification final checkpoint mismatch"
+        )
+    return {
+        "checks": {
+            **top_checks,
+            "cadence_rows": True,
+            "cadence_file_records": True,
+            "cadence_file_contents": True,
+            "cadence_file_schemas": True,
+            "resume_checkpoint_binding": True,
+            "resume_rng_binding": True,
+            "final_checkpoint_binding": True,
+        },
+        "cadence_directory": str(checkpoint_directory),
+        "cadence_names": expected_names,
+        "cadence_main_checkpoints": len(FORMAL_CADENCE_WINDOWS),
+        "cadence_rng_sidecars": len(FORMAL_CADENCE_WINDOWS) * 4,
+        "artifacts": cadence_artifacts,
+    }
+
+
+def first_window_model_input_identity(
+    conditioning_by_variant: Mapping[str, Sequence[Mapping[str, object]]],
+) -> bool:
+    if set(conditioning_by_variant) != set(VARIANTS):
+        return False
+
+    def rows_for(variant: str) -> List[Dict[str, object]]:
+        source_rows = conditioning_by_variant[variant]
+        if (
+            not isinstance(source_rows, Sequence)
+            or [
+                (
+                    int(row.get("chunk_index", -1)),
+                    int(row.get("window_index", -1)),
+                )
+                for row in source_rows
+                if isinstance(row, Mapping)
+            ] != list(EXPECTED_INTERNAL_STREAM_COORDINATES)
+        ):
+            return []
+        rows = []
+        for row in source_rows:
+            model_inputs = row.get("path_local_model_inputs", {})
+            hashes = (
+                model_inputs.get("sha256", {})
+                if isinstance(model_inputs, Mapping)
+                else {}
+            )
+            shapes = (
+                model_inputs.get("shapes", {})
+                if isinstance(model_inputs, Mapping)
+                else {}
+            )
+            if (
+                not isinstance(model_inputs, Mapping)
+                or set(model_inputs) != {"shapes", "sha256"}
+                or not isinstance(hashes, Mapping)
+                or set(hashes) != FIRST_WINDOW_MODEL_INPUT_KEYS
+                or not isinstance(shapes, Mapping)
+                or dict(shapes) != FIRST_WINDOW_MODEL_INPUT_SHAPES
+                or not all(
+                    isinstance(value, str)
+                    and re.fullmatch(r"[0-9a-f]{64}", value)
+                    for value in hashes.values()
+                )
+            ):
+                return []
+            if int(row["window_index"]) != 0:
+                continue
+            rows.append({
+                "chunk_index": int(row.get("chunk_index", -1)),
+                "window_index": 0,
+                "shapes": dict(sorted(shapes.items())),
+                "sha256": dict(sorted(hashes.items())),
+            })
+        return rows
+
+    reference = rows_for("full_rho")
+    return bool(
+        reference
+        and len(reference) == 8
+        and all(rows_for(variant) == reference for variant in VARIANTS[1:])
+    )
+
+
+def artifact_closure_entry(
+    path: Path,
+    metrics_path: Path,
+    run_id: str,
+    *,
+    artifact_id: str,
+) -> Dict[str, object]:
+    if path.is_symlink():
+        raise ValueError("D2-AF internal closure artifact must not be a symlink")
+    path = path.resolve()
+    root = metrics_path.resolve().parent
+    try:
+        relative_path = path.relative_to(root).as_posix()
+    except ValueError as error:
+        raise ValueError(
+            "D2-AF internal closure artifact must share the metrics run root"
+        ) from error
+    return {
+        "artifact_id": artifact_id,
+        "relative_path": relative_path,
+        "run_id": run_id,
+        "sha256": sha256_file(path),
+        "bytes": path.stat().st_size,
+    }
+
+
+def internal_decision_evidence(
+    decision: Mapping[str, object],
+) -> Dict[str, object]:
+    evidence = {
+        "checks": decision.get("checks"),
+        "contract_passed": decision.get("contract_passed"),
+        "relation_path_used": decision.get("relation_path_used"),
+        "schedule_reliability_passed": decision.get(
+            "schedule_reliability_passed"
+        ),
+        "temporal_routing_passed": decision.get("temporal_routing_passed"),
+        "role_binding_passed": decision.get("role_binding_passed"),
+        "mechanism_passed": decision.get("mechanism_passed"),
+        "internal_status": decision.get("internal_status"),
+        "classification": decision.get("classification"),
+        "native_evaluation_authorized": decision.get(
+            "native_evaluation_authorized"
+        ),
+    }
+    return {
+        **evidence,
+        "canonical_sha256": sha256_json(evidence),
+    }
+
+
+def _formal_transition_exact(value: object) -> bool:
+    return (
+        isinstance(value, Mapping)
+        and value.get("mode") == "explicit_bound_transition"
+        and value.get("checkpoint_git_commit", value.get("source_commit"))
+        == FORMAL_CHECKPOINT_SOURCE_COMMIT
+        and value.get("current_git_commit", value.get("target_commit"))
+        == FORMAL_EXECUTION_TARGET_COMMIT
+        and value.get("diff_sha256") == FORMAL_EXECUTION_DIFF_SHA256
+    )
+
+
+def validate_formal_lineage_payloads(
+    *,
+    training_run_id: str,
+    target_checkpoint: Path,
+    target_sha256: str,
+    manifest: Mapping[str, object],
+    metrics: Mapping[str, object],
+    training_state: Mapping[str, object],
+    resume_contract: Mapping[str, object],
+    checkpoint: Mapping[str, object],
+    completion_verification: Mapping[str, object],
+    cadence_contract: Mapping[str, object],
+) -> Dict[str, object]:
+    expected_final_name = (
+        f"{FORMAL_TRAINING_RUN_ID}_windows061440000.pth"
+    )
+    expected_resume_name = (
+        f"{FORMAL_TRAINING_RUN_ID}_windows006144000.pth"
+    )
+    metric_rows = metrics.get("checkpoint_hashes", [])
+    metric_windows = (
+        sorted(int(row.get("processed_windows", -1)) for row in metric_rows)
+        if isinstance(metric_rows, list)
+        and all(isinstance(row, Mapping) for row in metric_rows)
+        else []
+    )
+    terminal_rows = [
+        row for row in metric_rows
+        if isinstance(row, Mapping)
+        and int(row.get("processed_windows", -1)) == 61_440_000
+        and row.get("sha256") == FORMAL_FINAL_CHECKPOINT_SHA256
+        and Path(str(row.get("path", ""))).name == expected_final_name
+    ]
+    manifest_metrics_file = manifest.get("metrics_file", {})
+    manifest_git = manifest.get("git", {})
+    manifest_final_git = manifest.get("final_git", {})
+    resume_checkpoint = resume_contract.get("checkpoint", {})
+    continuation_contract = resume_contract.get("continuation_contract", {})
+    progress_values = (metrics, training_state, checkpoint)
+    resume_paths = (
+        metrics.get("resume_checkpoint"),
+        training_state.get("resume_checkpoint"),
+        resume_checkpoint.get("path"),
+    )
+    checks = {
+        "fixed_training_run_id": training_run_id == FORMAL_TRAINING_RUN_ID,
+        "fixed_final_checkpoint_sha256": (
+            target_sha256 == FORMAL_FINAL_CHECKPOINT_SHA256
+        ),
+        "fixed_final_checkpoint_basename": (
+            target_checkpoint.name == expected_final_name
+        ),
+        "manifest_completed": (
+            manifest.get("schema_version") == 1
+            and manifest.get("experiment_id") == FORMAL_TRAINING_RUN_ID
+            and manifest.get("phase") == "p1"
+            and manifest.get("seed") == 42
+            and manifest.get("status") == "completed"
+            and bool(manifest.get("ended_at"))
+        ),
+        "manifest_metrics_binding": (
+            isinstance(manifest_metrics_file, Mapping)
+            and manifest_metrics_file.get("sha256") == FORMAL_METRICS_SHA256
+            and Path(str(manifest_metrics_file.get("path", ""))).name
+            == "metrics.json"
+            and manifest.get("metrics") == metrics
+        ),
+        "manifest_commit_transition": (
+            isinstance(manifest_git, Mapping)
+            and manifest_git.get("commit") == FORMAL_CHECKPOINT_SOURCE_COMMIT
+            and manifest_git.get("dirty") is False
+            and isinstance(manifest_final_git, Mapping)
+            and manifest_final_git.get("commit")
+            == FORMAL_EXECUTION_TARGET_COMMIT
+            and manifest_final_git.get("dirty") is False
+            and _formal_transition_exact(manifest.get("commit_transition"))
+        ),
+        "metrics_completed": (
+            metrics.get("schema_version") == 1
+            and metrics.get("run_id") == FORMAL_TRAINING_RUN_ID
+            and metrics.get("status") == "stable"
+            and metrics.get("git_commit") == FORMAL_EXECUTION_TARGET_COMMIT
+            and metrics.get("terminal_model_state_sha256")
+            == FORMAL_FINAL_MODEL_STATE_SHA256
+        ),
+        "training_state_completed": (
+            training_state.get("schema_version") == 1
+            and training_state.get("run_id") == FORMAL_TRAINING_RUN_ID
+            and training_state.get("seed") == 42
+            and training_state.get("status") == "completed"
+            and training_state.get("amp_overflow_skips") == 0
+            and Path(str(training_state.get("terminal_checkpoint", ""))).name
+            == expected_final_name
+            and training_state.get("terminal_checkpoint_sha256")
+            == FORMAL_FINAL_CHECKPOINT_SHA256
+        ),
+        "exact_terminal_progress": all(
+            value.get("processed_windows") == 61_440_000
+            and value.get("processed_frames") == 983_040_000
+            and value.get("optimizer_updates") == 30_000
+            for value in progress_values
+        ),
+        "resume_source_exact": (
+            all(Path(str(path)).name == expected_resume_name for path in resume_paths)
+            and metrics.get("resume_checkpoint_git_commit")
+            == FORMAL_CHECKPOINT_SOURCE_COMMIT
+            and training_state.get("resume_checkpoint_git_commit")
+            == FORMAL_CHECKPOINT_SOURCE_COMMIT
+            and resume_checkpoint.get("sha256")
+            == FORMAL_RESUME_CHECKPOINT_SHA256
+            and resume_checkpoint.get("processed_windows") == 6_144_000
+            and resume_checkpoint.get("optimizer_updates") == 3_000
+        ),
+        "transition_provenance_exact": all(
+            _formal_transition_exact(value)
+            for value in (
+                metrics.get("resume_commit_provenance"),
+                training_state.get("resume_commit_provenance"),
+                resume_contract.get("resume_commit_provenance"),
+            )
+        ),
+        "resume_contract_exact": (
+            resume_contract.get("schema_version") == 1
+            and resume_contract.get("run_id") == FORMAL_TRAINING_RUN_ID
+            and resume_contract.get("status") == "resume-contract-passed"
+            and resume_contract.get("all_checks_passed") is True
+            and resume_contract.get("failed_checks") == []
+            and resume_contract.get("read_only") is True
+            and bool(resume_contract.get("checks"))
+            and all(resume_contract.get("checks", {}).values())
+            and isinstance(continuation_contract, Mapping)
+            and continuation_contract.get("sha256")
+            == FORMAL_CONTINUATION_CONTRACT_SHA256
+            and continuation_contract.get("accepted_lineage_optimizer_updates")
+            == 30_000
+            and continuation_contract.get("actual_total_gpu_optimizer_updates")
+            == 31_500
+        ),
+        "checkpoint_contract_exact": (
+            checkpoint.get("sha256") == FORMAL_FINAL_CHECKPOINT_SHA256
+            and checkpoint.get("git_commit") == FORMAL_EXECUTION_TARGET_COMMIT
+            and checkpoint.get("model_state_sha256")
+            == FORMAL_FINAL_MODEL_STATE_SHA256
+            and bool(checkpoint.get("checks"))
+            and all(checkpoint.get("checks", {}).values())
+        ),
+        "checkpoint_metric_cadence": (
+            metric_windows == list(FORMAL_CADENCE_WINDOWS[2:])
+            and len(terminal_rows) == 1
+        ),
+        "completion_verification_exact": (
+            completion_verification.get("schema_version") == 1
+            and completion_verification.get("status")
+            == "formal-training-completion-verified"
+            and completion_verification.get("classification")
+            == "d2af-formal-continuation-completion-verification"
+            and completion_verification.get("run_id")
+            == FORMAL_TRAINING_RUN_ID
+            and completion_verification.get("execution_head")
+            == FORMAL_EXECUTION_TARGET_COMMIT
+            and completion_verification.get("all_checks_passed") is True
+            and completion_verification.get("failed_checks") == []
+        ),
+        "cadence_contract_exact": (
+            isinstance(cadence_contract.get("checks"), Mapping)
+            and bool(cadence_contract["checks"])
+            and all(cadence_contract["checks"].values())
+            and cadence_contract.get("cadence_main_checkpoints") == 20
+            and cadence_contract.get("cadence_rng_sidecars") == 80
+            and sorted(cadence_contract.get("cadence_names", []))
+            == expected_formal_cadence_names(FORMAL_TRAINING_RUN_ID)
+        ),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AF formal lineage contract mismatch: {failed}")
+    return {
+        "checks": checks,
+        "training_run_id": FORMAL_TRAINING_RUN_ID,
+        "checkpoint_source_commit": FORMAL_CHECKPOINT_SOURCE_COMMIT,
+        "execution_target_commit": FORMAL_EXECUTION_TARGET_COMMIT,
+        "execution_diff_sha256": FORMAL_EXECUTION_DIFF_SHA256,
+        "final_checkpoint_sha256": FORMAL_FINAL_CHECKPOINT_SHA256,
+        "final_model_state_sha256": FORMAL_FINAL_MODEL_STATE_SHA256,
+        "cadence_main_checkpoints": len(FORMAL_CADENCE_WINDOWS),
+        "cadence_rng_sidecars": len(FORMAL_CADENCE_WINDOWS) * 4,
+        "cadence_contract": dict(cadence_contract),
+    }
+
+
 def sampler_seed_label(chunk_index: int, window_index: int) -> str:
     if chunk_index < 0 or window_index not in range(base.WINDOWS_PER_SEQUENCE):
         raise ValueError("invalid D2-AF sampler seed coordinates")
@@ -125,6 +913,11 @@ def checkpoint_contract(
         raise ValueError("D2-AF internal requires the fixed final checkpoint basename")
     checkpoint = torch.load(path, map_location="cpu")
     initialization = checkpoint.get("weight_initialization", {})
+    model_state_sha256 = (
+        state_mapping_sha256(checkpoint["model"])
+        if isinstance(checkpoint.get("model"), dict)
+        else None
+    )
     reliability = validate_diffusion_reliability_contract(
         checkpoint.get("diffusion_reliability_contract")
     )
@@ -142,6 +935,9 @@ def checkpoint_contract(
         "optimizer_updates": checkpoint.get("optimizer_updates") == 30_000,
         "world_size": checkpoint.get("world_size") == 4,
         "effective_batch_size": checkpoint.get("effective_batch_size") == 2048,
+        "execution_target_commit": (
+            checkpoint.get("git_commit") == FORMAL_EXECUTION_TARGET_COMMIT
+        ),
         "architecture_variant": (
             checkpoint.get("architecture_variant") == HOI_ARCHITECTURE_D2AF
             and checkpoint.get("model_config", {}).get("architecture_variant")
@@ -178,6 +974,9 @@ def checkpoint_contract(
         ),
         "no_ema": checkpoint.get("ema_models") == {},
         "online_model": isinstance(checkpoint.get("model"), dict),
+        "terminal_model_state": (
+            model_state_sha256 == FORMAL_FINAL_MODEL_STATE_SHA256
+        ),
         "d2x_routing": resume.get("fk_foot_temporal_routing") is True,
         "d2ab_disabled": resume.get("d2ab_predicted_support_no_slip") is False,
         "d2ac_disabled": resume.get("d2ac_interaction_adapter") is not True,
@@ -198,12 +997,103 @@ def checkpoint_contract(
         "sha256": actual,
         "run_id": training_run_id,
         "git_commit": checkpoint.get("git_commit"),
+        "model_state_sha256": model_state_sha256,
+        "processed_windows": checkpoint.get("processed_windows"),
+        "processed_frames": checkpoint.get("processed_frames"),
+        "optimizer_updates": checkpoint.get("optimizer_updates"),
         "checks": checks,
         "initial_model_state_sha256": initialization.get(
             "initial_model_state_sha256"
         ),
         "diffusion_reliability_contract": reliability,
     }
+
+
+def formal_artifact_contract(args: argparse.Namespace) -> Dict[str, object]:
+    formal_root = args.formal_manifest.resolve().parent
+    completion_verification_path = (
+        formal_root / "formal_completion_verification.json"
+    )
+    if any(
+        path.resolve().parent != formal_root
+        for path in (
+            args.training_metrics,
+            args.training_state,
+            args.resume_contract,
+        )
+    ):
+        raise ValueError(
+            "D2-AF formal artifacts must share the completion-verification "
+            "run root"
+        )
+    bindings = {
+        "manifest": (
+            args.formal_manifest.resolve(),
+            args.formal_manifest_sha256,
+            FORMAL_MANIFEST_SHA256,
+        ),
+        "metrics": (
+            args.training_metrics.resolve(),
+            args.training_metrics_sha256,
+            FORMAL_METRICS_SHA256,
+        ),
+        "training_state": (
+            args.training_state.resolve(),
+            args.training_state_sha256,
+            FORMAL_TRAINING_STATE_SHA256,
+        ),
+        "resume_contract": (
+            args.resume_contract.resolve(),
+            args.resume_contract_sha256,
+            FORMAL_RESUME_CONTRACT_SHA256,
+        ),
+        "completion_verification": (
+            completion_verification_path,
+            FORMAL_COMPLETION_VERIFICATION_SHA256,
+            FORMAL_COMPLETION_VERIFICATION_SHA256,
+        ),
+    }
+    artifacts = {}
+    payloads = {}
+    for name, (path, supplied_sha256, fixed_sha256) in bindings.items():
+        actual_sha256 = sha256_file(path)
+        if supplied_sha256 != fixed_sha256 or actual_sha256 != supplied_sha256:
+            raise ValueError(
+                f"D2-AF formal {name} SHA-256 mismatch: {actual_sha256}"
+            )
+        payloads[name] = load_json_object(path)
+        artifacts[name] = {
+            "path": str(path),
+            "sha256": actual_sha256,
+            "bytes": path.stat().st_size,
+        }
+    checkpoint = checkpoint_contract(
+        args.target_checkpoint.resolve(),
+        args.target_sha256,
+        args.training_run_id,
+    )
+    checkpoint_directory = args.target_checkpoint.resolve().parent
+    cadence_contract = validate_formal_completion_verification(
+        payload=payloads["completion_verification"],
+        checkpoint_directory=checkpoint_directory,
+        resume_contract=payloads["resume_contract"],
+    )
+    lineage = validate_formal_lineage_payloads(
+        training_run_id=args.training_run_id,
+        target_checkpoint=args.target_checkpoint.resolve(),
+        target_sha256=args.target_sha256,
+        manifest=payloads["manifest"],
+        metrics=payloads["metrics"],
+        training_state=payloads["training_state"],
+        resume_contract=payloads["resume_contract"],
+        checkpoint=checkpoint,
+        completion_verification=payloads["completion_verification"],
+        cadence_contract=cadence_contract,
+    )
+    lineage["artifacts"] = artifacts
+    lineage["checkpoint"] = checkpoint
+    lineage["cadence_directory"] = cadence_contract["cadence_directory"]
+    return lineage
 
 
 def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
@@ -226,6 +1116,37 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
             "processed_windows": 61_440_000,
             "weight_variant": "online",
             "architecture_variant": HOI_ARCHITECTURE_D2AF,
+        },
+        "formal_lineage": {
+            "manifest": {
+                "path": str(args.formal_manifest.resolve()),
+                "sha256": args.formal_manifest_sha256,
+            },
+            "metrics": {
+                "path": str(args.training_metrics.resolve()),
+                "sha256": args.training_metrics_sha256,
+            },
+            "training_state": {
+                "path": str(args.training_state.resolve()),
+                "sha256": args.training_state_sha256,
+            },
+            "resume_contract": {
+                "path": str(args.resume_contract.resolve()),
+                "sha256": args.resume_contract_sha256,
+            },
+            "completion_verification": {
+                "path": str(
+                    args.formal_manifest.resolve().parent
+                    / "formal_completion_verification.json"
+                ),
+                "sha256": FORMAL_COMPLETION_VERIFICATION_SHA256,
+            },
+            "checkpoint_source_commit": FORMAL_CHECKPOINT_SOURCE_COMMIT,
+            "execution_target_commit": FORMAL_EXECUTION_TARGET_COMMIT,
+            "execution_diff_sha256": FORMAL_EXECUTION_DIFF_SHA256,
+            "final_model_state_sha256": FORMAL_FINAL_MODEL_STATE_SHA256,
+            "cadence_main_checkpoints": 20,
+            "cadence_rng_sidecars": 80,
         },
         "selection": {
             "partition": "internal_validation",
@@ -578,6 +1499,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-checkpoint", type=Path, required=True)
     parser.add_argument("--target-sha256", required=True)
     parser.add_argument("--training-run-id", required=True)
+    parser.add_argument("--formal-manifest", type=Path, required=True)
+    parser.add_argument("--formal-manifest-sha256", required=True)
+    parser.add_argument("--training-metrics", type=Path, required=True)
+    parser.add_argument("--training-metrics-sha256", required=True)
+    parser.add_argument("--training-state", type=Path, required=True)
+    parser.add_argument("--training-state-sha256", required=True)
+    parser.add_argument("--resume-contract", type=Path, required=True)
+    parser.add_argument("--resume-contract-sha256", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--metrics", type=Path, required=True)
     parser.add_argument("--resolved-config", type=Path, required=True)
@@ -596,20 +1525,34 @@ def _relation_window_identity(
     windows: Sequence[Mapping[str, object]],
 ) -> bool:
     expected_mode = "unit" if variant == "unit_rho" else "canonical"
+
+    def finite_at_most(value: object, maximum: float) -> bool:
+        return (
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and math.isfinite(float(value))
+            and float(value) <= maximum
+        )
+
     return all(
         window.get("rho_mode") == expected_mode
         and window.get("sqrt_alpha_bar_sha256") == SQRT_ALPHA_BAR_SHA256
         and int(window.get("forward_calls", -1)) == DIFFUSION_STEPS
-        and float(window.get("rho_batch_spread_max_abs", float("inf"))) <= 1.0e-7
+        and finite_at_most(window.get("rho_batch_spread_max_abs"), 1.0e-7)
         and (
-            float(window.get("rho_unit_max_abs", float("inf"))) <= 1.0e-7
+            finite_at_most(window.get("rho_unit_max_abs"), 1.0e-7)
             if expected_mode == "unit"
-            else float(
-                window.get("rho_canonical_max_abs", float("inf"))
-            ) <= 1.0e-7
+            else finite_at_most(
+                window.get("rho_canonical_max_abs"), 1.0e-7
+            )
         )
         for window in windows
     )
+
+
+def validate_internal_batch_size(batch_size: int) -> None:
+    if batch_size != 8:
+        raise ValueError("D2-AF internal batch size must be exactly 8")
 
 
 def main() -> None:
@@ -624,8 +1567,15 @@ def main() -> None:
         raise ValueError("invalid D2-AF formal training run id")
     if not re.fullmatch(r"[0-9a-f]{64}", args.target_sha256):
         raise ValueError("D2-AF target SHA-256 must be lowercase hexadecimal")
-    if args.batch_size <= 0 or 64 % args.batch_size:
-        raise ValueError("D2-AF internal batch size must evenly divide 64")
+    validate_internal_batch_size(args.batch_size)
+    for name in (
+        "formal_manifest_sha256",
+        "training_metrics_sha256",
+        "training_state_sha256",
+        "resume_contract_sha256",
+    ):
+        if not re.fullmatch(r"[0-9a-f]{64}", str(getattr(args, name))):
+            raise ValueError(f"{name} must be lowercase hexadecimal SHA-256")
     configured_python = os.environ.get("INFBAGEL_PYTHON")
     if (
         not configured_python
@@ -633,6 +1583,7 @@ def main() -> None:
         or Path(sys.executable).resolve() != Path(configured_python).resolve()
     ):
         raise ValueError("D2-AF internal requires the absolute INFBAGEL_PYTHON")
+    formal_lineage = formal_artifact_contract(args)
     config = resolved_config(args)
     if args.resolve_only:
         base.exclusive_json(args.resolved_config.resolve(), config)
@@ -659,11 +1610,7 @@ def main() -> None:
     started = time.perf_counter()
     author_utils.SMPL_DIR = str((REPO / "smpl_models").resolve())
     try:
-        checkpoint = checkpoint_contract(
-            args.target_checkpoint.resolve(),
-            args.target_sha256,
-            args.training_run_id,
-        )
+        checkpoint = formal_lineage["checkpoint"]
         asset_hashes = {
             "normalization": sha256_file((REPO / "data/train/norm.npy").resolve()),
             "bps": sha256_file((REPO / "code/bps.pt").resolve()),
@@ -846,6 +1793,10 @@ def main() -> None:
             )
             complete = rollout_core.variant_complete(records, kinematics)
             variant_value = {
+                "schema_version": 1,
+                "run_id": args.run_id,
+                "training_run_id": args.training_run_id,
+                "target_checkpoint_sha256": args.target_sha256,
                 "variant": variant,
                 "rho_mode": "unit" if variant == "unit_rho" else "canonical",
                 "history_max_abs": history_max_abs,
@@ -934,18 +1885,8 @@ def main() -> None:
             ]
             for variant in VARIANTS[1:]
         )
-        initial_history_identity = all(
-            [
-                row["path_local_model_inputs"]["sha256"]["fixed_history"]
-                for row in conditioning_by_variant[variant]
-                if int(row["window_index"]) == 0
-            ]
-            == [
-                row["path_local_model_inputs"]["sha256"]["fixed_history"]
-                for row in conditioning_by_variant["full_rho"]
-                if int(row["window_index"]) == 0
-            ]
-            for variant in VARIANTS[1:]
+        first_window_inputs_identity = first_window_model_input_identity(
+            conditioning_by_variant
         )
         path_local_provenance_exact = all(
             row["path_local_provenance"]["fixed_history_source"]
@@ -1007,7 +1948,10 @@ def main() -> None:
             "schema_version": 1,
             "run_id": args.run_id,
             "shared_exogenous": paired_exogenous_identity,
-            "shared_initial_history": initial_history_identity,
+            "shared_first_window_model_inputs": first_window_inputs_identity,
+            "first_window_model_input_keys": sorted(
+                FIRST_WINDOW_MODEL_INPUT_KEYS
+            ),
             "later_model_inputs": "path-local after causal rollout divergence",
             "path_local_provenance_exact": path_local_provenance_exact,
             "variants": conditioning_by_variant,
@@ -1026,6 +1970,7 @@ def main() -> None:
         sampler_source = inspect.getsource(rollout_core.rollout_chunk)
         diffusion_source = inspect.getsource(GaussianDiffusion.sample)
         contract = {
+            "formal_lineage": all(formal_lineage["checks"].values()),
             "checkpoint_contract": all(checkpoint["checks"].values()),
             "checkpoint_architecture_variant": (
                 metadata["architecture_variant"] == HOI_ARCHITECTURE_D2AF
@@ -1041,7 +1986,9 @@ def main() -> None:
             "paired_noise_identity": paired_noise_identity,
             "generator_draw_contract_exact": generator_draw_contract_exact,
             "paired_exogenous_condition_identity": paired_exogenous_identity,
-            "paired_initial_history_identity": initial_history_identity,
+            "paired_first_window_model_input_identity": (
+                first_window_inputs_identity
+            ),
             "path_local_condition_provenance": path_local_provenance_exact,
             "history_restoration": all(
                 float(variants[variant]["history_max_abs"]) <= HISTORY_MAX_ABS
@@ -1107,6 +2054,38 @@ def main() -> None:
             "official_test_absent": True,
         }
         decision = internal_mechanism_gate(contract, comparisons)
+        artifact_paths = {
+            **{
+                variant: output_dir / f"{variant}.json"
+                for variant in VARIANTS
+            },
+            "paired_noise": paired_noise_path,
+            "paired_conditioning": conditioning_path,
+            "causal_window_overlap": causal_overlap_path,
+            "diffusion_reliability_appendix": relation_path,
+        }
+        artifact_closure = {
+            "schema_version": 1,
+            "run_id": args.run_id,
+            "training_run_id": args.training_run_id,
+            "target_checkpoint_sha256": args.target_sha256,
+            "artifacts": {
+                artifact_id: artifact_closure_entry(
+                    path,
+                    args.metrics,
+                    args.run_id,
+                    artifact_id=artifact_id,
+                )
+                for artifact_id, path in artifact_paths.items()
+            },
+        }
+        if set(artifact_closure["artifacts"]) != set(VARIANTS) | {
+            "paired_noise",
+            "paired_conditioning",
+            "causal_window_overlap",
+            "diffusion_reliability_appendix",
+        }:
+            raise ValueError("D2-AF internal artifact closure is incomplete")
         relation_module = model.network.sparse_relation_field
         assert relation_module is not None
         result = {
@@ -1122,6 +2101,7 @@ def main() -> None:
                 key: value for key, value in selection.items() if key != "triples"
             },
             "target_checkpoint": checkpoint,
+            "formal_lineage": formal_lineage,
             "checkpoint_metadata": {
                 key: value
                 for key, value in metadata.items()
@@ -1149,6 +2129,8 @@ def main() -> None:
             "comparisons": comparisons,
             "contract": contract,
             "decision": decision,
+            "decision_evidence": internal_decision_evidence(decision),
+            "artifact_closure": artifact_closure,
             "internal_status": decision["internal_status"],
             "paired_noise": {
                 "path": str(paired_noise_path),

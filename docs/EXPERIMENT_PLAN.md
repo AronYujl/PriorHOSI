@@ -6615,6 +6615,49 @@ commit，现场验证Python/worker expert/data/evaluator hashes，按实际日�
 D2-AF1、second training、sweep、consistency、HSIPrior或Mixer；Phase 1B completion record
 提交前不进入Phase 1C。
 
+#### 2026-07-30 Phase 1B D2-AF0 evaluation provenance hardening implementation verification
+
+上述plan-only hardening已按注册范围实现，未修改model、diffusion、relation builder、
+training/loss/data、scientific sampler、metric、threshold、bootstrap或gate math。实现只涉及
+两个D2-AF evaluation runner、同一D2-AF eval regression test，以及本append-only
+plan/registry：
+
+- internal现在显式绑定completed formal manifest、metrics、training state、resume contract、
+  final-online checkpoint与`formal_completion_verification.json`；
+- recovered formal cadence必须恰好包含20个main checkpoints与80个rank RNG sidecars，
+  并逐文件验证regular/non-symlink、basename、kind/rank/window、bytes、SHA、checkpoint
+  schema/commit/progress/architecture/RNG pattern及RNG exact state schema；
+- 6,144,000-window resume checkpoint与四个sidecars、checkpoint-race continuation、
+  source/target commit及binary diff均交叉绑定；
+- internal batch严格锁定为8，五条paths固定24个`chunk × window` stream coordinates；
+  first-window完整model-input hashes必须跨paths相同，later windows只允许同一路径causal
+  history；
+- native不再信任internal summary/support自报布尔，而是从五个raw variants、paired noise、
+  paired conditioning、causal overlap与reliability appendix重新验证cohort/order、
+  selection、500-step schedule、relation trace、comparisons、seven gates及decision evidence；
+- artifact closure只接受metrics run root内的regular files，拒绝absolute path、escape与最终
+  symlink；
+- 最终审查识别的`rho_*_max_abs`/schedule sentinel NaN比较绕过已在GPU前修复；所有这些
+  scalar现在必须为finite real number，并新增self-consistent NaN raw-artifact regression。
+
+真实recovered formal tree验证通过：100个cadence files、7,226,924,444 bytes，全部16项
+formal-lineage checks为true。Authority验证为：
+
+- `tests.test_hoi_d2af_eval`：17/17 passed；
+- full `unittest discover -s tests`：432/432 passed；
+- existing registry：226 records validated；
+- project Python 3.8.20 `py_compile` passed；
+- `git diff --check` passed；
+- adversarial regressions覆盖different noise、future-GT/exogenous forgery、missing window、
+  forged cohort、empty relation、zero schedule、nonfinite relation scalar/sentinel、
+  nonfinite summary与excessive history。
+
+本verification期间checkpoint load、optimizer update与GPU workload均为0；fixed internal/
+native run id仍未使用。下一步先提交该logical implementation，再追加只绑定实际implementation
+Git object的governance-only record；随后worker仅可fast-forward到相同clean execution
+object并执行fixed internal。Internal contract失败立即停止；internal科学结果正负均不改变
+随后唯一native的执行要求。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
