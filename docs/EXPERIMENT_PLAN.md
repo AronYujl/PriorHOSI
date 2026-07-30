@@ -6537,6 +6537,84 @@ Worker与authority的`sha256_path`均为
 重复`rsync --checksum --dry-run`无差异。Fixed final-online不可选择、不可resume、不可用于
 任何后续prior初始化；下一步仍只允许预注册的five-path internal和一次fixed native。
 
+#### 2026-07-30 Phase 1B D2-AF0 evaluation provenance hardening（plan-only）
+
+在任何internal/native GPU workload前，对现有D2-AF evaluator做一次纯provenance
+hardening。核验时authority为clean
+`phase/01b-hoi@d51057c35485d9b5e1abc846a55dc2f4324f9659`，worker仍为clean
+`phase/01b-hoi@044227fe512a9ee6d1c2a1bc898d3b8a2c6ca706`。Identifier audit覆盖authority
+tracked worktree、Git history/refs/reflogs、staging、authority results及worker checkout/
+artifacts；以下identifier均未使用：
+
+- `p1-hoi-d2af-evaluation-provenance-hardening-s42-20260730`；
+- `d2af-evaluation-provenance-hardening`；
+- `p1-hoi-d2af-sqrt-alpha-bar-reliability-internal-s42-20260730`；
+- `p1-hoi-d2af-native-eval-s42-20260730`。
+
+本amendment不改变scientific protocol、checkpoint、cohort、sampler、intervention、metric、
+threshold、bootstrap、gate、classification precedence或native evaluator，只使已注册事实
+fail closed：
+
+1. **Internal formal-lineage binding。** Internal CLI/resolved config/manifest必须显式接收并
+   hash-bind completed formal `manifest.json`、`metrics.json`、`training_state.json`、
+   `resume_contract.json`与fixed final-online。Validator必须同时证明：
+
+   - manifest已completed并绑定唯一formal run；
+   - metrics/state均为61,440,000 windows、983,040,000 frames、30,000 accepted updates；
+   - final checkpoint basename/SHA、model-state SHA、architecture、seed、random origin、
+     20 main checkpoints与80 RNG sidecars一致；
+   - checkpoint source commit为
+     `7202d32a7375e7197886c4f873688fd472e2c803`，execution target为
+     `044227fe512a9ee6d1c2a1bc898d3b8a2c6ca706`，binary diff为
+     `f0cba48ae5d1ba271750ef5d7c042d1b04e8ec6b5e60df00fca5f19c1db8f609`；
+   - operational continuation只来自registered 6,144,000-window checkpoint，原failure/
+     partial archive bindings保持一致；
+   - fixed final-online checkpoint SHA仍为
+     `483c63ecaeb6dbf5a0a54400e0eecec722ff6df6d72226ce263e7fe053e412e2`。
+
+2. **Internal RNG/input identity。** Batch size从“64的任意因数”收紧为严格`8`，因为seed label
+   使用chunk index，改变batch会改变实际随机流。五条paths的first window必须比较完整
+   `path_local_model_inputs` identity，而不只比较fixed history；至少覆盖history、global
+   BPS、local goals、object/world rotation references及全部exogenous model inputs。
+   Later windows仍按各自causal generated history分叉，不能被错误要求相同。
+
+3. **Internal raw-artifact closure。** Summary必须记录并hash-bind五个raw variants：
+   `full_rho`、`unit_rho`、`relation_gate_ablated`、
+   `temporal_correspondence_permuted`、`left_right_role_swapped`，以及paired noise、
+   paired conditioning、causal overlap和reliability appendix。Existing seven internal
+   decision/gate booleans、paired sequence uncertainty、selection hash与schedule hash必须从
+   raw artifacts重算一致；不得新增诊断路径或改变gate math。
+
+4. **Native upstream closure。** Native CLI/resolved config/manifest必须显式hash-bind同一formal
+   manifest/metrics/state/resume contract与internal summary。Native preflight必须重新读取并
+   验证五个internal raw variants、supporting paired artifacts、seven decision/gate booleans及
+   它们的SHA；只接受上述唯一resumed lineage。Internal mechanism无论正负仍执行native，
+   只有contract failure停止。
+
+5. **Regression gate。** GPU前至少覆盖：
+
+   - completed resumed-lineage positive fixture；
+   - missing/tampered formal manifest、metrics、state或continuation contract；
+   - wrong source commit、execution target或binary diff；
+   - checkpoint/final lineage mismatch；
+   - internal batch size非8；
+   - first-window完整input identity mismatch；
+   - missing/tampered internal raw variant、gate或hash；
+   - native对formal/internal binding的positive与negative fixtures。
+
+6. **Allowed source scope与stop rule。** Logical implementation只允许修改
+   `tools/run_hoi_d2af_internal.py`、`tools/run_hoi_d2af_native_evaluation.py`、
+   `tests/test_hoi_d2af_eval.py`及本plan/registry；若测试需要，可在同一D2-AF eval test文件
+   内增加fixture/helper。不得修改models、diffusion、relation、loss、training、dataset、
+   official evaluator或sealed artifacts。任一hardening contract失败分类为
+   `diffusion-reliability-contract-failure-stop`，不得启动GPU workload。
+
+Hardening实现与full authority suite通过后，worker只允许Git fast-forward到完全相同的clean
+commit，现场验证Python/worker expert/data/evaluator hashes，按实际日期创建未使用run id，
+先registered fixed five-path internal，再无条件执行唯一一次fixed 438×3 native。不得启动
+D2-AF1、second training、sweep、consistency、HSIPrior或Mixer；Phase 1B completion record
+提交前不进入Phase 1C。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
