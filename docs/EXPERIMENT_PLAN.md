@@ -6670,6 +6670,178 @@ Logical implementation已提交为
 HEAD；其source代码必须与上述implementation object相同，随后才可创建registered internal
 manifest。
 
+#### 2026-07-30 Phase 1B D2-AF0 fixed internal causal diagnostic completion
+
+Reportable worker run
+`p1-hoi-d2af-sqrt-alpha-bar-reliability-internal-s42-20260730` 在
+infbagel-4gpu/node01 的clean evaluation execution commit
+`a4cdcf09f84553159be10c555ff8a6773b65d3aa` 上完成，exit code为0，runtime为
+`538.3266074708663 s`。Manifest在GPU workload前由相同execution context创建；resolved
+config无unresolved interpolation，worker source/Python/data/evaluator/formal-lineage
+preflight全部通过。Run只加载fixed final-online checkpoint
+`483c63ecaeb6dbf5a0a54400e0eecec722ff6df6d72226ce263e7fe053e412e2`，
+没有optimizer、training update、checkpoint write/selection或official test。
+
+固定D2-O cohort严格为64 sequences / 192 windows、phase offsets `(14,56,98)`、selection
+SHA-256
+`1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`。五条500-step
+paths为`full_rho / unit_rho / relation_gate_ablated /
+temporal_correspondence_permuted / left_right_role_swapped`；initial latent、每一步posterior
+noise、condition、history、window ordering和restoration按注册协议配对。全部formal
+lineage、schedule、current-state/current-timestep、first-window input identity、later-window
+path-local causality、raw artifact closure、finite、mask和no-write contracts通过。
+
+Learned alpha/gate为
+`-0.09250371903181076 / -0.09224077314138412`，但七个primary mechanism gates全部失败：
+
+- full-rho − unit-rho direct-hand union 5-cm F1：
+  `-0.0017534958725371544`，CI
+  `[-0.008731448896887319,0.005308128210568779]`；
+- unit-rho − full-rho GT-contact-frame distance：
+  `+0.026833171113742785 cm`，CI
+  `[-0.08000149312555654,0.15226497063856367]`；
+- full-rho − gate-ablated direct-hand union 5-cm F1：
+  `+0.012897639098904238`，CI
+  `[-0.027088665174081348,0.05341855160295159]`；
+- gate-ablated − full-rho distance：
+  `+0.4767763515114704 cm`，CI
+  `[-0.05841018885359712,1.0529788793694062]`；
+- full-rho − temporal-permuted direct-hand union 5-cm F1：
+  `+0.002165564488603878`，CI
+  `[-0.031244155095278628,0.043877801226154534]`；
+- temporal-permuted − full-rho distance：
+  `+0.23349129590381712 cm`，CI
+  `[-0.31420466831855565,0.8945656086402927]`；
+- full-rho − role-swapped direct-hand left/right macro-F1：
+  `+0.013202214669035858`，CI
+  `[-0.008038313502508903,0.035691421866214094]`。
+
+因此`relation_path_used / schedule_reliability_passed /
+temporal_routing_passed / role_binding_passed / mechanism_passed`均为false，
+`internal_status=unused`，classification严格为
+`diffusion-reliability-internal-unused-continue-native`。非零learned gate不替代causal
+evidence；internal结果不选择checkpoint，也不取消已注册的唯一native evaluation。
+
+Metrics、manifest、resolved config、preflight和run-local registry SHA-256分别为
+`38e5a641707cff9a880fea5d4c90b7d936290e912237e60baa2ecf25bde8ff52`、
+`1b3ad9792aa5df897982a482453561d2dfb7e56571404b19b060d9c16013ed96`、
+`c05c69adeb171dd018b814df6d72197b59e4c6c70bbe0a6bd9a5eb0243fb1e21`、
+`b1eb1aee4c3b2c0f67cc4a9bd810e7a3b7c570dd6db37028c4d44b610cb7ca7c`和
+`dc1b0e8526ff636a9642be8262b126a908ed0efed18ecec175a480eefd754efd`。
+五条raw paths、paired noise/conditioning、causal overlap和diffusion-reliability appendix
+均逐项hash闭合。Worker发起non-destructive recovery后，17 files / 224,452,243 bytes的
+worker/authority tree SHA-256均为
+`5d28e3abc02dcf62f781270fd0391e44f64f4172b7ff705257995be63faffeee`，
+checksum dry-run为0 differences。
+
+Internal正式run之前，一个launch-control wrapper因未canonicalize Python symlink而在创建
+run目录/manifest/artifact/GPU workload之前退出，正式run id未被占用；完成后一次tree-hash
+wrapper因错误cwd出现`ModuleNotFoundError: tools`，但artifact已成功传输且随后在正确repo
+root重算通过。两者均为operational wrapper noise，不是scientific/run failure，也不授权retry。
+
+#### 2026-07-30 Phase 1B D2-AF0 fixed native evaluation completion
+
+Reportable worker run `p1-hoi-d2af-native-eval-s42-20260730` 在相同clean commit
+`a4cdcf09f84553159be10c555ff8a6773b65d3aa` 上完成，exit code为0，runtime为
+`378.46187578188255 s`。Official evaluator执行438 sequences × 3 windows、500-step
+unguided production diffusion、final-online、seed 42和10,000 paired sequence bootstrap；
+CFG、guidance、scene conditioning、dynamic perception和consistency全部off。Sealed D2-X与
+D2-AE aggregate/per-sequence artifacts只读复用，没有重生成；D2-AE checkpoint未加载，也未
+用于initialization、resume、selection或candidate。
+
+D2-AF0 target point estimates为：
+
+- end-object `5.5734798312187195 cm`，Txy `4.607994854450226 cm`，
+  FS `0.3595817663400341`；
+- contact precision/recall/F1/coverage
+  `0.7909342632567542 / 0.5990408567110541 /
+  0.6410550040393033 / 0.4834384286439081`；
+- Pbody `3.5893259727196254`，hand penetration `0.2268892808331516`；
+- MPJPE `12.422095239162445 cm`，Troot/Tobj
+  `8.447693288326263 / 17.303804395245994 cm`，Oobj
+  `1.0007245875630288`。
+
+第一优先级D2-AE single-factor repair gate失败：
+
+- AF−AE contact F1：
+  `-0.0008888491232585847`，CI
+  `[-0.02435946905539561,0.022823955375799218]`；
+- AF−AE recall：
+  `+0.0029022340549778826`，CI
+  `[-0.023672364012952776,0.02978128354401244]`；
+- AF/AE end-object mean-ratio：
+  `1.2920819122177505`，CI
+  `[1.224156033921259,1.3639746920239342]`；
+- AF/AE FS ratio：
+  `0.9013030413462073`，CI
+  `[0.8455771344455049,0.960204522985284]`，仅该subgate通过。
+
+D2-X transfer也未通过：AF−X contact F1为
+`+0.003629064933324414`，CI
+`[-0.016673086777549785,0.024194001573353836]`；recall为
+`+0.004586162666655739`，CI
+`[-0.018407816634206476,0.02811076350108559]`；released gap closure仅
+`0.040398463734960754`，contact F1点估计低于`0.6598838781`。
+
+D2-X protection gate对end-object、Txy和Tobj失败，ratio CI upper分别为
+`1.5730099778138071 / 1.1801967402975144 / 1.1099017284465105`；FS、Pbody、
+hand penetration、MPJPE、Troot、Oobj和contact-precision checks通过。固定181-sequence
+penetration finite mask通过，sequence-ID SHA-256为
+`2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec`。
+Released-95%-effectiveness gate失败。
+
+按预注册classification priority，headline classification严格为
+`diffusion-reliability-ae-repair-negative-stop`；`checkpoint_selected=false`、
+`selectable_autonomous_diffusion_candidate=false`、`D2-AF1/consistency=false`，
+HOIPrior search closed。
+
+Metrics、manifest、resolved config、resolved target、preflight、run-local registry、
+aggregate和per-sequence SHA-256分别为
+`94fc71cd3d3fbbe87ac6ec38246e39fb0c965d630fd7626c604f0983a1248f56`、
+`10498fb42a02501859cfd0aaab484a7a606ee5f711134d7f009519723655de06`、
+`1aacaccee84eddaab141e3f4b31cfd3770db247d887512307ef279b3c549e4a9`、
+`d956821b273fd70dec1aa2b5f58db4b16b40ebf8f5ba71895e2ae9b382d593fe`、
+`8d9e8d2139e145487ea4193ca4a8b4b2fe89fc9afa8e0e6b5409b3238ff32fe9`、
+`31c1571a599350036e9b5c57ee5f0f77ed34f3dea2aae4657188b8e94d792fcc`、
+`417c245df047e4fd7724c7ddcc7f0884fffd5bda934fefe465fb904da400f488`和
+`7252931861dd2d4e60476a05cd7dd35d67aa7369995687de2dc9bcbc67c8acd5`。
+Worker发起non-destructive recovery后，16 files / 2,514,430 bytes的双端tree SHA-256均为
+`40a9925468e54966f726b2cccec4f55aa53caa92f2a0da188dccc435ebc5bd21`，
+checksum dry-run为0 differences。一次recovery wrapper最初只创建空staging目录而未传文件；
+同一空目录随后通过无`--delete` rsync完整恢复并hash闭合，保守分类为post-completion
+transfer-wrapper no-op，不改变任何workload/artifact/scientific result。
+
+#### 2026-07-30 Phase 1B D2-AF0 recovery and final closure
+
+D2-AF0的CPU、functional smoke、clean-signal eligibility、failed performance benchmark、
+user-authorized waiver、formal checkpoint-race failure/continuation、fixed internal和fixed
+native全部按append-only lifecycle保留。Formal/internal/native recovered trees分别为：
+
+- 156 files / 7,227,356,886 bytes /
+  `9bff3d9a182138ee30ca586b10d71f689e6aa0c7345d2b1052fe0ea15251dc6c`；
+- 17 files / 224,452,243 bytes /
+  `5d28e3abc02dcf62f781270fd0391e44f64f4172b7ff705257995be63faffeee`；
+- 16 files / 2,514,430 bytes /
+  `40a9925468e54966f726b2cccec4f55aa53caa92f2a0da188dccc435ebc5bd21`。
+
+三棵树worker/authority完全一致；worker发起的
+`rsync -aH --checksum --dry-run --itemize-changes`均exit 0、无itemized output。
+Formal manifest/metrics/state/checkpoint cadence和80个rank RNG sidecars、internal九项raw
+artifact closure、native aggregate/per-sequence/author log/resolved target均逐项hash验证。
+所有operational wrapper/checkpoint-race记录保留，没有覆盖、删除或伪装为scientific pass。
+
+Tracked compact result为
+`experiments/results/p1_hoi_phase1b_d2af_sqrt_alpha_bar_reliability_s42_20260730.json`，
+phase summary为`docs/phase_summaries/PHASE_1B_D2AF.md`。Final classification为
+`diffusion-reliability-ae-repair-negative-stop`，internal classification为
+`diffusion-reliability-internal-unused-continue-native`。Fixed final-online不可选择；
+不merge/tag，不启动D2-AF1、第二次training、resume、checkpoint selection、performance/
+architecture/worker sweep、consistency或任何新HOIPrior方向。
+
+Phase 1B HOIPrior search在此关闭。本session不启动Phase 1C。下一独立session唯一entry point
+是Phase 1C HSIPrior的dated plan-only preregistration；HSIPrior必须从seed-42随机初始化，
+不得加载released/author/D2-X/D2-AE/D2-AF或任何HOIPrior checkpoint。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

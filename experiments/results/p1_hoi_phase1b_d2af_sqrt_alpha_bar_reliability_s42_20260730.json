@@ -1,0 +1,722 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729",
+  "phase": "p1",
+  "subphase": "1B-D2-AF0",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-07-30",
+  "classification": "diffusion-reliability-ae-repair-negative-stop",
+  "internal_classification": "diffusion-reliability-internal-unused-continue-native",
+  "checkpoint_selected": false,
+  "selectable_autonomous_diffusion_candidate": false,
+  "d2af1_authorized": false,
+  "second_training_authorized": false,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "hoiprior_search_closed": true,
+  "implementation": {
+    "plan_commit": "cbf55ef2c5d667d28698597127767e0b14151f06",
+    "implementation_commit": "cae7d4ed64fbc6c15b046c0d17b0cbdefd365b41",
+    "cpu_record_commit": "758d54897640e93cc60ac76050b9e769ddf4afbc",
+    "functional_record_commit": "d12036e5e79d0e7142e8d163fc9a80a62fea317c",
+    "eligibility_record_commit": "1c6c3058478411361bf3e73830f900f660ae516b",
+    "performance_failure_record_commit": "f8d18e49cfa95542bfd66cd61a05bad509c75b0b",
+    "performance_waiver_plan_commit": "0bca540e44ff748089ec070a23c704a6a10ee8c1",
+    "performance_waiver_implementation_commit": "9c908ad87dce8806eb052b2a2627160b0a1bbe72",
+    "performance_waiver_contract_commit": "69d8cb025c89c0e776d0a4c03a8c158bbd0a3265",
+    "formal_source_commit": "7202d32a7375e7197886c4f873688fd472e2c803",
+    "checkpoint_race_plan_commit": "3b9c0c5a0d1599fb2f80de8db36f3547f2f3f71c",
+    "checkpoint_race_implementation_commit": "b7248bba3e77234c8f2a5993d8bf3ee8a1db2757",
+    "formal_execution_commit": "044227fe512a9ee6d1c2a1bc898d3b8a2c6ca706",
+    "formal_completion_record_commit": "d51057c35485d9b5e1abc846a55dc2f4324f9659",
+    "evaluation_hardening_plan_commit": "7a484fe18dc28e29e30b2966d966825823130c0b",
+    "evaluation_hardening_implementation_commit": "3d4ff1eb5c57b1b08537859dca8e895bc428a26d",
+    "evaluation_execution_commit": "a4cdcf09f84553159be10c555ff8a6773b65d3aa",
+    "single_manipulated_factor": "multiply the unchanged D2-AE sparse relation writeback by the canonical per-sample sqrt(alpha_bar_t) clean-signal reliability",
+    "architecture_variant": "d2af_sqrt_alpha_bar_reliability",
+    "writeback": "motion + sqrt_alpha_bar[current_timestep] * tanh(alpha) * routed_relation",
+    "representation_dimension": 232,
+    "base_parameter_count": 29673448,
+    "relation_parameter_count": 413953,
+    "total_parameter_count": 30087401,
+    "parameter_increase_fraction": 0.013950283094839535,
+    "new_parameters_vs_d2ae": 0,
+    "current_diffusion_state_only": true,
+    "current_timestep_per_sample": true,
+    "future_gt_used": false,
+    "previous_predicted_x0_relation_used": false,
+    "stored_relation_used": false,
+    "scene_or_occupancy_used": false,
+    "cpu_dynamic_geometry_used": false,
+    "loss_or_snr_weighting_used": false,
+    "official_evaluator_changed": false,
+    "sparse_assets": {
+      "mapping_sha256": "1af35119c1dd54e2ad44c99f3cb91b62c1b88f62ca80cddcc96f4b201ffe0f5b",
+      "manifest_sha256": "e88d74a7ee434f3e6320c95d1ebb74efdc8fe4740b70ff596e502666a096f7a7",
+      "stacked_tensor_sha256": "793dad6a805d0a908087b273590bf171e7bce4c026297cf94d40f8c651fe4cab",
+      "shape": [
+        13,
+        100,
+        3
+      ]
+    },
+    "schedule": {
+      "steps": 500,
+      "dtype": "torch.float32",
+      "beta_start": 0.0001,
+      "beta_end": 0.02,
+      "beta_sha256": "496ec54f35af6fe7b92417f7da8b442f31c9c0070bfdd62dbb16fefc426c8f3e",
+      "alpha_bar_sha256": "55f162cebbe109c67a75b00a10a1d23ea85fb1d18df9a372a3e237df5a8f48d4",
+      "sqrt_alpha_bar_sha256": "5d25c63d6618c77cc31976ee9e2c5645aa41653030fca210594a05254323b440",
+      "sqrt_alpha_bar_sentinels": {
+        "0": 0.9999499917030334,
+        "100": 0.8995221257209778,
+        "249": 0.5297974348068237,
+        "400": 0.19632703065872192,
+        "499": 0.0797039046883583
+      },
+      "strictly_decreasing": true,
+      "learned": false,
+      "persistent_model_state": false
+    }
+  },
+  "authority_cpu_contract": {
+    "run_id": "p1-hoi-d2af-cpu-contract-s42-20260729",
+    "status": "completed",
+    "classification": "cpu-contract-passed",
+    "runtime_seconds": 9.509392092,
+    "parameter_count_exact": true,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "mixed_timestep_scaling_max_abs": 2.384185791015625e-07,
+    "zero_gate_shared_d2x_parity_max_abs": 0.0,
+    "gradient_contracts_passed": true,
+    "train_sample_timestep_contract_passed": true,
+    "checkpoint_provenance_rejection_passed": true,
+    "inherited_d2ae_geometry_contracts_passed": true,
+    "hsiprior_storage_independence_passed": true,
+    "mixer_clean_output_contract_passed": true,
+    "static_forbidden_path_scan_passed": true,
+    "metrics_sha256": "8726ad247b4b9b3828bbdef444426fa197cdb1b2f4333bfcd663fe6e4308eb7f",
+    "manifest_sha256": "9c7a05305a71f7907f1f056c3163037ebaa0daf0781753474e0da55d4fe50476",
+    "resolved_config_sha256": "4377122c4f8abbba1c175f15f97f61e7e4034cac0cae3e6908c9aba01da21c45",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-cpu-contract-s42-20260729",
+      "sha256": "df730afb3685171099a7296fee87538e41cc64ae3ea61d50056eb87632221cd2",
+      "files": 3,
+      "bytes": 135456
+    }
+  },
+  "functional_smoke": {
+    "run_id": "p1-hoi-d2af-gpu-functional-smoke-s42-20260729",
+    "status": "completed",
+    "classification": "functional-smoke-passed",
+    "host": "infbagel-4gpu/node01",
+    "device": "cuda:0",
+    "batch_size": 8,
+    "timesteps": [
+      0,
+      249,
+      499,
+      0,
+      249,
+      499,
+      0,
+      499
+    ],
+    "random_initialization": true,
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "losses_and_gradients_finite": true,
+    "relation_gpu_only": true,
+    "mixed_timestep_scaling_max_abs": 1.2153759598731995e-07,
+    "peak_allocated_bytes": 270197248,
+    "peak_reserved_bytes": 325058560,
+    "memory_headroom_bytes": 24970985472,
+    "metrics_sha256": "43862309e7758af25b99c7ad7f45d5882d2010912d48d54b8dabe0877fe9c8af",
+    "manifest_sha256": "47cff55236bf2f8698b6db74e17001419c0e058e11188e0a681e441f938f7e1a",
+    "resolved_config_sha256": "d3c6865611a258e76a0c22306ab56686c8ac1543f1014ed702ec08b0b5354dec",
+    "preflight_sha256": "86638b0992c16a69ae1da70c4bc37912dbaa171bf7db1ad2f88f7d583dd8e369",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-gpu-functional-smoke-s42-20260729",
+      "sha256": "61fc8d844c68637e7cf34af4bb9e9b4dc969b71bb001af003fe22309247c0747",
+      "files": 10,
+      "bytes": 149421,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    }
+  },
+  "clean_signal_eligibility": {
+    "run_id": "p1-hoi-d2af-clean-signal-eligibility-s42-20260729",
+    "status": "completed",
+    "classification": "clean-signal-premise-passed",
+    "sequences": 216,
+    "windows": 29382,
+    "global_indices_sha256": "eab0bde2dc2ddad7ce2cc1817973ca46b9adaf24b1c906307f865930aeb11eb9",
+    "sequence_names_sha256": "472768c85c6d6c5b682a31a4d40a879d7a1e3d0b16085923c153db1045223fd8",
+    "corruption_sequence_means": {
+      "t0": 0.037421006676433013,
+      "t249": 3.7462720501557163,
+      "t499": 4.458573468406191
+    },
+    "paired_comparisons": {
+      "t249_minus_t0": {
+        "point": 3.7088510434792834,
+        "bootstrap_95_ci": [
+          3.6977504341815073,
+          3.720119281574443
+        ]
+      },
+      "t499_minus_t249": {
+        "point": 0.7123014182504745,
+        "bootstrap_95_ci": [
+          0.698195667507825,
+          0.7267265609093563
+        ]
+      }
+    },
+    "history_anchor_cross_timestep_max_abs": 0.0,
+    "model_or_optimizer_created": false,
+    "checkpoint_loads": 0,
+    "metrics_sha256": "c52c0536423d7a17101829cb2b020316b9c6e0f7aa2cf39f33b984ffb39896b4",
+    "manifest_sha256": "83d1b5b1a6db9b4d1cea8052abadebc6d901fd08229057de4ea1d408ea78b763",
+    "resolved_config_sha256": "bf0646a3ec69453a17f54de78a5c7b477a6c0334bab8924e5afdad1cd39a1173",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-clean-signal-eligibility-s42-20260729",
+      "sha256": "1a9b9a2c6779d9971046ded5bc5ac23639aa73926690a8076b3c018b638bef52",
+      "files": 4,
+      "bytes": 190598
+    }
+  },
+  "performance_benchmark": {
+    "run_id": "p1-hoi-d2af-performance-benchmark-s42-20260729",
+    "status": "failed",
+    "classification": "diffusion-reliability-performance-negative-stop",
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "warmup_updates": 64,
+    "measured_updates": 256,
+    "measured_windows": 524288,
+    "measured_wall_seconds": 250.87418435513973,
+    "throughput_windows_per_second": 2089.8443630127094,
+    "minimum_throughput_windows_per_second": 3179.689863044761,
+    "throughput_fraction_of_sealed_d2ae": 0.6243854685126333,
+    "full_budget_eta_hours": 8.166477355310539,
+    "maximum_full_budget_eta_hours": 5.367399778519349,
+    "speed_gate_passed": false,
+    "memory_headroom_min_bytes": 18993577984,
+    "memory_headroom_required_bytes": 2529604403,
+    "non_speed_contracts_passed": true,
+    "relation_gpu_only": true,
+    "cpu_dynamic_geometry": false,
+    "external_contention": false,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "mean_profile_seconds_across_ranks": {
+      "loader_wait": 56.230323406343814,
+      "h2d": 0.3658839038312436,
+      "gpu_relation_geometry": 0.5566526009440423,
+      "gpu_point_encoder": 1.1547404813766473,
+      "gpu_relation_projection": 0.02653456773236393,
+      "gpu_relation_norm": 0.003604631987866027,
+      "gpu_pool_route_rho_writeback_derived": 0.29084875686327,
+      "gpu_relation_module": 2.032381038904191,
+      "forward_and_loss": 16.029198487281807,
+      "backward_inclusive_ddp": 170.94014126586913,
+      "gradient_validation": 3.995720659255982,
+      "optimizer": 3.036985546112061
+    },
+    "loader_wait_by_rank_seconds": [
+      53.4023972,
+      154.4085614,
+      9.5764329,
+      7.5339022
+    ],
+    "diagnosis": "rho lookup/writeback cost was negligible relative to D2-AE; the failed benchmark was dominated by rank-skewed DataLoader wait and corresponding DDP critical-path wait",
+    "benchmark_summary_sha256": "53e9842d0522cf456a86eedc25d2a972cd00db3fb067113ff25f31f6117e1f33",
+    "manifest_sha256": "97d13c60dd0e073fdd649aec7b76bde4dad23fdf0fd7e8cef9b9ca04b6a04e54",
+    "resolved_config_sha256": "04f747890fd9e7ad3d40a580223783da849ac80a5eae1d826c9bc9af2f4b45a9",
+    "preflight_sha256": "e238a8242f31b5a08b083f1e11044834d922babe5c29681754d0a755396613d1",
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-performance-benchmark-s42-20260729",
+      "sha256": "076ed5e3ee80bd5325c661f9a3adbe225e45be963cc2166128cdc5c0faadf895",
+      "files": 14,
+      "bytes": 1914984,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    },
+    "one_time_user_waiver": {
+      "authorized": true,
+      "original_gate_reclassified_as_passed": false,
+      "formal_runs_maximum": 1,
+      "benchmark_retry_or_sweep_authorized": false,
+      "training_conditions_changed": false,
+      "contract_path": "experiments/contracts/p1_hoi_d2af_performance_waiver_s42_20260729.json",
+      "contract_sha256": "8a2d11c0febea603ac74328fbcd51622982740c4bef48597a0af71de7a53da97"
+    }
+  },
+  "formal_training": {
+    "run_id": "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729",
+    "status": "completed",
+    "random_initialization": true,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "source_checkpoint": null,
+    "released_or_prior_checkpoint_loads": 0,
+    "seed": 42,
+    "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "gradient_accumulation_steps": 1,
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "accepted_optimizer_updates": 30000,
+    "failed_attempt_optimizer_updates": 4500,
+    "continuation_optimizer_updates": 27000,
+    "actual_total_gpu_optimizer_updates": 31500,
+    "actual_total_gpu_processed_windows": 64512000,
+    "accepted_lineage_wall_seconds": 19091.32575,
+    "accepted_lineage_throughput_windows_per_second": 3218.215476732935,
+    "continuation_wall_seconds": 17141.0,
+    "continuation_throughput_windows_per_second": 3232.575359023025,
+    "total_gpu_cost_wall_seconds": 20025.0,
+    "total_gpu_cost_throughput_windows_per_second": 3221.5730337078653,
+    "raw_serialized_throughput_reportable_as_full_lineage": false,
+    "mean_training_total_loss": 0.027076257497210193,
+    "final_validation": {
+      "total": 0.05023828312778278,
+      "reconstruction": 0.041940153036534866,
+      "fk": 0.010656682224748693,
+      "object_surface": 0.008821178671212238,
+      "velocity": 0.0001048641514360682,
+      "contact": 0.014188762397637333,
+      "contact_accuracy": 0.9668906471124501
+    },
+    "learned_alpha": -0.09250371903181076,
+    "learned_gate": -0.09224077314138412,
+    "memory_headroom_min_bytes": 19369492480,
+    "cadence_checkpoints": 20,
+    "rank_rng_sidecars": 80,
+    "fixed_final_online_checkpoint_sha256": "483c63ecaeb6dbf5a0a54400e0eecec722ff6df6d72226ce263e7fe053e412e2",
+    "final_model_state_sha256": "7b6e333724f21490c96a0599103cc7eb087b9452e64a8d3c2b9a5ce85ae704bb",
+    "metrics_sha256": "25b172f21d78d97412cb4eeeb79b43566d7e488286c383127a4edf0272c11903",
+    "manifest_sha256": "49371a577a037444aef47fd5fda64f5d147ecd712247308b99b675d1edee55d3",
+    "training_state_sha256": "8dcb3ea4e1e39d661bcef138de6ff347731db8eeb88213fe0b4e0ba83204f8a4",
+    "run_local_registry_sha256": "7d1ba1bd99cf2c4dcf95a2300522f828e832d70b0f12afe3213c547471dedf50",
+    "resolved_resume_config_sha256": "6845d032e48027a35ccbd20169d118cc81429ac652c31f8c615e5474d45fe870",
+    "resume_preflight_sha256": "5f404f407d022c7db80fb1c781f69828d7abccbcecbd3f995cdd2049cace4e51",
+    "resume_contract_sha256": "35240fb486b891a520ad3f08c9e557594349adc77b4868eca9547b845f540f2f",
+    "formal_completion_verification_sha256": "a6263835cf79c6b803275c3d9c96c269aa1c2e75b1c8fea3fce4b4b56f7f1ec1",
+    "checkpoint_race": {
+      "classification": "ddp-checkpoint-sidecar-existence-race-operational-failure",
+      "failed_at_attempted_windows": 9216000,
+      "failed_at_attempted_updates": 4500,
+      "accepted_resume_windows": 6144000,
+      "accepted_resume_updates": 3000,
+      "resume_checkpoint_sha256": "3c94f7344991cb38aab37fd8356cabe83a84b449d10505e0e46341490605287e",
+      "failure_record_sha256": "a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1",
+      "partial_archive_tree_sha256": "b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd",
+      "tracked_continuation_contract_sha256": "1a4ddf3b220b96f7aea0f1de7c0b8fd3fd9458eb913d284aaacc85a7fa226424",
+      "source_to_execution_diff_sha256": "f0cba48ae5d1ba271750ef5d7c042d1b04e8ec6b5e60df00fca5f19c1db8f609",
+      "same_run_scientific_lineage": true,
+      "second_formal_budget": false
+    },
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729-recovery-r1",
+      "sha256": "9bff3d9a182138ee30ca586b10d71f689e6aa0c7345d2b1052fe0ea15251dc6c",
+      "files": 156,
+      "bytes": 7227356886,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2af-sqrt-alpha-bar-reliability-internal-s42-20260730",
+    "status": "completed",
+    "classification": "diffusion-reliability-internal-unused-continue-native",
+    "internal_status": "unused",
+    "runtime_seconds": 538.3266074708663,
+    "protocol": "sealed D2-O 64 sequences x 3 windows, five paired-noise 500-step rollouts",
+    "selection_sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "sequences": 64,
+    "windows": 192,
+    "phase_offsets": [
+      14,
+      56,
+      98
+    ],
+    "variants": [
+      "full_rho",
+      "unit_rho",
+      "relation_gate_ablated",
+      "temporal_correspondence_permuted",
+      "left_right_role_swapped"
+    ],
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "contract_passed": true,
+    "mechanism_passed": false,
+    "relation_path_used": false,
+    "schedule_reliability_passed": false,
+    "temporal_routing_passed": false,
+    "role_binding_passed": false,
+    "learned_alpha": -0.09250371903181076,
+    "learned_gate": -0.09224077314138412,
+    "primary_comparisons": {
+      "full_rho_minus_unit_rho_direct_union_5cm_f1": {
+        "point": -0.0017534958725371544,
+        "bootstrap_95_ci": [
+          -0.008731448896887319,
+          0.005308128210568779
+        ]
+      },
+      "unit_rho_minus_full_rho_gt_contact_distance_cm": {
+        "point": 0.026833171113742785,
+        "bootstrap_95_ci": [
+          -0.08000149312555654,
+          0.15226497063856367
+        ]
+      },
+      "full_rho_minus_gate_ablated_direct_union_5cm_f1": {
+        "point": 0.012897639098904238,
+        "bootstrap_95_ci": [
+          -0.027088665174081348,
+          0.05341855160295159
+        ]
+      },
+      "gate_ablated_minus_full_rho_gt_contact_distance_cm": {
+        "point": 0.4767763515114704,
+        "bootstrap_95_ci": [
+          -0.05841018885359712,
+          1.0529788793694062
+        ]
+      },
+      "full_rho_minus_temporal_permuted_direct_union_5cm_f1": {
+        "point": 0.002165564488603878,
+        "bootstrap_95_ci": [
+          -0.031244155095278628,
+          0.043877801226154534
+        ]
+      },
+      "temporal_permuted_minus_full_rho_gt_contact_distance_cm": {
+        "point": 0.23349129590381712,
+        "bootstrap_95_ci": [
+          -0.31420466831855565,
+          0.8945656086402927
+        ]
+      },
+      "full_rho_minus_role_swapped_direct_left_right_macro_5cm_f1": {
+        "point": 0.013202214669035858,
+        "bootstrap_95_ci": [
+          -0.008038313502508903,
+          0.035691421866214094
+        ]
+      }
+    },
+    "full_rho_descriptive": {
+      "direct_union_5cm_f1_frame_aggregate": 0.8027173913043479,
+      "direct_union_5cm_f1_sequence_mean": 0.6706970812006778,
+      "mpjpe_cm": 11.980085372924805,
+      "object_goal_error_cm": 95.02577541768551,
+      "pelvis_goal_error_cm": 5.532729214445378,
+      "foot_sliding": 0.7502455080297988,
+      "relation_norm_by_anchor": [
+        25.760332822799683,
+        26.94753583272298,
+        27.120742321014404,
+        26.896140098571777
+      ],
+      "raw_writeback_norm_by_anchor": [
+        2.3761530915896096,
+        2.485661675532659,
+        2.5016383032004037,
+        2.480920761823654
+      ],
+      "attenuated_writeback_norm_by_anchor": [
+        1.286565288901329,
+        1.3447918047507603,
+        1.3552191853523254,
+        1.3412674069404602
+      ],
+      "mean_rho_over_captured_steps": 0.5414488911628723,
+      "temporal_permutation_sensitivity_by_anchor": [
+        36.99240334828695,
+        9.043888211250305,
+        20.14264416694641,
+        10.274777928988138
+      ],
+      "role_swap_sensitivity_by_anchor": [
+        5.497338612874349,
+        5.572868784268697,
+        5.877643684546153,
+        6.370528737703959
+      ],
+      "selection_use": false
+    },
+    "artifacts": {
+      "metrics_sha256": "38e5a641707cff9a880fea5d4c90b7d936290e912237e60baa2ecf25bde8ff52",
+      "manifest_sha256": "1b3ad9792aa5df897982a482453561d2dfb7e56571404b19b060d9c16013ed96",
+      "resolved_config_sha256": "c05c69adeb171dd018b814df6d72197b59e4c6c70bbe0a6bd9a5eb0243fb1e21",
+      "preflight_sha256": "b1eb1aee4c3b2c0f67cc4a9bd810e7a3b7c570dd6db37028c4d44b610cb7ca7c",
+      "run_local_registry_sha256": "dc1b0e8526ff636a9642be8262b126a908ed0efed18ecec175a480eefd754efd",
+      "full_rho_sha256": "407f4b271640c05249cfaf21972e993681195882cdcca299e5adc58d15cba8f5",
+      "unit_rho_sha256": "8b098d2b21d84483a06e3485cafbab646c934d1b7900c174ed3587f72de42ec8",
+      "gate_ablated_sha256": "a65d27a191f70210c99aefe70b61a49cd916223993e7d43f47c93f2b89177213",
+      "temporal_permuted_sha256": "d6245d2a06a36e259368a18a2f744e9c0b56f5362e2b9e4ba407c3fdc17292e0",
+      "role_swapped_sha256": "4400d357e2e54586955df3ca1dec6455215f89d5602cda98cf453a6a15f11b37",
+      "paired_noise_sha256": "829d5541fce5d3266ddf36fd6574afd8e558487294741c8252c2285abae48926",
+      "paired_conditioning_sha256": "ee50aea21d96c7e37fc37653ef227c2cc576908eebf97937d760cbbb424d86e2",
+      "causal_window_overlap_sha256": "ff25f8deba9a3d29d8b6771965b1f56c961fe9f3ab0204c94c51f36f7b8d9e07",
+      "diffusion_reliability_appendix_sha256": "7e11a8a5af78dba12c55030b257b49c08706f6b1c527f6b81b5432e259886227",
+      "tree": {
+        "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-sqrt-alpha-bar-reliability-internal-s42-20260730",
+        "sha256": "5d28e3abc02dcf62f781270fd0391e44f64f4172b7ff705257995be63faffeee",
+        "files": 17,
+        "bytes": 224452243,
+        "worker_authority_match": true,
+        "checksum_dry_run_transferred_files": 0
+      }
+    },
+    "optimizer_created": false,
+    "training_updates": 0,
+    "checkpoint_writes": 0,
+    "checkpoint_selected": false,
+    "official_test_used": false
+  },
+  "native_evaluation": {
+    "run_id": "p1-hoi-d2af-native-eval-s42-20260730",
+    "status": "completed",
+    "classification": "diffusion-reliability-ae-repair-negative-stop",
+    "runtime_seconds": 378.46187578188255,
+    "protocol": "official 438 sequences x 3 windows, 500-step unguided production diffusion",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "official_evaluator_unchanged": true,
+    "sealed_d2x_reused_without_regeneration": true,
+    "sealed_d2ae_reused_without_regeneration": true,
+    "sealed_d2ae_checkpoint_loaded": false,
+    "cfg": false,
+    "guidance": false,
+    "scene_conditioning": false,
+    "dynamic_perception": false,
+    "consistency": false,
+    "target_metrics": {
+      "end_object_cm": 5.5734798312187195,
+      "txy_cm": 4.607994854450226,
+      "foot_sliding": 0.3595817663400341,
+      "contact_precision": 0.7909342632567542,
+      "contact_recall": 0.5990408567110541,
+      "contact_f1": 0.6410550040393033,
+      "contact_coverage": 0.4834384286439081,
+      "pbody": 3.5893259727196254,
+      "hand_penetration": 0.2268892808331516,
+      "mpjpe_cm": 12.422095239162445,
+      "troot_cm": 8.447693288326263,
+      "tobj_cm": 17.303804395245994,
+      "oobj": 1.0007245875630288
+    },
+    "d2ae_single_factor_repair": {
+      "contact_f1": {
+        "point": -0.0008888491232585847,
+        "bootstrap_95_ci": [
+          -0.02435946905539561,
+          0.022823955375799218
+        ]
+      },
+      "contact_recall": {
+        "point": 0.0029022340549778826,
+        "bootstrap_95_ci": [
+          -0.023672364012952776,
+          0.02978128354401244
+        ]
+      },
+      "end_object_ratio": {
+        "point": 1.2920819122177505,
+        "bootstrap_95_ci": [
+          1.224156033921259,
+          1.3639746920239342
+        ]
+      },
+      "foot_sliding_ratio": {
+        "point": 0.9013030413462073,
+        "bootstrap_95_ci": [
+          0.8455771344455049,
+          0.960204522985284
+        ]
+      },
+      "checks_passed": {
+        "contact_f1": false,
+        "contact_recall": false,
+        "end_object": false,
+        "foot_sliding": true
+      },
+      "passed": false
+    },
+    "d2x_transfer": {
+      "contact_f1": {
+        "point": 0.003629064933324414,
+        "bootstrap_95_ci": [
+          -0.016673086777549785,
+          0.024194001573353836
+        ]
+      },
+      "contact_recall": {
+        "point": 0.004586162666655739,
+        "bootstrap_95_ci": [
+          -0.018407816634206476,
+          0.02811076350108559
+        ]
+      },
+      "contact_precision": {
+        "point": 0.002872387661544515,
+        "bootstrap_95_ci": [
+          -0.016409719120834353,
+          0.022076093461367106
+        ]
+      },
+      "contact_f1_point_minimum": 0.6598838781,
+      "released_contact_f1_gap_closure": 0.040398463734960754,
+      "passed": false
+    },
+    "protection_ratios_vs_d2x": {
+      "end_object": {
+        "point": 1.4828671247581107,
+        "bootstrap_95_ci": [
+          1.4020162024544591,
+          1.5730099778138071
+        ]
+      },
+      "txy": {
+        "point": 1.1376306122632664,
+        "bootstrap_95_ci": [
+          1.0964548772398994,
+          1.1801967402975144
+        ]
+      },
+      "foot_sliding": {
+        "point": 0.9905560319223692,
+        "bootstrap_95_ci": [
+          0.9293127354753506,
+          1.0562958427328482
+        ]
+      },
+      "pbody": {
+        "point": 0.9276938408754009,
+        "bootstrap_95_ci": [
+          0.7766951844735466,
+          1.0984484707182145
+        ]
+      },
+      "hand_penetration": {
+        "point": 0.9247331056878202,
+        "bootstrap_95_ci": [
+          0.7725221476138332,
+          1.096603663681765
+        ]
+      },
+      "mpjpe": {
+        "point": 1.0308068340716574,
+        "bootstrap_95_ci": [
+          1.0119805973036389,
+          1.050559261875589
+        ]
+      },
+      "troot": {
+        "point": 1.0339778476057133,
+        "bootstrap_95_ci": [
+          1.0117931350083258,
+          1.0563080344410423
+        ]
+      },
+      "tobj": {
+        "point": 1.0818901210512215,
+        "bootstrap_95_ci": [
+          1.0550872385471872,
+          1.1099017284465105
+        ]
+      },
+      "oobj": {
+        "point": 0.97068760137363,
+        "bootstrap_95_ci": [
+          0.9395379417856501,
+          1.0039500118022966
+        ]
+      },
+      "failures": [
+        "end_object",
+        "txy",
+        "tobj"
+      ],
+      "passed": false
+    },
+    "contact_precision_protection_passed": true,
+    "penetration_finite_mask_contract_passed": true,
+    "penetration_finite_mask_sequences": 181,
+    "penetration_finite_mask_sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec",
+    "released_95_percent_effectiveness_passed": false,
+    "generation_descriptive": {
+      "generated_frames": 55188,
+      "generation_seconds": 71.69105485128239,
+      "fps": 769.8031520736205,
+      "end_to_end_seconds": 371.9576633388642,
+      "timing_cuda_synchronized": true
+    },
+    "artifacts": {
+      "metrics_sha256": "94fc71cd3d3fbbe87ac6ec38246e39fb0c965d630fd7626c604f0983a1248f56",
+      "manifest_sha256": "10498fb42a02501859cfd0aaab484a7a606ee5f711134d7f009519723655de06",
+      "resolved_config_sha256": "1aacaccee84eddaab141e3f4b31cfd3770db247d887512307ef279b3c549e4a9",
+      "resolved_target_sha256": "d956821b273fd70dec1aa2b5f58db4b16b40ebf8f5ba71895e2ae9b382d593fe",
+      "preflight_sha256": "8d9e8d2139e145487ea4193ca4a8b4b2fe89fc9afa8e0e6b5409b3238ff32fe9",
+      "run_local_registry_sha256": "31c1571a599350036e9b5c57ee5f0f77ed34f3dea2aae4657188b8e94d792fcc",
+      "aggregate_sha256": "417c245df047e4fd7724c7ddcc7f0884fffd5bda934fefe465fb904da400f488",
+      "per_sequence_sha256": "7252931861dd2d4e60476a05cd7dd35d67aa7369995687de2dc9bcbc67c8acd5",
+      "author_target_log_sha256": "844da22a7de349fc3f0690f8a8df63b1db20476085d66e171752815d5182cf2b",
+      "native_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": {
+        "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-native-eval-s42-20260730",
+        "sha256": "40a9925468e54966f726b2cccec4f55aa53caa92f2a0da188dccc435ebc5bd21",
+        "files": 16,
+        "bytes": 2514430,
+        "worker_authority_match": true,
+        "checksum_dry_run_transferred_files": 0
+      }
+    },
+    "checkpoint_selected": false,
+    "selectable": false
+  },
+  "operational_records": [
+    {
+      "classification": "pre-workload-launch-control-interpreter-canonicalization-issue",
+      "scope": "internal launch wrapper",
+      "impact": "none: exit preceded run-directory, manifest, artifact and GPU creation; the registered run id remained unused",
+      "resolution": "compare canonical interpreter paths using readlink -f before launch"
+    },
+    {
+      "classification": "post-completion-artifact-recovery-verification-wrapper-cwd-issue",
+      "scope": "internal recovery tree-hash wrapper",
+      "impact": "none: transfer had completed and data were unchanged; ModuleNotFoundError arose only because the hash command was not run from the repository root",
+      "resolution": "recomputed from the correct repository working directory"
+    },
+    {
+      "classification": "post-completion-artifact-recovery-transfer-wrapper-no-op-issue",
+      "scope": "native recovery wrapper",
+      "impact": "none: the first wrapper created only an empty staging directory and transferred no files",
+      "resolution": "reused the empty staging directory for a non-destructive rsync without --delete and verified the complete tree"
+    }
+  ],
+  "artifact_recovery": {
+    "formal_worker_authority_match": true,
+    "internal_worker_authority_match": true,
+    "native_worker_authority_match": true,
+    "worker_initiated_non_destructive_rsync": true,
+    "delete_used": false,
+    "all_checksum_dry_runs_exit_zero": true,
+    "all_checksum_dry_runs_itemized_differences": 0
+  },
+  "conclusion": "The fixed sqrt-alpha-bar attenuation did not repair D2-AE. The trained relation path had a nonzero gate, but none of the seven paired internal causal gates established reliable path, schedule, temporal or role use. Native contact transfer remained statistically indistinguishable from D2-AE and D2-X, end-object worsened substantially, and D2-X protection failed for end-object, Txy and Tobj. The final-online checkpoint is not selectable.",
+  "next_action": "Close Phase 1B HOIPrior search without merge or tag. Do not run D2-AF1, a second formal budget, resume/select this checkpoint, consistency, any HOIPrior sweep, HSIPrior or Mixer in this session. The sole next-session entry is a dated Phase 1C HSIPrior plan-only preregistration from random initialization."
+}
