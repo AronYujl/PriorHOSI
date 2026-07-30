@@ -1,0 +1,143 @@
+# Phase 1B HOIPrior evidence index
+
+Status: compact research handoff through D2-AF0, 2026-07-30.
+
+Use this file as the first research-context entry point. It summarizes conclusions;
+the named phase summaries and compact JSON files remain authoritative for exact
+protocols, confidence intervals and hashes.
+
+## 1. Locked comparison points
+
+All values are from the unchanged official 438-sequence, three-window, 500-step
+native protocol unless stated otherwise.
+
+| model | end-object cm | FS | contact P/R/F1 | hand penetration | MPJPE cm | status |
+|---|---:|---:|---:|---:|---:|---|
+| released InfBaGel | 3.0372 | 0.33336 | 0.79081 / 0.72759 / 0.72726 | 0.16240 | 11.9976 | baseline only |
+| D2-V long budget | 3.6807 | 0.37828 | 0.78911 / 0.58529 / 0.62859 | 0.26405 | 12.1224 | strong but FS/penetration negative |
+| D2-X FK-foot routing | 3.7402 | 0.36301 | 0.78806 / 0.59445 / 0.63743 | 0.24536 | 12.0508 | sealed autonomous control |
+| D2-AB no-slip objective | 3.6840 | 0.36606 | 0.78957 / 0.59533 / 0.63831 | 0.23832 | 12.0639 | mechanism/FS negative |
+| D2-AC local adapter | 5.6473 | 0.39861 | 0.78758 / 0.60416 / 0.64799 | 0.25179 | 12.4268 | locality and protection negative |
+| D2-AD local-frame adapter | 4.2373 | 0.42539 | 0.76795 / 0.53300 / 0.58687 | 0.21656 | 12.3847 | locality and transfer negative |
+| D2-AE sparse relation field | 4.2990 | 0.39896 | 0.80363 / 0.59614 / 0.64194 | 0.17938 | 12.1558 | internal positive, transfer negative |
+| D2-AF reliability routing | 5.5735 | 0.35958 | 0.79093 / 0.59904 / 0.64106 | 0.22689 | 12.4221 | mechanism and repair negative |
+
+Released InfBaGel is not a valid initializer. D2-X is the sealed autonomous-diffusion
+control; no D2 checkpoint is selectable as a new prior initializer.
+
+## 2. Experiment map
+
+### Representation, sampler and optimization diagnosis
+
+- D2-B through D2-E isolated the BPS backend and geometry-equivalence questions.
+  The linear geometric contract was ultimately validated; backend differences alone
+  did not explain the rollout deficit.
+- D2-F and D2-H tested reverse-manifold/current-state exposure explanations. Their
+  registered diagnostics were negative; simple reverse-state exposure did not repair
+  the model.
+- D2-I through D2-L tested weighted-objective gradient dominance, clipping, AdamW
+  routing and auxiliary balancing. All were controlled negatives. The evidence does
+  not support another optimizer, clip or scalar-loss-balance retry without a new
+  mechanism.
+- D2-M/N tested fresh-optimizer and author-native transfer behavior. Balanced variants
+  could improve one kinematic quantity while sharply damaging contact; historical
+  checkpoints are not suitable initializers.
+- D2-O/P/P5/Q/R/S examined contact alignment, coordinate defects, author contact
+  guidance, state-routed guidance and denoiser-response frontiers. They exposed mixed
+  contact deficits and coordinate sensitivity but did not produce an authorized
+  training route that improved the native Pareto frontier.
+
+### Strong from-random training lineage
+
+- D2-T showed that the author update rule was insufficient.
+- D2-U's balanced objective was a major positive training mechanism, but the short
+  budget remained far below baseline contact and object quality.
+- D2-V's tenfold 61.44M-window budget established that the 232-D autonomous denoiser
+  can learn strong kinematic, object and contact behavior from random initialization.
+  Its remaining deficits were FS, penetration and contact recall, not basic capacity.
+- D2-W rejected late constant-LR degradation as the primary cause: the final D2-V
+  checkpoint was better than the midpoint on the registered FK-foot diagnostic.
+
+### FK-foot and no-slip family
+
+- D2-X routed evaluator-aligned FK-foot temporal residuals. It preserved D2-V and is
+  the current sealed control, but its paired FS improvement CI crossed zero.
+- D2-Y amplified routed foot residuals. The teacher-forced surrogate moved, while
+  official FS did not improve significantly and end-object/contact protection failed.
+- D2-Z added immutable-GT near-ground gating. It did not improve official FS and also
+  harmed end-object/contact protection.
+- D2-AB used predicted-support no-slip supervision. Support sanity passed, but the
+  optimized supported-velocity mechanism moved in the wrong direction and native FS
+  did not improve. A new no-slip scalar loss is therefore not supported by this line.
+
+### Interaction-representation family
+
+- D2-AC added local object tokens and role queries. Whole-gate ablation showed strong
+  adapter use, but correspondence permutation had no significant effect. The adapter
+  behaved as a generic high-leverage conditioning path, not a local relation mechanism.
+- D2-AD repaired the coordinate frame with human-local full-mesh BPS. The repair was
+  geometrically correct but did not make local correspondence causal; native contact
+  and several protection metrics worsened. It also exposed the unacceptable CPU
+  full-mesh/KD-tree bottleneck.
+- D2-AE replaced that path with a GPU-native 100-point current-state sparse field,
+  structurally bound to left hand, right hand and pelvis with fixed temporal routing.
+  All five internal causal gates passed, including gate use, temporal correspondence
+  and role binding. Native contact F1 improved only `+0.00452` over D2-X with CI
+  crossing zero; recall barely moved, while end-object and FS protection failed.
+- D2-AF multiplied the D2-AE writeback by canonical `sqrt(alpha_bar[t])`. All seven
+  internal reliability/path/temporal/role gates failed. Native F1 was `0.64106`,
+  statistically indistinguishable from D2-AE and D2-X, and end-object worsened to
+  `5.5735 cm`.
+
+## 3. Strongest current conclusions
+
+1. The scene-free 232-D denoiser has sufficient capacity: D2-V/D2-X reach strong
+   native quality from random initialization.
+2. Teacher-forced denoising or auxiliary-loss movement is not reliable evidence of a
+   500-step rollout improvement.
+3. Whole-gate ablation alone is weak causal evidence because jointly trained models
+   can treat the path as a generic residual and gate-zero is out of distribution.
+4. D2-AE proves that explicit current-state role/temporal relation structure can be
+   learned causally and efficiently, but that structure did not improve native contact
+   recall or goal protection under the existing training exposure.
+5. D2-AF shows that a fixed signal-reliability attenuation is not enough and may cause
+   the relation path to become unused.
+6. Contact precision is already close to the released model. The largest interaction
+   gap is recall/coverage, while end-object, FS and penetration must remain protected.
+7. Width, depth, token count, point count, adapter placement, LR, batch and longer
+   budget sweeps have no positive evidence and are poor uses of the remaining budget.
+8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
+   scene supervision and train/sample relation sources. Copying it would violate the
+   independent scene-free HOIPrior objective.
+
+## 4. Open research question for the next review
+
+The next candidate should explain why a relation path that is internally causal under
+paired interventions does not improve production rollout. A useful proposal must make
+one falsifiable change that targets this train-to-rollout transfer gap while retaining:
+
+- scene-free current-state provenance;
+- the clean `[B,16,232]` expert interface;
+- random initialization and the fixed formal budget;
+- D2-X-class object-goal, FS, penetration and kinematic protection;
+- a diagnostic that distinguishes useful relation use from generic residual reliance.
+
+The reviewer may recommend a previously untried training or inference mechanism, but
+must identify which old prohibition or protocol it changes and obtain explicit user
+approval before implementation. One remaining full-budget experiment does not permit a
+sweep or several loosely coupled interventions.
+
+## 5. Authoritative files
+
+- Plan and registry: `docs/EXPERIMENT_PLAN.md`, `experiments/registry.jsonl`
+- D2-X/Y/Z/AA/AB/AC/AD/AE/AF summaries:
+  `docs/phase_summaries/PHASE_1B_D2*.md`
+- Compact results: `experiments/results/p1_hoi_phase1b_*.json`
+- Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
+  `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
+  `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,
+  `docs/D2K_ADAMW_ROUTING_DIAGNOSTIC.md`,
+  `docs/D2L_AUXILIARY_BALANCE_DIAGNOSTIC.md`
+
+Read raw logs and large artifact trees only when a concrete evidence discrepancy
+cannot be resolved from these tracked sources.

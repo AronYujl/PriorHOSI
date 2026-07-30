@@ -26,6 +26,40 @@ These rules apply to every file in this repository.
 - Keep large data, checkpoints, generated motion, and per-sample results out of
   Git. Track split/task manifests, aggregate tables, failure analyses, and hashes.
 
+### Lean HOIPrior iteration profile
+
+For Phase 1B HOIPrior work after 2026-07-30, follow
+`docs/HOIPRIOR_ITERATION_WORKFLOW.md`. Its purpose is to reduce orchestration and
+context overhead without changing model training or scientific evaluation.
+
+- A proposal/review turn is read-only. Do not edit source, allocate a run id, or
+  start a GPU workload until the user explicitly approves one concrete experiment.
+- After approval, use one preregistration commit, one logical implementation
+  commit, and one completion commit. Add another governance-only commit only when
+  an actual source transition, reportable failure, or resume contract requires it;
+  never add a binding commit merely to restate hashes already present in a manifest.
+- Reuse sealed input hashes and baseline artifacts by reference. Recompute a hash
+  only when the file was created, changed, transferred, or is the exact target of
+  the current workload. Do not repeatedly hash unchanged checkpoint cadences or
+  recovered trees.
+- Run targeted tests for every changed component. Run the full authority suite once
+  before the first GPU workload when shared model, diffusion, training, data, or
+  evaluator code changed; do not rerun it after documentation-only lifecycle appends.
+- A real-data functional smoke is required for runtime-code changes. A full-micro-
+  batch performance benchmark is required only when the change can affect per-step
+  compute, communication, data loading, tensor shapes, or memory. Record why it is
+  skipped when the executed path is unchanged.
+- Preserve one formal from-random training, the preregistered internal diagnostic,
+  and the fixed native evaluation. Workflow slimming must never alter their data,
+  budget, sampler, metrics, uncertainty, checkpoint-selection, or failure rules.
+- Recover each completed worker workload once with non-destructive transfer and one
+  checksum pass. Keep the manifest, resolved config, logs, metrics, final checkpoint
+  identity, aggregate/per-sequence outputs, compact result, and completion record;
+  avoid duplicate archival wrappers and per-file narrative in Git.
+- A local command mistake before `tools/experiment.py start` is implementation work,
+  not a reportable experiment. Once a run id or manifest exists, retain every
+  operational or scientific failure and never reuse or overwrite it.
+
 ## Execution environment
 
 - Run project Python commands with the machine-local, verified `infbagel`

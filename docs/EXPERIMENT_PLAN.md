@@ -6842,6 +6842,38 @@ Phase 1B HOIPrior search在此关闭。本session不启动Phase 1C。下一独�
 是Phase 1C HSIPrior的dated plan-only preregistration；HSIPrior必须从seed-42随机初始化，
 不得加载released/author/D2-X/D2-AE/D2-AF或任何HOIPrior checkpoint。
 
+#### 2026-07-30 Phase 1B user-directed reopening and lean iteration workflow
+
+用户在阅读D2-AF0结果后明确决定暂不关闭Phase 1B，并授权为后续HOIPrior迭代建立一套
+精简、固定的执行流程。上述D2-AF0 closure、negative classification、artifact和checkpoint
+non-selection仍是不可变历史事实；本amendment只向前覆盖“不得再做任何HOIPrior方向”和
+“下一入口只能是Phase 1C”的治理决定，不改写任何既有科学结果。
+
+Phase 1B现重新开放，但当前只授权两个非GPU交付物：
+
+1. 形成`docs/HOIPRIOR_ITERATION_WORKFLOW.md`，将未来单次HOIPrior迭代固定为read-only
+   evidence review、一次preregistration、一次logical implementation、必要且按变更范围触发的
+   CPU/functional/performance gate、一个from-random formal lineage、一个internal、一个native、
+   一次recovery和一个completion；
+2. 形成`docs/HOIPRIOR_EVIDENCE_INDEX.md`与
+   `docs/prompts/CLAUDE_CODE_OPUS5_HOIPRIOR.md`，让Claude Code Opus 5在不默认读取
+   `AGENTS.md`的前提下仍显式加载仓库规则、实验事实和双服务器约束。
+
+固定瘦身原则是：不减少formal budget、模型/梯度/显存检查、paired causal rollout、official
+438x3 native coverage、metric、bootstrap或failure retention；只删除重复的date-transition、
+binding/hardening/recovery-binding记录、unchanged artifact重复hash、documentation-only full-suite
+rerun、reportable start前本地wrapper typo登记和稳定detached run持续轮询。完整规则以
+`AGENTS.md`和`docs/HOIPRIOR_ITERATION_WORKFLOW.md`为准。
+
+本amendment本身不选择新机制，不创建candidate run id，不修改model/data/loss/diffusion/
+sampler/evaluator，不加载checkpoint，也不启动GPU。Claude Stage A必须只读分析全部Phase 1B
+证据，给出恰好一个最值得做的实验并等待用户明确批准。只有批准后，才能为该具体机制另行
+追加dated scientific hypothesis并按精简workflow一次性完成implementation、training和
+evaluation。剩余formal预算只有一次，不允许sweep或多个候选训练。
+
+Phase 1C HSIPrior因此延后，直到该用户批准的单个HOIPrior实验完成或停止。不得自动启动
+HSIPrior、Mixer或consistency。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
