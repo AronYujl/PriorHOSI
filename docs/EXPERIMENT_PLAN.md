@@ -6471,6 +6471,72 @@ formal workload完成并关闭manifest前不得再改变execution HEAD。下一�
 Git fast-forward、验证相同clean object与machine-local Python，生成不覆盖原文件的resolved
 resume config/preflight/contract/log artifacts，并恢复原persistent lineage。
 
+#### 2026-07-30 Phase 1B D2-AF0 formal training completion and recovery record
+
+唯一授权的formal run
+`p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729`已在worker
+`phase/01b-hoi@044227fe512a9ee6d1c2a1bc898d3b8a2c6ca706`完成，并于
+`2026-07-30T04:56:20+08:00`闭合。`resume_returncode.txt=0`；accepted lineage严格为
+61,440,000 windows / 983,040,000 frames / 30,000 optimizer updates。原失败尝试执行
+4,500 updates，continuation执行27,000 updates，因此实际GPU updates为31,500；该重放成本
+保留为operational accounting，不改变固定科学预算。训练仍从seed-42随机初始化，released、
+D2-X/D2-AE/D2-AC/D2-AD、prior、EMA或consistency checkpoint加载数均为0。
+
+Fixed final-online checkpoint为
+`p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729_windows061440000.pth`：
+
+- checkpoint SHA-256：
+  `483c63ecaeb6dbf5a0a54400e0eecec722ff6df6d72226ce263e7fe053e412e2`；
+- model-state SHA-256：
+  `7b6e333724f21490c96a0599103cc7eb087b9452e64a8d3c2b9a5ce85ae704bb`；
+- 参数量：30,087,401；optimizer state为129项，step min/max均为30,000；
+- learned alpha / `tanh(alpha)`：
+  `-0.0925037190 / -0.0922407731`；
+- final validation total：`0.0502382831`；loss、model、optimizer与required gradients均
+  finite，AMP overflow为0；
+- 每rank最小显存headroom为19,369,492,480 bytes。
+
+Cadence完整性为20个main checkpoints与80个rank RNG sidecars，missing/extra均为0。
+必须保留原checkpoint-race failure
+`a66fec685afb5cbb4079619de9417b7171af7e29244723f1deac9d4ba306d1b1`、
+partial archive tree
+`b5573764eceb388f6a28f10b4ed89b44bbbcdd430213dad490f6c8b5caa7f9dd`
+以及两个未启动GPU的旁路operational failure目录。
+
+Timing只允许报告一致口径：
+
+- continuation-only throughput：`3232.575359 windows/s`；
+- accepted-lineage artifact throughput：`3218.215477 windows/s`；
+- serialized raw `3591.750399 windows/s`使用全预算windows除以continuation-only wall，
+  不得作为formal完整训练吞吐。
+
+Worker lifecycle已执行`finish`与run-local `register`。关键SHA-256为：
+
+- manifest：
+  `49371a577a037444aef47fd5fda64f5d147ecd712247308b99b675d1edee55d3`；
+- run-local registry：
+  `7d1ba1bd99cf2c4dcf95a2300522f828e832d70b0f12afe3213c547471dedf50`；
+- metrics：
+  `25b172f21d78d97412cb4eeeb79b43566d7e488286c383127a4edf0272c11903`；
+- training state：
+  `8dcb3ea4e1e39d661bcef138de6ff347731db8eeb88213fe0b4e0ba83204f8a4`；
+- resolved resume config：
+  `6845d032e48027a35ccbd20169d118cc81429ac652c31f8c615e5474d45fe870`；
+- resume preflight：
+  `5f404f407d022c7db80fb1c781f69828d7abccbcecbd3f995cdd2049cace4e51`；
+- resume contract：
+  `35240fb486b891a520ad3f08c9e557594349adc77b4868eca9547b845f540f2f`；
+- formal completion verification：
+  `a6263835cf79c6b803275c3d9c96c269aa1c2e75b1c8fea3fce4b4b56f7f1ec1`。
+
+Worker随后发起non-destructive `rsync -aH --partial`，未使用`--delete`，将完整156-file /
+7,227,356,886-byte formal tree恢复到
+`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260729-recovery-r1`。
+Worker与authority的`sha256_path`均为
+`9bff3d9a182138ee30ca586b10d71f689e6aa0c7345d2b1052fe0ea15251dc6c`，
+重复`rsync --checksum --dry-run`无差异。Fixed final-online不可选择、不可resume、不可用于
+任何后续prior初始化；下一步仍只允许预注册的five-path internal和一次fixed native。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
