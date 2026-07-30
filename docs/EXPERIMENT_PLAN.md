@@ -6658,6 +6658,18 @@ Git object的governance-only record；随后worker仅可fast-forward到相同cle
 object并执行fixed internal。Internal contract失败立即停止；internal科学结果正负均不改变
 随后唯一native的执行要求。
 
+#### 2026-07-30 Phase 1B D2-AF0 evaluation hardening implementation binding
+
+Logical implementation已提交为
+`3d4ff1eb5c57b1b08537859dca8e895bc428a26d`，tree为
+`c46b6b4dfad7ecd3b8b90af6cf71e2ed8fc7ecf7`。相对plan-only commit
+`7a484fe18dc28e29e30b2966d966825823130c0b`的binary diff SHA-256为
+`b07123b8086cd523cbe3c89006ce7264e13f08468ba6ae13844b48bb6ecf8b34`，changed paths严格
+为两个D2-AF evaluation runners、一个D2-AF eval test及plan/registry五项。该commit之后
+尚未启动checkpoint load或GPU workload。Worker必须fast-forward到包含本binding的最终clean
+HEAD；其source代码必须与上述implementation object相同，随后才可创建registered internal
+manifest。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
