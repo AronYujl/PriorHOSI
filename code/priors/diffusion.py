@@ -13,9 +13,13 @@ from torch import nn
 from .diffusion_schedule import canonical_diffusion_schedule
 from .representation import REPRESENTATION
 from .sparse_relation import (
+    ARCHITECTURE_VARIANT as D2AE_ARCHITECTURE_VARIANT,
+    D2AF_ARCHITECTURE_VARIANT,
+    D2AG_ARCHITECTURE_VARIANT,
     SPARSE_POINT_MANIFEST_SHA256,
     SPARSE_POINT_MAPPING_SHA256,
     SPARSE_POINT_TENSOR_SHA256,
+    build_d2ag_relation_source,
     sparse_rest_object_point_cache,
     verify_sparse_rest_object_assets,
 )
@@ -209,11 +213,31 @@ class GaussianDiffusion(nn.Module):
             value is None for value in relation_values
         ):
             raise ValueError("D2-AE sampling requires a complete sparse relation metadata set")
+        selfcond_relation_source = (
+            getattr(model, "architecture_variant", None) == D2AG_ARCHITECTURE_VARIANT
+        )
+        if selfcond_relation_source and not all(
+            value is not None for value in relation_values
+        ):
+            raise ValueError("D2-AG sampling requires the sparse relation metadata set")
+        # ``prev_x0`` is a local, so every ``sample`` call - that is, every
+        # window - starts a fresh 500-step chain whose first reverse step has no
+        # previous estimate and therefore uses the current-state source.
+        prev_x0: Optional[torch.Tensor] = None
         for step in reversed(range(self.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=current.device)
             if all(value is not None for value in relation_values):
                 if local_object_bps is not None:
                     raise ValueError("D2-AE sparse relation metadata cannot be combined with D2-AD local BPS")
+                selfcond_arguments = (
+                    {
+                        "relation_source": build_d2ag_relation_source(
+                            current, prev_x0,
+                        ),
+                    }
+                    if selfcond_relation_source and prev_x0 is not None
+                    else {}
+                )
                 clean = model(
                     current,
                     timesteps,
@@ -228,6 +252,7 @@ class GaussianDiffusion(nn.Module):
                     position_maximum=position_maximum,
                     object_minimum=object_minimum,
                     object_maximum=object_maximum,
+                    **selfcond_arguments,
                 )
             elif local_object_bps is not None:
                 clean = model(
@@ -243,6 +268,11 @@ class GaussianDiffusion(nn.Module):
                 clean = model(
                     current, timesteps, text_embedding, object_bps, goals, progress,
                 )
+            if selfcond_relation_source:
+                # Registered contract: ``prev_x0`` is the raw model ``x0_hat``,
+                # captured before ``prepare_clean_x0`` restores history or closes
+                # object rotations on SO(3).
+                prev_x0 = clean.detach()
             clean = prepare_clean_x0(
                 clean, fixed_history, object_so3_x0=object_so3_x0,
             )
@@ -326,8 +356,9 @@ class HOIPriorSampler:
         self.sparse_relation_enabled = (
             getattr(model, "architecture_variant", None)
             in {
-                "d2ae_sparse_relation_field",
-                "d2af_sqrt_alpha_bar_reliability",
+                D2AE_ARCHITECTURE_VARIANT,
+                D2AF_ARCHITECTURE_VARIANT,
+                D2AG_ARCHITECTURE_VARIANT,
             }
         )
         self.sparse_rest_point_cache = None

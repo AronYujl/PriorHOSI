@@ -26,6 +26,7 @@ from priors.d2ae_diagnostic import (  # noqa: E402
 )
 from priors.models import (  # noqa: E402
     HOI_ARCHITECTURE_D2AE,
+    HOI_ARCHITECTURE_D2AG,
     HOIPrior,
     build_expert,
     load_trained_hoi_prior,
@@ -33,6 +34,7 @@ from priors.models import (  # noqa: E402
 from priors.sparse_relation import (  # noqa: E402
     BASE_PARAMETER_COUNT,
     DIAGNOSTIC_VARIANTS as MODEL_DIAGNOSTIC_VARIANTS,
+    selfcond_relation_source_contract_metadata,
     OBJECT_NAMES,
     PARAMETER_INCREASE_FRACTION,
     ROLE_JOINTS,
@@ -707,6 +709,79 @@ class D2AEGovernanceTests(unittest.TestCase):
         unexpected["extra_direction"] = True
         with self.assertRaisesRegex(ValueError, "unexpected=extra_direction"):
             validate_sparse_relation_contract(unexpected)
+        # A D2-AG selfcond-relation-source contract is not a D2-AE contract.
+        with self.assertRaises(ValueError):
+            validate_sparse_relation_contract(
+                selfcond_relation_source_contract_metadata()
+            )
+
+    def test_loader_rejects_a_d2ag_selfcond_relation_source_checkpoint(self):
+        torch.manual_seed(42)
+        d2ag = build_expert(
+            "hoi", dim_model=512, num_heads=16, num_layers=8,
+            architecture_variant=HOI_ARCHITECTURE_D2AG,
+        )
+        d2ag_checkpoint = {
+            "checkpoint_type": "hoi_prior_phase1b",
+            "expert": "hoi",
+            "initialization": "random",
+            "architecture_variant": HOI_ARCHITECTURE_D2AG,
+            "model_config": {
+                "dim_model": 512,
+                "num_heads": 16,
+                "num_layers": 8,
+                "architecture_variant": HOI_ARCHITECTURE_D2AG,
+            },
+            "selfcond_relation_source_contract": (
+                selfcond_relation_source_contract_metadata()
+            ),
+            "model": d2ag.state_dict(),
+        }
+        # A D2-AE checkpoint that also smuggles the D2-AG contract must fail.
+        torch.manual_seed(42)
+        d2ae = build_expert(
+            "hoi", dim_model=512, num_heads=16, num_layers=8,
+            architecture_variant=HOI_ARCHITECTURE_D2AE,
+        )
+        contaminated = {
+            "checkpoint_type": "hoi_prior_phase1b",
+            "expert": "hoi",
+            "initialization": "random",
+            "architecture_variant": HOI_ARCHITECTURE_D2AE,
+            "model_config": {
+                "dim_model": 512,
+                "num_heads": 16,
+                "num_layers": 8,
+                "architecture_variant": HOI_ARCHITECTURE_D2AE,
+            },
+            "sparse_relation_contract": sparse_relation_contract_metadata(),
+            "selfcond_relation_source_contract": (
+                selfcond_relation_source_contract_metadata()
+            ),
+            "model": d2ae.state_dict(),
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary = Path(temporary)
+            d2ag_path = temporary / "d2ag.pth"
+            contaminated_path = temporary / "d2ae-with-d2ag-contract.pth"
+            torch.save(d2ag_checkpoint, d2ag_path)
+            torch.save(contaminated, contaminated_path)
+            with self.assertRaisesRegex(ValueError, "architecture variant mismatch"):
+                load_trained_hoi_prior(
+                    str(d2ag_path),
+                    torch.device("cpu"),
+                    use_ema=False,
+                    expected_architecture_variant=HOI_ARCHITECTURE_D2AE,
+                )
+            with self.assertRaisesRegex(
+                ValueError, "D2-AG selfcond-relation-source contract",
+            ):
+                load_trained_hoi_prior(
+                    str(contaminated_path),
+                    torch.device("cpu"),
+                    use_ema=False,
+                    expected_architecture_variant=HOI_ARCHITECTURE_D2AE,
+                )
 
     def test_internal_causal_overlap_and_path_local_protocol_are_explicit(self):
         class DatasetStub:

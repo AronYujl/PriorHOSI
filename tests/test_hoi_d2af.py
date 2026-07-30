@@ -32,6 +32,7 @@ from priors.diffusion_schedule import (  # noqa: E402
 from priors.models import (  # noqa: E402
     HOI_ARCHITECTURE_D2AE,
     HOI_ARCHITECTURE_D2AF,
+    HOI_ARCHITECTURE_D2AG,
     build_expert,
     load_trained_hoi_prior,
 )
@@ -41,6 +42,7 @@ from priors.sparse_relation import (  # noqa: E402
     TOTAL_PARAMETER_COUNT,
     SparseCurrentStateRelationField,
     diffusion_reliability_contract_metadata,
+    selfcond_relation_source_contract_metadata,
     validate_diffusion_reliability_contract,
 )
 from tools.diagnose_hoi_d2ae import synthetic_inputs  # noqa: E402
@@ -286,6 +288,10 @@ class D2AFCheckpointAndConfigTests(unittest.TestCase):
             value["sparse_relation_contract"] = (
                 model.network.sparse_relation_field.contract_metadata()
             )
+        elif variant == HOI_ARCHITECTURE_D2AG:
+            value["selfcond_relation_source_contract"] = (
+                model.network.sparse_relation_field.contract_metadata()
+            )
         else:
             value["diffusion_reliability_contract"] = (
                 model.network.sparse_relation_field.contract_metadata()
@@ -317,6 +323,43 @@ class D2AFCheckpointAndConfigTests(unittest.TestCase):
                     torch.device("cpu"),
                     use_ema=False,
                     expected_architecture_variant=HOI_ARCHITECTURE_D2AE,
+                )
+            # D2-AF must reject D2-AG in both directions, and must reject a
+            # D2-AF schema that smuggles in the D2-AG contract.
+            ag_path = Path(directory) / "ag.pth"
+            torch.save(self._checkpoint(HOI_ARCHITECTURE_D2AG), ag_path)
+            with self.assertRaisesRegex(ValueError, "architecture variant mismatch"):
+                load_trained_hoi_prior(
+                    str(ag_path),
+                    torch.device("cpu"),
+                    use_ema=False,
+                    expected_architecture_variant=HOI_ARCHITECTURE_D2AF,
+                )
+            with self.assertRaisesRegex(ValueError, "architecture variant mismatch"):
+                load_trained_hoi_prior(
+                    str(af_path),
+                    torch.device("cpu"),
+                    use_ema=False,
+                    expected_architecture_variant=HOI_ARCHITECTURE_D2AG,
+                )
+            with self.assertRaises(ValueError):
+                validate_diffusion_reliability_contract(
+                    selfcond_relation_source_contract_metadata()
+                )
+            contaminated = self._checkpoint(HOI_ARCHITECTURE_D2AF)
+            contaminated["selfcond_relation_source_contract"] = (
+                selfcond_relation_source_contract_metadata()
+            )
+            contaminated_path = Path(directory) / "af-with-ag-contract.pth"
+            torch.save(contaminated, contaminated_path)
+            with self.assertRaisesRegex(
+                ValueError, "D2-AG selfcond-relation-source contract",
+            ):
+                load_trained_hoi_prior(
+                    str(contaminated_path),
+                    torch.device("cpu"),
+                    use_ema=False,
+                    expected_architecture_variant=HOI_ARCHITECTURE_D2AF,
                 )
 
     def test_resolved_config_is_single_factor_and_cpu_contract_accepts_no_bindings(self):

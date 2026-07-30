@@ -55,19 +55,25 @@ from priors.models import (
     HOI_ARCHITECTURE_D2AD,
     HOI_ARCHITECTURE_D2AE,
     HOI_ARCHITECTURE_D2AF,
+    HOI_ARCHITECTURE_D2AG,
     build_expert,
 )
 from priors.representation import REPRESENTATION
 from priors.sparse_relation import (
     BASE_PARAMETER_COUNT as D2AE_BASE_PARAMETER_COUNT,
+    D2AG_SELF_CONDITION_PROBABILITY,
+    D2AG_VARIABLE_ANCHORS,
     PARAMETER_INCREASE_FRACTION as D2AE_PARAMETER_INCREASE_FRACTION,
     SPARSE_POINT_MANIFEST_SHA256,
     SPARSE_POINT_MAPPING_SHA256,
     SPARSE_POINT_TENSOR_SHA256,
     SPARSE_RELATION_PARAMETER_COUNT,
     TOTAL_PARAMETER_COUNT as D2AE_TOTAL_PARAMETER_COUNT,
+    build_d2ag_relation_source,
     diffusion_reliability_contract_metadata,
+    selfcond_relation_source_contract_metadata,
     validate_diffusion_reliability_contract,
+    validate_selfcond_relation_source_contract,
     validate_sparse_relation_contract,
 )
 from priors.window_codec import BPS_SHA256
@@ -214,6 +220,38 @@ D2AF_FORMAL_SOURCE_SCOPES = (
     "tools/capture_hoi_worker_preflight.py",
     "tools/experiment.py",
 )
+D2AG_FORMAL_RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ag-selfcond-relation-source"
+    r"(?P<retry>-r[1-9][0-9]*)?-s42-(?P<date>[0-9]{8})$"
+)
+D2AG_PERFORMANCE_RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ag-performance-benchmark"
+    r"(?P<retry>-r[1-9][0-9]*)?-s42-(?P<date>[0-9]{8})$"
+)
+# Registered as D2-AG's own gate: 85% of the sealed D2-X formal throughput
+# 3243.0357134915853 windows/s (EP:7090-7098).  Numerically equal to the D2-AE
+# pair by coincidence of form; the D2-AF 95%-of-predecessor values
+# (3179.689863044761 / 5.367399778519349) are explicitly inapplicable here.
+D2AG_MINIMUM_THROUGHPUT = 2756.580356467847
+D2AG_MAXIMUM_ETA_HOURS = 6.20
+D2AG_PERFORMANCE_FAILURE_CLASSIFICATION = (
+    "selfcond-relation-source-performance-negative-stop"
+)
+D2AG_CONTRACT_FAILURE_CLASSIFICATION = (
+    "selfcond-relation-source-contract-failure-stop"
+)
+D2AG_FORMAL_SOURCE_SCOPES = (
+    "code",
+    "tools/benchmark_hoi_d2ag.py",
+    "tools/benchmark_hoi_d2ae.py",
+    "tools/smoke_hoi_d2ag.py",
+    "tools/smoke_hoi_d2ae.py",
+    "tools/diagnose_hoi_d2ag.py",
+    "tools/diagnose_hoi_d2ae.py",
+    "tools/smoke_hoi_d2ac.py",
+    "tools/capture_hoi_worker_preflight.py",
+    "tools/experiment.py",
+)
 
 
 def _validate_d2ae_formal_run_id(
@@ -246,6 +284,25 @@ def _validate_d2af_formal_run_id(
         require_actual_date and match.group("date") != actual_date
     ):
         raise ValueError("D2-AF formal run id must use the locked stem and actual date")
+    return {
+        "run_id": str(run_id),
+        "date": match.group("date"),
+        "date_is_actual": match.group("date") == actual_date,
+        "retry": match.group("retry") is not None,
+    }
+
+
+def _validate_d2ag_formal_run_id(
+    run_id: str,
+    *,
+    require_actual_date: bool = True,
+) -> Dict[str, object]:
+    match = D2AG_FORMAL_RUN_ID_RE.fullmatch(str(run_id))
+    actual_date = datetime.now().astimezone().strftime("%Y%m%d")
+    if match is None or (
+        require_actual_date and match.group("date") != actual_date
+    ):
+        raise ValueError("D2-AG formal run id must use the locked stem and actual date")
     return {
         "run_id": str(run_id),
         "date": match.group("date"),
@@ -416,6 +473,33 @@ def _d2ae_formal_source_contract(repo: Path) -> Dict[str, object]:
     return {
         "algorithm": "git-ls-files-path-content-sha256-v1",
         "scopes": list(D2AE_FORMAL_SOURCE_SCOPES),
+        "tracked_file_count": len(records),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def _d2ag_formal_source_contract(repo: Path) -> Dict[str, object]:
+    """Hash the exact tracked D2-AG runtime tree used by benchmark/formal."""
+    repo = repo.resolve()
+    output = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", *D2AG_FORMAL_SOURCE_SCOPES],
+        cwd=repo,
+    )
+    relative_paths = sorted(
+        item.decode("utf-8") for item in output.split(b"\0") if item
+    )
+    if not relative_paths:
+        raise ValueError("D2-AG formal source contract resolved no tracked files")
+    records = [
+        {"path": relative, "sha256": _sha256(repo / relative)}
+        for relative in relative_paths
+    ]
+    encoded = json.dumps(
+        records, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return {
+        "algorithm": "git-ls-files-path-content-sha256-v1",
+        "scopes": list(D2AG_FORMAL_SOURCE_SCOPES),
         "tracked_file_count": len(records),
         "sha256": hashlib.sha256(encoded).hexdigest(),
     }
@@ -1146,6 +1230,154 @@ def _validate_d2ae_performance_gate(cfg: DictConfig) -> Dict[str, object]:
     }
 
 
+def _validate_d2ag_performance_gate(cfg: DictConfig) -> Dict[str, object]:
+    """Require an immutable passing benchmark before formal D2-AG training.
+
+    The D2-AG floor is registered independently (85% of the sealed D2-X formal
+    throughput).  The D2-AF waiver is run-id bound and is not reachable here.
+    """
+    path_value = cfg.get("d2ag_performance_benchmark_path")
+    configured_sha256 = cfg.get("d2ag_performance_benchmark_sha256")
+    if path_value in (None, "", False) or configured_sha256 in (None, "", False):
+        raise ValueError("D2-AG formal training requires a sealed performance benchmark")
+    path = Path(str(path_value))
+    if not path.is_absolute() or not path.is_file():
+        raise ValueError("D2-AG performance benchmark path must be an existing absolute file")
+    configured_sha256 = str(configured_sha256)
+    actual_sha256 = _sha256(path)
+    if (
+        re.fullmatch(r"[0-9a-f]{64}", configured_sha256) is None
+        or actual_sha256 != configured_sha256
+    ):
+        raise ValueError("D2-AG performance benchmark SHA-256 mismatch")
+    try:
+        benchmark = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("D2-AG performance benchmark is not valid JSON") from error
+    if not isinstance(benchmark, Mapping):
+        raise ValueError("D2-AG performance benchmark must be a JSON object")
+
+    repo = Path(str(cfg.repo_root)).resolve()
+    identity = benchmark.get("identity")
+    benchmark_run_id = str(benchmark.get("run_id", ""))
+    benchmark_run_match = D2AG_PERFORMANCE_RUN_ID_RE.fullmatch(benchmark_run_id)
+    formal_run_id = str(benchmark.get("formal_run_id", ""))
+    configured_formal_run_id = str(cfg.run_id)
+    configured_formal_match = D2AG_FORMAL_RUN_ID_RE.fullmatch(
+        configured_formal_run_id
+    )
+    benchmark_commit = (
+        identity.get("git_commit") if isinstance(identity, Mapping) else None
+    )
+    commit_valid = isinstance(benchmark_commit, str) and re.fullmatch(
+        r"[0-9a-f]{40}", benchmark_commit,
+    ) is not None
+    ancestor = False
+    if commit_valid:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", benchmark_commit, _git_commit(repo)],
+            cwd=repo,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode == 0
+    throughput = benchmark.get("throughput_windows_per_second")
+    eta_hours = benchmark.get("full_budget_eta_hours")
+    headroom = benchmark.get("memory_headroom_min_bytes")
+    required_headroom = benchmark.get("memory_headroom_required_bytes")
+    numeric_metrics = (
+        isinstance(throughput, (int, float))
+        and not isinstance(throughput, bool)
+        and math.isfinite(float(throughput))
+        and isinstance(eta_hours, (int, float))
+        and not isinstance(eta_hours, bool)
+        and math.isfinite(float(eta_hours))
+    )
+    memory_metrics = (
+        isinstance(headroom, int)
+        and not isinstance(headroom, bool)
+        and isinstance(required_headroom, int)
+        and not isinstance(required_headroom, bool)
+        and headroom >= required_headroom
+        and required_headroom >= 2 * 1024**3
+    )
+    checks = {
+        "schema_version": benchmark.get("schema_version") == 1,
+        "status": benchmark.get("status") == "passed",
+        "classification": benchmark.get("classification") == "performance-gate-passed",
+        "run_id": benchmark_run_match is not None,
+        "formal_run_id": configured_formal_match is not None
+        and benchmark_run_match is not None
+        and formal_run_id == configured_formal_run_id
+        and configured_formal_match.group("date")
+        == benchmark_run_match.group("date"),
+        "formal_authorized": benchmark.get("formal_training_authorized") is True,
+        "seed": benchmark.get("seed") == 42,
+        "world_size": benchmark.get("world_size") == 4,
+        "micro_batch": benchmark.get("micro_batch_per_gpu") == 512,
+        "effective_batch": benchmark.get("effective_batch_size") == 2048,
+        "warmup_updates": benchmark.get("warmup_updates") == 64,
+        "measured_updates": benchmark.get("measured_updates") == 256,
+        "total_updates": benchmark.get("total_updates") == 320,
+        "measured_windows": benchmark.get("measured_windows") == 524288,
+        "numeric_metrics": numeric_metrics,
+        "throughput": numeric_metrics
+        and float(throughput) >= D2AG_MINIMUM_THROUGHPUT,
+        "eta": numeric_metrics and float(eta_hours) <= D2AG_MAXIMUM_ETA_HOURS,
+        "throughput_threshold": benchmark.get(
+            "minimum_throughput_windows_per_second"
+        ) == D2AG_MINIMUM_THROUGHPUT,
+        "eta_threshold": benchmark.get("maximum_full_budget_eta_hours")
+        == D2AG_MAXIMUM_ETA_HOURS,
+        "memory": benchmark.get("memory_headroom_pass") is True
+        and memory_metrics,
+        "losses": benchmark.get("losses_finite") is True,
+        "gradients": benchmark.get("gradients_finite") is True,
+        "relation_gpu_only": benchmark.get("relation_gpu_only") is True,
+        "all_rank_contract": benchmark.get("all_rank_contract_pass") is True,
+        "contention": benchmark.get("contention_pass") is True,
+        "cpu_dynamic_geometry": benchmark.get("cpu_dynamic_geometry") is False,
+        "relation_build_device": benchmark.get("relation_build_device") == "cuda",
+        "cuda_timing": benchmark.get("cuda_timing_synchronized") is True,
+        "optimizer": benchmark.get("optimizer") == "FP32 Adam",
+        "optimizer_updates": benchmark.get("optimizer_updates") == 320,
+        "checkpoint_loads": benchmark.get("checkpoint_loads") == 0,
+        "checkpoint_writes": benchmark.get("checkpoint_writes") == 0,
+        "benchmark_weights_reusable": benchmark.get("benchmark_weights_reusable") is False,
+        "sweep_on_failure": benchmark.get("sweep_authorized_on_failure") is False,
+        "selfcond_estimate_forward_measured": benchmark.get(
+            "selfcond_estimate_forward_measured"
+        ) is True,
+        "selection_probability": benchmark.get("selection_probability")
+        == D2AG_SELF_CONDITION_PROBABILITY,
+        "waiver_absent": benchmark.get("performance_waiver") in (None, False),
+        "identity_mapping": isinstance(identity, Mapping),
+        "identity_clean": isinstance(identity, Mapping)
+        and identity.get("worktree_clean") is True,
+        "benchmark_commit": commit_valid,
+        "benchmark_ancestor": ancestor,
+        "source_contract": benchmark.get("formal_source_contract")
+        == _d2ag_formal_source_contract(repo),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            "D2-AG performance benchmark contract mismatch: " + ", ".join(failed)
+        )
+    return {
+        "path": str(path.resolve()),
+        "sha256": actual_sha256,
+        "run_id": str(benchmark["run_id"]),
+        "formal_run_id": formal_run_id,
+        "git_commit": benchmark_commit,
+        "throughput_windows_per_second": float(throughput),
+        "full_budget_eta_hours": float(eta_hours),
+        "memory_headroom_min_bytes": int(headroom),
+        "formal_source_contract": dict(benchmark["formal_source_contract"]),
+        "checks": checks,
+    }
+
+
 def _validate_d2af_eligibility_gate(
     cfg: DictConfig,
     *,
@@ -1825,6 +2057,7 @@ def _model_config(cfg: DictConfig) -> Dict[str, object]:
         or bool(cfg.get("d2ad_local_frame_interaction_adapter", False))
         or bool(cfg.get("d2ae_sparse_relation_field", False))
         or bool(cfg.get("d2af_sqrt_alpha_bar_reliability", False))
+        or bool(cfg.get("d2ag_selfcond_relation_source", False))
     ):
         value["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
     return value
@@ -1872,6 +2105,9 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         ),
         "d2af_sqrt_alpha_bar_reliability": bool(
             cfg.get("d2af_sqrt_alpha_bar_reliability", False)
+        ),
+        "d2ag_selfcond_relation_source": bool(
+            cfg.get("d2ag_selfcond_relation_source", False)
         ),
         "fk_foot_temporal_routing": bool(cfg.get("fk_foot_temporal_routing", False)),
         "ema_decays": [float(value) for value in cfg.ema_decays],
@@ -1969,6 +2205,21 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
             if cfg.get("d2af_performance_waiver_sha256") in (None, "", False)
             else str(cfg.d2af_performance_waiver_sha256)
         )
+    if _is_d2ag(cfg):
+        contract["d2ag_selfcond_relation_source"] = True
+        contract["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
+        contract["d2ag_sparse_relation_parameters"] = SPARSE_RELATION_PARAMETER_COUNT
+        contract["d2ag_sparse_point_mapping_sha256"] = SPARSE_POINT_MAPPING_SHA256
+        contract["d2ag_sparse_point_manifest_sha256"] = SPARSE_POINT_MANIFEST_SHA256
+        contract["d2ag_sparse_point_tensor_sha256"] = SPARSE_POINT_TENSOR_SHA256
+        contract["d2ag_selection_probability"] = D2AG_SELF_CONDITION_PROBABILITY
+        contract["d2ag_variable_anchors"] = list(D2AG_VARIABLE_ANCHORS)
+        contract["d2ag_performance_benchmark_path"] = str(
+            Path(str(cfg.d2ag_performance_benchmark_path)).resolve()
+        )
+        contract["d2ag_performance_benchmark_sha256"] = str(
+            cfg.d2ag_performance_benchmark_sha256
+        )
     return contract
 
 
@@ -2024,8 +2275,12 @@ def _is_d2af(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2af_sqrt_alpha_bar_reliability", False))
 
 
+def _is_d2ag(cfg: DictConfig) -> bool:
+    return bool(cfg.get("d2ag_selfcond_relation_source", False))
+
+
 def _is_sparse_relation(cfg: DictConfig) -> bool:
-    return _is_d2ae(cfg) or _is_d2af(cfg)
+    return _is_d2ae(cfg) or _is_d2af(cfg) or _is_d2ag(cfg)
 
 
 def _uses_author_update_rule(cfg: DictConfig) -> bool:
@@ -2046,7 +2301,7 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     ):
         raise ValueError(
             "FK-foot temporal routing is restricted to registered "
-            "D2-X/D2-Y/D2-Z/D2-AB/D2-AC/D2-AD/D2-AE/D2-AF modes"
+            "D2-X/D2-Y/D2-Z/D2-AB/D2-AC/D2-AD/D2-AE/D2-AF/D2-AG modes"
         )
     if multiplier != 1.0 and not (_is_d2y(cfg) or _is_d2z(cfg)):
         raise ValueError("routed-foot residual amplification is restricted to registered D2-Y/D2-Z")
@@ -2066,6 +2321,10 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         raise ValueError("D2-AE sparse relation field requires D2-X FK-foot routing")
     if _is_d2af(cfg) and not routing:
         raise ValueError("D2-AF reliability routing requires D2-X FK-foot routing")
+    if _is_d2ag(cfg) and not routing:
+        raise ValueError(
+            "D2-AG selfcond relation source requires D2-X FK-foot routing"
+        )
     if _is_d2ab(cfg) and (
         bool(cfg.get("immutable_gt_near_ground_gating", False))
         or cfg.get("d2z_gate_audit_path") not in (None, "", False)
@@ -2087,9 +2346,14 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     )
     if sum(
         int(value)
-        for value in (_is_d2ac(cfg), _is_d2ad(cfg), _is_d2ae(cfg), _is_d2af(cfg))
+        for value in (
+            _is_d2ac(cfg), _is_d2ad(cfg), _is_d2ae(cfg), _is_d2af(cfg),
+            _is_d2ag(cfg),
+        )
     ) > 1:
-        raise ValueError("D2-AC, D2-AD, D2-AE and D2-AF modes are mutually exclusive")
+        raise ValueError(
+            "D2-AC, D2-AD, D2-AE, D2-AF and D2-AG modes are mutually exclusive"
+        )
     if _is_d2ac(cfg):
         if architecture_variant != HOI_ARCHITECTURE_D2AC:
             raise ValueError("D2-AC requires the registered interaction-adapter architecture")
@@ -2102,10 +2366,15 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     elif _is_d2af(cfg):
         if architecture_variant != HOI_ARCHITECTURE_D2AF:
             raise ValueError("D2-AF requires the registered reliability architecture")
+    elif _is_d2ag(cfg):
+        if architecture_variant != HOI_ARCHITECTURE_D2AG:
+            raise ValueError(
+                "D2-AG requires the registered selfcond-relation-source architecture"
+            )
     elif architecture_variant != HOI_ARCHITECTURE_BASE:
         raise ValueError(
             "HOIPrior architecture variants are forbidden outside registered "
-            "D2-AC/D2-AD/D2-AE/D2-AF"
+            "D2-AC/D2-AD/D2-AE/D2-AF/D2-AG"
         )
 
 
@@ -2276,6 +2545,37 @@ def _loss_routing_contract(cfg: DictConfig) -> Dict[str, object]:
             "future_gt_used": False,
             "scene_used": False,
             "stored_relation_used": False,
+            "loss_or_snr_weighting": False,
+            "d2ab_predicted_support_no_slip": False,
+        })
+    if _is_d2ag(cfg):
+        contract.update({
+            "d2ag_selfcond_relation_source": True,
+            "architecture_variant": HOI_ARCHITECTURE_D2AG,
+            "placement": "after_motion_input_before_condition_concat_position_and_full_trunk",
+            "writeback": "motion + tanh(alpha) * routed_relation(relation_source)",
+            "global_bps_token_preserved": True,
+            "temporal_anchors": [0, 5, 10, 15],
+            "variable_anchors": list(D2AG_VARIABLE_ANCHORS),
+            "variable_anchor_source": "detached_model_x0_hat",
+            "history_anchor_source": "current_noisy_state",
+            "selection_probability": D2AG_SELF_CONDITION_PROBABILITY,
+            "unselected_sample_source": "current_noisy_state",
+            "relation_zero_branch": False,
+            "relation_exposure_fraction": 1.0,
+            "roles": ["left_hand", "right_hand", "pelvis"],
+            "role_joints": [24, 26, 0],
+            "rest_object_points": [100, 3],
+            "mapping_sha256": SPARSE_POINT_MAPPING_SHA256,
+            "manifest_sha256": SPARSE_POINT_MANIFEST_SHA256,
+            "stacked_tensor_sha256": SPARSE_POINT_TENSOR_SHA256,
+            "sparse_relation_parameters": SPARSE_RELATION_PARAMETER_COUNT,
+            "current_state_only": False,
+            "clean_target_used": False,
+            "future_gt_used": False,
+            "scene_used": False,
+            "stored_relation_used": False,
+            "sqrt_alpha_bar_attenuation": False,
             "loss_or_snr_weighting": False,
             "d2ab_predicted_support_no_slip": False,
         })
@@ -3407,10 +3707,195 @@ def _validate_d2af_contract(
     }
 
 
+def _validate_d2ag_contract(
+    cfg: DictConfig,
+    world_size: int,
+    *,
+    require_performance_gate: bool = True,
+) -> Optional[Dict[str, object]]:
+    if not _is_d2ag(cfg):
+        return None
+    resume_value = cfg.resume_checkpoint
+    is_resume = resume_value not in (None, "", False)
+    run_id_contract = _validate_d2ag_formal_run_id(
+        str(cfg.run_id),
+        require_actual_date=not is_resume,
+    )
+    resume_allowed = (
+        resume_value in (None, "", False)
+        or (
+            Path(str(resume_value)).name.startswith(f"{cfg.run_id}_windows")
+            and Path(str(resume_value)).suffix == ".pth"
+        )
+    )
+    split_path = Path(str(cfg.split_manifest)).resolve()
+    exact = {
+        "mode": str(cfg.mode) == "d2ag-selfcond-relation-source",
+        "all_predecessor_modes_off": not any((
+            _is_d2t(cfg), _is_d2u(cfg), _is_d2v(cfg), _is_d2x(cfg),
+            _is_d2y(cfg), _is_d2z(cfg), _is_d2ab(cfg), _is_d2ac(cfg),
+            _is_d2ad(cfg), _is_d2ae(cfg), _is_d2af(cfg),
+        )),
+        "subphase": str(cfg.subphase) == "1B-D2-AG0",
+        "run_id": run_id_contract["run_id"] == str(cfg.run_id),
+        "run_id_date": is_resume or run_id_contract["date_is_actual"],
+        "seed": int(cfg.seed) == 42,
+        "architecture_variant": (
+            str(cfg.get("hoi_architecture_variant")) == HOI_ARCHITECTURE_D2AG
+        ),
+        "model_config": _model_config(cfg) == {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AG,
+        },
+        "world_size": world_size == 4,
+        "batch_size": int(cfg.batch_size) == 512,
+        "effective_batch_size": int(cfg.effective_batch_size) == 2048,
+        "gradient_accumulation_steps": int(cfg.gradient_accumulation_steps) == 1,
+        "num_workers": int(cfg.num_workers) == 4,
+        "local_bps_query_workers_absent": (
+            cfg.get("local_bps_query_workers") in (None, "", False)
+        ),
+        "dataset_limit": int(cfg.dataset_limit) == 0,
+        "max_processed_windows": int(cfg.max_processed_windows) == 61440000,
+        "processed_frames": int(cfg.max_processed_windows) * 16 == 983040000,
+        "optimizer_updates": (
+            int(cfg.max_processed_windows) // int(cfg.effective_batch_size) == 30000
+        ),
+        "validation_windows": int(cfg.validation_windows) == 32768,
+        "validation_interval_windows": int(cfg.validation_interval_windows) == 3072000,
+        "checkpoint_interval_windows": int(cfg.checkpoint_interval_windows) == 3072000,
+        "no_artificial_pause": cfg.pause_after_windows in (None, "", False),
+        "learning_rate": float(cfg.learning_rate) == 0.0001,
+        "warmup_windows": int(cfg.warmup_windows) == 0,
+        "minimum_lr_ratio": float(cfg.minimum_lr_ratio) == 1.0,
+        "weight_decay": float(cfg.weight_decay) == 0.0,
+        "betas": [float(cfg.beta1), float(cfg.beta2)] == [0.9, 0.999],
+        "optimizer_name": str(cfg.get("optimizer_name", "")) == "Adam",
+        "scheduler_name": str(cfg.get("scheduler_name", "")) == "none",
+        "gradient_clipping": not bool(cfg.get("gradient_clipping", True)),
+        "gradient_clip_norm": cfg.gradient_clip_norm in (None, "", False),
+        "amp": not bool(cfg.amp),
+        "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows) == 0,
+        "ema_decays": list(cfg.ema_decays) == [],
+        "primary_weight_variant": str(cfg.get("primary_weight_variant", "")) == "online",
+        "locked_weights": {
+            "fk": float(cfg.fk_weight),
+            "object_surface": float(cfg.object_surface_weight),
+            "velocity": float(cfg.velocity_weight),
+            "terminal_goal": float(cfg.goal_weight),
+        } == {
+            "fk": 0.3569973401779424,
+            "object_surface": 0.4772322188400037,
+            "velocity": 0.1,
+            "terminal_goal": 1.0,
+        },
+        "fk_foot_temporal_routing_on": bool(cfg.fk_foot_temporal_routing),
+        "routed_foot_multiplier_unit": (
+            float(cfg.get("routed_foot_residual_multiplier", 1.0)) == 1.0
+        ),
+        "old_auxiliary_inputs_absent": all(
+            cfg.get(name) in (None, "", False)
+            for name in (
+                "d2z_gate_audit_path",
+                "d2z_gate_audit_sha256",
+                "d2ab_support_metadata_path",
+                "d2ab_support_metadata_sha256",
+                "d2ae_performance_benchmark_path",
+                "d2ae_performance_benchmark_sha256",
+                "d2af_clean_signal_eligibility_path",
+                "d2af_clean_signal_eligibility_sha256",
+                "d2af_performance_benchmark_path",
+                "d2af_performance_benchmark_sha256",
+                "d2af_performance_waiver_path",
+                "d2af_performance_waiver_sha256",
+                "d2af_checkpoint_race_continuation_path",
+                "d2af_checkpoint_race_continuation_sha256",
+            )
+        ),
+        "random_initialization": all(
+            value in (None, "", False)
+            for value in (
+                cfg.init_checkpoint,
+                cfg.weight_init_checkpoint,
+                cfg.weight_init_sha256,
+                cfg.weight_init_variant,
+                cfg.d2m_candidate,
+            )
+        ),
+        "resume_same_run_only": resume_allowed,
+        "rng_audit_off": not bool(cfg.d2m_rng_audit),
+        "split_sha256": split_path.is_file() and _sha256(split_path)
+        == "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+        "parameter_contract": (
+            D2AE_BASE_PARAMETER_COUNT == 29673448
+            and SPARSE_RELATION_PARAMETER_COUNT == 413953
+            and D2AE_TOTAL_PARAMETER_COUNT == 30087401
+            and D2AE_PARAMETER_INCREASE_FRACTION <= 0.015
+        ),
+        "asset_hashes": all(
+            len(value) == 64
+            for value in (
+                SPARSE_POINT_MAPPING_SHA256,
+                SPARSE_POINT_MANIFEST_SHA256,
+                SPARSE_POINT_TENSOR_SHA256,
+            )
+        ),
+        "selfcond_contract": (
+            selfcond_relation_source_contract_metadata()["architecture_variant"]
+            == HOI_ARCHITECTURE_D2AG
+        ),
+        "selection_probability": D2AG_SELF_CONDITION_PROBABILITY == 0.5,
+        "sqrt_alpha_bar_attenuation_off": (
+            selfcond_relation_source_contract_metadata()[
+                "sqrt_alpha_bar_attenuation"
+            ] is False
+        ),
+        "relation_zero_branch_absent": (
+            selfcond_relation_source_contract_metadata()[
+                "relation_zero_branch"
+            ] is False
+        ),
+        "throughput_gate_independent_of_d2af": (
+            D2AG_MINIMUM_THROUGHPUT != D2AF_MINIMUM_THROUGHPUT
+            and D2AG_MAXIMUM_ETA_HOURS != D2AF_MAXIMUM_ETA_HOURS
+        ),
+        "performance_gate_binding": (
+            require_performance_gate
+            or (
+                cfg.get("d2ag_performance_benchmark_path") in (None, "", False)
+                and cfg.get("d2ag_performance_benchmark_sha256")
+                in (None, "", False)
+            )
+        ),
+        "profile_every_update": bool(cfg.get("profile_every_update")) is True,
+    }
+    failed = sorted(name for name, passed in exact.items() if not passed)
+    if failed:
+        raise ValueError(
+            f"D2-AG selfcond relation source contract mismatch: {failed}"
+        )
+    performance_gate = (
+        _validate_d2ag_performance_gate(cfg)
+        if require_performance_gate else None
+    )
+    return {
+        "run_id": run_id_contract,
+        "performance_gate_required": require_performance_gate,
+        "performance_gate": performance_gate,
+        "selection_probability": D2AG_SELF_CONDITION_PROBABILITY,
+        "minimum_throughput_windows_per_second": D2AG_MINIMUM_THROUGHPUT,
+        "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,
+        "contract": selfcond_relation_source_contract_metadata(),
+    }
+
+
 def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
     modes = (
+        (_is_d2ag(cfg), "D2-AG"),
         (_is_d2af(cfg), "D2-AF"),
         (_is_d2ae(cfg), "D2-AE"),
         (_is_d2ad(cfg), "D2-AD"),
@@ -3656,6 +4141,7 @@ def _validate_d2ae_model_instance(
     *,
     require_zero_alpha: bool,
     expected_diffusion_reliability: bool = False,
+    expected_selfcond_relation_source: bool = False,
 ) -> Dict[str, object]:
     field = model.network.sparse_relation_field
     if field is None:
@@ -3675,6 +4161,9 @@ def _validate_d2ae_model_instance(
         "diffusion_reliability": (
             field.diffusion_reliability is expected_diffusion_reliability
         ),
+        "selfcond_relation_source": (
+            field.selfcond_relation_source is expected_selfcond_relation_source
+        ),
         "schedule_buffer": (
             (
                 field.sqrt_alpha_bar is not None
@@ -3683,6 +4172,9 @@ def _validate_d2ae_model_instance(
             )
             if expected_diffusion_reliability
             else field.sqrt_alpha_bar is None
+        ),
+        "relation_source_estimate_cleared": (
+            field.relation_source_estimate is False
         ),
         "capture_disabled": field._capture is False,
         "alpha_finite": bool(torch.isfinite(field.alpha.detach())),
@@ -3740,6 +4232,122 @@ def _move_batch(batch: Dict[str, torch.Tensor], device: torch.device) -> Dict[st
     return moved
 
 
+def _d2ag_mask_seed(cfg: DictConfig, processed_windows: int, rank: int) -> int:
+    """Registered D2-AG Bernoulli seed (EP:6955-6968).
+
+    Structurally identical to the validation derivation at ``_validate``, so the
+    mask is reproducible from ``(seed, processed_windows, rank)`` alone and needs
+    no extra checkpoint state for a bit-exact resume.
+    """
+    return int(cfg.seed) * 1_000_003 + int(processed_windows) + int(rank)
+
+
+def _d2ag_selection_mask(
+    cfg: DictConfig,
+    batch_size: int,
+    device: torch.device,
+    processed_windows: int,
+    rank: int,
+) -> torch.Tensor:
+    """Draw the per-sample D2-AG mask from a dedicated generator.
+
+    The generator is deliberately independent of the global stream: formal
+    training draws ``timesteps``/``noise`` from the global RNG, so a shared
+    stream would make global RNG consumption depend on ``mask.sum()``.
+    """
+    generator = torch.Generator(device=device)
+    generator.manual_seed(_d2ag_mask_seed(cfg, processed_windows, rank))
+    return torch.rand(
+        (int(batch_size),), device=device, generator=generator,
+    ) < D2AG_SELF_CONDITION_PROBABILITY
+
+
+def _d2ag_relation_source_arguments(
+    model: torch.nn.Module,
+    batch: Dict[str, torch.Tensor],
+    noisy: torch.Tensor,
+    timesteps: torch.Tensor,
+    relation_metadata: Mapping[str, torch.Tensor],
+    cfg: DictConfig,
+    *,
+    processed_windows: int,
+    rank: int,
+    observer=None,
+) -> Dict[str, torch.Tensor]:
+    """Build the D2-AG per-sample relation source for one training micro-batch.
+
+    Selected rows take the detached ``x0_hat`` of one extra ``torch.no_grad()``
+    forward at the same timestep; that estimate forward itself uses the current
+    D2-AE ``x_t`` source.  Unselected rows keep ``x_t`` verbatim, so the field is
+    always active and there is no relation-zero branch.
+    """
+    mask = _d2ag_selection_mask(
+        cfg, noisy.shape[0], noisy.device, processed_windows, rank,
+    )
+    index = mask.nonzero(as_tuple=True)[0]
+    # Reach the unwrapped module so the estimate forward never touches DDP
+    # buffer sync or ``require_forward_param_sync``; ``no_sync()`` is already
+    # owned by gradient accumulation and must not be overloaded here.
+    inner = model.module if isinstance(model, DistributedDataParallel) else model
+    estimate: Optional[torch.Tensor] = None
+    if int(index.numel()):
+        selected = {
+            key: value.index_select(0, index)
+            for key, value in (
+                ("noisy", noisy),
+                ("timesteps", timesteps),
+                ("text_embedding", batch["text_embedding"]),
+                ("object_bps", batch["object_bps"]),
+                ("goals", batch["goals"]),
+                ("progress", normalize_progress(batch["progress"])),
+                ("rest_object_points", relation_metadata["rest_object_points"]),
+                (
+                    "world_to_local_rotation",
+                    relation_metadata["world_to_local_rotation"],
+                ),
+                (
+                    "object_rotation_reference",
+                    relation_metadata["object_rotation_reference"],
+                ),
+            )
+        }
+        was_training = inner.training
+        # eval() disables the active trunk dropout, so the estimate consumes no
+        # global RNG and matches the sampler's execution mode.
+        inner.eval()
+        if observer is not None:
+            observer("begin", int(index.numel()))
+        try:
+            with torch.no_grad():
+                estimate = inner(
+                    selected["noisy"],
+                    selected["timesteps"],
+                    selected["text_embedding"],
+                    selected["object_bps"],
+                    selected["goals"],
+                    selected["progress"],
+                    rest_object_points=selected["rest_object_points"],
+                    world_to_local_rotation=selected["world_to_local_rotation"],
+                    object_rotation_reference=selected[
+                        "object_rotation_reference"
+                    ],
+                    position_minimum=relation_metadata["position_minimum"],
+                    position_maximum=relation_metadata["position_maximum"],
+                    object_minimum=relation_metadata["object_minimum"],
+                    object_maximum=relation_metadata["object_maximum"],
+                    relation_source_estimate=True,
+                )
+        finally:
+            inner.train(was_training)
+            if observer is not None:
+                observer("end", int(index.numel()))
+    return {
+        "relation_source": build_d2ag_relation_source(
+            noisy, estimate, index=None if estimate is None else index,
+        ),
+    }
+
+
 def _forward_losses(
     model: torch.nn.Module,
     diffusion: GaussianDiffusion,
@@ -3753,6 +4361,9 @@ def _forward_losses(
     *,
     generator: Optional[torch.Generator] = None,
     audit_digest=None,
+    processed_windows: int = 0,
+    rank: int = 0,
+    selfcond_observer=None,
 ) -> Dict[str, torch.Tensor]:
     clean = batch["x"]
     timesteps = torch.randint(
@@ -3776,6 +4387,28 @@ def _forward_losses(
         batch["goals"],
         normalize_progress(batch["progress"]),
     )
+    relation_metadata = {
+        "rest_object_points": batch["rest_object_points"],
+        "world_to_local_rotation": batch["world_to_local_rotation"],
+        "object_rotation_reference": batch["object_rotation_reference"],
+        "position_minimum": minimum,
+        "position_maximum": maximum,
+        "object_minimum": object_minimum,
+        "object_maximum": object_maximum,
+    }
+    selfcond_arguments: Dict[str, torch.Tensor] = {}
+    if _is_d2ag(cfg):
+        selfcond_arguments = _d2ag_relation_source_arguments(
+            model,
+            batch,
+            noisy,
+            timesteps,
+            relation_metadata,
+            cfg,
+            processed_windows=processed_windows,
+            rank=rank,
+            observer=selfcond_observer,
+        )
     if _is_d2ad(cfg):
         prediction = model(
             *model_arguments,
@@ -3784,13 +4417,8 @@ def _forward_losses(
     elif _is_sparse_relation(cfg):
         prediction = model(
             *model_arguments,
-            rest_object_points=batch["rest_object_points"],
-            world_to_local_rotation=batch["world_to_local_rotation"],
-            object_rotation_reference=batch["object_rotation_reference"],
-            position_minimum=minimum,
-            position_maximum=maximum,
-            object_minimum=object_minimum,
-            object_maximum=object_maximum,
+            **relation_metadata,
+            **selfcond_arguments,
         )
     else:
         prediction = model(*model_arguments)
@@ -3882,6 +4510,7 @@ def _validate(
                 losses = _forward_losses(
                     model, diffusion, batch, parents, minimum, maximum,
                     object_minimum, object_maximum, cfg, generator=generator,
+                    processed_windows=processed_windows, rank=rank,
                 )
             count = batch["x"].shape[0]
             for index, key in enumerate(LOSS_KEYS):
@@ -4010,6 +4639,11 @@ def _checkpoint_value(
     if _is_d2af(cfg):
         value["architecture_variant"] = HOI_ARCHITECTURE_D2AF
         value["diffusion_reliability_contract"] = (
+            model.module.network.sparse_relation_field.contract_metadata()
+        )
+    if _is_d2ag(cfg):
+        value["architecture_variant"] = HOI_ARCHITECTURE_D2AG
+        value["selfcond_relation_source_contract"] = (
             model.module.network.sparse_relation_field.contract_metadata()
         )
     if ema_models:
@@ -4265,6 +4899,10 @@ def _load_resume(
             _state_dict_sha256(model.module.state_dict()),
             expected_architecture_variant=HOI_ARCHITECTURE_D2AF,
         )
+        if checkpoint.get("selfcond_relation_source_contract") is not None:
+            raise ValueError(
+                "D2-AF resume checkpoint architecture/provenance mismatch"
+            )
         try:
             validate_diffusion_reliability_contract(
                 checkpoint.get("diffusion_reliability_contract")
@@ -4273,11 +4911,33 @@ def _load_resume(
             raise ValueError(
                 "D2-AF resume checkpoint architecture/provenance mismatch"
             ) from error
+    elif _is_d2ag(cfg):
+        _validate_d2ae_random_origin_checkpoint(
+            checkpoint,
+            _state_dict_sha256(model.module.state_dict()),
+            expected_architecture_variant=HOI_ARCHITECTURE_D2AG,
+        )
+        if (
+            checkpoint.get("sparse_relation_contract") is not None
+            or checkpoint.get("diffusion_reliability_contract") is not None
+        ):
+            raise ValueError(
+                "D2-AG resume checkpoint architecture/provenance mismatch"
+            )
+        try:
+            validate_selfcond_relation_source_contract(
+                checkpoint.get("selfcond_relation_source_contract")
+            )
+        except ValueError as error:
+            raise ValueError(
+                "D2-AG resume checkpoint architecture/provenance mismatch"
+            ) from error
     elif checkpoint.get("architecture_variant") in {
         HOI_ARCHITECTURE_D2AC,
         HOI_ARCHITECTURE_D2AD,
         HOI_ARCHITECTURE_D2AE,
         HOI_ARCHITECTURE_D2AF,
+        HOI_ARCHITECTURE_D2AG,
     }:
         raise ValueError("variant checkpoint cannot resume a base HOIPrior run")
     repo = Path(str(cfg.repo_root)).resolve()
@@ -4347,6 +5007,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     _validate_d2ad_contract(cfg, world_size)
     d2ae_lifecycle_contract = _validate_d2ae_contract(cfg, world_size)
     d2af_lifecycle_contract = _validate_d2af_contract(cfg, world_size)
+    d2ag_lifecycle_contract = _validate_d2ag_contract(cfg, world_size)
     _validate_author_update_execution_host(cfg)
     device = torch.device(f"cuda:{rank}")
     torch.cuda.set_device(device)
@@ -4563,6 +5224,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             model.module,
             require_zero_alpha=resumed_from is None,
             expected_diffusion_reliability=_is_d2af(cfg),
+            expected_selfcond_relation_source=_is_d2ag(cfg),
         )
         if _is_sparse_relation(cfg) else None
     )
@@ -4631,6 +5293,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                         model, diffusion, batch, parents, minimum, maximum,
                         object_minimum, object_maximum, cfg,
                         audit_digest=training_rng_digest,
+                        processed_windows=processed_windows, rank=rank,
                     )
                     loss = losses["total"] / int(cfg.gradient_accumulation_steps)
                 if not torch.isfinite(loss):
@@ -4845,6 +5508,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             model.module,
             require_zero_alpha=False,
             expected_diffusion_reliability=_is_d2af(cfg),
+            expected_selfcond_relation_source=_is_d2ag(cfg),
         )
 
     if not paused and validation_loader is not None:
@@ -5050,10 +5714,15 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "d2af_lifecycle_contract": (
                     d2af_lifecycle_contract if _is_d2af(cfg) else None
                 ),
+                "d2ag_lifecycle_contract": (
+                    d2ag_lifecycle_contract if _is_d2ag(cfg) else None
+                ),
                 "sparse_relation_field": (
                     {
                         "architecture_variant": (
-                            HOI_ARCHITECTURE_D2AF
+                            HOI_ARCHITECTURE_D2AG
+                            if _is_d2ag(cfg)
+                            else HOI_ARCHITECTURE_D2AF
                             if _is_d2af(cfg) else HOI_ARCHITECTURE_D2AE
                         ),
                         "alpha": float(
@@ -5083,13 +5752,28 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                         "diffusion_reliability": (
                             model.module.network.sparse_relation_field.diffusion_reliability
                         ),
+                        "selfcond_relation_source": (
+                            model.module.network.sparse_relation_field.selfcond_relation_source
+                        ),
+                        "selection_probability": (
+                            D2AG_SELF_CONDITION_PROBABILITY
+                            if _is_d2ag(cfg) else None
+                        ),
+                        "mask_generator_seed_formula": (
+                            "cfg.seed * 1000003 + processed_windows + rank"
+                            if _is_d2ag(cfg) else None
+                        ),
                         "capture_enabled": (
                             model.module.network.sparse_relation_field._capture
                         ),
                         "builder": {
                             "backend": "pure_pytorch",
                             "runtime_device": "gpu",
-                            "source": "current_diffusion_state_x_t",
+                            "source": (
+                                "variable_anchors_detached_model_x0_hat_history_current_x_t"
+                                if _is_d2ag(cfg)
+                                else "current_diffusion_state_x_t"
+                            ),
                             "cpu_dynamic_geometry": False,
                             "collator_dynamic_geometry": False,
                             "stored_relation": False,

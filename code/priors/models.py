@@ -21,8 +21,10 @@ from .representation import REPRESENTATION
 from .sparse_relation import (
     ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AE,
     D2AF_ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AF,
+    D2AG_ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AG,
     SparseCurrentStateRelationField,
     validate_diffusion_reliability_contract,
+    validate_selfcond_relation_source_contract,
     validate_sparse_relation_contract,
 )
 
@@ -30,12 +32,16 @@ from .sparse_relation import (
 HOI_ARCHITECTURE_BASE = "base"
 HOI_ARCHITECTURE_D2AC = "d2ac_interaction_adapter"
 HOI_ARCHITECTURE_D2AD = "d2ad_local_frame_interaction_adapter"
+HOI_SPARSE_RELATION_ARCHITECTURES = frozenset({
+    HOI_ARCHITECTURE_D2AE,
+    HOI_ARCHITECTURE_D2AF,
+    HOI_ARCHITECTURE_D2AG,
+})
 HOI_ARCHITECTURES = frozenset({
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
-    HOI_ARCHITECTURE_D2AE,
-    HOI_ARCHITECTURE_D2AF,
+    *HOI_SPARSE_RELATION_ARCHITECTURES,
 })
 
 
@@ -87,21 +93,18 @@ class _HOICleanMotionNetwork(nn.Module):
         if architecture_variant in {
             HOI_ARCHITECTURE_D2AC,
             HOI_ARCHITECTURE_D2AD,
-            HOI_ARCHITECTURE_D2AE,
-            HOI_ARCHITECTURE_D2AF,
+            *HOI_SPARSE_RELATION_ARCHITECTURES,
         } and num_layers != 8:
             raise ValueError(
-                "D2-AC/D2-AD/D2-AE/D2-AF require the locked eight-layer "
+                "D2-AC/D2-AD/D2-AE/D2-AF/D2-AG require the locked eight-layer "
                 "HOIPrior trunk"
             )
-        if architecture_variant in {
-            HOI_ARCHITECTURE_D2AE,
-            HOI_ARCHITECTURE_D2AF,
-        } and (
+        if architecture_variant in HOI_SPARSE_RELATION_ARCHITECTURES and (
             dim_model != 512 or num_heads != 16
         ):
             raise ValueError(
-                "D2-AE/D2-AF require the locked 512-wide, 16-head HOIPrior trunk"
+                "D2-AE/D2-AF/D2-AG require the locked 512-wide, 16-head "
+                "HOIPrior trunk"
             )
         self.motion_input = nn.Linear(REPRESENTATION.dimension, dim_model)
         self.text = nn.Sequential(
@@ -154,11 +157,11 @@ class _HOICleanMotionNetwork(nn.Module):
                 diffusion_reliability=(
                     architecture_variant == HOI_ARCHITECTURE_D2AF
                 ),
+                selfcond_relation_source=(
+                    architecture_variant == HOI_ARCHITECTURE_D2AG
+                ),
             )
-            if architecture_variant in {
-                HOI_ARCHITECTURE_D2AE,
-                HOI_ARCHITECTURE_D2AF,
-            }
+            if architecture_variant in HOI_SPARSE_RELATION_ARCHITECTURES
             else None
         )
 
@@ -236,6 +239,8 @@ class _HOICleanMotionNetwork(nn.Module):
         position_maximum: Optional[torch.Tensor] = None,
         object_minimum: Optional[torch.Tensor] = None,
         object_maximum: Optional[torch.Tensor] = None,
+        relation_source: Optional[torch.Tensor] = None,
+        relation_source_estimate: bool = False,
     ) -> torch.Tensor:
         if noisy.ndim != 3 or noisy.shape[1:] != (
             REPRESENTATION.window_frames, REPRESENTATION.dimension,
@@ -245,6 +250,19 @@ class _HOICleanMotionNetwork(nn.Module):
             text_embedding = text_embedding[:, 0]
         if object_bps.ndim != 3 or object_bps.shape[1:] != (1024, 3):
             raise ValueError(f"expected global object BPS [B,1024,3], got {tuple(object_bps.shape)}")
+        if self.architecture_variant != HOI_ARCHITECTURE_D2AG:
+            if relation_source is not None:
+                raise ValueError(
+                    "an explicit relation source state is restricted to D2-AG"
+                )
+            if bool(relation_source_estimate):
+                raise ValueError(
+                    "the relation-source estimate pass is restricted to D2-AG"
+                )
+        elif relation_source is not None and bool(relation_source_estimate):
+            raise ValueError(
+                "the D2-AG estimate pass must use the current-state relation source"
+            )
         if self.architecture_variant == HOI_ARCHITECTURE_D2AD:
             if (
                 local_object_bps is None
@@ -268,16 +286,15 @@ class _HOICleanMotionNetwork(nn.Module):
             object_minimum,
             object_maximum,
         )
-        if self.architecture_variant in {
-            HOI_ARCHITECTURE_D2AE,
-            HOI_ARCHITECTURE_D2AF,
-        }:
+        if self.architecture_variant in HOI_SPARSE_RELATION_ARCHITECTURES:
             if any(value is None for value in relation_values):
                 raise ValueError(
-                    "D2-AE/D2-AF require current-state sparse relation metadata"
+                    "D2-AE/D2-AF/D2-AG require current-state sparse relation metadata"
                 )
         elif any(value is not None for value in relation_values):
-            raise ValueError("sparse relation metadata is restricted to D2-AE/D2-AF")
+            raise ValueError(
+                "sparse relation metadata is restricted to D2-AE/D2-AF/D2-AG"
+            )
         conditions = torch.stack((
             self.time(_time_embedding(timesteps, self.dim_model)),
             self.text(text_embedding),
@@ -286,22 +303,35 @@ class _HOICleanMotionNetwork(nn.Module):
         ), dim=1)
         motion = self.motion_input(noisy)
         if self.sparse_relation_field is not None:
-            motion = self.sparse_relation_field(
-                motion,
-                noisy,
-                rest_object_points,
-                world_to_local_rotation,
-                object_rotation_reference,
-                position_minimum,
-                position_maximum,
-                object_minimum,
-                object_maximum,
-                timesteps=(
-                    timesteps
-                    if self.architecture_variant == HOI_ARCHITECTURE_D2AF
-                    else None
-                ),
+            # Mark the in-flight pass on the module itself before the call so
+            # forward pre-hooks, which never see keyword arguments, can tell the
+            # D2-AG no-grad estimate pass from the graph-building pass.
+            self.sparse_relation_field.relation_source_estimate = bool(
+                relation_source_estimate
             )
+            try:
+                motion = self.sparse_relation_field(
+                    motion,
+                    noisy,
+                    rest_object_points,
+                    world_to_local_rotation,
+                    object_rotation_reference,
+                    position_minimum,
+                    position_maximum,
+                    object_minimum,
+                    object_maximum,
+                    timesteps=(
+                        timesteps
+                        if self.architecture_variant in {
+                            HOI_ARCHITECTURE_D2AF,
+                            HOI_ARCHITECTURE_D2AG,
+                        }
+                        else None
+                    ),
+                    relation_source=relation_source,
+                )
+            finally:
+                self.sparse_relation_field.relation_source_estimate = False
         tokens = torch.cat((conditions, motion), dim=1) + self.position
         encoded = self._encode(tokens, adapter_bps)
         return self.output(self.output_norm(encoded[:, -REPRESENTATION.window_frames:]))
@@ -340,6 +370,8 @@ class HOIPrior(nn.Module):
         position_maximum: Optional[torch.Tensor] = None,
         object_minimum: Optional[torch.Tensor] = None,
         object_maximum: Optional[torch.Tensor] = None,
+        relation_source: Optional[torch.Tensor] = None,
+        relation_source_estimate: bool = False,
     ) -> torch.Tensor:
         return self.network(
             noisy,
@@ -356,6 +388,8 @@ class HOIPrior(nn.Module):
             position_maximum=position_maximum,
             object_minimum=object_minimum,
             object_maximum=object_maximum,
+            relation_source=relation_source,
+            relation_source_estimate=relation_source_estimate,
         )
 
 
@@ -481,6 +515,10 @@ def load_trained_hoi_prior(
             raise ValueError("D2-AE checkpoint model_config violates the locked trunk")
         if checkpoint_variant != HOI_ARCHITECTURE_D2AE:
             raise ValueError("D2-AE checkpoint is missing its architecture provenance")
+        if checkpoint.get("selfcond_relation_source_contract") is not None:
+            raise ValueError(
+                "D2-AE checkpoint carries a D2-AG selfcond-relation-source contract"
+            )
         validate_sparse_relation_contract(checkpoint.get("sparse_relation_contract"))
     elif architecture_variant == HOI_ARCHITECTURE_D2AF:
         if model_config != {
@@ -492,8 +530,32 @@ def load_trained_hoi_prior(
             raise ValueError("D2-AF checkpoint model_config violates the locked trunk")
         if checkpoint_variant != HOI_ARCHITECTURE_D2AF:
             raise ValueError("D2-AF checkpoint is missing its architecture provenance")
+        if checkpoint.get("selfcond_relation_source_contract") is not None:
+            raise ValueError(
+                "D2-AF checkpoint carries a D2-AG selfcond-relation-source contract"
+            )
         validate_diffusion_reliability_contract(
             checkpoint.get("diffusion_reliability_contract")
+        )
+    elif architecture_variant == HOI_ARCHITECTURE_D2AG:
+        if model_config != {
+            "dim_model": 512,
+            "num_heads": 16,
+            "num_layers": 8,
+            "architecture_variant": HOI_ARCHITECTURE_D2AG,
+        }:
+            raise ValueError("D2-AG checkpoint model_config violates the locked trunk")
+        if checkpoint_variant != HOI_ARCHITECTURE_D2AG:
+            raise ValueError("D2-AG checkpoint is missing its architecture provenance")
+        if (
+            checkpoint.get("sparse_relation_contract") is not None
+            or checkpoint.get("diffusion_reliability_contract") is not None
+        ):
+            raise ValueError(
+                "D2-AG checkpoint carries a predecessor sparse-relation contract"
+            )
+        validate_selfcond_relation_source_contract(
+            checkpoint.get("selfcond_relation_source_contract")
         )
     elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
         raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
@@ -542,6 +604,7 @@ def load_trained_hoi_prior(
             "seed", "git_commit", "processed_windows", "processed_frames", "optimizer_updates",
             "model_config", "architecture_variant", "interaction_adapter_contract",
             "sparse_relation_contract", "diffusion_reliability_contract",
+            "selfcond_relation_source_contract",
             "data_contract_sha256", "split_sha256", "window_state_codec",
         )
     }

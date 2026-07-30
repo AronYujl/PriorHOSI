@@ -40,11 +40,13 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     "code/priors/representation.py": "a510b4ddfb4f6b60e3917219a87898a717d91cbfb858d0993f3e054b5a1abf74",
     "code/priors/window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
     "code/priors/data.py": "62132421b973b1d77c273f80ce48b81507966c0fe75563acd8c1e2158cb54cc5",
-    # D2-AC/D2-AD/D2-AE/D2-AF extend the shared model module behind explicit
-    # architecture variants; targeted tests lock exact base-path parity.
-    "code/priors/models.py": "f7d464e48629a5e6420ea6a21f1ff8130980223cb6f59944a6226a83a952dd12",
+    # D2-AC/D2-AD/D2-AE/D2-AF/D2-AG extend the shared model module behind
+    # explicit architecture variants; targeted tests lock exact base-path
+    # parity.  D2-AG additionally routes the relation source through the
+    # sampler, so the diffusion module moves with it.
+    "code/priors/models.py": "31c5ddfd5441156521d41c29830f8d8c9ef080a2afba4c4718f4a3aa0a551d82",
     "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
-    "code/priors/diffusion.py": "fd8d05c34689cf4697920097bd330e6a25e3424c7460eb3a4e7ef12f45ed17a2",
+    "code/priors/diffusion.py": "b37142030d7b9a2e523002618afb070d7e5223a0b4c9532564e171c4943098c7",
 }
 
 

@@ -28,6 +28,7 @@ from .window_codec import project_to_so3
 
 ARCHITECTURE_VARIANT = "d2ae_sparse_relation_field"
 D2AF_ARCHITECTURE_VARIANT = "d2af_sqrt_alpha_bar_reliability"
+D2AG_ARCHITECTURE_VARIANT = "d2ag_selfcond_relation_source"
 TEMPORAL_ANCHORS: Tuple[int, ...] = (0, 5, 10, 15)
 ROLE_JOINTS: Tuple[int, ...] = (24, 26, 0)
 ROLE_NAMES: Tuple[str, ...] = ("left_hand", "right_hand", "pelvis")
@@ -46,6 +47,16 @@ DIAGNOSTIC_VARIANTS = frozenset({
     "left_right_role_swapped",
 })
 D2AF_DIAGNOSTIC_VARIANTS = frozenset((*DIAGNOSTIC_VARIANTS, "unit_rho"))
+D2AG_DIAGNOSTIC_VARIANTS = frozenset((
+    *DIAGNOSTIC_VARIANTS,
+    "source_substituted_xt",
+    "high_t_restricted",
+    "object_displaced_counterfactual",
+))
+D2AG_SELF_CONDITION_PROBABILITY = 0.5
+D2AG_HIGH_T_SELF_CONDITION_CUTOFF = 250
+D2AG_DIAGNOSTIC_OBJECT_DISPLACEMENT_M: Tuple[float, float, float] = (0.10, 0.0, 0.0)
+D2AG_VARIABLE_ANCHORS: Tuple[int, ...] = TEMPORAL_ANCHORS[1:]
 
 POINT_ENCODER_PARAMETER_COUNT = 17_152
 PROJECTION_PARAMETER_COUNT = 393_728
@@ -330,6 +341,113 @@ def validate_diffusion_reliability_contract(value: object) -> Dict[str, object]:
     return dict(value)
 
 
+def selfcond_relation_source_contract_metadata() -> Dict[str, object]:
+    """Return the independent D2-AG architecture/provenance contract."""
+    value = sparse_relation_contract_metadata()
+    value.update({
+        "architecture_variant": D2AG_ARCHITECTURE_VARIANT,
+        "writeback": "motion + tanh(alpha) * routed_relation(relation_source)",
+        "variable_anchors": list(D2AG_VARIABLE_ANCHORS),
+        "variable_anchor_source": "detached_model_x0_hat",
+        "history_anchor_source": "current_noisy_state",
+        "history_pin": "relation_source[:, :2] = current[:, :2]",
+        "train_selection": "per_sample_bernoulli",
+        "selection_probability": D2AG_SELF_CONDITION_PROBABILITY,
+        "selection_probability_sweepable": False,
+        "unselected_sample_source": "current_noisy_state",
+        "estimate_forward": "single_no_grad_same_timestep_current_state_source",
+        "estimate_forward_selected_subset_only": True,
+        "estimate_forward_eval_mode": True,
+        "x0_hat_detached": True,
+        "sample_relation_source": "previous_step_raw_x0_hat",
+        "sample_first_step_source": "current_noisy_state",
+        "prepare_clean_x0_applied_to_relation_source": False,
+        "relation_source_so3_projected": False,
+        "relation_zero_branch": False,
+        "relation_exposure_fraction": 1.0,
+        "train_sample_symmetric": True,
+        "sqrt_alpha_bar_attenuation": False,
+        "schedule_buffer_registered": False,
+        "per_anchor_scaling": False,
+        "learned_selection": False,
+        "loss_or_snr_weighting": False,
+    })
+    return value
+
+
+def validate_selfcond_relation_source_contract(value: object) -> Dict[str, object]:
+    """Reject checkpoints that do not carry the complete locked D2-AG contract."""
+    if not isinstance(value, Mapping):
+        raise ValueError("D2-AG checkpoint is missing selfcond-relation-source provenance")
+    expected = selfcond_relation_source_contract_metadata()
+    mismatches = sorted(
+        key for key, expected_value in expected.items()
+        if value.get(key) != expected_value
+    )
+    unexpected = sorted(set(value) - set(expected))
+    if mismatches or unexpected:
+        detail = []
+        if mismatches:
+            detail.append("mismatched=" + ",".join(mismatches))
+        if unexpected:
+            detail.append("unexpected=" + ",".join(unexpected))
+        raise ValueError(
+            "D2-AG checkpoint selfcond-relation-source provenance mismatch: "
+            + "; ".join(detail)
+        )
+    return dict(value)
+
+
+def build_d2ag_relation_source(
+    current: torch.Tensor,
+    estimate: Optional[torch.Tensor] = None,
+    *,
+    index: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """Build the single D2-AG relation source state shared by train and sample.
+
+    ``current`` is the step's ``x_t``.  ``estimate`` holds detached model
+    ``x0_hat`` rows: the whole batch when ``index`` is ``None`` (sampling after
+    the first reverse step) or exactly the ``index`` rows (the training subset
+    selected by the registered Bernoulli mask).  ``estimate=None`` returns
+    ``current`` unchanged, which is the registered sampler first-step and
+    unselected-sample behavior.  The two-frame history is pinned to ``current``
+    here and nowhere else so both sides stay byte-symmetric.
+    """
+    if current.ndim != 3 or current.shape[1:] != (
+        REPRESENTATION.window_frames,
+        REPRESENTATION.dimension,
+    ):
+        raise ValueError(
+            f"expected D2-AG current state [B,16,232], got {tuple(current.shape)}"
+        )
+    if estimate is None:
+        if index is not None:
+            raise ValueError("D2-AG relation source index requires an estimate")
+        return current
+    if not torch.is_tensor(estimate) or estimate.shape[1:] != current.shape[1:]:
+        raise ValueError(
+            f"expected D2-AG estimate [K,16,232], got {getattr(estimate, 'shape', None)}"
+        )
+    values = estimate.detach().to(device=current.device, dtype=current.dtype)
+    if index is None:
+        if values.shape[0] != current.shape[0]:
+            raise ValueError("D2-AG full-batch estimate must match the current batch")
+        source = values
+    else:
+        if index.ndim != 1 or index.dtype != torch.long:
+            raise ValueError("D2-AG relation source index must be long [K]")
+        if index.numel() != values.shape[0]:
+            raise ValueError("D2-AG estimate rows must match the selected index")
+        if index.numel() and bool(
+            ((index < 0) | (index >= current.shape[0])).any()
+        ):
+            raise ValueError("D2-AG relation source index is out of range")
+        source = current.index_copy(0, index.to(current.device), values)
+    history = REPRESENTATION.history_frames
+    return torch.cat((current[:, :history], source[:, history:]), dim=1)
+
+
 def _metadata_tensor(
     value: torch.Tensor,
     current: torch.Tensor,
@@ -436,11 +554,18 @@ class SparseCurrentStateRelationField(nn.Module):
         dim_model: int,
         *,
         diffusion_reliability: bool = False,
+        selfcond_relation_source: bool = False,
     ) -> None:
         super().__init__()
         if int(dim_model) != 512:
             raise ValueError("sparse relation field requires dim_model=512")
+        if bool(diffusion_reliability) and bool(selfcond_relation_source):
+            raise ValueError(
+                "D2-AF reliability attenuation and D2-AG self-conditioned relation "
+                "source are mutually exclusive"
+            )
         self.diffusion_reliability = bool(diffusion_reliability)
+        self.selfcond_relation_source = bool(selfcond_relation_source)
         self.point_encoder = nn.Sequential(
             nn.Linear(4, 128),
             nn.SiLU(),
@@ -473,13 +598,19 @@ class SparseCurrentStateRelationField(nn.Module):
         self._rho_override: Optional[float] = None
         self._capture = False
         self._snapshot: Optional[Dict[str, torch.Tensor]] = None
+        # Plain bool attribute (never a parameter or buffer) that marks the
+        # in-flight D2-AG no-grad estimate forward.  The caller sets it around
+        # the field call so instrumentation can separate the estimate pass from
+        # the graph-building pass without a call counter or a module hook.
+        self.relation_source_estimate = False
 
     def set_diagnostic_variant(self, variant: str) -> None:
-        allowed = (
-            D2AF_DIAGNOSTIC_VARIANTS
-            if self.diffusion_reliability
-            else DIAGNOSTIC_VARIANTS
-        )
+        if self.diffusion_reliability:
+            allowed = D2AF_DIAGNOSTIC_VARIANTS
+        elif self.selfcond_relation_source:
+            allowed = D2AG_DIAGNOSTIC_VARIANTS
+        else:
+            allowed = DIAGNOSTIC_VARIANTS
         if variant not in allowed:
             raise ValueError(f"unknown sparse-relation diagnostic variant: {variant}")
         self._diagnostic_variant = variant
@@ -515,6 +646,57 @@ class SparseCurrentStateRelationField(nn.Module):
             self.projection(flattened) + self.temporal_embeddings[None].to(flattened)
         )
 
+    def _diagnostic_relation_source(
+        self,
+        source: torch.Tensor,
+        current: torch.Tensor,
+        *,
+        timesteps: Optional[torch.Tensor],
+        object_minimum: torch.Tensor,
+        object_maximum: torch.Tensor,
+    ) -> torch.Tensor:
+        """Apply the D2-AG source-provenance diagnostic gates.
+
+        ``full`` is the production path and returns ``source`` untouched.  The
+        two source gates fall back to the current state, which is exactly the
+        registered unselected-sample and sampler-first-step behavior; neither is
+        a relation-zero branch.
+        """
+        variant = self._diagnostic_variant
+        if variant == "source_substituted_xt":
+            return current
+        if variant == "high_t_restricted":
+            if not torch.is_tensor(timesteps):
+                raise ValueError("D2-AG high-t restriction requires timesteps [B]")
+            if timesteps.shape != (current.shape[0],):
+                raise ValueError(
+                    "D2-AG high-t restriction expected timesteps "
+                    f"[{current.shape[0]}], got {tuple(timesteps.shape)}"
+                )
+            keep = (
+                timesteps.to(current.device) < D2AG_HIGH_T_SELF_CONDITION_CUTOFF
+            ).reshape(-1, 1, 1)
+            return torch.where(keep, source, current)
+        if variant == "object_displaced_counterfactual":
+            scale = _normalization_tensor(
+                object_maximum, current, "object_maximum",
+            ) - _normalization_tensor(object_minimum, current, "object_minimum")
+            delta = torch.as_tensor(
+                D2AG_DIAGNOSTIC_OBJECT_DISPLACEMENT_M,
+                device=current.device,
+                dtype=current.dtype,
+            )
+            normalized = (2.0 * delta / scale).reshape(1, 1, 3)
+            anchors = torch.as_tensor(
+                D2AG_VARIABLE_ANCHORS, device=current.device, dtype=torch.long,
+            )
+            displaced = source.clone()
+            displaced[:, anchors, 216:219] = (
+                displaced[:, anchors, 216:219] + normalized
+            )
+            return displaced
+        return source
+
     def forward(
         self,
         motion: torch.Tensor,
@@ -528,11 +710,16 @@ class SparseCurrentStateRelationField(nn.Module):
         object_maximum: torch.Tensor,
         *,
         timesteps: Optional[torch.Tensor] = None,
+        relation_source: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         if motion.shape != (current.shape[0], REPRESENTATION.window_frames, 512):
             raise ValueError(
                 "expected sparse-relation motion embedding [B,16,512], "
                 f"got {tuple(motion.shape)}"
+            )
+        if relation_source is not None and not self.selfcond_relation_source:
+            raise ValueError(
+                "an explicit relation source state is restricted to D2-AG"
             )
         rho: Optional[torch.Tensor] = None
         if self.diffusion_reliability:
@@ -561,8 +748,24 @@ class SparseCurrentStateRelationField(nn.Module):
         elif timesteps is not None:
             if timesteps.shape != (current.shape[0],):
                 raise ValueError("D2-AE optional timesteps must match the batch")
+        source = current
+        if self.selfcond_relation_source and relation_source is not None:
+            if relation_source.shape != current.shape:
+                raise ValueError(
+                    "expected D2-AG relation source state "
+                    f"{tuple(current.shape)}, got {tuple(relation_source.shape)}"
+                )
+            source = relation_source
+        if self.selfcond_relation_source:
+            source = self._diagnostic_relation_source(
+                source,
+                current,
+                timesteps=timesteps,
+                object_minimum=object_minimum,
+                object_maximum=object_maximum,
+            )
         geometry = build_sparse_relation_geometry(
-            current,
+            source,
             rest_object_points,
             world_to_local_rotation,
             object_rotation_reference,
@@ -639,9 +842,35 @@ class SparseCurrentStateRelationField(nn.Module):
                             attenuated_writeback.detach().float().norm(dim=-1).mean(dim=0)
                         ),
                     })
+                if self.selfcond_relation_source:
+                    self._snapshot.update({
+                        "writeback_norm": raw_writeback.detach().float().norm(
+                            dim=-1,
+                        ).mean(dim=0),
+                        "relation_source_minus_current_l2": (
+                            (source.detach().float() - current.detach().float())
+                            .norm(dim=-1).mean(dim=0)
+                        ),
+                        "relation_source_history_max_abs": (
+                            (
+                                source.detach()[:, :REPRESENTATION.history_frames]
+                                - current.detach()[:, :REPRESENTATION.history_frames]
+                            ).abs().max().float().reshape(1)
+                        ),
+                        "relation_source_estimate": torch.tensor(
+                            [float(self.relation_source_estimate)],
+                            dtype=torch.float32,
+                        ),
+                        "relation_source_is_current": torch.tensor(
+                            [float(source is current)],
+                            dtype=torch.float32,
+                        ),
+                    })
         return motion + attenuated_writeback
 
     def contract_metadata(self) -> Dict[str, object]:
         if self.diffusion_reliability:
             return diffusion_reliability_contract_metadata()
+        if self.selfcond_relation_source:
+            return selfcond_relation_source_contract_metadata()
         return sparse_relation_contract_metadata()
