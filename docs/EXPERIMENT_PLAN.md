@@ -6874,6 +6874,379 @@ evaluation。剩余formal预算只有一次，不允许sweep或多个候选训�
 Phase 1C HSIPrior因此延后，直到该用户批准的单个HOIPrior实验完成或停止。不得自动启动
 HSIPrior、Mixer或consistency。
 
+#### 2026-07-31 Phase 1B D2-AG self-conditioned relation source 预注册（plan-only）
+
+用户在阅读 D2-AF0 negative 结果并完成 read-only Stage A 审阅后，明确批准 Phase 1B
+`EP:6872` 所剩的唯一一次 formal 预算用于本方向 D2-AG。本 amendment 执行前，authority
+checkout 为 `/data/yujinlun/InfBaGel-release`、branch `phase/01b-hoi`、HEAD
+`fa2c73e48830d9545d5624eb72260ba40c3ce4cb`
+（`Add tiered subagent types and standing dispatch authorization`），worktree clean；
+核验时间为 `2026-07-31T02:08:08+08:00`。重新扫描 working tree、全部 Git
+objects/refs/reflogs、append-only registry（232 行）、authority/worker staging names 与
+worker checkout 后，`D2-AG`、`d2ag`、`p1-hoi-d2ag-*`、`selfcond`、`self_cond` 和
+`self-cond` 均未被用作 identifier；历史 JSON SHA 中偶然出现的字节子串不构成 identifier。
+Integration baseline `b9a158f75ab0740c91c9cfc8863a65fa381b014c` 是当前 HEAD ancestor
+（`git merge-base --is-ancestor` 通过），禁止分支 `feature/independent-hoi-hsi-priors`
+（`860ec8ca10cb5d6bed9d901560d3eb3d811a8143`）不是 ancestor。Source audit 证明
+`SparseCurrentStateRelationField.forward` 已把 relation 几何来源 `current` 与 trunk
+embedding `motion` 作为两个独立入参接收，因此"改变 relation 几何来源"可以在不改动
+relation builder、encoder、routing 或 writeback 数学的前提下实现，没有结构性阻塞。
+本 commit 只允许修改本 plan 和 registry；不得包含 source change、checkpoint load、
+GPU workload、训练或评测。
+
+1. **Sealed evidence 与唯一假设。** D2-AE0 已证明 sparse relation path 被使用、固定
+   temporal correspondence 有因果作用、left/right role binding 是结构性的，但 native
+   contact F1/recall 相对 D2-X 只有 `+0.004518/+0.001684` 且 CI 跨零。D2-AF0 在其上
+   施加 canonical `sqrt(alpha_bar)` 衰减后，internal `full_rho − unit_rho` direct-hand
+   union 5-cm F1 为 `-0.0017534958725371544`、`internal_status=unused`；native contact
+   F1 为 `0.6410550040393033`、AF−AE F1 为 `-0.0008888491232585847`、AF−X F1 为
+   `+0.003629064933324414`（CI 跨零）、released gap closure 仅
+   `0.040398463734960754`，并在 end-object/Txy/Tobj 上 protection 失败，classification
+   为 `diffusion-reliability-ae-repair-negative-stop`。把两者放在一起，未被检验的共同
+   前提是：D2-AE/D2-AF 的可变锚点 relation 一直建立在 `x_t` 上，而在 500-step
+   production rollout 的绝大多数步里 `x_t` 的 frames 5/10/15 是高噪声几何，因此
+   internal paired 干预看得见的"因果使用"并不等于 rollout 中存在可用的几何信号。
+   D2-AG 的唯一可证伪假设是：把可变锚点的几何来源换成模型自身 detached `x0_hat`
+   （train/sample 两侧对称），可以在不改变 relation 几何、参数量、loss、budget、
+   sampler 协议和 scene-free provenance 的前提下，让同一条 relation path 在 rollout
+   中获得低噪声几何，从而修复 train-to-rollout 的 contact transfer gap。本 hypothesis
+   不得被扩展为 scene conditioning、HSIPrior、Mixer、consistency、old-checkpoint
+   init、guidance/CFG、SNR/timestep loss weighting、新 loss、rollout exposure 或任何
+   sweep。
+
+2. **唯一 manipulated factor。** 相对 D2-AE/D2-AF 基线，只改变 sparse relation field
+   在可变 temporal anchors `5/10/15` 上读取几何的来源张量；writeback 数学保持 D2-AE
+   原式且不启用 D2-AF 的 `sqrt(alpha_bar)` 衰减：
+
+   \[
+   H'_t=H_t+\tanh(\alpha)\,r_{a(t)}(s),
+   \]
+
+   其中 `s` 为 relation source state。训练侧对每个样本独立抽取
+   `m_i\sim\mathrm{Bernoulli}(p=0.5)`：
+
+   \[
+   \hat x_0^{(i)}=\bigl[f_\theta(x_t^{(i)},t_i)\bigr]_{\text{no-grad},\,r\equiv 0},\qquad
+   s^{(i)}=\mathrm{sg}\bigl[\hat x_0^{(i)}\bigr],\qquad
+   s^{(i)}[:,{:}2]\leftarrow x_t^{(i)}[:,{:}2].
+   \]
+
+   被选中的样本先在**同一 timestep** `t_i` 上做一次 `torch.no_grad()` 估计前向，该前向
+   本身使用现行 D2-AE 式 `x_t` source（即与 D2-AE 前向数值等价）；该 no-grad 前向只在
+   被选中的子集上运行。未被选中的样本（`m_i=0`）取 `s^{(i)}=x_t^{(i)}`，**即完全等同于
+   D2-AE 的现行行为**。两种情况下 relation field 都**照常激活**，不存在 relation 置零
+   分支。采样侧维护 `prev_x0`：
+
+   \[
+   s=\begin{cases}x_t,& \text{prev}=\varnothing\ (t=499)\\
+   \text{prev},&\text{otherwise}\end{cases},\qquad
+   s[:,{:}2]\leftarrow x_t[:,{:}2],\qquad \text{prev}\leftarrow \hat x_0 .
+   \]
+
+   `prev_x0` 固定为该步 model 的**原始（raw）** `x0_hat`，即 `prepare_clean_x0` **之前**
+   的值：`prepare_clean_x0` 的 history restoration 与可选 SO(3) 投影只作用于 sampler
+   自身的 `clean`，不作用于 `prev_x0`；两侧均**不**对 `s` 做 SO(3) 投影，且都只用同一处
+   手工 pin `s[:,:2]=x_t[:,:2]` 恢复前两帧，以保证两侧 source 构造逐字节对称。锚点 0 与
+   2-frame history 在两侧都完全保持现状。`p=0.5` 是注册的
+   固定值，不是可扫参数；不得改为 schedule、learned gate、per-anchor 或 per-timestep
+   概率。不得使用 clean target、future GT、stored per-frame BPS、stored relation、
+   contact label、Scene 资产或任何 sampler-only source 构造 `s`。
+
+   **随机源与 eval-mode 契约（注册为硬性实现条件）。** Bernoulli mask 必须从一个
+   **独立的 `torch.Generator`** 抽取，其 seed 由
+   `cfg.seed * 1_000_003 + processed_windows + rank` 导出（与
+   `code/train_hoi_prior.py:3869-3870` 的既有 per-rank 派生式同构）；no-grad 估计前向
+   必须在 DDP-unwrapped inner module 的 `inner.eval()` 下执行，并以 `try/finally`
+   恢复原 train 模式。`timesteps` / `noise` 的抽取点
+   （`code/train_hoi_prior.py:3758-3761`）保持逐字节不动。理由必须一并记录：正式
+   training 的 `_forward_losses` 调用点不传 `generator`
+   （`code/train_hoi_prior.py:4630-4634`），因此 `timesteps`/`noise` 实际取自**全局**
+   RNG；而 trunk 的 `TransformerEncoderLayer` 带 active `dropout=0.1`
+   （`code/priors/models.py:79`、`:119-127`）。若 mask 走全局 generator，或估计前向在
+   train 模式下运行，则该 step 的全局 RNG 消费量将依赖 `mask.sum()`，从而破坏 seed-42
+   与既有 sealed 运行的 `(t, eps)` 对齐以及 resume 的位精确性。两项均为契约条件，
+   任一违反归入第 6 条的 contract-failure。
+
+   **无 sampler 首步语义改变（正面声明）。** 首个 reverse step `t=499` 没有 `prev_x0`，
+   此时 `s=x_t`，因此 D2-AG 在 `t=499` 的行为与 D2-AE/D2-AF **完全一致**（三者同为
+   `x_t` source，relation field 同样激活）。本方向**不引入任何 sampler 首步语义改变**，
+   也不存在任何 timestep 区间的 relation 置零分支。该首步状态与训练中未被选中样本
+   （`m_i=0`，同样为 `x_t` source）同分布，train/sample 对称因此在首步同样成立。
+
+3. **被解锁的 direction-scoped 禁令（唯一一条）。** D2-AE0 §7（`EP:5109-5115`）写明
+   "Sampling 的每个 500-step model call 只从当步 current `x_t` 构造同一 relation，
+   不得使用 previous predicted clean `x0` 作为专有 condition"。用户已明确批准解锁**且
+   仅解锁**该条 direction-scoped 禁令。解锁理由必须记录为：该条款的立法目的是阻止
+   作者式的 train/sample **不对称**（sampling 独有、training 无法复现的 condition），
+   而 D2-AG 以两侧对称的方式达到同一目的——训练侧用同一模型、同一 timestep 的
+   detached `x0_hat` 复现 sampling 侧的 `prev_x0`，因此 "专有 condition" 的构成要件
+   不成立。该解锁不得被推及 `EP:3993-3999`/`EP:5582-5583` 中的其余任何条目：
+   clean-target、future-GT、stored per-frame BPS、stored relation 仍然全部禁止；
+   scene conditioning、HSIPrior、Mixer、consistency、old-checkpoint init、guidance、
+   SNR/timestep weighting、新 loss 和任何 sweep 仍然全部禁止。本次解锁一次性绑定
+   D2-AG，不构成后续方向的先例。
+
+4. **全部保持项。** 除第 2 条的 source 替换外，其余一切与 D2-AE/D2-AF 基线逐字节
+   一致：current-state relation builder、100 immutable rest-object points 与 asset
+   contract、surface transform、roles `(joint 24, joint 26, joint 0)`、temporal anchors
+   `(0,5,10,15)`、routing `5/5/5/1`、`4→128→128` point encoder、mean/max pooling、
+   role concat order、`768→512` projection、four temporal embeddings、LayerNorm、
+   single scalar `tanh(alpha)`、alpha exact-zero initialization、full-trunk placement、
+   20 tokens、4 condition tokens、global BPS、window frame 与 object reference、
+   normalization、D2-X FK-foot routing、`[B,16,232]` clean output、2-frame history
+   restoration、500-step clean-x0 diffusion、losses/reductions/weights、optimizer、LR、
+   batch、split、budget、sampler 和 official evaluator 全部不变。D2-AF 的
+   `sqrt(alpha_bar)` 衰减在本方向**不启用**，D2-AG field 不注册 `sqrt_alpha_bar`
+   buffer。**relation 曝光率保持 100%，与 D2-AE/D2-AF 逐字节一致**：未被选中的样本取
+   `s=x_t`（D2-AE 的现行行为），被选中的样本取 `s=\mathrm{sg}[\hat x_0]`，两者的
+   relation field 都照常激活，不存在 relation 置零分支，每个 step 每个样本都有 relation
+   写回。**唯一被操纵因子是可变锚点 `5/10/15` 在一半样本上的 geometry provenance**，
+   relation 几何、曝光率、写回数学与训练信号规模均不变；`t=499` 的 sampler 行为亦与
+   D2-AE/D2-AF 完全一致。`p` 不得改为可调值、schedule 或 per-anchor 概率。
+   **零新增参数**：base `29,673,448`、relation `413,953`、total
+   `30,087,401`，增量 `1.3950283%`，硬上限 `1.50%`；不得新增任何 learnable parameter。
+   Seed-42 fresh initialization 的完整 non-persistent-buffer model-state SHA-256 必须
+   精确为 `b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c`
+   （本 amendment 已在 authority CPU 上以 `dim_model=512 / num_heads=16 /
+   num_layers=8`、`torch.manual_seed(42)` 独立复算 D2-AE 与 D2-AF variant，两者均为
+   该值，且 total parameters 均为 `30,087,401`），否则 GPU 前停止。
+
+5. **Architecture 与 checkpoint provenance。** D2-AG 使用独立 architecture variant
+   `d2ag_selfcond_relation_source`（常量 `HOI_ARCHITECTURE_D2AG`）与独立 checkpoint
+   contract。released、author、base/D2-X、D2-AC、D2-AD、D2-AE、D2-AF schema 即使
+   tensor shapes 相容也必须被 D2-AG loader fail-closed 拒绝；D2-AE/D2-AF loader 也
+   必须反向拒绝 D2-AG。Checkpoint metadata 必须记录完整 self-conditioning contract
+   （`p=0.5`、`x_t`-source no-grad 估计前向、未选中样本回落 `s=x_t`、
+   `s[:, :2]=x_t[:, :2]`、`prev_x0=raw x0_hat`、无 relation 置零分支、无 `rho`）。
+   HSIPrior 不接受该 variant、不共享参数或 storage；
+   未来 Mixer 仍只接收 clean `[B,16,232]`。
+
+6. **Authority CPU hard gate。** D2-AG 必须继承 D2-AE/D2-AF 全部 geometry、asset、
+   SO(3)、invariance/sensitivity、point permutation、finite、dtype/device/batch、
+   parameter/API、train/sample builder parity、checkpoint provenance、HSIPrior/Mixer
+   independence、forbidden-source static scan、full authority suite 与 registry
+   validation contracts，并新增：
+
+   - training 与 sampling 的 relation source 构造必须共享同一实现路径，且在同一
+     `(x_t, t, prev/x0_hat)` 输入下 field 输入张量逐元素 max abs `<=1e-6`；
+   - 被选中样本的 no-grad 估计前向必须与 **D2-AE 式 `x_t`-source 前向**数值等价
+     （同一权重、同一 `t`、同一 `x_t`，relation field 照常激活，max abs `<=1e-6`），
+     且不产生梯度、不进入 autograd graph、不改变 optimizer state；
+   - 未被选中样本（`m_i=0`）的完整前向必须与 D2-AE 式 `x_t`-source 前向逐元素等价
+     （max abs `<=1e-6`）；实现中不得存在任何 relation 置零分支；
+   - `s[:, :2]` 必须在两侧都精确等于当前 `x_t[:, :2]`（float32 exact where
+     representable）；
+   - `x0_hat` 必须 detached：对 `s` 的任意扰动不得回传到第一次前向的参数；
+   - sampler `prev_x0` 首步必须为 `None`，且 `t=499` 的整个 model call 必须与 D2-AE 式
+     `x_t`-source call 逐元素等价（max abs `<=1e-6`，field 照常激活，无置零）；此后
+     每步 `prev_x0` 必须来自上一步的 raw `x0_hat`（`prepare_clean_x0` 之前，不做 SO(3)
+     投影），sampler timestep trace 必须精确为 `499,498,...,0`；
+   - Bernoulli mask 必须来自第 2 条注册的**独立** `torch.Generator`
+     （seed `cfg.seed*1_000_003 + processed_windows + rank`），`p` 必须精确为 `0.5`，
+     并进入既有 training audit digest；
+   - 全局 RNG 消费量必须与 `mask.sum()` 无关：在同一 `(batch, processed_windows,
+     rank)` 下改变 mask 内容后，`timesteps`/`noise` 必须逐字节不变；
+   - 估计前向必须在 `inner.eval()` 下执行且以 `try/finally` 恢复原 `training` 标志，
+     调用前后 `model.training` 必须一致；
+   - `alpha=0`、shared D2-X trunk、`eval()` output max abs `<=1e-6`，并要求实际
+     exact zero where representable；
+   - initial alpha gradient 与 activated point-encoder/projection/temporal-embedding/
+     relevant-trunk gradients 在 `t=0/249/499` 均 finite/nonzero；
+   - exact parameter counts 与 initial-state hash 与第 4 条一致；
+   - D2-AE/D2-AF/D2-AG resolved configs 除 identity、mechanism flag/variant 外
+     exact equivalent；
+   - 无 `rho`/schedule buffer、无 loss/SNR/timestep weighting、无 learned 或
+     per-anchor 概率、无第二 writeback、无 stored relation 或 clean-target 读取。
+
+   任一失败分类为 `selfcond-relation-source-contract-failure-stop`，不得开始任何 GPU
+   workload。
+
+7. **One-GPU functional smoke。** 注册 stem 为
+   `p1-hoi-d2ag-gpu-functional-smoke[-rN]-s42-<actual-date>`，worker 固定
+   infbagel-4gpu/node01、1×RTX 3090、real-data batch 8、timesteps `0/249/499`、
+   seed 42 random initialization、无 optimizer、zero updates、zero checkpoint writes。
+   除 D2-AE/D2-AF smoke 内容外，必须记录 Bernoulli mask 与其独立 generator seed、
+   被选中子集大小、估计前向的 `eval()` 进入/恢复与前后 `model.training` 一致性、
+   两次前向的 finite 性、`x0_hat` 与 `s` 的统计、`s[:, :2]` 与 `x_t[:, :2]` 的一致性、
+   detach 检查、raw relation 与 writeback norm、initial alpha gradient、activated
+   gradients、peak allocated/reserved/headroom 和 model hashes。Operational preflight
+   failure 保留原目录并使用新 run id；scientific contract failure 立即停止。
+
+8. **4-GPU full-micro-batch performance hard gate（必需，不得跳过）。** self-conditioning
+   的 no-grad 估计前向会改变 per-step 计算量与峰值显存，因此按
+   `docs/HOIPRIOR_ITERATION_WORKFLOW.md:68-70` 与 `AGENTS.md:48-51` 的
+   "compute/data/communication/tensor-shape 或 memory 路径改变"条款，必须运行一次
+   full-micro-batch benchmark，并与 formal run id 一对一绑定；本方向**不适用**
+   "executed path unchanged" 豁免，也不得以 sealed 执行 profile 代替。只有 CPU gate
+   与 smoke 通过后，才在
+   clean、identical committed worker object 上运行
+   `p1-hoi-d2ag-performance-benchmark[-rN]-s42-<actual-date>`：infbagel-4gpu/node01、
+   4×RTX 3090、per-GPU batch 512、effective batch 2048、FP32 Adam、seed 42、
+   random initialization、64 warm-up + 256 measured = 320 updates、`524,288` measured
+   windows、CUDA synchronized timing、checkpoint load/write 均为零、benchmark weights
+   为一次性且禁止复用。必须记录 loader wait、H2D、GPU relation build、no-grad 前向
+   耗时与被选中子集大小的逐 rank 分布、forward、backward、optimizer、DDP、CPU/GPU
+   utilization、contention、intermediate shapes、per-rank hashes 和 peak/headroom。
+   本方向采用**通用先例形式**——sealed D2-X formal throughput `3243.0357134915853
+   windows/s` 的 85%：
+
+   \[
+   throughput\ge 2756.580356467847\ {\rm windows/s},\qquad
+   {\rm ETA}\le 6.20\ {\rm h}
+   \]
+
+   （`61,440,000 / 2756.580356467847 = 6.191245840747081 h <= 6.20 h`）。该两个数值与
+   `code/train_hoi_prior.py:89-90` 的 `D2AE_MINIMUM_THROUGHPUT` /
+   `D2AE_MAXIMUM_ETA_HOURS` **数值相同**，但在此注册为 D2-AG 自己的门槛，须以
+   D2-AG 专属常量与 run-id 校验绑定，不得复用 D2-AE 的 gate 校验路径。**D2-AF 的
+   `3179.689863044761 windows/s` / `5.367399778519349 h`（95%-of-immediate-predecessor
+   形式，`code/train_hoi_prior.py:110-111`）不适用于本实验**，不得作为 D2-AG 的门槛
+   或参照。同时 memory headroom 必须 `>=max(2 GiB, 10% device memory)`、
+   losses/gradients finite、无 CPU dynamic geometry、无外部
+   contention。Benchmark 必须一对一绑定 intended formal run id 与 source hashes。
+   Completed scientific benchmark 未过即分类
+   `selfcond-relation-source-performance-negative-stop`，**不得**通过
+   batch/worker/thread/architecture/point/width/role/routing/`p` 或任何 sweep 重试。
+   本方向不继承 2026-07-29 D2-AF0 的一次性 performance waiver（`EP:6137-6209`），
+   该 waiver 是 run-id-bound 的一次性用户覆盖，不得推广。
+
+9. **唯一 formal training。** 只有 contract、smoke 和 performance 全通过，才运行
+   `p1-hoi-d2ag-selfcond-relation-source-s42-20260731`（若实际启动日期晚于本预注册
+   日期，则只按 `<actual-date>` 更新日期后缀，科学配置不变）。固定 seed 42、split
+   `experiments/splits/omomo_hoi_train_validation_seed42.json`（SHA-256
+   `019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e`）、
+   infbagel-4gpu/node01、4×RTX 3090、batch 512/GPU、effective 2048、accumulation 1、
+   61,440,000 windows、983,040,000 frames、30,000 updates、FP32 Adam、LR `1e-4`、
+   betas `(0.9,0.999)`、weight decay 0、no warmup/scheduler/AMP/clipping/EMA。
+   FK/object-surface/velocity/terminal-goal weights 继续为
+   `0.3569973401779424 / 0.4772322188400037 / 0.1 / 1.0`，D2-X FK-foot routing
+   enabled，全部新 loss disabled。必须从 seed-42 random initialization 开始；
+   init/weight-init/resume 均为空，released/author/D2-X/D2-AC/D2-AD/D2-AE/D2-AF/
+   任何 prior/EMA/consistency checkpoint load count 全为零。完整运行 fixed budget，
+   只使用 online/final-online；不得选择 cadence/best-validation checkpoint。稳定区间
+   和至少一个 resumable checkpoint 通过后，按 worker-owned persistent-session 规则
+   报告 throughput/ETA/hash 并停止主动轮询。`formal_runs_maximum=1`。
+
+10. **Fixed five-path internal causal diagnostic。** Formal 完成后只加载 fixed
+    final-online，复用 sealed D2-O internal-validation cohort：64 sequences × 3
+    windows、phase offsets `(14,56,98)`、selection SHA-256
+    `1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a`、batch 恰好
+    `8`。五条 paired 500-step rollout 固定为：
+
+    - **source substitution**：在同一训练好的模型内把可变锚点的 relation source 由
+      `x0_hat` 换回当步 `x_t`（self-conditioning 路径保持开启，只改来源）。该扰动
+      **就是** source substitution，**不是**对 `prev_x0` 做时间打乱、延迟或置换；
+    - **high-t restriction**（本方向的判别性关键 gate）：self-conditioned source 只在
+      `t<250` 生效；`t>=250` 时**回落到 `x_t` source**（不是置零，与首步 `t=499` 的
+      注册行为一致）。它与 gate 1（全 schedule 都用 `x_t`）构成对照，用于分辨收益是否
+      来自高 `t` 段的 source provenance；
+    - **counterfactual object displacement**：只对 `s` 的 object translation 通道施加
+      固定平移 `\delta`，其余通道与全部 condition 不变，手必须表现出方向性跟随。
+      `\delta` 注册为 `0.10 m`，在 **metric space、denormalize 之后**施加。依据：该量级
+      与实测生成手-物相对偏移（约 `10 cm`；GT×GT 为 `1.70 cm`）同阶，且远高于 `5 cm`
+      contact 阈值，因此方向性跟随可判别；
+    - **temporal routing permutation**：沿用 D2-AE `k\leftarrow(k+2)\bmod 4`；
+    - **role swap**：沿用 D2-AE，projection 前只交换 left/right pooled blocks。
+
+    除被操纵因子外，五路共享 initial latent、每一步 posterior noise、condition、
+    history、ordering 和 history restoration；seed 42、10,000 paired **sequence**
+    bootstrap、gate 判据统一为 `CI_lower>0`。主指标为 GT-contact-frame mean
+    hand-object distance（方向相反）与 direct-hand union 5-cm contact F1。另注册
+    **仅报告、不参与判定**的量：per-sequence（**不得跨序列拼接**）within-sequence
+    contact run 结构与 coverage；以及 field 锚定 joints `24/26` 与 official FK palms
+    `22/23` 的对照检查。结果保存为 `internal_status`；**internal 无论正负，下面唯一
+    一次 fixed native 都必须执行**，不得以 internal cohort 过滤 official result，也不得
+    用 internal 结果选择 checkpoint。
+
+11. **Fixed native evaluation 与 gates。** 协议严格沿用 D2-AE/D2-AF：official 438
+    sequences × 3 windows、500-step unguided production diffusion、fixed final-online、
+    CFG/guidance/scene/dynamic perception/consistency 全部 off、paired sequence unit、
+    seed 42、10,000 bootstrap、sealed D2-X 181-sequence penetration finite mask、
+    official evaluator/hash/helper/threshold 不变。Sealed D2-X checkpoint/aggregate/
+    per-sequence 继续为
+    `b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51` /
+    `3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b` /
+    `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`，released
+    aggregate 为
+    `76fd86a3b28fa354ba552c004215acaf11e3396dc8eeb4752e0fc7a8186231e6`，
+    penetration mask 为
+    `2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec`；全部按引用
+    复用，**禁止重算或重新生成**。本方向不设 D2-AF 式的 predecessor-specific
+    single-factor repair gate，只使用标准 D2-X native gates：
+
+    - **transfer：** AG−X contact F1 与 contact recall 的 paired CI lower 均 `>0`；
+      contact F1 点估计 `>=0.6598838781`；released–D2-X contact-F1 gap closure
+      `>=0.25`；
+    - **protection：** AG/X end-object、Txy、FS、Pbody、hand penetration、MPJPE、
+      Troot、Tobj、Oobj 九项 mean-ratio CI upper 均 `<=1.10`；contact precision
+      difference CI lower `>=-0.02`；181-sequence penetration finite mask 契约必须
+      exact；
+    - **released 95% effectiveness floor：** 八项 lower-is-better 指标
+      `target/released<=1/0.95`，三项 contact 指标 `target/released>=0.95`，
+      seed-42 point estimate，无 CI。
+
+    FID / Matching Score / R-Precision / Diversity / timing 若 evaluator 产出则必须
+    保留并报告，但不参与选择；contact coverage 报告但不作独立单调选择指标。所有条件
+    均为 AND，不允许 composite、best-of、metric 替换或阈值修改。
+
+12. **Decision、lifecycle 与 stop rule。** Post-training 同时保存 `internal_status`
+    和 `native_status`，两者无论正负都必须完整报告。单线终态顺序为：
+
+    - `selfcond-relation-source-contract-failure-stop`；
+    - `selfcond-relation-source-performance-negative-stop`；
+    - `selfcond-relation-source-transfer-negative-stop`：native transfer 三项
+      （AG−X contact F1 CI lower、AG−X recall CI lower、contact F1 点估计与
+      released gap closure）中任一失败；
+    - `selfcond-relation-source-conflict-negative-stop`：native transfer 全过，但九项
+      protection ratio、contact precision difference、penetration finite mask 或
+      released-95% effectiveness floor 中任一失败；
+    - `selfcond-relation-source-native-positive-mechanism-unverified-stop`：native
+      transfer、protection 与 released-95% **全部**通过，但任一 internal gate 失败；
+    - `selfcond-relation-source-mechanism-negative-stop`：internal gate 失败**且**
+      native 亦未全部通过（即 native 已落入上面某一 negative 层）时，除记录该 native
+      headline 外一并记录本 internal 标签；
+    - 全部通过：`selfcond-relation-source-positive-candidate-stop`。
+
+    与 D2-AF 小节同一原则：`native_status` 是 headline，positive internal 不能救回
+    negative native；上表按顺序求值并在第一处失败停止，`internal_status` 与
+    `native_status` 始终各自完整记录，internal 结果不改变 native 是否执行。
+
+    只有最后一类可将 fixed final-online 标为 selectable autonomous-diffusion HOIPrior
+    candidate，且即使如此也不授权 consistency。Lifecycle stems 固定为
+    `p1-hoi-d2ag-{cpu-contract|gpu-functional-smoke|performance-benchmark|
+    selfcond-relation-source|selfcond-relation-source-internal|native-eval|
+    completion}[-rN]-s42-<actual-date>`；config default `run_id=null`，实际 date 在
+    workload 启动时现场生成，失败目录保留且 retry 使用新 id，已存在的 run id 或
+    manifest 一律不得复用或覆盖。所有 resolved config、same-context manifest/preflight、
+    logs/profile、failure trees、checkpoints/RNG、internal five paths/paired noise、
+    native raw/optional outputs、run-local registry、hardware/data/dependency/evaluator
+    hashes 必须由 worker 发起 non-destructive recovery，双端统一 `sha256_path` 与
+    checksum dry-run；不得 `--delete`。
+
+    **允许改动的文件范围（本预注册锁定，用户已批准含扩展部分）：**
+    `code/priors/models.py`、`code/priors/diffusion.py`、
+    `code/priors/sparse_relation.py`、`code/train_hoi_prior.py`、
+    `code/config/config_train_hoi_prior_d2ag.yaml`（新建）、D2-AG 专属
+    smoke/benchmark/internal/native-evaluation 工具链及其 tests、
+    `docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl` 和一处简短文档说明。
+    扩展理由记录为：已批准机制无法在不触及
+    `code/train_hoi_prior.py::_forward_losses`（训练侧 Bernoulli 与 no-grad 估计前向的
+    唯一调用点）、variant 判定、`_model_config`、`_resume_contract`、run-id 校验与
+    config 解析的前提下实现，且 D2-AE/D2-AF 的
+    diagnostic/smoke/benchmark/internal/native 工具链均为 variant-bound、无法直接复用。
+    此范围之外的改动仍须停下并另行请示，不得由实现者自行扩大。
+
+    本方向禁止：第二次 formal run、longer budget、D2-AG1、`p` 或任何
+    LR/batch/budget/point/width/depth/role/placement/anchor/threshold/num-workers/
+    threads sweep、checkpoint selection、best-of-N 不对称、D2-X/D2-AC/D2-AD/D2-AE/
+    D2-AF/released/author checkpoint 的 init/resume/retrain/selection、新 loss、
+    SNR/timestep loss weighting、gradient projection、rollout exposure、CFG/guidance、
+    consistency、scene 资产或 occupancy、clean-target/future-GT/stored-relation/
+    stored per-frame BPS 来源、以及在本实验完成或停止前启动 HSIPrior 或 Mixer。
+    若 pretraining gate 失败，formal budget 不消耗但本方向结束；若 formal 启动则只
+    允许完整运行该一次预算。最终必须写 compact result、
+    `docs/phase_summaries/PHASE_1B_D2AG.md` 和 append-only completion record。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
