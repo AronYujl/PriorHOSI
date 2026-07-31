@@ -203,7 +203,7 @@
       "tests/test_hoi_d2ag.py",
       "tools/run_hoi_d2ag_native_evaluation.py"
     ],
-    "diff_sha256": "ad7a37f61dfdc91e640e0fef5afc3ce4c75195bae5446e6bfbff5023885530ba",
+    "diff_sha256": "4496fd5ca0c4423a7a55cfc0ad65135abc058406acab4c300f94ae5553a2608d",
     "source_commit": "ada2d84223ecbf76f5ed9bbd313f5ac6dfce2cbb",
     "source_formal_contract": {
       "algorithm": "git-ls-files-path-content-sha256-v1",
@@ -222,9 +222,9 @@
       "sha256": "55ff307986e1c1e0ff94286b1fadec681b7cb3fe478da7b8ce5da670de84ee88",
       "tracked_file_count": 92
     },
-    "target_binding_note": "Bound to the validator-only transition commit bc22b1d0f0b8ef3796e40752d0fd1916196c2268, which teaches the trainer to honour this waiver.  changed_paths, diff_sha256 and target_formal_contract were computed by train_hoi_prior._d2ag_source_transition and _d2ag_formal_source_contract themselves, not reimplemented.  Every changed path lies inside D2AG_WAIVER_ALLOWED_CHANGED_PATHS; no model, diffusion, sparse-relation or data path is covered.",
+    "target_binding_note": "Bound to c74bb7c5018f8ac6a99a2f7094528b131437c72e, the commit carrying the validator plus its config comment.  target_formal_contract is the tracked formal-source tree at that commit and must also equal the tree at HEAD; because the waiver artifact lives under experiments/, outside D2AG_FORMAL_SOURCE_SCOPES, committing this binding does not perturb it.  All values were computed by train_hoi_prior's own _d2ag_source_transition and _d2ag_formal_source_contract_at_commit.",
     "target_binding_pending": false,
-    "target_commit": "bc22b1d0f0b8ef3796e40752d0fd1916196c2268",
+    "target_commit": "c74bb7c5018f8ac6a99a2f7094528b131437c72e",
     "target_formal_contract": {
       "algorithm": "git-ls-files-path-content-sha256-v1",
       "scopes": [
@@ -239,7 +239,7 @@
         "tools/capture_hoi_worker_preflight.py",
         "tools/experiment.py"
       ],
-      "sha256": "16a208c00f9fd65fa345a6e2ee0c43c3df1d931a625636129db835cf8c374817",
+      "sha256": "52898cd23ccf3155700c1a0f0717499d65d3fb133da5b0e758e4529c586faf92",
       "tracked_file_count": 92
     }
   },
