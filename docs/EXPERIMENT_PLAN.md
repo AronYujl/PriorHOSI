@@ -7384,6 +7384,54 @@ budget。该新授权**覆盖**原先"performance 失败即不训练"的执行 s
 authority verification 后由 worker fast-forward 相同 clean Git object 并启动唯一
 formal run。
 
+#### 2026-08-01 Phase 1B D2-AG0 评估工具链 provenance 绑定改为语义契约（用户批准）
+
+D2-AG formal run `p1-hoi-d2ag-selfcond-relation-source-s42-20260731` 已完整跑满注册
+预算并 `completed`（61,440,000 windows / 30,000 updates / wall `17988.12 s` /
+`3415.59 windows/s` / `amp_overflow_skips=0` / 全部 20 个 validation 点 finite）。其
+internal diagnostic 与 native evaluation 原被两个**无法满足**的门禁阻塞：
+
+1. `tools/run_hoi_d2ag_internal.py::FORMAL_LINEAGE_SEALED` 是一张 9 键全 `None` 的
+   pre-committed hash 表，`sealed_lineage_contract()` 在 `--resolve-only` 分支**之前**
+   抛错，必须由人工在 formal run 结束后把哈希填入源码并另开一次治理提交才能解锁。
+2. 两个 runner 均 `required=True` 要求 `--resume-contract`，但直通训练不产生
+   `resume_contract.json`（`training_state.json` 记录 `resume_checkpoint: null`）；该
+   工件类只存在于被中断后 resume 的运行。
+
+根因是 D2-AG 照搬了 D2-AF 加固提交 `3d4ff1e` 的外壳，而 D2-AF 是一次**被 resume** 的
+运行；D2-AG 与 D2-AE 同为直通训练。故按 `EP:7226-7237` 已锁定的可改文件范围（D2-AG
+专属 internal/native 工具链及其 tests 与一处简短文档说明），将 provenance 绑定改为
+`tools/run_hoi_d2ae_internal.py:100-197` 已验证的语义契约形式：对目标 checkpoint 按
+CLI 传入值做**一次**字节校验并核对固定最终 basename，其余身份一律从 checkpoint 内部
+读取绑定——`run_id`、`seed=42`、`processed_windows=61,440,000`、
+`processed_frames=983,040,000`、`optimizer_updates=30,000`、`world_size=4`、
+`effective_batch_size=2048`、`architecture_variant`、`data_contract_sha256`、
+`split_sha256`、`weight_initialization`（from-random）与
+`selfcond_relation_source_contract`。
+
+该形式**严于**原表：pre-committed 表只能证明"字节等于某个人手打的常量"，语义契约证明
+"该文件就是此 run 跑满 61.44M windows 的最终 checkpoint"，且不需要事后治理提交。
+
+同时删除的仅为无科学内容的空转校验：同一进程内对同一文件的重复哈希、常量与自身比较
+（`cadence_main_checkpoints`/`cadence_rng_sidecars` 两侧同为 `len(FORMAL_CADENCE_WINDOWS)`，
+从不统计磁盘文件）、写死的 `"asset_hashes_exact": True`、仅校验十六进制格式的
+`terminal_model_state_sha256`，以及未被引用的 `EXPECTED_INITIAL_MODEL_STATE_SHA256`。
+
+**科学协议与全部实质门禁不变**：fixed final-online checkpoint 选择规则、sampler、
+metrics、uncertainty、cohort 定义、failure rules 一律未动；目标 checkpoint 字节校验
+（移入 `checkpoint_contract()`）、`metrics.checkpoint_hashes` 的
+`processed_windows==61,440,000` ∧ sha ∧ basename 行、`initial_model_state_sha256`
+（唯一证明 from-random 初始化的门禁）、waiver↔benchmark 绑定、11 件产物 closure 校验、
+control/baseline/evaluator 静态资产与 worker 数据资产哈希、cohort selection、GT-contact
+mask、sampler schedule 哈希全部保留。外部与传输输入的哈希按 `AGENTS.md` lean profile
+保留，本次精简只针对"未改动、本地产出或已由 manifest 标识"的重复校验。
+
+验证：新增 7 项否定测试（外来 `run_id`、中间 cadence checkpoint、非 D2-AG
+`architecture_variant`、被篡改的 selfcond contract、非随机初始化、错误 shape/budget、
+hash 或 basename 不匹配）；并以 mutation testing 证伪其非空洞——将 `run_id` 与
+`processed_windows` 判定分别改为恒真后，对应否定测试确实失败。D2-AG 三个测试文件共
+121 tests OK，`tools/experiment.py validate` 通过（234 registry records）。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

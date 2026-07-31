@@ -279,48 +279,236 @@ class D2AGStaticContractTests(unittest.TestCase):
         self.assertEqual(value["history_pin_sites"], 1)
 
 
-class D2AGSealedLineageTests(unittest.TestCase):
-    def test_sealed_lineage_is_unfilled_and_fails_closed(self):
-        self.assertTrue(
-            all(
-                value is None
-                for value in internal_runner.FORMAL_LINEAGE_SEALED.values()
-            )
-        )
-        import argparse  # noqa: PLC0415
+class D2AGCheckpointContractTests(unittest.TestCase):
+    """The D2-AE-style semantic binding replaces the sealed-lineage table.
 
-        args = argparse.Namespace(
-            training_run_id=(
-                f"p1-hoi-d2ag-selfcond-relation-source-s42-{ACTUAL_DATE}"
+    D2-AG is straight-through, so no resume contract and no sealed multi-file
+    lineage exist.  The evaluated file is instead bound by hashing it once
+    against the CLI-supplied value, requiring the fixed final basename, and
+    asserting the run's own budget/shape/architecture/initialization record.
+    """
+
+    TRAINING_RUN_ID = (
+        f"p1-hoi-d2ag-selfcond-relation-source-s42-{ACTUAL_DATE}"
+    )
+
+    def _checkpoint(self, **overrides):
+        base = internal_runner.base
+        value = {
+            "schema_version": 2,
+            "checkpoint_type": "hoi_prior_phase1b",
+            "window_state_codec": "state-compositional-v1",
+            "expert": "hoi",
+            "initialization": "random",
+            "run_id": self.TRAINING_RUN_ID,
+            "seed": 42,
+            "git_commit": "9" * 40,
+            "processed_windows": 61_440_000,
+            "processed_frames": 983_040_000,
+            "optimizer_updates": 30_000,
+            "world_size": 4,
+            "effective_batch_size": 2048,
+            "model_config": {
+                "architecture_variant": internal_runner.HOI_ARCHITECTURE_D2AG,
+            },
+            "architecture_variant": internal_runner.HOI_ARCHITECTURE_D2AG,
+            "selfcond_relation_source_contract": (
+                selfcond_relation_source_contract_metadata()
             ),
-            formal_manifest=Path("/tmp/x.json"),
-            formal_manifest_sha256="0" * 64,
-            training_metrics=Path("/tmp/x.json"),
-            training_metrics_sha256="0" * 64,
-            training_state=Path("/tmp/x.json"),
-            training_state_sha256="0" * 64,
-            resume_contract=Path("/tmp/x.json"),
-            resume_contract_sha256="0" * 64,
-            target_checkpoint=Path("/tmp/x.pth"),
-            target_sha256="0" * 64,
+            "data_contract_sha256": base.EXPECTED_DATA_CONTRACT_SHA256,
+            "split_sha256": base.EXPECTED_SPLIT_SHA256,
+            "weight_initialization": {
+                "mode": "random",
+                "source_checkpoint": None,
+                "source_checkpoint_sha256": None,
+                "source_model_state_sha256": None,
+                "initial_model_state_sha256": "b5" + "0" * 62,
+                "restored_components": [],
+                "old_optimizer_states_loaded": 0,
+                "old_ema_models_loaded": 0,
+                "old_scheduler_states_loaded": 0,
+                "old_scaler_states_loaded": 0,
+                "old_rng_states_loaded": 0,
+            },
+            "ema_models": {},
+            "model": {"network.alpha": torch.zeros(1)},
+            "primary_weight_variant": "online",
+            "resume_contract": {
+                "architecture_variant": internal_runner.HOI_ARCHITECTURE_D2AG,
+                "fk_foot_temporal_routing": True,
+                "d2ab_predicted_support_no_slip": False,
+                "d2ad_local_frame_interaction_adapter": False,
+                "d2ae_sparse_relation_field": False,
+                "d2af_sqrt_alpha_bar_reliability": False,
+                "d2ag_selfcond_relation_source": True,
+                "d2ag_sparse_relation_parameters": (
+                    internal_runner.SPARSE_RELATION_PARAMETER_COUNT
+                ),
+                "d2ag_sparse_point_mapping_sha256": (
+                    internal_runner.SPARSE_POINT_MAPPING_SHA256
+                ),
+                "d2ag_sparse_point_manifest_sha256": (
+                    internal_runner.SPARSE_POINT_MANIFEST_SHA256
+                ),
+                "d2ag_sparse_point_tensor_sha256": (
+                    internal_runner.SPARSE_POINT_TENSOR_SHA256
+                ),
+                "d2ag_selection_probability": D2AG_SELF_CONDITION_PROBABILITY,
+                "d2ag_variable_anchors": list(D2AG_VARIABLE_ANCHORS),
+            },
+        }
+        value.update(overrides)
+        return value
+
+    def _write(self, directory: Path, checkpoint, *, name=None):
+        path = Path(directory) / (
+            name or f"{self.TRAINING_RUN_ID}_windows061440000.pth"
+        )
+        torch.save(checkpoint, path)
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(block)
+        return path, digest.hexdigest()
+
+    def _run(self, checkpoint, *, name=None, sha256=None, run_id=None):
+        with tempfile.TemporaryDirectory() as directory:
+            path, actual = self._write(directory, checkpoint, name=name)
+            return internal_runner.checkpoint_contract(
+                path,
+                sha256 or actual,
+                run_id or self.TRAINING_RUN_ID,
+            )
+
+    def test_the_registered_final_checkpoint_is_accepted(self):
+        value = self._run(self._checkpoint())
+        self.assertTrue(all(value["checks"].values()), value["checks"])
+        self.assertEqual(value["run_id"], self.TRAINING_RUN_ID)
+        self.assertEqual(value["processed_windows"], 61_440_000)
+        self.assertEqual(value["weight_variant"], "online")
+        self.assertEqual(
+            value["basename"],
+            f"{self.TRAINING_RUN_ID}_windows061440000.pth",
+        )
+        self.assertEqual(value["git_commit"], "9" * 40)
+        self.assertRegex(value["sha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(
+            value["initial_model_state_sha256"], r"^[0-9a-f]{64}$",
+        )
+
+    def test_a_foreign_run_id_is_rejected(self):
+        # The evaluated file must be this training run's own checkpoint, not a
+        # predecessor's file renamed into place.
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(
+                    run_id=(
+                        "p1-hoi-d2af-sqrt-alpha-bar-reliability-s42-20260730"
+                    )
+                )
+            )
+        self.assertIn("run_id", str(caught.exception))
+
+    def test_an_intermediate_cadence_checkpoint_is_rejected(self):
+        # 58_368_000 is the cadence checkpoint immediately before the fixed
+        # final one; accepting it would be unregistered checkpoint selection.
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(
+                    processed_windows=58_368_000,
+                    processed_frames=933_888_000,
+                    optimizer_updates=28_500,
+                )
+            )
+        message = str(caught.exception)
+        self.assertIn("processed_windows", message)
+        self.assertIn("processed_frames", message)
+        self.assertIn("optimizer_updates", message)
+
+    def test_a_non_d2ag_architecture_is_rejected(self):
+        from priors.models import HOI_ARCHITECTURE_D2AE  # noqa: PLC0415
+
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(
+                    architecture_variant=HOI_ARCHITECTURE_D2AE,
+                    model_config={
+                        "architecture_variant": HOI_ARCHITECTURE_D2AE,
+                    },
+                )
+            )
+        self.assertIn("architecture_variant", str(caught.exception))
+
+    def test_a_tampered_selfcond_contract_is_rejected(self):
+        contract = dict(selfcond_relation_source_contract_metadata())
+        contract["selection_probability"] = 0.25
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(selfcond_relation_source_contract=contract)
+            )
+        self.assertIn(
+            "selfcond_relation_source_contract", str(caught.exception),
+        )
+
+    def test_a_non_random_initialization_is_rejected(self):
+        initialization = dict(
+            self._checkpoint()["weight_initialization"],
+            mode="resume",
+            source_checkpoint="/tmp/released.pth",
         )
         with self.assertRaises(ValueError) as caught:
-            internal_runner.sealed_lineage_contract(args)
-        self.assertIn("not registered yet", str(caught.exception))
+            self._run(
+                self._checkpoint(
+                    initialization="resume",
+                    weight_initialization=initialization,
+                )
+            )
+        self.assertIn("random_initialization", str(caught.exception))
 
-    def test_no_predecessor_hash_leaked_into_the_sealed_table(self):
+    def test_the_wrong_shape_and_budget_fields_are_rejected(self):
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(world_size=8, effective_batch_size=1024, seed=7)
+            )
+        message = str(caught.exception)
+        for name in ("world_size", "effective_batch_size", "seed"):
+            self.assertIn(name, message)
+
+    def test_a_hash_or_basename_mismatch_is_rejected(self):
+        with self.assertRaises(ValueError) as caught:
+            self._run(self._checkpoint(), sha256="0" * 64)
+        self.assertIn("hash mismatch", str(caught.exception))
+        with self.assertRaises(ValueError) as caught:
+            self._run(
+                self._checkpoint(),
+                name=f"{self.TRAINING_RUN_ID}_windows058368000.pth",
+            )
+        self.assertIn("basename", str(caught.exception))
+
+    def test_the_unsatisfiable_sealed_lineage_apparatus_is_gone(self):
+        # D2-AF's sealed table was written for a resumed run; D2-AG produces no
+        # resume contract, so an all-None copy could never be satisfied.
+        for name in (
+            "FORMAL_LINEAGE_SEALED",
+            "sealed_lineage_contract",
+            "FORMAL_CADENCE_WINDOWS",
+            "EXPECTED_INITIAL_MODEL_STATE_SHA256",
+        ):
+            self.assertFalse(hasattr(internal_runner, name), name)
+
+    def test_no_predecessor_hash_is_pinned_in_the_runner_source(self):
         from tools import run_hoi_d2af_internal as d2af_internal  # noqa: PLC0415
 
-        forbidden = {
+        source = Path(internal_runner.__file__).read_text(encoding="utf-8")
+        for value in (
             d2af_internal.FORMAL_MANIFEST_SHA256,
             d2af_internal.FORMAL_METRICS_SHA256,
             d2af_internal.FORMAL_FINAL_CHECKPOINT_SHA256,
             d2af_internal.FORMAL_FINAL_MODEL_STATE_SHA256,
             d2af_internal.FORMAL_CHECKPOINT_SOURCE_COMMIT,
             d2af_internal.FORMAL_EXECUTION_TARGET_COMMIT,
-        }
-        for value in internal_runner.FORMAL_LINEAGE_SEALED.values():
-            self.assertNotIn(value, forbidden)
+        ):
+            self.assertNotIn(str(value), source)
 
 
 class D2AGInternalRunIdTests(unittest.TestCase):
@@ -369,14 +557,6 @@ class D2AGInternalRunIdTests(unittest.TestCase):
             training_run_id=(
                 f"p1-hoi-d2ag-selfcond-relation-source-s42-{ACTUAL_DATE}"
             ),
-            formal_manifest=Path("/tmp/m.json"),
-            formal_manifest_sha256="1" * 64,
-            training_metrics=Path("/tmp/t.json"),
-            training_metrics_sha256="2" * 64,
-            training_state=Path("/tmp/s.json"),
-            training_state_sha256="3" * 64,
-            resume_contract=Path("/tmp/r.json"),
-            resume_contract_sha256="4" * 64,
             output_dir=Path("/tmp/out"),
             metrics=Path("/tmp/out/metrics.json"),
             resolved_config=Path("/tmp/out/config.json"),

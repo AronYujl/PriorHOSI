@@ -150,14 +150,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-checkpoint", type=Path, required=True)
     parser.add_argument("--target-sha256", required=True)
     parser.add_argument("--training-run-id", required=True)
-    parser.add_argument("--formal-manifest", type=Path, required=True)
-    parser.add_argument("--formal-manifest-sha256", required=True)
     parser.add_argument("--training-metrics", type=Path, required=True)
     parser.add_argument("--training-metrics-sha256", required=True)
-    parser.add_argument("--training-state", type=Path, required=True)
-    parser.add_argument("--training-state-sha256", required=True)
-    parser.add_argument("--resume-contract", type=Path, required=True)
-    parser.add_argument("--resume-contract-sha256", required=True)
     parser.add_argument("--internal-diagnostic", type=Path, required=True)
     parser.add_argument("--internal-diagnostic-sha256", required=True)
     parser.add_argument("--control-aggregate", type=Path, required=True)
@@ -563,49 +557,44 @@ def _relation_window_protocol(variant: str, windows: object) -> bool:
     return True
 
 
-def _formal_summary_matches(
+def _checkpoint_summary_matches(
     summary: object,
-    current: Mapping[str, object],
+    args: argparse.Namespace,
 ) -> bool:
+    """Bind the internal diagnostic's own checkpoint record to this CLI.
+
+    D2-AG is straight-through, so there is no sealed multi-artifact lineage to
+    recompute here.  What must still hold is that the diagnostic evaluated the
+    same file this evaluation is about, that it recorded the fixed final-online
+    identity, and that every semantic checkpoint check it ran passed.
+    """
     if not isinstance(summary, Mapping):
         return False
-    scalar_keys = (
-        "training_run_id",
-        "checkpoint_source_commit",
-        "execution_target_commit",
-        "final_checkpoint_sha256",
-        "final_model_state_sha256",
-        "cadence_main_checkpoints",
-        "cadence_rng_sidecars",
-    )
-    if any(summary.get(key) != current.get(key) for key in scalar_keys):
-        return False
-    if not summary.get("checks") or not all(summary.get("checks", {}).values()):
-        return False
-    summary_artifacts = summary.get("artifacts", {})
-    current_artifacts = current.get("artifacts", {})
-    return (
-        isinstance(summary_artifacts, Mapping)
-        and isinstance(current_artifacts, Mapping)
-        and set(summary_artifacts) == set(current_artifacts)
-        and all(
-            summary_artifacts[name].get("sha256")
-            == current_artifacts[name].get("sha256")
-            for name in current_artifacts
+    expected_name = f"{args.training_run_id}_windows061440000.pth"
+    checks = summary.get("checks")
+    return bool(
+        summary.get("sha256") == args.target_sha256
+        and summary.get("run_id") == args.training_run_id
+        and summary.get("basename") == expected_name
+        and Path(str(summary.get("path", ""))).name == expected_name
+        and summary.get("processed_windows") == 61_440_000
+        and summary.get("weight_variant") == "online"
+        and re.fullmatch(
+            r"[0-9a-f]{64}", str(summary.get("initial_model_state_sha256", "")),
         )
+        and summary.get("initial_model_state_sha256")
+        == EXPECTED_INITIAL_MODEL_STATE_SHA256
+        and isinstance(checks, Mapping)
+        and bool(checks)
+        and all(checks.values())
     )
 
 
-def _validate_internal(
-    args: argparse.Namespace,
-    formal_lineage: Optional[Mapping[str, object]] = None,
-) -> Dict[str, object]:
+def _validate_internal(args: argparse.Namespace) -> Dict[str, object]:
     internal_path = args.internal_diagnostic.resolve()
     internal_sha256 = d2ac.sha256_file(internal_path)
     if internal_sha256 != args.internal_diagnostic_sha256:
         raise ValueError("D2-AG internal diagnostic SHA-256 mismatch")
-    if formal_lineage is None:
-        formal_lineage = internal_runner.sealed_lineage_contract(args)
     value = d2ac.load_json(internal_path)
     run_id = str(value.get("run_id"))
     decision = value.get("decision", {})
@@ -862,11 +851,6 @@ def _validate_internal(
         and recomputed_decision == decision
         and decision.get("reported_only_quantities_used") is False
     )
-    support_hash_bindings = all(
-        value.get(artifact_id, {}).get("sha256")
-        == closure_artifacts.get(artifact_id, {}).get("sha256")
-        for artifact_id in INTERNAL_SUPPORT_ARTIFACTS
-    )
     checks = {
         "schema_version": value.get("schema_version") == 1,
         "status": value.get("status") == "completed",
@@ -875,8 +859,8 @@ def _validate_internal(
         == INTERNAL_SELECTION_SHA256,
         "selection_sequences": value.get("selection", {}).get("sequences") == 64,
         "selection_windows": value.get("selection", {}).get("windows") == 192,
-        "formal_lineage": _formal_summary_matches(
-            value.get("formal_lineage"), formal_lineage,
+        "target_checkpoint_contract": _checkpoint_summary_matches(
+            value.get("target_checkpoint"), args,
         ),
         "artifact_closure_identity": (
             isinstance(closure, Mapping)
@@ -896,7 +880,6 @@ def _validate_internal(
         "noise_raw_protocol": noise_protocol,
         "conditioning_raw_protocol": conditioning_protocol,
         "relation_raw_protocol": relation_protocol,
-        "support_hash_bindings": support_hash_bindings,
         "paired_noise": paired_noise_exact,
         "paired_exogenous": raw_exogenous_identity,
         "paired_conditioning": paired_conditioning_exact,
@@ -1002,6 +985,7 @@ def _validate_internal(
         "sha256": internal_sha256,
         "run_id": run_id,
         "selection": value["selection"],
+        "target_checkpoint": value.get("target_checkpoint"),
         "artifact_closure": {**closure, "artifacts": resolved_artifacts},
         "decision": decision,
         "reported_only_quantities_used": False,
@@ -1084,11 +1068,6 @@ def _waived_performance_gate_accepted(
 
 
 def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
-    formal_lineage = (
-        _formal_lineage
-        if _formal_lineage
-        else internal_runner.sealed_lineage_contract(args)
-    )
     metrics = d2ac.load_json(args.training_metrics.resolve())
     expected_name = f"{args.training_run_id}_windows061440000.pth"
     checkpoint_rows = [
@@ -1112,8 +1091,6 @@ def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
     lifecycle = metrics.get("d2ag_lifecycle_contract", {})
     performance = lifecycle.get("performance_gate", {})
     checks = {
-        "formal_lineage": bool(formal_lineage.get("checks"))
-        and all(formal_lineage["checks"].values()),
         "status": metrics.get("status") == "stable",
         "run_id": metrics.get("run_id") == args.training_run_id,
         "seed": metrics.get("seed") == 42,
@@ -1245,10 +1222,6 @@ def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
             and final_instance.get("relation_parameters") == 413_953
             and final_instance.get("total_parameters") == 30_087_401
             and all(final_instance.get("checks", {}).values())
-            and re.fullmatch(
-                r"[0-9a-f]{64}",
-                str(metrics.get("terminal_model_state_sha256", "")),
-            ) is not None
         ),
         "random_weight_initialization": (
             initialization.get("mode") == "random"
@@ -1319,35 +1292,22 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
     value = _shared_resolved_config(args)
     value["subphase"] = SUBPHASE
     value["training_run_id"] = args.training_run_id
-    value["formal_lineage"] = {
-        "manifest": {
-            "path": str(args.formal_manifest.resolve()),
-            "sha256": args.formal_manifest_sha256,
-        },
-        "metrics": {
-            "path": str(args.training_metrics.resolve()),
-            "sha256": args.training_metrics_sha256,
-        },
-        "training_state": {
-            "path": str(args.training_state.resolve()),
-            "sha256": args.training_state_sha256,
-        },
-        "resume_contract": {
-            "path": str(args.resume_contract.resolve()),
-            "sha256": args.resume_contract_sha256,
-        },
-        "checkpoint_source_commit": _formal_lineage.get(
-            "checkpoint_source_commit"
+    # Straight-through formal lineage: the target checkpoint's own semantic
+    # record, as verified by the internal diagnostic, is the binding.
+    value["formal_training"] = {
+        "run_id": args.training_run_id,
+        "final_checkpoint": str(args.target_checkpoint.resolve()),
+        "final_checkpoint_sha256": args.target_sha256,
+        "final_checkpoint_basename": (
+            f"{args.training_run_id}_windows061440000.pth"
         ),
-        "execution_target_commit": _formal_lineage.get(
-            "execution_target_commit"
-        ),
-        "final_checkpoint_sha256": _formal_lineage.get(
-            "final_checkpoint_sha256"
-        ),
-        "final_model_state_sha256": _formal_lineage.get(
-            "final_model_state_sha256"
-        ),
+        "processed_windows": 61_440_000,
+        "weight_variant": "online",
+        "resumed": False,
+        "checkpoint_source_commit": (
+            _internal.get("target_checkpoint", {}) or {}
+        ).get("git_commit"),
+        "initial_model_state_sha256": EXPECTED_INITIAL_MODEL_STATE_SHA256,
     }
     value["internal_diagnostic"] = {
         "path": str(args.internal_diagnostic.resolve()),
@@ -1419,31 +1379,19 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
 
 
 def additional_runtime_artifact_hashes(args):
-    actual = {
-        "formal_manifest": shared.sha256_file(args.formal_manifest.resolve()),
-        "training_state": shared.sha256_file(args.training_state.resolve()),
-        "resume_contract": shared.sha256_file(args.resume_contract.resolve()),
-        "internal_diagnostic": shared.sha256_file(
-            args.internal_diagnostic.resolve()
-        ),
-    }
-    expected = {
-        "formal_manifest": args.formal_manifest_sha256,
-        "training_state": args.training_state_sha256,
-        "resume_contract": args.resume_contract_sha256,
-        "internal_diagnostic": args.internal_diagnostic_sha256,
-    }
-    for artifact_id, record in _internal.get(
-        "artifact_closure", {}
-    ).get("artifacts", {}).items():
-        key = f"internal_{artifact_id}"
-        actual[key] = shared.sha256_file(Path(record["path"]))
-        expected[key] = record["sha256"]
-    return actual, expected
+    """Deliberately empty: nothing is hashed twice in one process.
+
+    ``_validate_internal`` already hashes the internal diagnostic against
+    ``--internal-diagnostic-sha256`` and every closed internal artifact against
+    its recorded closure entry, earlier in this same process.  Repeating those
+    reads here would add no evidence, so this override pins the shared D2-X hook
+    to no second pass rather than inheriting a predecessor's.
+    """
+    del args
+    return {}, {}
 
 
 _internal: Dict[str, object] = {}
-_formal_lineage: Dict[str, object] = {}
 
 
 def compare_records(
@@ -1505,11 +1453,9 @@ def classify(
 def configure_shared(
     args: argparse.Namespace,
     internal: Mapping[str, object],
-    formal_lineage: Mapping[str, object],
 ) -> None:
-    global _internal, _formal_lineage
+    global _internal
     _internal = dict(internal)
-    _formal_lineage = dict(formal_lineage)
     shared.RUN_ID = args.run_id
     shared.SUBPHASE = SUBPHASE
     shared.CONTROL_CHECKPOINT_SHA256 = CONTROL_CHECKPOINT_SHA256
@@ -1546,17 +1492,13 @@ def main() -> None:
         )
     for name in (
         "target_sha256",
-        "formal_manifest_sha256",
         "training_metrics_sha256",
-        "training_state_sha256",
-        "resume_contract_sha256",
         "internal_diagnostic_sha256",
     ):
         if not re.fullmatch(r"[0-9a-f]{64}", str(getattr(args, name))):
             raise ValueError(f"{name} must be lowercase hexadecimal SHA-256")
-    formal_lineage = internal_runner.sealed_lineage_contract(args)
-    internal = _validate_internal(args, formal_lineage)
-    configure_shared(args, internal, formal_lineage)
+    internal = _validate_internal(args)
+    configure_shared(args, internal)
     if args.resolve_only:
         shared.prepare_resolved_config(args)
         return

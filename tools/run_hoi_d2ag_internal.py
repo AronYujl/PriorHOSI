@@ -86,9 +86,6 @@ TRAINING_RUN_ID_RE = re.compile(
     r"(?:-r[1-9][0-9]*)?-s42-[0-9]{8}$"
 )
 FAILURE_CLASSIFICATION = "selfcond-relation-source-contract-failure-stop"
-EXPECTED_INITIAL_MODEL_STATE_SHA256 = (
-    "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c"
-)
 DIFFUSION_STEPS = 500
 SOURCE_LABEL_CURRENT = "x_t"
 SOURCE_LABEL_PREVIOUS = "prev_x0"
@@ -103,22 +100,6 @@ INTERVENTION_SCOPE = (
 )
 SELFCOND_APPENDIX_FILENAME = "self_conditioning_appendix.json"
 REPORTED_ONLY_FILENAME = "reported_only_quantities.json"
-# The D2-AG formal training run has not executed yet, so its sealed lineage
-# hashes cannot exist.  They are deliberately unfilled and fail closed: the
-# runner refuses to start until the completion record supplies them.  Never
-# substitute a D2-AE or D2-AF value here.
-FORMAL_LINEAGE_SEALED: Dict[str, Optional[str]] = {
-    "training_run_id": None,
-    "checkpoint_source_commit": None,
-    "execution_target_commit": None,
-    "manifest_sha256": None,
-    "metrics_sha256": None,
-    "training_state_sha256": None,
-    "resume_contract_sha256": None,
-    "final_checkpoint_sha256": None,
-    "final_model_state_sha256": None,
-}
-FORMAL_CADENCE_WINDOWS = tuple(range(3_072_000, 61_440_000 + 1, 3_072_000))
 
 
 def sha256_file(path: Path) -> str:
@@ -157,77 +138,121 @@ def validate_internal_batch_size(batch_size: int) -> None:
         raise ValueError("D2-AG internal batch size must be exactly 8")
 
 
-def sealed_lineage_contract(args: argparse.Namespace) -> Dict[str, object]:
-    """Fail closed until the formal run seals its own lineage hashes.
+def checkpoint_contract(
+    path: Path,
+    expected_sha256: str,
+    training_run_id: str,
+) -> Dict[str, object]:
+    """Bind the evaluated file to the D2-AG formal run semantically.
 
-    D2-AG's formal training has not run, so no sealed value can be legitimate
-    yet.  Filling these in with a predecessor's hashes would silently bind the
-    diagnostic to the wrong checkpoint, so the runner refuses instead.
+    D2-AG is a straight-through run, so there is no resume artifact and no
+    sealed multi-file lineage table to satisfy.  The binding is instead the one
+    D2-AE uses: hash the target once against the value the caller supplied,
+    require the fixed final-online basename, then read the checkpoint and assert
+    the budget, world/batch shape, architecture, data/split contract,
+    from-random initialization and the D2-AG self-conditioning contract that
+    only this run's final checkpoint can satisfy.
     """
-    unfilled = sorted(
-        key for key, value in FORMAL_LINEAGE_SEALED.items() if value is None
-    )
-    if unfilled:
-        raise ValueError(
-            "D2-AG sealed formal lineage is not registered yet: "
-            + ", ".join(unfilled)
-            + "; complete the formal run and record its hashes before the "
-            "internal diagnostic"
-        )
-    supplied = {
-        "manifest_sha256": str(args.formal_manifest_sha256),
-        "metrics_sha256": str(args.training_metrics_sha256),
-        "training_state_sha256": str(args.training_state_sha256),
-        "resume_contract_sha256": str(args.resume_contract_sha256),
+    actual = sha256_file(path)
+    expected_name = f"{training_run_id}_windows061440000.pth"
+    if actual != expected_sha256:
+        raise ValueError(f"D2-AG final checkpoint hash mismatch: {actual}")
+    if path.name != expected_name:
+        raise ValueError("D2-AG internal requires the fixed final checkpoint basename")
+    checkpoint = torch.load(path, map_location="cpu")
+    initialization = checkpoint.get("weight_initialization", {})
+    resume = checkpoint.get("resume_contract", {})
+    model_config = checkpoint.get("model_config", {})
+    checks = {
+        "schema_version": checkpoint.get("schema_version") == 2,
+        "checkpoint_type": checkpoint.get("checkpoint_type") == "hoi_prior_phase1b",
+        "window_state_codec": checkpoint.get("window_state_codec")
+        == "state-compositional-v1",
+        "expert": checkpoint.get("expert") == "hoi",
+        "run_id": checkpoint.get("run_id") == training_run_id,
+        "seed": checkpoint.get("seed") == 42,
+        "processed_windows": checkpoint.get("processed_windows") == 61_440_000,
+        "processed_frames": checkpoint.get("processed_frames") == 983_040_000,
+        "optimizer_updates": checkpoint.get("optimizer_updates") == 30_000,
+        "world_size": checkpoint.get("world_size") == 4,
+        "effective_batch_size": checkpoint.get("effective_batch_size") == 2048,
+        "architecture_variant": (
+            checkpoint.get("architecture_variant") == HOI_ARCHITECTURE_D2AG
+            and model_config.get("architecture_variant") == HOI_ARCHITECTURE_D2AG
+            and resume.get("architecture_variant") == HOI_ARCHITECTURE_D2AG
+        ),
+        "selfcond_relation_source_contract": (
+            checkpoint.get("selfcond_relation_source_contract")
+            == selfcond_relation_source_contract_metadata()
+        ),
+        "selfcond_relation_source_provenance": (
+            resume.get("d2ag_sparse_relation_parameters")
+            == SPARSE_RELATION_PARAMETER_COUNT
+            and resume.get("d2ag_sparse_point_mapping_sha256")
+            == SPARSE_POINT_MAPPING_SHA256
+            and resume.get("d2ag_sparse_point_manifest_sha256")
+            == SPARSE_POINT_MANIFEST_SHA256
+            and resume.get("d2ag_sparse_point_tensor_sha256")
+            == SPARSE_POINT_TENSOR_SHA256
+            and resume.get("d2ag_selection_probability")
+            == D2AG_SELF_CONDITION_PROBABILITY
+            and resume.get("d2ag_variable_anchors") == list(D2AG_VARIABLE_ANCHORS)
+        ),
+        "data_contract": (
+            checkpoint.get("data_contract_sha256")
+            == base.EXPECTED_DATA_CONTRACT_SHA256
+        ),
+        "split": checkpoint.get("split_sha256") == base.EXPECTED_SPLIT_SHA256,
+        "random_initialization": (
+            checkpoint.get("initialization") == "random"
+            and initialization.get("mode") == "random"
+            and initialization.get("source_checkpoint") is None
+            and initialization.get("source_checkpoint_sha256") is None
+            and initialization.get("source_model_state_sha256") is None
+            and initialization.get("restored_components") == []
+            and all(
+                initialization.get(name) == 0
+                for name in (
+                    "old_optimizer_states_loaded",
+                    "old_ema_models_loaded",
+                    "old_scheduler_states_loaded",
+                    "old_scaler_states_loaded",
+                    "old_rng_states_loaded",
+                )
+            )
+            and re.fullmatch(
+                r"[0-9a-f]{64}",
+                str(initialization.get("initial_model_state_sha256", "")),
+            ) is not None
+        ),
+        "no_ema": checkpoint.get("ema_models") == {},
+        "online_model": (
+            isinstance(checkpoint.get("model"), dict)
+            and checkpoint.get("primary_weight_variant") == "online"
+        ),
+        "d2x_routing": resume.get("fk_foot_temporal_routing") is True,
+        "d2ab_disabled": resume.get("d2ab_predicted_support_no_slip") is False,
+        "d2ac_disabled": resume.get("d2ac_interaction_adapter") is not True,
+        "d2ad_disabled": resume.get("d2ad_local_frame_interaction_adapter") is not True,
+        "d2ae_disabled": resume.get("d2ae_sparse_relation_field") is not True,
+        "d2af_disabled": resume.get("d2af_sqrt_alpha_bar_reliability") is not True,
+        "d2ag_enabled": resume.get("d2ag_selfcond_relation_source") is True,
     }
-    mismatched = sorted(
-        key for key, value in supplied.items()
-        if FORMAL_LINEAGE_SEALED[key] != value
-    )
-    if mismatched or FORMAL_LINEAGE_SEALED["training_run_id"] != str(
-        args.training_run_id
-    ):
-        raise ValueError(
-            f"D2-AG formal lineage mismatch: {mismatched or ['training_run_id']}"
-        )
-    actual = {
-        "formal_manifest": sha256_file(args.formal_manifest.resolve()),
-        "training_metrics": sha256_file(args.training_metrics.resolve()),
-        "training_state": sha256_file(args.training_state.resolve()),
-        "resume_contract": sha256_file(args.resume_contract.resolve()),
-        "target_checkpoint": sha256_file(args.target_checkpoint.resolve()),
-    }
-    expected = {
-        "formal_manifest": FORMAL_LINEAGE_SEALED["manifest_sha256"],
-        "training_metrics": FORMAL_LINEAGE_SEALED["metrics_sha256"],
-        "training_state": FORMAL_LINEAGE_SEALED["training_state_sha256"],
-        "resume_contract": FORMAL_LINEAGE_SEALED["resume_contract_sha256"],
-        "target_checkpoint": FORMAL_LINEAGE_SEALED["final_checkpoint_sha256"],
-    }
-    if actual != expected or str(args.target_sha256) != str(
-        expected["target_checkpoint"]
-    ):
-        raise ValueError(f"D2-AG formal artifact hash mismatch: {actual}")
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(f"D2-AG final checkpoint contract mismatch: {failed}")
     return {
-        "training_run_id": str(args.training_run_id),
-        "artifacts": {
-            name: {"sha256": value} for name, value in sorted(actual.items())
-        },
-        "checkpoint_source_commit": FORMAL_LINEAGE_SEALED[
-            "checkpoint_source_commit"
-        ],
-        "execution_target_commit": FORMAL_LINEAGE_SEALED[
-            "execution_target_commit"
-        ],
-        "final_checkpoint_sha256": FORMAL_LINEAGE_SEALED[
-            "final_checkpoint_sha256"
-        ],
-        "final_model_state_sha256": FORMAL_LINEAGE_SEALED[
-            "final_model_state_sha256"
-        ],
-        "cadence_main_checkpoints": len(FORMAL_CADENCE_WINDOWS),
-        "cadence_rng_sidecars": 4 * len(FORMAL_CADENCE_WINDOWS),
-        "checks": {"sealed_lineage_registered": True},
+        "path": str(path),
+        "sha256": actual,
+        "basename": path.name,
+        "run_id": training_run_id,
+        "processed_windows": 61_440_000,
+        "weight_variant": "online",
+        "git_commit": checkpoint.get("git_commit"),
+        "checks": checks,
+        "initial_model_state_sha256": initialization.get(
+            "initial_model_state_sha256"
+        ),
     }
 
 
@@ -523,26 +548,6 @@ def resolved_config(args: argparse.Namespace) -> Dict[str, object]:
             "weight_variant": "online",
             "architecture_variant": HOI_ARCHITECTURE_D2AG,
         },
-        "formal_lineage": {
-            "manifest": {
-                "path": str(args.formal_manifest.resolve()),
-                "sha256": args.formal_manifest_sha256,
-            },
-            "metrics": {
-                "path": str(args.training_metrics.resolve()),
-                "sha256": args.training_metrics_sha256,
-            },
-            "training_state": {
-                "path": str(args.training_state.resolve()),
-                "sha256": args.training_state_sha256,
-            },
-            "resume_contract": {
-                "path": str(args.resume_contract.resolve()),
-                "sha256": args.resume_contract_sha256,
-            },
-            "cadence_main_checkpoints": len(FORMAL_CADENCE_WINDOWS),
-            "cadence_rng_sidecars": 4 * len(FORMAL_CADENCE_WINDOWS),
-        },
         "selection": {
             "partition": "internal_validation",
             "source": "sealed D2-O cohort",
@@ -701,14 +706,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target-checkpoint", type=Path, required=True)
     parser.add_argument("--target-sha256", required=True)
     parser.add_argument("--training-run-id", required=True)
-    parser.add_argument("--formal-manifest", type=Path, required=True)
-    parser.add_argument("--formal-manifest-sha256", required=True)
-    parser.add_argument("--training-metrics", type=Path, required=True)
-    parser.add_argument("--training-metrics-sha256", required=True)
-    parser.add_argument("--training-state", type=Path, required=True)
-    parser.add_argument("--training-state-sha256", required=True)
-    parser.add_argument("--resume-contract", type=Path, required=True)
-    parser.add_argument("--resume-contract-sha256", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--metrics", type=Path, required=True)
     parser.add_argument("--resolved-config", type=Path, required=True)
@@ -778,15 +775,8 @@ def main() -> None:
         )
     if not TRAINING_RUN_ID_RE.fullmatch(args.training_run_id):
         raise ValueError("invalid D2-AG formal training run id")
-    for name in (
-        "target_sha256",
-        "formal_manifest_sha256",
-        "training_metrics_sha256",
-        "training_state_sha256",
-        "resume_contract_sha256",
-    ):
-        if not re.fullmatch(r"[0-9a-f]{64}", str(getattr(args, name))):
-            raise ValueError(f"{name} must be lowercase hexadecimal SHA-256")
+    if not re.fullmatch(r"[0-9a-f]{64}", str(args.target_sha256)):
+        raise ValueError("target_sha256 must be lowercase hexadecimal SHA-256")
     validate_internal_batch_size(args.batch_size)
     configured_python = os.environ.get("INFBAGEL_PYTHON")
     if (
@@ -795,7 +785,6 @@ def main() -> None:
         or Path(sys.executable).resolve() != Path(configured_python).resolve()
     ):
         raise ValueError("D2-AG internal requires the absolute INFBAGEL_PYTHON")
-    formal_lineage = sealed_lineage_contract(args)
     config = resolved_config(args)
     if args.resolve_only:
         base.exclusive_json(args.resolved_config.resolve(), config)
@@ -822,25 +811,22 @@ def main() -> None:
     started = time.perf_counter()
     author_utils.SMPL_DIR = str((REPO / "smpl_models").resolve())
     try:
+        checkpoint = checkpoint_contract(
+            args.target_checkpoint.resolve(),
+            args.target_sha256,
+            args.training_run_id,
+        )
         asset_hashes = {
             "normalization": sha256_file((REPO / "data/train/norm.npy").resolve()),
             "bps": sha256_file((REPO / "code/bps.pt").resolve()),
             "split": sha256_file(
                 REPO / "experiments/splits/omomo_hoi_train_validation_seed42.json"
             ),
-            "sparse_mapping": SPARSE_POINT_MAPPING_SHA256,
-            "sparse_manifest": SPARSE_POINT_MANIFEST_SHA256,
-            "sparse_tensor": SPARSE_POINT_TENSOR_SHA256,
-            "sqrt_alpha_bar": SQRT_ALPHA_BAR_SHA256,
         }
         if asset_hashes != {
             "normalization": base.EXPECTED_NORMALIZATION_SHA256,
             "bps": base.BPS_SHA256,
             "split": base.EXPECTED_SPLIT_SHA256,
-            "sparse_mapping": SPARSE_POINT_MAPPING_SHA256,
-            "sparse_manifest": SPARSE_POINT_MANIFEST_SHA256,
-            "sparse_tensor": SPARSE_POINT_TENSOR_SHA256,
-            "sqrt_alpha_bar": SQRT_ALPHA_BAR_SHA256,
         }:
             raise ValueError(f"D2-AG internal asset hash mismatch: {asset_hashes}")
 
@@ -1247,7 +1233,7 @@ def main() -> None:
         relation_module = model.network.sparse_relation_field
         assert relation_module is not None
         contract = {
-            "formal_lineage": all(formal_lineage["checks"].values()),
+            "checkpoint_contract": all(checkpoint["checks"].values()),
             "checkpoint_architecture_variant": (
                 metadata["architecture_variant"] == HOI_ARCHITECTURE_D2AG
             ),
@@ -1258,7 +1244,6 @@ def main() -> None:
             "field_schedule_buffer_absent": (
                 relation_module.sqrt_alpha_bar is None
             ),
-            "asset_hashes_exact": True,
             "selection_exact": True,
             "causal_window_overlap_exact": causal_overlap["all_exact"] is True,
             "gt_contact_finite_mask_exact": gt_contact_mask_exact,
@@ -1401,7 +1386,7 @@ def main() -> None:
             "selection": {
                 key: value for key, value in selection.items() if key != "triples"
             },
-            "formal_lineage": formal_lineage,
+            "target_checkpoint": checkpoint,
             "checkpoint_metadata": {
                 key: value
                 for key, value in metadata.items()
@@ -1431,6 +1416,10 @@ def main() -> None:
             },
             "assets": {
                 **asset_hashes,
+                "sparse_mapping": SPARSE_POINT_MAPPING_SHA256,
+                "sparse_manifest": SPARSE_POINT_MANIFEST_SHA256,
+                "sparse_tensor": SPARSE_POINT_TENSOR_SHA256,
+                "sqrt_alpha_bar": SQRT_ALPHA_BAR_SHA256,
                 "data_contract_sha256": base.EXPECTED_DATA_CONTRACT_SHA256,
                 "penetration_hand_vertex_ids_sha256": penetration_assets[
                     "hand_ids_sha256"
