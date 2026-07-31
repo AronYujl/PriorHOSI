@@ -84,6 +84,22 @@ EXPECTED_INITIAL_MODEL_SHA256 = (
     "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c"
 )
 PARITY_MAX_ABS_TOLERANCE = 1.0e-6
+# Batch-of-1 versus batch-of-N parity is *not* a registered contract; the plan
+# never states it.  Its floor is pure cuBLAS GEMM-shape behavior: measured on
+# infbagel-4gpu/RTX 3090 (torch 1.13.1+cu117) a *pure D2-AE* variant with no
+# self-conditioning at all gives 7.152557373046875e-07 for the identical
+# comparison, and eval-mode D2-AG gives 6.55e-07/7.15e-07.  1e-6 leaves only a
+# 1.4x margin over that floor, so this gate is set to 1e-5 (~14x the measured
+# floor).  It keeps full discriminating power: a genuine per-sample selection
+# failure moves a row by ``selected_min_l2`` ~ 7.1, six orders of magnitude up.
+BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE = 1.0e-5
+# The parity comparisons run with the gate forced to this value.  At the
+# registered ``alpha=0`` initialization ``tanh(alpha)`` is exactly zero
+# (``code/priors/sparse_relation.py:579``, ``:811``, ``:814``), so the writeback
+# vanishes and the relation source cannot move the output at all; comparing
+# sources under a zero gate is vacuous.  ``tools/diagnose_hoi_d2ag.py:613-616``
+# makes the same point for the CPU gate.
+PROBE_PARITY_GATE = 0.1
 # Fixed descriptive mask for the per-sample source-selection probe.  It is not
 # the registered training mask; the registered Bernoulli draw is exercised
 # separately through ``_d2ag_selection_mask``.
@@ -339,12 +355,36 @@ def _estimator_source_contract(
 ) -> dict:
     """Per-sample source selection, history pin, RNG and eval-mode contract.
 
-    Every assertion here is registered in EP:7000-7040: unselected rows must be
-    bitwise equal to the D2-AE-style ``x_t``-source forward (the field stays
-    active, so the reference is *not* the bare trunk), selected rows must differ
-    and must equal an independent single-row forward, ``relation_source[:, :2]``
-    must be exactly ``noisy[:, :2]``, and the estimate pass must consume no
-    global RNG while running under ``eval()``.
+    The registered assertions (EP:7031-7043) are: unselected rows must equal the
+    D2-AE-style ``x_t``-source forward (the field stays active, so the reference
+    is *not* the bare trunk), selected rows must differ, ``relation_source[:, :2]``
+    must be exactly ``noisy[:, :2]``, and the estimate pass must consume no global
+    RNG while running under ``eval()`` and restoring the prior mode.
+
+    Two properties of the measurement, both established on the worker GPU rather
+    than assumed:
+
+    * The numerical parity comparisons must run under ``eval()``.  The ambient
+      mode here is ``train()`` (``main`` at :646) and the trunk carries an active
+      ``dropout=0.1`` (``code/priors/models.py:126``), so every forward draws its
+      own dropout mask.  Measured on infbagel-4gpu/RTX 3090, running the
+      *identical* reference forward twice in train mode differs by 0.762 max abs,
+      which swamps the 1e-6 contract and made the comparison meaningless.  Under
+      ``eval()`` the same unselected comparison is exactly 0.0.
+    * They must run with an activated gate.  At the registered ``alpha=0``
+      initialization ``tanh(alpha)`` is exactly zero, so the writeback vanishes
+      and the relation source cannot move the output; unselected equality would
+      then hold trivially even if per-sample selection were broken, and
+      ``selected_differs_from_d2ae`` would be passing on dropout noise alone
+      (measured ``selected_min_l2`` 9.18 in train mode versus 0.0 in eval mode at
+      zero gate).  With the gate forced to ``PROBE_PARITY_GATE`` the selected
+      rows move by ``selected_min_l2`` ~ 7.1 while unselected rows stay bitwise
+      identical, so the check now has real discriminating power.
+
+    The estimate pass itself deliberately stays in the ambient ``train()`` mode so
+    that the registered eval-enter/restore, RNG and detach assertions remain
+    meaningful; only the parity comparisons are moved into the deterministic
+    context.
     """
     field = model.network.sparse_relation_field
     index = probe_mask.nonzero(as_tuple=True)[0]
@@ -357,8 +397,11 @@ def _estimator_source_contract(
 
     handle = field.register_forward_pre_hook(watch)
     try:
+        # Pass 0: the ambient graph pass, in train mode with the estimate flag
+        # clear.  Its output is not compared numerically; the deterministic
+        # reference below is.
         with torch.no_grad():
-            reference = _forward(model, noisy, timesteps, batch)
+            _forward(model, noisy, timesteps, batch)
         cpu_before = torch.get_rng_state().clone()
         cuda_before = torch.cuda.get_rng_state(device).clone()
         was_training = model.network.training
@@ -390,31 +433,48 @@ def _estimator_source_contract(
         cpu_after = torch.get_rng_state().clone()
         cuda_after = torch.cuda.get_rng_state(device).clone()
         relation_source = build_d2ag_relation_source(noisy, estimate, index=index)
-        with torch.no_grad():
-            selected = _forward(
-                model, noisy, timesteps, batch, relation_source=relation_source,
-            )
-            single_rows = [
-                _forward(
-                    model,
-                    noisy[row: row + 1],
-                    timesteps[row: row + 1],
-                    {
-                        key: (
-                            value[row: row + 1]
-                            if torch.is_tensor(value)
-                            and value.shape[:1] == noisy.shape[:1]
-                            else value
-                        )
-                        for key, value in batch.items()
-                    },
-                    relation_source=relation_source[row: row + 1],
+        parity_was_training = model.network.training
+        parity_gate = PROBE_PARITY_GATE
+        inner_module.eval()
+        field.set_gate_override(parity_gate)
+        try:
+            with torch.no_grad():
+                reference = _forward(model, noisy, timesteps, batch)
+                # Same inputs, same shapes: the instrument's own floor.  Any
+                # non-zero value here means the parity context is not
+                # deterministic and no comparison below can be trusted.
+                reference_repeat = _forward(model, noisy, timesteps, batch)
+                selected = _forward(
+                    model, noisy, timesteps, batch,
+                    relation_source=relation_source,
                 )
-                for row in index.tolist()
-            ]
+                single_rows = [
+                    _forward(
+                        model,
+                        noisy[row: row + 1],
+                        timesteps[row: row + 1],
+                        {
+                            key: (
+                                value[row: row + 1]
+                                if torch.is_tensor(value)
+                                and value.shape[:1] == noisy.shape[:1]
+                                else value
+                            )
+                            for key, value in batch.items()
+                        },
+                        relation_source=relation_source[row: row + 1],
+                    )
+                    for row in index.tolist()
+                ]
+        finally:
+            field.set_gate_override(None)
+            inner_module.train(parity_was_training)
     finally:
         handle.remove()
     unselected = (~probe_mask).nonzero(as_tuple=True)[0]
+    reference_run_to_run_max_abs = float(
+        (reference_repeat - reference).abs().amax().item()
+    )
     unselected_max_abs = float(
         (selected.index_select(0, unselected) - reference.index_select(0, unselected))
         .abs().amax().item()
@@ -450,9 +510,32 @@ def _estimator_source_contract(
         ).flatten(1).norm(dim=1).sum().item()
     )
     checks = {
+        # Reference and mixed-source forwards use the *same* batch shape, so every
+        # Linear/attention/LayerNorm op is row-independent and an unselected row
+        # cannot be perturbed by another row's data.  Exact equality is therefore
+        # structural, and it is what the GPU measures (0.0).  EP:7035-7036 only
+        # requires max abs <= 1e-6, so the bitwise form is strictly stronger; both
+        # are asserted so that a future 1e-7-scale drift is diagnosable instead of
+        # failing under a name that overstates the registered contract.
         "unselected_equals_d2ae_bitwise": unselected_max_abs == 0.0,
+        "unselected_equals_d2ae_within_registered_tolerance": (
+            unselected_max_abs <= PARITY_MAX_ABS_TOLERANCE
+        ),
         "selected_differs_from_d2ae": selected_min_l2 > 0.0,
-        "selection_is_per_sample": per_row_max_abs <= PARITY_MAX_ABS_TOLERANCE,
+        # Renamed from ``selection_is_per_sample``: this compares batch-of-1 with
+        # batch-of-N, which changes the GEMM shape and hence the accumulation
+        # order, so it measures cuBLAS batch-shape behavior rather than any
+        # registered D2-AG property.  See BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE for
+        # the measured floor and the tolerance rationale.
+        "selection_is_per_sample_within_batch_shape_tolerance": (
+            per_row_max_abs <= BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE
+        ),
+        # Self-check on the instrument: the parity context must be deterministic,
+        # otherwise every comparison above is measuring dropout noise instead of
+        # the mechanism.  This fails loudly if the parity block ever loses its
+        # ``eval()`` bracket.
+        "parity_reference_is_deterministic": reference_run_to_run_max_abs == 0.0,
+        "parity_gate_activated": parity_gate > 0.0,
         "history_pin_exact_zero": history_max_abs == 0.0,
         "anchor_zero_geometry_exact": anchor_zero_max_abs == 0.0,
         "variable_anchors_moved": variable_delta_l2 > 0.0,
@@ -463,6 +546,7 @@ def _estimator_source_contract(
         "estimate_ran_in_eval": observed_training[1:2] == [False],
         "estimate_flag_observed_by_hook": observed_estimate_flag[:2]
         == [False, True],
+        "exactly_one_estimate_forward": sum(observed_estimate_flag) == 1,
         "module_restored_to_train": bool(model.network.training),
         "estimate_detached": estimate.grad_fn is None
         and not estimate.requires_grad,
@@ -482,10 +566,15 @@ def _estimator_source_contract(
         "unselected_vs_d2ae_max_abs": unselected_max_abs,
         "selected_vs_d2ae_min_l2": selected_min_l2,
         "single_row_parity_max_abs": per_row_max_abs,
+        "single_row_parity_tolerance": BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE,
+        "registered_parity_tolerance": PARITY_MAX_ABS_TOLERANCE,
+        "parity_reference_run_to_run_max_abs": reference_run_to_run_max_abs,
+        "parity_context": "eval_mode_gate_activated",
+        "parity_gate": parity_gate,
         "history_pin_max_abs": history_max_abs,
         "anchor_zero_geometry_max_abs": anchor_zero_max_abs,
         "variable_anchor_delta_l2_sum": variable_delta_l2,
-        "estimate_forward_count": 1,
+        "estimate_forward_count": int(sum(observed_estimate_flag)),
         "estimate_ran_in_eval": True,
         "module_restored_to_train": True,
         "field_pass_estimate_flags": observed_estimate_flag,
@@ -904,7 +993,9 @@ def main() -> int:
         "self_condition_probability": D2AG_SELF_CONDITION_PROBABILITY,
         "relation_field_always_active": True,
         "relation_zero_branch": False,
-        "unselected_equals_d2ae_bitwise": True,
+        "unselected_equals_d2ae_bitwise": bool(
+            source_selection["checks"]["unselected_equals_d2ae_bitwise"]
+        ),
         "first_reverse_step_source": "x_t",
         "first_reverse_step_matches_d2ae": True,
         "sqrt_alpha_bar_attenuation": False,

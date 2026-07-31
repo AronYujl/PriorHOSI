@@ -87,6 +87,20 @@ class D2AGFunctionalSmokeLifecycleTests(unittest.TestCase):
             smoke.REGISTERED_TIMESTEPS, (0, 249, 499, 0, 249, 499, 0, 499),
         )
         self.assertEqual(smoke.PARITY_MAX_ABS_TOLERANCE, 1.0e-6)
+        # The registered EP:7035-7036 tolerance is unchanged.  The batch-shape
+        # parity gate is a separate, unregistered instrument check whose floor is
+        # cuBLAS GEMM-shape behavior (measured 7.15e-07 on RTX 3090 for a pure
+        # D2-AE variant), so it is deliberately looser and must never be confused
+        # with the registered one.
+        self.assertEqual(smoke.BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE, 1.0e-5)
+        self.assertGreater(
+            smoke.BATCH_SHAPE_PARITY_MAX_ABS_TOLERANCE,
+            smoke.PARITY_MAX_ABS_TOLERANCE,
+        )
+        # The parity comparisons are vacuous at the registered alpha == 0
+        # initialization, so they run under a forced non-zero gate.
+        self.assertGreater(smoke.PROBE_PARITY_GATE, 0.0)
+        self.assertLessEqual(smoke.PROBE_PARITY_GATE, 1.0)
         self.assertEqual(
             smoke.FAILURE_CLASSIFICATION,
             "selfcond-relation-source-contract-failure-stop",
