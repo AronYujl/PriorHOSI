@@ -42,8 +42,17 @@ from tools import run_hoi_d2ac_native_evaluation as d2ac  # noqa: E402
 from tools import run_hoi_d2ag_internal as internal_runner  # noqa: E402
 from tools import run_hoi_d2x_evaluation as shared  # noqa: E402
 from train_hoi_prior import (  # noqa: E402
+    D2AG_FORBIDDEN_WAIVED_STATUS,
     D2AG_MAXIMUM_ETA_HOURS,
     D2AG_MINIMUM_THROUGHPUT,
+    D2AG_PERFORMANCE_FAILURE_CLASSIFICATION,
+    D2AG_PERFORMANCE_WAIVER_CLASSIFICATION,
+    D2AG_PERFORMANCE_WAIVER_STATUS,
+    D2AG_WAIVED_BENCHMARK_RUN_ID,
+    D2AG_WAIVED_BENCHMARK_SHA256,
+    D2AG_WAIVED_ETA_HOURS,
+    D2AG_WAIVED_FORMAL_RUN_ID,
+    D2AG_WAIVED_THROUGHPUT,
 )
 
 
@@ -999,6 +1008,81 @@ def _validate_internal(
     }
 
 
+def _waived_performance_gate_accepted(
+    lifecycle: Mapping[str, object],
+    performance: Mapping[str, object],
+) -> bool:
+    """Accept exactly the one user-authorized ``failed-waived`` D2-AG lineage.
+
+    A waived lineage fails the benchmark's throughput and ETA checks by
+    construction, so ``all(checks)`` cannot be required.  Everything else stays
+    mandatory: the waiver must be present and bound to the exact benchmark and
+    formal run, the failure must be confined to throughput/ETA (plus the
+    derived status/classification/authorization labels), every non-speed
+    contract must still pass, and the waived status must be recorded
+    explicitly and never as ``performance-gate-passed``.
+    """
+    waiver = performance.get("performance_waiver")
+    if not isinstance(waiver, Mapping) or not waiver:
+        return False
+    benchmark_checks = performance.get("benchmark_checks")
+    if not isinstance(benchmark_checks, Mapping) or not benchmark_checks:
+        return False
+    waived_checks = {"classification", "eta", "formal_authorized", "status", "throughput"}
+    non_speed_pass = all(
+        passed
+        for name, passed in benchmark_checks.items()
+        if name not in waived_checks
+    )
+    speed_only_failure = {
+        name for name, passed in benchmark_checks.items() if not passed
+    } <= waived_checks
+    labels = (
+        performance.get("status"),
+        performance.get("classification"),
+        performance.get("benchmark_status"),
+        performance.get("benchmark_classification"),
+        lifecycle.get("performance_gate_state"),
+        lifecycle.get("performance_gate_classification"),
+        waiver.get("status"),
+        waiver.get("classification"),
+    )
+    return (
+        non_speed_pass
+        and speed_only_failure
+        and all(waiver.get("checks", {}).values())
+        and bool(waiver.get("checks"))
+        and performance.get("status") == D2AG_PERFORMANCE_WAIVER_STATUS
+        and performance.get("classification")
+        == D2AG_PERFORMANCE_WAIVER_CLASSIFICATION
+        and performance.get("original_gate_passed") is False
+        and performance.get("formal_authorization")
+        == "explicit-single-run-waiver"
+        and performance.get("benchmark_status") == "failed"
+        and performance.get("benchmark_classification")
+        == D2AG_PERFORMANCE_FAILURE_CLASSIFICATION
+        and performance.get("benchmark_failed_checks") == sorted(waived_checks)
+        and performance.get("run_id") == D2AG_WAIVED_BENCHMARK_RUN_ID
+        and performance.get("sha256") == D2AG_WAIVED_BENCHMARK_SHA256
+        and performance.get("formal_run_id") == D2AG_WAIVED_FORMAL_RUN_ID
+        and float(performance.get("throughput_windows_per_second", -1.0))
+        == D2AG_WAIVED_THROUGHPUT
+        and float(performance.get("full_budget_eta_hours", -1.0))
+        == D2AG_WAIVED_ETA_HOURS
+        and waiver.get("benchmark_run_id") == D2AG_WAIVED_BENCHMARK_RUN_ID
+        and waiver.get("benchmark_sha256") == D2AG_WAIVED_BENCHMARK_SHA256
+        and waiver.get("formal_run_id") == D2AG_WAIVED_FORMAL_RUN_ID
+        # The waived state must be recorded on the lifecycle contract too.
+        and lifecycle.get("performance_gate_state")
+        == D2AG_PERFORMANCE_WAIVER_STATUS
+        and lifecycle.get("performance_gate_classification")
+        == D2AG_PERFORMANCE_WAIVER_CLASSIFICATION
+        and lifecycle.get("performance_waiver_sha256") == waiver.get("sha256")
+        and lifecycle.get("d2af_waiver_inherited") is False
+        and D2AG_FORBIDDEN_WAIVED_STATUS not in labels
+    )
+
+
 def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
     formal_lineage = (
         _formal_lineage
@@ -1189,7 +1273,14 @@ def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
             lifecycle.get("performance_gate_required") is True
             and isinstance(performance, Mapping)
             and bool(performance)
-            and all(performance.get("checks", {}).values())
+            # Either an unqualified pass, or exactly the one authorized waiver.
+            and (
+                (
+                    all(performance.get("checks", {}).values())
+                    and performance.get("performance_waiver") in (None, False)
+                )
+                or _waived_performance_gate_accepted(lifecycle, performance)
+            )
             # The gate must be D2-AG's own floor, never a predecessor's.
             and float(
                 performance.get("minimum_throughput_windows_per_second", -1.0)
@@ -1197,7 +1288,12 @@ def validate_training_result(args: argparse.Namespace) -> Dict[str, object]:
             and float(
                 performance.get("maximum_full_budget_eta_hours", -1.0)
             ) == D2AG_MAXIMUM_ETA_HOURS
-            and performance.get("performance_waiver") in (None, False)
+            and float(
+                lifecycle.get("minimum_throughput_windows_per_second", -1.0)
+            ) == D2AG_MINIMUM_THROUGHPUT
+            and float(
+                lifecycle.get("maximum_full_budget_eta_hours", -1.0)
+            ) == D2AG_MAXIMUM_ETA_HOURS
         ),
         "eligibility_gate_absent": (
             lifecycle.get("eligibility_gate") is None

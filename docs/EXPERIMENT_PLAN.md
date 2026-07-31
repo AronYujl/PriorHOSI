@@ -7247,6 +7247,143 @@ GPU workload、训练或评测。
     允许完整运行该一次预算。最终必须写 compact result、
     `docs/phase_summaries/PHASE_1B_D2AG.md` 和 append-only completion record。
 
+#### 2026-07-31 Phase 1B D2-AG0 one-time user-authorized performance waiver（plan-only）
+
+D2-AG 的 4-GPU full-micro-batch performance hard gate（`EP:7075-7111`）已在
+`p1-hoi-d2ag-performance-benchmark-r2-s42-20260731` 上完成并**失败**。Worker 为
+infbagel-4gpu/node01、4×RTX 3090，commit
+`ada2d84223ecbf76f5ed9bbd313f5ac6dfce2cbb`、`worktree_clean=true`，64 warm-up + 256
+measured = 320 updates、`524,288` measured windows、wall `241.36226116283797 s`。实测
+end-to-end throughput 为 `2172.2037135137825 windows/s`，低于注册门槛
+`2756.580356467847 windows/s`（缺口 `-21.199332774135327%`）；
+`throughput_fraction_of_sealed_d2x = 0.6698056714198497`（sealed D2-X formal
+`3243.0357134915853`）；ETA `7.8568444388944645 h` 超过注册上限 `6.20 h`。Status 为
+`failed`，classification 为 `selfcond-relation-source-performance-negative-stop`，
+`formal_training_authorized=false`、`sweep_authorized_on_failure=false`、
+`performance_waiver=null`。Failed checks 恰为 `classification`、`eta`、
+`formal_authorized`、`status`、`throughput` 五项，与 D2-AF0 waiver 的五项同构；
+**其余全部科学与执行契约均通过**：`all_rank_contract_pass`、`memory_headroom_pass`、
+`contention_pass`、`losses_finite`、`gradients_finite`、
+`selfcond_estimate_forward_measured`、`selfcond_graph_pass_instrumentation_pass`
+均为 true，`external_contention_before` 与 `external_contention_after` 均为空。
+Benchmark 的 `formal_source_contract` SHA-256 为
+`55ff307986e1c1e0ff94286b1fadec681b7cb3fe478da7b8ce5da670de84ee88`
+（`tracked_file_count=92`），与 authority checkout 在 HEAD `ada2d84` 上重算的值逐字段
+一致。同日先行的 `p1-hoi-d2ag-performance-benchmark-s42-20260731` 目录为 operational
+preflight 中止（只含 `resolved_hydra_config.yaml`，无 summary），按 `EP:7073` 保留原
+目录并以新 run id `-r2-` 重跑，不得复用或覆盖。
+
+在上述失败被**完整保留并报告**后，用户明确接受已测完整预算 ETA
+`7.8568444388944645 h`，并授权直接运行 `EP:7113-7128` 所注册的 D2-AG 唯一 formal
+budget。该新授权**覆盖**原先"performance 失败即不训练"的执行 stop rule，但**不回写
+历史、不把 benchmark 改成 passed，也不改变其
+`selfcond-relation-source-performance-negative-stop` 分类**。
+
+1. **ETA 与根因解释锁定。** ETA 只由固定预算和实测端到端吞吐外推，不使用任何模型化
+   或乐观假设：
+
+   \[
+   61{,}440{,}000 / 2{,}172.2037135137825 / 3600
+   = 7.8568444388944645\ {\rm h}.
+   \]
+
+   即每个 2048-window update 约 `0.9428213326673357 s`，30,000 updates 与
+   `61,440,000` windows 的注册预算完全一致（`30,000 × 2,048 / 2,172.2037135137825
+   / 3600` 复算得同一值）。根因与 2026-07-29 D2-AF0 属**同一 pathology**，且**不是
+   self-conditioning 机制本身**：per-rank inclusive `backward`（含 DDP critical-path
+   wait）为 rank0 `203.87` / rank1 `120.11` / rank2 `105.08` / rank3 `206.66 s`，
+   跨度约 2 倍（`1.966598891801045`）；而被操纵机制逐 rank 均匀——
+   `estimate_trunk_forward` 为 `6.53–6.94 s`（跨 rank 均值 `6.744397082805633 s`），
+   仅占 wall 的 `2.794304731117614%`；`forward_and_loss` 为 `22.87–24.21 s`，同样
+   均匀。跨 rank 均值 timing 汇总（秒）为 backward `158.932`、loader_wait `50.161`、
+   forward_and_loss `23.418`、estimate_trunk_forward `6.744`、gradient_validation
+   `4.978`、optimizer `3.186`、gpu_relation_module `1.903`。
+
+   **关键算术（本 waiver 的判别性依据）。** 把 estimate forward 的成本完全去掉，wall
+   约为 `234.61786408003235 s`，throughput 约为 `2234.6465477204924 windows/s`，
+   **仍远低于 `2756.580356467847` 门槛**。即该机制只解释
+   `584.3766429540647 windows/s` 总缺口中的约 `10.685374742401925%`，其余约
+   `89.31%` 来自 baseline harness 的 rank skew；换言之**一个零成本的 D2-AG 同样会
+   失败此 benchmark**，该 gate 在当前 harness 下并不能判别本方向的机制开销。达到门槛
+   需要把 wall 压到 `190.19507222775036 s`，远超去掉整个机制所能获得的余量。先例
+   佐证：D2-AF benchmark 实测 `2089.8443630127094 windows/s`（fraction of sealed
+   D2-AE `0.6243854685126333`）被 waive 后，其 formal continuation 实测
+   `3232.575359023025 windows/s`，说明 benchmark harness 的 rank skew 并未在 formal
+   执行中复现。该佐证只用于解释缺口归因，**不构成对 D2-AG formal 吞吐的承诺或预测**。
+
+2. **不做 post-hoc execution sweep。** 当前没有已证实能够消除上述 rank skew 的单一
+   安全 toggle，而第 1 条的算术表明即使把机制成本归零也无法通过该门槛，因此任何
+   execution 调参都不可能把本 benchmark 变成 passed。据此本 waiver 选择用户授权的
+   "直接训练"分支，**不改 batch、micro-batch、`num_workers`、CPU affinity、
+   prefetch/pinning、线程或 I/O 布局、architecture、point/width/role/routing、`p` 或
+   budget**，也不改模型数学、训练循环计算与 instrumentation。第二次 benchmark、
+   `-r3` 重跑与上述任何 sweep 继续禁止；benchmark 中的
+   `sweep_authorized_on_failure` 保持 `false`，不得被 waiver 改写。
+
+3. **Waiver 的精确范围（一次性、run-id 绑定、不可继承）。** 本 waiver 一次性绑定且
+   仅绑定两个 identity：被 waive 的 benchmark
+   `p1-hoi-d2ag-performance-benchmark-r2-s42-20260731`，以及唯一 formal run
+   `p1-hoi-d2ag-selfcond-relation-source-s42-20260731`。只允许启动一次该 formal
+   identity；启动时仍须满足 actual-date 规则，且该目录必须此前不存在。原 benchmark
+   不重跑，其 320-update sacrificial weights 仍不可复用
+   （`benchmark_weights_reusable=false`）。不允许第二次 formal、resume 旧方向、
+   checkpoint selection、D2-AG1、longer budget、consistency、HSIPrior 或 Mixer。
+   **本 waiver 不构成后续方向的先例**：与 `EP:7110-7111` 对 D2-AF0 waiver 所作的
+   声明同构，它不得被 D2-AH 或任何后续实验继承、援引或推广，后续方向若再次未过
+   performance gate，必须重新取得用户对该次具体实验的明确授权。
+
+4. **Fail-closed implementation 与状态表述。** Formal trainer 不得简单删除
+   performance 检查或伪造 passing summary。它必须同时绑定：原 failed benchmark JSON
+   的 absolute path、SHA-256、run id、failed status/classification、实测
+   throughput/ETA 及全部 non-speed contracts；一份 tracked、immutable、SHA-bound
+   waiver JSON；waiver 中的唯一 formal run id、用户授权事实、benchmark SHA、原/目标
+   Git commit、exact transition diff SHA、允许改变的 governance/validator/config/test
+   路径与目标 formal source-tree contract；以及 `formal_runs_maximum=1`、benchmark
+   retry/sweep=false、training conditions unchanged=true、random initialization=true。
+
+   原 benchmark 的 throughput/ETA checks 必须在 formal lifecycle 中继续保存为
+   `false`；新状态只能表示为 `failed-waived` / `user-authorized-performance-waiver`，
+   **不得表示为 `performance-gate-passed`**（与 `EP:6187-6189` 同一措辞与同一约束）。
+   Benchmark 中 memory、finite loss/gradient、GPU-only relation、optimizer/checkpoint
+   I/O、four-rank identity、contention、selfcond estimate/graph instrumentation 与
+   schedule 等任一 non-speed contract 不通过时，waiver 无效并停止。
+
+5. **Source transition、artifact recovery 与重新验证。** 为接受 waiver 所需的 source
+   修改只允许涉及 D2-AG performance waiver validator、base/D2-AG config binding 及
+   对应 tests/documentation；不得修改 models、diffusion schedule、relation
+   builder/encoder/routing、self-conditioning 机制、loss、optimizer 或 training-loop
+   数学。由于原 CPU gate / smoke / benchmark 是在 formal source contract
+   `55ff307986e1c1e0ff94286b1fadec681b7cb3fe478da7b8ce5da670de84ee88`（commit
+   `ada2d84`）上完成，waiver 必须以 source/target commit 和 exact Git diff hash 显式
+   授权这次 validator-only transition，而不是重写旧 artifact。目标 commit 上必须重新
+   通过完整 authority suite、registry validation、static source/diff audit 和
+   resolved-config fail-closed 测试；**不重跑 scientific performance benchmark**。
+   在 formal 启动前，benchmark run 目录必须由 worker 发起 non-destructive recovery
+   （无 `--delete`、checksum dry-run、双端统一 `sha256_path`）落到 authority staging，
+   并把 summary/resolved-config/rank-metrics SHA-256 记入 completion 记录。
+
+6. **科学契约与 formal 后评测完全不变。** 除上述 validator-only transition 外，
+   `EP:7113-7128` 注册的科学条件逐条不动：seed 42、`experiments/splits/
+   omomo_hoi_train_validation_seed42.json`、seed-42 random initialization（全部
+   released/author/D2-X/D2-AC/D2-AD/D2-AE/D2-AF/prior/EMA/consistency checkpoint load
+   count 为零）、infbagel-4gpu/node01 4×RTX 3090、batch 512/GPU、effective batch
+   2048、gradient accumulation 1、`61,440,000` windows、`983,040,000` frames、30,000
+   updates、FP32 Adam、LR `1e-4`、betas `(0.9,0.999)`、weight decay 0、无
+   warmup/scheduler/AMP/clipping/EMA、loss weights
+   `0.3569973401779424 / 0.4772322188400037 / 0.1 / 1.0`、D2-X FK-foot routing
+   enabled、`p=0.5` 与全部 self-conditioning contract 均不变。训练完成后仍只使用
+   fixed final-online、**不得做 checkpoint selection**，依次执行 `EP:7130-7159` 的
+   five-path internal causal diagnostic 与 `EP:7161-7190` 的一次 fixed native
+   evaluation；internal 五 gate、native transfer/protection/released-95%
+   effectiveness floor、统计协议、sealed controls、`EP:7192-7208` 的终态顺序与
+   selectability 条件全部不变。Compact result 与 phase summary 必须同时报告原
+   performance failure、本用户 waiver、实际 formal wall/throughput 及最终结果。
+
+下一步仅允许提交本 plan-only waiver 与 append-only registry hypothesis；随后实现上述
+最小 hash-bound validator/config/tests，创建并提交 immutable waiver contract，通过
+authority verification 后由 worker fast-forward 相同 clean Git object 并启动唯一
+formal run。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

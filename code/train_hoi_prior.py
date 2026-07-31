@@ -240,6 +240,54 @@ D2AG_PERFORMANCE_FAILURE_CLASSIFICATION = (
 D2AG_CONTRACT_FAILURE_CLASSIFICATION = (
     "selfcond-relation-source-contract-failure-stop"
 )
+D2AG_PERFORMANCE_WAIVER_CLASSIFICATION = (
+    "user-authorized-performance-waiver"
+)
+D2AG_PERFORMANCE_WAIVER_STATUS = "failed-waived"
+D2AG_FORBIDDEN_WAIVED_STATUS = "performance-gate-passed"
+D2AG_PERFORMANCE_WAIVER_RUN_ID_RE = re.compile(
+    r"^p1-hoi-d2ag-performance-waiver-s42-(?P<date>[0-9]{8})$"
+)
+D2AG_PERFORMANCE_WAIVER_RELATIVE_PATH = (
+    "experiments/contracts/"
+    "p1_hoi_d2ag_performance_waiver_s42_20260731.json"
+)
+# The one user-authorized D2-AG failure.  Every value is the measured
+# benchmark record; none of them is a target the trainer may relax.
+D2AG_WAIVED_BENCHMARK_RUN_ID = (
+    "p1-hoi-d2ag-performance-benchmark-r2-s42-20260731"
+)
+D2AG_WAIVED_FORMAL_RUN_ID = (
+    "p1-hoi-d2ag-selfcond-relation-source-s42-20260731"
+)
+D2AG_WAIVED_BENCHMARK_SHA256 = (
+    "ad5b052d850a6978d2ce64022ecc0328ab73f32ffa7a72446a4a16bdf2c19cae"
+)
+D2AG_WAIVED_THROUGHPUT = 2172.2037135137825
+D2AG_WAIVED_ETA_HOURS = 7.8568444388944645
+D2AG_WAIVED_SOURCE_COMMIT = "ada2d84223ecbf76f5ed9bbd313f5ac6dfce2cbb"
+D2AG_WAIVED_SOURCE_CONTRACT_SHA256 = (
+    "55ff307986e1c1e0ff94286b1fadec681b7cb3fe478da7b8ce5da670de84ee88"
+)
+D2AG_WAIVER_ALLOWED_CHANGED_PATHS = frozenset(
+    {
+        "code/config/config_train_hoi_prior.yaml",
+        "code/config/config_train_hoi_prior_d2ag.yaml",
+        "code/train_hoi_prior.py",
+        "tools/run_hoi_d2ag_native_evaluation.py",
+        "tests/test_hoi_d2ag.py",
+        "tests/test_hoi_d2ag_lifecycle_cpu.py",
+        "tests/test_hoi_d2ag_eval.py",
+        "docs/EXPERIMENT_PLAN.md",
+        "experiments/registry.jsonl",
+        D2AG_PERFORMANCE_WAIVER_RELATIVE_PATH,
+    }
+)
+# The exact benchmark checks the waiver may excuse.  Anything else failing
+# invalidates the waiver, so a genuine scientific failure cannot pass.
+D2AG_WAIVED_BENCHMARK_FAILED_CHECKS = (
+    "classification", "eta", "formal_authorized", "status", "throughput",
+)
 D2AG_FORMAL_SOURCE_SCOPES = (
     "code",
     "tools/benchmark_hoi_d2ag.py",
@@ -505,6 +553,105 @@ def _d2ag_formal_source_contract(repo: Path) -> Dict[str, object]:
     }
 
 
+def _d2ag_formal_source_contract_at_commit(
+    repo: Path,
+    commit: str,
+) -> Dict[str, object]:
+    """Hash the registered D2-AG runtime tree from an immutable Git object."""
+    repo = repo.resolve()
+    if re.fullmatch(r"[0-9a-f]{40}", str(commit)) is None:
+        raise ValueError("D2-AG source-contract commit must be a full Git object id")
+    try:
+        output = subprocess.check_output(
+            [
+                "git", "ls-tree", "-r", "-z", "--name-only", str(commit),
+                "--", *D2AG_FORMAL_SOURCE_SCOPES,
+            ],
+            cwd=repo,
+        )
+    except subprocess.CalledProcessError as error:
+        raise ValueError("D2-AG source-contract commit is not readable") from error
+    relative_paths = sorted(
+        item.decode("utf-8") for item in output.split(b"\0") if item
+    )
+    if not relative_paths:
+        raise ValueError("D2-AG committed source contract resolved no tracked files")
+    records = []
+    for relative in relative_paths:
+        try:
+            content = subprocess.check_output(
+                ["git", "show", f"{commit}:{relative}"],
+                cwd=repo,
+            )
+        except subprocess.CalledProcessError as error:
+            raise ValueError(
+                f"D2-AG committed source path is not readable: {relative}"
+            ) from error
+        records.append({
+            "path": relative,
+            "sha256": hashlib.sha256(content).hexdigest(),
+        })
+    encoded = json.dumps(
+        records, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")
+    return {
+        "algorithm": "git-ls-files-path-content-sha256-v1",
+        "scopes": list(D2AG_FORMAL_SOURCE_SCOPES),
+        "tracked_file_count": len(records),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def _d2ag_source_transition(
+    repo: Path,
+    source_commit: str,
+    target_commit: str,
+) -> Dict[str, object]:
+    """Resolve the exact validator-only Git transition the waiver authorizes."""
+    commit_pattern = re.compile(r"^[0-9a-f]{40}$")
+    if (
+        commit_pattern.fullmatch(str(source_commit)) is None
+        or commit_pattern.fullmatch(str(target_commit)) is None
+    ):
+        raise ValueError("D2-AG waiver transition requires full Git object ids")
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", source_commit, target_commit],
+        cwd=str(repo),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if ancestor.returncode != 0:
+        raise ValueError("D2-AG waiver target is not a descendant of benchmark source")
+    if not _git_commit_is_ancestor(repo, target_commit):
+        raise ValueError("D2-AG waiver target is not an ancestor of current HEAD")
+    changed_paths = tuple(
+        line
+        for line in subprocess.check_output(
+            ["git", "diff", "--name-only", source_commit, target_commit],
+            cwd=str(repo),
+            text=True,
+        ).splitlines()
+        if line
+    )
+    unexpected = sorted(set(changed_paths) - D2AG_WAIVER_ALLOWED_CHANGED_PATHS)
+    if unexpected:
+        raise ValueError(
+            "D2-AG waiver transition changes non-authorized paths: "
+            + ", ".join(unexpected)
+        )
+    diff_bytes = subprocess.check_output(
+        ["git", "diff", "--binary", source_commit, target_commit],
+        cwd=str(repo),
+    )
+    return {
+        "source_commit": source_commit,
+        "target_commit": target_commit,
+        "changed_paths": list(changed_paths),
+        "diff_sha256": hashlib.sha256(diff_bytes).hexdigest(),
+    }
+
+
 def _d2af_formal_source_contract(repo: Path) -> Dict[str, object]:
     """Hash the exact tracked D2-AF runtime tree used by benchmark/formal."""
     repo = repo.resolve()
@@ -748,6 +895,28 @@ def _sha256_path_record(path: Path) -> Dict[str, object]:
         "files": files,
         "bytes": total_bytes,
     }
+
+
+def _validate_tracked_d2ag_waiver_path(repo: Path, path: Path) -> str:
+    """Require the immutable waiver to be a tracked experiments/contracts file."""
+    try:
+        relative = path.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError as error:
+        raise ValueError(
+            "D2-AG performance waiver must be inside the repository"
+        ) from error
+    if not relative.startswith("experiments/contracts/"):
+        raise ValueError("D2-AG performance waiver must be under experiments/contracts")
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", relative],
+        cwd=str(repo),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if tracked.returncode != 0:
+        raise ValueError("D2-AG performance waiver must be tracked by Git")
+    return relative
 
 
 def _validate_tracked_d2af_waiver_path(repo: Path, path: Path) -> str:
@@ -1230,11 +1399,221 @@ def _validate_d2ae_performance_gate(cfg: DictConfig) -> Dict[str, object]:
     }
 
 
+def _validate_d2ag_performance_waiver(
+    cfg: DictConfig,
+    *,
+    benchmark: Mapping[str, object],
+    benchmark_sha256: str,
+    repo: Path,
+) -> Dict[str, object]:
+    """Validate the one exact post-failure, user-authorized D2-AG formal run.
+
+    This mirrors the D2-AF waiver without a clean-signal eligibility premise,
+    which D2-AG never registered.  The waiver may only excuse the measured
+    throughput/ETA shortfall of one exact benchmark: it binds that benchmark's
+    run id and SHA-256, keeps the failed status/classification, and must never
+    assert ``performance-gate-passed``.
+    """
+    path_value = cfg.get("d2ag_performance_waiver_path")
+    configured_sha256 = cfg.get("d2ag_performance_waiver_sha256")
+    if path_value in (None, "", False) or configured_sha256 in (None, "", False):
+        raise ValueError(
+            "D2-AG failed performance benchmark requires an explicit sealed waiver"
+        )
+    path = Path(str(path_value))
+    if not path.is_absolute() or not path.is_file():
+        raise ValueError(
+            "D2-AG performance waiver path must be an existing absolute file"
+        )
+    actual_sha256 = _sha256(path)
+    if (
+        re.fullmatch(r"[0-9a-f]{64}", str(configured_sha256)) is None
+        or actual_sha256 != str(configured_sha256)
+    ):
+        raise ValueError("D2-AG performance waiver SHA-256 mismatch")
+    tracked_relative = _validate_tracked_d2ag_waiver_path(repo, path)
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("D2-AG performance waiver is not valid JSON") from error
+    if not isinstance(value, Mapping):
+        raise ValueError("D2-AG performance waiver must be a JSON object")
+
+    waiver_match = D2AG_PERFORMANCE_WAIVER_RUN_ID_RE.fullmatch(
+        str(value.get("run_id", ""))
+    )
+    formal_match = D2AG_FORMAL_RUN_ID_RE.fullmatch(str(cfg.run_id))
+    benchmark_binding = value.get("benchmark")
+    authorization = value.get("authorization")
+    transition_binding = value.get("source_transition")
+    preexisting = value.get("preexisting_formal_artifacts")
+    non_speed = value.get("non_speed_contracts")
+    if not isinstance(transition_binding, Mapping):
+        raise ValueError("D2-AG performance waiver source transition is missing")
+    source_commit = str(transition_binding.get("source_commit", ""))
+    target_commit = str(transition_binding.get("target_commit", ""))
+    transition = _d2ag_source_transition(repo, source_commit, target_commit)
+    source_contract = _d2ag_formal_source_contract_at_commit(repo, source_commit)
+    target_contract = _d2ag_formal_source_contract_at_commit(repo, target_commit)
+    current_contract = _d2ag_formal_source_contract(repo)
+    is_resume = cfg.resume_checkpoint not in (None, "", False)
+    binding_labels = (
+        (
+            benchmark_binding.get("status"),
+            benchmark_binding.get("classification"),
+        )
+        if isinstance(benchmark_binding, Mapping) else (None, None)
+    )
+    checkpoint_dir = Path(str(cfg.checkpoint_dir)).resolve()
+    initial_outputs_absent = (
+        not Path(str(cfg.metrics_path)).resolve().exists()
+        and not Path(str(cfg.state_path)).resolve().exists()
+        and (
+            not checkpoint_dir.exists()
+            or not any(checkpoint_dir.glob("*.pth"))
+        )
+    )
+    checks = {
+        "schema_version": value.get("schema_version") == 1,
+        "status": value.get("status") == "authorized",
+        "classification": value.get("classification")
+        == D2AG_PERFORMANCE_WAIVER_CLASSIFICATION,
+        "run_id": waiver_match is not None,
+        "date_binding": waiver_match is not None
+        and formal_match is not None
+        and waiver_match.group("date") == formal_match.group("date"),
+        "formal_run_id": value.get("formal_run_id") == str(cfg.run_id)
+        == D2AG_WAIVED_FORMAL_RUN_ID,
+        "seed": value.get("seed") == int(cfg.seed) == 42,
+        "tracked_contract": tracked_relative
+        == D2AG_PERFORMANCE_WAIVER_RELATIVE_PATH,
+        # The waiver is bound to one exact measured benchmark.  It must keep
+        # the failed status/classification and the measured numbers, and it
+        # must acknowledge D2-AG's own registered thresholds.
+        "benchmark_binding": isinstance(benchmark_binding, Mapping)
+        and benchmark_binding.get("run_id") == D2AG_WAIVED_BENCHMARK_RUN_ID
+        == benchmark.get("run_id")
+        and benchmark_binding.get("sha256") == benchmark_sha256
+        == D2AG_WAIVED_BENCHMARK_SHA256
+        and benchmark_binding.get("status") == benchmark.get("status") == "failed"
+        and benchmark_binding.get("classification")
+        == benchmark.get("classification")
+        == D2AG_PERFORMANCE_FAILURE_CLASSIFICATION
+        and benchmark_binding.get("throughput_windows_per_second")
+        == benchmark.get("throughput_windows_per_second")
+        == D2AG_WAIVED_THROUGHPUT
+        and benchmark_binding.get("full_budget_eta_hours")
+        == benchmark.get("full_budget_eta_hours")
+        == D2AG_WAIVED_ETA_HOURS
+        and benchmark_binding.get("minimum_throughput_windows_per_second")
+        == benchmark.get("minimum_throughput_windows_per_second")
+        == D2AG_MINIMUM_THROUGHPUT
+        and benchmark_binding.get("maximum_full_budget_eta_hours")
+        == benchmark.get("maximum_full_budget_eta_hours")
+        == D2AG_MAXIMUM_ETA_HOURS
+        and benchmark_binding.get("formal_training_authorized") is False
+        and benchmark.get("formal_training_authorized") is False
+        and benchmark_binding.get("failed_checks")
+        == sorted(D2AG_WAIVED_BENCHMARK_FAILED_CHECKS)
+        and benchmark_binding.get("non_speed_contracts_passed") is True,
+        # A waived run must never be labelled as a passing gate.
+        "no_passed_claim": D2AG_FORBIDDEN_WAIVED_STATUS not in (
+            value.get("status"),
+            value.get("classification"),
+            *binding_labels,
+        ),
+        "source_identity": source_commit == D2AG_WAIVED_SOURCE_COMMIT
+        == benchmark.get("identity", {}).get("git_commit"),
+        "source_contract": source_contract
+        == benchmark.get("formal_source_contract")
+        == transition_binding.get("source_formal_contract")
+        and source_contract.get("sha256")
+        == D2AG_WAIVED_SOURCE_CONTRACT_SHA256,
+        "target_contract": target_contract
+        == transition_binding.get("target_formal_contract")
+        == current_contract,
+        "transition": transition_binding.get("diff_sha256")
+        == transition["diff_sha256"]
+        and transition_binding.get("changed_paths")
+        == transition["changed_paths"]
+        and set(transition["changed_paths"]).issubset(
+            D2AG_WAIVER_ALLOWED_CHANGED_PATHS
+        ),
+        "authorization": isinstance(authorization, Mapping)
+        and authorization.get("user_authorized_after_full_failure_disclosure")
+        is True
+        and authorization.get("user_accepted_full_budget_eta_hours")
+        == D2AG_WAIVED_ETA_HOURS
+        and authorization.get("formal_runs_maximum") == 1
+        and authorization.get("random_initialization") is True
+        and authorization.get("benchmark_retry_authorized") is False
+        and authorization.get("execution_sweep_authorized") is False
+        and authorization.get("benchmark_reclassification_authorized") is False
+        and authorization.get("benchmark_classification_unchanged") is True
+        and authorization.get("history_rewritten") is False
+        and authorization.get("training_conditions_unchanged") is True
+        and authorization.get("runtime_status_label")
+        == D2AG_PERFORMANCE_WAIVER_STATUS
+        and authorization.get("forbidden_status_label")
+        == D2AG_FORBIDDEN_WAIVED_STATUS
+        and authorization.get("d2af_waiver_inherited") is False
+        and authorization.get("bound_benchmark_run_ids")
+        == [D2AG_WAIVED_BENCHMARK_RUN_ID]
+        and authorization.get("bound_formal_run_ids")
+        == [D2AG_WAIVED_FORMAL_RUN_ID]
+        and bool(cfg.get("profile_every_update")) is True,
+        # Every non-speed contract must still be true in the waiver record.
+        "non_speed_contracts": isinstance(non_speed, Mapping)
+        and non_speed.get("all_rank_contract_pass") is True
+        and non_speed.get("memory_headroom_pass") is True
+        and non_speed.get("contention_pass") is True
+        and non_speed.get("losses_finite") is True
+        and non_speed.get("gradients_finite") is True
+        and non_speed.get("selfcond_estimate_forward_measured") is True
+        and non_speed.get("invalid_if_any_non_speed_contract_fails") is True,
+        "preexisting_artifacts": isinstance(preexisting, Mapping)
+        and preexisting.get("formal_output_directory_existed") is False
+        and preexisting.get("training_state_existed") is False
+        and preexisting.get("training_metrics_existed") is False
+        and preexisting.get("checkpoint_count") == 0,
+        "initial_outputs": is_resume or initial_outputs_absent,
+        "fresh_or_same_run_resume": (
+            cfg.resume_checkpoint in (None, "", False)
+            or Path(str(cfg.resume_checkpoint)).name.startswith(
+                f"{cfg.run_id}_windows"
+            )
+        ),
+    }
+    failed = sorted(name for name, passed in checks.items() if not passed)
+    if failed:
+        raise ValueError(
+            "D2-AG performance waiver contract mismatch: " + ", ".join(failed)
+        )
+    return {
+        "path": str(path.resolve()),
+        "relative_path": tracked_relative,
+        "sha256": actual_sha256,
+        "run_id": str(value["run_id"]),
+        "status": D2AG_PERFORMANCE_WAIVER_STATUS,
+        "classification": D2AG_PERFORMANCE_WAIVER_CLASSIFICATION,
+        "formal_run_id": str(cfg.run_id),
+        "benchmark_run_id": D2AG_WAIVED_BENCHMARK_RUN_ID,
+        "benchmark_sha256": benchmark_sha256,
+        "source_transition": transition,
+        "source_formal_contract": source_contract,
+        "target_formal_contract": current_contract,
+        "checks": checks,
+    }
+
+
 def _validate_d2ag_performance_gate(cfg: DictConfig) -> Dict[str, object]:
-    """Require an immutable passing benchmark before formal D2-AG training.
+    """Require a passing benchmark or the one exact hash-bound failed-run waiver.
 
     The D2-AG floor is registered independently (85% of the sealed D2-X formal
     throughput).  The D2-AF waiver is run-id bound and is not reachable here.
+    Without a waiver the behaviour is unchanged: any failed check stops formal
+    training.  With one, only the measured throughput/ETA shortfall of one
+    exact benchmark is excused, and the result is reported as ``failed-waived``.
     """
     path_value = cfg.get("d2ag_performance_benchmark_path")
     configured_sha256 = cfg.get("d2ag_performance_benchmark_sha256")
@@ -1360,11 +1739,97 @@ def _validate_d2ag_performance_gate(cfg: DictConfig) -> Dict[str, object]:
         == _d2ag_formal_source_contract(repo),
     }
     failed = sorted(name for name, passed in checks.items() if not passed)
-    if failed:
+    waiver_requested = (
+        cfg.get("d2ag_performance_waiver_path") not in (None, "", False)
+        or cfg.get("d2ag_performance_waiver_sha256") not in (None, "", False)
+    )
+    if not failed:
+        if waiver_requested:
+            raise ValueError(
+                "D2-AG performance benchmark contract mismatch: waiver_absent"
+            )
+        return {
+            "status": "performance-gate-passed",
+            "classification": "performance-gate-passed",
+            "original_gate_passed": True,
+            "formal_authorization": "registered-performance-gate",
+            "path": str(path.resolve()),
+            "sha256": actual_sha256,
+            "run_id": str(benchmark["run_id"]),
+            "formal_run_id": formal_run_id,
+            "git_commit": benchmark_commit,
+            "throughput_windows_per_second": float(throughput),
+            "full_budget_eta_hours": float(eta_hours),
+            "memory_headroom_min_bytes": int(headroom),
+            "minimum_throughput_windows_per_second": D2AG_MINIMUM_THROUGHPUT,
+            "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,
+            "formal_source_contract": dict(benchmark["formal_source_contract"]),
+            "performance_waiver": None,
+            "checks": checks,
+        }
+
+    # Below this point the benchmark failed.  Only the one user-authorized,
+    # hash-bound waiver can proceed, only for the exact measured shortfall of
+    # one exact benchmark, and only while every other contract still passes.
+    expected_waived_failures = set(D2AG_WAIVED_BENCHMARK_FAILED_CHECKS)
+    # The validator-only transition the waiver authorizes rewrites tracked
+    # source, so the benchmark's source contract no longer equals the current
+    # tree.  The waiver re-establishes it against both committed trees.
+    permitted = (
+        expected_waived_failures,
+        expected_waived_failures | {"source_contract"},
+    )
+    if set(failed) not in permitted:
         raise ValueError(
             "D2-AG performance benchmark contract mismatch: " + ", ".join(failed)
         )
+    if (
+        actual_sha256 != D2AG_WAIVED_BENCHMARK_SHA256
+        or benchmark.get("run_id") != D2AG_WAIVED_BENCHMARK_RUN_ID
+        or benchmark.get("formal_run_id") != D2AG_WAIVED_FORMAL_RUN_ID
+        or benchmark.get("status") != "failed"
+        or benchmark.get("classification")
+        != D2AG_PERFORMANCE_FAILURE_CLASSIFICATION
+        or benchmark.get("throughput_windows_per_second") != D2AG_WAIVED_THROUGHPUT
+        or benchmark.get("full_budget_eta_hours") != D2AG_WAIVED_ETA_HOURS
+        or benchmark.get("formal_training_authorized") is not False
+    ):
+        raise ValueError("D2-AG performance benchmark is not the exact waived failure")
+    waiver = _validate_d2ag_performance_waiver(
+        cfg,
+        benchmark=benchmark,
+        benchmark_sha256=actual_sha256,
+        repo=repo,
+    )
+    benchmark_checks = dict(checks)
+    # Re-established by the waiver against the committed source/target trees.
+    benchmark_checks["source_contract"] = True
+    authorization_checks = {
+        "benchmark_failure_exact": set(failed) in permitted,
+        "benchmark_non_speed_contracts": all(
+            passed
+            for name, passed in benchmark_checks.items()
+            if name not in expected_waived_failures
+        ),
+        "waiver": all(waiver["checks"].values()),
+        "training_conditions_unchanged": bool(cfg.get("profile_every_update")),
+        "status_not_reported_as_passed": (
+            D2AG_PERFORMANCE_WAIVER_STATUS != D2AG_FORBIDDEN_WAIVED_STATUS
+        ),
+    }
+    failed_authorization = sorted(
+        name for name, passed in authorization_checks.items() if not passed
+    )
+    if failed_authorization:
+        raise ValueError(
+            "D2-AG performance waiver authorization mismatch: "
+            + ", ".join(failed_authorization)
+        )
     return {
+        "status": D2AG_PERFORMANCE_WAIVER_STATUS,
+        "classification": D2AG_PERFORMANCE_WAIVER_CLASSIFICATION,
+        "original_gate_passed": False,
+        "formal_authorization": "explicit-single-run-waiver",
         "path": str(path.resolve()),
         "sha256": actual_sha256,
         "run_id": str(benchmark["run_id"]),
@@ -1373,8 +1838,18 @@ def _validate_d2ag_performance_gate(cfg: DictConfig) -> Dict[str, object]:
         "throughput_windows_per_second": float(throughput),
         "full_budget_eta_hours": float(eta_hours),
         "memory_headroom_min_bytes": int(headroom),
-        "formal_source_contract": dict(benchmark["formal_source_contract"]),
-        "checks": checks,
+        "minimum_throughput_windows_per_second": D2AG_MINIMUM_THROUGHPUT,
+        "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,
+        "benchmark_status": str(benchmark["status"]),
+        "benchmark_classification": str(benchmark["classification"]),
+        "benchmark_failed_checks": sorted(expected_waived_failures),
+        "formal_source_contract": dict(waiver["target_formal_contract"]),
+        "benchmark_formal_source_contract": dict(
+            benchmark["formal_source_contract"]
+        ),
+        "performance_waiver": waiver,
+        "benchmark_checks": benchmark_checks,
+        "checks": authorization_checks,
     }
 
 
@@ -2219,6 +2694,18 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         )
         contract["d2ag_performance_benchmark_sha256"] = str(
             cfg.d2ag_performance_benchmark_sha256
+        )
+        contract["d2ag_performance_waiver_path"] = (
+            None
+            if cfg.get("d2ag_performance_waiver_path") in (None, "", False)
+            else str(
+                Path(str(cfg.d2ag_performance_waiver_path)).resolve()
+            )
+        )
+        contract["d2ag_performance_waiver_sha256"] = (
+            None
+            if cfg.get("d2ag_performance_waiver_sha256") in (None, "", False)
+            else str(cfg.d2ag_performance_waiver_sha256)
         )
     return contract
 
@@ -3867,6 +4354,10 @@ def _validate_d2ag_contract(
                 cfg.get("d2ag_performance_benchmark_path") in (None, "", False)
                 and cfg.get("d2ag_performance_benchmark_sha256")
                 in (None, "", False)
+                and cfg.get("d2ag_performance_waiver_path")
+                in (None, "", False)
+                and cfg.get("d2ag_performance_waiver_sha256")
+                in (None, "", False)
             )
         ),
         "profile_every_update": bool(cfg.get("profile_every_update")) is True,
@@ -3880,10 +4371,32 @@ def _validate_d2ag_contract(
         _validate_d2ag_performance_gate(cfg)
         if require_performance_gate else None
     )
+    waiver = (
+        None if performance_gate is None
+        else performance_gate.get("performance_waiver")
+    )
     return {
         "run_id": run_id_contract,
         "performance_gate_required": require_performance_gate,
         "performance_gate": performance_gate,
+        "performance_gate_state": (
+            None if performance_gate is None
+            else str(performance_gate["status"])
+        ),
+        "performance_gate_classification": (
+            None if performance_gate is None
+            else str(performance_gate["classification"])
+        ),
+        "performance_waiver_path": (
+            None if waiver is None else str(waiver["path"])
+        ),
+        "performance_waiver_sha256": (
+            None if waiver is None else str(waiver["sha256"])
+        ),
+        "performance_waiver_run_id": (
+            None if waiver is None else str(waiver["run_id"])
+        ),
+        "d2af_waiver_inherited": False,
         "selection_probability": D2AG_SELF_CONDITION_PROBABILITY,
         "minimum_throughput_windows_per_second": D2AG_MINIMUM_THROUGHPUT,
         "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,

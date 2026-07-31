@@ -73,4 +73,6 @@ d2m_candidate: null
 d2m_rng_audit: false
 d2ag_performance_benchmark_path: null
 d2ag_performance_benchmark_sha256: null
+d2ag_performance_waiver_path: null
+d2ag_performance_waiver_sha256: null
 profile_every_update: true

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import inspect
+import json
 import tempfile
 import unittest
+from contextlib import ExitStack
 from unittest import mock
 from pathlib import Path
 import sys
@@ -983,11 +986,555 @@ class D2AGCheckpointAndConfigTests(unittest.TestCase):
             "d2ag_selection_probability_sweep", "d2ag_sqrt_alpha_bar",
         ):
             self.assertNotIn(forbidden, trainer_source)
-        # The D2-AF waiver must not be reachable from the D2-AG contract path.
+        # The D2-AF waiver must not be reachable from the D2-AG contract path:
+        # its config keys may appear only in the forbidden-inputs-absent list.
+        # D2-AG's own one-time waiver is permitted.
         d2ag_contract_source = inspect.getsource(_validate_d2ag_contract).lower()
-        self.assertNotIn("waiver", d2ag_contract_source.replace(
-            "d2af_performance_waiver_path", "",
-        ).replace("d2af_performance_waiver_sha256", ""))
+        for forbidden in (
+            "_validate_d2af_performance_waiver",
+            "d2af_waived",
+            "d2af_performance_waiver_classification",
+        ):
+            self.assertNotIn(forbidden, d2ag_contract_source)
+        residual = d2ag_contract_source
+        for allowed in (
+            "d2af_performance_waiver_path",
+            "d2af_performance_waiver_sha256",
+            "d2af_waiver_inherited",
+            "d2ag_performance_waiver_path",
+            "d2ag_performance_waiver_sha256",
+            "performance_waiver_path",
+            "performance_waiver_sha256",
+            "performance_waiver_run_id",
+            'performance_gate.get("performance_waiver")',
+            "waiver is none",
+            "waiver = (",
+            'str(waiver["path"])',
+            'str(waiver["sha256"])',
+            'str(waiver["run_id"])',
+        ):
+            residual = residual.replace(allowed, "")
+        self.assertNotIn("waiver", residual)
+        self.assertIn("d2af_waiver_inherited", d2ag_contract_source)
+
+
+class D2AGPerformanceWaiverTests(unittest.TestCase):
+    """The one-time waiver may excuse only the measured throughput/ETA gap.
+
+    Every fixture is built in a temporary directory: these tests must not
+    depend on the real ``experiments/contracts/`` artifact existing yet.
+    """
+
+    FAILED_CHECKS = [
+        "classification", "eta", "formal_authorized", "status", "throughput",
+    ]
+
+    def _benchmark(self, **overrides) -> dict:
+        record = {
+            "run_id": hoi_trainer.D2AG_WAIVED_BENCHMARK_RUN_ID,
+            "status": "failed",
+            "classification": (
+                hoi_trainer.D2AG_PERFORMANCE_FAILURE_CLASSIFICATION
+            ),
+            "throughput_windows_per_second": (
+                hoi_trainer.D2AG_WAIVED_THROUGHPUT
+            ),
+            "full_budget_eta_hours": hoi_trainer.D2AG_WAIVED_ETA_HOURS,
+            "minimum_throughput_windows_per_second": D2AG_MINIMUM_THROUGHPUT,
+            "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,
+            "formal_training_authorized": False,
+            "failed_checks": list(self.FAILED_CHECKS),
+            "non_speed_contracts_passed": True,
+        }
+        record.update(overrides)
+        return record
+
+    def _waiver(self, **overrides) -> dict:
+        record = {
+            "schema_version": 1,
+            "status": "authorized",
+            "classification": (
+                hoi_trainer.D2AG_PERFORMANCE_WAIVER_CLASSIFICATION
+            ),
+            "run_id": "p1-hoi-d2ag-performance-waiver-s42-20260731",
+            "formal_run_id": hoi_trainer.D2AG_WAIVED_FORMAL_RUN_ID,
+            "seed": 42,
+            "benchmark": {
+                "run_id": hoi_trainer.D2AG_WAIVED_BENCHMARK_RUN_ID,
+                "sha256": hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256,
+                "status": "failed",
+                "classification": (
+                    hoi_trainer.D2AG_PERFORMANCE_FAILURE_CLASSIFICATION
+                ),
+                "throughput_windows_per_second": (
+                    hoi_trainer.D2AG_WAIVED_THROUGHPUT
+                ),
+                "full_budget_eta_hours": hoi_trainer.D2AG_WAIVED_ETA_HOURS,
+                "minimum_throughput_windows_per_second": (
+                    D2AG_MINIMUM_THROUGHPUT
+                ),
+                "maximum_full_budget_eta_hours": D2AG_MAXIMUM_ETA_HOURS,
+                "formal_training_authorized": False,
+                "failed_checks": list(self.FAILED_CHECKS),
+                "non_speed_contracts_passed": True,
+            },
+        }
+        record.update(overrides)
+        return record
+
+    def _write(self, directory: Path, name: str, payload: dict) -> tuple:
+        path = directory / name
+        text = json.dumps(payload, indent=2, sort_keys=True)
+        path.write_text(text, encoding="utf-8")
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        return path, digest
+
+    def _cfg(self, **overrides):
+        values = {
+            "run_id": hoi_trainer.D2AG_WAIVED_FORMAL_RUN_ID,
+            "seed": 42,
+            "profile_every_update": True,
+            "resume_checkpoint": None,
+            "d2ag_performance_waiver_path": None,
+            "d2ag_performance_waiver_sha256": None,
+        }
+        values.update(overrides)
+        return OmegaConf.create(values)
+
+    def test_waiver_constants_never_claim_a_passing_gate(self):
+        self.assertEqual(
+            hoi_trainer.D2AG_PERFORMANCE_WAIVER_STATUS, "failed-waived"
+        )
+        self.assertEqual(
+            hoi_trainer.D2AG_PERFORMANCE_WAIVER_CLASSIFICATION,
+            "user-authorized-performance-waiver",
+        )
+        self.assertEqual(
+            hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS, "performance-gate-passed"
+        )
+        # The waived thresholds must stay D2-AG's own, never D2-AF's.
+        self.assertNotEqual(D2AG_MINIMUM_THROUGHPUT, D2AF_MINIMUM_THROUGHPUT)
+        self.assertNotEqual(D2AG_MAXIMUM_ETA_HOURS, D2AF_MAXIMUM_ETA_HOURS)
+        self.assertLess(
+            hoi_trainer.D2AG_WAIVED_THROUGHPUT, D2AG_MINIMUM_THROUGHPUT
+        )
+        self.assertGreater(
+            hoi_trainer.D2AG_WAIVED_ETA_HOURS, D2AG_MAXIMUM_ETA_HOURS
+        )
+
+    def test_absent_waiver_keys_are_declared_in_both_configs(self):
+        for name in (
+            "code/config/config_train_hoi_prior.yaml",
+            "code/config/config_train_hoi_prior_d2ag.yaml",
+        ):
+            text = (ROOT / name).read_text(encoding="utf-8")
+            self.assertIn("d2ag_performance_waiver_path", text)
+            self.assertIn("d2ag_performance_waiver_sha256", text)
+
+    def test_missing_waiver_is_rejected_for_a_failed_benchmark(self):
+        cfg = self._cfg()
+        with self.assertRaises(ValueError) as caught:
+            hoi_trainer._validate_d2ag_performance_waiver(
+                cfg,
+                benchmark=self._benchmark(),
+                benchmark_sha256=(
+                    hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                ),
+                repo=ROOT,
+            )
+        self.assertIn("explicit sealed waiver", str(caught.exception))
+
+    def test_relative_or_absent_waiver_path_is_rejected(self):
+        cfg = self._cfg(
+            d2ag_performance_waiver_path="experiments/contracts/x.json",
+            d2ag_performance_waiver_sha256="0" * 64,
+        )
+        with self.assertRaises(ValueError) as caught:
+            hoi_trainer._validate_d2ag_performance_waiver(
+                cfg,
+                benchmark=self._benchmark(),
+                benchmark_sha256=(
+                    hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                ),
+                repo=ROOT,
+            )
+        self.assertIn("absolute file", str(caught.exception))
+
+    def test_waiver_sha256_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            path, _ = self._write(directory, "w.json", self._waiver())
+            cfg = self._cfg(
+                d2ag_performance_waiver_path=str(path),
+                d2ag_performance_waiver_sha256="1" * 64,
+            )
+            with self.assertRaises(ValueError) as caught:
+                hoi_trainer._validate_d2ag_performance_waiver(
+                    cfg,
+                    benchmark=self._benchmark(),
+                    benchmark_sha256=(
+                        hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                    ),
+                    repo=ROOT,
+                )
+            self.assertIn("SHA-256 mismatch", str(caught.exception))
+
+    def test_untracked_waiver_file_is_rejected(self):
+        with tempfile.TemporaryDirectory() as raw:
+            directory = Path(raw)
+            path, digest = self._write(directory, "w.json", self._waiver())
+            cfg = self._cfg(
+                d2ag_performance_waiver_path=str(path),
+                d2ag_performance_waiver_sha256=digest,
+            )
+            with self.assertRaises(ValueError) as caught:
+                hoi_trainer._validate_d2ag_performance_waiver(
+                    cfg,
+                    benchmark=self._benchmark(),
+                    benchmark_sha256=(
+                        hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                    ),
+                    repo=ROOT,
+                )
+            self.assertIn("inside the repository", str(caught.exception))
+
+    def test_in_repo_but_untracked_waiver_file_is_rejected(self):
+        # A file that exists under experiments/contracts/ but is not committed
+        # must not be accepted: the waiver has to be auditable from history.
+        with tempfile.TemporaryDirectory(
+            dir=str(ROOT / "experiments/contracts")
+        ) as raw:
+            directory = Path(raw)
+            path, digest = self._write(directory, "w.json", self._waiver())
+            cfg = self._cfg(
+                d2ag_performance_waiver_path=str(path),
+                d2ag_performance_waiver_sha256=digest,
+            )
+            with self.assertRaises(ValueError) as caught:
+                hoi_trainer._validate_d2ag_performance_waiver(
+                    cfg,
+                    benchmark=self._benchmark(),
+                    benchmark_sha256=(
+                        hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                    ),
+                    repo=ROOT,
+                )
+            self.assertIn("tracked by Git", str(caught.exception))
+
+    def _authorization(self, **overrides) -> dict:
+        record = {
+            "user_authorized_after_full_failure_disclosure": True,
+            "user_accepted_full_budget_eta_hours": (
+                hoi_trainer.D2AG_WAIVED_ETA_HOURS
+            ),
+            "formal_runs_maximum": 1,
+            "random_initialization": True,
+            "benchmark_retry_authorized": False,
+            "execution_sweep_authorized": False,
+            "benchmark_reclassification_authorized": False,
+            "benchmark_classification_unchanged": True,
+            "history_rewritten": False,
+            "training_conditions_unchanged": True,
+            "runtime_status_label": (
+                hoi_trainer.D2AG_PERFORMANCE_WAIVER_STATUS
+            ),
+            "forbidden_status_label": (
+                hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS
+            ),
+            "d2af_waiver_inherited": False,
+            "bound_benchmark_run_ids": [
+                hoi_trainer.D2AG_WAIVED_BENCHMARK_RUN_ID
+            ],
+            "bound_formal_run_ids": [
+                hoi_trainer.D2AG_WAIVED_FORMAL_RUN_ID
+            ],
+        }
+        record.update(overrides)
+        return record
+
+    def _non_speed(self, **overrides) -> dict:
+        record = {
+            "all_rank_contract_pass": True,
+            "memory_headroom_pass": True,
+            "contention_pass": True,
+            "losses_finite": True,
+            "gradients_finite": True,
+            "selfcond_estimate_forward_measured": True,
+            "invalid_if_any_non_speed_contract_fails": True,
+        }
+        record.update(overrides)
+        return record
+
+    def _accepting_stubs(self, stack, waiver: dict, directory: Path):
+        """Stub only the Git-history lookups, never the contract checks."""
+        source_contract = {
+            "algorithm": "git-ls-files-path-content-sha256-v1",
+            "scopes": ["code"],
+            "tracked_file_count": 92,
+            "sha256": hoi_trainer.D2AG_WAIVED_SOURCE_CONTRACT_SHA256,
+        }
+        target_contract = dict(source_contract, sha256="b" * 64)
+        transition = {
+            "source_commit": hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT,
+            "target_commit": "c" * 40,
+            "changed_paths": ["code/train_hoi_prior.py"],
+            "diff_sha256": "d" * 64,
+        }
+        stack.enter_context(mock.patch.object(
+            hoi_trainer, "_validate_tracked_d2ag_waiver_path",
+            return_value=hoi_trainer.D2AG_PERFORMANCE_WAIVER_RELATIVE_PATH,
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer, "_d2ag_source_transition", return_value=transition,
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer, "_d2ag_formal_source_contract_at_commit",
+            side_effect=lambda repo, commit: (
+                dict(source_contract)
+                if commit == hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT
+                else dict(target_contract)
+            ),
+        ))
+        stack.enter_context(mock.patch.object(
+            hoi_trainer, "_d2ag_formal_source_contract",
+            return_value=dict(target_contract),
+        ))
+        waiver.setdefault("source_transition", {
+            "source_commit": hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT,
+            "target_commit": transition["target_commit"],
+            "changed_paths": list(transition["changed_paths"]),
+            "diff_sha256": transition["diff_sha256"],
+            "source_formal_contract": dict(source_contract),
+            "target_formal_contract": dict(target_contract),
+        })
+        waiver.setdefault("authorization", self._authorization())
+        waiver.setdefault("non_speed_contracts", self._non_speed())
+        waiver.setdefault("preexisting_formal_artifacts", {
+            "formal_output_directory_existed": False,
+            "training_state_existed": False,
+            "training_metrics_existed": False,
+            "checkpoint_count": 0,
+        })
+        return directory
+
+    def _validate(self, waiver: dict, *, benchmark=None, **cfg_overrides):
+        with ExitStack() as stack:
+            raw = stack.enter_context(tempfile.TemporaryDirectory())
+            directory = Path(raw)
+            self._accepting_stubs(stack, waiver, directory)
+            path, digest = self._write(directory, "w.json", waiver)
+            cfg = self._cfg(
+                d2ag_performance_waiver_path=str(path),
+                d2ag_performance_waiver_sha256=digest,
+                checkpoint_dir=str(directory / "ckpt"),
+                metrics_path=str(directory / "metrics.jsonl"),
+                state_path=str(directory / "state.json"),
+                **cfg_overrides,
+            )
+            record = self._benchmark() if benchmark is None else benchmark
+            record.setdefault("identity", {
+                "git_commit": hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT
+            })
+            record.setdefault(
+                "formal_source_contract",
+                waiver["source_transition"]["source_formal_contract"],
+            )
+            return hoi_trainer._validate_d2ag_performance_waiver(
+                cfg,
+                benchmark=record,
+                benchmark_sha256=(
+                    hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                ),
+                repo=ROOT,
+            )
+
+    def test_valid_waiver_is_accepted_and_reports_failed_waived(self):
+        result = self._validate(self._waiver())
+        self.assertEqual(result["status"], "failed-waived")
+        self.assertEqual(
+            result["classification"], "user-authorized-performance-waiver"
+        )
+        self.assertEqual(
+            result["benchmark_run_id"],
+            hoi_trainer.D2AG_WAIVED_BENCHMARK_RUN_ID,
+        )
+        self.assertTrue(all(result["checks"].values()))
+        self.assertNotIn(
+            hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS,
+            json.dumps(result, default=str),
+        )
+
+    def test_waiver_bound_to_a_different_benchmark_run_id_is_rejected(self):
+        waiver = self._waiver()
+        waiver["benchmark"]["run_id"] = (
+            "p1-hoi-d2ag-performance-benchmark-r3-s42-20260731"
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver)
+        self.assertIn("benchmark_binding", str(caught.exception))
+
+    def test_waiver_bound_to_a_different_formal_run_id_is_rejected(self):
+        waiver = self._waiver()
+        waiver["formal_run_id"] = (
+            "p1-hoi-d2ag-selfcond-relation-source-r2-s42-20260731"
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver)
+        self.assertIn("formal_run_id", str(caught.exception))
+
+    def test_waiver_claiming_a_passed_gate_is_rejected(self):
+        for field, value in (
+            ("status", hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS),
+            ("classification", hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS),
+        ):
+            waiver = self._waiver()
+            waiver[field] = value
+            with self.assertRaises(ValueError) as caught:
+                self._validate(waiver)
+            self.assertIn("no_passed_claim", str(caught.exception))
+
+    def test_waiver_reclassifying_the_benchmark_as_passed_is_rejected(self):
+        waiver = self._waiver()
+        waiver["benchmark"]["classification"] = (
+            hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver)
+        self.assertIn("no_passed_claim", str(caught.exception))
+
+    def test_waiver_may_not_relax_the_registered_thresholds(self):
+        waiver = self._waiver()
+        waiver["benchmark"]["minimum_throughput_windows_per_second"] = (
+            hoi_trainer.D2AG_WAIVED_THROUGHPUT
+        )
+        benchmark = self._benchmark(
+            minimum_throughput_windows_per_second=(
+                hoi_trainer.D2AG_WAIVED_THROUGHPUT
+            ),
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver, benchmark=benchmark)
+        self.assertIn("benchmark_binding", str(caught.exception))
+
+    def test_waiver_may_not_authorize_formal_training_in_the_benchmark(self):
+        waiver = self._waiver()
+        waiver["benchmark"]["formal_training_authorized"] = True
+        benchmark = self._benchmark(formal_training_authorized=True)
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver, benchmark=benchmark)
+        self.assertIn("benchmark_binding", str(caught.exception))
+
+    def test_waiver_may_not_excuse_a_non_speed_failure(self):
+        waiver = self._waiver()
+        waiver["benchmark"]["failed_checks"] = sorted(
+            self.FAILED_CHECKS + ["memory_headroom"]
+        )
+        benchmark = self._benchmark(
+            failed_checks=sorted(self.FAILED_CHECKS + ["memory_headroom"]),
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver, benchmark=benchmark)
+        self.assertIn("benchmark_binding", str(caught.exception))
+
+    def test_waiver_requires_every_non_speed_contract_to_pass(self):
+        for field in (
+            "all_rank_contract_pass", "memory_headroom_pass",
+            "contention_pass", "losses_finite", "gradients_finite",
+            "selfcond_estimate_forward_measured",
+            "invalid_if_any_non_speed_contract_fails",
+        ):
+            with self.subTest(field=field):
+                waiver = self._waiver(
+                    non_speed_contracts=self._non_speed(**{field: False}),
+                )
+                with self.assertRaises(ValueError) as caught:
+                    self._validate(waiver)
+                self.assertIn("non_speed_contracts", str(caught.exception))
+
+    def test_waiver_must_not_authorize_retries_sweeps_or_inheritance(self):
+        for field in (
+            "benchmark_retry_authorized", "execution_sweep_authorized",
+            "benchmark_reclassification_authorized", "d2af_waiver_inherited",
+            "history_rewritten",
+        ):
+            with self.subTest(field=field):
+                waiver = self._waiver(
+                    authorization=self._authorization(**{field: True}),
+                )
+                with self.assertRaises(ValueError) as caught:
+                    self._validate(waiver)
+                self.assertIn("authorization", str(caught.exception))
+
+    def test_waiver_must_not_allow_more_than_one_formal_run(self):
+        waiver = self._waiver(
+            authorization=self._authorization(formal_runs_maximum=2),
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver)
+        self.assertIn("authorization", str(caught.exception))
+
+    def test_waiver_must_declare_the_failed_waived_runtime_label(self):
+        waiver = self._waiver(
+            authorization=self._authorization(
+                runtime_status_label=(
+                    hoi_trainer.D2AG_FORBIDDEN_WAIVED_STATUS
+                ),
+            ),
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._validate(waiver)
+        message = str(caught.exception)
+        self.assertTrue(
+            "authorization" in message or "no_passed_claim" in message,
+            message,
+        )
+
+    def test_waiver_rejects_out_of_scope_source_changes(self):
+        waiver = self._waiver()
+        with ExitStack() as stack:
+            raw = stack.enter_context(tempfile.TemporaryDirectory())
+            directory = Path(raw)
+            self._accepting_stubs(stack, waiver, directory)
+            # Re-stub the transition to report an out-of-scope changed path.
+            transition = {
+                "source_commit": hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT,
+                "target_commit": "c" * 40,
+                "changed_paths": ["code/priors/diffusion.py"],
+                "diff_sha256": "d" * 64,
+            }
+            stack.enter_context(mock.patch.object(
+                hoi_trainer, "_d2ag_source_transition",
+                return_value=transition,
+            ))
+            waiver["source_transition"]["changed_paths"] = list(
+                transition["changed_paths"]
+            )
+            path, digest = self._write(directory, "w.json", waiver)
+            cfg = self._cfg(
+                d2ag_performance_waiver_path=str(path),
+                d2ag_performance_waiver_sha256=digest,
+                checkpoint_dir=str(directory / "ckpt"),
+                metrics_path=str(directory / "metrics.jsonl"),
+                state_path=str(directory / "state.json"),
+            )
+            benchmark = self._benchmark(
+                identity={
+                    "git_commit": hoi_trainer.D2AG_WAIVED_SOURCE_COMMIT
+                },
+                formal_source_contract=(
+                    waiver["source_transition"]["source_formal_contract"]
+                ),
+            )
+            with self.assertRaises(ValueError) as caught:
+                hoi_trainer._validate_d2ag_performance_waiver(
+                    cfg,
+                    benchmark=benchmark,
+                    benchmark_sha256=(
+                        hoi_trainer.D2AG_WAIVED_BENCHMARK_SHA256
+                    ),
+                    repo=ROOT,
+                )
+            self.assertIn("transition", str(caught.exception))
 
 
 if __name__ == "__main__":
