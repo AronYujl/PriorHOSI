@@ -1,0 +1,867 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+  "phase": "p1",
+  "subphase": "1B-D2-AG0",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-08-01",
+  "classification": "selfcond-relation-source-transfer-negative-stop",
+  "internal_classification": "selfcond-relation-source-internal-source-negative-continue-native",
+  "internal_mechanism_negative_classification": "selfcond-relation-source-mechanism-negative-stop",
+  "checkpoint_selected": false,
+  "selectable_autonomous_diffusion_candidate": false,
+  "d2ag1_authorized": false,
+  "second_training_authorized": false,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "hoiprior_search_closed": true,
+  "implementation": {
+    "plan_commit": "92c2ac0f16a87c8d28aadeea65ecb63cbec4fd4c",
+    "implementation_commit": "39e59c8ff7a38d0476e0ce2473460e16f8750f6b",
+    "smoke_determinism_commit": "ada2d84223ecbf76f5ed9bbd313f5ac6dfce2cbb",
+    "performance_waiver_plan_commit": "bc22b1d0f0b8ef3796e40752d0fd1916196c2268",
+    "performance_waiver_validator_commit": "c74bb7c5018f8ac6a99a2f7094528b131437c72e",
+    "performance_waiver_contract_commit": "905766eb5d1592e4e81692cf5a5293eeeea2145b",
+    "formal_execution_commit": "905766eb5d1592e4e81692cf5a5293eeeea2145b",
+    "evaluation_hardening_implementation_commit": "9d77a6f80d82f5738069fac358f2056757c14286",
+    "evaluation_execution_commit": "9d77a6f80d82f5738069fac358f2056757c14286",
+    "single_manipulated_factor": "variable temporal anchors 5/10/15 read relation geometry from detached model x0_hat; anchor 0 and the 2-frame history stay on the current noisy state",
+    "architecture_variant": "d2ag_selfcond_relation_source",
+    "writeback": "motion + tanh(alpha) * routed_relation(relation_source)",
+    "representation_dimension": 232,
+    "base_parameter_count": 29673448,
+    "relation_parameter_count": 413953,
+    "total_parameter_count": 30087401,
+    "parameter_increase_fraction": 0.013950283094839535,
+    "new_parameters_vs_d2ae": 0,
+    "current_diffusion_state_only": true,
+    "clean_target_used": false,
+    "future_gt_used": false,
+    "stored_relation_used": false,
+    "contact_used": false,
+    "scene_used": false,
+    "loss_or_snr_weighting_used": false,
+    "sqrt_alpha_bar_attenuation": false,
+    "schedule_buffer_registered": false,
+    "official_evaluator_changed": false,
+    "sparse_assets": {
+      "mapping_sha256": "1af35119c1dd54e2ad44c99f3cb91b62c1b88f62ca80cddcc96f4b201ffe0f5b",
+      "manifest_sha256": "e88d74a7ee434f3e6320c95d1ebb74efdc8fe4740b70ff596e502666a096f7a7",
+      "stacked_tensor_sha256": "793dad6a805d0a908087b273590bf171e7bce4c026297cf94d40f8c651fe4cab",
+      "shape": [
+        13,
+        100,
+        3
+      ]
+    },
+    "relation_source": {
+      "temporal_anchors": [
+        0,
+        5,
+        10,
+        15
+      ],
+      "variable_anchors": [
+        5,
+        10,
+        15
+      ],
+      "variable_anchor_source": "detached_model_x0_hat",
+      "unselected_sample_source": "current_noisy_state",
+      "history_anchor_source": "current_noisy_state",
+      "history_pin": "relation_source[:, :2] = current[:, :2]",
+      "sample_relation_source": "previous_step_raw_x0_hat",
+      "sample_first_step_source": "current_noisy_state",
+      "train_selection": "per_sample_bernoulli",
+      "selection_probability": 0.5,
+      "selection_probability_sweepable": false,
+      "learned_selection": false,
+      "mask_seed_derivation": "cfg.seed * 1000003 + processed_windows + rank",
+      "estimate_forward": "single_no_grad_same_timestep_current_state_source",
+      "estimate_forward_eval_mode": true,
+      "estimate_forward_selected_subset_only": true,
+      "x0_hat_detached": true,
+      "relation_source_so3_projected": false,
+      "prepare_clean_x0_applied_to_relation_source": false,
+      "train_sample_symmetric": true,
+      "relation_exposure_fraction": 1.0,
+      "relation_zero_branch": false
+    }
+  },
+  "authority_cpu_contract": {
+    "run_id": "p1-hoi-d2ag-cpu-contract-r2-s42-20260731",
+    "status": "passed",
+    "classification": "cpu-contract-passed",
+    "runtime_seconds": 11.406160387210548,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "parameter_increase_fraction": 0.013950283094839535,
+    "d2ae_parity_max_abs": 0.0,
+    "estimate_pass_minus_d2ae_max_abs": 0.0,
+    "selfcond_minus_d2ae_max_abs_at_zero_alpha": 0.0,
+    "selfcond_minus_current_max_abs_activated_gate": 0.27711033821105957,
+    "optimizer_updates": 0,
+    "resolved_config_sha256": "f009b9ea301f7ee6b51c5c85d4acbd80ce6a265e85bb448545cb6873536f9d14",
+    "formal_source_contract_sha256": "9a2d175499291c4e067383683bda305d8f9272011dbea11eb0c72a3e78236a63",
+    "preceded_by_retained_abort": "p1-hoi-d2ag-cpu-contract-s42-20260731"
+  },
+  "functional_smoke": {
+    "run_id": "p1-hoi-d2ag-gpu-functional-smoke-r4-s42-20260731",
+    "status": "stable",
+    "classification": "functional-smoke-passed",
+    "host": "infbagel-4gpu/node01",
+    "device": "cuda:0",
+    "gpu_name": "NVIDIA GeForce RTX 3090",
+    "batch_size": 8,
+    "timesteps": [
+      0,
+      249,
+      499
+    ],
+    "mixed_batch_timesteps": [
+      0,
+      249,
+      499,
+      0,
+      249,
+      499,
+      0,
+      499
+    ],
+    "random_initialization": true,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "optimizer_created": false,
+    "optimizer_updates": 0,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "loss_finite": true,
+    "relation_gpu_only": true,
+    "unselected_equals_d2ae_bitwise": true,
+    "history_pin_max_abs": 0.0,
+    "anchor_zero_geometry_max_abs": 0.0,
+    "single_row_parity_max_abs": 7.152557373046875e-07,
+    "first_reverse_step_source": "x_t",
+    "peak_memory_allocated_bytes": 270394880,
+    "peak_memory_reserved_bytes": 325058560,
+    "memory_headroom_bytes": 24970985472,
+    "resolved_config_sha256": "fce9951b067bec93840b650d5963184aab37bb5a6bcbe61a6eadb93b9012c8a4",
+    "formal_source_contract_sha256": "55ff307986e1c1e0ff94286b1fadec681b7cb3fe478da7b8ce5da670de84ee88",
+    "preceded_by_retained_aborts": [
+      "p1-hoi-d2ag-gpu-functional-smoke-s42-20260731",
+      "p1-hoi-d2ag-gpu-functional-smoke-r2-s42-20260731",
+      "p1-hoi-d2ag-gpu-functional-smoke-r3-s42-20260731"
+    ]
+  },
+  "performance_benchmark": {
+    "run_id": "p1-hoi-d2ag-performance-benchmark-r2-s42-20260731",
+    "status": "failed",
+    "classification": "selfcond-relation-source-performance-negative-stop",
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "warmup_updates": 64,
+    "measured_updates": 256,
+    "measured_windows": 524288,
+    "measured_wall_seconds": 241.36226116283797,
+    "throughput_windows_per_second": 2172.2037135137825,
+    "minimum_throughput_windows_per_second": 2756.580356467847,
+    "gate_form": "85_percent_of_sealed_d2x_formal_throughput",
+    "sealed_d2x_throughput_windows_per_second": 3243.0357134915853,
+    "throughput_fraction_of_sealed_d2x": 0.6698056714198497,
+    "full_budget_eta_hours": 7.8568444388944645,
+    "maximum_full_budget_eta_hours": 6.2,
+    "speed_gate_passed": false,
+    "failed_checks": [
+      "classification",
+      "eta",
+      "formal_authorized",
+      "status",
+      "throughput"
+    ],
+    "formal_training_authorized": false,
+    "sweep_authorized_on_failure": false,
+    "memory_headroom_min_bytes": 18939576320,
+    "memory_headroom_required_bytes": 2529604403,
+    "all_rank_contract_pass": true,
+    "memory_headroom_pass": true,
+    "contention_pass": true,
+    "losses_finite": true,
+    "gradients_finite": true,
+    "selfcond_estimate_forward_measured": true,
+    "selfcond_graph_pass_instrumentation_pass": true,
+    "checkpoint_loads": 0,
+    "checkpoint_writes": 0,
+    "rank_backward_seconds": [
+      203.8739890136719,
+      120.11499444580078,
+      105.08313031005859,
+      206.65636761474605
+    ],
+    "rank_backward_span_ratio": 1.966598891801045,
+    "estimate_trunk_forward_total_seconds": 6.744397082805633,
+    "estimate_share_of_wall": 0.02794304731117614,
+    "throughput_without_estimate_forward": 2234.6465477204924,
+    "zero_cost_variant_would_also_fail": true,
+    "mechanism_share_of_gap": 0.10685374742401925,
+    "harness_rank_skew_share_of_gap": 0.8931462525759808,
+    "mean_profile_seconds_across_ranks": {
+      "loader_wait": 50.16144229087513,
+      "h2d": 0.3943237125575541,
+      "gpu_relation_geometry": 0.47358533635735506,
+      "gpu_relation_geometry_estimate": 0.5999420710206033,
+      "gpu_point_encoder": 1.1536066002845766,
+      "gpu_relation_projection": 0.0276358799301088,
+      "gpu_relation_norm": 0.0037834479748271553,
+      "gpu_pool_route_writeback_derived": 0.24484248904371642,
+      "gpu_relation_module": 1.9034537535905833,
+      "estimate_trunk_forward": 6.744397082805633,
+      "forward_and_loss": 23.417558353424067,
+      "backward": 158.93212034606933,
+      "gradient_validation": 4.977585062026977,
+      "optimizer": 3.1861276485919947
+    },
+    "diagnosis": "rank-skewed DataLoader wait propagated into inclusive backward/DDP critical-path waiting; the self-conditioning estimate forward is uniform across ranks",
+    "benchmark_summary_sha256": "ad5b052d850a6978d2ce64022ecc0328ab73f32ffa7a72446a4a16bdf2c19cae",
+    "resolved_config_sha256": "b86499c0051caad22f4f0fcdd22c3942fa12146beb15b2219e492191274ecf86",
+    "preceded_by_retained_abort": "p1-hoi-d2ag-performance-benchmark-s42-20260731",
+    "one_time_user_waiver": {
+      "authorized": true,
+      "original_gate_reclassified_as_passed": false,
+      "runtime_status_label": "failed-waived",
+      "lifecycle_state": "failed-waived / user-authorized-performance-waiver",
+      "formal_runs_maximum": 1,
+      "benchmark_retry_or_sweep_authorized": false,
+      "training_conditions_changed": false,
+      "waiver_is_one_time_and_non_inheritable": true,
+      "d2af_waiver_inherited": false,
+      "contract_path": "experiments/contracts/p1_hoi_d2ag_performance_waiver_s42_20260731.json",
+      "contract_sha256": "d91078a777cd2e54c5a6a6b3e77f6debe7b2acce1d299fee3b337d5401d28a97"
+    }
+  },
+  "formal_training": {
+    "run_id": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+    "status": "completed",
+    "host": "infbagel-4gpu/node01",
+    "gpus": "4 x NVIDIA GeForce RTX 3090",
+    "random_initialization": true,
+    "initial_model_state_sha256": "b549358a847205ca7cf6376fd5125a60f87295c455a95fb72d245a4249b7bc8c",
+    "source_checkpoint": null,
+    "released_or_prior_checkpoint_loads": 0,
+    "seed": 42,
+    "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+    "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "world_size": 4,
+    "micro_batch_per_gpu": 512,
+    "effective_batch_size": 2048,
+    "gradient_accumulation_steps": 1,
+    "optimization_contract": {
+      "amp": false,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "ema_decays": [],
+      "gradient_clip_norm": null,
+      "gradient_clipping": false,
+      "learning_rate": 0.0001,
+      "optimizer": "Adam",
+      "primary_weight_variant": "online",
+      "scheduler": "none",
+      "warmup_windows": 0,
+      "weight_decay": 0.0
+    },
+    "processed_windows": 61440000,
+    "processed_frames": 983040000,
+    "optimizer_updates": 30000,
+    "optimizer_step_min": 30000,
+    "optimizer_step_max": 30000,
+    "resumed": false,
+    "return_code": 0,
+    "wall_seconds": 17988.119868855923,
+    "wall_hours": 4.99669996357109,
+    "throughput_windows_per_second": 3415.5876460649633,
+    "throughput_frames_per_second": 54649.40233703941,
+    "throughput_above_registered_minimum": true,
+    "throughput_over_failed_benchmark": 1.5724066876489535,
+    "amp_overflow_skips": 0,
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "validation_points": 20,
+    "all_validation_points_finite": true,
+    "first_validation_total": 0.11909466094994059,
+    "final_validation_total": 0.04894545498541447,
+    "validation_total_reduction_fraction": 0.5890205774548714,
+    "final_contact_accuracy": 0.9672710297854792,
+    "learned_alpha": -0.15308877825737,
+    "learned_gate": -0.15190395712852478,
+    "peak_memory_allocated_bytes_max": 5193363968,
+    "peak_memory_reserved_bytes_max": 6352273408,
+    "memory_headroom_min_bytes": 18943770624,
+    "cadence_checkpoints": 20,
+    "fixed_final_online_checkpoint_sha256": "f28af345254cb4884c64f0ddda799ebbb131e19b209583e47553bb601be4026f",
+    "final_model_state_sha256": "94f05a8337603fe5c15094572121430066d886e3a1c9886b0fa5fc0716613033",
+    "metrics_sha256": "27703648fc8e45ee3210e62975aa9500102c78ce2937be51807e21f5524497e0",
+    "manifest_sha256": "4e561bfa3bb4054a16fadccc0e992ad9e9f91c78f34e41fdcb11c3fb10ae5d34",
+    "training_state_sha256": "465ab8167ce2950fd54667d802a478646ea5466f4539ad87582d2c25e28c516f",
+    "resolved_config_sha256": "81b55a0ec9e9877521415cf015f2aef7d5e31196dad589046bba700e53f5846b",
+    "sparse_relation_gradient_audit_sha256": "eb257734b1cfdc9d88b1bc3375d553034d6d9017136d6da3bb186c158b25e1f9",
+    "run_local_registry_sha256": "e21fa9c061c99d8569eb23e3d778d76f2f9b1664c31dcae1f9500ea6ca9ce4cd",
+    "checkpoint_selectable": false,
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+      "sha256": "353c042b382d27b73b419b764320433f98e2c93e60458788167721a808ae7316",
+      "files": 130,
+      "bytes": 7227034744,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0,
+      "tree_sha256_scope": "as-transferred; excludes the run-local registry.jsonl appended on the authority after verification"
+    }
+  },
+  "internal_diagnostic": {
+    "run_id": "p1-hoi-d2ag-selfcond-relation-source-internal-r2-s42-20260801",
+    "status": "completed",
+    "classification": "selfcond-relation-source-internal-source-negative-continue-native",
+    "internal_status": "source-provenance-negative",
+    "runtime_seconds": 708.4948208660353,
+    "protocol": "sealed D2-O 64 sequences x 3 windows, six paired-noise 500-step rollouts, no gate-ablation path",
+    "selection_sha256": "1db59afabe7983e6cf370cb609597e14134a487e01135aa466bbdd477e7b4b6a",
+    "sequences": 64,
+    "windows": 192,
+    "phase_offsets": [
+      14,
+      56,
+      98
+    ],
+    "batch_size": 8,
+    "variants": [
+      "full_self_conditioned",
+      "high_t_restricted",
+      "left_right_role_swapped",
+      "object_displaced_counterfactual",
+      "source_substituted_xt",
+      "temporal_correspondence_permuted"
+    ],
+    "high_t_cutoff": 250,
+    "object_displacement_metres": 0.1,
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "contract_passed": true,
+    "contract_checks_passed": 40,
+    "mechanism_passed": false,
+    "source_provenance_passed": false,
+    "object_following_passed": false,
+    "high_t_provenance_passed": false,
+    "temporal_routing_passed": true,
+    "role_binding_passed": true,
+    "gate_checks": {
+      "full_minus_high_t_restricted_direct_union_5cm_f1_ci_lower_gt_zero": false,
+      "full_minus_object_displaced_direct_union_5cm_f1_ci_lower_gt_zero": false,
+      "full_minus_role_swapped_direct_left_right_macro_f1_ci_lower_gt_zero": true,
+      "full_minus_source_substituted_direct_union_5cm_f1_ci_lower_gt_zero": false,
+      "full_minus_temporal_permuted_direct_union_5cm_f1_ci_lower_gt_zero": true,
+      "high_t_restricted_minus_full_gt_contact_distance_ci_lower_gt_zero": false,
+      "object_displaced_minus_full_gt_contact_distance_ci_lower_gt_zero": false,
+      "source_substituted_minus_full_gt_contact_distance_ci_lower_gt_zero": false,
+      "temporal_permuted_minus_full_gt_contact_distance_ci_lower_gt_zero": true
+    },
+    "learned_alpha": -0.15308877825737,
+    "learned_gate": -0.15190395712852478,
+    "primary_comparisons": {
+      "full_minus_role_swapped_direct_union_5cm_f1": {
+        "point": 0.3049537282886555,
+        "bootstrap_95_ci": [
+          0.22151673496009272,
+          0.38789158704277416
+        ]
+      },
+      "full_minus_role_swapped_direct_left_right_macro_5cm_f1": {
+        "point": 0.25178017943731723,
+        "bootstrap_95_ci": [
+          0.18597224946534732,
+          0.31784488303567626
+        ]
+      },
+      "full_minus_temporal_permuted_direct_union_5cm_f1": {
+        "point": 0.18353939296506655,
+        "bootstrap_95_ci": [
+          0.11419948976023367,
+          0.2558505734245301
+        ]
+      },
+      "full_minus_source_substituted_xt_direct_union_5cm_f1": {
+        "point": -0.00411124183637104,
+        "bootstrap_95_ci": [
+          -0.01317133550839981,
+          0.0052449391460933584
+        ]
+      },
+      "full_minus_object_displaced_direct_union_5cm_f1": {
+        "point": -0.006569114266812546,
+        "bootstrap_95_ci": [
+          -0.015275483332368953,
+          0.0015924505161037208
+        ]
+      },
+      "full_minus_high_t_restricted_direct_union_5cm_f1": {
+        "point": -0.0012774356380963452,
+        "bootstrap_95_ci": [
+          -0.003746313159783638,
+          0.0012043454632572222
+        ]
+      },
+      "role_swapped_minus_full_gt_contact_distance_cm": {
+        "point": 8.751664752180908,
+        "bootstrap_95_ci": [
+          5.582512334136079,
+          12.48031044939184
+        ]
+      },
+      "temporal_permuted_minus_full_gt_contact_distance_cm": {
+        "point": 4.738580616016195,
+        "bootstrap_95_ci": [
+          2.605079480111705,
+          7.267992680805587
+        ]
+      },
+      "source_substituted_minus_full_gt_contact_distance_cm": {
+        "point": 0.007988060304405265,
+        "bootstrap_95_ci": [
+          -0.07052373449811682,
+          0.08705804591813635
+        ]
+      },
+      "object_displaced_minus_full_gt_contact_distance_cm": {
+        "point": 0.006236328353457459,
+        "bootstrap_95_ci": [
+          -0.07524061497302895,
+          0.10209459971205852
+        ]
+      },
+      "high_t_restricted_minus_full_gt_contact_distance_cm": {
+        "point": -0.005105743776729975,
+        "bootstrap_95_ci": [
+          -0.015459505032444637,
+          0.004165963459815077
+        ]
+      }
+    },
+    "null_interval_power_note": "the two significant structural effects (role swap 0.3050, temporal permutation 0.1835) are roughly an order of magnitude larger than the half-widths of the three failing null intervals (<=0.0092), so the source-provenance, object-following and high-t nulls are well powered rather than underpowered",
+    "full_self_conditioned_descriptive": {
+      "direct_union_5cm_f1_frame_aggregate": 0.8024149286498354,
+      "direct_union_5cm_f1_sequence_mean": 0.6776054447985513,
+      "mpjpe_cm": 11.507010459899902,
+      "object_goal_error_cm": 92.94030836224556,
+      "pelvis_goal_error_cm": 4.2548109497874975,
+      "foot_sliding": 0.7818478170314674,
+      "relation_norm_by_anchor": [
+        25.8017733891805,
+        26.448227008183796,
+        26.797871112823486,
+        26.408572514851887
+      ],
+      "writeback_norm_by_anchor": [
+        3.9193915923436484,
+        4.017590542634328,
+        4.070702930291493,
+        4.011566619078319
+      ],
+      "source_minus_current_l2_by_anchor": [
+        6.966072142124176,
+        11.611773371696472,
+        11.591899911562601,
+        11.538526932398478
+      ],
+      "temporal_permutation_sensitivity_by_anchor": [
+        7.868793090184529,
+        2.989215632279714,
+        2.846037124594053,
+        2.346971939007441
+      ],
+      "role_swap_sensitivity_by_anchor": [
+        11.253738602002462,
+        4.275603612263997,
+        3.919727106889089,
+        3.3149339159329734
+      ],
+      "source_history_max_abs": [
+        0.0
+      ],
+      "forward_calls_per_window": 500,
+      "source_is_x_t_counts": [
+        1
+      ],
+      "selection_use": false
+    },
+    "registered_source_is_x_t_counts": {
+      "full_self_conditioned": 1,
+      "high_t_restricted": 250,
+      "left_right_role_swapped": 1,
+      "object_displaced_counterfactual": 0,
+      "source_substituted_xt": 500,
+      "temporal_correspondence_permuted": 1
+    },
+    "artifacts": {
+      "causal_window_overlap": "f13a03aab90819385e7c1d2a9dea3f1e0b2e492ef3a2d18cbd59d330920618ea",
+      "full_self_conditioned": "0f8b5ac06c6abcc44785f8fc513fa5d3430dacaaaa2254fd686d3b4f4853b517",
+      "high_t_restricted": "c1fa65e23ba3abc93b7cd17d03b379d4638ed69c6d891c4553278f792c7753d9",
+      "left_right_role_swapped": "804d78a38c480c3151fdcfeb7315d56f5000c545ecf6b2ba4d6c95fe2a437dc9",
+      "manifest_sha256": "37974a95d6a9ad439cd540d851db9209571881e0c94d2a128878f57eb3a069b2",
+      "metrics_sha256": "d9bb2a92a0852e991f3021d73e8383f3ab6b5f0fdb0aee37ff8f814686f39aa1",
+      "object_displaced_counterfactual": "a7a392d42a55c140b882b6629af71721af16bb3218bcdb4646e600ed61410006",
+      "paired_conditioning": "d8ea7a40a7bde42f56479b256cf6aefdee5751e58853e985e75d0c425bf909db",
+      "paired_noise": "6541cea3c5f2cd444add5f62e141934fa49ac91657742d9d5b496a1b05845c29",
+      "preflight_sha256": "84289d81a7a6d1bfe8bf576639e6f742a86a73f2f7c969e8557d060ac3e3bbc2",
+      "reported_only_quantities": "b0215d80ed2e47f32420e079e8de4f0c11c4131180a6f30c143bd7747b1c734f",
+      "resolved_config_sha256": "aa7ae7927f64193cf64f482c0066ae38f4b2d546b2c095d2eeda82a1d8c7ef2a",
+      "run_local_registry_sha256": "d1c12614d0a8e9e9b7883b8bc5f8abe5766373cf655ae58b48a84eec0ba2c458",
+      "self_conditioning_appendix": "1e6b73fa4f315f73f5bc5e8306eff3cf3066ad1be58727e9000b4e002cadc165",
+      "source_substituted_xt": "6cefadc52b7337ce2001defbc2410178a0597329b81770e755a8abc6dfe80446",
+      "temporal_correspondence_permuted": "fe7b42d830ce6101221a9edb0f2af5d61813dde82e0240f5f203f63e6ffc3d21"
+    },
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ag-selfcond-relation-source-internal-r2-s42-20260801",
+      "sha256": "3aa2f66d70a7d0153f1f809203c6b291d9ac169ed1c9b886440a161804f002a8",
+      "files": 19,
+      "bytes": 256597169,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0,
+      "tree_sha256_scope": "as-transferred; excludes the run-local registry.jsonl appended on the authority after verification"
+    },
+    "optimizer_created": false,
+    "checkpoint_writes": 0,
+    "checkpoint_selected": false,
+    "official_test_used": false,
+    "native_evaluation_authorized": true
+  },
+  "native_evaluation": {
+    "run_id": "p1-hoi-d2ag-native-eval-s42-20260801",
+    "status": "completed",
+    "classification": "selfcond-relation-source-transfer-negative-stop",
+    "native_status": "transfer-negative",
+    "runtime_seconds": 376.92146245902404,
+    "protocol": "official 438 sequences x 3 windows, 500-step unguided production diffusion",
+    "official_test_sequences": 438,
+    "windows_per_sequence": 3,
+    "diffusion_steps": 500,
+    "paired_unit": "sequence",
+    "bootstrap_replicates": 10000,
+    "bootstrap_seed": 42,
+    "official_evaluator_unchanged": true,
+    "control_run_id": "p1-hoi-d2x-native-eval-r1-s42-20260723",
+    "sealed_d2x_reused_without_regeneration": true,
+    "released_checkpoint_loaded": false,
+    "author_checkpoint_loaded": false,
+    "cfg": false,
+    "guidance": false,
+    "scene_conditioning": false,
+    "dynamic_perception": false,
+    "consistency": false,
+    "chois_used": false,
+    "contract_passed": true,
+    "training_contract_checks_passed": 29,
+    "internal_provenance_checks_passed": 44,
+    "target_metrics": {
+      "contact_acc": 0.738058998332971,
+      "contact_f1": 0.6500867274276584,
+      "contact_percent": 0.47706023048488805,
+      "contact_precision": 0.8111961856520455,
+      "contact_recall": 0.5984951273917594,
+      "end_obj_trans_err": 3.6921996623277664,
+      "feet_height": 0.054954271763563156,
+      "foot_sliding": 0.40091825523376623,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.1836719029758619,
+      "hand_pen_ratio": 0.11286504566669464,
+      "human_pen_loss_infbagel": 2.9378708358181074,
+      "human_pen_ratio": 0.11615365743637085,
+      "mpjpe": 12.012922018766403,
+      "obj_rot_dist": 1.00918565015388,
+      "obj_trans_dist": 15.416969429094832,
+      "trans_dist": 8.299961686134338,
+      "xy_points_err": 3.9954081177711487
+    },
+    "control_metrics": {
+      "contact_acc": 0.7316445604116837,
+      "contact_f1": 0.6374259391059788,
+      "contact_percent": 0.4765528738131478,
+      "contact_precision": 0.7880618755952097,
+      "contact_recall": 0.5944546940443982,
+      "end_obj_trans_err": 3.7402085959911346,
+      "feet_height": 0.049811847507953644,
+      "foot_sliding": 0.3630100213939385,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.24535650279805918,
+      "hand_pen_ratio": 0.1438656598329544,
+      "human_pen_loss_infbagel": 3.869084620991582,
+      "human_pen_ratio": 0.1461896151304245,
+      "mpjpe": 12.050843983888626,
+      "obj_rot_dist": 1.0309440299298087,
+      "obj_trans_dist": 15.994049727002507,
+      "trans_dist": 8.170091360807419,
+      "xy_points_err": 4.050519689917564
+    },
+    "released_contact_f1": 0.7272576950146546,
+    "released_contact_f1_protocol": {
+      "matches_this_native_protocol": false,
+      "source_run_id": "p0-hoi-table5-baseline-s42-20260712",
+      "source_resolved_config": "results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml",
+      "git_commit": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "sample_type": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": true,
+      "guidance_weight": 1,
+      "cfg": true,
+      "cfg_w": 1,
+      "scene_conditioning": true,
+      "object_voxel_conditioning": true,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "official_evaluator_unchanged": true,
+      "note": "The released row uses the same 438 sequences, three windows and unchanged official evaluator as this run, but not the 500-step unguided sampler declared in native_evaluation.protocol. released_contact_f1 and every released-derived quantity in this file (native_transfer.contact_f1_released_gap_closure, native_transfer.contact_f1_released_gap_closure_minimum and released_95_percent_effectiveness) are therefore cross-protocol comparisons, not model-only comparisons. Per the 2026-08-01 protocol decomposition recorded in docs/EXPERIMENT_PLAN.md, ablating inference guidance alone lowers the released row to contact F1 0.66842 and contact recall 0.64877, and a single unguided step lowers it to 0.66552 and 0.64029; 59.2 percent of the released-minus-D2-X contact-recall difference is inference-time guidance. No metric in this file was recomputed or changed."
+    },
+    "native_transfer": {
+      "contact_f1_point_estimate": 0.6500867274276584,
+      "contact_f1_point_minimum": 0.6598838781,
+      "contact_f1_shortfall": 0.009797150672341659,
+      "contact_f1_released_gap_closure": 0.1409388939758756,
+      "contact_f1_released_gap_closure_minimum": 0.25,
+      "target_minus_control_contact_f1": {
+        "point": 0.012660788321679566,
+        "bootstrap_95_ci": [
+          -0.00823759546954707,
+          0.034443270025997036
+        ]
+      },
+      "target_minus_control_contact_recall": {
+        "point": 0.004040433347361118,
+        "bootstrap_95_ci": [
+          -0.019876465115143665,
+          0.028525400940548902
+        ]
+      },
+      "target_minus_control_contact_precision": {
+        "point": 0.023134310056835906,
+        "bootstrap_95_ci": [
+          0.003597741570523799,
+          0.04268227842678902
+        ]
+      },
+      "checks_passed": {
+        "contact_f1_ci_lower_gt_zero": false,
+        "contact_f1_point_estimate_ge_0.6598838781": false,
+        "contact_f1_released_gap_closure_ge_0.25": false,
+        "contact_recall_ci_lower_gt_zero": false
+      },
+      "passed": false
+    },
+    "protection": {
+      "target_over_control_ratios": {
+        "end_obj_trans_err": {
+          "bootstrap_95_ci": [
+            0.9346115075890055,
+            1.0442507878927318
+          ],
+          "mean_ratio": 0.9882676263379221
+        },
+        "foot_sliding": {
+          "bootstrap_95_ci": [
+            1.0299970463398207,
+            1.183784273570895
+          ],
+          "mean_ratio": 1.1044275133073798
+        },
+        "hand_pen_loss_omomo": {
+          "bootstrap_95_ci": [
+            0.631541127780291,
+            0.878146133699421
+          ],
+          "mean_ratio": 0.7485919504119813
+        },
+        "human_pen_loss_infbagel": {
+          "bootstrap_95_ci": [
+            0.642108870354565,
+            0.887701292608234
+          ],
+          "mean_ratio": 0.7593193542159281
+        },
+        "mpjpe": {
+          "bootstrap_95_ci": [
+            0.9779750884560332,
+            1.0163443365983806
+          ],
+          "mean_ratio": 0.9968529900366369
+        },
+        "obj_rot_dist": {
+          "bootstrap_95_ci": [
+            0.948022984682833,
+            1.0106717716017632
+          ],
+          "mean_ratio": 0.9788947031611248
+        },
+        "obj_trans_dist": {
+          "bootstrap_95_ci": [
+            0.9389409467287466,
+            0.9897699039114691
+          ],
+          "mean_ratio": 0.9639190631667601
+        },
+        "trans_dist": {
+          "bootstrap_95_ci": [
+            0.9926606871127824,
+            1.0415566489050778
+          ],
+          "mean_ratio": 1.0158959029227983
+        },
+        "xy_points_err": {
+          "bootstrap_95_ci": [
+            0.9502451772790801,
+            1.0240862730672842
+          ],
+          "mean_ratio": 0.9863940373323143
+        }
+      },
+      "control_minus_target_foot_sliding": {
+        "point": -0.037908233839827776,
+        "bootstrap_95_ci": [
+          -0.06449495248837395,
+          -0.011320260346009765
+        ]
+      },
+      "checks_passed": {
+        "contact_precision_ci_lower_ge_minus_0.02": true,
+        "end_obj_trans_err_ratio_ci_upper_le_1.10": true,
+        "foot_sliding_ratio_ci_upper_le_1.10": false,
+        "hand_pen_loss_omomo_ratio_ci_upper_le_1.10": true,
+        "human_pen_loss_infbagel_ratio_ci_upper_le_1.10": true,
+        "mpjpe_ratio_ci_upper_le_1.10": true,
+        "obj_rot_dist_ratio_ci_upper_le_1.10": true,
+        "obj_trans_dist_ratio_ci_upper_le_1.10": true,
+        "penetration_finite_mask_contract": true,
+        "trans_dist_ratio_ci_upper_le_1.10": true,
+        "xy_points_err_ratio_ci_upper_le_1.10": true
+      },
+      "failures": [
+        "foot_sliding_ratio_ci_upper_le_1.10"
+      ],
+      "penetration_finite_mask": {
+        "finite_sequences": 181,
+        "official_sequences": 438,
+        "passed": true,
+        "sequence_ids_sha256": "2c47612e69e8f5f5a6fa5906fd6c2593d2ed021101933433be4cb641513439ec"
+      },
+      "passed": false
+    },
+    "released_95_percent_effectiveness": {
+      "checks_passed": {
+        "contact_f1_target_over_released_ge_0.95": false,
+        "contact_precision_target_over_released_ge_0.95": true,
+        "contact_recall_target_over_released_ge_0.95": false,
+        "end_obj_trans_err_target_over_released_le_1_over_0.95": false,
+        "foot_sliding_target_over_released_le_1_over_0.95": false,
+        "human_pen_loss_infbagel_target_over_released_le_1_over_0.95": false,
+        "mpjpe_target_over_released_le_1_over_0.95": true,
+        "obj_rot_dist_target_over_released_le_1_over_0.95": true,
+        "obj_trans_dist_target_over_released_le_1_over_0.95": true,
+        "trans_dist_target_over_released_le_1_over_0.95": true,
+        "xy_points_err_target_over_released_le_1_over_0.95": true
+      },
+      "failures": [
+        "contact_f1_target_over_released_ge_0.95",
+        "contact_recall_target_over_released_ge_0.95",
+        "end_obj_trans_err_target_over_released_le_1_over_0.95",
+        "foot_sliding_target_over_released_le_1_over_0.95",
+        "human_pen_loss_infbagel_target_over_released_le_1_over_0.95"
+      ],
+      "passed": false
+    },
+    "generation_descriptive": {
+      "end_to_end_seconds": 371.10645011486486,
+      "fps": 770.0379424257095,
+      "generated_frames": 55188,
+      "generation_seconds": 71.66919571021572,
+      "timing_cuda_synchronized": true,
+      "warmup_batches_excluded": 1
+    },
+    "artifacts": {
+      "aggregate_sha256": "f51266f8eb81e87df9ff3a881613fc0917736c3ac7e184dfa5c7f8f091d8ae9b",
+      "manifest_sha256": "2c46296bc723bbf450f5b1386db17a9dc0a15a34c2cdaaa085abea21f01f1d31",
+      "metrics_sha256": "f9d7cae8a343281db6529f0816e58a21a8ef5e6de51009cd8179bd9e5a052f69",
+      "per_sequence_sha256": "eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835",
+      "preflight_sha256": "86b966695ddf82b594f908a78fbb044c453abe332dfe0ae4f21dea7e8d0dc47a",
+      "resolved_config_sha256": "b5e4838382d3daec420e9f0d4ff62b0661a0b3255cb8e9205efe860ea7618c8f",
+      "resolved_target_sha256": "417bede836f28e69609f0310af7773f149522c42f6a06295554fc46bfa028d75",
+      "run_local_registry_sha256": "753c544925cccb6c2857e1f3aacbde0d92b41d70a20768d658fa111400184018",
+      "target_log_sha256": "ee646d88368131713b27a1a12e4d06074dcfa70ff9c54f19fb817df63bbf4469"
+    },
+    "artifact_tree": {
+      "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ag-native-eval-s42-20260801",
+      "sha256": "153a6b6fbb939545496deb950c3ddd18c7680e71297b25b59a033de96b05a738",
+      "files": 16,
+      "bytes": 1199214,
+      "worker_authority_match": true,
+      "checksum_dry_run_transferred_files": 0,
+      "tree_sha256_scope": "as-transferred; excludes the run-local registry.jsonl appended on the authority after verification"
+    },
+    "official_test_used": true,
+    "checkpoint_selected": false,
+    "selectable": false
+  },
+  "operational_records": [
+    {
+      "run_id": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+      "classification": "pre-gpu-launch-wrapper-operational-failure",
+      "file": "operational_launch_failure_001.json",
+      "sha256": "d92a4b224848e66415426d99878ab8f5c9284e424ee0d75c5ab1a0c67b5263c3",
+      "scope": "formal training launch wrapper",
+      "impact": "none: the controlling interactive session ended after the manifest was written and before the detached wrapper started; no training process, optimizer, checkpoint directory or GPU workload existed",
+      "gpu_workload_started": false,
+      "optimizer_created": false,
+      "checkpoint_writes": 0,
+      "scientific_configuration_changed": false,
+      "resolution": "the same manifest and run id continued, exactly as in the D2-AF precedent"
+    },
+    {
+      "run_id": "p1-hoi-d2ag-selfcond-relation-source-internal-s42-20260801",
+      "classification": "internal-diagnostic-preflight-abort",
+      "file": "operational_preflight_failure_001.json",
+      "sha256": "2c3484dd1f6225abdf4967643313e2241950c64bfc1ec1e981bfce2f35368066",
+      "scope": "internal diagnostic preflight",
+      "failed_check": "chois_pinned",
+      "impact": "the completion chain passed --chois-root at the CHOIS asset directory, which is not a git repository, so git rev-parse HEAD walked up to the InfBaGel checkout",
+      "gpu_workload_started": false,
+      "manifest_created": false,
+      "run_id_allocated": false,
+      "resolution": "the completion chain was repointed at the pinned CHOIS evaluator checkout and the diagnostic reran under the new id -internal-r2-",
+      "artifact_tree": {
+        "path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ag-selfcond-relation-source-internal-s42-20260801",
+        "sha256": "70b3d2a0294b217da44f50451fc0aa7dcfad31dc464b3675219bced570d7446b",
+        "files": 3,
+        "bytes": 12236,
+        "worker_authority_match": true,
+        "checksum_dry_run_transferred_files": 0
+      }
+    }
+  ],
+  "artifact_recovery": {
+    "formal_worker_authority_match": true,
+    "internal_worker_authority_match": true,
+    "native_worker_authority_match": true,
+    "retained_internal_abort_worker_authority_match": true,
+    "worker_initiated_non_destructive_rsync": true,
+    "delete_used": false,
+    "all_checksum_dry_runs_exit_zero": true,
+    "all_checksum_dry_runs_itemized_differences": 0,
+    "unrecovered_worker_trees": [
+      "p1-hoi-d2ag-gpu-functional-smoke-s42-20260731",
+      "p1-hoi-d2ag-gpu-functional-smoke-r2-s42-20260731",
+      "p1-hoi-d2ag-gpu-functional-smoke-r3-s42-20260731",
+      "p1-hoi-d2ag-gpu-functional-smoke-r4-s42-20260731",
+      "p1-hoi-d2ag-performance-benchmark-s42-20260731",
+      "p1-hoi-d2ag-performance-benchmark-r2-s42-20260731"
+    ]
+  },
+  "conclusion": "Self-conditioning the relation source did not repair D2-AE. The trained relation path had a nonzero gate, but the fixed internal diagnostic passed only 3 of 9 registered gate checks and all three belong to the structural properties inherited unchanged from D2-AE; the source-provenance, object-following and high-t nulls are tightly bounded rather than underpowered. Native contact F1 fell below the registered point minimum, released gap closure reached 0.1409388939758756 against the required 0.25, contact F1 and recall were statistically indistinguishable from the sealed D2-X control, and foot sliding regressed significantly. The final-online checkpoint is not selectable.",
+  "next_action": "Close Phase 1B HOIPrior search without merge or tag. Do not run D2-AG1, a second formal budget, a longer budget, a performance or selection-probability sweep, resume or select this checkpoint, consistency, HSIPrior or Mixer in this session. The sole next-session entry is a dated Phase 1C HSIPrior plan-only preregistration from random initialization."
+}

@@ -1,0 +1,1621 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-protocol-decomp-s42-20260801",
+  "phase": "p1",
+  "subphase": "1B-protocol-decomposition-P1",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-08-01",
+  "classification": "released-baseline-protocol-attribution-guidance-dominant",
+  "training_performed": false,
+  "optimizer_updates": 0,
+  "checkpoint_writes": 0,
+  "checkpoint_selected": false,
+  "released_checkpoint_role": "baseline_only_forbidden_as_prior_initialization",
+  "released_or_prior_checkpoint_initialization": false,
+  "official_evaluator_changed": false,
+  "native_d2_protocol_changed": false,
+  "internal_diagnostic_performed": false,
+  "production_guidance_authorized": false,
+  "stepwise_object_requery_authorized": false,
+  "hoiprior_search_closed": true,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "design": {
+    "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-01 Phase 1B 基线协议分解 P1（released baseline 协议归因，用户批准）'",
+    "question": "attribute the released-InfBaGel-minus-D2 contact gap to inference-time guidance, sampler iteration count and the autoregressive rollout rewrite, separately from any genuine model difference",
+    "manipulated_factors": [
+      "cm_timesteps (16 vs 1)",
+      "guidance_weight (1 vs 0)",
+      "executed git commit (c358fa4 vs HEAD rollout)"
+    ],
+    "cells": "2 commits x 3 knob settings = 6 released-checkpoint inference runs",
+    "additional_probes": "2 HOIPrior native evaluations run to obtain absolute GT-contact-frame hand-object distance, which no aggregate reports",
+    "official_test_sequences": 438,
+    "windows_per_sequence": 3,
+    "training": "none",
+    "lifecycle_profile": "user-authorized inference-only measurement (plan, 流程精简): no run id allocated and no tools/experiment.py start manifest; traceability is carried by the executed git commit, the archived Hydra resolved config and overrides, the fixed official 438-sequence test set and byte-identical metric code",
+    "executed_commits": {
+      "published_protocol": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "head_rollout": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "plan_amendment_commit": null,
+      "plan_amendment_commit_note": "the dated plan amendment, this compact result, the phase summary, the evidence-index rows and the registry completion row are one closure change; the executed source objects above predate it"
+    },
+    "worktrees": {
+      "published_protocol": "/data/yujinlun/InfBaGel-c358fa4-baseline",
+      "head_rollout": [
+        "/data/yujinlun/InfBaGel-head-baseline",
+        "/data/yujinlun/InfBaGel-release"
+      ],
+      "note": "the three -new- runs without save_motion_params live in the main checkout; their -ps- replicates live in the pinned HEAD worktree"
+    },
+    "invariant_axes": {
+      "eval_metrics_py_blob": "575602ecfb448817e8fc8b4966e56683c88cab2f",
+      "eval_metrics_py_sha256": "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+      "guidance_loss_py_blob": "44fd4970188e7645e7d1d698e6025033163a8f25",
+      "guidance_loss_py_sha256": "5747721bcc015911c7999692079666f7e5d6204912761d91b8b82d4ba4c4ab24",
+      "identical_between_c358fa4_and_head": true,
+      "released_checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "released_checkpoint_identical_in_all_three_worktrees": true
+    },
+    "changed_axis_rollout_rewrite": {
+      "file": "code/test_infbagel_hoi.py",
+      "rewritten_after": "ffc548a (2026-07-13)",
+      "c358fa4_vs_head_changed_lines": "171 insertions / 59 deletions",
+      "semantics": "the per-step recompute-vs-freeze relation between object_points_batch and obj_bps_data is inverted"
+    }
+  },
+  "runs": {
+    "a0-old": {
+      "exp_name": "p0-hoi-protocol-decomp-a0-old-s42-20260801",
+      "role": "published protocol; bit-exact reproduction gate for the sealed released row",
+      "executed_git_commit": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": true,
+      "guidance_weight": 1,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-a0-old-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "000838b6f2608382484ac75c4b7b20613caa723120f6afb8f29d262c29281187",
+      "metrics": {
+        "contact_acc": 0.8020946582590419,
+        "contact_f1": 0.7272576950146546,
+        "contact_percent": 0.5983184750308039,
+        "contact_precision": 0.790809602353939,
+        "contact_recall": 0.7275875037410999,
+        "end_obj_trans_err": 3.0372438952326775,
+        "feet_height": 0.04112287983298302,
+        "foot_sliding": 0.33336322153742476,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.1624019806288998,
+        "hand_pen_ratio": 0.13285978138446808,
+        "human_pen_loss_infbagel": 2.589266609805965,
+        "human_pen_ratio": 0.13763920962810516,
+        "mpjpe": 11.997593194246292,
+        "obj_rot_dist": 1.0202497641505308,
+        "obj_trans_dist": 15.72564612054545,
+        "trans_dist": 8.208845555782318,
+        "xy_points_err": 3.9230965077877045
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 331.3045891020447,
+        "fps": 322.64947543122736,
+        "generated_frames": 55188,
+        "generation_seconds": 171.04630319401622,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-a0-old-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-a0-old-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "e0faa702d31ce892027519862bd4da011ea567cb0aa3d80c31d1d41cf09f8d51",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "a-old": {
+      "exp_name": "p0-hoi-protocol-decomp-a-old-s42-20260801",
+      "role": "published protocol minus inference guidance; guidance share",
+      "executed_git_commit": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": false,
+      "guidance_weight": 0,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-a-old-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "cf7577744eee2d49c6358aa87f803e41cd371db8d8045b8b4b775ff37ec7513a",
+      "metrics": {
+        "contact_acc": 0.7487859679640502,
+        "contact_f1": 0.6684232551233018,
+        "contact_percent": 0.5352612886859462,
+        "contact_precision": 0.7811482848207001,
+        "contact_recall": 0.6487675262892725,
+        "end_obj_trans_err": 3.125084564089775,
+        "feet_height": 0.06497551500797272,
+        "foot_sliding": 0.36902856944494955,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.18591339784778968,
+        "hand_pen_ratio": 0.14373409748077393,
+        "human_pen_loss_infbagel": 2.9467091050009855,
+        "human_pen_ratio": 0.14706656336784363,
+        "mpjpe": 12.03276664018631,
+        "obj_rot_dist": 1.0242339475298954,
+        "obj_trans_dist": 15.793998083867777,
+        "trans_dist": 8.787258714437485,
+        "xy_points_err": 3.716900199651718
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 1359.0602075085044,
+        "fps": 309.5124827442485,
+        "generated_frames": 55188,
+        "generation_seconds": 178.30621728301048,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-a-old-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-a-old-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "c370c206004c9dcaa4fc67d08bab255fc3616e9c693e3ba68dcf9fa0168d1332",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "b-old": {
+      "exp_name": "p0-hoi-protocol-decomp-b-old-s42-20260801",
+      "role": "published protocol minus guidance and minus iteration; iteration share",
+      "executed_git_commit": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 1,
+      "guidance": false,
+      "guidance_weight": 0,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-b-old-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "b3d109c3ec600d763db9018af26154d33c6a32884f98951e75aa1dc7eca64b1c",
+      "metrics": {
+        "contact_acc": 0.7479886931941726,
+        "contact_f1": 0.6655217029992588,
+        "contact_percent": 0.522939769515112,
+        "contact_precision": 0.7891622801322768,
+        "contact_recall": 0.6402896585198595,
+        "end_obj_trans_err": 2.92630884796381,
+        "feet_height": 0.06081939861178398,
+        "foot_sliding": 0.35058705815607866,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.17720064651158804,
+        "hand_pen_ratio": 0.14009472727775574,
+        "human_pen_loss_infbagel": 2.8077603827510575,
+        "human_pen_ratio": 0.14364641904830933,
+        "mpjpe": 11.904381215572357,
+        "obj_rot_dist": 1.0233036937656244,
+        "obj_trans_dist": 15.368818951454621,
+        "trans_dist": 8.874442428350449,
+        "xy_points_err": 4.18640561401844
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 1179.9452310577035,
+        "fps": 16893.12793152959,
+        "generated_frames": 55188,
+        "generation_seconds": 3.266890550032258,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-b-old-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-b-old-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "d0998dae35db80acf9589c5d2810fd545aa32eabb34315207d3153299caf480f",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "a0-new": {
+      "exp_name": "p0-hoi-protocol-decomp-a0-new-s42-20260801",
+      "role": "published knobs under the rewritten HEAD rollout; rollout-rewrite share",
+      "executed_git_commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": true,
+      "guidance_weight": 1,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-release/results/experiments/p0-hoi-protocol-decomp-a0-new-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "b74308141b20a8dc2c70eca666e387ebf3a5d4264cf48e784e2b56e40c7cf6b0",
+      "metrics": {
+        "contact_acc": 0.8024026962383127,
+        "contact_f1": 0.7319420175299534,
+        "contact_percent": 0.6105131550337031,
+        "contact_precision": 0.7891631614210691,
+        "contact_recall": 0.7359999213100944,
+        "end_obj_trans_err": 3.5388194024562836,
+        "feet_height": 0.04107600823044777,
+        "foot_sliding": 0.3242121506967276,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.16688042781984525,
+        "hand_pen_ratio": 0.13904236257076263,
+        "human_pen_loss_infbagel": 2.6587405665490143,
+        "human_pen_ratio": 0.1438218057155609,
+        "mpjpe": 12.051616609096527,
+        "obj_rot_dist": 1.0153902051536547,
+        "obj_trans_dist": 15.919092846887873,
+        "trans_dist": 8.316674828529358,
+        "xy_points_err": 3.9744123816490173
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 1358.9738508285955,
+        "fps": 306.4756437369206,
+        "generated_frames": 55188,
+        "generation_seconds": 180.0730372145772,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-a0-new-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p0-hoi-protocol-decomp-a0-new-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "75c969b34acac9bf8cb026c0cf89fd15a3ad318136ba6e82c258c03e50f21e4c",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "a-new": {
+      "exp_name": "p0-hoi-protocol-decomp-a-new-s42-20260801",
+      "role": "guidance share, robustness under the rewritten rollout",
+      "executed_git_commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": false,
+      "guidance_weight": 0,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-release/results/experiments/p0-hoi-protocol-decomp-a-new-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "0ed807fcefebab2d8efe949a575d94b4255f38473ba3c06dd79bf8d97f0112e9",
+      "metrics": {
+        "contact_acc": 0.7491121258244545,
+        "contact_f1": 0.670726365823957,
+        "contact_percent": 0.5406247735014859,
+        "contact_precision": 0.7812232178979466,
+        "contact_recall": 0.6524531291216711,
+        "end_obj_trans_err": 3.5300131887197495,
+        "feet_height": 0.06504595279693604,
+        "foot_sliding": 0.373841907326067,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.19152815901060855,
+        "hand_pen_ratio": 0.14557573199272156,
+        "human_pen_loss_infbagel": 3.03528117912219,
+        "human_pen_ratio": 0.14899587631225586,
+        "mpjpe": 12.077878415584564,
+        "obj_rot_dist": 1.017762541037916,
+        "obj_trans_dist": 15.941754551107062,
+        "trans_dist": 8.876732736825943,
+        "xy_points_err": 3.795791417360306
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 1356.1393272485584,
+        "fps": 313.1280001687233,
+        "generated_frames": 55188,
+        "generation_seconds": 176.24741310346872,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-a-new-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p0-hoi-protocol-decomp-a-new-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "d9afde2a02b6ee3cc929d104c98e82fe38dd21f9686ba4d952fadb4e0a4f084f",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "b-new": {
+      "exp_name": "p0-hoi-protocol-decomp-b-new-s42-20260801",
+      "role": "pure NFE share under the rewritten rollout",
+      "executed_git_commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 1,
+      "guidance": false,
+      "guidance_weight": 0,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "checkpoint_weight_variant": null,
+      "output_path": "/data/yujinlun/InfBaGel-release/results/experiments/p0-hoi-protocol-decomp-b-new-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "96353ca4c962cfbdf3ffe24ad671ad813744741b974a4c8bf66a9a324941cf0b",
+      "metrics": {
+        "contact_acc": 0.744437196491991,
+        "contact_f1": 0.6678750639048819,
+        "contact_percent": 0.525222874537943,
+        "contact_precision": 0.7850976476921129,
+        "contact_recall": 0.6392796890768119,
+        "end_obj_trans_err": 3.342321887612343,
+        "feet_height": 0.06167669594287872,
+        "foot_sliding": 0.3585514860657366,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.177133243127149,
+        "hand_pen_ratio": 0.13755151629447937,
+        "human_pen_loss_infbagel": 2.8101620271448025,
+        "human_pen_ratio": 0.1418047994375229,
+        "mpjpe": 11.923280358314514,
+        "obj_rot_dist": 1.0104035881068958,
+        "obj_trans_dist": 15.584817519013924,
+        "trans_dist": 8.948899805545807,
+        "xy_points_err": 4.266124591231346
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 1173.5867533190176,
+        "fps": 9760.639540370514,
+        "generated_frames": 55188,
+        "generation_seconds": 5.654137699864805,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "determinism_replicate": {
+        "exp_name": "p0-hoi-protocol-decomp-b-new-ps-s42-20260801",
+        "output_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p0-hoi-protocol-decomp-b-new-ps-s42-20260801/evaluation/aggregate_metrics.json",
+        "aggregate_metrics_sha256": "41b4780d25a1bc76e7b1b64256c376e9553007f9cae2e312becf93114842a813",
+        "only_difference": "save_motion_params=true",
+        "metrics_compared": 18,
+        "metrics_bit_identical": true
+      }
+    },
+    "d2x": {
+      "exp_name": "p1-hoi-d2x-distance-probe-s42-20260801",
+      "role": "sealed autonomous HOIPrior control, native protocol, absolute contact distance",
+      "executed_git_commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "diffusion",
+      "sampler_timesteps": 500,
+      "cm_timesteps": null,
+      "guidance": false,
+      "guidance_weight": null,
+      "cfg": false,
+      "cfg_w": null,
+      "load_scene": false,
+      "add_object_voxel": false,
+      "checkpoint": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_windows061440000.pth",
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "checkpoint_weight_variant": "online",
+      "output_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p1-hoi-d2x-distance-probe-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "6301863f25d2c324da6da7c3622ebd2128a7766cc212fee8f36ab787b44b18d3",
+      "metrics": {
+        "contact_acc": 0.7316445604116837,
+        "contact_f1": 0.6374259391059788,
+        "contact_percent": 0.4765528738131478,
+        "contact_precision": 0.7880618755952097,
+        "contact_recall": 0.5944546940443982,
+        "end_obj_trans_err": 3.7402085959911346,
+        "feet_height": 0.049811847507953644,
+        "foot_sliding": 0.3630100213939385,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.24535650279805918,
+        "hand_pen_ratio": 0.1438656598329544,
+        "human_pen_loss_infbagel": 3.869084620991582,
+        "human_pen_ratio": 0.1461896151304245,
+        "mpjpe": 12.050843983888626,
+        "obj_rot_dist": 1.0309440299298087,
+        "obj_trans_dist": 15.994049727002507,
+        "trans_dist": 8.170091360807419,
+        "xy_points_err": 4.050519689917564
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 201.53476050775498,
+        "fps": 900.3217290682974,
+        "generated_frames": 55188,
+        "generation_seconds": 61.298087359406054,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "reproduces_sealed_worker_evaluation": {
+        "sealed_run_id": "p1-hoi-d2x-native-eval-r1-s42-20260723",
+        "sealed_aggregate_path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2x-native-eval-r1-s42-20260723/evaluation/aggregate_metrics.json",
+        "sealed_aggregate_sha256": "3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b",
+        "metrics_compared": 18,
+        "metrics_bit_identical": 18,
+        "note": "single-host re-evaluation of the same final-online checkpoint reproduces the retired two-host worker aggregate exactly"
+      }
+    },
+    "d2ag": {
+      "exp_name": "p1-hoi-d2ag-distance-probe-s42-20260801",
+      "role": "D2-AG HOIPrior, native protocol, absolute contact distance",
+      "executed_git_commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "diffusion",
+      "sampler_timesteps": 500,
+      "cm_timesteps": null,
+      "guidance": false,
+      "guidance_weight": null,
+      "cfg": false,
+      "cfg_w": null,
+      "load_scene": false,
+      "add_object_voxel": false,
+      "checkpoint": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731_windows061440000.pth",
+      "checkpoint_sha256": "f28af345254cb4884c64f0ddda799ebbb131e19b209583e47553bb601be4026f",
+      "checkpoint_weight_variant": "online",
+      "output_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p1-hoi-d2ag-distance-probe-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "f7d374da2060612ae8f0892b4e2c9916e2ef1626add9b9258ff295a62bd6c9f4",
+      "metrics": {
+        "contact_acc": 0.738058998332971,
+        "contact_f1": 0.6500867274276584,
+        "contact_percent": 0.47706023048488805,
+        "contact_precision": 0.8111961856520455,
+        "contact_recall": 0.5984951273917594,
+        "end_obj_trans_err": 3.6921996623277664,
+        "feet_height": 0.054954271763563156,
+        "foot_sliding": 0.40091825523376623,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.1836719029758619,
+        "hand_pen_ratio": 0.11286504566669464,
+        "human_pen_loss_infbagel": 2.9378708358181074,
+        "human_pen_ratio": 0.11615365743637085,
+        "mpjpe": 12.012922018766403,
+        "obj_rot_dist": 1.00918565015388,
+        "obj_trans_dist": 15.416969429094832,
+        "trans_dist": 8.299961686134338,
+        "xy_points_err": 3.9954081177711487
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 217.03256017155945,
+        "fps": 750.8716016123186,
+        "generated_frames": 55188,
+        "generation_seconds": 73.49858468677849,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "reproduces_sealed_worker_evaluation": {
+        "sealed_run_id": "p1-hoi-d2ag-native-eval-s42-20260801",
+        "sealed_aggregate_path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2ag-native-eval-s42-20260801/evaluation/aggregate_metrics.json",
+        "sealed_aggregate_sha256": "f51266f8eb81e87df9ff3a881613fc0917736c3ac7e184dfa5c7f8f091d8ae9b",
+        "metrics_compared": 18,
+        "metrics_bit_identical": 18,
+        "note": "single-host re-evaluation of the same final-online checkpoint reproduces the retired two-host worker aggregate exactly"
+      }
+    }
+  },
+  "reproduction_gate": {
+    "form": "A0-old must reproduce the sealed published row",
+    "sealed_run_id": "p0-hoi-table5-baseline-s42-20260712",
+    "sealed_aggregate_path": "/data/yujinlun/InfBaGel-release/results/experiments/p0-hoi-table5-baseline-s42-20260712/evaluation/aggregate_metrics.json",
+    "sealed_aggregate_sha256": "e5f8e949c0e111f27ed7ea931b1a6ab6395254ec61235601bcca567f0d872ee1",
+    "required_contact_f1": 0.7272576950146546,
+    "required_contact_recall": 0.7275875037410999,
+    "metrics_compared_non_ratio": 16,
+    "metrics_identical_non_ratio": 16,
+    "metrics_compared_all": 18,
+    "metrics_identical_all": 18,
+    "passed": true,
+    "note": "the plan records this gate as 16/16, i.e. the 16 non-ratio aggregate metrics; the stricter all-18 comparison, which additionally includes hand_pen_ratio and human_pen_ratio, is also exactly equal"
+  },
+  "determinism": {
+    "form": "each released-checkpoint cell re-run once with save_motion_params=true",
+    "runs_compared": 6,
+    "metrics_per_run": 18,
+    "metrics_compared": 108,
+    "metrics_bit_identical": 108,
+    "cross_worktree": true,
+    "passed": true
+  },
+  "independent_extraction": {
+    "purpose": "recompute per-sequence contact statistics from the exported prediction / ground-truth npz and motion_params, independently of the aggregates",
+    "scripts": [
+      ".claude/scratch/hoi_contact_extract_v2.py",
+      ".claude/scratch/hoi_gt_contact_distance.py",
+      ".claude/scratch/hoi_distance_with_hoiprior.py",
+      ".claude/scratch/hoi_paired_bootstrap_v2.py"
+    ],
+    "scripts_tracked": false,
+    "pooled_metrics_vs_aggregate": {
+      "runs": 6,
+      "metrics_per_run": 6,
+      "compared": 36,
+      "identical": 36,
+      "metrics": [
+        "contact_f1",
+        "contact_recall",
+        "contact_precision",
+        "contact_percent",
+        "gt_contact_percent",
+        "foot_sliding"
+      ]
+    },
+    "feet_height_excluded": {
+      "reason": "the seventh pooled quantity, feet_height, agrees only to float32-vs-float64 accumulation (largest absolute difference 3.9e-09) and is therefore not counted as a bit-exact reproduction",
+      "max_abs_difference": 3.9e-09
+    },
+    "recall_identity_from_distance_pipeline": {
+      "runs": 8,
+      "identical": 8,
+      "form": "per-sequence fraction of GT-contact frames below the 5 cm threshold, pooled as an unweighted 438-sequence mean, equals the published contact_recall"
+    },
+    "vs_per_sequence_metrics_json": {
+      "runs_with_per_sequence_file": [
+        "a0-new",
+        "a-new",
+        "b-new",
+        "d2x",
+        "d2ag"
+      ],
+      "runs_compared": 5,
+      "mismatching_sequences": 0
+    }
+  },
+  "uncertainty": {
+    "form": "paired sequence-level bootstrap",
+    "unit": "sequence",
+    "sequence_count": 438,
+    "bootstrap_seed": 42,
+    "bootstrap_replicates": 10000,
+    "convention_source": "tools/summarize_hoi_phase1b.py:112",
+    "pooling": "native unweighted sequence mean (test_infbagel_hoi.py:337-345)",
+    "index_matrix_identical_to_existing_implementations": [
+      "tools/summarize_hoi_phase1b.py:112",
+      "tools/run_hoi_d2n.py:383",
+      "tools/run_hoi_d2af_eligibility.py:96"
+    ],
+    "per_run": {
+      "a0-old": {
+        "contact_recall": {
+          "mean": 0.7275875037410999,
+          "bootstrap_95_ci": [
+            0.6943546002458492,
+            0.7602940359026493
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.790809602353939,
+          "bootstrap_95_ci": [
+            0.7612343732244188,
+            0.8194893749022494
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.7272576950146546,
+          "bootstrap_95_ci": [
+            0.6966013382521116,
+            0.7572654797230397
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.5983184750308039,
+          "bootstrap_95_ci": [
+            0.5708297093571066,
+            0.6250276328187288
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.33336322153742476,
+          "bootstrap_95_ci": [
+            0.31740861787870867,
+            0.34969905578907484
+          ]
+        }
+      },
+      "a-old": {
+        "contact_recall": {
+          "mean": 0.6487675262892725,
+          "bootstrap_95_ci": [
+            0.6139504296733261,
+            0.6830324651968853
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.7811482848207001,
+          "bootstrap_95_ci": [
+            0.7509490079220251,
+            0.8105719702577349
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.6684232551233018,
+          "bootstrap_95_ci": [
+            0.6367045223504302,
+            0.699339332674128
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.5352612886859462,
+          "bootstrap_95_ci": [
+            0.5071754729288975,
+            0.5628578676523882
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.36902856944494955,
+          "bootstrap_95_ci": [
+            0.35062719928558994,
+            0.3875613558936035
+          ]
+        }
+      },
+      "b-old": {
+        "contact_recall": {
+          "mean": 0.6402896585198595,
+          "bootstrap_95_ci": [
+            0.6058184538486387,
+            0.6742104772830096
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.7891622801322768,
+          "bootstrap_95_ci": [
+            0.7586345652905849,
+            0.8184156737797053
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.6655217029992588,
+          "bootstrap_95_ci": [
+            0.633920658163195,
+            0.6968184103423144
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.522939769515112,
+          "bootstrap_95_ci": [
+            0.49537716532579545,
+            0.550193429731101
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.35058705815607866,
+          "bootstrap_95_ci": [
+            0.33224334924800475,
+            0.3692717897154834
+          ]
+        }
+      },
+      "a0-new": {
+        "contact_recall": {
+          "mean": 0.7359999213100944,
+          "bootstrap_95_ci": [
+            0.70259321931547,
+            0.7675656035170713
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.7891631614210691,
+          "bootstrap_95_ci": [
+            0.760223737077588,
+            0.8169726379346542
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.7319420175299534,
+          "bootstrap_95_ci": [
+            0.7016454002566632,
+            0.7607269470227169
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.6105131550337031,
+          "bootstrap_95_ci": [
+            0.5833867869826774,
+            0.6366972892657825
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.3242121506967276,
+          "bootstrap_95_ci": [
+            0.30771102250736626,
+            0.3407475551736612
+          ]
+        }
+      },
+      "a-new": {
+        "contact_recall": {
+          "mean": 0.6524531291216711,
+          "bootstrap_95_ci": [
+            0.6180826942970933,
+            0.6858828694461635
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.7812232178979466,
+          "bootstrap_95_ci": [
+            0.7515632020706701,
+            0.8104849255477
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.670726365823957,
+          "bootstrap_95_ci": [
+            0.6391733409937213,
+            0.7009636149240247
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.5406247735014859,
+          "bootstrap_95_ci": [
+            0.5125027179821701,
+            0.5682218054649562
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.373841907326067,
+          "bootstrap_95_ci": [
+            0.35358116845868864,
+            0.39450393092807967
+          ]
+        }
+      },
+      "b-new": {
+        "contact_recall": {
+          "mean": 0.6392796890768119,
+          "bootstrap_95_ci": [
+            0.6057892806814253,
+            0.6716178564800994
+          ]
+        },
+        "contact_precision": {
+          "mean": 0.7850976476921129,
+          "bootstrap_95_ci": [
+            0.7547503736437741,
+            0.8138056112640843
+          ]
+        },
+        "contact_f1": {
+          "mean": 0.6678750639048819,
+          "bootstrap_95_ci": [
+            0.636613365075717,
+            0.6974438680088908
+          ]
+        },
+        "contact_percent": {
+          "mean": 0.525222874537943,
+          "bootstrap_95_ci": [
+            0.49789764079147636,
+            0.5516235413495687
+          ]
+        },
+        "foot_sliding": {
+          "mean": 0.3585514860657366,
+          "bootstrap_95_ci": [
+            0.33985260867976014,
+            0.3775699124890114
+          ]
+        }
+      }
+    },
+    "paired": {
+      "a0-old_minus_a-old": {
+        "contact_recall": {
+          "first_mean": 0.7275875037410999,
+          "second_mean": 0.6487675262892725,
+          "point_difference": 0.07881997745182746,
+          "bootstrap_95_ci": [
+            0.06492439263160053,
+            0.0930616858080936
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_precision": {
+          "first_mean": 0.790809602353939,
+          "second_mean": 0.7811482848207001,
+          "point_difference": 0.009661317533238898,
+          "bootstrap_95_ci": [
+            0.0033737110449859682,
+            0.016499412887361165
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_f1": {
+          "first_mean": 0.7272576950146546,
+          "second_mean": 0.6684232551233018,
+          "point_difference": 0.05883443989135291,
+          "bootstrap_95_ci": [
+            0.04747526138744757,
+            0.07065892520829781
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_percent": {
+          "first_mean": 0.5983184750308039,
+          "second_mean": 0.5352612886859462,
+          "point_difference": 0.06305718634485757,
+          "bootstrap_95_ci": [
+            0.051967819091106766,
+            0.0745995506269479
+          ],
+          "ci_crosses_zero": false
+        },
+        "foot_sliding": {
+          "first_mean": 0.33336322153742476,
+          "second_mean": 0.36902856944494955,
+          "point_difference": -0.035665347907524785,
+          "bootstrap_95_ci": [
+            -0.050464023837886916,
+            -0.020870966500357066
+          ],
+          "ci_crosses_zero": false
+        }
+      },
+      "a-old_minus_b-old": {
+        "contact_recall": {
+          "first_mean": 0.6487675262892725,
+          "second_mean": 0.6402896585198595,
+          "point_difference": 0.008477867769412957,
+          "bootstrap_95_ci": [
+            -0.004590289759655722,
+            0.021303143847280957
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_precision": {
+          "first_mean": 0.7811482848207001,
+          "second_mean": 0.7891622801322768,
+          "point_difference": -0.008013995311576802,
+          "bootstrap_95_ci": [
+            -0.01626381660138543,
+            -0.00045280946286696457
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_f1": {
+          "first_mean": 0.6684232551233018,
+          "second_mean": 0.6655217029992588,
+          "point_difference": 0.002901552124042815,
+          "bootstrap_95_ci": [
+            -0.007891373684217735,
+            0.013704216887105028
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_percent": {
+          "first_mean": 0.5352612886859462,
+          "second_mean": 0.522939769515112,
+          "point_difference": 0.01232151917083424,
+          "bootstrap_95_ci": [
+            0.001920254403131115,
+            0.022667971298108287
+          ],
+          "ci_crosses_zero": false
+        },
+        "foot_sliding": {
+          "first_mean": 0.36902856944494955,
+          "second_mean": 0.35058705815607866,
+          "point_difference": 0.018441511288870897,
+          "bootstrap_95_ci": [
+            0.004611272411213662,
+            0.03190811350111346
+          ],
+          "ci_crosses_zero": false
+        }
+      },
+      "a0-new_minus_a-new": {
+        "contact_recall": {
+          "first_mean": 0.7359999213100944,
+          "second_mean": 0.6524531291216711,
+          "point_difference": 0.08354679218842334,
+          "bootstrap_95_ci": [
+            0.06870503449477815,
+            0.09876399800105179
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_precision": {
+          "first_mean": 0.7891631614210691,
+          "second_mean": 0.7812232178979466,
+          "point_difference": 0.007939943523122479,
+          "bootstrap_95_ci": [
+            9.901100565597806e-05,
+            0.016682740147299473
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_f1": {
+          "first_mean": 0.7319420175299534,
+          "second_mean": 0.670726365823957,
+          "point_difference": 0.06121565170599646,
+          "bootstrap_95_ci": [
+            0.049146243375790384,
+            0.07365253000083329
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_percent": {
+          "first_mean": 0.6105131550337031,
+          "second_mean": 0.5406247735014859,
+          "point_difference": 0.06988838153221714,
+          "bootstrap_95_ci": [
+            0.05818293831992461,
+            0.08215554105965066
+          ],
+          "ci_crosses_zero": false
+        },
+        "foot_sliding": {
+          "first_mean": 0.3242121506967276,
+          "second_mean": 0.373841907326067,
+          "point_difference": -0.049629756629339376,
+          "bootstrap_95_ci": [
+            -0.06497099646468649,
+            -0.03442770993227898
+          ],
+          "ci_crosses_zero": false
+        }
+      },
+      "a-new_minus_b-new": {
+        "contact_recall": {
+          "first_mean": 0.6524531291216711,
+          "second_mean": 0.6392796890768119,
+          "point_difference": 0.013173440044859206,
+          "bootstrap_95_ci": [
+            0.00027052086058720616,
+            0.025913878186163152
+          ],
+          "ci_crosses_zero": false
+        },
+        "contact_precision": {
+          "first_mean": 0.7812232178979466,
+          "second_mean": 0.7850976476921129,
+          "point_difference": -0.003874429794166277,
+          "bootstrap_95_ci": [
+            -0.015357731712921579,
+            0.00789968266742056
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_f1": {
+          "first_mean": 0.670726365823957,
+          "second_mean": 0.6678750639048819,
+          "point_difference": 0.0028513019190748523,
+          "bootstrap_95_ci": [
+            -0.006968973453216896,
+            0.012659229113608431
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_percent": {
+          "first_mean": 0.5406247735014859,
+          "second_mean": 0.525222874537943,
+          "point_difference": 0.015401898963542802,
+          "bootstrap_95_ci": [
+            0.005526563745741829,
+            0.025440313111545987
+          ],
+          "ci_crosses_zero": false
+        },
+        "foot_sliding": {
+          "first_mean": 0.373841907326067,
+          "second_mean": 0.3585514860657366,
+          "point_difference": 0.015290421260330426,
+          "bootstrap_95_ci": [
+            0.0018083176015635076,
+            0.02909213940782291
+          ],
+          "ci_crosses_zero": false
+        }
+      },
+      "a0-old_minus_a0-new": {
+        "contact_recall": {
+          "first_mean": 0.7275875037410999,
+          "second_mean": 0.7359999213100944,
+          "point_difference": -0.008412417568994407,
+          "bootstrap_95_ci": [
+            -0.018997176274552153,
+            0.0021995748129244436
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_precision": {
+          "first_mean": 0.790809602353939,
+          "second_mean": 0.7891631614210691,
+          "point_difference": 0.0016464409328698956,
+          "bootstrap_95_ci": [
+            -0.006196629146916449,
+            0.008643789371595333
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_f1": {
+          "first_mean": 0.7272576950146546,
+          "second_mean": 0.7319420175299534,
+          "point_difference": -0.0046843225152987285,
+          "bootstrap_95_ci": [
+            -0.012968088700993925,
+            0.003510623752109049
+          ],
+          "ci_crosses_zero": true
+        },
+        "contact_percent": {
+          "first_mean": 0.5983184750308039,
+          "second_mean": 0.6105131550337031,
+          "point_difference": -0.012194680002899179,
+          "bootstrap_95_ci": [
+            -0.021327100094223384,
+            -0.003134286439080964
+          ],
+          "ci_crosses_zero": false
+        },
+        "foot_sliding": {
+          "first_mean": 0.33336322153742476,
+          "second_mean": 0.3242121506967276,
+          "point_difference": 0.009151070840697136,
+          "bootstrap_95_ci": [
+            -0.0025999558794912005,
+            0.02103097582020441
+          ],
+          "ci_crosses_zero": true
+        }
+      }
+    }
+  },
+  "decomposition": {
+    "reference_points": {
+      "released_guided": {
+        "run": "a0-old",
+        "contact_recall": 0.7275875037410999,
+        "contact_f1": 0.7272576950146546
+      },
+      "released_unguided_16_step": {
+        "run": "a-old",
+        "contact_recall": 0.6487675262892725,
+        "contact_f1": 0.6684232551233018
+      },
+      "released_unguided_1_step": {
+        "run": "b-old",
+        "contact_recall": 0.6402896585198595,
+        "contact_f1": 0.6655217029992588
+      },
+      "d2x_control": {
+        "run": "d2x",
+        "contact_recall": 0.5944546940443982,
+        "contact_f1": 0.6374259391059788
+      }
+    },
+    "contact_recall": {
+      "gap": 0.13313280969670171,
+      "guidance": 0.07881997745182746,
+      "iteration": 0.008477867769412957,
+      "model": 0.045834964475461315,
+      "share_guidance": 0.5920402163177676,
+      "share_iteration": 0.06367977802561911,
+      "share_model": 0.3442800056566135,
+      "sum": 1.0000000000000002
+    },
+    "contact_f1": {
+      "gap": 0.08983175590867587,
+      "guidance": 0.05883443989135291,
+      "iteration": 0.002901552124042815,
+      "model": 0.028095763893280057,
+      "share_guidance": 0.6549403303567256,
+      "share_iteration": 0.032299848697075126,
+      "share_model": 0.3127598209461983,
+      "sum": 0.9999999999999991
+    },
+    "iteration_effect_on_contact_f1_null": {
+      "old_rollout_ci": [
+        -0.007891373684217735,
+        0.013704216887105028
+      ],
+      "head_rollout_ci": [
+        -0.006968973453216896,
+        0.012659229113608431
+      ],
+      "both_cross_zero": true
+    },
+    "rollout_rewrite_null_on_contact_quality": {
+      "contrast": "a0-old_minus_a0-new",
+      "contact_recall_ci": [
+        -0.018997176274552153,
+        0.0021995748129244436
+      ],
+      "contact_precision_ci": [
+        -0.006196629146916449,
+        0.008643789371595333
+      ],
+      "contact_f1_ci": [
+        -0.012968088700993925,
+        0.003510623752109049
+      ],
+      "all_three_cross_zero": true,
+      "contact_percent_ci": [
+        -0.021327100094223384,
+        -0.003134286439080964
+      ],
+      "contact_percent_crosses_zero": false,
+      "note": "predicted contact_percent is the one contact-family quantity the rewrite moves significantly; contact precision, recall and F1 are all null"
+    },
+    "guidance_improves_foot_sliding": {
+      "old_rollout": {
+        "first_mean": 0.33336322153742476,
+        "second_mean": 0.36902856944494955,
+        "point_difference": -0.035665347907524785,
+        "bootstrap_95_ci": [
+          -0.050464023837886916,
+          -0.020870966500357066
+        ],
+        "ci_crosses_zero": false
+      },
+      "head_rollout": {
+        "first_mean": 0.3242121506967276,
+        "second_mean": 0.373841907326067,
+        "point_difference": -0.049629756629339376,
+        "bootstrap_95_ci": [
+          -0.06497099646468649,
+          -0.03442770993227898
+        ],
+        "ci_crosses_zero": false
+      },
+      "direction": "guided foot sliding is lower, i.e. better",
+      "contradicts_d2q0_ratio_1_5350": true,
+      "explanation": "code/priors/contact_guidance.py (D2-Q0) and code/priors/routed_guidance.py (D2-R0) reference apply_feet_floor_contact_guidance zero times; both implemented only the author hand-object x10 term and omitted the feet-floor x500 term"
+    },
+    "protocol_matched_precision": {
+      "d2x": 0.7880618755952097,
+      "a-old": 0.7811482848207001,
+      "d2x_minus_a_old": 0.006913590774509593
+    }
+  },
+  "decision_rule": {
+    "preregistered": "g = (R_g - R_u) / (R_g - R_x) with R_g = A0-old contact recall, R_u = A-old contact recall, R_x = D2-X contact recall 0.59445",
+    "branches": {
+      "g_ge_0.5": "the gap is mainly inference-time guidance; past released-vs-D2 comparisons are unfair; enabling guidance for HOIPrior may be proposed later at equal budget but must report foot sliding, object translation MAE and pelvis goal",
+      "g_le_0.2": "guidance contributes little; adding guidance would be test-time optimization of the scored metric, so the lever is abandoned in favour of the stepwise object-occupancy requery measured by cell B",
+      "0.2_lt_g_lt_0.5": "insufficient on its own; must be re-argued with cell B and the rollout share"
+    },
+    "observed_g": 0.5920402163177676,
+    "branch_taken": "g_ge_0.5",
+    "consequence": "guidance for HOIPrior is not authorized by this sub-phase; it still requires a separate dated amendment and explicit user approval"
+  },
+  "gt_contact_distance": {
+    "definition": "per GT-contact frame, min over the two SMPL hand joints (22, 23) of the distance to the nearest vertex of the posed predicted object mesh; restricted to frames where either GT hand is within the 5 cm contact threshold, i.e. the mask at code/eval_metrics.py:271",
+    "source_expression": "the contact_dist / gt_contact_dist accumulator of code/eval_metrics.py:264-283, which compute_hand_object_interaction computes but never returns, so it has no published aggregate",
+    "measurement_caveat": "FROM a skeleton hand joint, not the hand mesh surface, and TO the nearest object mesh vertex, not the nearest surface point; both the prediction and the GT leg use the identical definition",
+    "unit": "cm",
+    "sequences_used": 397,
+    "sequences_with_zero_gt_contact": 41,
+    "gt_contact_frames_total": 36528,
+    "histogram_bins_cm": [
+      "[0,2)",
+      "[2,4)",
+      "[4,5)",
+      "[5,6)",
+      "[6,8)",
+      "[8,inf)"
+    ],
+    "ground_truth_reference": {
+      "mean_cm_frame_pooled": 1.6980626014160705,
+      "mean_cm_sequence_mean": 1.7654829495034734,
+      "median_cm_frame_pooled": 1.4928901568055153,
+      "note": "identical for all eight runs; it is the GT-vs-GT floor of the metric"
+    },
+    "per_run": {
+      "a0-old": {
+        "exp_name": "p0-hoi-protocol-decomp-a0-old-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 3.6835838169222925,
+        "mean_cm_sequence_mean": 3.6717328675343506,
+        "median_cm_frame_pooled": 1.8011956475675106,
+        "frac_below_5cm_frame_pooled": 0.8024802890932983,
+        "frac_below_5cm_pooled_native": 0.7275875037410999,
+        "published_contact_recall_aggregate": 0.7275875037410999,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": false,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.7272576950146546,
+        "published_foot_sliding": 0.33336322153742476,
+        "histogram_fractions": {
+          "[0,2)": 0.5333442838370565,
+          "[2,4)": 0.21348007008322384,
+          "[4,5)": 0.05565593517301796,
+          "[5,6)": 0.039339684625492775,
+          "[6,8)": 0.05294568550153307,
+          "[8,inf)": 0.10523434077967586
+        }
+      },
+      "a-old": {
+        "exp_name": "p0-hoi-protocol-decomp-a-old-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 4.535950476365646,
+        "mean_cm_sequence_mean": 4.497015893976825,
+        "median_cm_frame_pooled": 2.5681568309664726,
+        "frac_below_5cm_frame_pooled": 0.714575120455541,
+        "frac_below_5cm_pooled_native": 0.6487675262892725,
+        "published_contact_recall_aggregate": 0.6487675262892725,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": false,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.6684232551233018,
+        "published_foot_sliding": 0.36902856944494955,
+        "histogram_fractions": {
+          "[0,2)": 0.4231000876040298,
+          "[2,4)": 0.21460249671484888,
+          "[4,5)": 0.07687253613666228,
+          "[5,6)": 0.055792816469557596,
+          "[6,8)": 0.0748466929478756,
+          "[8,inf)": 0.15478537012702584
+        }
+      },
+      "b-old": {
+        "exp_name": "p0-hoi-protocol-decomp-b-old-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 4.708039065815861,
+        "mean_cm_sequence_mean": 4.64175559922962,
+        "median_cm_frame_pooled": 2.6154646649956703,
+        "frac_below_5cm_frame_pooled": 0.704664914586071,
+        "frac_below_5cm_pooled_native": 0.6402896585198595,
+        "published_contact_recall_aggregate": 0.6402896585198595,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": false,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.6655217029992588,
+        "published_foot_sliding": 0.35058705815607866,
+        "histogram_fractions": {
+          "[0,2)": 0.42285370127025845,
+          "[2,4)": 0.20833333333333334,
+          "[4,5)": 0.07347787998247919,
+          "[5,6)": 0.056203460359176526,
+          "[6,8)": 0.07859724047306176,
+          "[8,inf)": 0.16053438458169075
+        }
+      },
+      "a0-new": {
+        "exp_name": "p0-hoi-protocol-decomp-a0-new-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 3.5489202994735396,
+        "mean_cm_sequence_mean": 3.5398210848612925,
+        "median_cm_frame_pooled": 1.8245670944452286,
+        "frac_below_5cm_frame_pooled": 0.8119250985545335,
+        "frac_below_5cm_pooled_native": 0.7359999213100944,
+        "published_contact_recall_aggregate": 0.7359999213100944,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": true,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.7319420175299534,
+        "published_foot_sliding": 0.3242121506967276,
+        "histogram_fractions": {
+          "[0,2)": 0.53276938239159,
+          "[2,4)": 0.22396517739816033,
+          "[4,5)": 0.05519053876478318,
+          "[5,6)": 0.03594502847130968,
+          "[6,8)": 0.05100197109067017,
+          "[8,inf)": 0.10112790188348664
+        }
+      },
+      "a-new": {
+        "exp_name": "p0-hoi-protocol-decomp-a-new-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 4.463641570175059,
+        "mean_cm_sequence_mean": 4.420259487977786,
+        "median_cm_frame_pooled": 2.6437639258801937,
+        "frac_below_5cm_frame_pooled": 0.7188731931668857,
+        "frac_below_5cm_pooled_native": 0.6524531291216711,
+        "published_contact_recall_aggregate": 0.6524531291216711,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": true,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.670726365823957,
+        "published_foot_sliding": 0.373841907326067,
+        "histogram_fractions": {
+          "[0,2)": 0.41537998247919405,
+          "[2,4)": 0.22585413929040735,
+          "[4,5)": 0.07763907139728428,
+          "[5,6)": 0.054615637319316686,
+          "[6,8)": 0.07172579938677179,
+          "[8,inf)": 0.15478537012702584
+        }
+      },
+      "b-new": {
+        "exp_name": "p0-hoi-protocol-decomp-b-new-ps-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 4.603420329246785,
+        "mean_cm_sequence_mean": 4.54397120697617,
+        "median_cm_frame_pooled": 2.722232509404421,
+        "frac_below_5cm_frame_pooled": 0.7037067455102934,
+        "frac_below_5cm_pooled_native": 0.6392796890768119,
+        "published_contact_recall_aggregate": 0.6392796890768119,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": true,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.6678750639048819,
+        "published_foot_sliding": 0.3585514860657366,
+        "histogram_fractions": {
+          "[0,2)": 0.40845378887428824,
+          "[2,4)": 0.21692947875602278,
+          "[4,5)": 0.07832347787998248,
+          "[5,6)": 0.060501533070521245,
+          "[6,8)": 0.07618812965396408,
+          "[8,inf)": 0.1596035917652212
+        }
+      },
+      "d2x": {
+        "exp_name": "p1-hoi-d2x-distance-probe-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 5.388630899896188,
+        "mean_cm_sequence_mean": 5.330455997479882,
+        "median_cm_frame_pooled": 3.1835151836276054,
+        "frac_below_5cm_frame_pooled": 0.6572766097240473,
+        "frac_below_5cm_pooled_native": 0.5944546940443982,
+        "published_contact_recall_aggregate": 0.5944546940443982,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": true,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.6374259391059788,
+        "published_foot_sliding": 0.3630100213939385,
+        "histogram_fractions": {
+          "[0,2)": 0.3585742444152431,
+          "[2,4)": 0.21901007446342532,
+          "[4,5)": 0.07969229084537889,
+          "[5,6)": 0.05801029347349978,
+          "[6,8)": 0.086125711782742,
+          "[8,inf)": 0.1985873850197109
+        }
+      },
+      "d2ag": {
+        "exp_name": "p1-hoi-d2ag-distance-probe-s42-20260801",
+        "sequences_used": 397,
+        "sequences_with_zero_gt_contact": 41,
+        "gt_contact_frames_total": 36528,
+        "mean_cm_frame_pooled": 5.312926707457578,
+        "mean_cm_sequence_mean": 5.365574244434511,
+        "median_cm_frame_pooled": 3.1741194427013397,
+        "frac_below_5cm_frame_pooled": 0.6625054752518615,
+        "frac_below_5cm_pooled_native": 0.5984951273917594,
+        "published_contact_recall_aggregate": 0.5984951273917594,
+        "matches_aggregate_exactly": true,
+        "per_sequence_metrics_json_available": true,
+        "per_sequence_mismatches_vs_published": 0,
+        "published_contact_f1": 0.6500867274276584,
+        "published_foot_sliding": 0.40091825523376623,
+        "histogram_fractions": {
+          "[0,2)": 0.3520586946999562,
+          "[2,4)": 0.23023434077967586,
+          "[4,5)": 0.08021243977222953,
+          "[5,6)": 0.062226237406920716,
+          "[6,8)": 0.08842531756460797,
+          "[8,inf)": 0.18684296977660972
+        }
+      }
+    },
+    "paired": {
+      "d2x_minus_a-old": {
+        "unit": "cm",
+        "sequence_count": 397,
+        "first_mean_cm": 5.330455997479882,
+        "second_mean_cm": 4.497015893976825,
+        "point_difference_cm": 0.8334401035030574,
+        "bootstrap_95_ci_cm": [
+          0.4906032214897659,
+          1.1824323444360068
+        ],
+        "ci_crosses_zero": false
+      },
+      "d2ag_minus_a-old": {
+        "unit": "cm",
+        "sequence_count": 397,
+        "first_mean_cm": 5.365574244434511,
+        "second_mean_cm": 4.497015893976825,
+        "point_difference_cm": 0.8685583504576876,
+        "bootstrap_95_ci_cm": [
+          0.5023366592426239,
+          1.2660450454985894
+        ],
+        "ci_crosses_zero": false
+      },
+      "d2x_minus_a0-old": {
+        "unit": "cm",
+        "sequence_count": 397,
+        "first_mean_cm": 5.330455997479882,
+        "second_mean_cm": 3.6717328675343506,
+        "point_difference_cm": 1.6587231299455314,
+        "bootstrap_95_ci_cm": [
+          1.304956634588596,
+          2.0181939292234263
+        ],
+        "ci_crosses_zero": false
+      },
+      "d2ag_minus_d2x": {
+        "unit": "cm",
+        "sequence_count": 397,
+        "first_mean_cm": 5.365574244434511,
+        "second_mean_cm": 5.330455997479882,
+        "point_difference_cm": 0.035118246954630165,
+        "bootstrap_95_ci_cm": [
+          -0.3246782157407619,
+          0.4150064504835969
+        ],
+        "ci_crosses_zero": true
+      },
+      "d2x_minus_b-old": {
+        "unit": "cm",
+        "sequence_count": 397,
+        "first_mean_cm": 5.330455997479882,
+        "second_mean_cm": 4.64175559922962,
+        "point_difference_cm": 0.6887003982502619,
+        "bootstrap_95_ci_cm": [
+          0.3331475401535438,
+          1.0359752294319216
+        ],
+        "ci_crosses_zero": false
+      }
+    },
+    "bootstrap_seed": 42,
+    "bootstrap_replicates": 10000,
+    "convention_source": "tools/summarize_hoi_phase1b.py:112",
+    "interpretation": {
+      "guided_released_advantage_cm": 1.6587231299455314,
+      "protocol_matched_advantage_cm": 0.8334401035030574,
+      "share_real_prior_quality": 0.5024588422604475,
+      "share_inference_time_guidance": 0.49754115773955254,
+      "statement": "HOIPrior's raw generative geometry is genuinely worse: protocol-matched, both unguided, D2-X sits 0.8334 cm further from the object with a paired 95% CI that excludes zero, so the 1.6587 cm guided advantage of the released model splits roughly half real prior quality and half inference-time guidance purchase",
+      "d2ag_vs_d2x": "+0.0351 cm with a CI that crosses zero: D2-AG is geometrically indistinguishable from D2-X despite its higher contact F1, so its F1 gain came from the operating point, not from putting hands nearer objects"
+    }
+  },
+  "failure_profile": {
+    "question": "are failed GT-contact frames near misses or gross misses",
+    "conditioning": "fractions are conditional on a frame failing the 5 cm contact threshold",
+    "per_run": {
+      "d2x": {
+        "failed_frame_fraction": 0.34272339027595267,
+        "ge8_of_failed": 0.5794392523364487,
+        "b5_6_of_failed": 0.16926272066458983,
+        "b6_8_of_failed": 0.2512980269989616,
+        "check_sum": 1.0
+      },
+      "d2ag": {
+        "failed_frame_fraction": 0.33749452474813846,
+        "ge8_of_failed": 0.5536177806619078,
+        "b5_6_of_failed": 0.18437702790395843,
+        "b6_8_of_failed": 0.26200519143413364,
+        "check_sum": 0.9999999999999999
+      }
+    },
+    "conclusion": "the failure mode is gross misses, not near misses: 57.94% of D2-X's failed GT-contact frames are at >=8 cm against 16.93% in [5,6) cm",
+    "contradicts": "this is evidence AGAINST the earlier 'the model knows when to make contact and misses by a few cm' framing in its literal form"
+  },
+  "recall_scoring_artifact": {
+    "finding": "41 of the 438 official sequences contain no GT-contact frame; code/eval_metrics.py:316-320 scores contact_recall 0 when TP+FN == 0, and the aggregate is an unweighted mean over all 438 sequences",
+    "sequences_total": 438,
+    "sequences_without_gt_contact": 41,
+    "sequences_scored": 397,
+    "constant_factor": 0.906392694063927,
+    "affects": "every contact_recall value in this project, absolute values and differences alike",
+    "true_difference_multiplier": 1.1032745591939546,
+    "shares_and_rankings_affected": false,
+    "evaluator_changed": false
+  },
+  "errata": [
+    {
+      "id": 1,
+      "subject": "registered contact-F1 minimum 0.6598838781 is a cross-protocol constant",
+      "detail": "it was defined as F1_X + 0.25 * (F1_released - F1_X) with the guided released row. The F1 gap 0.08983 decomposes into guidance 0.05883 (65.5%), iteration 0.00290 (3.2%) and genuine model difference 0.02810 (31.3%); the protocol-aligned 25% closure threshold is about 0.64445",
+      "registered_threshold": 0.6598838781,
+      "recomputed_cross_protocol_threshold": 0.6598838780831477,
+      "protocol_aligned_threshold": 0.6444498800792988
+    },
+    {
+      "id": 2,
+      "subject": "protocol-aligned gap closure",
+      "detail": "recomputed against the unguided one-step released row, D2-AG reaches 0.451 (recorded 0.1409) and D2-AC 0.376 (recorded 0.1176), both above 0.25, while D2-AE 0.161 and D2-AF 0.129 still fail and D2-AD is negative under both conventions. No run's overall decision changes: D2-AG still fails on its paired F1 CI lower bound -0.0082 and its foot-sliding ratio CI upper bound 1.184. What changes is the recorded set of failure reasons",
+      "gap_closure": {
+        "D2-AG": {
+          "cross_protocol": 0.1409388939758756,
+          "protocol_aligned": 0.45062979493174815
+        },
+        "D2-AC": {
+          "cross_protocol": 0.11759630950227098,
+          "protocol_aligned": 0.37599557752176926
+        },
+        "D2-AD": {
+          "cross_protocol": -0.5627596484294947,
+          "protocol_aligned": -1.7993348593402025
+        },
+        "D2-AE": {
+          "cross_protocol": 0.050293061856389105,
+          "protocol_aligned": 0.16080410106463336
+        },
+        "D2-AF": {
+          "cross_protocol": 0.040398463734960754,
+          "protocol_aligned": 0.1291676904429172
+        }
+      },
+      "decisions_changed": false
+    },
+    {
+      "id": 3,
+      "subject": "released_95_percent_effectiveness contains a protocol component",
+      "detail": "for D2-AG the contact-F1 ratio 0.894 fails against the guided released row but is 0.973 and passes against the protocol-matched unguided row; recall moves 0.823 -> 0.923 and foot sliding 1.203 -> 1.086, both still failing. '11 checks, 6 passed' is therefore not a pure model statement",
+      "ratios": {
+        "contact_f1": {
+          "vs_a0_old": 0.8938877262956411,
+          "vs_a_old": 0.9725674899023958
+        },
+        "contact_recall": {
+          "vs_a0_old": 0.8225747752874052,
+          "vs_a_old": 0.9225109197665087
+        },
+        "foot_sliding": {
+          "vs_a0_old": 1.202646930830543,
+          "vs_a_old": 1.0864152220972525
+        },
+        "contact_precision": {
+          "vs_a0_old": 1.0257793825940194,
+          "vs_a_old": 1.0384663212033327
+        }
+      },
+      "protocol_matched_reference_run": "a-old"
+    },
+    {
+      "id": 4,
+      "subject": "experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json .local_protocol.native_quality is false for the released row it contains",
+      "detail": "that field declares sample_type diffusion, diffusion_steps 500, guidance false, cfg false, scene false, while the table includes the released row, which was produced with the consistency sampler at cm_timesteps 16, guidance_weight 1, CFG w 1 and scene/object-voxel conditioning. The file is hash-bound by three registry rows and four documents, so per existing precedent it is not edited in place; the fact is registered here",
+      "artifact_edited": false
+    }
+  ],
+  "conclusion": "The released InfBaGel row was never a protocol-matched comparison for the D2-* HOIPrior rows. Of the 0.13313 contact-recall difference between the released row and D2-X, inference-time guidance accounts for 59.20%, the 16-vs-1 iteration count for 6.37% and the genuine model difference for 34.43%; of the 0.08983 contact-F1 difference, guidance accounts for 65.49%, iteration for 3.23% and the model for 31.28%. Iteration count is a null effect on contact F1 under both rollouts and the rollout rewrite is a null effect on contact precision, recall and F1. Guidance also improves foot sliding, opposite to the D2-Q0 measurement, because the two local guidance implementations omitted the feet-floor term. HOIPrior is nevertheless genuinely geometrically worse: protocol-matched and both unguided, D2-X sits 0.8334 cm [0.4906, 1.1824] further from the object at GT-contact frames, so the released model's 1.6587 cm guided advantage is about half prior quality and half inference-time purchase. D2-AG is geometrically indistinguishable from D2-X (+0.0351 cm, CI crosses zero) despite a higher contact F1. The residual failure mode is gross misses, not near misses: 57.94% of D2-X's failed GT-contact frames are at >=8 cm against 16.93% in [5,6) cm.",
+  "next_action": "Treat every released-minus-D2 gap, gap-closure fraction and released-95% ratio already recorded in this repository as a cross-protocol quantity that overstates the model deficit, and cite this compact result and docs/phase_summaries/PHASE_1B_PROTOCOL_DECOMP.md when reusing them. This sub-phase authorizes no training, no checkpoint selection, no change to the native D2 protocol and no production guidance or stepwise object requery for HOIPrior; each of those still needs a separate dated plan amendment and explicit user approval. Phase 1B HOIPrior search remains closed and the next session entry point is unchanged: a dated Phase 1C HSIPrior plan-only preregistration."
+}

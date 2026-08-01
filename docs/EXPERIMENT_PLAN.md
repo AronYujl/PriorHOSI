@@ -7432,6 +7432,119 @@ hash 或 basename 不匹配）；并以 mutation testing 证伪其非空洞—�
 `processed_windows` 判定分别改为恒真后，对应否定测试确实失败。D2-AG 三个测试文件共
 121 tests OK，`tools/experiment.py validate` 通过（234 registry records）。
 
+#### 2026-08-01 Phase 1B 基线协议分解 P1（released baseline 协议归因，用户批准）
+
+动机：`results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml` 记录该行
+实际以 `sample_type: consistency`(:29)、`cm_timesteps: 16`(:142)、`guidance_weight: 1`(:26)、
+`w: 1`(:9，CFG 开启)、`load_scene: true` + `add_object_voxel: true`(:17,23) 产生，执行 commit
+为 `c358fa4`。而全部 D2-* native 行为 500 步无引导 ancestral DDPM、无 CFG、`load_scene=false`。
+二者至少在采样器、步数、引导、CFG、逐步物体占据条件、模型架构六个轴上同时不同，因此
+released 与 D2 之间 0.1331 的 contact recall 差（0.72759 vs 0.59445）此前从未被归因。
+
+记录缺陷（本次一并更正）：`docs/HOIPRIOR_EVIDENCE_INDEX.md:11-13` 与
+`experiments/results/p1_hoi_phase1b_d2aa_integrated_table_s42_20260724.json` 的 protocol 字段
+将 released 行描述为 500 步 native 协议，与其 resolved_config 直接矛盾。
+
+代码轴：`code/test_infbagel_hoi.py` 的自回归 rollout 块在 `ffc548a`(2026-07-13) 后被重写，
+`object_points_batch` 与 `obj_bps_data` 的「每步重算 / 冻结」关系反转；released 行在重写前，
+全部 D2 行在重写后，故重写本身构成第七个未测量的轴。
+
+设计：released checkpoint 仅作基线（不用于任何初始化），官方 438 序列，2×3 共 6 次纯推理，
+不训练、不产生 checkpoint、不改动任何模型或训练代码。
+
+| commit | cm=16 gw=1 | cm=16 gw=0 | cm=1 gw=0 |
+| --- | --- | --- | --- |
+| `c358fa4`（已发表协议） | A0-old：复现闸门 | A-old：引导份额 | B-old：迭代＋逐步重查询份额 |
+| `HEAD`（D2 同 rollout） | A0-new：rollout 漂移份额 | A-new：引导份额稳健性 | B-new：纯 NFE 份额 |
+
+统计沿用既有协议：paired sequence-level bootstrap，seed 42，10000 replicates。
+`code/eval_metrics.py` 在 `c358fa4` 与 `HEAD` 之间逐字节相同（`git diff` 为空），
+`code/guidance_loss.py` 亦逐字节相同（`5747721b…`），故指标与引导公式不构成额外轴。
+
+闸门：A0-old 须复现 contact F1 `0.7272576950146546` 与 recall `0.72759`。期望逐位复现；
+若不复现，先诊断偏差来源，其余五格结果不得用于归因解释，只能作为 HEAD 协议内部比较。
+
+预注册判定规则（记 `R_g`=A0-old recall，`R_u`=A-old recall，`R_x`=D2-X 0.59445，
+引导份额 `g = (R_g − R_u) / (R_g − R_x)`）：
+
+- `g ≥ 0.5`：差距主要由推理期引导造成，过去的 released-vs-D2 比较不公平；后续可另行提议在
+  同等预算下为 HOIPrior 启用引导作为协议对齐，但必须同时报告 foot sliding、物体平移 MAE 与
+  pelvis goal 的代价（D2-Q0 曾测得 foot sliding 比值 1.5350）。
+- `g ≤ 0.2`：引导贡献小；为 HOIPrior 加引导属于对被测指标的测试期优化，明确放弃该杠杆，
+  转向 B 格所度量的逐步物体占据重查询。
+- `0.2 < g < 0.5`：不足以单独判定，须结合 B 格与 rollout 漂移份额再议。
+
+边界：本次不触及 `hoiprior_search_closed`，不改动 native D2 协议，不新增 checkpoint。是否为
+HOIPrior 启用 production guidance 或逐步重查询，取决于本次结果，仍需另一次带日期的修订与
+用户显式授权（沿用 D2-Q0 的 `next_action` 与本节上文 `不得自动采用 production guidance`）。
+
+流程精简（用户 2026-08-01 授权）：本次为纯推理基线测量，不分配训练 run、不走
+`tools/experiment.py start` manifest；可回溯性由「执行 commit + 完整命令行 + Hydra
+resolved_config + 官方 438 固定测试集 + 逐字节相同的指标代码」承担。
+
+结果（2026-08-01 执行完毕）。闸门以最强形式通过：A0-old 在 `c358fa4` 上逐位复现已发表行，
+sealed aggregate 的全部 18 个指标精确相等（其中非比值子集 16 项）；六次运行各自加
+`save_motion_params=true` 重跑一遍，108/108 指标逐位一致，证明管线完全确定性且跨 worktree
+稳定。配对序列级 bootstrap（seed 42，10000 replicates，
+n=438，沿用 `tools/summarize_hoi_phase1b.py:112` 约定，索引矩阵与仓库既有三处实现逐位相同）：
+
+| 对比 | contact recall | contact f1 | foot sliding（低者优） |
+| --- | --- | --- | --- |
+| 引导（A0-old − A-old） | +0.0788 [+0.0649, +0.0931] | +0.0588 [+0.0475, +0.0707] | −0.0357 [−0.0505, −0.0209] |
+| 引导（HEAD rollout 复现） | +0.0836 [+0.0687, +0.0988] | +0.0612 [+0.0491, +0.0737] | −0.0496 [−0.0650, −0.0344] |
+| 迭代 cm16→cm1 | +0.0085 [−0.0046, +0.0213] | +0.0029 [−0.0079, +0.0137] | +0.0184 [+0.0046, +0.0319] |
+| rollout 重写 | −0.0084 [−0.0190, +0.0022] | −0.0047 [−0.0130, +0.0035] | +0.0092 [−0.0026, +0.0210] |
+
+判定：`g = 0.5920 ≥ 0.5`，落入预注册的第一档。迭代次数对 contact F1 为零效应（两套 rollout
+下 CI 均跨零），rollout 重写在三项接触质量指标上均为零效应。引导**改善** foot sliding，
+与 D2-Q0 所测方向相反；已从源码确认 D2-Q0 的 `code/priors/contact_guidance.py` 与 D2-R0 的
+`code/priors/routed_guidance.py` 对 `apply_feet_floor_contact_guidance` 的引用次数均为 0，
+即二者只实现了作者损失的手-物 ×10 项，缺失脚-地 ×500 项。
+
+勘误（由本次分解直接导致，记录于此，不修改任何已封存哈希绑定件）：
+
+1. 登记门槛 `0.6598838781 = F1_X + 0.25·(F1_released − F1_X)` 是跨协议常量。F1 差距 0.08983
+   的分解为引导 0.05884（65.5%）、迭代 0.00290（3.2%）、真实模型差距 0.02809（31.3%）；
+   协议对齐后的 25% 闭合门槛应为 ≈ `0.64445`。
+2. 协议对齐后重算的 gap closure：D2-AG `0.451`（原记 0.1409）、D2-AC `0.376`（原记 0.1176）
+   均达到 ≥0.25；D2-AE `0.161`、D2-AF `0.129` 仍不达标，D2-AD 两种口径下均为负。
+   **各运行的总判定不变**——D2-AG 仍因 F1 配对 CI 下界 −0.0082 与 foot sliding 比值 CI 上界
+   1.184 而失败——变的是记录在案的失败理由集合。
+3. `released_95_percent_effectiveness` 含协议成分：D2-AG contact F1 项 0.894 不通过、协议对齐
+   后为 0.973 通过；recall 0.823→0.923、foot sliding 1.203→1.086 仍不通过。故「11 项通过 6 项」
+   不是一个纯模型陈述。
+4. `experiments/results/p1_hoi_phase1b_d2aa_table5_completion_s42_20260724.json` 的
+   `.local_protocol.native_quality` 声明 `sample_type: diffusion, diffusion_steps: 500,
+   guidance:false, cfg:false, scene:false`，而该表包含 released 行；该声明对 released 行为假。
+   该件被 registry ×3、docs ×4 哈希绑定，按既有先例不就地修改，在此登记事实。
+
+追加测量（同日，同为纯推理）：`p1-hoi-d2x-distance-probe-s42-20260801` 与
+`p1-hoi-d2ag-distance-probe-s42-20260801`，对已封存的 D2-X 与 D2-AG final-online checkpoint
+按原生协议（500 步无引导 diffusion，无 CFG，`load_scene=false`）重跑并开启
+`save_motion_params=true`，目的是取得 HOIPrior 自身的**绝对** GT-contact 帧手-物距离——
+该量此前从未入档，D2 各结果只存了消融对照的差值。两次探针均逐位复现其在 worker 上封存的
+aggregate（各 18/18 指标），因此本机单机评估与已退役的双机 worker 评估结果完全一致。
+
+距离定义与冻结指标内部一致：SMPL 手关节 22/23 到姿态化物体最近网格顶点，帧池化
+（GT×GT 参考实测 1.6981 cm，与在档的 1.70 同口径）。GT-contact 帧均值：released 有引导
+3.6836、released 无引导 4.5360（cm16）/ 4.7080（cm1）、D2-X 5.3886、D2-AG 5.3129 cm。
+配对 95% CI（n=397，正值表示 HOIPrior 离物体更远）：`D2-X − A-old` **+0.8334
+[+0.4906, +1.1824]**，`D2-AG − A-old` +0.8686 [+0.5023, +1.2660]，`D2-X − A0-old`
++1.6587 [+1.3050, +2.0182]，`D2-AG − D2-X` +0.0351 [−0.3247, +0.4150]（跨零）。
+
+由此得三条结论：其一，协议对齐后 HOIPrior 的原始生成几何确实更差 0.83 cm，released 在
+已发表行上的 1.66 cm 优势约各半来自真实先验质量与推理期引导；其二，**D2-AG 在几何上与
+D2-X 不可区分**，其较高的 contact F1 来自操作点移动而非把手放得更近（同期 foot sliding
+由 0.3630 恶化至 0.4009）；其三，失败模式是**大幅偏离而非临界漏检**——D2-X 漏检的
+GT-contact 帧中 57.9% 位于 ≥8 cm，仅 16.9% 位于 [5,6) cm。第三条否定了此前
+「模型知道何时接触、只差几厘米几何」的字面表述；该表述所依据的 `4.65 cm` 实为 D2-Q0
+带引导变体左手对 GT 几何距离的 p25，同分布中位数为 10.76 cm，不能作为中心趋势使用。
+
+附带发现（影响项目内每一个 recall 数字）：438 个序列中有 41 个不含任何 GT 接触帧，
+`code/eval_metrics.py:316-320` 在 `TP+FN==0` 时将 recall 记为 0，而聚合为 438 序列无权平均。
+因此所有 recall 被同一常数因子 `397/438 = 0.9064` 压低，绝对值与差值等比压缩（真实差值需
+乘 1.103），份额与排序不受影响。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

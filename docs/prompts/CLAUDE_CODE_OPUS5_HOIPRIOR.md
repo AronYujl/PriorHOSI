@@ -93,8 +93,11 @@ Do not start HSIPrior, Mixer, consistency distillation or another HOIPrior exper
 
 ## 3. Locked scientific background
 
-Released InfBaGel is a baseline only and cannot initialize any new prior. Its native
-metrics include:
+Released InfBaGel is a baseline only and cannot initialize any new prior. Its metrics
+below were produced at commit `c358fa4` with the consistency sampler
+(`cm_timesteps: 16`), inference guidance (`guidance_weight: 1`), CFG (`w: 1`) and
+scene/object-voxel conditioning, not with the 500-step unguided native protocol used by
+D2-X and every other D2-* row, so they are not protocol-matched to the D2 numbers:
 
 - end-object `3.03724 cm`;
 - FS `0.33336`;
@@ -172,7 +175,12 @@ your diagnosis. Then give me a concise but technically complete proposal contain
    controls. By default require statistically positive D2-X contact F1 and recall,
    at least 25% released-gap closure (`F1 >= approximately 0.6598838781`), and the
    existing end-object/Txy/FS/Pbody/penetration/MPJPE/Troot/Tobj/Oobj protection rules.
-   If you propose different gates, justify them before approval.
+   If you propose different gates, justify them before approval. Note that the
+   released-gap denominator and the released-95% floor are cross-protocol: per the
+   2026-08-01 decomposition, 59.2% of the released--D2-X contact-recall difference is
+   inference-time guidance, and the released F1 falls from `0.72726` to `0.66842` with
+   guidance off, so a protocol-matched 25% closure would be about `0.64445`, not
+   `0.6598838781`. Do not silently reinterpret the constant; changing it needs approval.
 8. **Compute contract.** Estimate added parameters, memory and throughput. Use the
    sealed D2-X `3243.036 windows/s` profile; default performance floor is 85% of D2-X
    (`2756.58 windows/s`) when the runtime path changes.

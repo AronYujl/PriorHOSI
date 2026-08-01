@@ -41,6 +41,10 @@ sample-count reporting omission。
 
 Table-5-aligned native/embedding point estimates如下。`↓` 越低越好，`↑` 越高越好。本地固定
 evaluator 只定义 R-Precision@1/2/3，不能 post-hoc 映射为论文未进一步定义的单一 `Rprec`。
+`Released baseline` 行不是上文 Native 协议（500-step unguided diffusion）的结果：按
+`results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml`，它在 commit
+`c358fa4` 以 consistency sampler（`cm_timesteps: 16`）、`guidance_weight: 1`、CFG `w: 1` 与
+scene/object-voxel 条件产生，与 D2-V/X/Y/Z 行同评估器同序列，但不是同协议比较。
 
 | Row | Te↓ | Txy↓ | FS↓ | FID↓ | Cprec↑ | Crec↑ | Cf1↑ | C%↑ |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -152,6 +156,11 @@ diffusion→consistency 训练代码所得 CM e200，以及 D2-V/X/Y/Z 放入一
 | D2-X / autonomous local | 3.8691 | 12.0508 | 8.1701 | 15.9940 | 1.0309 | 18.1699 |
 | D2-Y / autonomous local | 3.4353 | 12.1246 | 8.3380 | 16.3290 | 1.0266 | 18.0095 |
 | D2-Z / autonomous local | 3.4479 | 12.2655 | 8.2608 | 16.3945 | 1.0158 | 18.0700 |
+
+`Released checkpoint / local` 与 `Author-code CM e200` 一样是 16-step consistency 评估，
+且额外开启 `guidance_weight: 1`、CFG `w: 1` 与 scene/object-voxel 条件（commit `c358fa4`，
+见 `results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml`），
+因此它与 `D2-* / autonomous local` 行不构成同协议比较。
 
 `Author-code CM e200` 是 seed-42、8×RTX 3090、FP32、effective batch 2048 的历史作者代码
 复现，最终评估为 official 438 × 3 windows、16-step consistency；但它是完整

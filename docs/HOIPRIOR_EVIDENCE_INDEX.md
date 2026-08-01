@@ -8,12 +8,21 @@ protocols, confidence intervals and hashes.
 
 ## 1. Locked comparison points
 
-All values are from the unchanged official 438-sequence, three-window, 500-step
-native protocol unless stated otherwise.
+All D2-* values are from the unchanged official 438-sequence, three-window, 500-step
+unguided native protocol. The released InfBaGel row is measured on the same 438
+sequences with a byte-identical `code/eval_metrics.py`, but **not** under that protocol:
+per `results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml` it was
+produced at commit `c358fa4` with the consistency sampler (`sample_type: consistency`,
+`cm_timesteps: 16`), inference guidance (`guidance_weight: 1`), CFG (`w: 1`) and
+scene/object-voxel conditioning (`load_scene: true`, `add_object_voxel: true`); the
+autoregressive rollout block of `code/test_infbagel_hoi.py` was also rewritten after
+`ffc548a` (2026-07-13), so the released row predates the rollout used by every D2-* row.
+Do not read the released row against the D2-* rows as a protocol-matched comparison.
 
 | model | end-object cm | FS | contact P/R/F1 | hand penetration | MPJPE cm | status |
 |---|---:|---:|---:|---:|---:|---|
-| released InfBaGel | 3.0372 | 0.33336 | 0.79081 / 0.72759 / 0.72726 | 0.16240 | 11.9976 | baseline only |
+| released InfBaGel | 3.0372 | 0.33336 | 0.79081 / 0.72759 / 0.72726 | 0.16240 | 11.9976 | baseline only; guided 16-step consistency, not the D2 protocol |
+| released InfBaGel, guidance off | 3.1251 | 0.36903 | 0.78115 / 0.64877 / 0.66842 | 0.18591 | 12.0328 | 2026-08-01 A-old; same checkpoint at `cm_timesteps: 16` with `guidance_weight: 0`; the closest protocol-matched reference the released model has |
 | D2-V long budget | 3.6807 | 0.37828 | 0.78911 / 0.58529 / 0.62859 | 0.26405 | 12.1224 | strong but FS/penetration negative |
 | D2-X FK-foot routing | 3.7402 | 0.36301 | 0.78806 / 0.59445 / 0.63743 | 0.24536 | 12.0508 | sealed autonomous control |
 | D2-AB no-slip objective | 3.6840 | 0.36606 | 0.78957 / 0.59533 / 0.63831 | 0.23832 | 12.0639 | mechanism/FS negative |
@@ -24,6 +33,17 @@ native protocol unless stated otherwise.
 
 Released InfBaGel is not a valid initializer. D2-X is the sealed autonomous-diffusion
 control; no D2 checkpoint is selectable as a new prior initializer.
+
+The 2026-08-01 protocol decomposition (`docs/EXPERIMENT_PLAN.md`, section
+"2026-08-01 Phase 1B 基线协议分解 P1") re-evaluated the released checkpoint on the same
+438 sequences with iteration count and inference guidance ablated. Of the `0.1331`
+contact-recall difference between the released row (`0.72759`) and D2-X (`0.59445`),
+inference-time guidance accounts for `0.0788` (59.2%), the 16-vs-1 iteration count for
+`0.0085` (6.4%), and the genuine model difference is `0.0458` (34.4%): released recall
+is `0.64877` with guidance off at `cm_timesteps=16` and `0.64029` at one unguided step,
+with contact F1 `0.66842` and `0.66552` and FS `0.36903` and `0.35059`. Every
+"released minus D2" gap, gap-closure fraction and released-95% ratio in this repository
+is therefore a cross-protocol quantity that overstates the model deficit.
 
 ## 2. Experiment map
 
@@ -104,6 +124,9 @@ control; no D2 checkpoint is selectable as a new prior initializer.
    the relation path to become unused.
 6. Contact precision is already close to the released model. The largest interaction
    gap is recall/coverage, while end-object, FS and penetration must remain protected.
+   The 2026-08-01 decomposition rescales this: against a protocol-matched unguided
+   released row, D2 precision is at or above it (`0.78806` vs `0.78115`) and the recall
+   gap is `0.0458`, not `0.1331`.
 7. Width, depth, token count, point count, adapter placement, LR, batch and longer
    budget sweeps have no positive evidence and are poor uses of the remaining budget.
 8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
@@ -133,6 +156,9 @@ sweep or several loosely coupled interventions.
 - D2-X/Y/Z/AA/AB/AC/AD/AE/AF summaries:
   `docs/phase_summaries/PHASE_1B_D2*.md`
 - Compact results: `experiments/results/p1_hoi_phase1b_*.json`
+- 2026-08-01 protocol decomposition:
+  `docs/phase_summaries/PHASE_1B_PROTOCOL_DECOMP.md` and
+  `experiments/results/p1_hoi_protocol_decomp_s42_20260801.json`
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,
