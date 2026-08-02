@@ -1,0 +1,988 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-d2ah-metric-geometry-weights-preflight-negative-s42-20260802",
+ "phase": "p1",
+ "subphase": "1B-D2-AH-preflight",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-02",
+ "classification": "metric-geometry-weight-restoration-preflight-negative-stop",
+ "formal_training_started": false,
+ "training_performed": false,
+ "optimizer_updates": 0,
+ "checkpoint_writes": 0,
+ "checkpoint_selected": false,
+ "produces_checkpoint": false,
+ "run_id_allocated": false,
+ "experiment_py_start_manifest": false,
+ "gpu_training_workload_executed": false,
+ "model_or_training_changed": false,
+ "d2ah_config_created": false,
+ "released_checkpoint_role": "baseline_only_forbidden_as_prior_initialization",
+ "released_or_prior_checkpoint_initialization": false,
+ "official_evaluator_changed": false,
+ "native_d2_protocol_changed": false,
+ "sealed_artifacts_modified": false,
+ "hoiprior_search_closed": true,
+ "consistency_started": false,
+ "hsiprior_started": false,
+ "mixer_started": false,
+ "design": {
+  "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-02 Phase 1B D2-AH 度量几何目标权重恢复（用户批准）' and its closure section '2026-08-02 Phase 1B D2-AH 前置诊断判负与方向中止（预注册中止规则生效）'",
+  "preregistration_row": "p1-hoi-d2ah-metric-geometry-weights-preregister-s42-20260802",
+  "preregistration_commit": "cc2420e10148a3fa0e8bcd1a14d11466c8f5ab23",
+  "question": "would restoring the author's fk_weight and object_surface_weight of 50.0 repair HOIPrior's measured reach-error failure mode at the 61,440,000-window formal budget?",
+  "preflight_purpose": "test whether D2-T's collapse at 6,144,000 windows was an undertraining artefact",
+  "inferential_limit": "the diagnostic confounds about seven factors and can only rule OUT the budget explanation; it can never isolate the two weights",
+  "declared_confounds": [
+   "the two loss weights",
+   "L1 versus smooth_l1/MSE reductions in the reconstruction sub-terms",
+   "budget, 60,384,668 versus 61,440,000 windows",
+   "use_random_frame_bps true at training time",
+   "add_object_voxel occupancy conditioning",
+   "training-time CFG dropout free_p 0.1",
+   "5.28 percent more training sequences, 4,304 versus 4,088"
+  ],
+  "d2t_reference": {
+   "mpjpe": 34.73673164844513,
+   "end_obj_trans_err": 38.556334376335144,
+   "contact_f1": 0.2763771110670828,
+   "foot_sliding": 0.17613753734908996,
+   "processed_windows": 6144000,
+   "note": "the same author weights at one tenth of the formal budget"
+  }
+ },
+ "execution": {
+  "worktree": "/data/yujinlun/InfBaGel-head-baseline",
+  "commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+  "branch_of_record": "phase/01b-hoi",
+  "tree_validity_evidence": "this worktree reproduces the sealed D2-X native aggregate bit-exactly on all 18 metrics via p1-hoi-d2x-distance-probe-s42-20260801; re-verified while writing this record",
+  "d2x_head_tree_reproduction_bit_exact": true,
+  "d2x_head_tree_reproduction_metrics_checked": 18,
+  "protocol": "official 438 sequences x 3 windows, sample_type=diffusion 500-step ancestral DDPM, load_scene=true, add_object_voxel=true, w=1, inference only",
+  "guidance_applied": false,
+  "guidance_note": "code/test_infbagel_hoi.py:384-389 routes sample_type=diffusion to p_sample_loop, which receives neither guidance_fn nor guidance_weight, so the config value guidance_weight: 1 is inert on this path",
+  "checkpoint_selection": "none; two fixed pre-existing cadences were evaluated",
+  "device_in_archived_overrides": "cuda:0",
+  "archived_hydra_overrides": "results/outputs/.hydra/overrides.yaml in the executing worktree retains the epoch500 invocation only; the epoch100 invocation differed only in ckpt_path, exp_name and hoi_output_dir",
+  "physical_gpu_index_recorded_in_an_artifact": false
+ },
+ "runs": {
+  "e100": {
+   "exp_name": "p1b-author-diffusion-e100-headtree-s42-20260802",
+   "role": "preregistered pre-flight diagnostic",
+   "reportable": false,
+   "run_id_allocated": false,
+   "experiment_py_start_manifest": false,
+   "checkpoint": {
+    "path": "results/p1b-author-diffusion-8x3090-full-r1-s42-20260717/checkpoints/p1b-author-diffusion-8x3090-full-r1-s42-20260717_epoch100.pth",
+    "sha256": "db0836f6c822f57b79e059208787aef98fbfd614667875825485aa81ae9806c1",
+    "role": "evaluation input only; never an initializer",
+    "used_for_initialization": false,
+    "produced_by_this_experiment": false,
+    "source": "the pre-existing non-reportable 2026-07-17 author-code diffusion reproduction"
+   },
+   "training_epochs": 101,
+   "windows_per_epoch": 597868,
+   "processed_windows": 60384668,
+   "budget_ratio_to_d2x": 0.9828233723958333,
+   "aggregate_metrics": {
+    "end_obj_trans_err": 5.417594686150551,
+    "xy_points_err": 5.762312188744545,
+    "feet_height": 0.046825360506772995,
+    "foot_sliding": 0.3218964883010742,
+    "contact_acc": 0.5901645285206929,
+    "contact_precision": 0.7483843021431347,
+    "contact_recall": 0.39044879443965747,
+    "contact_f1": 0.47098204963157875,
+    "contact_percent": 0.3191998260491411,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 14.914080500602722,
+    "trans_dist": 10.623491555452347,
+    "obj_trans_dist": 18.728927421609743,
+    "obj_rot_dist": 1.1247115792798534,
+    "hand_pen_loss_omomo": 0.11086799581904938,
+    "hand_pen_ratio": 0.07809348404407501,
+    "human_pen_loss_infbagel": 1.7777397162550679,
+    "human_pen_ratio": 0.08326756954193115
+   },
+   "aggregate_metric_count": 18,
+   "sample_count": 438,
+   "windows_per_sample": 3,
+   "generation_seconds": 1778.9418712072074,
+   "end_to_end_seconds": 1930.0668652867898,
+   "wall_minutes": 32.167781088113166,
+   "fps": 31.022936102206014,
+   "timing_cuda_synchronized": true,
+   "artifacts": {
+    "aggregate_metrics_sha256": "93ea5a0f998e4004219a11c9288a6ec899076023de5a711b022572dc864dbccc",
+    "per_sequence_metrics_sha256": "e1029c50fcfdf5d8cb6dad577224a905d6efa9ea77b4879b02973251f37f1ff8"
+   },
+   "delta_vs_sealed_d2x": {
+    "end_obj_trans_err": {
+     "value": 5.417594686150551,
+     "sealed_d2x": 3.7402085959911346,
+     "delta_minus_d2x": 1.6773860901594162,
+     "relative_percent_of_d2x": 44.84739412548508
+    },
+    "xy_points_err": {
+     "value": 5.762312188744545,
+     "sealed_d2x": 4.050519689917564,
+     "delta_minus_d2x": 1.7117924988269806,
+     "relative_percent_of_d2x": 42.261058576950624
+    },
+    "feet_height": {
+     "value": 0.046825360506772995,
+     "sealed_d2x": 0.049811847507953644,
+     "delta_minus_d2x": -0.002986487001180649,
+     "relative_percent_of_d2x": -5.995535501275646
+    },
+    "foot_sliding": {
+     "value": 0.3218964883010742,
+     "sealed_d2x": 0.3630100213939385,
+     "delta_minus_d2x": -0.04111353309286431,
+     "relative_percent_of_d2x": -11.325729503276687
+    },
+    "contact_acc": {
+     "value": 0.5901645285206929,
+     "sealed_d2x": 0.7316445604116837,
+     "delta_minus_d2x": -0.1414800318909908,
+     "relative_percent_of_d2x": -19.337262865917083
+    },
+    "contact_precision": {
+     "value": 0.7483843021431347,
+     "sealed_d2x": 0.7880618755952097,
+     "delta_minus_d2x": -0.03967757345207501,
+     "relative_percent_of_d2x": -5.034829710815184
+    },
+    "contact_recall": {
+     "value": 0.39044879443965747,
+     "sealed_d2x": 0.5944546940443982,
+     "delta_minus_d2x": -0.20400589960474075,
+     "relative_percent_of_d2x": -34.31815774164012
+    },
+    "contact_f1": {
+     "value": 0.47098204963157875,
+     "sealed_d2x": 0.6374259391059788,
+     "delta_minus_d2x": -0.16644388947440003,
+     "relative_percent_of_d2x": -26.11187892790271
+    },
+    "contact_percent": {
+     "value": 0.3191998260491411,
+     "sealed_d2x": 0.4765528738131478,
+     "delta_minus_d2x": -0.15735304776400671,
+     "relative_percent_of_d2x": -33.019011406844115
+    },
+    "gt_contact_percent": {
+     "value": 0.6618830180474017,
+     "sealed_d2x": 0.6618830180474017,
+     "delta_minus_d2x": 0.0,
+     "relative_percent_of_d2x": 0.0
+    },
+    "mpjpe": {
+     "value": 14.914080500602722,
+     "sealed_d2x": 12.050843983888626,
+     "delta_minus_d2x": 2.863236516714096,
+     "relative_percent_of_d2x": 23.759634765350043
+    },
+    "trans_dist": {
+     "value": 10.623491555452347,
+     "sealed_d2x": 8.170091360807419,
+     "delta_minus_d2x": 2.453400194644928,
+     "relative_percent_of_d2x": 30.029042348462404
+    },
+    "obj_trans_dist": {
+     "value": 18.728927421609743,
+     "sealed_d2x": 15.994049727002507,
+     "delta_minus_d2x": 2.7348776946072366,
+     "relative_percent_of_d2x": 17.099344701861124
+    },
+    "obj_rot_dist": {
+     "value": 1.1247115792798534,
+     "sealed_d2x": 1.0309440299298087,
+     "delta_minus_d2x": 0.09376754935004472,
+     "relative_percent_of_d2x": 9.09530940844857
+    },
+    "hand_pen_loss_omomo": {
+     "value": 0.11086799581904938,
+     "sealed_d2x": 0.24535650279805918,
+     "delta_minus_d2x": -0.1344885069790098,
+     "relative_percent_of_d2x": -54.81350828092811
+    },
+    "hand_pen_ratio": {
+     "value": 0.07809348404407501,
+     "sealed_d2x": 0.1438656598329544,
+     "delta_minus_d2x": -0.0657721757888794,
+     "relative_percent_of_d2x": -45.717773001040634
+    },
+    "human_pen_loss_infbagel": {
+     "value": 1.7777397162550679,
+     "sealed_d2x": 3.869084620991582,
+     "delta_minus_d2x": -2.0913449047365145,
+     "relative_percent_of_d2x": -54.05270521585381
+    },
+    "human_pen_ratio": {
+     "value": 0.08326756954193115,
+     "sealed_d2x": 0.1461896151304245,
+     "delta_minus_d2x": -0.06292204558849335,
+     "relative_percent_of_d2x": -43.0413921894225
+    }
+   }
+  },
+  "e500": {
+   "exp_name": "p1b-author-diffusion-e500-headtree-s42-20260802",
+   "role": "preregistered tree-effect control",
+   "reportable": false,
+   "run_id_allocated": false,
+   "experiment_py_start_manifest": false,
+   "checkpoint": {
+    "path": "results/p1b-author-diffusion-8x3090-full-r1-s42-20260717/checkpoints/p1b-author-diffusion-8x3090-full-r1-s42-20260717_epoch500.pth",
+    "sha256": "44a723d20a4bbf13de8c2db78c3c375472dba20be0530993c9e00ab780747aac",
+    "role": "evaluation input only; never an initializer",
+    "used_for_initialization": false,
+    "produced_by_this_experiment": false,
+    "source": "the pre-existing non-reportable 2026-07-17 author-code diffusion reproduction"
+   },
+   "training_epochs": 501,
+   "windows_per_epoch": 597868,
+   "processed_windows": 299531868,
+   "budget_ratio_to_d2x": 4.8751931640625,
+   "aggregate_metrics": {
+    "end_obj_trans_err": 3.6865830421447754,
+    "xy_points_err": 3.230709955096245,
+    "feet_height": 0.05692888796329498,
+    "foot_sliding": 0.3398194424098107,
+    "contact_acc": 0.7444553163731246,
+    "contact_precision": 0.7798652227503591,
+    "contact_recall": 0.6437276222176465,
+    "contact_f1": 0.6660397701081334,
+    "contact_percent": 0.5311118359063564,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.197429686784744,
+    "trans_dist": 8.03484097123146,
+    "obj_trans_dist": 16.2336773828048,
+    "obj_rot_dist": 1.0030185482850864,
+    "hand_pen_loss_omomo": 0.1936524578194683,
+    "hand_pen_ratio": 0.13759537041187286,
+    "human_pen_loss_infbagel": 3.066041445766398,
+    "human_pen_ratio": 0.14149785041809082
+   },
+   "aggregate_metric_count": 18,
+   "sample_count": 438,
+   "windows_per_sample": 3,
+   "generation_seconds": 1774.9310255190358,
+   "end_to_end_seconds": 1927.5519863255322,
+   "wall_minutes": 32.12586643875887,
+   "fps": 31.093039226051953,
+   "timing_cuda_synchronized": true,
+   "artifacts": {
+    "aggregate_metrics_sha256": "1f9118c72a36b309c9db7e799ee93592b16131cd9ef62e053d927e7ea16a4bb2",
+    "per_sequence_metrics_sha256": "cabac30cc93dab3543788f4bf963dbdf90c0d52b504e6250436f630a5bba09bf"
+   },
+   "delta_vs_sealed_d2x": {
+    "end_obj_trans_err": {
+     "value": 3.6865830421447754,
+     "sealed_d2x": 3.7402085959911346,
+     "delta_minus_d2x": -0.05362555384635925,
+     "relative_percent_of_d2x": -1.433758371226586
+    },
+    "xy_points_err": {
+     "value": 3.230709955096245,
+     "sealed_d2x": 4.050519689917564,
+     "delta_minus_d2x": -0.8198097348213196,
+     "relative_percent_of_d2x": -20.239618557143817
+    },
+    "feet_height": {
+     "value": 0.05692888796329498,
+     "sealed_d2x": 0.049811847507953644,
+     "delta_minus_d2x": 0.007117040455341339,
+     "relative_percent_of_d2x": 14.287846790274008
+    },
+    "foot_sliding": {
+     "value": 0.3398194424098107,
+     "sealed_d2x": 0.3630100213939385,
+     "delta_minus_d2x": -0.023190578984127797,
+     "relative_percent_of_d2x": -6.388412885979634
+    },
+    "contact_acc": {
+     "value": 0.7444553163731246,
+     "sealed_d2x": 0.7316445604116837,
+     "delta_minus_d2x": 0.012810755961440878,
+     "relative_percent_of_d2x": 1.7509534895239962
+    },
+    "contact_precision": {
+     "value": 0.7798652227503591,
+     "sealed_d2x": 0.7880618755952097,
+     "delta_minus_d2x": -0.008196652844850605,
+     "relative_percent_of_d2x": -1.0401026998875962
+    },
+    "contact_recall": {
+     "value": 0.6437276222176465,
+     "sealed_d2x": 0.5944546940443982,
+     "delta_minus_d2x": 0.04927292817324824,
+     "relative_percent_of_d2x": 8.28876088739711
+    },
+    "contact_f1": {
+     "value": 0.6660397701081334,
+     "sealed_d2x": 0.6374259391059788,
+     "delta_minus_d2x": 0.028613831002154644,
+     "relative_percent_of_d2x": 4.488965579638467
+    },
+    "contact_percent": {
+     "value": 0.5311118359063564,
+     "sealed_d2x": 0.4765528738131478,
+     "delta_minus_d2x": 0.05455896209320854,
+     "relative_percent_of_d2x": 11.448669201520884
+    },
+    "gt_contact_percent": {
+     "value": 0.6618830180474017,
+     "sealed_d2x": 0.6618830180474017,
+     "delta_minus_d2x": 0.0,
+     "relative_percent_of_d2x": 0.0
+    },
+    "mpjpe": {
+     "value": 12.197429686784744,
+     "sealed_d2x": 12.050843983888626,
+     "delta_minus_d2x": 0.14658570289611816,
+     "relative_percent_of_d2x": 1.2163936658054482
+    },
+    "trans_dist": {
+     "value": 8.03484097123146,
+     "sealed_d2x": 8.170091360807419,
+     "delta_minus_d2x": -0.13525038957595825,
+     "relative_percent_of_d2x": -1.6554330129619501
+    },
+    "obj_trans_dist": {
+     "value": 16.2336773828048,
+     "sealed_d2x": 15.994049727002507,
+     "delta_minus_d2x": 0.23962765580229295,
+     "relative_percent_of_d2x": 1.498230028619539
+    },
+    "obj_rot_dist": {
+     "value": 1.0030185482850864,
+     "sealed_d2x": 1.0309440299298087,
+     "delta_minus_d2x": -0.027925481644722305,
+     "relative_percent_of_d2x": -2.7087291680251155
+    },
+    "hand_pen_loss_omomo": {
+     "value": 0.1936524578194683,
+     "sealed_d2x": 0.24535650279805918,
+     "delta_minus_d2x": -0.05170404497859088,
+     "relative_percent_of_d2x": -21.073028181016227
+    },
+    "hand_pen_ratio": {
+     "value": 0.13759537041187286,
+     "sealed_d2x": 0.1438656598329544,
+     "delta_minus_d2x": -0.006270289421081543,
+     "relative_percent_of_d2x": -4.358433714037189
+    },
+    "human_pen_loss_infbagel": {
+     "value": 3.066041445766398,
+     "sealed_d2x": 3.869084620991582,
+     "delta_minus_d2x": -0.8030431752251843,
+     "relative_percent_of_d2x": -20.75537895626014
+    },
+    "human_pen_ratio": {
+     "value": 0.14149785041809082,
+     "sealed_d2x": 0.1461896151304245,
+     "delta_minus_d2x": -0.004691764712333679,
+     "relative_percent_of_d2x": -3.209369357835627
+    }
+   }
+  }
+ },
+ "control": {
+  "name": "sealed D2-X native evaluation",
+  "run_id": "p1-hoi-d2x-native-eval-r1-s42-20260723",
+  "compact_result": "experiments/results/p1_hoi_phase1b_d2x_fk_foot_temporal_routing_r1_s42_20260723.json",
+  "reused_by_reference_not_recomputed": true,
+  "aggregate_metrics": {
+   "end_obj_trans_err": 3.7402085959911346,
+   "xy_points_err": 4.050519689917564,
+   "feet_height": 0.049811847507953644,
+   "foot_sliding": 0.3630100213939385,
+   "contact_acc": 0.7316445604116837,
+   "contact_precision": 0.7880618755952097,
+   "contact_recall": 0.5944546940443982,
+   "contact_f1": 0.6374259391059788,
+   "contact_percent": 0.4765528738131478,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 12.050843983888626,
+   "trans_dist": 8.170091360807419,
+   "obj_trans_dist": 15.994049727002507,
+   "obj_rot_dist": 1.0309440299298087,
+   "hand_pen_loss_omomo": 0.24535650279805918,
+   "hand_pen_ratio": 0.1438656598329544,
+   "human_pen_loss_infbagel": 3.869084620991582,
+   "human_pen_ratio": 0.1461896151304245
+  },
+  "head_tree_reproduction": {
+   "exp_name": "p1-hoi-d2x-distance-probe-s42-20260801",
+   "aggregate_metrics_sha256": "6301863f25d2c324da6da7c3622ebd2128a7766cc212fee8f36ab787b44b18d3",
+   "per_sequence_metrics_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+   "bit_exact_against_sealed_row": true
+  }
+ },
+ "abort_rule_evaluation": {
+  "rule": "formal D2-AH training starts only if the epoch100 row is better than the sealed D2-X control on BOTH xy_points_err and end_obj_trans_err",
+  "fixed_before_execution": true,
+  "source": "experiments/registry.jsonl p1-hoi-d2ah-metric-geometry-weights-preregister-s42-20260802, config.preflight_diagnostic.abort_rule; docs/EXPERIMENT_PLAN.md 2026-08-02 D2-AH section",
+  "gate_metrics": {
+   "xy_points_err": {
+    "e100": 5.762312188744545,
+    "sealed_d2x": 4.050519689917564,
+    "delta_minus_d2x": 1.7117924988269806,
+    "relative_percent_of_d2x": 42.261058576950624,
+    "direction": "lower is better",
+    "passed": false
+   },
+   "end_obj_trans_err": {
+    "e100": 5.417594686150551,
+    "sealed_d2x": 3.7402085959911346,
+    "delta_minus_d2x": 1.6773860901594162,
+    "relative_percent_of_d2x": 44.84739412548508,
+    "direction": "lower is better",
+    "passed": false
+   }
+  },
+  "both_gates_passed": false,
+  "outcome": "FAILED on both gates",
+  "formal_training_started": false
+ },
+ "tree_effect_control": {
+  "rule": "if epoch100 fails the abort rule, epoch500 is evaluated on this same head-baseline tree as a tree-effect control BEFORE the preflight is classified negative",
+  "fixed_before_execution": true,
+  "executed": true,
+  "comparison": "e500 on the head-baseline tree 5f7dde7 versus the previously recorded e500 row produced at the different tree 1e982bc on phase/01b-author-repro",
+  "recorded_row_source": "results/p1b-author-diffusion-e500-eval-r1-20260721/hoi.log:584-591, the untracked 2026-07-21 evaluation of the same epoch500 checkpoint",
+  "recorded_row_precision": "the historical log records four decimals only, so the tree deltas below inherit that precision",
+  "intervening_change": "the 2026-07-13/14 autoregressive rollout rewrite of code/test_infbagel_hoi.py; the protocol decomposition had verified it null only for three contact-quality metrics, never for xy_points_err, end_obj_trans_err or penetration",
+  "table": {
+   "xy_points_err": {
+    "e500_head_tree": 3.230709955096245,
+    "e500_recorded_tree_1e982bc": 3.2134,
+    "delta_head_minus_recorded": 0.017309955096244778,
+    "relative_percent_of_recorded": 0.5386803726969808
+   },
+   "end_obj_trans_err": {
+    "e500_head_tree": 3.6865830421447754,
+    "e500_recorded_tree_1e982bc": 3.3224,
+    "delta_head_minus_recorded": 0.36418304214477537,
+    "relative_percent_of_recorded": 10.961444803298079
+   },
+   "foot_sliding": {
+    "e500_head_tree": 0.3398194424098107,
+    "e500_recorded_tree_1e982bc": 0.3409,
+    "delta_head_minus_recorded": -0.0010805575901892683,
+    "relative_percent_of_recorded": -0.31697201237584877
+   },
+   "contact_precision": {
+    "e500_head_tree": 0.7798652227503591,
+    "e500_recorded_tree_1e982bc": 0.7811,
+    "delta_head_minus_recorded": -0.0012347772496409393,
+    "relative_percent_of_recorded": -0.15808183966725634
+   },
+   "contact_recall": {
+    "e500_head_tree": 0.6437276222176465,
+    "e500_recorded_tree_1e982bc": 0.6335,
+    "delta_head_minus_recorded": 0.010227622217646504,
+    "relative_percent_of_recorded": 1.6144628599284143
+   },
+   "contact_f1": {
+    "e500_head_tree": 0.6660397701081334,
+    "e500_recorded_tree_1e982bc": 0.6615,
+    "delta_head_minus_recorded": 0.004539770108133445,
+    "relative_percent_of_recorded": 0.6862842189166206
+   },
+   "mpjpe": {
+    "e500_head_tree": 12.197429686784744,
+    "e500_recorded_tree_1e982bc": 12.0874,
+    "delta_head_minus_recorded": 0.11002968678474367,
+    "relative_percent_of_recorded": 0.9102841536206601
+   },
+   "hand_pen_loss_omomo": {
+    "e500_head_tree": 0.1936524578194683,
+    "e500_recorded_tree_1e982bc": 0.1931,
+    "delta_head_minus_recorded": 0.000552457819468305,
+    "relative_percent_of_recorded": 0.2860993368556732
+   }
+  },
+  "verdict": "a real, metric-specific tree effect exists on end_obj_trans_err; it is load-bearing because end_obj_trans_err is a gate metric, and it does not change the negative verdict"
+ },
+ "paired_sequence_supplement": {
+  "status": "post hoc, not preregistered; the abort rule reads point estimates only, as preregistered",
+  "purpose": "quantify which diagnostic-minus-D2-X differences are statistically certified",
+  "method": "paired sequence-level percentile bootstrap of target minus the head-tree D2-X reproduction",
+  "convention_source": "tools/summarize_hoi_phase1b.py:112",
+  "bootstrap_seed": 42,
+  "bootstrap_replicates": 10000,
+  "paired_unit": "sequence",
+  "sequence_count": 438,
+  "penetration_sequence_count": 181,
+  "metrics_without_per_sequence_record": [
+   "xy_points_err",
+   "contact_percent",
+   "contact_acc",
+   "feet_height",
+   "gt_contact_percent"
+  ],
+  "caveat": "xy_points_err, one of the two gate metrics, has no per-sequence record and cannot be bootstrapped; its aggregate point estimate governs, as preregistered",
+  "aggregate_vs_paired_note": "aggregate deltas are window-weighted and paired means are sequence-weighted, so the two differ in the fourth decimal; e100 end_obj_trans_err reads aggregate +1.677386 and paired +1.675465",
+  "e100_minus_d2x": {
+   "end_obj_trans_err": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 1.6754650153929442,
+    "percentile_95_ci": [
+     1.340540876603157,
+     2.0159915181911
+    ],
+    "excludes_zero": true
+   },
+   "contact_f1": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.16644388947440011,
+    "percentile_95_ci": [
+     -0.19537859308807048,
+     -0.13814958886470685
+    ],
+    "excludes_zero": true
+   },
+   "contact_recall": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.2040058996047408,
+    "percentile_95_ci": [
+     -0.2352527326324962,
+     -0.17306063749009062
+    ],
+    "excludes_zero": true
+   },
+   "contact_precision": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.03967757345207484,
+    "percentile_95_ci": [
+     -0.06734579335362904,
+     -0.012877553191110927
+    ],
+    "excludes_zero": true
+   },
+   "mpjpe": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 2.863237376592747,
+    "percentile_95_ci": [
+     2.5152314093695383,
+     3.225070132308354
+    ],
+    "excludes_zero": true
+   },
+   "foot_sliding": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.04111353309286432,
+    "percentile_95_ci": [
+     -0.06700220426254717,
+     -0.014614777394937249
+    ],
+    "excludes_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.1344885069790098,
+    "percentile_95_ci": [
+     -0.20137524078182872,
+     -0.0740409340195125
+    ],
+    "excludes_zero": true
+   },
+   "hand_pen_ratio": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.0657721699385271,
+    "percentile_95_ci": [
+     -0.095412942212987,
+     -0.03914742057096206
+    ],
+    "excludes_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -2.091344904736514,
+    "percentile_95_ci": [
+     -3.146613372053971,
+     -1.139693645632769
+    ],
+    "excludes_zero": true
+   },
+   "human_pen_ratio": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.0629220428819979,
+    "percentile_95_ci": [
+     -0.09290192335205912,
+     -0.0359422838560515
+    ],
+    "excludes_zero": true
+   },
+   "obj_trans_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 2.7348776946072357,
+    "percentile_95_ci": [
+     2.1141192212876825,
+     3.3686781354205344
+    ],
+    "excludes_zero": true
+   },
+   "obj_rot_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 0.09376754935002807,
+    "percentile_95_ci": [
+     0.051504787752316525,
+     0.13694378800836712
+    ],
+    "excludes_zero": true
+   },
+   "trans_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 2.453399776612923,
+    "percentile_95_ci": [
+     2.151443787433683,
+     2.7583963369321265
+    ],
+    "excludes_zero": true
+   }
+  },
+  "e500_minus_d2x": {
+   "end_obj_trans_err": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.06786561823198299,
+    "percentile_95_ci": [
+     -0.37984670816984956,
+     0.25208958878860604
+    ],
+    "excludes_zero": false
+   },
+   "contact_f1": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 0.028613831002154436,
+    "percentile_95_ci": [
+     0.00694661863016687,
+     0.05094205847110418
+    ],
+    "excludes_zero": true
+   },
+   "contact_recall": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 0.049272928173248104,
+    "percentile_95_ci": [
+     0.024089697219959193,
+     0.07455480598484139
+    ],
+    "excludes_zero": true
+   },
+   "contact_precision": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.008196652844850645,
+    "percentile_95_ci": [
+     -0.028181356106700757,
+     0.012107842357797159
+    ],
+    "excludes_zero": false
+   },
+   "mpjpe": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 0.14658339542749266,
+    "percentile_95_ci": [
+     -0.13729092078155852,
+     0.4333805956677893
+    ],
+    "excludes_zero": false
+   },
+   "foot_sliding": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.023190578984127793,
+    "percentile_95_ci": [
+     -0.04734649894173625,
+     0.0009800144311244896
+    ],
+    "excludes_zero": false
+   },
+   "hand_pen_loss_omomo": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.051704044978590886,
+    "percentile_95_ci": [
+     -0.096814349501097,
+     -0.008181792355029034
+    ],
+    "excludes_zero": true
+   },
+   "hand_pen_ratio": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.006270281167814086,
+    "percentile_95_ci": [
+     -0.025520608185230324,
+     0.013106398559442203
+    ],
+    "excludes_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.8030431752251848,
+    "percentile_95_ci": [
+     -1.5152419928262122,
+     -0.12085781327450566
+    ],
+    "excludes_zero": true
+   },
+   "human_pen_ratio": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 181,
+    "mean": -0.004691749384101913,
+    "percentile_95_ci": [
+     -0.02430289166271062,
+     0.015133067004869827
+    ],
+    "excludes_zero": false
+   },
+   "obj_trans_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": 0.23962765580229628,
+    "percentile_95_ci": [
+     -0.38460270447097344,
+     0.8563972670886759
+    ],
+    "excludes_zero": false
+   },
+   "obj_rot_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.02792548164473279,
+    "percentile_95_ci": [
+     -0.06534957787954751,
+     0.010155713113490871
+    ],
+    "excludes_zero": false
+   },
+   "trans_dist": {
+    "paired_sequence_count": 438,
+    "finite_paired_values": 438,
+    "mean": -0.1352492154290959,
+    "percentile_95_ci": [
+     -0.3620139153495635,
+     0.09154083720752838
+    ],
+    "excludes_zero": false
+   }
+  }
+ },
+ "conclusions": {
+  "1_abort_rule_failed": {
+   "statement": "The epoch100 row is worse than the sealed D2-X control on both gate metrics, so the preregistered abort rule fired and formal D2-AH training was not started.",
+   "evidence": {
+    "xy_points_err": {
+     "e100": 5.762312188744545,
+     "d2x": 4.050519689917564,
+     "delta": 1.7117924988269806,
+     "relative_percent": 42.261058576950624
+    },
+    "end_obj_trans_err": {
+     "e100": 5.417594686150551,
+     "d2x": 3.7402085959911346,
+     "delta": 1.6773860901594162,
+     "relative_percent": 44.84739412548508
+    }
+   },
+   "consequence": "no run id allocated, no tools/experiment.py start, no GPU training workload, no checkpoint"
+  },
+  "2_tree_effect_is_real_metric_specific_and_does_not_rescue": {
+   "statement": "The preregistered tree-effect control found a real, metric-specific tree effect. It was load-bearing because it lands on one of the two gate metrics, and it still cannot rescue the epoch100 verdict.",
+   "agreement": {
+    "metrics_compared": 8,
+    "metrics_agreeing": 7,
+    "max_relative_percent_among_agreeing": 1.6144628599284143,
+    "largest_agreeing_metric": "contact_recall"
+   },
+   "discrepant_metric": {
+    "metric": "end_obj_trans_err",
+    "delta": 0.36418304214477537,
+    "relative_percent_of_recorded": 10.961444803298079,
+    "is_a_gate_metric": true
+   },
+   "cannot_rescue_xy_points_err": {
+    "tree_effect": 0.017309955096244778,
+    "tree_effect_relative_percent": 0.5386803726969808,
+    "e100_gate_shortfall_cm": 1.7117924988269806,
+    "shortfall_over_tree_effect_ratio": 98.89063774627219
+   },
+   "cannot_rescue_end_obj_trans_err": {
+    "full_tree_credit_applied": 0.36418304214477537,
+    "e100_corrected_value": 5.0534116440057755,
+    "sealed_d2x": 3.7402085959911346,
+    "still_worse": true,
+    "note": "crediting epoch100 the entire epoch500 tree correction is generous, because the correction was measured at a different budget, and it still leaves epoch100 far above D2-X"
+   },
+   "interpretation": "the failure must not be recorded as a tree artefact; the tree effect is real but an order of magnitude too small on xy_points_err and insufficient on end_obj_trans_err"
+  },
+  "3_quantified_answer_to_the_actual_question": {
+   "question": "within one tree, one recipe, one seed, with budget as the only variable, is the author's metric geometric objective weighting better than the balanced D2 weighting?",
+   "at_60384668_windows": {
+    "budget_ratio_to_d2x": 0.9828233723958333,
+    "verdict": "far worse than D2-X on every accuracy and contact metric",
+    "worse_metrics": [
+     "end_obj_trans_err",
+     "xy_points_err",
+     "contact_acc",
+     "contact_precision",
+     "contact_recall",
+     "contact_f1",
+     "mpjpe",
+     "trans_dist",
+     "obj_trans_dist",
+     "obj_rot_dist"
+    ],
+    "worse_metric_count": 10,
+    "nominally_better_metrics": [
+     "feet_height",
+     "foot_sliding",
+     "hand_pen_loss_omomo",
+     "hand_pen_ratio",
+     "human_pen_loss_infbagel",
+     "human_pen_ratio"
+    ],
+    "nominally_better_metrics_note": "all engagement-dependent; conclusion 4 classifies them as artefacts of a model that does not approach objects"
+   },
+   "at_299531868_windows": {
+    "budget_ratio_to_d2x": 4.8751931640625,
+    "beats_d2x_on": {
+     "xy_points_err": -0.8198097348213196,
+     "contact_f1": 0.028613831002154644,
+     "contact_recall": 0.04927292817324824,
+     "hand_pen_loss_omomo": -0.05170404497859088
+    },
+    "statistically_certified": {
+     "contact_f1": true,
+     "contact_recall": true,
+     "hand_pen_loss_omomo": true,
+     "xy_points_err": "not testable; no per-sequence record for this metric"
+    },
+    "contact_engagement": {
+     "e500_contact_percent": 0.5311118359063564,
+     "d2x_contact_percent": 0.4765528738131478,
+     "gt_contact_percent": 0.6618830180474017,
+     "e500_absolute_gap_to_gt": 0.13077118214104533,
+     "d2x_absolute_gap_to_gt": 0.18533014423425387,
+     "e500_closer_to_gt": true
+    }
+   },
+   "what_is_refuted": "the affordability of the remedy at the 61,440,000-window formal budget",
+   "what_is_not_refuted": "the dimensional diagnosis that fk_weight and object_surface_weight under-price metric hand and object error by about 135x and 52x effective; the author's objective weighting is genuinely better, but only at roughly five times our formal budget"
+  },
+  "4_e100_penetration_and_foot_sliding_are_engagement_artefacts": {
+   "statement": "A model whose hands do not approach objects cannot penetrate them. The epoch100 penetration and foot-sliding advantages are artefacts of contact under-engagement, not better geometry.",
+   "evidence": {
+    "e100_contact_percent": 0.3191998260491411,
+    "gt_contact_percent": 0.6618830180474017,
+    "d2x_contact_percent": 0.4765528738131478,
+    "e100_contact_percent_over_d2x": 0.6698098859315589,
+    "e100_contact_percent_over_gt": 0.4822601839684625,
+    "e100_contact_recall": 0.39044879443965747,
+    "d2x_contact_recall": 0.5944546940443982,
+    "e100_hand_pen_ratio": 0.07809348404407501,
+    "e100_hand_pen_ratio_over_d2x": 0.5428222699895936,
+    "e100_human_pen_ratio": 0.08326756954193115,
+    "e100_human_pen_ratio_over_d2x": 0.569586078105775,
+    "e100_hand_pen_loss_omomo": 0.11086799581904938,
+    "e100_human_pen_loss_infbagel": 1.7777397162550679,
+    "e100_foot_sliding": 0.3218964883010742,
+    "d2x_foot_sliding": 0.3630100213939385
+   },
+   "contrast_e500": {
+    "contact_percent": 0.5311118359063564,
+    "contact_percent_over_d2x": 1.1144866920152088,
+    "hand_pen_loss_omomo": 0.1936524578194683,
+    "hand_pen_ratio_over_d2x": 0.9564156628596281,
+    "reading": "epoch500 reaches higher engagement than D2-X and lower hand penetration at the same time, so there the penetration advantage is real"
+   }
+  },
+  "5_end_object_gap_is_not_attributable_to_the_diffusion_training_recipe": {
+   "status": "NEW finding; reprioritises the remaining gaps",
+   "statement": "On end_obj_trans_err the sealed D2-X control essentially matches the author's own from-scratch diffusion recipe at 4.88x our budget, so the end-object gap to the released checkpoint is not attributable to the diffusion training recipe at all.",
+   "evidence": {
+    "d2x": 3.7402085959911346,
+    "author_e500_head_tree": 3.6865830421447754,
+    "difference_d2x_minus_e500": 0.05362555384635925,
+    "relative_percent_of_d2x": 1.433758371226586,
+    "paired_e500_minus_d2x_mean": -0.06786561823198299,
+    "paired_percentile_95_ci": [
+     -0.37984670816984956,
+     0.25208958878860604
+    ],
+    "paired_ci_excludes_zero": false,
+    "released_checkpoint": 3.0372438952326775,
+    "released_source": "experiments/results/p0_hoi_table5_baseline_s42_20260712.json",
+    "in_house_cm_reproduction": 3.5553,
+    "in_house_cm_source": "docs/phase_summaries/PHASE_1B_D2AA.md:142, author-code CM e200 historical local row",
+    "residual_e500_head_minus_released": 0.6493391469120979,
+    "portion_consistent_with_consistency_distillation": 0.13128304214477549,
+    "portion_unexplained": 0.5180561047673224
+   },
+   "prior_standing_of_this_gap": {
+    "role": "one of the two PRIMARY gate metrics of the D2-AH preregistration, chosen because it was one of the two largest remaining genuine gaps against the released guided row",
+    "armb_minus_released_guided_point_cm": 0.8028442040085793,
+    "armb_minus_released_guided_percent": 26.4,
+    "source": "experiments/results/p1_hoi_p2_inference_contact_guidance_s42_20260801.json"
+   },
+   "redirection": "future effort on end_obj_trans_err should move away from diffusion-training changes; the in-house consistency reproduction accounts for only part of the residual to the released row and the rest is unexplained"
+  }
+ },
+ "governance": {
+  "formal_training_started": false,
+  "run_id_allocated": false,
+  "checkpoint_produced": false,
+  "statement": "No formal D2-AH training was started, no run id was allocated, tools/experiment.py start was never invoked, no GPU training workload ran, and no checkpoint was produced. The two evaluations recorded here are inference-only diagnostics on pre-existing non-reportable checkpoints, executed under the preregistration that mandated them.",
+  "code_changed": false,
+  "config_changed": false,
+  "d2ah_config_never_created": true,
+  "sealed_artifacts_edited_in_place": false,
+  "d2ag_waiver_inherited": false,
+  "intermediate_weight_sweep_authorized": false,
+  "d2ah1_authorized": false,
+  "longer_budget_authorized": false,
+  "second_formal_training_authorized": false,
+  "budget_note": "the 2026-08-02 authorization was exercised on the preregistered pre-flight, which returned negative; whether the unspent formal-training authorization survives is a user decision, not an agent decision"
+ },
+ "artifacts": {
+  "artifact_root": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/",
+  "artifacts_tracked_in_git": false,
+  "e100_aggregate_sha256": "93ea5a0f998e4004219a11c9288a6ec899076023de5a711b022572dc864dbccc",
+  "e100_per_sequence_sha256": "e1029c50fcfdf5d8cb6dad577224a905d6efa9ea77b4879b02973251f37f1ff8",
+  "e500_aggregate_sha256": "1f9118c72a36b309c9db7e799ee93592b16131cd9ef62e053d927e7ea16a4bb2",
+  "e500_per_sequence_sha256": "cabac30cc93dab3543788f4bf963dbdf90c0d52b504e6250436f630a5bba09bf",
+  "d2x_head_tree_aggregate_sha256": "6301863f25d2c324da6da7c3622ebd2128a7766cc212fee8f36ab787b44b18d3",
+  "d2x_head_tree_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+  "epoch100_checkpoint_sha256": "db0836f6c822f57b79e059208787aef98fbfd614667875825485aa81ae9806c1",
+  "epoch500_checkpoint_sha256": "44a723d20a4bbf13de8c2db78c3c375472dba20be0530993c9e00ab780747aac"
+ },
+ "conclusion": "The preregistered D2-AH pre-flight failed its fixed abort rule and the direction closes as a negative preflight. The author's metric geometric recipe at 60,384,668 processed windows, 98.3 percent of the D2-X budget, reads xy_points_err 5.7623 against D2-X 4.050520 (+42.3 percent) and end_obj_trans_err 5.4176 against 3.740209 (+44.8 percent), failing both gates. The preregistered tree-effect control then confirmed the failure rather than excusing it: seven of the eight comparable metrics reproduce the earlier epoch500 row within 1.61 percent relative, but end_obj_trans_err moves +0.3642 cm (+11.0 percent), a real metric-specific tree effect on one of the two gate metrics. Even crediting epoch100 that entire correction leaves it at 5.05 against D2-X 3.7402, while the xy_points_err tree effect of +0.0173 is about 99 times too small to cover a 1.7118 cm shortfall. What this refutes is the affordability of the remedy, not the dimensional diagnosis: at 299,531,868 windows, 4.88 times the formal budget, the same recipe beats D2-X on xy_points_err by 0.8198 cm, contact F1 by 0.0286, contact recall by 0.0493 and hand penetration by 0.0517, and its contact_percent 0.5311 sits closer to the ground truth 0.66188 than D2-X's 0.47655. The epoch100 penetration and foot-sliding advantages are engagement artefacts: its contact_percent is 0.3192 against a ground truth of 0.66188, and its penetration ratios fall to 0.543 and 0.570 of D2-X in proportion, whereas epoch500 raises engagement above D2-X and lowers hand penetration at the same time. Separately, and reprioritising the remaining work: on end_obj_trans_err D2-X (3.7402) is statistically indistinguishable from the author's own from-scratch recipe at 4.88x budget (3.6866, paired CI [-0.3798, 0.2521] crossing zero), so the gap to the released checkpoint (3.0372) is not attributable to the diffusion training recipe; the in-house consistency reproduction reads 3.5553, so distillation accounts for only part of the residual and the rest is unexplained. No formal training was started, no run id was allocated and no checkpoint was produced.",
+ "next_action": "Do not implement config_train_hoi_prior_d2ah.yaml, do not start D2-AH training, and do not retry with an intermediate weight, which would be an unregistered sweep forbidden by AGENTS.md and docs/HOIPRIOR_ITERATION_WORKFLOW.md. Carry the end-object finding forward as a redirection: stop attributing the end_obj_trans_err gap to the diffusion training recipe and examine the consistency stage and the still-unexplained residual instead. Any new direction requires a fresh dated plan amendment, a registry hypothesis and explicit user approval.",
+ "git_commit": "cc2420e10148a3fa0e8bcd1a14d11466c8f5ab23",
+ "manifest_sha256": null
+}

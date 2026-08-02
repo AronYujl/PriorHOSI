@@ -112,6 +112,36 @@ is therefore a cross-protocol quantity that overstates the model deficit.
   statistically indistinguishable from D2-AE and D2-X, and end-object worsened to
   `5.5735 cm`.
 
+### Objective-weighting family
+
+- D2-AH (2026-08-02) proposed restoring the author's `fk_weight`/`object_surface_weight`
+  of `50.0`, an uncontrolled constant inherited byte-identically by ten 61.44M-window
+  runs from a decision made at one tenth of that budget. Its preregistered pre-flight
+  diagnostic **failed its fixed abort rule and no formal training was ever started**:
+  the author's own recipe at `60,384,668` windows (98.3% of D2-X) reads `xy_points_err`
+  `5.7623` against D2-X `4.0505` (+42.3%) and `end_obj_trans_err` `5.4176` against
+  `3.7402` (+44.8%). The preregistered tree-effect control confirmed rather than
+  excused it: seven of eight metrics reproduce the earlier `1e982bc` epoch500 row within
+  1.62% relative, but `end_obj_trans_err` moves `+0.3642` (+11.0%), a real
+  metric-specific tree effect on a gate metric that is still ~99x too small on
+  `xy_points_err` and insufficient on end-object. At `299,531,868` windows (4.875x the
+  formal budget) the same recipe does beat D2-X on `xy_points_err` (`−0.8198 cm`),
+  contact F1 (`+0.0286`), recall (`+0.0493`) and hand penetration (`−0.0517`), so what
+  is refuted is the affordability of the remedy at 61.44M windows, not the 135x/52x
+  under-weighting diagnosis. The epoch100 penetration and FS advantages are engagement
+  artefacts (`contact_percent` `0.3192` against GT `0.66188`). Classification
+  `metric-geometry-weight-restoration-preflight-negative-stop`; see
+  `experiments/results/p1_hoi_d2ah_negative_preflight_s42_20260802.json`.
+- The same diagnostic produced a finding that reprioritises the remaining gaps: on
+  `end_obj_trans_err`, D2-X (`3.7402`) is statistically indistinguishable from the
+  author's from-scratch diffusion recipe at 4.875x budget (`3.6866`; paired sequence
+  bootstrap mean `−0.0679`, CI `[−0.3798, +0.2521]`), while the released checkpoint
+  reads `3.0372` and the in-house CM reproduction `3.5553`. **The end-object gap to the
+  released model is therefore not attributable to the diffusion training recipe**;
+  consistency distillation explains `0.1313` of the `0.6493` residual and `0.5181`
+  remains unexplained. Future effort on this metric should move off diffusion-training
+  changes.
+
 ## 3. Strongest current conclusions
 
 1. The scene-free 232-D denoiser has sufficient capacity: D2-V/D2-X reach strong

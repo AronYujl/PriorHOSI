@@ -7839,6 +7839,98 @@ D2-T 的 6.144M 更是其 1/49。**若 D2-AH 复现 D2-T 式崩溃，那是一�
   仍不触及 `hoiprior_search_closed`，不改动 native D2 协议，不允许第二次 formal 训练、resume
   旧方向、checkpoint selection、D2-AH1、更长预算、consistency、HSIPrior 或 Mixer。
 
+#### 2026-08-02 Phase 1B D2-AH 前置诊断判负与方向中止（预注册中止规则生效）
+
+上一节预注册的前置诊断已执行并**未通过其固定中止规则**，预注册的树效应对照随后**确认了**该失败。
+按预注册逐字执行：**正式 D2-AH 训练未启动**，未分配 run id，未调用 `tools/experiment.py start`，
+未运行任何 GPU 训练负载，未产生任何 checkpoint，`code/config/config_train_hoi_prior_d2ah.yaml`
+从未创建。分类 `metric-geometry-weight-restoration-preflight-negative-stop`；compact result 为
+`experiments/results/p1_hoi_d2ah_negative_preflight_s42_20260802.json`。
+
+执行环境：worktree `/data/yujinlun/InfBaGel-head-baseline`，commit
+`5f7dde73903b78d70e6423d525de819e7f4ebfe3`；official 438 序列 × 3 窗口、`sample_type=diffusion`
+500 步、`load_scene=true`、`add_object_voxel=true`、`w=1`、纯推理、无引导
+（`code/test_infbagel_hoi.py:384-389` 的 diffusion 分支走 `p_sample_loop`，既不接
+`guidance_fn` 也不接 `guidance_weight`，配置里的 `guidance_weight: 1` 在该路径上无效）。
+两个 checkpoint 只作评测输入、绝不用于初始化：`..._epoch100.pth` sha256
+`db0836f6c822f57b79e059208787aef98fbfd614667875825485aa81ae9806c1`（101 × 597,868 =
+60,384,668 窗口，D2-X 的 98.3%，wall 32.2 min），`..._epoch500.pth` sha256
+`44a723d20a4bbf13de8c2db78c3c375472dba20be0530993c9e00ab780747aac`（501 × 597,868 =
+299,531,868 窗口，D2-X 的 4.875×，wall 32.1 min）。该树用
+`p1-hoi-d2x-distance-probe-s42-20260801` **逐位复现封存 D2-X 的全部 18 个 aggregate**，本次重新
+核验通过；封存 D2-X 行按预注册**只引用、不重算**。
+
+**中止规则判定（两项均须优于 D2-X，实测两项均劣）：**
+
+| gate 指标 | epoch100 | 封存 D2-X | 差值 | 相对 | 通过 |
+|---|---:|---:|---:|---:|:--|
+| `xy_points_err` | 5.7623 | 4.050519689917564 | +1.7118 | +42.3% | 否 |
+| `end_obj_trans_err` | 5.4176 | 3.7402085959911346 | +1.6774 | +44.8% | 否 |
+
+**epoch100 全 18 指标对封存 D2-X 的差值**（精确值见 compact result；此处只列判读要点）：准确度与
+接触侧**全线更差**——`contact_f1` 0.4710（−0.1664）、`contact_recall` 0.3904（−0.2040）、
+`contact_precision` 0.7484（−0.0397）、`contact_acc` 0.5902、`mpjpe` 14.9141（+2.8632）、
+`trans_dist` 10.6235、`obj_trans_dist` 18.7289、`obj_rot_dist` 1.1247；只有六个**与接触参与度绑定**
+的指标看似更好——`foot_sliding` 0.3219、`feet_height` 0.0468、`hand_pen_loss_omomo` 0.1109、
+`hand_pen_ratio` 0.07809、`human_pen_loss_infbagel` 1.7777、`human_pen_ratio` 0.08327，见结论四。
+
+**树效应对照（预注册规则：epoch100 未过判据则先补跑 epoch500 再判负）。** 本树 epoch500 对已记录
+的 `1e982bc` 树 epoch500 行（源自未跟踪的 `results/p1b-author-diffusion-e500-eval-r1-20260721/hoi.log:584-591`，
+历史日志只有四位小数，下表精度随之）：
+
+| 指标 | epoch500@head `5f7dde7` | 已记录 epoch500@`1e982bc` | 差值 | 相对 |
+|---|---:|---:|---:|---:|
+| `xy_points_err` | 3.2307 | 3.2134 | +0.0173 | +0.54% |
+| `end_obj_trans_err` | 3.6866 | 3.3224 | **+0.3642** | **+11.0%** |
+| `foot_sliding` | 0.3398 | 0.3409 | −0.0011 | −0.32% |
+| `contact_precision` | 0.7799 | 0.7811 | −0.0012 | −0.16% |
+| `contact_recall` | 0.6437 | 0.6335 | +0.0102 | +1.61% |
+| `contact_f1` | 0.6660 | 0.6615 | +0.0045 | +0.69% |
+| `mpjpe` | 12.1974 | 12.0874 | +0.1100 | +0.91% |
+| `hand_pen_loss_omomo` | 0.1937 | 0.1931 | +0.0006 | +0.29% |
+
+**五条必须记录的结论：**
+
+1. **中止规则失败。** epoch100 在两个 gate 指标上同时劣于 D2-X（`xy_points_err` +42.3%、
+   `end_obj_trans_err` +44.8%），正式训练未启动。
+2. **树效应真实存在、指标特异，且救不了这个判负。** 8 项中 7 项在 1.62% 相对以内复现
+   （最大者为 `contact_recall` +1.61%），唯独 `end_obj_trans_err` 差 `+0.3642`（+11.0%）。因该指标
+   正是两个 gate 之一，这条对照是**承重的**，不是形式主义。但它仍救不了 epoch100：`xy_points_err`
+   的树效应只有 `+0.0173`（0.54%），而 epoch100 在该 gate 上差 `1.7118 cm`，约为树效应的 **99 倍**；
+   即使把 `+0.3642` 的整段树修正**全额**记到 epoch100 头上（这已经很慷慨，因为该修正是在另一个
+   预算上测得的），`end_obj_trans_err` 仍为 `5.0534`，对 `3.7402`。因此这次失败**不得**被记成
+   树差异假象。
+3. **对真正问题的定量回答。** 同一棵树、同一配方、同一 seed、预算是唯一变量：在 60,384,668 窗口
+   （D2-X 的 98.3%）上，作者的度量几何配方在**每一个准确度与接触指标上都远劣于 D2-X**；在
+   299,531,868 窗口（**4.875×**）上，它在 `xy_points_err`（−0.8198 cm）、`contact_f1`（+0.0286）、
+   `contact_recall`（+0.0493）与 `hand_pen_loss_omomo`（−0.0517）上**胜过 D2-X**，其
+   `contact_percent` 0.5311 也比 D2-X 的 0.47655 更接近 GT 0.66188。后三项在事后配对序列 bootstrap
+   下 CI 不跨零（`xy_points_err` 无 per-sequence 记录，不可检验）。所以**作者的目标权重确实更好，
+   但只在约五倍于我们正式预算处才兑现**。被证伪的是**该补救在 61,440,000 窗口下的可负担性**，
+   **不是**"我们的 `fk_weight`/`object_surface_weight` 把度量手部与物体误差分别欠权约 135×/52×"
+   这一量纲诊断。
+4. **epoch100 的穿透与 foot sliding 优势是参与度假象。** epoch100 `contact_percent` 0.3192，对
+   GT 0.66188、对 D2-X 0.47655（仅为 D2-X 的 0.670、GT 的 0.482）；其 `hand_pen_ratio` 0.07809 与
+   `human_pen_ratio` 0.08327 相应落到 D2-X 的 0.543 与 0.570。**手够不到物体的模型无法穿透物体。**
+   对照 epoch500：`contact_percent` 0.5311（**高于** D2-X）**同时** `hand_pen_loss_omomo` 0.1937
+   （低于 D2-X 0.24536），那里的穿透优势才是真的。
+5. **新发现：`end_obj_trans_err` 的缺口不归因于 diffusion 训练配方。** 在该指标上 D2-X
+   （`3.7402`）与作者自己的 from-scratch diffusion 配方在 4.875× 预算处（epoch500@head `3.6866`）
+   **本质持平**（差 1.43%；配对序列 bootstrap 均值 `−0.0679`，CI `[−0.3798, +0.2521]` 跨零），
+   而 released checkpoint 读 `3.0372`。因此**此前被列为"仅存的两个最大真实缺口"之一、并因此被本次
+   预注册选为 PRIMARY gate**（Arm B 对 released 带引导行 `+0.8028 cm`、+26.4%）的这个缺口，
+   **根本不是训练配方造成的**——把训练配方推到作者的极端权重、再给它 4.875× 预算，也只把它移动
+   1.4%。后续对该指标的努力应**从 diffusion 训练侧改动上撤出**。另注：自研 CM 复现在该指标上读
+   `3.5553`（`docs/phase_summaries/PHASE_1B_D2AA.md:142`），故一致性蒸馏只解释残差
+   `0.6493` 中的 `0.1313`，其余 `0.5181` 仍**无解释**。
+
+治理与边界（本次全部为否）：不实现 `config_train_hoi_prior_d2ah.yaml`，不启动 D2-AH，不以任何
+中间权重重跑（那将构成未登记 sweep，为 `AGENTS.md` 与 `docs/HOIPRIOR_ITERATION_WORKFLOW.md:20-22`
+所禁止），不继承 D2-AG 的一次性 performance waiver，不新增 D2-AH1、不加长预算、不启动第二次
+formal 训练、不做 checkpoint selection、不进入 consistency / HSIPrior / Mixer，不就地改写任何已被
+哈希绑定的封存件。上一节所列的待并入勘误仍然有效，本次未执行。任何新方向须另做 dated plan
+amendment 与 registry hypothesis，并取得用户明确批准。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
