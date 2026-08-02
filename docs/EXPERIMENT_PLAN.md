@@ -7675,6 +7675,170 @@ Arm B 取得 Arm A 增益的 recall 88.0%、f1 95.5%、contact_percent 84.7%、�
 `mpjpe` 仅在 1e-7 相对量级上因池化次序不同而异；`obj_trans_dist` 与两项穿透为精确一致。
 穿透 CI 基于 181 个序列，因冻结代码对六类物体不计算该项。
 
+#### 2026-08-02 Phase 1B D2-AH 度量几何目标权重恢复（用户批准）
+
+动机（本次发现）：`code/config/config_train_hoi_prior.yaml:36-37` 的默认值就是作者的
+`fk_weight: 50.0` / `object_surface_weight: 50.0`，`config_train_hoi_prior_d2t.yaml:41-42`
+以相同数值显式重述、未做任何改动。`config_train_hoi_prior_d2u.yaml:42-43` 在 6,144,000
+窗口预算下首次把二者改写为 `0.3569973401779424` / `0.4772322188400037`（取自 D2-I 梯度均衡
+聚合），此后 D2-V/X/Y/Z/AB/AC/AD/AE/AF/AG 十个 61,440,000 窗口的运行
+**逐字节继承同一对数值**（`config_train_hoi_prior_d2v.yaml:43-44`、`d2x:45-46`、
+`d2y:47-48`、`d2z:51-52`、`d2ab:55-56`、`d2ac:57-58`、`d2ad:59-60`、`d2ae:60-61`、
+`d2af:61-62`、`d2ag:62-63`）。其中 D2-X 是封存对照，其余**九次失败的 model-side 实验**
+共享同一个**从未被当作变量审视的常数**，而设定它的那次决策是在最终正式预算的 1/10 上做出的，
+此后再未复核。本实验把该常数恢复为作者取值，这是**恢复一个已知可用的配方**，不是新增机制。
+
+机制（以真实 `data/train/norm.npy` 定量，1 个归一化单位 = 3.32917 / 1.09975 / 3.48764 m）：
+
+1. **手部。** `code/priors/losses.py:156` 的 `hand_fk` 是 4 个手关节 × 3 坐标共 12 个元素的
+   **米制 MSE**，作者 `code/models/infbagel.py:840` 同为 MSE，量纲与归约完全对齐。单个手关节偏
+   离 e 米时，作者目标付 `50 × e²/12 = 4.1667e²`，我们付 `0.3569973401779424 × e²/12 =
+   0.029750e²`；再加上两侧共有、权重为 1 的归一化 `joint_position` 通道
+   （`losses.py:132`，84 元素 MSE，x 轴系数 `(1/3.32917)²/84 = 0.0010741`），得作者 `≈4.167e²`、
+   我们 `≈0.031e²`，**等效欠权 135.2×**（纯权重比为 `50/0.3569973401779424 = 140.06×`，
+   两侧共有的权重-1 通道把它拉低到 135）。一次 **8 cm 的手部偏离**因此对作者值 `0.0267`、
+   对我们只值 `0.00020`。
+2. **物体。** 作者 `code/models/infbagel.py:861` 的 `loss_object` 用 `smooth_l1`（|x|<1 时为
+   `0.5x²`），我们 `code/priors/losses.py:196` 用 MSE。物体纯平移偏离 e 米时作者付
+   `50 × 0.5 × e²/3 = 8.3333e²`，我们付 `0.4772322188400037 × e²/3 = 0.15908e²`，
+   **等效欠权 52.4×**（纯权重比 `104.77×`，被 smooth_l1 的 1/2 系数减半）。该项直接映射到
+   `end_obj_trans_err` 与 `xy_points_err`。
+
+与实测失败模式对齐：pooled gross-miss（有 GT 接触的帧上手离物体 ≥8 cm）在 D2-X+Arm B 下为
+`0.1216`，released 带引导为 `0.1052`（`docs/phase_summaries/PHASE_1B_P2_GUIDANCE.md:176-177`）；
+gross-miss 帧上手部世界误差**中位数 24.12 cm**；其中 **67.7%** 的帧手部误差 ≥ 2× pelvis 误差。
+即失败是**够不着**（reach error），不是**站错位置**（body placement error）——而“够不着”正是
+被欠权 135× 的那一项所度量的量。2026-08-01 已记录同向证据：协议对齐后 HOIPrior 的原始生成几何
+比 released 差 `0.8334 cm [0.4906, 1.1824]`，且引导只搬动主体分布、搬不动远尾。
+
+被操纵因子（单一概念，两个取值）：`fk_weight: 0.3569973401779424 → 50.0`、
+`object_surface_weight: 0.4772322188400037 → 50.0`。除这两个标量外，一切与
+`code/config/config_train_hoi_prior_d2x.yaml` 逐字节相同：同一 `code/train_hoi_prior.py` 训练
+入口、同一数据契约与 seed-42 split（`experiments/splits/omomo_hoi_train_validation_seed42.json`，
+4,088 训练序列 / 568,486 窗口）、`max_processed_windows: 61440000`、
+`effective_batch_size: 2048`、`batch_size: 512`、`num_gpus: 4`、`gradient_accumulation_steps: 1`、
+Adam `learning_rate: 1e-4`、`scheduler_name: none`、`gradient_clipping: false`、`ema_decays: []`、
+`amp: false`、`velocity_weight: 0.1`、`goal_weight: 1.0`、`fk_foot_temporal_routing: true`、
+`primary_weight_variant: online`、`checkpoint_interval_windows: 3072000`。**零新增参数**，
+`[B,16,232]` 输出契约不动，scene-free 与 composable 契约不动，500 步无引导原生采样协议不动。
+
+预注册的前置诊断与中止条件（在正式训练之前执行，先于任何 run id 分配）：对既有的
+**非 reportable** checkpoint——run 目录
+`results/p1b-author-diffusion-8x3090-full-r1-s42-20260717/`，文件
+`checkpoints/p1b-author-diffusion-8x3090-full-r1-s42-20260717_epoch100.pth`
+（101 × 597,868 = **60,384,668** processed windows，为 D2-X 61,440,000 的 98.3%，预算基本
+对齐）——按官方 438 序列 × 3 窗口原生协议做一次纯推理评测。该 checkpoint 只作评测输入，
+**绝不用于任何初始化**。目的只有一个：检验 D2-T 在 6,144,000 窗口下的崩溃
+（MPJPE `34.7367`、end-object `38.5563`、contact F1 `0.2764`，而 foot sliding `0.1761`
+是全程最好的一档）是否是**欠训练假象**。
+
+**中止规则（在诊断执行之前固定，不得事后修改）**：若 epoch100 行没有在
+`xy_points_err`（D2-X `4.050519689917564`）**与** `end_obj_trans_err`（D2-X
+`3.7402085959911346`）**两项上同时优于 D2-X**，则正式训练不启动，本方向以 negative preflight
+结案并如实登记。
+
+执行树与树效应控制（同样在诊断执行之前固定）：诊断在 worktree
+`/data/yujinlun/InfBaGel-head-baseline`（`5f7dde7`）执行，理由是该树已于 2026-08-01 用
+`p1-hoi-d2x-distance-probe-s42-20260801` **逐位复现封存的 D2-X native aggregate 18/18**，
+因此拿它产出的 epoch100 行去对比封存的 D2-X 行不是跨树比较。已记录的 epoch500 行则产自
+`1e982bc`（`phase/01b-author-repro`），与本行不同树，**不得与本行直接相减**。两树之间隔着
+2026-07-13/14 的自回归 rollout 重写，而协议分解只验证过该重写对三个接触质量指标为 null，
+`xy_points_err` / `end_obj_trans_err` / penetration 均未测。因此预先固定一条附加规则：
+**若 epoch100 未过上述中止判据，则先在同一 head-baseline 树补跑 epoch500 作为树效应对照，
+再决定判负**——不得把"作者模型路径的树差异"误记为"预算不足"。若 epoch100 通过判据，则该对照
+不必执行。
+
+时序声明：上述中止规则与树效应规则在诊断启动之前即已固定并向用户声明；本预注册提交在诊断
+执行期间落盘，但**早于任何诊断结果存在**，提交内容未因任何中间状态改变。
+
+该诊断的解释力被事先限定：它至少混淆 **7 个因子**——(1) 两个损失权重；(2) 重构子项的 L1 与
+smooth_l1/MSE 取法（作者 `code/models/infbagel.py:801,804,806` 用 L1、`:861` 的 object 用
+smooth_l1；我们 `code/priors/losses.py:132-136,196` 用 MSE/smooth_l1）；(3) 预算
+（60.38M vs 61.44M，且作者原始为 501 epoch）；(4) `use_random_frame_bps: true`；
+(5) 物体占据条件 `add_object_voxel: true`；(6) 训练期 CFG dropout（`free_p: 0.1`，`w: 1`）；
+(7) 多 5.28% 的训练序列（4,304 vs 4,088）。因此它**只能证伪“崩溃是预算不足造成的”这一解释**，
+**不能**把效应归因到权重本身。归因只由正式的 D2-AH 单因子训练承担。
+
+评测契约：官方 438 序列 × 3 窗口，只加载固定的 final-online checkpoint（不做 cadence 选择、
+不做 best-of-N），配对序列级 bootstrap（seed 42，10000 replicates，沿用
+`tools/summarize_hoi_phase1b.py:112` 的索引矩阵约定），对照为已封存的
+`p1-hoi-d2x-native-eval-r1-s42-20260723`，其 aggregate 直接复用、不重跑。**两个采样臂，均事先
+声明、无论结果如何都报告**：(i) **500 步无引导 ancestral DDPM**，与每一个 D2 行协议一致，是
+判定规则所依据的臂；(ii) **P2 Arm B 推理期接触引导**（late-steps-only、按 `posterior_variance[t]`
+缩放并对更新量裁剪、`guidance_scale: 1000.0`、确定性顶点子集），与当前最佳配置协议一致。
+记录全部 18 个 aggregate 指标，另加复原的 GT-contact 帧手-物距离分布与 ≥8 cm 尾部占比。
+
+判定规则（用户批准，逐字生效）：
+
+- **PRIMARY**：D2-AH − D2-X 的配对改善在 `end_obj_trans_err` **与** `hand_pen_loss_omomo`
+  **两项上** CI 均不跨零。选这两项，因为它们是相对 released 带引导行**仅存的两个最大真实缺口**：
+  Arm B 的 `end_obj_trans_err` 为 `3.8401` vs `3.0372`（**+26.4%**，配对点估计 `+0.8028 cm`），
+  `hand_pen_loss_omomo` 为 `0.22942` vs `0.16240`（**+41.3%**，配对点估计 `+0.06702`）。
+- **PROTECTION**：contact F1 不得显著退化（配对 CI 下界不得低于 `−0.02`）**且** MPJPE 对 D2-X
+  的比值 ≤ `1.10`。
+- **报告但不设门**：foot sliding、≥8 cm 尾部占比、GT-contact 帧距离、`xy_points_err`、contact
+  precision/recall/percent、`obj_trans_dist`、`obj_rot_dist`、`trans_dist`、两项 penetration
+  ratio、`human_pen_loss`。
+- **明确记录：本次 foot sliding 按用户决定不作为门禁。** 理由是 D2-T 的证据预测 50× 的 FK-foot
+  项会**改善**它（D2-T foot sliding `0.1761`，是全程最好的一档，而 D2-X 为 `0.36301`）。把一个
+  被预测会改善的量设为保护门没有信息量；它仍然全量报告，若反而恶化，须在结论中写明。
+
+主要风险（在任何 GPU 运行之前写明）：D2-T 在 6,144,000 窗口下用的正是这一对权重，得到 MPJPE
+`34.7367`，而同预算的 D2-U（balanced 权重）为 `17.0285`。本实验押注**10× 预算会改变这个结论**，
+依据有二：其一，同一对 balanced 权重下 D2-V 的 10× 预算把 end-object 从 D2-U 的 `10.0201`
+降到 `3.6807`，说明 6.144M 处的读数对预算高度敏感、不足以判定权重；其二，作者自身的预算是
+501 × 597,868 ≈ **299.5M** 窗口，为 D2-X 的 **4.88×**，故 61.44M 仍在作者配方的欠训练区间内，
+D2-T 的 6.144M 更是其 1/49。**若 D2-AH 复现 D2-T 式崩溃，那是一个真实的阴性结果，必须保留，
+不得改用某个中间权重重跑**——那将构成未登记的 sweep，为 `AGENTS.md` 与
+`docs/HOIPRIOR_ITERATION_WORKFLOW.md:20-22` 所禁止。
+
+被既有证据否定的备选：
+
+- **(a) 再加一个专用 HOI 模块。** D2-AC（+349,697 参数）未过 locality permutation，
+  `end_obj_trans_err` 保护比值 `1.503869023480123`；D2-AE（+413,953 参数）**五个内部因果门全部
+  通过且 CI well-separated**，原生迁移仍为零。加参数这条路已被两次独立证伪。
+- **(b) 用 released checkpoint 初始化或蒸馏。** 为 `AGENTS.md:11-12` 明文禁止。
+- **(c) 改 trunk 的宽度/深度/头数。** 按 D2-V 的证据，容量从来不是绑定约束。
+- **(d) 引入训练期条件 dropout / CFG。** 会改变每一个已封存 D2 结果所依赖的无引导采样协议，
+  使全部横向对比作废。
+- **(e) 增加显式的手-物相对几何损失。** 这是一个真正未试过、且有前景的方向；但它是**新增损失
+  项**而非**恢复已知可用配方**，因此排在 D2-AH 之后——必须先有一个权重公平的基线，才谈得上
+  在其上加项。
+
+待并入的勘误（由本次准备阶段新算的配对 CI 直接导致，只登记事实，不就地改写任何已被哈希绑定的
+封存件）：
+
+1. `docs/phase_summaries/PHASE_1B_P2_GUIDANCE.md` § `What guidance does not fix` 把 Arm B 对
+   `a0-old` 的五个差值记为纯点估计。现补 CI：`obj_trans_dist +0.36867` **不是**显著代价
+   （CI `[−0.29002, +1.02849]` 跨零）；而两项穿透**是**显著代价——`hand_pen_loss +0.06702`
+   `[+0.02348, +0.11408]`、`human_pen_loss +1.03680` `[+0.35443, +1.77463]`。原文只给点估计，
+   方向性表述需按此修正。
+2. `PHASE_1B_P2_GUIDANCE.md:243-244`（同一陈述亦见 `:48`）的“95.3 cm 对 3.7402 cm”是**指标与
+   协议双重错配**的比较：`95.3` 是 D2-O 内部协议的 `object_goal_error_cm`，`3.7402` 是官方原生
+   协议的 `end_obj_trans_err`；在那个内部协议上，**每一个训练充分的 D2 模型都读 92.9–95.3**
+   （例：D2-AG `92.94030836224556`）。该数字不得再被援引。但“D2-Q0 的门槛 checkpoint 过弱”这一
+   结论本身仍然成立，其依据换为该 checkpoint 只有 **64 次 optimizer update** 这一事实。
+
+治理边界：
+
+- **不继承 D2-AG 的 performance waiver。** `EP:7331-7333` 已明文声明该 waiver 一次性、run-id
+  绑定、不得被 D2-AH 或任何后续实验继承或援引。D2-AH 只改两个标量乘子，不改变 per-step 计算、
+  通信、数据加载、张量形状与显存，执行路径与 D2-X 完全相同，故按
+  `docs/HOIPRIOR_ITERATION_WORKFLOW.md:68-70` **复用 D2-X 的封存执行剖面**
+  （`3243.0357134915853` windows/s，全预算 ETA `5.263 h`）并在实现记录中写明 benchmark 不适用的
+  理由；不申请、也不需要任何 waiver。
+- 允许改动的文件范围：`code/config/config_train_hoi_prior_d2ah.yaml`（新增）、
+  `code/train_hoi_prior.py`（仅新增与既有 D2-* 同构的 `d2ah` mode/subphase/权重契约分支）、
+  `tests/test_hoi_d2ah.py`（新增）、`docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl`。
+  不得改动 `code/priors/losses.py`、`code/models/*`、`code/priors/diffusion.py`、
+  `code/eval_metrics.py`、`code/test_infbagel_hoi.py`，以及任何已被哈希绑定的封存件。
+  因 `code/train_hoi_prior.py` 属训练代码，实现提交在向 worker 发布之前须跑一次完整 authority
+  suite。
+- 本次为用户于 2026-08-02 新授予的一次授权，覆盖 D2-AG 预注册中
+  `remaining_formal_experiment_budget: 1` 与 `last_authorized_hoiprior_direction: true` 的表述；
+  仍不触及 `hoiprior_search_closed`，不改动 native D2 协议，不允许第二次 formal 训练、resume
+  旧方向、checkpoint selection、D2-AH1、更长预算、consistency、HSIPrior 或 Mixer。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
