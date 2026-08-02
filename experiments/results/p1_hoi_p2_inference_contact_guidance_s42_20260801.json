@@ -1,0 +1,1589 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-p2-inference-contact-guidance-s42-20260801",
+  "phase": "p1",
+  "subphase": "1B-P2-inference-contact-guidance",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-08-02",
+  "classification": "inference-protocol-alignment-contact-parity-reached-cost-arm-dependent",
+  "training_performed": false,
+  "optimizer_updates": 0,
+  "checkpoint_writes": 0,
+  "checkpoint_selected": false,
+  "model_or_training_changed": false,
+  "released_checkpoint_role": "baseline_only_forbidden_as_prior_initialization",
+  "released_or_prior_checkpoint_initialization": false,
+  "official_evaluator_changed": false,
+  "native_d2_protocol_changed": false,
+  "guidance_default_enabled_in_production": false,
+  "production_guidance_authorized": false,
+  "stepwise_object_requery_authorized": false,
+  "hoiprior_search_closed": true,
+  "consistency_started": false,
+  "hsiprior_started": false,
+  "mixer_started": false,
+  "design": {
+    "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-01 Phase 1B 推理期接触引导 P2（协议对齐，用户批准）'",
+    "question": "HOIPrior's fixed native protocol samples 500 unguided steps while every baseline it has been compared against was sampled with inference-time contact guidance. Does aligning the protocol - applying the author's complete apply_hoi_guidance_loss to the sealed D2-X checkpoint at inference - close the recorded contact gap, and at what cost?",
+    "framing": "protocol alignment, NOT a model improvement: it changes how HOIPrior is sampled, not the quality of the prior, and cannot change the 0.83 cm [0.49, 1.18] genuine generative-geometry deficit measured on 2026-08-01",
+    "manipulated_factor": "inference-time guidance configuration only (arm, guidance_scale, step schedule, clamping)",
+    "invariant": "the same sealed D2-X checkpoint, the same official 438-sequence three-window 500-step native protocol, byte-identical metric code",
+    "arms": {
+      "A": "InfBaGel-faithful port: full loss, guidance_scale 1.0, gradient taken w.r.t. x0_hat and added raw to x_{t-1}, guided on every reverse step except the last",
+      "B": "CHOIS-style DDPM analogue: last 10 reverse steps only, gradient scaled by posterior_variance[t] and the resulting update clamped to +-1.0, guidance_scale 1000.0 (the cited classifier_scale = 1e3); at scale 1.0 the variance scaling would shrink the update by about 3.8e-4 and Arm B would have been an accidental null arm",
+      "declared_before_any_run": true,
+      "both_reported_regardless_of_outcome": true
+    },
+    "loss": "code/guidance_loss.py:88-94 apply_hoi_guidance_loss = hand-object x10 PLUS feet-floor x500; the feet-floor term is exactly what D2-Q0 and D2-R0 omitted",
+    "target_checkpoint_rationale": "D2-X, not D2-AG: D2-AG's self-conditioned relation source consumes `current` (code/priors/diffusion.py:234-236) and guidance modifies `current`, which would be an uncontrolled distribution shift",
+    "gt_leakage_audit": {
+      "verdict": "no test-time GT leakage",
+      "contact_labels": "x_start[:,:,228:232] with x_start = pred_x_0.detach().requires_grad_(True) (code/models/infbagel.py:721,677)",
+      "floor_height": "hard constant 0.02 m (code/guidance_loss.py:82)",
+      "gt_contact_use": "GT contact annotation enters only as the two window-0 seed history frames, identically in the unguided path",
+      "author_cross_check": "CHOIS's GT contact_labels argument is shadowed and never read (chois_release/manip/model/trainer_chois.py:2024)"
+    },
+    "official_test_sequences": 438,
+    "windows_per_sequence": 3,
+    "training": "none",
+    "lifecycle_profile": "user-approved inference-only measurement under the lean HOIPrior workflow: no run id allocated and no tools/experiment.py start manifest; traceability rests on the executed git commit, the archived Hydra config and overrides, the fixed official 438-sequence test set and byte-identical metric code",
+    "executed_commits": {
+      "implementation_and_execution": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "preregistration": "9a3a3510b53c9c21fe7b766264e98181230f1695",
+      "plan_amendment_carrying_the_dated_section": "2b7fa9edb6897409c9326f8db544d179364973f4",
+      "closure_commit": null,
+      "closure_commit_note": "the dated plan results, this compact result, the phase summary, the evidence-index row and the registry completion row are one closure change; the executed source object above predates it"
+    },
+    "worktrees": {
+      "official_438_runs": "/data/yujinlun/InfBaGel-p2",
+      "functional_smokes": "/data/yujinlun/InfBaGel-release",
+      "unguided_control": "/data/yujinlun/InfBaGel-head-baseline",
+      "released_reference": "/data/yujinlun/InfBaGel-c358fa4-baseline"
+    },
+    "source_hashes": {
+      "inference_guidance_py_sha256": "90688329a7d491cae0d4d734ea8403442098084e36ed011adadbc7f4273f4687",
+      "diffusion_py_sha256": "12bc4ce0c2eb96ad79bc83d93de5e7ab6dcf8425b1707e75f6dfdb9f2b38c01a",
+      "sampler_hoi_prior_yaml_sha256": "16800a928c9c4072ac6047969a59be309a6a319c4260a5136fc288f682fc3fec",
+      "guidance_loss_py_sha256": "5747721bcc015911c7999692079666f7e5d6204912761d91b8b82d4ba4c4ab24",
+      "guidance_loss_py_unchanged_since_c358fa4": true,
+      "eval_metrics_py_sha256": "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+      "eval_metrics_py_unchanged_since_c358fa4": true,
+      "test_infbagel_hoi_py_sha256": "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+      "contact_guidance_py_sha256": "cbe94a04a073bc8eb70567eeec900111c1df4fdd5670444f466f6ab10dd58b09",
+      "contact_guidance_py_note": "the sealed D2-Q0 partial implementation, deliberately left untouched so that the historical diagnostic is not retroactively changed"
+    },
+    "declared_confounds": [
+      {
+        "id": 1,
+        "subject": "guidance consumes geometry the model never sees",
+        "detail": "the guidance loss uses the full posed object mesh (13,086-38,353 vertices) while HOIPrior conditions only on a 1024-point BPS. That mesh is already used by the evaluator, but it is extra test-time geometry the model itself never receives, so part of the gain is purchased with information outside the prior."
+      },
+      {
+        "id": 2,
+        "subject": "the foot-sliding improvement may be partly metric-shaped",
+        "detail": "the FS metric estimates the floor from the PREDICTED joints (code/test_infbagel_hoi.py:249, code/eval_metrics.py:101-113) while the guidance pins the support foot to a fixed 0.02 m. The two can be mutually self-consistent, so Arm B's FS ratio 0.9797 must not be read as a pure physical-plausibility gain."
+      },
+      {
+        "id": 3,
+        "subject": "determinism convention",
+        "detail": "the deterministic vertex subset of D2-Q0 is used instead of the author's torch.randperm(...)[:10000] (code/models/infbagel.py:736), so the same configuration reproduces; this differs from the author's implementation."
+      }
+    ]
+  },
+  "runs": {
+    "armA": {
+      "exp_name": "p1-hoi-p2-guidance-arma-s42-20260801",
+      "role": "preregistered primary arm; InfBaGel-faithful port of the author's full guidance",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-p2",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "diffusion",
+      "sampler_timesteps": 500,
+      "cfg": false,
+      "load_scene": false,
+      "checkpoint": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_windows061440000.pth",
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "checkpoint_weight_variant": "online",
+      "checkpoint_run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+      "checkpoint_initialization": "random",
+      "guidance": {
+        "enabled": true,
+        "arm": "a",
+        "guidance_scale": 1.0,
+        "last_steps": 10,
+        "clamp": 1.0,
+        "clamp_target": "update",
+        "loss": "guidance_loss.apply_hoi_guidance_loss",
+        "last_steps_and_clamp_active": false,
+        "note": "last_steps and clamp are read for both arms but only take effect for arm b (code/priors/inference_guidance.py:133-140,371-381); arm a guides every reverse step except the final one"
+      },
+      "guidance_telemetry": {
+        "guidance_sample_calls": 3,
+        "guidance_applied_steps": 1497,
+        "guidance_nonfinite_steps": 0,
+        "guidance_loss_mean": 6873.951903807615,
+        "guidance_hand_loss_mean": 685.7462018672354,
+        "guidance_feet_loss_mean": 0.03297977027052151,
+        "guidance_feet_weighted_mean": 16.489885135260756,
+        "guidance_gradient_rms": 0.15246111743665497,
+        "guidance_gradient_max_abs": 437.9065246582031,
+        "guidance_update_max_abs": 437.9065246582031
+      },
+      "aggregate_path": "/data/yujinlun/InfBaGel-p2/results/experiments/p1-hoi-p2-guidance-arma-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "cf90ba915ad3fc5a4bb2dcdd7291eec1af7ebe688780234723d5c38253db707a",
+      "per_sequence_path": "/data/yujinlun/InfBaGel-p2/results/experiments/p1-hoi-p2-guidance-arma-s42-20260801/evaluation/per_sequence_metrics.json",
+      "per_sequence_metrics_sha256": "5526b19c36b796ef98113caf41fc3b01d403f5bf79a60c388002aa93157df5fe",
+      "per_sequence_sha256_recorded_in_aggregate": "5526b19c36b796ef98113caf41fc3b01d403f5bf79a60c388002aa93157df5fe",
+      "metrics": {
+        "contact_acc": 0.8050300790026819,
+        "contact_f1": 0.7307092524264233,
+        "contact_percent": 0.586323113720374,
+        "contact_precision": 0.8021556223996543,
+        "contact_recall": 0.7233213944454374,
+        "end_obj_trans_err": 4.215580224990845,
+        "feet_height": 0.024702513590455055,
+        "foot_sliding": 0.39902551896499555,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.24264736794262548,
+        "hand_pen_ratio": 0.1531614512205124,
+        "human_pen_loss_infbagel": 3.850440732527374,
+        "human_pen_ratio": 0.15671314299106598,
+        "mpjpe": 12.346643954515457,
+        "obj_rot_dist": 1.0223473033580486,
+        "obj_trans_dist": 17.23781495720266,
+        "trans_dist": 8.61256718635559,
+        "xy_points_err": 5.116364732384682
+      },
+      "normalization_audit": {
+        "nonfinite_values": 0,
+        "position_outside_count": 0,
+        "position_outside_rate": 0.0,
+        "position_values": 1766016,
+        "object_outside_count": 0,
+        "object_outside_rate": 0.0,
+        "object_values": 63072,
+        "generated_values": 4877568
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 274.3805821137503,
+        "fps": 431.4556947250088,
+        "generated_frames": 55188,
+        "generation_seconds": 127.91116370633245,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      }
+    },
+    "armB": {
+      "exp_name": "p1-hoi-p2-guidance-armb-s42-20260801",
+      "role": "preregistered declared second arm; CHOIS-style DDPM analogue",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-p2",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "diffusion",
+      "sampler_timesteps": 500,
+      "cfg": false,
+      "load_scene": false,
+      "checkpoint": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_windows061440000.pth",
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "checkpoint_weight_variant": "online",
+      "checkpoint_run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+      "checkpoint_initialization": "random",
+      "guidance": {
+        "enabled": true,
+        "arm": "b",
+        "guidance_scale": 1000.0,
+        "last_steps": 10,
+        "clamp": 1.0,
+        "clamp_target": "update",
+        "loss": "guidance_loss.apply_hoi_guidance_loss",
+        "last_steps_and_clamp_active": true,
+        "note": "last_steps and clamp are read for both arms but only take effect for arm b (code/priors/inference_guidance.py:133-140,371-381); arm a guides every reverse step except the final one"
+      },
+      "guidance_telemetry": {
+        "guidance_sample_calls": 3,
+        "guidance_applied_steps": 27,
+        "guidance_nonfinite_steps": 0,
+        "guidance_loss_mean": 4895.637152777777,
+        "guidance_hand_loss_mean": 480.20501516130236,
+        "guidance_feet_loss_mean": 0.18717400232950845,
+        "guidance_feet_weighted_mean": 93.58700116475423,
+        "guidance_gradient_rms": 0.2896330302936432,
+        "guidance_gradient_max_abs": 136.8395538330078,
+        "guidance_update_max_abs": 1.0
+      },
+      "aggregate_path": "/data/yujinlun/InfBaGel-p2/results/experiments/p1-hoi-p2-guidance-armb-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "56886f2eb72f7c5b4d51076c9196b63853f4424a8bf06714cfc9b4092af3bf82",
+      "per_sequence_path": "/data/yujinlun/InfBaGel-p2/results/experiments/p1-hoi-p2-guidance-armb-s42-20260801/evaluation/per_sequence_metrics.json",
+      "per_sequence_metrics_sha256": "c5a7fb1420aae6ec1f55c3187800142daa71b44a554a9bfafcd7be223c079781",
+      "per_sequence_sha256_recorded_in_aggregate": "c5a7fb1420aae6ec1f55c3187800142daa71b44a554a9bfafcd7be223c079781",
+      "metrics": {
+        "contact_acc": 0.80269261433645,
+        "contact_f1": 0.7265268028569287,
+        "contact_percent": 0.5695622236718128,
+        "contact_precision": 0.8122325894027452,
+        "contact_recall": 0.7078309129424002,
+        "end_obj_trans_err": 3.8400880992412567,
+        "feet_height": 0.03619400039315224,
+        "foot_sliding": 0.3556543021004396,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.22941977261668464,
+        "hand_pen_ratio": 0.14654038846492767,
+        "human_pen_loss_infbagel": 3.6260650890323904,
+        "human_pen_ratio": 0.15044286847114563,
+        "mpjpe": 12.079359591007233,
+        "obj_rot_dist": 1.026958937904501,
+        "obj_trans_dist": 16.094317507591484,
+        "trans_dist": 7.790068536996841,
+        "xy_points_err": 4.137028008699417
+      },
+      "normalization_audit": {
+        "nonfinite_values": 0,
+        "position_outside_count": 0,
+        "position_outside_rate": 0.0,
+        "position_values": 1766016,
+        "object_outside_count": 0,
+        "object_outside_rate": 0.0,
+        "object_values": 63072,
+        "generated_values": 4877568
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 203.89327754918486,
+        "fps": 850.0427607933675,
+        "generated_frames": 55188,
+        "generation_seconds": 64.92379271425307,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      }
+    },
+    "control_d2x": {
+      "exp_name": "p1-hoi-d2x-distance-probe-s42-20260801",
+      "role": "unguided control: sealed D2-X checkpoint under the fixed native protocol, bit-exact local reproduction of the sealed worker evaluation",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-head-baseline",
+      "seed": 42,
+      "official_test_sequences": 438,
+      "windows_per_sequence": 3,
+      "sampler": "diffusion",
+      "sampler_timesteps": 500,
+      "cfg": false,
+      "load_scene": false,
+      "checkpoint": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723_windows061440000.pth",
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "checkpoint_weight_variant": "online",
+      "checkpoint_run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+      "checkpoint_initialization": "random",
+      "guidance": {
+        "enabled": false,
+        "arm": null,
+        "guidance_scale": null,
+        "last_steps": null,
+        "clamp": null,
+        "clamp_target": null,
+        "loss": null
+      },
+      "guidance_telemetry": null,
+      "aggregate_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p1-hoi-d2x-distance-probe-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "6301863f25d2c324da6da7c3622ebd2128a7766cc212fee8f36ab787b44b18d3",
+      "per_sequence_path": "/data/yujinlun/InfBaGel-head-baseline/results/experiments/p1-hoi-d2x-distance-probe-s42-20260801/evaluation/per_sequence_metrics.json",
+      "per_sequence_metrics_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+      "per_sequence_sha256_recorded_in_aggregate": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+      "metrics": {
+        "contact_acc": 0.7316445604116837,
+        "contact_f1": 0.6374259391059788,
+        "contact_percent": 0.4765528738131478,
+        "contact_precision": 0.7880618755952097,
+        "contact_recall": 0.5944546940443982,
+        "end_obj_trans_err": 3.7402085959911346,
+        "feet_height": 0.049811847507953644,
+        "foot_sliding": 0.3630100213939385,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.24535650279805918,
+        "hand_pen_ratio": 0.1438656598329544,
+        "human_pen_loss_infbagel": 3.869084620991582,
+        "human_pen_ratio": 0.1461896151304245,
+        "mpjpe": 12.050843983888626,
+        "obj_rot_dist": 1.0309440299298087,
+        "obj_trans_dist": 15.994049727002507,
+        "trans_dist": 8.170091360807419,
+        "xy_points_err": 4.050519689917564
+      },
+      "normalization_audit": {
+        "nonfinite_values": 0,
+        "position_outside_count": 0,
+        "position_outside_rate": 0.0,
+        "position_values": 1766016,
+        "object_outside_count": 0,
+        "object_outside_rate": 0.0,
+        "object_values": 63072,
+        "generated_values": 4877568
+      },
+      "generation_descriptive": {
+        "end_to_end_seconds": 201.53476050775498,
+        "fps": 900.3217290682974,
+        "generated_frames": 55188,
+        "generation_seconds": 61.298087359406054,
+        "timing_cuda_synchronized": true,
+        "warmup_batches_excluded": 1
+      },
+      "reproduces_sealed_worker_evaluation": {
+        "sealed_run_id": "p1-hoi-d2x-native-eval-r1-s42-20260723",
+        "sealed_aggregate_path": "/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2x-native-eval-r1-s42-20260723/evaluation/aggregate_metrics.json",
+        "sealed_aggregate_sha256": "3bfe1b62d9f282aa0c188e3ac43e27528ce993a62f5314caa0a4b290da77242b",
+        "metrics_compared": 18,
+        "metrics_bit_identical": 18,
+        "source": "experiments/results/p1_hoi_protocol_decomp_s42_20260801.json .runs.d2x"
+      }
+    },
+    "reference_a0_old": {
+      "exp_name": "p0-hoi-protocol-decomp-a0-old-s42-20260801",
+      "role": "guided released InfBaGel under its own published protocol; the parity reference. Baseline only, never an initializer.",
+      "reused_from": "experiments/results/p1_hoi_protocol_decomp_s42_20260801.json .runs['a0-old']",
+      "executed_git_commit": "c358fa430c8f2dd7fff585ee5ddfe07a7d266a96",
+      "sampler": "consistency",
+      "sampler_timesteps": 500,
+      "cm_timesteps": 16,
+      "guidance": true,
+      "guidance_weight": 1,
+      "cfg": true,
+      "cfg_w": 1,
+      "load_scene": true,
+      "add_object_voxel": true,
+      "checkpoint": "checkpoint.pth",
+      "checkpoint_sha256": "6853351b3f5468d21293d12a6dd2bccde62c1400fdb83934f7878136b131b198",
+      "aggregate_path": "/data/yujinlun/InfBaGel-c358fa4-baseline/results/experiments/p0-hoi-protocol-decomp-a0-old-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "000838b6f2608382484ac75c4b7b20613caa723120f6afb8f29d262c29281187",
+      "metrics": {
+        "contact_acc": 0.8020946582590419,
+        "contact_f1": 0.7272576950146546,
+        "contact_percent": 0.5983184750308039,
+        "contact_precision": 0.790809602353939,
+        "contact_recall": 0.7275875037410999,
+        "end_obj_trans_err": 3.0372438952326775,
+        "feet_height": 0.04112287983298302,
+        "foot_sliding": 0.33336322153742476,
+        "gt_contact_percent": 0.6618830180474017,
+        "hand_pen_loss_omomo": 0.1624019806288998,
+        "hand_pen_ratio": 0.13285978138446808,
+        "human_pen_loss_infbagel": 2.589266609805965,
+        "human_pen_ratio": 0.13763920962810516,
+        "mpjpe": 11.997593194246292,
+        "obj_rot_dist": 1.0202497641505308,
+        "obj_trans_dist": 15.72564612054545,
+        "trans_dist": 8.208845555782318,
+        "xy_points_err": 3.9230965077877045
+      },
+      "distance_source_run": "p0-hoi-protocol-decomp-a0-old-ps-s42-20260801",
+      "distance_source_note": "the distance statistics come from the -ps- determinism replicate, whose 18 aggregate metrics are bit-identical to a0-old"
+    }
+  },
+  "functional_smoke": {
+    "arma": {
+      "exp_name": "p2-smoke-arma-s42-20260801",
+      "role": "arm A runnability and finiteness",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-release",
+      "sequence_limit": 4,
+      "windows_per_sequence": 3,
+      "is_timing_subset": true,
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "guidance": {
+        "enabled": true,
+        "arm": "a",
+        "guidance_scale": 1.0,
+        "last_steps": 10,
+        "clamp": 1.0,
+        "clamp_target": "update",
+        "guidance_applied_steps": 1497,
+        "guidance_nonfinite_steps": 0,
+        "guidance_gradient_max_abs": 111.90928649902344,
+        "guidance_update_max_abs": 111.90928649902344
+      },
+      "nonfinite_values": 0,
+      "position_outside_count": 0,
+      "position_outside_rate": 0.0,
+      "position_values": 16128,
+      "object_outside_rate": 0.0,
+      "aggregate_path": "/data/yujinlun/InfBaGel-release/results/experiments/p2-smoke-arma-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "02d7e7b0e74cae0b59b7a26ea0e08013d6bef058bb4f2656f169b6fbc1434fcb",
+      "metrics": {
+        "contact_acc": 0.8333333333333333,
+        "contact_f1": 0.8847184005299153,
+        "contact_percent": 0.7480158730158729,
+        "contact_precision": 0.9055232632864212,
+        "contact_recall": 0.8711495642464855,
+        "end_obj_trans_err": 3.460041433572769,
+        "feet_height": 0.02328958734869957,
+        "foot_sliding": 0.3988814348029712,
+        "gt_contact_percent": 0.7718253968253967,
+        "hand_pen_loss_omomo": 0.013831104479322676,
+        "hand_pen_ratio": 0.0,
+        "human_pen_loss_infbagel": 0.21614187235741156,
+        "human_pen_ratio": 0.0,
+        "mpjpe": 10.313767939805984,
+        "obj_rot_dist": 0.8001079104979378,
+        "obj_trans_dist": 22.378661842699504,
+        "trans_dist": 9.687605500221252,
+        "xy_points_err": 6.117621064186096
+      }
+    },
+    "armb": {
+      "exp_name": "p2-smoke-armb-s42-20260801",
+      "role": "arm B runnability and finiteness",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-release",
+      "sequence_limit": 4,
+      "windows_per_sequence": 3,
+      "is_timing_subset": true,
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "guidance": {
+        "enabled": true,
+        "arm": "b",
+        "guidance_scale": 1000.0,
+        "last_steps": 10,
+        "clamp": 1.0,
+        "clamp_target": "update",
+        "guidance_applied_steps": 27,
+        "guidance_nonfinite_steps": 0,
+        "guidance_gradient_max_abs": 60.804019927978516,
+        "guidance_update_max_abs": 1.0
+      },
+      "nonfinite_values": 0,
+      "position_outside_count": 0,
+      "position_outside_rate": 0.0,
+      "position_values": 16128,
+      "object_outside_rate": 0.0,
+      "aggregate_path": "/data/yujinlun/InfBaGel-release/results/experiments/p2-smoke-armb-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "2dc95614ff33b9c67abcd639962dd7b3b3818b80103fad504bc50a7c4b18560c",
+      "metrics": {
+        "contact_acc": 0.6011904761904763,
+        "contact_f1": 0.6542675703839611,
+        "contact_percent": 0.47619047619047616,
+        "contact_precision": 0.8594885207788434,
+        "contact_recall": 0.5396908098517763,
+        "end_obj_trans_err": 3.67603600025177,
+        "feet_height": 0.03926274552941322,
+        "foot_sliding": 0.44754409039067844,
+        "gt_contact_percent": 0.7718253968253967,
+        "hand_pen_loss_omomo": 0.006430057828765712,
+        "hand_pen_ratio": 0.0,
+        "human_pen_loss_infbagel": 0.10012592145614008,
+        "human_pen_ratio": 0.0,
+        "mpjpe": 10.671704262495041,
+        "obj_rot_dist": 0.7887868045758253,
+        "obj_trans_dist": 19.772706108600794,
+        "trans_dist": 8.21896493434906,
+        "xy_points_err": 5.1939357072114944
+      }
+    },
+    "ctrl": {
+      "exp_name": "p2-smoke-ctrl-s42-20260801",
+      "role": "unguided control on the identical 4-sequence subset",
+      "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+      "worktree": "/data/yujinlun/InfBaGel-release",
+      "sequence_limit": 4,
+      "windows_per_sequence": 3,
+      "is_timing_subset": true,
+      "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+      "guidance": null,
+      "nonfinite_values": 0,
+      "position_outside_count": 0,
+      "position_outside_rate": 0.0,
+      "position_values": 16128,
+      "object_outside_rate": 0.0,
+      "aggregate_path": "/data/yujinlun/InfBaGel-release/results/experiments/p2-smoke-ctrl-s42-20260801/evaluation/aggregate_metrics.json",
+      "aggregate_metrics_sha256": "4aa487df41a172ed4fc558a95bdd90c44073b72524d41f6deaf59ec6b51d884e",
+      "metrics": {
+        "contact_acc": 0.4305555555555556,
+        "contact_f1": 0.4163953222487874,
+        "contact_percent": 0.2619047619047619,
+        "contact_precision": 0.7736305048335124,
+        "contact_recall": 0.2912585122609624,
+        "end_obj_trans_err": 3.980628028512001,
+        "feet_height": 0.048090312629938126,
+        "foot_sliding": 0.3791555601526939,
+        "gt_contact_percent": 0.7718253968253967,
+        "hand_pen_loss_omomo": 0.004145786272147234,
+        "hand_pen_ratio": 0.0,
+        "human_pen_loss_infbagel": 0.06461009383400551,
+        "human_pen_ratio": 0.0,
+        "mpjpe": 10.592294484376907,
+        "obj_rot_dist": 0.8117699872398527,
+        "obj_trans_dist": 18.806655473936928,
+        "trans_dist": 8.020319044589996,
+        "xy_points_err": 5.219313874840736
+      }
+    },
+    "gate": {
+      "preregistered_gated_quantity": "nonfinite_values == 0",
+      "scope": "runnability and finiteness only; explicitly not used to choose between arms",
+      "plan_reference": "docs/EXPERIMENT_PLAN.md, P2 section: '功能性 smoke 仅检验可运行性与有限性（nonfinite_values == 0 为被门控项），不用于在两臂之间做选择'",
+      "nonfinite_values_all_runs": [
+        0,
+        0,
+        0
+      ],
+      "position_outside_rate_all_runs": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "passed": true,
+      "sequence_count": 4,
+      "note": "the four-sequence subset is not a scientific comparison; its contact numbers are not comparable to the official 438 and are recorded only for completeness"
+    }
+  },
+  "uncertainty": {
+    "form": "paired sequence-level bootstrap",
+    "unit": "sequence",
+    "sequence_count": 438,
+    "penetration_sequence_count": 181,
+    "distance_sequence_count": 397,
+    "bootstrap_seed": 42,
+    "bootstrap_replicates": 10000,
+    "convention_source": "tools/summarize_hoi_phase1b.py:112",
+    "ratio_expression_source": "tools/run_hoi_d2n.py:407",
+    "pooling": "native unweighted sequence mean (test_infbagel_hoi.py:337-345)"
+  },
+  "extraction_gate": {
+    "purpose": "recompute per-sequence contact statistics independently of the aggregates before any contrast is formed",
+    "per_run": {
+      "armA": {
+        "aggregate_exact": {
+          "contact_f1": true,
+          "contact_recall": true,
+          "contact_precision": true,
+          "contact_percent": true,
+          "gt_contact_percent": true,
+          "foot_sliding": true
+        },
+        "all_aggregates_exact": true,
+        "per_sequence_recall_mismatches": 0,
+        "pooled_recall_equals_aggregate": true,
+        "sequences_with_zero_gt_contact": 41
+      },
+      "armB": {
+        "aggregate_exact": {
+          "contact_f1": true,
+          "contact_recall": true,
+          "contact_precision": true,
+          "contact_percent": true,
+          "gt_contact_percent": true,
+          "foot_sliding": true
+        },
+        "all_aggregates_exact": true,
+        "per_sequence_recall_mismatches": 0,
+        "pooled_recall_equals_aggregate": true,
+        "sequences_with_zero_gt_contact": 41
+      },
+      "d2x": {
+        "aggregate_exact": {
+          "contact_f1": true,
+          "contact_recall": true,
+          "contact_precision": true,
+          "contact_percent": true,
+          "gt_contact_percent": true,
+          "foot_sliding": true
+        },
+        "all_aggregates_exact": true,
+        "per_sequence_recall_mismatches": 0,
+        "pooled_recall_equals_aggregate": true,
+        "sequences_with_zero_gt_contact": 41
+      }
+    },
+    "all_runs_exact": true,
+    "per_sequence_recall_mismatches_total": 0
+  },
+  "contact_paired": {
+    "armA_minus_d2x": {
+      "contact_recall": {
+        "first": 0.7233213944454374,
+        "second": 0.5944546940443982,
+        "point_difference": 0.1288667004010392,
+        "bootstrap_95_ci": [
+          0.10460450259435437,
+          0.15369573614339094
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_precision": {
+        "first": 0.8021556223996543,
+        "second": 0.7880618755952097,
+        "point_difference": 0.014093746804444638,
+        "bootstrap_95_ci": [
+          -0.0032430833169261584,
+          0.032065996092495254
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_f1": {
+        "first": 0.7307092524264233,
+        "second": 0.6374259391059788,
+        "point_difference": 0.09328331332044444,
+        "bootstrap_95_ci": [
+          0.07295075801560644,
+          0.11456709920641754
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_percent": {
+        "first": 0.586323113720374,
+        "second": 0.4765528738131478,
+        "point_difference": 0.1097702399072262,
+        "bootstrap_95_ci": [
+          0.09030948756976155,
+          0.12948467058056098
+        ],
+        "ci_crosses_zero": false
+      },
+      "foot_sliding": {
+        "first": 0.39902551896499555,
+        "second": 0.3630100213939385,
+        "point_difference": 0.03601549757105719,
+        "bootstrap_95_ci": [
+          0.01415659815996442,
+          0.057655161278830115
+        ],
+        "ci_crosses_zero": false
+      }
+    },
+    "armB_minus_d2x": {
+      "contact_recall": {
+        "first": 0.7078309129424002,
+        "second": 0.5944546940443982,
+        "point_difference": 0.113376218898002,
+        "bootstrap_95_ci": [
+          0.09811504458218034,
+          0.1285825290752411
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_precision": {
+        "first": 0.8122325894027452,
+        "second": 0.7880618755952097,
+        "point_difference": 0.024170713807535507,
+        "bootstrap_95_ci": [
+          0.011595703299653823,
+          0.038139612657824194
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_f1": {
+        "first": 0.7265268028569287,
+        "second": 0.6374259391059788,
+        "point_difference": 0.08910086375094974,
+        "bootstrap_95_ci": [
+          0.07592903782603712,
+          0.10222288487201188
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_percent": {
+        "first": 0.5695622236718128,
+        "second": 0.4765528738131478,
+        "point_difference": 0.09300934985866492,
+        "bootstrap_95_ci": [
+          0.08077843009349858,
+          0.10489599188229325
+        ],
+        "ci_crosses_zero": false
+      },
+      "foot_sliding": {
+        "first": 0.3556543021004396,
+        "second": 0.3630100213939385,
+        "point_difference": -0.007355719293498866,
+        "bootstrap_95_ci": [
+          -0.024198948068034822,
+          0.009625270084420226
+        ],
+        "ci_crosses_zero": true
+      }
+    },
+    "armA_minus_armB": {
+      "contact_recall": {
+        "first": 0.7233213944454374,
+        "second": 0.7078309129424002,
+        "point_difference": 0.01549048150303719,
+        "bootstrap_95_ci": [
+          -0.0035175384667368885,
+          0.03476446574989091
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_precision": {
+        "first": 0.8021556223996543,
+        "second": 0.8122325894027452,
+        "point_difference": -0.01007696700309087,
+        "bootstrap_95_ci": [
+          -0.02484611254183985,
+          0.0040206554645483405
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_f1": {
+        "first": 0.7307092524264233,
+        "second": 0.7265268028569287,
+        "point_difference": 0.004182449569494723,
+        "bootstrap_95_ci": [
+          -0.011272009688167679,
+          0.019976516447102605
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_percent": {
+        "first": 0.586323113720374,
+        "second": 0.5695622236718128,
+        "point_difference": 0.016760890048561284,
+        "bootstrap_95_ci": [
+          0.0013041784445894035,
+          0.03243549322316444
+        ],
+        "ci_crosses_zero": false
+      },
+      "foot_sliding": {
+        "first": 0.39902551896499555,
+        "second": 0.3556543021004396,
+        "point_difference": 0.04337121686455605,
+        "bootstrap_95_ci": [
+          0.025534265540110644,
+          0.06132512768978884
+        ],
+        "ci_crosses_zero": false
+      }
+    },
+    "armA_minus_a0-old": {
+      "contact_recall": {
+        "first": 0.7233213944454374,
+        "second": 0.7275875037410999,
+        "point_difference": -0.0042661092956625055,
+        "bootstrap_95_ci": [
+          -0.026657448620223793,
+          0.01811488980576583
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_precision": {
+        "first": 0.8021556223996543,
+        "second": 0.790809602353939,
+        "point_difference": 0.011346020045715253,
+        "bootstrap_95_ci": [
+          -0.005048316860444549,
+          0.02693136585868692
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_f1": {
+        "first": 0.7307092524264233,
+        "second": 0.7272576950146546,
+        "point_difference": 0.0034515574117687064,
+        "bootstrap_95_ci": [
+          -0.014841892595196948,
+          0.021764907089831444
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_percent": {
+        "first": 0.586323113720374,
+        "second": 0.5983184750308039,
+        "point_difference": -0.011995361310429801,
+        "bootstrap_95_ci": [
+          -0.03049621294484308,
+          0.006849768065521486
+        ],
+        "ci_crosses_zero": true
+      },
+      "foot_sliding": {
+        "first": 0.39902551896499555,
+        "second": 0.33336322153742476,
+        "point_difference": 0.06566229742757088,
+        "bootstrap_95_ci": [
+          0.047824105322125575,
+          0.08371201382422334
+        ],
+        "ci_crosses_zero": false
+      }
+    },
+    "armB_minus_a0-old": {
+      "contact_recall": {
+        "first": 0.7078309129424002,
+        "second": 0.7275875037410999,
+        "point_difference": -0.0197565907986997,
+        "bootstrap_95_ci": [
+          -0.041924775090132094,
+          0.0018397663946177506
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_precision": {
+        "first": 0.8122325894027452,
+        "second": 0.790809602353939,
+        "point_difference": 0.02142298704880612,
+        "bootstrap_95_ci": [
+          0.006649372635749304,
+          0.03627706857868038
+        ],
+        "ci_crosses_zero": false
+      },
+      "contact_f1": {
+        "first": 0.7265268028569287,
+        "second": 0.7272576950146546,
+        "point_difference": -0.0007308921577260192,
+        "bootstrap_95_ci": [
+          -0.01880410815438682,
+          0.016813577217043955
+        ],
+        "ci_crosses_zero": true
+      },
+      "contact_percent": {
+        "first": 0.5695622236718128,
+        "second": 0.5983184750308039,
+        "point_difference": -0.028756251358991083,
+        "bootstrap_95_ci": [
+          -0.04678553308690295,
+          -0.010889595564253103
+        ],
+        "ci_crosses_zero": false
+      },
+      "foot_sliding": {
+        "first": 0.3556543021004396,
+        "second": 0.33336322153742476,
+        "point_difference": 0.022291080563014824,
+        "bootstrap_95_ci": [
+          0.003582909658152084,
+          0.04073515433308464
+        ],
+        "ci_crosses_zero": false
+      }
+    }
+  },
+  "cost_paired": {
+    "armA_minus_d2x": {
+      "mpjpe": {
+        "first": 12.346643191596417,
+        "second": 12.050845133795585,
+        "point_difference": 0.2957980578008308,
+        "bootstrap_95_ci": [
+          0.12866348051572363,
+          0.472683091945606
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "obj_trans_dist": {
+        "first": 17.23781495720266,
+        "second": 15.994049727002505,
+        "point_difference": 1.2437652302001514,
+        "bootstrap_95_ci": [
+          0.9167887605239328,
+          1.5867509041671939
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "end_obj_trans_err": {
+        "first": 4.238059779624871,
+        "second": 3.7661075636195736,
+        "point_difference": 0.47195221600529763,
+        "bootstrap_95_ci": [
+          0.3014251739887767,
+          0.6450157631381034
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "hand_pen_loss_omomo": {
+        "first": 0.24264736794262548,
+        "second": 0.24535650279805918,
+        "point_difference": -0.002709134855433698,
+        "bootstrap_95_ci": [
+          -0.040723557902494524,
+          0.031941206546910565
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "human_pen_loss_infbagel": {
+        "first": 3.850440732527374,
+        "second": 3.8690846209915826,
+        "point_difference": -0.018643888464207926,
+        "bootstrap_95_ci": [
+          -0.6158662316966524,
+          0.5228241566037045
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      }
+    },
+    "armB_minus_d2x": {
+      "mpjpe": {
+        "first": 12.079359630131286,
+        "second": 12.050845133795585,
+        "point_difference": 0.02851449633570022,
+        "bootstrap_95_ci": [
+          -0.0209779437571832,
+          0.079472698696536
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "obj_trans_dist": {
+        "first": 16.094317507591477,
+        "second": 15.994049727002505,
+        "point_difference": 0.1002677805889715,
+        "bootstrap_95_ci": [
+          0.00026165341552941544,
+          0.2036227449728355
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "end_obj_trans_err": {
+        "first": 3.865354753529103,
+        "second": 3.7661075636195736,
+        "point_difference": 0.09924718990952949,
+        "bootstrap_95_ci": [
+          0.033108652560308524,
+          0.16579181821690228
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "hand_pen_loss_omomo": {
+        "first": 0.22941977261668464,
+        "second": 0.24535650279805918,
+        "point_difference": -0.015936730181374547,
+        "bootstrap_95_ci": [
+          -0.03494125613615837,
+          0.000615597896891885
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "human_pen_loss_infbagel": {
+        "first": 3.626065089032391,
+        "second": 3.8690846209915826,
+        "point_difference": -0.2430195319591915,
+        "bootstrap_95_ci": [
+          -0.540406119163036,
+          0.014477342987178753
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      }
+    },
+    "armA_minus_armB": {
+      "mpjpe": {
+        "first": 12.346643191596417,
+        "second": 12.079359630131286,
+        "point_difference": 0.26728356146513055,
+        "bootstrap_95_ci": [
+          0.11245360374705841,
+          0.4311312393383143
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "obj_trans_dist": {
+        "first": 17.23781495720266,
+        "second": 16.094317507591477,
+        "point_difference": 1.1434974496111803,
+        "bootstrap_95_ci": [
+          0.845491681137724,
+          1.4604917442248888
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "end_obj_trans_err": {
+        "first": 4.238059779624871,
+        "second": 3.865354753529103,
+        "point_difference": 0.37270502609576817,
+        "bootstrap_95_ci": [
+          0.22452363826159677,
+          0.5221512157346752
+        ],
+        "ci_crosses_zero": false,
+        "sequences_used": 438,
+        "mean_of_per_sequence_equals_aggregate": false
+      },
+      "hand_pen_loss_omomo": {
+        "first": 0.24264736794262548,
+        "second": 0.22941977261668464,
+        "point_difference": 0.013227595325940847,
+        "bootstrap_95_ci": [
+          -0.01479625837759793,
+          0.04083896256727763
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      },
+      "human_pen_loss_infbagel": {
+        "first": 3.850440732527374,
+        "second": 3.626065089032391,
+        "point_difference": 0.22437564349498357,
+        "bootstrap_95_ci": [
+          -0.22229306130021279,
+          0.6543854617644224
+        ],
+        "ci_crosses_zero": true,
+        "sequences_used": 181,
+        "mean_of_per_sequence_equals_aggregate": true
+      }
+    }
+  },
+  "cost_point_only": {
+    "armA_minus_a0-old": {
+      "mpjpe": {
+        "first": 12.346643954515457,
+        "second": 11.997593194246292,
+        "point_difference": 0.34905076026916504,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "obj_trans_dist": {
+        "first": 17.23781495720266,
+        "second": 15.72564612054545,
+        "point_difference": 1.5121688366572084,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "end_obj_trans_err": {
+        "first": 4.215580224990845,
+        "second": 3.0372438952326775,
+        "point_difference": 1.1783363297581673,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "hand_pen_loss_omomo": {
+        "first": 0.24264736794262548,
+        "second": 0.1624019806288998,
+        "point_difference": 0.08024538731372569,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "human_pen_loss_infbagel": {
+        "first": 3.850440732527374,
+        "second": 2.589266609805965,
+        "point_difference": 1.261174122721409,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      }
+    },
+    "armB_minus_a0-old": {
+      "mpjpe": {
+        "first": 12.079359591007233,
+        "second": 11.997593194246292,
+        "point_difference": 0.08176639676094055,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "obj_trans_dist": {
+        "first": 16.094317507591484,
+        "second": 15.72564612054545,
+        "point_difference": 0.3686713870460334,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "end_obj_trans_err": {
+        "first": 3.8400880992412567,
+        "second": 3.0372438952326775,
+        "point_difference": 0.8028442040085793,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "hand_pen_loss_omomo": {
+        "first": 0.22941977261668464,
+        "second": 0.1624019806288998,
+        "point_difference": 0.06701779198778485,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      },
+      "human_pen_loss_infbagel": {
+        "first": 3.6260650890323904,
+        "second": 2.589266609805965,
+        "point_difference": 1.0367984792264253,
+        "reason": "no per_sequence_metrics.json for a0-old"
+      }
+    }
+  },
+  "d2q0_form_ratios": {
+    "armA_over_d2x": {
+      "obj_trans_dist": {
+        "numerator_mean": 17.23781495720266,
+        "denominator_mean": 15.994049727002505,
+        "mean_ratio": 1.0777642467936264,
+        "bootstrap_95_ci": [
+          1.0570874667928558,
+          1.099831484290711
+        ],
+        "ci_upper_above_1_10": false
+      },
+      "foot_sliding": {
+        "numerator_mean": 0.39902551896499555,
+        "denominator_mean": 0.3630100213939385,
+        "mean_ratio": 1.099213507750446,
+        "bootstrap_95_ci": [
+          1.0373821517762298,
+          1.166076707633881
+        ],
+        "ci_upper_above_1_10": true
+      }
+    },
+    "armB_over_d2x": {
+      "obj_trans_dist": {
+        "numerator_mean": 16.094317507591477,
+        "denominator_mean": 15.994049727002505,
+        "mean_ratio": 1.006269067703328,
+        "bootstrap_95_ci": [
+          1.0000160926811241,
+          1.0127929255241368
+        ],
+        "ci_upper_above_1_10": false
+      },
+      "foot_sliding": {
+        "numerator_mean": 0.3556543021004396,
+        "denominator_mean": 0.3630100213939385,
+        "mean_ratio": 0.9797368698934168,
+        "bootstrap_95_ci": [
+          0.9353705183327757,
+          1.027616430717987
+        ],
+        "ci_upper_above_1_10": false
+      }
+    }
+  },
+  "gt_contact_distance": {
+    "armA": {
+      "mean_cm_frame_pooled": 3.9759049057228113,
+      "mean_cm_sequence_mean": 3.8933701965586507,
+      "median_cm_frame_pooled": 1.717843022197485,
+      "histogram_fractions": {
+        "[0,2)": 0.5473335523434077,
+        "[2,4)": 0.20132501095050373,
+        "[4,5)": 0.04697766097240473,
+        "[5,6)": 0.03419294787560228,
+        "[6,8)": 0.04298072711344722,
+        "[8,inf)": 0.12719010074463424
+      }
+    },
+    "armB": {
+      "mean_cm_frame_pooled": 4.172484818890638,
+      "mean_cm_sequence_mean": 4.1160731484754605,
+      "median_cm_frame_pooled": 2.139563113451004,
+      "histogram_fractions": {
+        "[0,2)": 0.4744305738063951,
+        "[2,4)": 0.24208826106000875,
+        "[4,5)": 0.06469010074463426,
+        "[5,6)": 0.04445904511607534,
+        "[6,8)": 0.05269929916776172,
+        "[8,inf)": 0.12163272010512484
+      }
+    },
+    "control_d2x": {
+      "mean_cm_frame_pooled": 5.388630899896188,
+      "mean_cm_sequence_mean": 5.330455997479882,
+      "median_cm_frame_pooled": 3.1835151836276054,
+      "histogram_fractions": {
+        "[0,2)": 0.3585742444152431,
+        "[2,4)": 0.21901007446342532,
+        "[4,5)": 0.07969229084537889,
+        "[5,6)": 0.05801029347349978,
+        "[6,8)": 0.086125711782742,
+        "[8,inf)": 0.1985873850197109
+      }
+    },
+    "reference_a0_old": {
+      "mean_cm_frame_pooled": 3.6835838169222925,
+      "mean_cm_sequence_mean": 3.6717328675343506,
+      "median_cm_frame_pooled": 1.8011956475675106,
+      "histogram_fractions": {
+        "[0,2)": 0.5333442838370565,
+        "[2,4)": 0.21348007008322384,
+        "[4,5)": 0.05565593517301796,
+        "[5,6)": 0.039339684625492775,
+        "[6,8)": 0.05294568550153307,
+        "[8,inf)": 0.10523434077967586
+      },
+      "source": "experiments/results/p1_hoi_protocol_decomp_s42_20260801.json .gt_contact_distance.per_run['a0-old']"
+    },
+    "ground_truth_reference": {
+      "mean_cm_frame_pooled": 1.6980626014160705,
+      "mean_cm_sequence_mean": 1.7654829495034734,
+      "median_cm_frame_pooled": 1.4928901568055153,
+      "note": "identical for all eight runs; it is the GT-vs-GT floor of the metric"
+    },
+    "definition": "per GT-contact frame, min over the two SMPL hand joints (22, 23) of the distance to the nearest vertex of the posed predicted object mesh; restricted to frames where either GT hand is within the 5 cm contact threshold, i.e. the mask at code/eval_metrics.py:271",
+    "measurement_caveat": "FROM a skeleton hand joint, not the hand mesh surface, and TO the nearest object mesh vertex, not the nearest surface point; both the prediction and the GT leg use the identical definition",
+    "unit": "cm",
+    "sequences_used": 397,
+    "sequences_with_zero_gt_contact": 41,
+    "gt_contact_frames_total": 36528,
+    "histogram_bins_cm": [
+      "[0,2)",
+      "[2,4)",
+      "[4,5)",
+      "[5,6)",
+      "[6,8)",
+      "[8,inf)"
+    ]
+  },
+  "gt_contact_distance_paired": {
+    "armA_minus_d2x": {
+      "first": 3.8933701965586507,
+      "second": 5.330455997479882,
+      "point_difference": -1.437085800921231,
+      "bootstrap_95_ci": [
+        -1.7204464385485143,
+        -1.153179666048006
+      ],
+      "ci_crosses_zero": false,
+      "unit": "cm",
+      "sequence_count": 397
+    },
+    "armB_minus_d2x": {
+      "first": 4.1160731484754605,
+      "second": 5.330455997479882,
+      "point_difference": -1.2143828490044208,
+      "bootstrap_95_ci": [
+        -1.3699990085843428,
+        -1.0618941867229243
+      ],
+      "ci_crosses_zero": false,
+      "unit": "cm",
+      "sequence_count": 397
+    },
+    "armA_minus_armB": {
+      "first": 3.8933701965586507,
+      "second": 4.1160731484754605,
+      "point_difference": -0.2227029519168105,
+      "bootstrap_95_ci": [
+        -0.43427992595084364,
+        -0.008448379984682595
+      ],
+      "ci_crosses_zero": false,
+      "unit": "cm",
+      "sequence_count": 397
+    },
+    "armA_minus_a0-old": {
+      "first": 3.8933701965586507,
+      "second": 3.6717328675343506,
+      "point_difference": 0.2216373290242998,
+      "bootstrap_95_ci": [
+        -0.08824403683605024,
+        0.5310477274194514
+      ],
+      "ci_crosses_zero": true,
+      "unit": "cm",
+      "sequence_count": 397
+    },
+    "armB_minus_a0-old": {
+      "first": 4.1160731484754605,
+      "second": 3.6717328675343506,
+      "point_difference": 0.44434028094111033,
+      "bootstrap_95_ci": [
+        0.12382004609101127,
+        0.7646501731812492
+      ],
+      "ci_crosses_zero": false,
+      "unit": "cm",
+      "sequence_count": 397
+    }
+  },
+  "gain_shares": {
+    "form": "Arm B's paired gain over the unguided control divided by Arm A's, on the same quantity; both gains have CIs excluding zero except where noted",
+    "contact_recall": {
+      "armA": 0.1288667004010392,
+      "armB": 0.113376218898002,
+      "armB_over_armA": 0.8797945360994727
+    },
+    "contact_f1": {
+      "armA": 0.09328331332044444,
+      "armB": 0.08910086375094974,
+      "armB_over_armA": 0.9551640114333497
+    },
+    "contact_percent": {
+      "armA": 0.1097702399072262,
+      "armB": 0.09300934985866492,
+      "armB_over_armA": 0.8473093430174975
+    },
+    "gt_contact_frame_distance_cm": {
+      "armA": -1.437085800921231,
+      "armB": -1.2143828490044208,
+      "armB_over_armA": 0.8450315549885411
+    },
+    "statement": "Arm B retains about 88% of Arm A's contact-recall gain, 96% of its contact-F1 gain, 85% of its predicted-contact gain and 85% of its distance gain, at a near-zero object-trajectory cost and with foot sliding improved rather than degraded. The plan's '~90% of the contact gain, ~85% of the distance gain' refers to these ratios."
+  },
+  "criteria": {
+    "p2_preregistered_cost_thresholds": false,
+    "p2_preregistered_gated_quantity": "nonfinite_values == 0 (functional smoke)",
+    "p2_mandatory_cost_reporting": [
+      "foot_sliding",
+      "obj_trans_dist",
+      "end_obj_trans_err",
+      "hand_pen_loss_omomo",
+      "mpjpe",
+      "position_outside_rate",
+      "gt_contact_frame_distance"
+    ],
+    "statement": "P2 preregistered mandatory cost REPORTING but preregistered no cost THRESHOLD. D2-Q0's <=1.10 protection bar was preregistered for D2-Q0 and is not P2's gate. No pass or fail against that line is declared here. It is evaluated below only for comparability with the earlier sub-phases, not as a P2 verdict.",
+    "d2q0_style_ratio_bar": {
+      "bar": "mean-ratio 95% CI upper bound <= 1.10 against the unguided control",
+      "expression_source": "tools/run_hoi_d2n.py:407 paired_ratio",
+      "applies_to_p2": false,
+      "counterfactual": {
+        "armA": {
+          "foot_sliding": {
+            "mean_ratio": 1.099213507750446,
+            "bootstrap_95_ci": [
+              1.0373821517762298,
+              1.166076707633881
+            ],
+            "would_fail": true
+          },
+          "obj_trans_dist": {
+            "mean_ratio": 1.0777642467936264,
+            "bootstrap_95_ci": [
+              1.0570874667928558,
+              1.099831484290711
+            ],
+            "would_fail": false,
+            "margin_below_1_10": 0.00016851570928899662
+          },
+          "verdict_if_applied": "would FAIL on foot sliding (CI upper 1.166076707633881) and would clear object translation by 0.000168516"
+        },
+        "armB": {
+          "foot_sliding": {
+            "mean_ratio": 0.9797368698934168,
+            "bootstrap_95_ci": [
+              0.9353705183327757,
+              1.027616430717987
+            ],
+            "would_fail": false
+          },
+          "obj_trans_dist": {
+            "mean_ratio": 1.006269067703328,
+            "bootstrap_95_ci": [
+              1.0000160926811241,
+              1.0127929255241368
+            ],
+            "would_fail": false,
+            "margin_below_1_10": 0.08720707447586329
+          },
+          "verdict_if_applied": "would clear both"
+        }
+      }
+    },
+    "arm_reporting_rule": "Arm A is the preregistered headline and is reported as such regardless of outcome; Arm B was declared before any run and is reported on equal terms. The primary-arm declaration is not rewritten because Arm B looks better on cost.",
+    "primary_arm": "A",
+    "lowest_cost_arm": "B"
+  },
+  "pre_run_prediction": {
+    "recorded_before_any_gpu_run": true,
+    "recorded_in": [
+      "docs/EXPERIMENT_PLAN.md, P2 section, '事前预测（在任何 GPU 运行之前记录）'",
+      "commit 9a3a3510b53c9c21fe7b766264e98181230f1695 (preregistration) and c40dc00b2ad315f194a01d034413d80c493cf220 (implementation message)"
+    ],
+    "prediction": "Arm A was predicted to raise position_outside_rate and possibly produce degenerate motion, because with a real norm.npy one guidance step adds about 2.06 to the [-1,1] normalized pelvis-y channel at 5 cm foot error and about 19 at 30 cm, and HOIPrior applies the raw gradient on 499 steps where the author applies it on 15.",
+    "outcome": "FALSIFIED",
+    "evidence": {
+      "armA_position_outside_rate": 0.0,
+      "armB_position_outside_rate": 0.0,
+      "control_position_outside_rate": 0.0,
+      "smoke_position_outside_rate": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "armA_nonfinite_values": 0,
+      "armB_nonfinite_values": 0,
+      "armA_guidance_nonfinite_steps": 0,
+      "armB_guidance_nonfinite_steps": 0,
+      "armA_guidance_gradient_rms": 0.15246111743665497,
+      "armA_guidance_gradient_max_abs": 437.9065246582031
+    },
+    "likely_reason": "the worst case did not materialise, most likely because the loss falls towards zero once contact is achieved, so the guidance is self-limiting: Arm A's mean gradient RMS is 0.1525 while its max absolute value is 437.9, i.e. large updates are rare and transient rather than sustained.",
+    "nan_risk_inherited_from_author": {
+      "description": "the temporal term computes v/||v|| with no epsilon (code/guidance_loss.py:58-64), which is NaN when the palm sits exactly at the object centre",
+      "observed_nonfinite_steps": 0,
+      "backstop": "the gated nonfinite_values == 0 check"
+    }
+  },
+  "measurement_caveats": {
+    "end_obj_trans_err_construction": {
+      "issue": "the per-sequence construction and the published aggregate are not the same quantity: the aggregate uses the pre-interpolation window endpoint, the per-sequence value uses the final frame of the interpolated trajectory",
+      "relative_difference_percent": {
+        "armA": 0.5332493615176123,
+        "armB": 0.6579706932462999,
+        "control_d2x": 0.6924471446912929
+      },
+      "consequence": "the end_obj_trans_err CIs in this file are per-sequence-construction CIs, not CIs on the published aggregate",
+      "aggregate_values": {
+        "armA": 4.215580224990845,
+        "armB": 3.8400880992412567,
+        "control_d2x": 3.7402085959911346
+      },
+      "per_sequence_pooled_values": {
+        "armA": 4.238059779624871,
+        "armB": 3.865354753529103,
+        "control_d2x": 3.7661075636195736
+      }
+    },
+    "mpjpe_pooling": {
+      "issue": "pooling order differs between the per-sequence mean and the aggregate",
+      "relative_difference_armA": 6.179161258341195e-08,
+      "magnitude": "1e-7 relative; immaterial"
+    },
+    "exact_agreement": {
+      "metrics": [
+        "obj_trans_dist",
+        "hand_pen_loss_omomo",
+        "human_pen_loss_infbagel"
+      ],
+      "mean_of_per_sequence_equals_aggregate": true
+    },
+    "penetration_sequence_count": {
+      "sequences_used": 181,
+      "of_total": 438,
+      "reason": "the frozen metric code does not compute the penetration terms for six object classes, so both penetration CIs rest on 181 sequences"
+    },
+    "contact_recall_scoring_artifact": {
+      "sequences_without_gt_contact": 41,
+      "of_total": 438,
+      "constant_factor": 0.906392694063927,
+      "source": "experiments/results/p1_hoi_protocol_decomp_s42_20260801.json .recall_scoring_artifact",
+      "note": "unchanged by P2; it affects every recall in this project equally and does not affect any P2 contrast, all of which are paired on the same 438 sequences"
+    }
+  },
+  "headline_findings": {
+    "contact_parity_with_the_guided_released_model": {
+      "contrast": "armA_minus_a0-old",
+      "crossing_zero": {
+        "contact_recall": true,
+        "contact_precision": true,
+        "contact_f1": true,
+        "contact_percent": true
+      },
+      "all_four_cross_zero": true,
+      "armB_contact_f1_also_crosses_zero": true,
+      "armA_vs_armB_indistinguishable_on": [
+        "contact_recall",
+        "contact_precision",
+        "contact_f1"
+      ],
+      "statement": "protocol-aligned, the guided HOIPrior reaches statistical contact parity with the guided released model"
+    },
+    "geometry_moved_not_only_the_operating_point": {
+      "paired_distance_shift_cm": -1.437085800921231,
+      "bootstrap_95_ci_cm": [
+        -1.7204464385485143,
+        -1.153179666048006
+      ],
+      "median_cm_control": 3.1835151836276054,
+      "median_cm_armA": 1.717843022197485,
+      "mass_below_2cm_control": 0.3585742444152431,
+      "mass_below_2cm_armA": 0.5473335523434077,
+      "continuous_residual_vs_a0_old": {
+        "point_difference_cm": 0.2216373290242998,
+        "bootstrap_95_ci_cm": [
+          -0.08824403683605024,
+          0.5310477274194514
+        ],
+        "ci_crosses_zero": true
+      },
+      "statement": "the whole distribution moved, which no rethresholding can produce; and on the unthresholded residual Arm A is indistinguishable from the guided released model, so parity holds off the threshold as well"
+    },
+    "d2q0_negative_overturned": {
+      "d2q0_reported_foot_sliding_ratio": 1.535,
+      "d2q0_implementation_defect": "code/priors/contact_guidance.py (D2-Q0) and code/priors/routed_guidance.py (D2-R0) reference apply_feet_floor_contact_guidance zero times; both implemented only the hand-object x10 term and omitted the feet-floor x500 term",
+      "d2q0_checkpoint_object_goal_error_cm": 95.3,
+      "d2x_object_goal_error_cm": 3.7402085959911346,
+      "armB_foot_sliding_ratio": 0.9797368698934168,
+      "armA_foot_sliding_ratio": 1.099213507750446,
+      "statement": "with the author's complete loss, Arm B's foot-sliding ratio is 0.9797, an improvement, and Arm A's is 1.0992; the D2-Q0 foot-sliding cost was a property of a partial implementation measured on a far weaker checkpoint"
+    },
+    "residual_deficit_guidance_does_not_fix": {
+      "far_tail_ge_8cm_armA": 0.12719010074463424,
+      "far_tail_ge_8cm_a0_old": 0.10523434077967586,
+      "armA_minus_a0_old_point_only": {
+        "mpjpe": {
+          "first": 12.346643954515457,
+          "second": 11.997593194246292,
+          "point_difference": 0.34905076026916504,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "obj_trans_dist": {
+          "first": 17.23781495720266,
+          "second": 15.72564612054545,
+          "point_difference": 1.5121688366572084,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "end_obj_trans_err": {
+          "first": 4.215580224990845,
+          "second": 3.0372438952326775,
+          "point_difference": 1.1783363297581673,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "hand_pen_loss_omomo": {
+          "first": 0.24264736794262548,
+          "second": 0.1624019806288998,
+          "point_difference": 0.08024538731372569,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "human_pen_loss_infbagel": {
+          "first": 3.850440732527374,
+          "second": 2.589266609805965,
+          "point_difference": 1.261174122721409,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        }
+      },
+      "armB_minus_a0_old_point_only": {
+        "mpjpe": {
+          "first": 12.079359591007233,
+          "second": 11.997593194246292,
+          "point_difference": 0.08176639676094055,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "obj_trans_dist": {
+          "first": 16.094317507591484,
+          "second": 15.72564612054545,
+          "point_difference": 0.3686713870460334,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "end_obj_trans_err": {
+          "first": 3.8400880992412567,
+          "second": 3.0372438952326775,
+          "point_difference": 0.8028442040085793,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "hand_pen_loss_omomo": {
+          "first": 0.22941977261668464,
+          "second": 0.1624019806288998,
+          "point_difference": 0.06701779198778485,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        },
+        "human_pen_loss_infbagel": {
+          "first": 3.6260650890323904,
+          "second": 2.589266609805965,
+          "point_difference": 1.0367984792264253,
+          "reason": "no per_sequence_metrics.json for a0-old"
+        }
+      },
+      "genuine_geometry_gap_cm": 0.8334401035030574,
+      "genuine_geometry_gap_ci_cm": [
+        0.4906032214897659,
+        1.1824323444360068
+      ],
+      "statement": "Arm A's >=8 cm tail stays fatter than the released model's (0.1272 vs 0.1052) and object-trajectory and penetration costs remain against a0-old. That is consistent with the 0.83 cm [0.49, 1.18] genuine generative-geometry gap measured on 2026-08-01: the contact failure was a measurement artifact, the remaining gaps are real."
+    }
+  },
+  "conclusion": "Aligning HOIPrior's inference protocol with the protocol its baselines were measured under closes the recorded contact gap. Guided, the sealed D2-X checkpoint reaches statistical contact parity with the guided released model: Arm A minus a0-old has contact recall -0.0043, precision +0.0114, F1 +0.0035 and contact_percent -0.0120, all four with CIs crossing zero, and Arm B's F1 difference -0.0007 also crosses zero. The gain is geometric, not a shift of operating point: the paired GT-contact-frame distance moves -1.4371 cm [-1.7204, -1.1532], the median goes 3.1835 -> 1.7178 cm, the [0,2) cm mass rises 0.359 -> 0.547, and on the unthresholded residual Arm A is indistinguishable from the guided released model (+0.2216 cm, CI crosses zero). Arm A is the preregistered primary and has the highest contact F1 (0.73071), but Arm B is the configuration that survives cost scrutiny: about 88% of the recall gain, 96% of the F1 gain and 85% of the distance gain, with an object-translation ratio of 1.0063 and foot sliding IMPROVED at 0.9797. P2 preregistered mandatory cost reporting but no cost threshold; reported only for comparability, if D2-Q0's <=1.10 bar were applied Arm A would fail foot sliding (CI upper 1.1661) and clear object translation by 1.7e-4, while Arm B would clear both. D2-Q0's negative is overturned: it omitted the feet-floor term entirely and measured on a checkpoint with 95.3 cm object-goal error. The pre-run prediction that Arm A would saturate position_outside_rate and degenerate is FALSIFIED - every run has nonfinite_values 0 and position_outside_rate 0.0. What guidance does not fix: Arm A's >=8 cm tail is still fatter than the released model's (0.1272 vs 0.1052) and object-trajectory and penetration costs remain against a0-old, consistent with the 0.83 cm genuine generative-geometry gap. This is protocol alignment, not a model improvement: it changes how HOIPrior is sampled, not the quality of the prior.",
+  "next_action": "Treat every historical released-minus-D2 contact comparison as protocol-confounded on the guidance axis as well, and cite this result when a HOIPrior contact number is compared with a guided baseline. This sub-phase trains nothing, selects no checkpoint, changes neither the evaluator nor the fixed native D2 protocol, and does not enable guidance in production: guidance remains default-off and any production use, any stepwise object requery, and any use of these runs as a checkpoint-selection signal still require a separate dated plan amendment and explicit user approval. Phase 1B HOIPrior search remains closed and the next session entry point is unchanged: a dated Phase 1C HSIPrior plan-only preregistration on phase/01c-hsi, trained from random initialization."
+}

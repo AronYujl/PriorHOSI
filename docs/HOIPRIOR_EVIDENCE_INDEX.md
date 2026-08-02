@@ -9,7 +9,9 @@ protocols, confidence intervals and hashes.
 ## 1. Locked comparison points
 
 All D2-* values are from the unchanged official 438-sequence, three-window, 500-step
-unguided native protocol. The released InfBaGel row is measured on the same 438
+unguided native protocol, except the P2 row, which is the same sealed D2-X checkpoint
+under the same protocol with inference-time contact guidance added and is marked as
+such. The released InfBaGel row is measured on the same 438
 sequences with a byte-identical `code/eval_metrics.py`, but **not** under that protocol:
 per `results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml` it was
 produced at commit `c358fa4` with the consistency sampler (`sample_type: consistency`,
@@ -25,6 +27,7 @@ Do not read the released row against the D2-* rows as a protocol-matched compari
 | released InfBaGel, guidance off | 3.1251 | 0.36903 | 0.78115 / 0.64877 / 0.66842 | 0.18591 | 12.0328 | 2026-08-01 A-old; same checkpoint at `cm_timesteps: 16` with `guidance_weight: 0`; the closest protocol-matched reference the released model has |
 | D2-V long budget | 3.6807 | 0.37828 | 0.78911 / 0.58529 / 0.62859 | 0.26405 | 12.1224 | strong but FS/penetration negative |
 | D2-X FK-foot routing | 3.7402 | 0.36301 | 0.78806 / 0.59445 / 0.63743 | 0.24536 | 12.0508 | sealed autonomous control |
+| D2-X + P2 inference guidance, Arm A | 4.2156 | 0.39903 | 0.80216 / 0.72332 / 0.73071 | 0.24265 | 12.3466 | 2026-08-02 P2; **guided**, not the unguided native protocol. Protocol alignment, not a model change: same sealed D2-X weights sampled with the author's full `apply_hoi_guidance_loss`. Statistical contact parity with the guided released row (recall, precision, F1, contact_percent all cross zero). Arm B (late-steps-only, variance-scaled, clamped) is 3.8401 / 0.35565 / 0.81223 / 0.70783 / 0.72653 / 0.22942 / 12.0794 and is the arm that survives cost scrutiny |
 | D2-AB no-slip objective | 3.6840 | 0.36606 | 0.78957 / 0.59533 / 0.63831 | 0.23832 | 12.0639 | mechanism/FS negative |
 | D2-AC local adapter | 5.6473 | 0.39861 | 0.78758 / 0.60416 / 0.64799 | 0.25179 | 12.4268 | locality and protection negative |
 | D2-AD local-frame adapter | 4.2373 | 0.42539 | 0.76795 / 0.53300 / 0.58687 | 0.21656 | 12.3847 | locality and transfer negative |
@@ -159,6 +162,11 @@ sweep or several loosely coupled interventions.
 - 2026-08-01 protocol decomposition:
   `docs/phase_summaries/PHASE_1B_PROTOCOL_DECOMP.md` and
   `experiments/results/p1_hoi_protocol_decomp_s42_20260801.json`
+- 2026-08-02 P2 inference contact guidance:
+  `docs/phase_summaries/PHASE_1B_P2_GUIDANCE.md` and
+  `experiments/results/p1_hoi_p2_inference_contact_guidance_s42_20260801.json`.
+  Protocol alignment only: guidance stays default-off, no checkpoint was selected,
+  and the 0.83 cm genuine generative-geometry gap is unchanged.
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,
