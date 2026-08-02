@@ -43,10 +43,13 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     # D2-AC/D2-AD/D2-AE/D2-AF/D2-AG extend the shared model module behind
     # explicit architecture variants; targeted tests lock exact base-path
     # parity.  D2-AG additionally routes the relation source through the
-    # sampler, so the diffusion module moves with it.
+    # sampler, so the diffusion module moves with it.  P2 adds the
+    # default-off inference-guidance hook to the same sampler; base-path
+    # parity is proved bitwise against the pre-P2 source by
+    # tests/test_hoi_p2_guidance.py.
     "code/priors/models.py": "31c5ddfd5441156521d41c29830f8d8c9ef080a2afba4c4718f4a3aa0a551d82",
     "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
-    "code/priors/diffusion.py": "b37142030d7b9a2e523002618afb070d7e5223a0b4c9532564e171c4943098c7",
+    "code/priors/diffusion.py": "12bc4ce0c2eb96ad79bc83d93de5e7ab6dcf8425b1707e75f6dfdb9f2b38c01a",
 }
 
 

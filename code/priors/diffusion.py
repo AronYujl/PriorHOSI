@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional
 
 import torch
 from torch import nn
@@ -23,7 +23,7 @@ from .sparse_relation import (
     sparse_rest_object_point_cache,
     verify_sparse_rest_object_assets,
 )
-from .window_codec import project_to_so3
+from .window_codec import WindowFrame, WindowStateCodec, project_to_so3
 
 
 def normalize_progress(progress: torch.Tensor) -> torch.Tensor:
@@ -190,6 +190,7 @@ class GaussianDiffusion(nn.Module):
         generator: Optional[torch.Generator] = None,
         paired_repeats: int = 1,
         object_so3_x0: bool = False,
+        guidance: Optional[object] = None,
     ) -> torch.Tensor:
         batch = fixed_history.shape[0]
         shape = (batch, REPRESENTATION.window_frames, REPRESENTATION.dimension)
@@ -285,6 +286,13 @@ class GaussianDiffusion(nn.Module):
             current = self.posterior_sample(
                 current, clean, timesteps, noise, fixed_history,
             )
+            # Preregistered P2 inference-time contact guidance.  ``guidance`` is
+            # ``None`` for every registered result in this repository, so the
+            # default path is bit-identical: no tensor is constructed, no RNG is
+            # drawn and no dtype changes.  ``step`` is truthy on every reverse
+            # step except the final one, so guidance is never applied at step 0.
+            if guidance is not None and step:
+                current = guidance.apply(current, clean, fixed_history, step)
         return current
 
 
@@ -301,6 +309,7 @@ class HOIPriorSampler:
         auto_regre_num: int = 2,
         timesteps: int = 500,
         object_so3_x0: bool = False,
+        guidance: Optional[Mapping[str, object]] = None,
         **_: object,
     ) -> None:
         if auto_regre_num != REPRESENTATION.history_frames:
@@ -308,6 +317,23 @@ class HOIPriorSampler:
         self.device = torch.device(device)
         self.diffusion = GaussianDiffusion(timesteps).to(self.device)
         self.object_so3_x0 = bool(object_so3_x0)
+        # Preregistered P2 guidance is inert unless explicitly enabled.  The
+        # module is imported lazily so the default evaluation path keeps its
+        # existing import graph.
+        self.guidance_settings = None
+        if guidance is not None:
+            from .inference_guidance import GuidanceSettings
+            settings = GuidanceSettings.from_config(guidance)
+            if settings.enabled:
+                self.guidance_settings = settings
+        self.guidance_audit = None
+        if self.guidance_settings is not None:
+            from .inference_guidance import GuidanceAudit
+            self.guidance_audit = GuidanceAudit()
+        self.guidance_codec = None
+        self.guidance_parents_24 = None
+        self.guidance_rest_offsets = None
+        self.guidance_rest_vertex_cache: Dict[str, torch.Tensor] = {}
         self.audit: Dict[str, int] = {
             "generated_values": 0,
             "nonfinite_values": 0,
@@ -337,6 +363,9 @@ class HOIPriorSampler:
         self.local_bps_digest = hashlib.sha256()
         self.sparse_relation_metadata_calls = 0
         self.sparse_relation_metadata_seconds = 0.0
+        if self.guidance_settings is not None:
+            from .inference_guidance import GuidanceAudit
+            self.guidance_audit = GuidanceAudit()
 
     def set_dataset_and_model(self, dataset, model: nn.Module) -> None:
         if getattr(dataset, "load_scene", None):
@@ -371,6 +400,103 @@ class HOIPriorSampler:
                     "sparse-relation evaluator dataset is missing normalization "
                     f"tensors: {missing}"
                 )
+        if self.guidance_settings is not None:
+            self._prepare_guidance_context(dataset)
+
+    def _prepare_guidance_context(self, dataset) -> None:
+        """Bind the preregistered P2 guidance to the evaluator dataset.
+
+        The evaluation runner (``code/test_infbagel_hoi.py``) is a byte-locked
+        evaluator source, so the guidance recovers the per-sequence SMPL rest
+        offsets from the dataset itself: ``scene_name[i]`` and
+        ``rest_human_offsets[i]`` share one sequence index, exactly the pair the
+        runner reads through ``__getitem__``.  The lookup fails closed if the
+        names are not unique.
+        """
+        from .inference_guidance import GuidanceAudit
+        required = ("min_torch", "max_torch", "obj_min_torch", "obj_max_torch")
+        missing = [name for name in required if not hasattr(dataset, name)]
+        if missing:
+            raise ValueError(
+                f"HOIPrior guidance dataset is missing normalization tensors: {missing}"
+            )
+        names = getattr(dataset, "scene_name", None)
+        offsets = getattr(dataset, "rest_human_offsets", None)
+        parents = getattr(dataset, "parents_24", None)
+        if names is None or offsets is None or parents is None:
+            raise ValueError(
+                "HOIPrior guidance requires dataset scene_name, rest_human_offsets "
+                "and parents_24"
+            )
+        offsets = torch.as_tensor(offsets, dtype=torch.float32)
+        if offsets.ndim != 3 or offsets.shape[1:] != (24, 3) or offsets.shape[0] != len(names):
+            raise ValueError(
+                f"HOIPrior guidance rest offsets must be [sequences,24,3], "
+                f"got {tuple(offsets.shape)} for {len(names)} sequences"
+            )
+        table: Dict[str, torch.Tensor] = {}
+        for index, name in enumerate(names):
+            key = str(name)
+            if key in table and not bool(torch.equal(table[key], offsets[index])):
+                raise ValueError(
+                    f"HOIPrior guidance found conflicting rest offsets for {key}"
+                )
+            table[key] = offsets[index]
+        self.guidance_rest_offsets = table
+        self.guidance_parents_24 = torch.as_tensor(
+            parents, dtype=torch.long, device=self.device,
+        )
+        self.guidance_codec = WindowStateCodec(
+            dataset.min_torch,
+            dataset.max_torch,
+            dataset.obj_min_torch,
+            dataset.obj_max_torch,
+        )
+        self.guidance_rest_vertex_cache = {}
+        self.guidance_audit = GuidanceAudit()
+
+    def _build_guidance(self, mat, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, batch):
+        """Build one window's guidance context from the evaluator's own inputs."""
+        from .contact_guidance import deterministic_vertex_subset
+        from .inference_guidance import HOIContactGuidance
+        if self.guidance_codec is None:
+            raise ValueError("HOIPrior guidance was not bound to a dataset")
+        if not isinstance(obj_rest_verts, Mapping):
+            raise ValueError("HOIPrior guidance requires the rest-vertex mapping")
+        transform = mat.reshape(batch, 4, 4).to(device=self.device, dtype=torch.float32)
+        frame = WindowFrame(
+            transform[:, :3, 3],
+            transform[:, :3, :3].transpose(-1, -2),
+            obj_rot_mat_ref.reshape(batch, -1, 3, 3)[:, 0].to(
+                device=self.device, dtype=torch.float32,
+            ),
+        )
+        names = [str(seq_name_dict[index]) for index in range(batch)]
+        rest_offsets = torch.stack([
+            self.guidance_rest_offsets[name] for name in names
+        ]).to(device=self.device, dtype=torch.float32)
+        surfaces = []
+        for name in names:
+            object_name = name.split("_")[1]
+            cached = self.guidance_rest_vertex_cache.get(object_name)
+            if cached is None:
+                cached = deterministic_vertex_subset(
+                    obj_rest_verts[object_name].to(
+                        device=self.device, dtype=torch.float32,
+                    )
+                )
+                self.guidance_rest_vertex_cache[object_name] = cached
+            surfaces.append(cached)
+        return HOIContactGuidance(
+            self.guidance_settings,
+            posterior_variance=self.diffusion.posterior_variance,
+            codec=self.guidance_codec,
+            frame=frame,
+            rest_human_offsets=rest_offsets,
+            parents_24=self.guidance_parents_24,
+            rest_vertices=torch.stack(surfaces),
+            audit=self.guidance_audit,
+        )
 
     @torch.no_grad()
     def p_sample_loop(
@@ -453,6 +579,15 @@ class HOIPriorSampler:
         generator = torch.Generator(device=self.device)
         generator.manual_seed((int(torch.initial_seed()) + self.sample_calls * 1000003) % (2 ** 63 - 1))
         self.sample_calls += 1
+        guidance_arguments = {}
+        if self.guidance_settings is not None:
+            guidance_arguments = {
+                "guidance": self._build_guidance(
+                    mat, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, batch,
+                ),
+            }
+            if self.guidance_audit is not None:
+                self.guidance_audit.sample_calls += 1
         sample = self.diffusion.sample(
             self.student_model,
             fixed_points,
@@ -464,6 +599,7 @@ class HOIPriorSampler:
             **relation_arguments,
             generator=generator,
             object_so3_x0=self.object_so3_x0,
+            **guidance_arguments,
         )
         sample[..., 219:228] = project_to_so3(
             sample[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
@@ -507,4 +643,8 @@ class HOIPriorSampler:
                 "manifest_sha256": SPARSE_POINT_MANIFEST_SHA256,
                 "stacked_tensor_sha256": SPARSE_POINT_TENSOR_SHA256,
             }
+        if self.guidance_settings is not None:
+            value["inference_guidance"] = self.guidance_settings.as_dict()
+            if self.guidance_audit is not None:
+                value["inference_guidance"].update(self.guidance_audit.as_dict())
         return value

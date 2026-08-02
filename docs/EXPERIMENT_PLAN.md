@@ -7596,6 +7596,23 @@ checkpoint 物体目标误差为 95.3 cm（D2-X 为 3.74 cm），其 foot slidin
 统计与协议沿用既有：官方 438、三窗口、冻结指标代码、配对序列级 bootstrap（seed 42，
 10000 replicates）。不改训练、不产生 checkpoint、不改 500 步计划表。
 
+实现期补充规格（2026-08-01，实现时确定，与上文所引先例一致，记录于此以免事后被当作挑选）：
+Arm B 的 `guidance_scale` 取 **1000.0**，即所引 CHOIS `classifier_scale = 1e3`；若沿用 Arm A 的
+1.0，方差缩放会使更新量缩小约 3.8e-4，Arm B 将退化为一个意外的空臂。Arm B 的裁剪作用于
+**缩放后的更新量**（`clamp_target=update`，界 1.0），与上文「梯度按 posterior_variance[t]
+缩放并裁剪」的措辞一致。配置键置于 `code/config/sampler/hoi_prior.yaml`，因为
+`code/config/config_eval_hoi_prior.yaml` 与 `code/test_infbagel_hoi.py` 被
+`tests/test_hoi_d2{ac,ad,n}.py` 逐字节钉死，改动它们会使既有封存件失效。
+
+事前预测（在任何 GPU 运行之前记录）：以真实 `norm.npy` 估算，Arm A 对归一化到 [-1,1] 的
+pelvis-y 通道，在 5 cm 脚部误差时单步加入 ≈2.06、30 cm 时 ≈19。因此**预期 Arm A 会抬高
+`position_outside_rate` 乃至产生退化运动**——这正是上文所述「作者只在 15 步上施加未裁剪原始
+梯度而 HOIPrior 有 499 步」这一风险的定量形式。若 Arm A 失败而 Arm B 成立，该结果应读作
+「作者配置不能按字面移植到多步 DDPM」，而非「推理期引导对 HOIPrior 无效」。
+另记一处继承自作者实现的数值风险：时间项做 `v/‖v‖` 且无 epsilon
+（`code/guidance_loss.py:58-64`），掌心恰落于物体中心时产生 NaN；由已门控的
+`nonfinite_values == 0` 兜底。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；

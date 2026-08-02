@@ -361,8 +361,15 @@ class D2QGateAndLifecycleTests(unittest.TestCase):
         source = inspect.getsource(sample_contact_counterfactual)
         self.assertIn("diffusion.posterior_sample(", source)
         production = inspect.getsource(GaussianDiffusion.sample)
-        self.assertNotIn("guidance", production)
+        # D2-Q0's analysis-only counterfactual must never become the production
+        # default.  The preregistered P2 hook replaced the former
+        # "no guidance token anywhere" check with the invariant that actually
+        # matters: guidance is an optional argument that defaults to None and is
+        # skipped on the final reverse step.  tests/test_hoi_p2_guidance.py
+        # proves the disabled path is bitwise identical to the pre-P2 source.
         self.assertNotIn("sample_contact_counterfactual", production)
+        self.assertIn("guidance: Optional[object] = None", production)
+        self.assertIn("if guidance is not None and step:", production)
         self.assertNotIn("future_gt", source)
         self.assertNotIn('batch["object_bps"]', source)
 

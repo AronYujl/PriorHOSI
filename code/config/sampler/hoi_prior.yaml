@@ -4,3 +4,22 @@ pelvis:
   auto_regre_num: ${auto_regre_num}
   timesteps: 500
   object_so3_x0: false
+  # Preregistered Phase 1B P2 inference-time contact guidance
+  # (docs/EXPERIMENT_PLAN.md, "2026-08-01 ... 推理期接触引导 P2"). Disabled by
+  # default: with enabled=false the 500-step native protocol is bit-identical to
+  # every sealed D2-* result. Enable with
+  #   sampler.pelvis.guidance.enabled=true sampler.pelvis.guidance.arm=a
+  guidance:
+    enabled: false
+    # a = InfBaGel-faithful raw gradient on every step except the last.
+    # b = CHOIS-style late-steps-only, posterior_variance[t]-scaled and clamped.
+    arm: a
+    # Arm A uses the released InfBaGel guidance_weight of 1.0.
+    # Arm B's CHOIS analogue is classifier_scale = 1000.0.
+    guidance_scale: 1.0
+    # Arm B only: guided when 0 < reverse_step < last_steps (CHOIS 0 < i < 10).
+    last_steps: 10
+    # Arm B only: symmetric clamp bound, or null to disable clamping.
+    clamp: 1.0
+    # Arm B only: clamp the scaled gradient update, or the resulting x_{t-1}.
+    clamp_target: update
