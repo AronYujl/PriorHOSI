@@ -7545,6 +7545,57 @@ GT-contact 帧中 57.9% 位于 ≥8 cm，仅 16.9% 位于 [5,6) cm。第三条�
 因此所有 recall 被同一常数因子 `397/438 = 0.9064` 压低，绝对值与差值等比压缩（真实差值需
 乘 1.103），份额与排序不受影响。
 
+#### 2026-08-01 Phase 1B 推理期接触引导 P2（协议对齐，用户批准）
+
+动机：2026-08-01 基线协议分解测得推理期引导占 released-vs-D2X contact recall 差距的 59.2%、
+F1 差距的 65.5%，且在 released 模型上**同时改善** foot sliding。HOIPrior 的固定原生协议为
+500 步无引导采样，因此此前所有对比中 baseline 带引导而 HOIPrior 不带。本实验为**协议对齐**，
+不是模型改进：即使成功也不改变已测得的 0.83 cm [0.49, 1.18] 真实生成几何差距。
+
+合法性前置（已查证，读代码）：引导的每一个输入都来自模型预测或给定资产，**无测试期 GT 泄漏**。
+`contact_labels = x_start[:,:,228:232]`，`x_start = pred_x_0.detach().requires_grad_(True)`
+（`code/models/infbagel.py:721,677`）；脚-地项的地面高度是硬常数 `0.02`
+（`code/guidance_loss.py:82`）；GT 接触标注仅作为窗口 0 的两个种子历史帧进入，且无引导路径
+完全相同。作者原始实现 CHOIS 的 GT `contact_labels` 形参在 `trainer_chois.py:2024` 被遮蔽
+且从未读取，语义一致。
+
+目标 checkpoint：**D2-X**（`p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723` final-online，
+sha256 `b0fa6bdd…`）。不选 D2-AG，因其自条件关系源消费 `current`（`code/priors/diffusion.py:234-236`），
+而引导恰好修改 `current`，构成不受控的分布偏移。
+对照：同一 checkpoint 的无引导原生评估，已在本机逐位复现其 worker 封存值（18/18）。
+
+损失：作者完整 `apply_hoi_guidance_loss`（`code/guidance_loss.py:88-94`），
+即手-物 ×10 **加** 脚-地 ×500。此处与 D2-Q0/D2-R0 的关键差别是后者对
+`apply_feet_floor_contact_guidance` 的引用次数为 0，只实现了手-物项；且 D2-Q0 的门槛
+checkpoint 物体目标误差为 95.3 cm（D2-X 为 3.74 cm），其 foot sliding 比值 1.5350 是在一个
+显著更弱的模型上、缺失脚部保护项的条件下测得，不足以否定完整损失。
+
+事先声明的双臂设计（非事后 sweep；两臂无论结果如何都报告，A 为标题结果）：
+
+- **Arm A（主）**：InfBaGel 忠实移植——完整损失，scale 1.0，梯度对 `x0_hat` 求取后原样加到
+  `x_{t-1}`，除最后一步外全程引导。这是**效应量被实测过**的那个配置的直接移植。
+- **Arm B**：CHOIS 式 DDPM 对应物——仅末段引导、梯度按 `posterior_variance[t]` 缩放并裁剪，
+  依据 `chois_release/manip/model/transformer_object_motion_cond_diffusion.py:520`（1000 步中
+  仅 `0 < i < 10`）。动机是稳定性：作者只在 15 步上施加未裁剪原始梯度，而 HOIPrior 有 499 步。
+
+确定性：使用 D2-Q0 的确定性顶点子集，不用作者的 `torch.randperm(...)[:10000]`
+（`code/models/infbagel.py:736`），否则同一配置的两次运行不可复现。
+
+功能性 smoke 仅检验**可运行性与有限性**（`nonfinite_values == 0` 为被门控项），不用于在两臂之间
+做选择；两臂均在官方 438 上完整运行。
+
+必报代价（D2-Q0 正是失败于此类项）：foot sliding、物体平移 MAE、pelvis goal、end-object、
+穿透、MPJPE，以及 `position_outside_rate`（`code/priors/diffusion.py:487`，引导必然抬高该值，
+此前无 D2 运行审计过该区间）和 GT-contact 帧手-物距离分布。
+
+已知混淆，将在结论中写明而非略去：其一，引导需要完整物体网格（13086–38353 顶点），而模型
+仅条件在 1024 点 BPS 上，属于评估器已使用但模型未见的额外测试期几何；其二，FS 的改善可能
+部分由指标形状造成——FS 度量自**预测**关节估计地面（`code/test_infbagel_hoi.py:249`，
+`code/eval_metrics.py:101-113`），而引导将支撑脚钉在固定 0.02，二者可能互相自洽。
+
+统计与协议沿用既有：官方 438、三窗口、冻结指标代码、配对序列级 bootstrap（seed 42，
+10000 replicates）。不改训练、不产生 checkpoint、不改 500 步计划表。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
