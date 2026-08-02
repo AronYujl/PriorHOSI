@@ -1,6 +1,7 @@
 # Phase 1B HOIPrior evidence index
 
-Status: compact research handoff through D2-AF0, 2026-07-30.
+Status: compact research handoff through D2-AG0, P1 protocol decomposition,
+P2 inference guidance and the D2-AH negative preflight, 2026-08-02.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -33,6 +34,7 @@ Do not read the released row against the D2-* rows as a protocol-matched compari
 | D2-AD local-frame adapter | 4.2373 | 0.42539 | 0.76795 / 0.53300 / 0.58687 | 0.21656 | 12.3847 | locality and transfer negative |
 | D2-AE sparse relation field | 4.2990 | 0.39896 | 0.80363 / 0.59614 / 0.64194 | 0.17938 | 12.1558 | internal positive, transfer negative |
 | D2-AF reliability routing | 5.5735 | 0.35958 | 0.79093 / 0.59904 / 0.64106 | 0.22689 | 12.4221 | mechanism and repair negative |
+| D2-AG self-conditioned relation source | 3.6922 | 0.40092 | 0.81120 / 0.59850 / 0.65009 | 0.18367 | 12.0129 | source-provenance and transfer negative; **best D2 contact F1, precision and MPJPE**, and `hand_pen_ratio` `0.11287` beats the released guided row's `0.13286` at D2-X-level engagement |
 
 Released InfBaGel is not a valid initializer. D2-X is the sealed autonomous-diffusion
 control; no D2 checkpoint is selectable as a new prior initializer.
@@ -111,6 +113,26 @@ is therefore a cross-protocol quantity that overstates the model deficit.
   internal reliability/path/temporal/role gates failed. Native F1 was `0.64106`,
   statistically indistinguishable from D2-AE and D2-X, and end-object worsened to
   `5.5735 cm`.
+- D2-AG kept the D2-AE field structurally unchanged and moved only the tensor the
+  variable temporal anchors `5/10/15` read from: the model's own detached `x0_hat`
+  instead of the current noisy `x_t`, symmetrically in training (per-sample
+  Bernoulli `p=0.5`) and sampling (`prev_x0`, `x_t` at the first reverse step), with
+  `s[:, :2]` pinned to `x_t` on both sides. Three of five internal gates failed and
+  the nulls are tight, not underpowered: substituting the source back to `x_t` moves
+  union 5-cm F1 by `-0.00411` `[-0.01317, +0.00524]` while role swap and temporal
+  permutation move it by `0.305` and `0.184`. Native transfer failed all four
+  registered checks (F1 `0.65009` against the registered minimum `0.65988`; released
+  gap closure `0.1409` against `>=0.25`), and foot sliding regressed significantly
+  (`0.40092` against D2-X `0.36301`, ratio CI upper `1.1838`). Classification
+  `selfcond-relation-source-transfer-negative-stop`; the checkpoint is not selectable.
+  **But its accuracy-side numbers are the best of the D2 family and they are not an
+  engagement artefact**: at essentially identical engagement to D2-X
+  (`contact_percent` `0.47706` vs `0.47655`, recall `0.59850` vs `0.59445`) it reaches
+  hand penetration `0.18367` vs `0.24536` and precision `0.81120` vs `0.78806`, and its
+  `hand_pen_ratio` `0.11287` is already better than the released guided row's `0.13286`.
+  This is the opposite pattern to the D2-AH epoch100 artefact, where penetration only
+  looked good because `contact_percent` collapsed to `0.3192`. See
+  `docs/phase_summaries/PHASE_1B_D2AG.md`.
 
 ### Objective-weighting family
 

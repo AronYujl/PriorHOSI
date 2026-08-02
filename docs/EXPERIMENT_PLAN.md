@@ -7931,6 +7931,194 @@ formal 训练、不做 checkpoint selection、不进入 consistency / HSIPrior /
 哈希绑定的封存件。上一节所列的待并入勘误仍然有效，本次未执行。任何新方向须另做 dated plan
 amendment 与 registry hypothesis，并取得用户明确批准。
 
+#### 2026-08-02 Phase 1B P3 关系场谱系 × 推理期接触引导（用户批准）
+
+动机：D2-AG 在无引导原生协议上是**穿透最好的 D2 模型**，且该优势不是"够不着"造成的参与度
+假象。D2-AG 与封存 D2-X 的接触参与度**基本相同**——`contact_percent` `0.4770600` vs
+`0.4765530`、`contact_recall` `0.5984951` vs `0.5944551`——而 `hand_pen_loss_omomo` 为
+`0.1836719` vs `0.2453570`（低 25.1%）、`contact_precision` `0.8111962` vs `0.7880620`。
+D2-AG 的 `hand_pen_ratio` `0.1128650` 已经**优于 released 带引导行的 `0.1328600`**。这与
+`EP:7912-7916` 记录的 epoch100 情形正相反：那里穿透"变好"伴随 `contact_percent` 跌到 D2-X 的
+0.670，是典型的参与度假象；这里参与度持平而穿透真实下降。D2-AG 相对 D2-X 的唯一回退是 foot
+sliding（`0.4009183` vs `0.3630100`），而 P2 已测得 **Arm B 的独有性质恰是改善 foot sliding**
+（对 D2-X 的比值 `0.9797`，`EP:7650`）。P2 之后相对 released 带引导行仅存的两个最大真实缺口正是
+手部穿透（`0.2294200` vs `0.1624020`，+41.3%）与人体穿透（`3.6260650` vs `2.5892670`，+40.0%）。
+
+本实验因此补齐一个 **2×2 因子设计**：{checkpoint: D2-X, D2-AG} × {sampler: 500 步无引导,
+500 步 + P2 Arm B}。三格已封存、**只引用不重跑**：
+
+| 格 | run | 树 |
+| --- | --- | --- |
+| D2-X 无引导 | `p1-hoi-d2x-native-eval-r1-s42-20260723`（本机复现件 `p1-hoi-d2x-distance-probe-s42-20260801`） | worker / `5f7dde7` |
+| D2-AG 无引导 | `p1-hoi-d2ag-native-eval-s42-20260801`（本机复现件 `p1-hoi-d2ag-distance-probe-s42-20260801`） | `9d77a6f` / `5f7dde7` |
+| D2-X + Arm B | `p1-hoi-p2-guidance-armb-s42-20260801` | `c40dc00` |
+| **D2-AG + Arm B** | **本次唯一新增** | `c40dc00` |
+
+**事先声明的第二臂：D2-AE + Arm B。** 目的是在**带引导**的体制下把"稀疏关系场本身"与"关系场
+加自条件"分开：D2-AE 与 D2-AG 结构相同、参数数相同（`30,087,401`），唯一差别是变量锚
+`5/10/15` 读 `x_t` 还是读 `sg[x0_hat]`。两臂无论结果如何都报告；第二臂不是主结论的依据。
+
+**post-hoc selection 的明确披露。** D2-AG 是**在看到其穿透数字之后**才被选中的——它本身是
+`selfcond-relation-source-transfer-negative-stop` 的阴性方向，其 checkpoint 按 `PHASE_1B_D2AG.md`
+不可选、不可复用于初始化。本节把这一点写在最前面而不是脚注：这是**对已封存 checkpoint 的事后
+挑选**，因此本预注册**同时锁死 checkpoint 集合**——只有 D2-AG 与 D2-AE 两个目标，两臂都必须
+报告，**不得再增加第三个 checkpoint、不得在看到结果后换目标、不得把某一臂改称"探索性"**。
+本实验不产生 checkpoint、不做 checkpoint selection、不解除 `hoiprior_search_closed`，也不改变
+D2-AG/D2-AE 的既有阴性分类。
+
+**对 P2 排除 D2-AG 之决定的显式推翻（不得静默进行）。** `PHASE_1B_P2_GUIDANCE.md:69-72` 与
+P2 registry row 明文记录"不选 D2-AG，因其自条件关系源消费 `current`，而引导恰好修改 `current`，
+构成不受控的分布偏移"。本节推翻该排除，理由是读代码与已测证据两条，都可查证：
+
+1. **引导路径与架构无关，且不触碰关系场读取的任何量。**
+   `HOIContactGuidance.apply`（`code/priors/inference_guidance.py:352-385`）只消费
+   `clean`（`prepare_clean_x0` 之后的 x0_hat）、`codec`、`frame`、`rest_human_offsets`、
+   `parents_24`、`rest_vertices`，不接触 relation field、BPS 或任何 D2-AE/AG 专有张量；
+   其返回值在 `:382` 处把 `result[:, :REPRESENTATION.history_frames] = fixed_history` **重新钉住**，
+   因此 D2-AG 关系源的 `s[:, :2] = current[:, :2]` 契约（`sparse_relation.py:447-448`）
+   **逐位不受引导影响**。
+2. **残余耦合是间接的，且已被实测限定。** 唯一的 D2-AG 专有暴露是：下一步的 `prev_x0`
+   （`diffusion.py:276`）是在被引导过的 `x_t` 上算出的 x0_hat。但 D2-AG 的固定内部因果诊断
+   已**以良好功效把关系源的因果效应界定在零附近**：把源整体替换回 `x_t` 只改变 union 5-cm F1
+   `-0.00411124`，CI `[-0.01317134, +0.00524494]`（`PHASE_1B_D2AG.md:263`），半宽约为两个显著
+   效应（`0.305`/`0.184`）的十分之一。**模型不使用该路径的来源信息，所以经由该路径的分布偏移
+   其效应有上界。** 这不是"分布偏移不存在"，而是"分布偏移经过一条已被证明惰性的路径"。
+
+该推翻仍留一个真实风险，写在下文风险节，不掩盖：上述界定来自**无引导**轨迹上的诊断，引导后的
+`x_t` 严格说在诊断的分布之外。
+
+被操纵因子（单一概念，两个取值）：sampler ∈ {500 步无引导 ancestral DDPM，500 步 + P2 Arm B}。
+Arm B 逐字沿用 P2 已执行配置：`arm=b`、`guidance_scale=1000.0`、`last_steps=10`、`clamp=1.0`、
+`clamp_target=update`、确定性顶点子集、作者完整 `apply_hoi_guidance_loss`（手-物 ×10 + 脚-地 ×500）。
+**不新增、不调整任何引导超参**；改动其中任何一个都会构成未登记 sweep。评测协议与三个已封存格
+完全一致：官方 438 序列 × 3 窗口、`load_scene=false`、`sample_type=diffusion`、无 CFG、seed 42、
+冻结指标代码、配对序列级 bootstrap（seed 42，10000 replicates，`tools/summarize_hoi_phase1b.py:112`
+约定），比值用 `tools/run_hoi_d2n.py:407` 形式。**不训练、不产生 checkpoint、不重跑任何已封存格。**
+
+执行树与树效应控制（在任何 GPU 运行之前固定）。2026-08-02 已测得跨树 `end_obj_trans_err`
+`+11.0%` 的树效应（`EP:7884`），故本节不得默认树可比：
+
+- 全部新运行在 pinned worktree `/data/yujinlun/InfBaGel-p2`、commit
+  `c40dc00b2ad315f194a01d034413d80c493cf220` 执行，**与 `p1-hoi-p2-guidance-armb-s42-20260801`
+  同树同工作目录**，因此本实验最承重的新对比（D2-AG+ArmB vs D2-X+ArmB）**是同树对比，零树风险**。
+- `c40dc00..86ad8d8` 对 `code/`、`tools/`、`tests/` 的改动为**空**（仅 docs/registry/results），
+  故 `86ad8d8` 与 `c40dc00` 在可执行内容上等价；选 `c40dc00` 只为与已封存格共用同一 Git 对象。
+- D2-AG 无引导格的树可比性**已被硬证据确立**：worker 上 `9d77a6f` 执行的
+  `p1-hoi-d2ag-native-eval-s42-20260801` 与本机 `5f7dde7` 执行的
+  `p1-hoi-d2ag-distance-probe-s42-20260801` 的 `per_sequence_metrics.json` **sha256 逐位相同**
+  （`eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835`），aggregate 的 9 个非
+  provenance 键全等（5 个差异键为 checkpoint 路径、chois_export 开关、计时与 per-sequence 路径）。
+  `9d77a6f..5f7dde7` 的 diff 只含 `docs/phase_summaries/PHASE_1B_D2AG.md` 与
+  `experiments/registry.jsonl`，**零代码改动**，与该逐位复现互为佐证。
+- 唯一残留树边界是 `5f7dde7 → c40dc00`（引导实现）。源码层面无引导路径受
+  `if guidance is not None and step`（`diffusion.py:294`）与
+  `if self.guidance_settings is not None` 守卫，为纯增量；但 P2 本身也**从未在 `c40dc00` 上跑过
+  一次无引导对照**。因此本节预注册**两个必做的同树无引导对照**，各约 4 分钟：
+  1. **D2-AG 同树无引导对照**（`c40dc00`，`guidance.enabled=false`，其余 override 与主运行逐字
+     相同）。判据：`per_sequence_metrics.json` sha256 必须等于
+     `eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835`。
+  2. **D2-X 同树无引导对照**（同上，D2-X checkpoint）。判据：sha256 必须等于
+     `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`。
+  两者**必须在主运行的结果被解读之前执行并记录**。若任一不逐位相等，则该 checkpoint 的无引导
+  格改用**同树对照值**，且这一替换与其数值差必须在结论中写明，**不得沿用封存值**。
+- **D2-AE 第二臂有一个 D2-AG 没有的树风险，必须补对照。**
+  `p1-hoi-d2ae-native-eval-s42-20260729` 执行于 `5a167347`，其后 D2-AF/D2-AG 的实现改动了
+  `code/priors/diffusion.py`（+58 行到 `5f7dde7`）、`models.py`（161）、`sparse_relation.py`（383）
+  ——全部在 D2-AE 的执行路径上，且**从未被重跑验证为惰性**。因此 D2-AE + Arm B 必须**同时**跑
+  一个 `c40dc00` 上的 D2-AE 同树无引导对照，判据为 per-sequence sha256 等于
+  `8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c`；不相等时，D2-AE 的无引导格
+  以同树对照为准，封存值只作历史记录。
+
+判定规则（用户批准，逐字生效；全部在任何 GPU 运行之前固定）：
+
+- **PRIMARY（缺口闭合）**：D2-AG + Arm B 是否在**两项穿透**上把对 released 带引导行
+  （`p0-hoi-protocol-decomp-a0-old-s42-20260801`）的缺口闭合到 **±10% 以内**——
+  `hand_pen_loss_omomo` 目标 `0.1624020`，`human_pen_loss_infbagel` 目标 `2.5892670`——
+  **同时**保持接触平价：`contact_f1` 对 released `0.7272580` 的配对差 CI 跨零，或点估计不低于
+  `0.7272580 − 0.02`。released 行无 `per_sequence_metrics.json`，故对 released 的**代价类**对比
+  只有点估计、无 CI；此限制照 `PHASE_1B_P2_GUIDANCE.md:358-360` 原样继承，不得被写成 CI 结论。
+- **PROTECTION**：(i) `contact_f1` 相对 **D2-X + Arm B 的 `0.7265270`** 不得显著更差
+  （配对序列 bootstrap CI 下界 ≥ `−0.02`）；(ii) `end_obj_trans_err` 相对 **D2-AG 无引导的
+  `3.6922000`** 不得显著退化（配对 CI 上界 ≤ `+0.25 cm`，与 P2 实测 Arm B 对 D2-X 的
+  `+0.0992 [+0.0331, +0.1658]` 同量级）。任一被违反即记为代价性失败并如实登记。
+- **加性/交互检验（本设计的核心新量）**：对每个指标计算
+  `interaction = (D2AG_guided − D2AG_unguided) − (D2X_guided − D2X_unguided)`，
+  并给出其配对序列级 bootstrap CI（438 序列全部配对，四格同一序列集合）。
+  **零交互假设 = 引导对 D2-AG 的效应与它对 D2-X 的效应相同。** 该量的一个关键性质是
+  **常数树偏移在其中精确抵消**，因此即便上述同树对照暴露出小的树效应，交互项仍然可解释；
+  主效应则不然，这一非对称性在结论中必须写明。
+- **报告但不设门**：`contact_precision`、`contact_recall`、`contact_percent`、`foot_sliding`、
+  `mpjpe`、`xy_points_err`、`obj_trans_dist`、`obj_rot_dist`、`trans_dist`、
+  `hand_pen_ratio`、`human_pen_ratio`、`position_outside_rate`、`nonfinite_values`、
+  以及 GT-contact 帧手-物距离分布与 ≥8 cm 尾部占比。18 个 aggregate 指标**全部记录**。
+- **门控项**：`nonfinite_values == 0` 且 `position_outside_rate == 0.0`（沿用 P2）。
+
+事前预测（在任何 GPU 运行之前写入，无论对错都保留）。取 Arm B 在 D2-X 上的实测效应
+（`contact_f1 +0.0891010`、`contact_recall +0.1133760`、`hand_pen −0.0159370`、
+`human_pen −0.2430200`、`foot_sliding −0.0073560`、`end_obj +0.0998790`）并**假设完全加性**，
+D2-AG + Arm B 应读到：
+
+| 指标 | 加性预测 | released 带引导 | 预测相对缺口 |
+| --- | ---: | ---: | ---: |
+| `contact_f1` | 0.7391880 | 0.7272580 | **+1.6%（反超）** |
+| `hand_pen_loss_omomo` | 0.1677350 | 0.1624020 | **+3.3%**（现为 +41.3%） |
+| `human_pen_loss_infbagel` | 2.6948510 | 2.5892670 | **+4.1%**（现为 +40.0%） |
+| `foot_sliding` | 0.3935620 | 0.3333630 | +18.1%（**不被修复**） |
+| `end_obj_trans_err` | 3.7920790 | 3.0372440 | +24.9%（**不被修复**） |
+
+即：**若加性成立，本实验一次性把两个仅存的最大真实缺口从 ~40% 压到个位数百分比，而 foot sliding
+与 end-object 的缺口原样保留。** 这是一个强的、可被证伪的预测：若实测显著偏离，说明存在真实
+交互——最可能的方向是引导在 D2-AG 上抬高 `contact_percent` 之后穿透随参与度回升，即
+`EP:7912-7916` 的参与度机制在**反方向**上生效。**该情形必须被记成"D2-AG 的穿透优势部分由参与度
+换来"，不得改写为其它叙事。** D2-AE + Arm B 的同法加性预测为 `contact_f1 0.7310450`、
+`hand_pen 0.1634420`、`human_pen 2.6173110`、`end_obj 4.3989060`。
+
+主要风险（按可能性排序）：
+
+1. **参与度—穿透耦合。** 引导把 `contact_percent` 从 `0.4770600` 推向 `~0.57`，手更多地接近
+   物体，穿透可能随之回升，使加性预测过于乐观。这是本实验最可能失败的方式。
+2. **自条件关系源在被引导轨迹上的分布外行为。** 上文的惰性界定测于无引导轨迹；引导后的 `x_t`
+   在其分布之外。若出现 `nonfinite_values > 0` 或 `position_outside_rate > 0`，须按门控项判失败
+   并保留，**不得调小 `guidance_scale` 重跑**。
+3. **`5f7dde7 → c40dc00` 的残余树效应。** 由上述两个同树无引导对照直接检验；交互项对常数树偏移
+   免疫，主效应不免疫。
+4. **D2-AE 第二臂的树风险**（见上）在数量上大于 D2-AG 臂。
+5. **首次执行的代码组合。** 引导与稀疏关系元数据从未同时执行过
+   （`diffusion.py:579-604` 同时展开 `**relation_arguments` 与 `**guidance_arguments`）。
+   因此在官方 438 之前，每个 checkpoint 各跑一次 `hoi_sequence_limit=4` 的功能性 smoke，
+   **只检验可运行性与有限性**，不得用于在配置之间做选择（沿用 P2 的 smoke 契约）。
+
+被既有证据否定的备选：
+
+- **(a) 用 Arm A 而非 Arm B。** Arm A 在 D2-X 上 foot sliding 比值 CI 上界 `1.1661`，而 D2-AG 的
+  foot sliding 本就是它相对 D2-X 的唯一回退；两者叠加会把一个已知弱项推得更弱。Arm B 是
+  `PHASE_1B_P2_GUIDANCE.md:226-232` 记录的"经得起代价审视"的配置。**两臂皆已在 D2-X 上报告，
+  此处选 Arm B 不是新的挑选，而是沿用已声明的代价结论。**
+- **(b) 为 D2-AG 调 `guidance_scale`/`last_steps`。** 未登记 sweep，为 `AGENTS.md` 与
+  `docs/HOIPRIOR_ITERATION_WORKFLOW.md:20-22` 所禁止。
+- **(c) 用 D2-AG checkpoint 做任何形式的初始化、resume 或蒸馏。** 为
+  `PHASE_1B_D2AG.md:473-486` 与 `AGENTS.md:11-12` 明文禁止；本实验只把它作为推理输入。
+- **(d) 重跑任一已封存格以"统一执行树"。** 违反"不重跑封存件"的规则，且成本远高于两个
+  4 分钟同树对照。
+
+治理边界：
+
+- **不训练、不分配训练 run id、不产生 checkpoint、不做 checkpoint selection、不改
+  `hoiprior_search_closed`、不改 D2-AG/D2-AE 的阴性分类、不解除 Phase 1B 搜索关闭。**
+- 引导保持 default-off；本实验不授权任何生产配置变更。
+- 允许改动的文件范围：`docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl`、
+  `docs/HOIPRIOR_EVIDENCE_INDEX.md`（随本次一并修复，见下）。**零源码改动**——Arm B 与
+  D2-AE/D2-AG 加载路径均已在 `c40dc00` 实现且被封存运行验证过，故无实现提交、无 authority
+  suite 重跑、无 performance benchmark（执行路径与已封存的 Arm B 运行完全相同，按
+  `docs/HOIPRIOR_ITERATION_WORKFLOW.md:68-70` 复用其执行剖面：D2-X+ArmB 生成 `64.92 s`、
+  端到端 `203.89 s`）。
+- 沿用 P2 的 lean 契约：本测量不调用 `tools/experiment.py start`、不产生训练 manifest，
+  溯源由执行 commit、归档 Hydra 配置与 overrides、固定官方测试集与逐字节相同的指标代码承担。
+- 一并修复 `docs/HOIPRIOR_EVIDENCE_INDEX.md`：其 header 仍写"through D2-AF0, 2026-07-30"，
+  且全文 **0 次**提及 D2-AG——而 D2-AG 是 contact F1 / precision / MPJPE 三项上最好的 D2 模型，
+  且是本实验的直接依赖。修复内容为 header 重新定期与 D2-AG 行/条目回填，不改写任何已被哈希
+  绑定的封存件。
+
 #### Phase 1C：HSIPrior 从零训练与原生域评测
 
 在 `phase/01c-hsi` 上只训练 HSIPrior，固定使用 8×RTX 3090 服务器并沿用 1A 锁定过滤/split；
