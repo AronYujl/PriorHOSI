@@ -1,0 +1,3355 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-p3-relation-field-guidance-s42-20260802",
+ "phase": "p1",
+ "subphase": "1B-P3-relation-field-guidance",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-02",
+ "classification": "relation-field-guidance-contact-redundancy-cost-negative-stop",
+ "preregistered_verdict": "cost failure",
+ "training_performed": false,
+ "optimizer_updates": 0,
+ "checkpoint_writes": 0,
+ "checkpoint_selected": false,
+ "model_or_training_changed": false,
+ "source_changed": false,
+ "released_checkpoint_role": "baseline_only_forbidden_as_prior_initialization",
+ "released_or_prior_checkpoint_initialization": false,
+ "official_evaluator_changed": false,
+ "native_d2_protocol_changed": false,
+ "sealed_cells_regenerated": false,
+ "guidance_default_enabled_in_production": false,
+ "production_guidance_authorized": false,
+ "d2ag_negative_classification_changed": false,
+ "d2ae_negative_classification_changed": false,
+ "hoiprior_search_closed": true,
+ "consistency_started": false,
+ "hsiprior_started": false,
+ "mixer_started": false,
+ "design": {
+  "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-02 Phase 1B P3 关系场谱系 × 推理期接触引导（用户批准）'",
+  "question": "does the D2 lineage's best-penetrating checkpoint, sampled with the unchanged P2 Arm B inference contact guidance, close the two remaining large penetration gaps to the released guided row while holding contact parity",
+  "factorial": "2x2 {checkpoint: D2-X, D2-AG} x {sampler: 500-step unguided ancestral DDPM, 500-step + P2 Arm B}, plus a declared D2-AE row that makes it a 3x2",
+  "manipulated_factor": "sampler only; the checkpoints are sealed and the guidance hyperparameters are frozen at the P2 Arm B values with no sweep",
+  "invariant": "official 438 sequences x 3 windows, 500-step diffusion, load_scene false, no CFG, seed 42, byte-identical metric code, one execution tree",
+  "cells": 6,
+  "new_cells_executed": 5,
+  "cells_reused_by_reference": 1,
+  "execution_worktree": "/data/yujinlun/InfBaGel-p2",
+  "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+  "same_tree_as_sealed_armb_cell": true,
+  "executed_commits": {
+   "preregistration": "f836ca4b38b84941df0ddba61cee3dced60460f7",
+   "plan_amendment_carrying_the_dated_section": "f836ca4b38b84941df0ddba61cee3dced60460f7",
+   "implementation": null,
+   "implementation_note": "zero source changes: Arm B and both architecture loaders already existed at c40dc00 and had been exercised by sealed runs. git diff c40dc00..f836ca4 touches no file under code/, tools/ or tests/.",
+   "closure_commit": null,
+   "closure_commit_note": "the dated plan closure section, this compact result, the evidence-index entries and the registry completion row are staged for one closure commit"
+  },
+  "source_hashes": {
+   "eval_metrics_py_sha256": "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
+   "eval_metrics_py_unchanged_since_c358fa4": true,
+   "inference_guidance_py_sha256": "90688329a7d491cae0d4d734ea8403442098084e36ed011adadbc7f4273f4687",
+   "guidance_loss_py_sha256": "5747721bcc015911c7999692079666f7e5d6204912761d91b8b82d4ba4c4ab24",
+   "diffusion_py_sha256": "12bc4ce0c2eb96ad79bc83d93de5e7ab6dcf8425b1707e75f6dfdb9f2b38c01a",
+   "sparse_relation_py_sha256": "9b26f7bb9bd9d866c58aa4898d0790a37d0ff97099524f4df148216c1b8f4b9c",
+   "models_py_sha256": "31c5ddfd5441156521d41c29830f8d8c9ef080a2afba4c4718f4a3aa0a551d82",
+   "test_infbagel_hoi_py_sha256": "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524"
+  },
+  "checkpoint_set_locked": [
+   "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+   "p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728"
+  ],
+  "further_checkpoint_shopping_permitted": false,
+  "guidance_config": {
+   "arm": "b",
+   "guidance_scale": 1000.0,
+   "last_steps": 10,
+   "clamp": 1.0,
+   "clamp_target": "update",
+   "loss": "code/guidance_loss.py apply_hoi_guidance_loss = hand-object x10 + feet-floor x500",
+   "hyperparameters_frozen": true,
+   "sweep_permitted": false,
+   "identical_to_sealed_P2_ArmB": true
+  },
+  "released_reference": {
+   "exp_name": "p0-hoi-protocol-decomp-a0-old-s42-20260801",
+   "aggregate_metrics_sha256": "000838b6f2608382484ac75c4b7b20613caa723120f6afb8f29d262c29281187",
+   "per_sequence_metrics_available": false,
+   "role": "guided released InfBaGel on its own published protocol; target of the closure criterion, never an initializer"
+  }
+ },
+ "tree_controls": {
+  "AG_u": {
+   "control_run": "p1-hoi-p3-d2ag-tree-control-s42-20260802",
+   "sealed_source": "p1-hoi-d2ag-native-eval-s42-20260801 (host reproduction p1-hoi-d2ag-distance-probe-s42-20260801)",
+   "preregistered_expected_per_sequence_sha256": "eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835",
+   "measured_per_sequence_sha256": "eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835",
+   "bit_identical": true,
+   "substitution_required": false
+  },
+  "X_u": {
+   "control_run": "p1-hoi-p3-d2x-tree-control-s42-20260802",
+   "sealed_source": "p1-hoi-d2x-native-eval-r1-s42-20260723 (host reproduction p1-hoi-d2x-distance-probe-s42-20260801)",
+   "preregistered_expected_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+   "measured_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+   "bit_identical": true,
+   "substitution_required": false
+  },
+  "AE_u": {
+   "control_run": "p1-hoi-p3-d2ae-tree-control-s42-20260802",
+   "sealed_source": "p1-hoi-d2ae-native-eval-s42-20260729 (executed at 5a167347)",
+   "preregistered_expected_per_sequence_sha256": "8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c",
+   "measured_per_sequence_sha256": "8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c",
+   "bit_identical": true,
+   "substitution_required": false
+  },
+  "verdict": "all three preregistered hash gates PASSED bit-exactly; no sealed unguided cell was substituted and no numerical delta had to be declared",
+  "methodological_result": "this is the first empirical demonstration that the 5f7dde7 -> c40dc00 guidance implementation is INERT on the unguided path, and it is established for three different architectures (D2-X plain, D2-AE sparse relation field, D2-AG self-conditioned relation source). The source-level argument was only that the guidance branch is guarded by `if guidance is not None and step` (diffusion.py:294) and `if self.guidance_settings is not None`; the measurement now shows the guard is exact to the byte over 438 sequences x 3 windows x 500 steps. Consequence: the main effects of this 2x2 are interpretable, not only the tree-immune interaction term. The plan warned that a constant tree offset cancels in the interaction but not in the main effects; because the offset is measured to be exactly zero, that asymmetry does not bite here.",
+  "d2ae_specific_note": "the D2-AE gate carried the largest prior risk: its sealed cell executed at 5a167347, behind +58/161/383 changed lines in diffusion.py / models.py / sparse_relation.py that had never been re-verified as inert for D2-AE. It is now verified, bit-exactly."
+ },
+ "functional_smokes": {
+  "d2ag": {
+   "exp_name": "p3-smoke-d2ag-armb-s42-20260802",
+   "role": "runnability and finiteness only; guidance and sparse relation metadata had never executed together before",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "sequence_limit": 4,
+   "aggregate_metrics_sha256": "7c535bfe665dde80253af6cff65b7c1e24c1cfd5e8c4af6ba846091281fb0666",
+   "nonfinite_values": 0,
+   "position_outside_rate": 0.0,
+   "object_outside_rate": 0.0,
+   "guidance": {
+    "enabled": true,
+    "arm": "b",
+    "guidance_scale": 1000.0,
+    "last_steps": 10,
+    "clamp": 1.0,
+    "clamp_target": "update",
+    "loss": "guidance_loss.apply_hoi_guidance_loss",
+    "guidance_applied_steps": 27,
+    "guidance_sample_calls": 3,
+    "guidance_loss_mean": 49.30150915075232,
+    "guidance_feet_loss_mean": 0.0018247139674645882,
+    "guidance_feet_weighted_mean": 0.9123569837322941,
+    "guidance_hand_loss_mean": 4.838915216702002,
+    "guidance_gradient_rms": 0.4011191519933948,
+    "guidance_gradient_max_abs": 51.84159851074219,
+    "guidance_update_max_abs": 1.0,
+    "guidance_nonfinite_steps": 0
+   },
+   "used_for_configuration_selection": false
+  },
+  "d2ae": {
+   "exp_name": "p3-smoke-d2ae-armb-s42-20260802",
+   "role": "runnability and finiteness only; guidance and sparse relation metadata had never executed together before",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "sequence_limit": 4,
+   "aggregate_metrics_sha256": "3cbda49c22f63f5383a1a36b3120a0310c7cb1f2d96377e645ecd6fc40d72424",
+   "nonfinite_values": 0,
+   "position_outside_rate": 0.0,
+   "object_outside_rate": 0.0,
+   "guidance": {
+    "enabled": true,
+    "arm": "b",
+    "guidance_scale": 1000.0,
+    "last_steps": 10,
+    "clamp": 1.0,
+    "clamp_target": "update",
+    "loss": "guidance_loss.apply_hoi_guidance_loss",
+    "guidance_applied_steps": 27,
+    "guidance_sample_calls": 3,
+    "guidance_loss_mean": 45.86107042100694,
+    "guidance_feet_loss_mean": 0.001500331555251722,
+    "guidance_feet_weighted_mean": 0.750165777625861,
+    "guidance_hand_loss_mean": 4.511090464338109,
+    "guidance_gradient_rms": 0.31469518351418163,
+    "guidance_gradient_max_abs": 39.31296920776367,
+    "guidance_update_max_abs": 1.0,
+    "guidance_nonfinite_steps": 0
+   },
+   "used_for_configuration_selection": false
+  }
+ },
+ "runs": {
+  "X_u": {
+   "exp_name": "p1-hoi-p3-d2x-tree-control-s42-20260802",
+   "role": "mandatory same-tree unguided control for D2-X; hash gate against the sealed cell, then used as the unguided D2-X cell of the 2x2",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+   "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": false,
+    "override": "sampler.pelvis.guidance.enabled=false",
+    "telemetry_block_absent_from_normalization_audit": true,
+    "note": "the guidance telemetry block is written only when guidance runs; its absence is the run-side evidence that the unguided path was taken"
+   },
+   "aggregate_metrics_sha256": "0ccf25997cf61937747dabce826426cf8071c75851c2168b27cf41909c49ff2a",
+   "per_sequence_metrics_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+   "resolved_config_sha256": "c5543564ec2ac93ad783e01b6c24c69c5422c915cef60d1ab569d29038fef9d0",
+   "overrides_sha256": "e9e55497cad5c8f302b11483b050ba159a05c85d526171db6516d546707f80b3",
+   "metrics": {
+    "end_obj_trans_err": 3.7402085959911346,
+    "xy_points_err": 4.050519689917564,
+    "feet_height": 0.049811847507953644,
+    "foot_sliding": 0.3630100213939385,
+    "contact_acc": 0.7316445604116837,
+    "contact_precision": 0.7880618755952097,
+    "contact_recall": 0.5944546940443982,
+    "contact_f1": 0.6374259391059788,
+    "contact_percent": 0.4765528738131478,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.050843983888626,
+    "trans_dist": 8.170091360807419,
+    "obj_trans_dist": 15.994049727002507,
+    "obj_rot_dist": 1.0309440299298087,
+    "hand_pen_loss_omomo": 0.24535650279805918,
+    "hand_pen_ratio": 0.1438656598329544,
+    "human_pen_loss_infbagel": 3.869084620991582,
+    "human_pen_ratio": 0.1461896151304245
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 61.68661379348487,
+    "fps": 894.6511504871868,
+    "end_to_end_seconds": 193.29981793742627,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  },
+  "X_g": {
+   "exp_name": "p1-hoi-p2-guidance-armb-s42-20260801",
+   "role": "sealed P2 Arm B cell, reused by reference and never regenerated",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723",
+   "checkpoint_sha256": "b0fa6bdddc280b2f561344d26046fff7c89eae50842073a52e49d5c39e2a3d51",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": true,
+    "arm": "b",
+    "guidance_scale": 1000.0,
+    "last_steps": 10,
+    "clamp": 1.0,
+    "clamp_target": "update",
+    "loss": "guidance_loss.apply_hoi_guidance_loss",
+    "guidance_applied_steps": 27,
+    "guidance_sample_calls": 3,
+    "guidance_loss_mean": 4895.637152777777,
+    "guidance_feet_loss_mean": 0.18717400232950845,
+    "guidance_feet_weighted_mean": 93.58700116475423,
+    "guidance_hand_loss_mean": 480.20501516130236,
+    "guidance_gradient_rms": 0.2896330302936432,
+    "guidance_gradient_max_abs": 136.8395538330078,
+    "guidance_update_max_abs": 1.0,
+    "guidance_nonfinite_steps": 0
+   },
+   "aggregate_metrics_sha256": "56886f2eb72f7c5b4d51076c9196b63853f4424a8bf06714cfc9b4092af3bf82",
+   "per_sequence_metrics_sha256": "c5a7fb1420aae6ec1f55c3187800142daa71b44a554a9bfafcd7be223c079781",
+   "resolved_config_sha256": "f277406dd2d3f3b583e3641f35ecbc797b7283e80354c3dc716aaa022764cdf8",
+   "overrides_sha256": "724038a1708e6f23ceb540f0b3fcc6e33f042309f500277178421ca62df3d834",
+   "metrics": {
+    "end_obj_trans_err": 3.8400880992412567,
+    "xy_points_err": 4.137028008699417,
+    "feet_height": 0.03619400039315224,
+    "foot_sliding": 0.3556543021004396,
+    "contact_acc": 0.80269261433645,
+    "contact_precision": 0.8122325894027452,
+    "contact_recall": 0.7078309129424002,
+    "contact_f1": 0.7265268028569287,
+    "contact_percent": 0.5695622236718128,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.079359591007233,
+    "trans_dist": 7.790068536996841,
+    "obj_trans_dist": 16.094317507591484,
+    "obj_rot_dist": 1.026958937904501,
+    "hand_pen_loss_omomo": 0.22941977261668464,
+    "hand_pen_ratio": 0.14654038846492767,
+    "human_pen_loss_infbagel": 3.6260650890323904,
+    "human_pen_ratio": 0.15044286847114563
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 64.92379271425307,
+    "fps": 850.0427607933675,
+    "end_to_end_seconds": 203.89327754918486,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  },
+  "AG_u": {
+   "exp_name": "p1-hoi-p3-d2ag-tree-control-s42-20260802",
+   "role": "mandatory same-tree unguided control for D2-AG",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+   "checkpoint_sha256": "f28af345254cb4884c64f0ddda799ebbb131e19b209583e47553bb601be4026f",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": false,
+    "override": "sampler.pelvis.guidance.enabled=false",
+    "telemetry_block_absent_from_normalization_audit": true,
+    "note": "the guidance telemetry block is written only when guidance runs; its absence is the run-side evidence that the unguided path was taken"
+   },
+   "aggregate_metrics_sha256": "4a05494621fab81d8f548019321d9873b9d7f092e924da74c44e6c507a83fd26",
+   "per_sequence_metrics_sha256": "eb701cf4e80a4a6c8198a0af5f914fab98c8bf26aabafee9971ce0827de2d835",
+   "resolved_config_sha256": "ea81df8fa5e196720fa06b5396b0c97c7f378d7ba036373bfe634128b4ebba86",
+   "overrides_sha256": "4f789e30ebcd8e96f296565730cbe59962ea79367f01919caa05da0ee95cc937",
+   "metrics": {
+    "end_obj_trans_err": 3.6921996623277664,
+    "xy_points_err": 3.9954081177711487,
+    "feet_height": 0.054954271763563156,
+    "foot_sliding": 0.40091825523376623,
+    "contact_acc": 0.738058998332971,
+    "contact_precision": 0.8111961856520455,
+    "contact_recall": 0.5984951273917594,
+    "contact_f1": 0.6500867274276584,
+    "contact_percent": 0.47706023048488805,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.012922018766403,
+    "trans_dist": 8.299961686134338,
+    "obj_trans_dist": 15.416969429094832,
+    "obj_rot_dist": 1.00918565015388,
+    "hand_pen_loss_omomo": 0.1836719029758619,
+    "hand_pen_ratio": 0.11286504566669464,
+    "human_pen_loss_infbagel": 2.9378708358181074,
+    "human_pen_ratio": 0.11615365743637085
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 71.36720769200474,
+    "fps": 773.2963329344705,
+    "end_to_end_seconds": 201.3078708657995,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  },
+  "AG_g": {
+   "exp_name": "p1-hoi-p3-d2ag-guidance-armb-s42-20260802",
+   "role": "the single new preregistered cell: D2-AG + P2 Arm B",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2ag-selfcond-relation-source-s42-20260731",
+   "checkpoint_sha256": "f28af345254cb4884c64f0ddda799ebbb131e19b209583e47553bb601be4026f",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": true,
+    "arm": "b",
+    "guidance_scale": 1000.0,
+    "last_steps": 10,
+    "clamp": 1.0,
+    "clamp_target": "update",
+    "loss": "guidance_loss.apply_hoi_guidance_loss",
+    "guidance_applied_steps": 27,
+    "guidance_sample_calls": 3,
+    "guidance_loss_mean": 4996.351273148148,
+    "guidance_feet_loss_mean": 0.24610743699250398,
+    "guidance_feet_weighted_mean": 123.05371849625199,
+    "guidance_hand_loss_mean": 487.3297554651896,
+    "guidance_gradient_rms": 0.32240326712355394,
+    "guidance_gradient_max_abs": 308.0473327636719,
+    "guidance_update_max_abs": 1.0,
+    "guidance_nonfinite_steps": 0
+   },
+   "aggregate_metrics_sha256": "b1276736bfb5e2145afbfc97c4f45b7507a834cf0051b43a655fc8ed607a3854",
+   "per_sequence_metrics_sha256": "9c1960c121b856ec758fbf647fc1906a65fb248c8c9a8c3c6d4bc87be30878c1",
+   "resolved_config_sha256": "45265181ec147cbab8fec913c270684cccd2638b9962e806c42211249c20949d",
+   "overrides_sha256": "7b63c759fd27445e11e33c623606fee85dc83420a780cf3e6916d77f2c16b445",
+   "metrics": {
+    "end_obj_trans_err": 3.7447739392518997,
+    "xy_points_err": 4.0917158126831055,
+    "feet_height": 0.041305672377347946,
+    "foot_sliding": 0.3954275850979648,
+    "contact_acc": 0.7768355439588318,
+    "contact_precision": 0.8223673294969444,
+    "contact_recall": 0.6527098812603845,
+    "contact_f1": 0.6934293901818361,
+    "contact_percent": 0.5224324128433717,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.049806863069534,
+    "trans_dist": 7.744301110506058,
+    "obj_trans_dist": 15.496052675629176,
+    "obj_rot_dist": 1.0045078830341496,
+    "hand_pen_loss_omomo": 0.17213934413666845,
+    "hand_pen_ratio": 0.11641672998666763,
+    "human_pen_loss_infbagel": 2.7465671014386768,
+    "human_pen_ratio": 0.12154696881771088
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 72.92077491991222,
+    "fps": 756.8213593535195,
+    "end_to_end_seconds": 204.60500916000456,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  },
+  "AE_u": {
+   "exp_name": "p1-hoi-p3-d2ae-tree-control-s42-20260802",
+   "role": "mandatory same-tree unguided control for D2-AE, required by the plan because the sealed D2-AE cell ran at 5a167347 behind unre-verified diffusion/models/sparse_relation changes",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728",
+   "checkpoint_sha256": "b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": false,
+    "override": "sampler.pelvis.guidance.enabled=false",
+    "telemetry_block_absent_from_normalization_audit": true,
+    "note": "the guidance telemetry block is written only when guidance runs; its absence is the run-side evidence that the unguided path was taken"
+   },
+   "aggregate_metrics_sha256": "4b050ef64e4f71b353000209864495ce9ea9bf6e8cca841c854945bbf1302492",
+   "per_sequence_metrics_sha256": "8533b66ea3c1fb0928b8a7581bb79c0cc14d594970314a3b7619659daddfb95c",
+   "resolved_config_sha256": "8dee198be8df2751d2355dc38cfb6016d7cd9e845380e1f63511bca81903cf55",
+   "overrides_sha256": "667f007bdc040580003a6958e8643d0392889f37408530618db942cac108b101",
+   "metrics": {
+    "end_obj_trans_err": 4.299027472734451,
+    "xy_points_err": 3.989427164196968,
+    "feet_height": 0.05303037911653519,
+    "foot_sliding": 0.3989576755482311,
+    "contact_acc": 0.732623033992897,
+    "contact_precision": 0.8036319597793999,
+    "contact_recall": 0.5961386226560761,
+    "contact_f1": 0.6419438531625619,
+    "contact_percent": 0.4766253533376821,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.15578094124794,
+    "trans_dist": 8.16512480378151,
+    "obj_trans_dist": 15.955253528138119,
+    "obj_rot_dist": 1.003238229324793,
+    "hand_pen_loss_omomo": 0.17937916498745957,
+    "hand_pen_ratio": 0.12159082293510437,
+    "human_pen_loss_infbagel": 2.8603306929169325,
+    "human_pen_ratio": 0.1270279884338379
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 71.54540302697569,
+    "fps": 771.3703140255112,
+    "end_to_end_seconds": 201.54635630361736,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  },
+  "AE_g": {
+   "exp_name": "p1-hoi-p3-d2ae-guidance-armb-s42-20260802",
+   "role": "declared second arm: D2-AE + P2 Arm B",
+   "executed_git_commit": "c40dc00b2ad315f194a01d034413d80c493cf220",
+   "worktree": "/data/yujinlun/InfBaGel-p2",
+   "checkpoint_run_id": "p1-hoi-d2ae-sparse-relation-field-r1-s42-20260728",
+   "checkpoint_sha256": "b7d49046504e9f8367bfd2bce0aeefb1c8590bf9c542b6eed637f05bdfcdd840",
+   "checkpoint_weight_variant": "online",
+   "checkpoint_initialization": "random",
+   "checkpoint_use": "inference input only; never an initialization",
+   "official_test_sequences": 438,
+   "windows_per_sequence": 3,
+   "sampler": "diffusion",
+   "sampler_timesteps": 500,
+   "cfg": false,
+   "load_scene": false,
+   "seed": 42,
+   "guidance": {
+    "enabled": true,
+    "arm": "b",
+    "guidance_scale": 1000.0,
+    "last_steps": 10,
+    "clamp": 1.0,
+    "clamp_target": "update",
+    "loss": "guidance_loss.apply_hoi_guidance_loss",
+    "guidance_applied_steps": 27,
+    "guidance_sample_calls": 3,
+    "guidance_loss_mean": 5012.739583333333,
+    "guidance_feet_loss_mean": 0.25918038686116535,
+    "guidance_feet_weighted_mean": 129.59019343058267,
+    "guidance_hand_loss_mean": 488.314938990275,
+    "guidance_gradient_rms": 0.2654989322364854,
+    "guidance_gradient_max_abs": 79.56649780273438,
+    "guidance_update_max_abs": 1.0,
+    "guidance_nonfinite_steps": 0
+   },
+   "aggregate_metrics_sha256": "63f22786c47b68a0d0b7c88ba11f2eac826bc49efdcd86b99dc5b0a9fce048bf",
+   "per_sequence_metrics_sha256": "2bca014f54d6b9d271b077769ab91529d95e14b7d6980bc90e38c104140849ea",
+   "resolved_config_sha256": "402ae8e6ae4f69ab1ab79f247ac0f38de5fe6b784253e2a05fd558f4eb68471f",
+   "overrides_sha256": "d9f497a1626d2cff4c70dc3d76f2ce0f84e1671047e6a64bcc7480ca1481d296",
+   "metrics": {
+    "end_obj_trans_err": 4.293986037373543,
+    "xy_points_err": 4.018589109182358,
+    "feet_height": 0.04123169556260109,
+    "foot_sliding": 0.3967515759607263,
+    "contact_acc": 0.7880879901427845,
+    "contact_precision": 0.8058485668211989,
+    "contact_recall": 0.6827802968139888,
+    "contact_f1": 0.7102745667342099,
+    "contact_percent": 0.5498477929984779,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.123128026723862,
+    "trans_dist": 7.691279053688049,
+    "obj_trans_dist": 15.935262507392386,
+    "obj_rot_dist": 0.9911484801899807,
+    "hand_pen_loss_omomo": 0.18112892720495133,
+    "hand_pen_ratio": 0.13066737353801727,
+    "human_pen_loss_infbagel": 2.876518602917692,
+    "human_pen_ratio": 0.13636763393878937
+   },
+   "normalization_audit": {
+    "nonfinite_values": 0,
+    "position_outside_count": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_count": 0,
+    "object_outside_rate": 0.0,
+    "position_values": 1766016,
+    "object_values": 63072,
+    "generated_values": 4877568
+   },
+   "generation_descriptive": {
+    "warmup_batches_excluded": 1,
+    "generated_frames": 55188,
+    "generation_seconds": 72.8716513896361,
+    "fps": 757.331540421889,
+    "end_to_end_seconds": 203.68911290727556,
+    "timing_cuda_synchronized": true
+   },
+   "data_contract": {
+    "contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+    "audit_sha256": "1deea6a724a3319d4c5654da682d7f51af7e5c93b119d159bd2b37ad258f627f",
+    "scene_condition_loaded": false,
+    "short_sequence_windows": 0,
+    "text_coverage_rate": 1.0
+   }
+  }
+ },
+ "uncertainty": {
+  "form": "paired sequence-level bootstrap",
+  "unit": "sequence",
+  "sequence_count": 438,
+  "penetration_sequence_count": 181,
+  "bootstrap_seed": 42,
+  "bootstrap_replicates": 10000,
+  "convention_source": "tools/summarize_hoi_phase1b.py:112",
+  "ratio_expression_source": "tools/run_hoi_d2n.py:407",
+  "pooling": "native unweighted sequence mean (test_infbagel_hoi.py:337-345)",
+  "all_six_cells_share_one_sequence_set": true
+ },
+ "extraction_gate": {
+  "X_u": {
+   "all_exact": false,
+   "max_abs_diff": 5.957912906084939e-09,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 5.957912906084939e-09
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  },
+  "X_g": {
+   "all_exact": false,
+   "max_abs_diff": 8.675333576513289e-10,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 8.675333576513289e-10
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  },
+  "AG_u": {
+   "all_exact": false,
+   "max_abs_diff": 4.933032801690551e-10,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 4.933032801690551e-10
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  },
+  "AG_g": {
+   "all_exact": false,
+   "max_abs_diff": 2.7216733033963436e-10,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 2.7216733033963436e-10
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  },
+  "AE_u": {
+   "all_exact": false,
+   "max_abs_diff": 5.613451162234107e-10,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 5.613451162234107e-10
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  },
+  "AE_g": {
+   "all_exact": false,
+   "max_abs_diff": 3.197966100265681e-09,
+   "per_metric": {
+    "contact_f1": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_recall": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_precision": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "gt_contact_percent": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "contact_acc": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "foot_sliding": {
+     "exact": true,
+     "abs_diff": 0.0
+    },
+    "feet_height": {
+     "exact": false,
+     "abs_diff": 3.197966100265681e-09
+    }
+   },
+   "contact_and_foot_sliding_exact": true,
+   "only_inexact_metric": "feet_height",
+   "inexactness_cause": "float accumulation order; <= 5.96e-09 absolute in every cell"
+  }
+ },
+ "cells_table": {
+  "metric_order": [
+   "end_obj_trans_err",
+   "xy_points_err",
+   "feet_height",
+   "foot_sliding",
+   "contact_acc",
+   "contact_precision",
+   "contact_recall",
+   "contact_f1",
+   "contact_percent",
+   "gt_contact_percent",
+   "mpjpe",
+   "trans_dist",
+   "obj_trans_dist",
+   "obj_rot_dist",
+   "hand_pen_loss_omomo",
+   "hand_pen_ratio",
+   "human_pen_loss_infbagel",
+   "human_pen_ratio"
+  ],
+  "all_18_aggregate_metrics_recorded": true,
+  "values": {
+   "X_u": {
+    "end_obj_trans_err": 3.7402085959911346,
+    "xy_points_err": 4.050519689917564,
+    "feet_height": 0.049811847507953644,
+    "foot_sliding": 0.3630100213939385,
+    "contact_acc": 0.7316445604116837,
+    "contact_precision": 0.7880618755952097,
+    "contact_recall": 0.5944546940443982,
+    "contact_f1": 0.6374259391059788,
+    "contact_percent": 0.4765528738131478,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.050843983888626,
+    "trans_dist": 8.170091360807419,
+    "obj_trans_dist": 15.994049727002507,
+    "obj_rot_dist": 1.0309440299298087,
+    "hand_pen_loss_omomo": 0.24535650279805918,
+    "hand_pen_ratio": 0.1438656598329544,
+    "human_pen_loss_infbagel": 3.869084620991582,
+    "human_pen_ratio": 0.1461896151304245
+   },
+   "X_g": {
+    "end_obj_trans_err": 3.8400880992412567,
+    "xy_points_err": 4.137028008699417,
+    "feet_height": 0.03619400039315224,
+    "foot_sliding": 0.3556543021004396,
+    "contact_acc": 0.80269261433645,
+    "contact_precision": 0.8122325894027452,
+    "contact_recall": 0.7078309129424002,
+    "contact_f1": 0.7265268028569287,
+    "contact_percent": 0.5695622236718128,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.079359591007233,
+    "trans_dist": 7.790068536996841,
+    "obj_trans_dist": 16.094317507591484,
+    "obj_rot_dist": 1.026958937904501,
+    "hand_pen_loss_omomo": 0.22941977261668464,
+    "hand_pen_ratio": 0.14654038846492767,
+    "human_pen_loss_infbagel": 3.6260650890323904,
+    "human_pen_ratio": 0.15044286847114563
+   },
+   "AG_u": {
+    "end_obj_trans_err": 3.6921996623277664,
+    "xy_points_err": 3.9954081177711487,
+    "feet_height": 0.054954271763563156,
+    "foot_sliding": 0.40091825523376623,
+    "contact_acc": 0.738058998332971,
+    "contact_precision": 0.8111961856520455,
+    "contact_recall": 0.5984951273917594,
+    "contact_f1": 0.6500867274276584,
+    "contact_percent": 0.47706023048488805,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.012922018766403,
+    "trans_dist": 8.299961686134338,
+    "obj_trans_dist": 15.416969429094832,
+    "obj_rot_dist": 1.00918565015388,
+    "hand_pen_loss_omomo": 0.1836719029758619,
+    "hand_pen_ratio": 0.11286504566669464,
+    "human_pen_loss_infbagel": 2.9378708358181074,
+    "human_pen_ratio": 0.11615365743637085
+   },
+   "AG_g": {
+    "end_obj_trans_err": 3.7447739392518997,
+    "xy_points_err": 4.0917158126831055,
+    "feet_height": 0.041305672377347946,
+    "foot_sliding": 0.3954275850979648,
+    "contact_acc": 0.7768355439588318,
+    "contact_precision": 0.8223673294969444,
+    "contact_recall": 0.6527098812603845,
+    "contact_f1": 0.6934293901818361,
+    "contact_percent": 0.5224324128433717,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.049806863069534,
+    "trans_dist": 7.744301110506058,
+    "obj_trans_dist": 15.496052675629176,
+    "obj_rot_dist": 1.0045078830341496,
+    "hand_pen_loss_omomo": 0.17213934413666845,
+    "hand_pen_ratio": 0.11641672998666763,
+    "human_pen_loss_infbagel": 2.7465671014386768,
+    "human_pen_ratio": 0.12154696881771088
+   },
+   "AE_u": {
+    "end_obj_trans_err": 4.299027472734451,
+    "xy_points_err": 3.989427164196968,
+    "feet_height": 0.05303037911653519,
+    "foot_sliding": 0.3989576755482311,
+    "contact_acc": 0.732623033992897,
+    "contact_precision": 0.8036319597793999,
+    "contact_recall": 0.5961386226560761,
+    "contact_f1": 0.6419438531625619,
+    "contact_percent": 0.4766253533376821,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.15578094124794,
+    "trans_dist": 8.16512480378151,
+    "obj_trans_dist": 15.955253528138119,
+    "obj_rot_dist": 1.003238229324793,
+    "hand_pen_loss_omomo": 0.17937916498745957,
+    "hand_pen_ratio": 0.12159082293510437,
+    "human_pen_loss_infbagel": 2.8603306929169325,
+    "human_pen_ratio": 0.1270279884338379
+   },
+   "AE_g": {
+    "end_obj_trans_err": 4.293986037373543,
+    "xy_points_err": 4.018589109182358,
+    "feet_height": 0.04123169556260109,
+    "foot_sliding": 0.3967515759607263,
+    "contact_acc": 0.7880879901427845,
+    "contact_precision": 0.8058485668211989,
+    "contact_recall": 0.6827802968139888,
+    "contact_f1": 0.7102745667342099,
+    "contact_percent": 0.5498477929984779,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.123128026723862,
+    "trans_dist": 7.691279053688049,
+    "obj_trans_dist": 15.935262507392386,
+    "obj_rot_dist": 0.9911484801899807,
+    "hand_pen_loss_omomo": 0.18112892720495133,
+    "hand_pen_ratio": 0.13066737353801727,
+    "human_pen_loss_infbagel": 2.876518602917692,
+    "human_pen_ratio": 0.13636763393878937
+   },
+   "released_a0_old": {
+    "end_obj_trans_err": 3.0372438952326775,
+    "xy_points_err": 3.9230965077877045,
+    "feet_height": 0.04112287983298302,
+    "foot_sliding": 0.33336322153742476,
+    "contact_acc": 0.8020946582590419,
+    "contact_precision": 0.790809602353939,
+    "contact_recall": 0.7275875037410999,
+    "contact_f1": 0.7272576950146546,
+    "contact_percent": 0.5983184750308039,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 11.997593194246292,
+    "trans_dist": 8.208845555782318,
+    "obj_trans_dist": 15.72564612054545,
+    "obj_rot_dist": 1.0202497641505308,
+    "hand_pen_loss_omomo": 0.1624019806288998,
+    "hand_pen_ratio": 0.13285978138446808,
+    "human_pen_loss_infbagel": 2.589266609805965,
+    "human_pen_ratio": 0.13763920962810516
+   }
+  },
+  "relative_gap_to_released": {
+   "X_u": {
+    "end_obj_trans_err": 0.23144822246966915,
+    "xy_points_err": 0.03248025682695118,
+    "feet_height": 0.21129278178620053,
+    "foot_sliding": 0.08893242547809214,
+    "contact_acc": -0.08783264808204955,
+    "contact_precision": -0.003474574348301319,
+    "contact_recall": -0.18297841704559406,
+    "contact_f1": -0.12352121747830487,
+    "contact_percent": -0.20351302241066033,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.004438456011983434,
+    "trans_dist": -0.004721028640574289,
+    "obj_trans_dist": 0.017067890527333488,
+    "obj_rot_dist": 0.01048200759760238,
+    "hand_pen_loss_omomo": 0.5107974782568473,
+    "hand_pen_ratio": 0.08283830015223076,
+    "human_pen_loss_infbagel": 0.4942781891747811,
+    "human_pen_ratio": 0.06212187301439859
+   },
+   "X_g": {
+    "end_obj_trans_err": 0.26433313612671694,
+    "xy_points_err": 0.05453128682586297,
+    "feet_height": -0.11985735094061975,
+    "foot_sliding": 0.06686724606335234,
+    "contact_acc": 0.0007454931550173428,
+    "contact_precision": 0.02708994299644075,
+    "contact_recall": -0.027153559808429303,
+    "contact_f1": -0.001004997489522883,
+    "contact_percent": -0.04806178073894624,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.006815233308640054,
+    "trans_dist": -0.05101533655856027,
+    "obj_trans_dist": 0.023443957991930567,
+    "obj_rot_dist": 0.006576011080538005,
+    "hand_pen_loss_omomo": 0.41266610005776544,
+    "hand_pen_ratio": 0.10297026638084564,
+    "human_pen_loss_infbagel": 0.40042167743557355,
+    "human_pen_ratio": 0.09302333889910706
+   },
+   "AG_u": {
+    "end_obj_trans_err": 0.2156414794752313,
+    "xy_points_err": 0.01843227915497339,
+    "feet_height": 0.3363429795470339,
+    "foot_sliding": 0.20264693083054292,
+    "contact_acc": -0.07983553969186293,
+    "contact_precision": 0.025779382594019348,
+    "contact_recall": -0.1774252247125948,
+    "contact_f1": -0.10611227370435898,
+    "contact_percent": -0.20266505148394925,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.0012776582996214905,
+    "trans_dist": 0.01109974962165514,
+    "obj_trans_dist": -0.01962887178589971,
+    "obj_rot_dist": -0.010844515123081483,
+    "hand_pen_loss_omomo": 0.1309708309257964,
+    "hand_pen_ratio": -0.15049502196539752,
+    "human_pen_loss_infbagel": 0.13463434962314136,
+    "human_pen_ratio": -0.1561005199738308
+   },
+   "AG_g": {
+    "end_obj_trans_err": 0.23295134287034916,
+    "xy_points_err": 0.04298117687410348,
+    "feet_height": 0.0044450326705553,
+    "foot_sliding": 0.18617639724714627,
+    "contact_acc": -0.03149143812406802,
+    "contact_precision": 0.03990559427840781,
+    "contact_recall": -0.1029121886999304,
+    "contact_f1": -0.04651488057769791,
+    "contact_percent": -0.12683222289521526,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.004352011939218142,
+    "trans_dist": -0.0565907157248238,
+    "obj_trans_dist": -0.014599937144478388,
+    "obj_rot_dist": -0.015429438623284593,
+    "hand_pen_loss_omomo": 0.05995840364791631,
+    "hand_pen_ratio": -0.12376244508650618,
+    "human_pen_loss_infbagel": 0.06075098293740383,
+    "human_pen_ratio": -0.11691610881720975
+   },
+   "AE_u": {
+    "end_obj_trans_err": 0.4154370281169372,
+    "xy_points_err": 0.016907729972380544,
+    "feet_height": 0.2895589835126683,
+    "foot_sliding": 0.19676571911050605,
+    "contact_acc": -0.08661275019202112,
+    "contact_precision": 0.016214215643428734,
+    "contact_recall": -0.1806640169177476,
+    "contact_f1": -0.11730895724709199,
+    "contact_percent": -0.20339188370684455,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.013184956719278525,
+    "trans_dist": -0.00532605367024012,
+    "obj_trans_dist": 0.014600825036542574,
+    "obj_rot_dist": -0.016673892436428802,
+    "hand_pen_loss_omomo": 0.10453803760776698,
+    "hand_pen_ratio": -0.08481843287664104,
+    "human_pen_loss_infbagel": 0.10468759071947421,
+    "human_pen_ratio": -0.07709446474546247
+   },
+   "AE_g": {
+    "end_obj_trans_err": 0.41377715635990725,
+    "xy_points_err": 0.024341129820561844,
+    "feet_height": 0.0026461116064832543,
+    "foot_sliding": 0.1901480137219795,
+    "contact_acc": -0.017462612388741087,
+    "contact_precision": 0.01901717483259505,
+    "contact_recall": -0.06158325520534924,
+    "contact_f1": -0.023352284062257426,
+    "contact_percent": -0.08101150817686284,
+    "gt_contact_percent": 0.0,
+    "mpjpe": 0.010463334640965535,
+    "trans_dist": -0.06304985257393404,
+    "obj_trans_dist": 0.013329588192441455,
+    "obj_rot_dist": -0.028523686045426443,
+    "hand_pen_loss_omomo": 0.11531230409587155,
+    "hand_pen_ratio": -0.01650166682200418,
+    "human_pen_loss_infbagel": 0.11093951933101749,
+    "human_pen_ratio": -0.009238469857183393
+   }
+  }
+ },
+ "guidance_main_effects": {
+  "gain_D2X": {
+   "foot_sliding": {
+    "difference": -0.007355719293498866,
+    "ci": [
+     -0.024198948068034822,
+     0.009625270084420226
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": 0.024170713807535507,
+    "ci": [
+     0.011595703299653823,
+     0.038139612657824194
+    ],
+    "crosses_zero": false
+   },
+   "contact_recall": {
+    "difference": 0.113376218898002,
+    "ci": [
+     0.09811504458218034,
+     0.1285825290752411
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": 0.08910086375094974,
+    "ci": [
+     0.07592903782603712,
+     0.10222288487201188
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": 0.02851449633570022,
+    "ci": [
+     -0.0209779437571832,
+     0.079472698696536
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.38002277320446487,
+    "ci": [
+     -0.46323944004380135,
+     -0.2896116040306821
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": 0.1002677805889715,
+    "ci": [
+     0.00026165341552941544,
+     0.2036227449728355
+    ],
+    "crosses_zero": false
+   },
+   "obj_rot_dist": {
+    "difference": -0.003985092025314829,
+    "ci": [
+     -0.010204624300125597,
+     0.002155802295279336
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": 0.09924718990952949,
+    "ci": [
+     0.033108652560308524,
+     0.16579181821690228
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.015936730181374547,
+    "ci": [
+     -0.03466356697957645,
+     0.0005850945374396872
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_ratio": {
+    "difference": 0.002674734111854714,
+    "ci": [
+     -0.0033308655358947467,
+     0.00912496529704501
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.2430195319591915,
+    "ci": [
+     -0.534556567949069,
+     0.012176759698426054
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": 0.0042532658389671735,
+    "ci": [
+     -0.0020057008548975317,
+     0.010973501350609642
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": 0.09300934985866492,
+    "ci": [
+     0.08077843009349858,
+     0.10489599188229325
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": 0.07104805392476624,
+    "ci": [
+     0.059324490831340136,
+     0.08244591215481627
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": -0.013617842024421855,
+    "ci": [
+     -0.01491909760239717,
+     -0.012255545704068454
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.015936730181374547,
+     "ci": [
+      -0.03494125613615837,
+      0.000615597896891885
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": 0.002674734111854714,
+     "ci": [
+      -0.0033763047528983154,
+      0.009120406512459173
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.2430195319591915,
+     "ci": [
+      -0.540406119163036,
+      0.014477342987178753
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": 0.0042532658389671735,
+     "ci": [
+      -0.0020170140276966585,
+      0.010874330884524884
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "gain_D2AG": {
+   "foot_sliding": {
+    "difference": -0.005490670135801405,
+    "ci": [
+     -0.025297815639706234,
+     0.014639448460163252
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": 0.011171143844898928,
+    "ci": [
+     0.0008316024857868914,
+     0.022985339988899216
+    ],
+    "crosses_zero": false
+   },
+   "contact_recall": {
+    "difference": 0.0542147538686251,
+    "ci": [
+     0.04330587742442071,
+     0.06465876103943154
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": 0.04334266275417775,
+    "ci": [
+     0.03472883017178526,
+     0.05181616560525208
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": 0.03688528657503869,
+    "ci": [
+     -0.027228054934985015,
+     0.09758235048927939
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.5556603315282086,
+    "ci": [
+     -0.625083163374244,
+     -0.4868674288784498
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": 0.07908324653434495,
+    "ci": [
+     -0.003599254094449574,
+     0.1647089730132042
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.004677767119744719,
+    "ci": [
+     -0.010308218843567973,
+     0.0008678624493674289
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": 0.05152809106303611,
+    "ci": [
+     -0.009107361471533076,
+     0.1178392590168122
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.011532558839193439,
+    "ci": [
+     -0.02606632496685791,
+     0.001185398857293804
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_ratio": {
+    "difference": 0.003551697214417036,
+    "ci": [
+     -0.0019493570706245616,
+     0.0093916484094546
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.19130373437943055,
+    "ci": [
+     -0.42671548469069404,
+     0.015060664147559771
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": 0.005393317669053763,
+    "ci": [
+     -0.0001393629507899901,
+     0.011239562920063216
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": 0.04537218235848373,
+    "ci": [
+     0.03758063347104443,
+     0.052946745669348406
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": 0.03877654562586069,
+    "ci": [
+     0.031927230557367535,
+     0.0455715010509531
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": -0.013648600151685819,
+    "ci": [
+     -0.015037310142899316,
+     -0.0122654535508923
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.011532558839193439,
+     "ci": [
+      -0.026039937400559578,
+      0.0008588216742352602
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": 0.003551697214417036,
+     "ci": [
+      -0.001929317054323317,
+      0.009471192877631613
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.19130373437943055,
+     "ci": [
+      -0.4291388944830108,
+      0.011347617645302786
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": 0.005393317669053763,
+     "ci": [
+      -0.0001315442712730548,
+      0.011268965223449081
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "gain_D2AE": {
+   "foot_sliding": {
+    "difference": -0.002206099587504769,
+    "ci": [
+     -0.02109705576671913,
+     0.01639748337098268
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": 0.002216607041798848,
+    "ci": [
+     -0.009919891295362448,
+     0.014992232463429487
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": 0.0866416741579126,
+    "ci": [
+     0.07146431932463096,
+     0.1019496047022392
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": 0.06833071357164797,
+    "ci": [
+     0.05499492232333844,
+     0.08191038834050056
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": -0.032654755906155124,
+    "ci": [
+     -0.10586737263862674,
+     0.03925660688889352
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.47384486342333765,
+    "ci": [
+     -0.562688194653317,
+     -0.38833979523600376
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": -0.019991020745730035,
+    "ci": [
+     -0.12136725083277308,
+     0.08008312714555751
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.012089749134805929,
+    "ci": [
+     -0.019506029254103725,
+     -0.004881063165611977
+    ],
+    "crosses_zero": false
+   },
+   "end_obj_trans_err": {
+    "difference": -0.004730577440250514,
+    "ci": [
+     -0.08740301548876112,
+     0.08186025559020793
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": 0.0017497622174917622,
+    "ci": [
+     -0.015390097811937517,
+     0.01792944508011867
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_ratio": {
+    "difference": 0.00907655947363179,
+    "ci": [
+     -0.001482714434414732,
+     0.020346732820202773
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": 0.016187910000759136,
+    "ci": [
+     -0.25776302837619747,
+     0.2745302087387573
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": 0.00933964848415463,
+    "ci": [
+     -0.00024519577043173027,
+     0.019582484796357266
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": 0.07322243966079582,
+    "ci": [
+     0.061607595854171186,
+     0.08538178589548452
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": 0.05546495614988767,
+    "ci": [
+     0.04437558889613684,
+     0.0666992824527071
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": -0.011798687313245312,
+    "ci": [
+     -0.013218391773218638,
+     -0.010390881094635044
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": 0.0017497622174917622,
+     "ci": [
+      -0.016727403361794305,
+      0.01769549742278705
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": 0.00907655947363179,
+     "ci": [
+      -0.0015785305593574409,
+      0.020126281470929926
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": 0.016187910000759136,
+     "ci": [
+      -0.28136787290403326,
+      0.26887186310134575
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": 0.00933964848415463,
+     "ci": [
+      -0.0003080333777296846,
+      0.019249322983817048
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "interpretable_because_tree_offset_is_measured_zero": true
+ },
+ "interaction_tests": {
+  "statistic": "(D2AG_guided - D2AG_unguided) - (D2X_guided - D2X_unguided), per metric, paired sequence bootstrap over the same 438 sequences in all cells",
+  "null_hypothesis": "the guidance effect is the same for the relation-field checkpoint as it was for D2-X",
+  "AG_vs_X": {
+   "foot_sliding": {
+    "difference": 0.0018650491576974585,
+    "ci": [
+     -0.023449772688430275,
+     0.027519387704169347
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": -0.01299956996263658,
+    "ci": [
+     -0.02966470363237416,
+     0.0033852529258555524
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": -0.05916146502937693,
+    "ci": [
+     -0.0759160812928871,
+     -0.04275449254112303
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": -0.04575820099677198,
+    "ci": [
+     -0.05913798059882535,
+     -0.032926574250386254
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": 0.008370790239338462,
+    "ci": [
+     -0.06574947584726631,
+     0.07730723928541078
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.17563755832374367,
+    "ci": [
+     -0.26636148295811796,
+     -0.09007677648505666
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": -0.02118453405462655,
+    "ci": [
+     -0.1366116801702714,
+     0.0896199847726389
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.0006926750944298883,
+    "ci": [
+     -0.008511643581008218,
+     0.007282772095289818
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": -0.04771909884649339,
+    "ci": [
+     -0.13241438277237144,
+     0.03893707073298151
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": 0.004404171342181107,
+    "ci": [
+     -0.007338861345447976,
+     0.016220075842832894
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_ratio": {
+    "difference": 0.0008769631025623222,
+    "ci": [
+     -0.00757792339091572,
+     0.009089436531287664
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": 0.05171579757976091,
+    "ci": [
+     -0.12942655541564288,
+     0.2355789975633695
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": 0.0011400518300865895,
+    "ci": [
+     -0.007351841270101065,
+     0.009327817780348371
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": -0.04763716750018119,
+    "ci": [
+     -0.06032108429368702,
+     -0.03529752844821338
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": -0.032271508298905564,
+    "ci": [
+     -0.043215916503587734,
+     -0.021236500688555482
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": -3.075812726396404e-05,
+    "ci": [
+     -0.0017853240975812417,
+     0.0017458974787769785
+    ],
+    "crosses_zero": true
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": 0.004404171342181107,
+     "ci": [
+      -0.007107099813483122,
+      0.016309478908843825
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": 0.0008769631025623222,
+     "ci": [
+      -0.007541873880909005,
+      0.0092081056079359
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": 0.05171579757976091,
+     "ci": [
+      -0.1252468523146194,
+      0.2373060190188217
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": 0.0011400518300865895,
+     "ci": [
+      -0.007366482129330793,
+      0.009427346453682945
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "AE_vs_X": {
+   "foot_sliding": {
+    "difference": 0.005149619705994098,
+    "ci": [
+     -0.018475775035684924,
+     0.02926271903758017
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": -0.02195410676573666,
+    "ci": [
+     -0.04066406680502101,
+     -0.004224314902700723
+    ],
+    "crosses_zero": false
+   },
+   "contact_recall": {
+    "difference": -0.026734544740089412,
+    "ci": [
+     -0.04463347084015561,
+     -0.009353580494679603
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": -0.020770150179301766,
+    "ci": [
+     -0.035935268192538325,
+     -0.005748517918966262
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": -0.06116925224185534,
+    "ci": [
+     -0.1497363831771359,
+     0.025363316648899105
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.09382209021887278,
+    "ci": [
+     -0.22700422968647388,
+     0.015829596572797998
+    ],
+    "crosses_zero": true
+   },
+   "obj_trans_dist": {
+    "difference": -0.12025880133470153,
+    "ci": [
+     -0.25365567352128404,
+     0.013777046343642725
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.008104657109491098,
+    "ci": [
+     -0.017233342547395475,
+     0.0009426294864317161
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": -0.10397776734978002,
+    "ci": [
+     -0.21271024806586425,
+     0.008779233127881769
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": 0.01768649239886631,
+    "ci": [
+     -0.0007466485422982201,
+     0.038243590831901826
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_ratio": {
+    "difference": 0.006401825361777076,
+    "ci": [
+     -0.00812179465785246,
+     0.020470125592891786
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": 0.25920744195995066,
+    "ci": [
+     -0.032735081805664715,
+     0.5848540823976508
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": 0.005086382645187457,
+    "ci": [
+     -0.00866596273862405,
+     0.01842601368769311
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": -0.019786910197869104,
+    "ci": [
+     -0.03334058128578677,
+     -0.006215119228817861
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": -0.015583097774878594,
+    "ci": [
+     -0.028412426614481404,
+     -0.0026994092918750526
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": 0.0018191547111765436,
+    "ci": [
+     8.689664776296653e-05,
+     0.0035491343100712584
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": 0.01768649239886631,
+     "ci": [
+      -0.0009953502848817025,
+      0.03814674396465996
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": 0.006401825361777076,
+     "ci": [
+      -0.007848810541922052,
+      0.02047706677151319
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": 0.25920744195995066,
+     "ci": [
+      -0.03642561535859635,
+      0.5813490182675372
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": 0.005086382645187457,
+     "ci": [
+      -0.008506532453350436,
+      0.018240815857219515
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "AG_vs_AE": {
+   "foot_sliding": {
+    "difference": -0.003284570548296637,
+    "ci": [
+     -0.027771063177651756,
+     0.02167699295200964
+    ],
+    "crosses_zero": true
+   },
+   "contact_precision": {
+    "difference": 0.008954536803100082,
+    "ci": [
+     -0.008354381805268122,
+     0.027246753499476747
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": -0.0324269202892875,
+    "ci": [
+     -0.04844377814772641,
+     -0.01713175275668837
+    ],
+    "crosses_zero": false
+   },
+   "contact_f1": {
+    "difference": -0.024988050817470225,
+    "ci": [
+     -0.03835975910870496,
+     -0.012007935888617337
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": 0.0695400424811938,
+    "ci": [
+     -0.01851486082541752,
+     0.15833719320952483
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.08181546810487089,
+    "ci": [
+     -0.17172628502280676,
+     0.012550789684261328
+    ],
+    "crosses_zero": true
+   },
+   "obj_trans_dist": {
+    "difference": 0.09907426728007503,
+    "ci": [
+     -0.013407011039164174,
+     0.21271810924034829
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": 0.00741198201506121,
+    "ci": [
+     -0.0008682474604396706,
+     0.01595127015668462
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": 0.056258668503286625,
+    "ci": [
+     -0.05436592466200852,
+     0.16391185110112622
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.013282321056685201,
+    "ci": [
+     -0.027731220222771167,
+     -0.0005229306613570001
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.005524862259214754,
+    "ci": [
+     -0.01628164458005244,
+     0.004820368081873034
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.2074916443801897,
+    "ci": [
+     -0.4387451850769256,
+     -0.002977141533045731
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_ratio": {
+    "difference": -0.0039463308151008675,
+    "ci": [
+     -0.013911710087508416,
+     0.005952379744142972
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": -0.027850257302312095,
+    "ci": [
+     -0.040353881278538804,
+     -0.016036094803218087
+    ],
+    "crosses_zero": false
+   },
+   "contact_acc": {
+    "difference": -0.016688410524026965,
+    "ci": [
+     -0.027922736826846418,
+     -0.0056352830325433045
+    ],
+    "crosses_zero": false
+   },
+   "feet_height": {
+    "difference": -0.0018499128384405076,
+    "ci": [
+     -0.0036200443554890755,
+     -6.54779821123992e-05
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.013282321056685201,
+     "ci": [
+      -0.0271535651997607,
+      -0.000400720955166974
+     ],
+     "crosses_zero": false
+    },
+    "hand_pen_ratio": {
+     "difference": -0.005524862259214754,
+     "ci": [
+      -0.016049505611341344,
+      0.004998684206396053
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.2074916443801897,
+     "ci": [
+      -0.4303841334158814,
+      -0.0004580986056496817
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_ratio": {
+     "difference": -0.0039463308151008675,
+     "ci": [
+      -0.01389984967205056,
+      0.006051036367933807
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "verdict": "the null is rejected on contact and only on contact: contact_f1, contact_recall and contact_percent interactions exclude zero for both relation-field checkpoints, while every penetration, foot-sliding and end-object interaction crosses zero."
+ },
+ "unguided_cell_contrasts": {
+  "AGu_minus_Xu": {
+   "foot_sliding": {
+    "difference": 0.037908233839827776,
+    "ci": [
+     0.011320260346009752,
+     0.06449495248837393
+    ],
+    "crosses_zero": false
+   },
+   "contact_precision": {
+    "difference": 0.023134310056835906,
+    "ci": [
+     0.003597741570523799,
+     0.04268227842678902
+    ],
+    "crosses_zero": false
+   },
+   "contact_recall": {
+    "difference": 0.004040433347361118,
+    "ci": [
+     -0.019876465115143665,
+     0.028525400940548902
+    ],
+    "crosses_zero": true
+   },
+   "contact_f1": {
+    "difference": 0.012660788321679566,
+    "ci": [
+     -0.00823759546954707,
+     0.034443270025997036
+    ],
+    "crosses_zero": true
+   },
+   "mpjpe": {
+    "difference": -0.037924129703001346,
+    "ci": [
+     -0.268653071715101,
+     0.19509300385435965
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": 0.1298709704485386,
+    "ci": [
+     -0.06052854263593685,
+     0.33656179637023026
+    ],
+    "crosses_zero": true
+   },
+   "obj_trans_dist": {
+    "difference": -0.5770802979076738,
+    "ci": [
+     -0.9882281631025609,
+     -0.16100156143564795
+    ],
+    "crosses_zero": false
+   },
+   "obj_rot_dist": {
+    "difference": -0.02175837977593493,
+    "ci": [
+     -0.05440137578525395,
+     0.010695598245574962
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": -0.04418538118796235,
+    "ci": [
+     -0.25156547021303766,
+     0.16300594285989642
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.06168459982219728,
+    "ci": [
+     -0.09882622761082818,
+     -0.026657551502188986
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.031000616399375774,
+    "ci": [
+     -0.0510275593841035,
+     -0.012981771322174958
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.9312137851734746,
+    "ci": [
+     -1.500081304579585,
+     -0.39761254587649586
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_ratio": {
+    "difference": -0.030035957894725365,
+    "ci": [
+     -0.04970773433200253,
+     -0.012256991955717457
+    ],
+    "crosses_zero": false
+   },
+   "contact_percent": {
+    "difference": 0.0005073566717402321,
+    "ci": [
+     -0.018247626295571504,
+     0.019207074001594545
+    ],
+    "crosses_zero": true
+   },
+   "contact_acc": {
+    "difference": 0.006414437921287238,
+    "ci": [
+     -0.010328332246140465,
+     0.02355584547365369
+    ],
+    "crosses_zero": true
+   },
+   "feet_height": {
+    "difference": 0.005142430706825703,
+    "ci": [
+     0.003005126200097541,
+     0.0073033638218774986
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.06168459982219728,
+     "ci": [
+      -0.09963935220322456,
+      -0.026133922606938913
+     ],
+     "crosses_zero": false
+    },
+    "hand_pen_ratio": {
+     "difference": -0.031000616399375774,
+     "ci": [
+      -0.05055687440139915,
+      -0.012407919503388253
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.9312137851734746,
+     "ci": [
+      -1.515462251020972,
+      -0.3792455453088575
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_ratio": {
+     "difference": -0.030035957894725365,
+     "ci": [
+      -0.04889064717893772,
+      -0.012014382950014831
+     ],
+     "crosses_zero": false
+    }
+   }
+  },
+  "AEu_minus_Xu": {
+   "foot_sliding": {
+    "difference": 0.03594765415429264,
+    "ci": [
+     0.012077121055673223,
+     0.06061082352192355
+    ],
+    "crosses_zero": false
+   },
+   "contact_precision": {
+    "difference": 0.015570084184190374,
+    "ci": [
+     -0.005193560429915042,
+     0.03679140600621204
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": 0.001683928611677855,
+    "ci": [
+     -0.02313870299143617,
+     0.026381165775851114
+    ],
+    "crosses_zero": true
+   },
+   "contact_f1": {
+    "difference": 0.004517914056583,
+    "ci": [
+     -0.01809406049452261,
+     0.02684589187183764
+    ],
+    "crosses_zero": true
+   },
+   "mpjpe": {
+    "difference": 0.10493844662491045,
+    "ci": [
+     -0.13547896605291188,
+     0.3460132257723712
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.004966380967669291,
+    "ci": [
+     -0.18914043992655735,
+     0.17019360961996394
+    ],
+    "crosses_zero": true
+   },
+   "obj_trans_dist": {
+    "difference": -0.038796198864387094,
+    "ci": [
+     -0.4875670163014595,
+     0.4055907769872055
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.027705800605027184,
+    "ci": [
+     -0.06264985712031405,
+     0.008037852798969031
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": 0.5560929420811588,
+    "ci": [
+     0.3272143478657376,
+     0.7830464969231977
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.06597733781059963,
+    "ci": [
+     -0.10869117491544786,
+     -0.027466052836756093
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.022274842521803485,
+    "ci": [
+     -0.03849880738373007,
+     -0.0068179895811286235
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -1.0087539280746494,
+    "ci": [
+     -1.6770512367231265,
+     -0.4082145231612814
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_ratio": {
+    "difference": -0.019161626701732038,
+    "ci": [
+     -0.03611869778103995,
+     -0.0030420691959607044
+    ],
+    "crosses_zero": false
+   },
+   "contact_percent": {
+    "difference": 7.247952453431677e-05,
+    "ci": [
+     -0.019569924621294487,
+     0.019461205334492998
+    ],
+    "crosses_zero": true
+   },
+   "contact_acc": {
+    "difference": 0.0009784735812133018,
+    "ci": [
+     -0.01725057983619628,
+     0.01899054142204825
+    ],
+    "crosses_zero": true
+   },
+   "feet_height": {
+    "difference": 0.0032185381278395653,
+    "ci": [
+     0.001231047826432134,
+     0.005273859534565717
+    ],
+    "crosses_zero": false
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.06597733781059963,
+     "ci": [
+      -0.1086217590089879,
+      -0.026125905110414696
+     ],
+     "crosses_zero": false
+    },
+    "hand_pen_ratio": {
+     "difference": -0.022274842521803485,
+     "ci": [
+      -0.038586341552770805,
+      -0.006796459454621152
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -1.0087539280746496,
+     "ci": [
+      -1.6744667395686674,
+      -0.3856608097036677
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_ratio": {
+     "difference": -0.019161626701732038,
+     "ci": [
+      -0.035911605465714695,
+      -0.003113217443711438
+     ],
+     "crosses_zero": false
+    }
+   }
+  }
+ },
+ "d2q0_form_ratios": {
+  "bar": "mean-ratio 95% CI upper bound <= 1.10 against the unguided control",
+  "applies_to_p3": false,
+  "reported_for": "comparability with earlier sub-phases only; P3's preregistered protections are the two stated above",
+  "values": {
+   "X_g_over_X_u": {
+    "foot_sliding": {
+     "mean_ratio": 0.9797368698934168,
+     "ci": [
+      0.9353705183327757,
+      1.027616430717987
+     ]
+    },
+    "obj_trans_dist": {
+     "mean_ratio": 1.006269067703328,
+     "ci": [
+      1.0000160926811241,
+      1.0127929255241368
+     ]
+    }
+   },
+   "AG_g_over_AG_u": {
+    "foot_sliding": {
+     "mean_ratio": 0.9863047639659113,
+     "ci": [
+      0.9388208689581069,
+      1.0375851746153164
+     ]
+    },
+    "obj_trans_dist": {
+     "mean_ratio": 1.0051296233606781,
+     "ci": [
+      0.9997653208533631,
+      1.0107325899598913
+     ]
+    }
+   },
+   "AE_g_over_AE_u": {
+    "foot_sliding": {
+     "mean_ratio": 0.994470341786323,
+     "ci": [
+      0.9486550155650468,
+      1.0425981601675733
+     ]
+    },
+    "obj_trans_dist": {
+     "mean_ratio": 0.9987470571551578,
+     "ci": [
+      0.9924508809516756,
+      1.005073518260567
+     ]
+    }
+   }
+  }
+ },
+ "criteria": {
+  "primary": {
+   "statement": "does D2-AG + Arm B close the hand and body penetration gaps to the released guided row to within +/-10% while holding contact F1 parity",
+   "penetration_closure": {
+    "hand_pen_loss_omomo": {
+     "measured": 0.17213934413666845,
+     "released_target": 0.1624019806288998,
+     "relative_gap": 0.05995840364791631,
+     "prior_gap_d2x_armb": 0.41266610005776544,
+     "within_10_percent": true
+    },
+    "human_pen_loss_infbagel": {
+     "measured": 2.7465671014386768,
+     "released_target": 2.589266609805965,
+     "relative_gap": 0.06075098293740383,
+     "prior_gap_d2x_armb": 0.40042167743557355,
+     "within_10_percent": true
+    },
+    "verdict": "MET"
+   },
+   "contact_parity": {
+    "measured_contact_f1": 0.6934293901818361,
+    "released_contact_f1": 0.7272576950146546,
+    "preregistered_floor": 0.7072576950146546,
+    "point_difference": -0.03382830483281851,
+    "ci_available": false,
+    "ci_limitation": "the released row has no per_sequence_metrics.json, so every contrast against it is a point estimate without a CI; inherited verbatim from PHASE_1B_P2_GUIDANCE.md:358-360",
+    "verdict": "NOT MET"
+   },
+   "verdict": "FAILED: penetration closure MET, contact parity NOT MET; the preregistered PRIMARY criterion required both"
+  },
+  "protection": {
+   "contact_f1_vs_D2X_ArmB": {
+    "reference": 0.7265268028569287,
+    "paired_difference": -0.03309741267509242,
+    "bootstrap_95_ci": [
+     -0.05167789351037142,
+     -0.014546156133237845
+    ],
+    "rule": "paired sequence bootstrap CI lower bound >= -0.02",
+    "ci_lower": -0.05167789351037142,
+    "verdict": "FAILED"
+   },
+   "end_obj_trans_err_vs_D2AG_unguided": {
+    "reference": 3.6921996623277664,
+    "paired_difference": 0.05152809106303611,
+    "bootstrap_95_ci": [
+     -0.009107361471533076,
+     0.1178392590168122
+    ],
+    "rule": "paired CI upper bound <= +0.25 cm",
+    "ci_upper": 0.1178392590168122,
+    "verdict": "OK",
+    "construction_caveat": "computed on the per-sequence construction; see measurement_caveats.end_obj_trans_err_construction"
+   }
+  },
+  "gated": {
+   "rule": "nonfinite_values == 0 and position_outside_rate == 0.0 in every run",
+   "nonfinite_values": {
+    "X_u": 0,
+    "X_g": 0,
+    "AG_u": 0,
+    "AG_g": 0,
+    "AE_u": 0,
+    "AE_g": 0
+   },
+   "position_outside_rate": {
+    "X_u": 0.0,
+    "X_g": 0.0,
+    "AG_u": 0.0,
+    "AG_g": 0.0,
+    "AE_u": 0.0,
+    "AE_g": 0.0
+   },
+   "object_outside_rate": {
+    "X_u": 0.0,
+    "X_g": 0.0,
+    "AG_u": 0.0,
+    "AG_g": 0.0,
+    "AE_u": 0.0,
+    "AE_g": 0.0
+   },
+   "guidance_nonfinite_steps": {
+    "X_g": 0,
+    "AG_g": 0,
+    "AE_g": 0
+   },
+   "verdict": "PASSED in both guided arms and all four unguided/control runs",
+   "preregistered_risk_that_did_not_materialise": "risk 2 predicted that the self-conditioned relation source could behave off-distribution on guided trajectories and produce nonfinite or out-of-range output. It did not: zero non-finite values across 438 sequences and every aggregate in both arms, and zero guided steps with a non-finite gradient."
+  },
+  "overall_verdict": "PREREGISTERED COST FAILURE",
+  "overall_statement": "The preregistered PRIMARY criterion required BOTH penetration closure AND contact parity, and PROTECTION (i) required the contact_f1 CI lower bound against D2-X + Arm B to stay at or above -0.02. Penetration closure is met with room to spare and PROTECTION (ii) holds, but contact parity is not met and PROTECTION (i) is violated. Under the rules fixed before any GPU run, that is a cost failure and is classified as one. The penetration result is a real and reproducible finding, but it is not the verdict and must not be presented as one."
+ },
+ "pre_run_prediction": {
+  "recorded_before_any_gpu_run": true,
+  "recorded_in": [
+   "docs/EXPERIMENT_PLAN.md, P3 section, '事前预测（在任何 GPU 运行之前写入，无论对错都保留）'",
+   "registry row p1-hoi-p3-relation-field-guidance-preregister-s42-20260802, config.criteria.additivity_interaction_test.additive_predictions",
+   "commit f836ca4b38b84941df0ddba61cee3dced60460f7"
+  ],
+  "prediction": "under exact additivity of the D2-X-measured Arm B effect, D2-AG + Arm B reads contact_f1 0.7391880 and closes both penetration gaps to single digits",
+  "outcome": "FALSIFIED on contact, CONFIRMED on penetration",
+  "d2ag_rows": {
+   "contact_f1": {
+    "additive_prediction": 0.739188,
+    "measured": 0.6934293901818361,
+    "measured_minus_predicted": -0.04575860981816382,
+    "interaction_ci": [
+     -0.05913798059882535,
+     -0.032926574250386254
+    ],
+    "interaction_excludes_zero": true
+   },
+   "contact_recall": {
+    "additive_prediction": 0.711871,
+    "measured": 0.6527098812603845,
+    "measured_minus_predicted": -0.05916111873961549,
+    "interaction_ci": [
+     -0.0759160812928871,
+     -0.04275449254112303
+    ],
+    "interaction_excludes_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "additive_prediction": 0.167735,
+    "measured": 0.17213934413666845,
+    "measured_minus_predicted": 0.004404344136668459,
+    "interaction_ci": [
+     -0.007338861345447976,
+     0.016220075842832894
+    ],
+    "interaction_excludes_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "additive_prediction": 2.694851,
+    "measured": 2.7465671014386768,
+    "measured_minus_predicted": 0.05171610143867689,
+    "interaction_ci": [
+     -0.12942655541564288,
+     0.2355789975633695
+    ],
+    "interaction_excludes_zero": false
+   },
+   "foot_sliding": {
+    "additive_prediction": 0.393562,
+    "measured": 0.3954275850979648,
+    "measured_minus_predicted": 0.0018655850979647504,
+    "interaction_ci": [
+     -0.023449772688430275,
+     0.027519387704169347
+    ],
+    "interaction_excludes_zero": false
+   },
+   "end_obj_trans_err": {
+    "additive_prediction": 3.792079,
+    "measured": 3.7447739392518997,
+    "measured_minus_predicted": -0.04730506074810048,
+    "interaction_ci": [
+     -0.13241438277237144,
+     0.03893707073298151
+    ],
+    "interaction_excludes_zero": false
+   }
+  },
+  "d2ae_rows": {
+   "contact_f1": {
+    "additive_prediction": 0.731045,
+    "measured": 0.7102745667342099,
+    "measured_minus_predicted": -0.02077043326579009,
+    "interaction_ci": [
+     -0.035935268192538325,
+     -0.005748517918966262
+    ],
+    "interaction_excludes_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "additive_prediction": 0.163442,
+    "measured": 0.18112892720495133,
+    "measured_minus_predicted": 0.017686927204951325,
+    "interaction_ci": [
+     -0.0007466485422982201,
+     0.038243590831901826
+    ],
+    "interaction_excludes_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "additive_prediction": 2.617311,
+    "measured": 2.876518602917692,
+    "measured_minus_predicted": 0.2592076029176922,
+    "interaction_ci": [
+     -0.032735081805664715,
+     0.5848540823976508
+    ],
+    "interaction_excludes_zero": false
+   },
+   "end_obj_trans_err": {
+    "additive_prediction": 4.398906,
+    "measured": 4.293986037373543,
+    "measured_minus_predicted": -0.10491996262645742,
+    "interaction_ci": [
+     -0.21271024806586425,
+     0.008779233127881769
+    ],
+    "interaction_excludes_zero": false
+   }
+  },
+  "falsified_where_the_plan_said_it_would_be": "the plan named the additivity/interaction test as the core new quantity of the design and predicted that a significant deviation would mean a real interaction. That is exactly what happened. What the plan got wrong is the DIRECTION of the mechanism: it named engagement-penetration coupling as the most likely falsifier, and that specific mechanism is refuted (see engagement_artefact_check).",
+  "retained_as_recorded": "kept in the record exactly as written before the run, as P2 did with its own falsified prediction"
+ },
+ "dose_response": {
+  "D2-X": {
+   "contact_f1_gain": 0.08910086375094974,
+   "contact_f1_gain_ci": [
+    0.07592903782603712,
+    0.10222288487201188
+   ],
+   "contact_recall_gain": 0.113376218898002,
+   "contact_recall_gain_ci": [
+    0.09811504458218034,
+    0.1285825290752411
+   ],
+   "contact_percent_unguided": 0.4765528738131478,
+   "contact_percent_guided": 0.5695622236718128,
+   "contact_percent_gain": 0.09300934985866492,
+   "contact_percent_gain_ci": [
+    0.08077843009349858,
+    0.10489599188229325
+   ]
+  },
+  "D2-AE": {
+   "contact_f1_gain": 0.06833071357164797,
+   "contact_f1_gain_ci": [
+    0.05499492232333844,
+    0.08191038834050056
+   ],
+   "contact_recall_gain": 0.0866416741579126,
+   "contact_recall_gain_ci": [
+    0.07146431932463096,
+    0.1019496047022392
+   ],
+   "contact_percent_unguided": 0.4766253533376821,
+   "contact_percent_guided": 0.5498477929984779,
+   "contact_percent_gain": 0.07322243966079582,
+   "contact_percent_gain_ci": [
+    0.061607595854171186,
+    0.08538178589548452
+   ]
+  },
+  "D2-AG": {
+   "contact_f1_gain": 0.04334266275417775,
+   "contact_f1_gain_ci": [
+    0.03472883017178526,
+    0.05181616560525208
+   ],
+   "contact_recall_gain": 0.0542147538686251,
+   "contact_recall_gain_ci": [
+    0.04330587742442071,
+    0.06465876103943154
+   ],
+   "contact_percent_unguided": 0.47706023048488805,
+   "contact_percent_guided": 0.5224324128433717,
+   "contact_percent_gain": 0.04537218235848373,
+   "contact_percent_gain_ci": [
+    0.03758063347104443,
+    0.052946745669348406
+   ]
+  },
+  "ordering": "D2-X > D2-AE > D2-AG, monotone on contact_f1, contact_recall and contact_percent",
+  "interaction_vs_D2X_contact_f1": {
+   "D2-AE": {
+    "difference": -0.020770150179301766,
+    "ci": [
+     -0.035935268192538325,
+     -0.005748517918966262
+    ],
+    "crosses_zero": false
+   },
+   "D2-AG": {
+    "difference": -0.04575820099677198,
+    "ci": [
+     -0.05913798059882535,
+     -0.032926574250386254
+    ],
+    "crosses_zero": false
+   },
+   "D2-AG_vs_D2-AE": {
+    "difference": -0.024988050817470225,
+    "ci": [
+     -0.03835975910870496,
+     -0.012007935888617337
+    ],
+    "crosses_zero": false
+   }
+  },
+  "mechanism": "the sparse relation field damps the contact effect of inference guidance, and making that field's source self-conditioned damps it about twice as much: the D2-AE interaction on contact_f1 is roughly half the D2-AG one, and the direct D2-AG-vs-D2-AE interaction also excludes zero. This is the quantity the declared second arm was designed to expose, and it is the reason it was declared before any run.",
+  "p2_exclusion_retrospect": "P2 excluded D2-AG from the guidance experiment on a SAFETY argument (its self-conditioned relation source consumes `current` and guidance modifies `current`, an uncontrolled distribution shift). P3 overturned that exclusion and the overturn was CORRECT ON SAFETY: zero non-finite values, zero out-of-range positions, zero non-finite guided steps. But P2's exclusion turns out to have been right for a reason P2 did not state and could not have measured: on EFFICACY. D2-AG is the checkpoint on which inference guidance works least well. Neither record is rewritten: P2's stated reason remains the safety one and is not retroactively upgraded, and P3's overturn remains justified on the grounds it gave."
+ },
+ "engagement_artefact_check": {
+  "preregistered_falsifier": "the plan pre-committed that if the additive prediction failed, the most likely mechanism was an engagement-penetration coupling, and that it would then have to be recorded as 'part of D2-AG's penetration advantage was bought with engagement', not rewritten as another narrative",
+  "unguided_contact_percent": {
+   "D2-X": 0.4765528738131478,
+   "D2-AG": 0.47706023048488805,
+   "D2-AE": 0.4766253533376821
+  },
+  "unguided_contact_recall": {
+   "D2-X": 0.5944546940443982,
+   "D2-AG": 0.5984951273917594,
+   "D2-AE": 0.5961386226560761
+  },
+  "unguided_hand_pen_loss_omomo": {
+   "D2-X": 0.24535650279805918,
+   "D2-AG": 0.1836719029758619,
+   "D2-AE": 0.17937916498745957
+  },
+  "unguided_hand_pen_ratio": {
+   "D2-X": 0.1438656598329544,
+   "D2-AG": 0.11286504566669464,
+   "D2-AE": 0.12159082293510437
+  },
+  "paired_AGu_minus_Xu": {
+   "contact_percent": {
+    "difference": 0.0005073566717402321,
+    "ci": [
+     -0.018247626295571504,
+     0.019207074001594545
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": 0.004040433347361118,
+    "ci": [
+     -0.019876465115143665,
+     0.028525400940548902
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.06168459982219728,
+    "ci": [
+     -0.09882622761082818,
+     -0.026657551502188986
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.031000616399375774,
+    "ci": [
+     -0.0510275593841035,
+     -0.012981771322174958
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.9312137851734746,
+    "ci": [
+     -1.500081304579585,
+     -0.39761254587649586
+    ],
+    "crosses_zero": false
+   }
+  },
+  "paired_AEu_minus_Xu": {
+   "contact_percent": {
+    "difference": 7.247952453431677e-05,
+    "ci": [
+     -0.019569924621294487,
+     0.019461205334492998
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": 0.001683928611677855,
+    "ci": [
+     -0.02313870299143617,
+     0.026381165775851114
+    ],
+    "crosses_zero": true
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.06597733781059963,
+    "ci": [
+     -0.10869117491544786,
+     -0.027466052836756093
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.022274842521803485,
+    "ci": [
+     -0.03849880738373007,
+     -0.0068179895811286235
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -1.0087539280746494,
+    "ci": [
+     -1.6770512367231265,
+     -0.4082145231612814
+    ],
+    "crosses_zero": false
+   }
+  },
+  "verdict": "the pre-committed artefact narrative DID NOT materialise. In the unguided cells engagement is essentially identical across the three architectures (contact_percent spread < 0.0006, and both relation-field-minus-D2-X contact_percent and contact_recall contrasts cross zero) while hand penetration differs by 25-27%. The relation field's penetration advantage is therefore NOT engagement-bought.",
+  "where_the_falsification_actually_landed": "the interaction is real but it is on CONTACT, not on penetration: the penetration interaction terms all cross zero while the contact_f1 and contact_recall interactions exclude zero. The additive prediction failed because guidance and the relation field are partially redundant on contact, not because engagement bought the penetration."
+ },
+ "declared_second_arm": {
+  "declaration": "D2-AE + Arm B was declared in the preregistration before any run, to separate the sparse relation field itself from relation field plus self-conditioning under guidance. It is reported as declared and is NOT elevated to the headline.",
+  "vs_D2X_ArmB": {
+   "contact_f1": {
+    "difference": -0.016252236122718765,
+    "ci": [
+     -0.034224608636646905,
+     0.0015923554322512898
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": -0.025050616128411567,
+    "ci": [
+     -0.046050364801448807,
+     -0.004066552137589104
+    ],
+    "crosses_zero": false
+   },
+   "contact_precision": {
+    "difference": -0.00638402258154629,
+    "ci": [
+     -0.022769619644538785,
+     0.009747537256838457
+    ],
+    "crosses_zero": true
+   },
+   "contact_percent": {
+    "difference": -0.01971443067333479,
+    "ci": [
+     -0.03662027977096471,
+     -0.0028448213379720227
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.04829084541173332,
+    "ci": [
+     -0.08269684091917653,
+     -0.016065137630577122
+    ],
+    "crosses_zero": false
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.7495464861146988,
+    "ci": [
+     -1.2883971648385475,
+     -0.24822224238000373
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_ratio": {
+    "difference": -0.01587301716002641,
+    "ci": [
+     -0.03389921067784822,
+     0.001731193310999911
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_ratio": {
+    "difference": -0.01407524405654458,
+    "ci": [
+     -0.031581078776485215,
+     0.002477582520435786
+    ],
+    "crosses_zero": true
+   },
+   "foot_sliding": {
+    "difference": 0.041097273860286734,
+    "ci": [
+     0.021759940232779877,
+     0.06035641398184817
+    ],
+    "crosses_zero": false
+   },
+   "end_obj_trans_err": {
+    "difference": 0.4521151747313788,
+    "ci": [
+     0.23088230678665286,
+     0.6774062451502194
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": -0.15905500019908875,
+    "ci": [
+     -0.5878882952037865,
+     0.27182709237616876
+    ],
+    "crosses_zero": true
+   },
+   "obj_rot_dist": {
+    "difference": -0.035810457714518275,
+    "ci": [
+     -0.07097778844440834,
+     -0.0005279945084078507
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": 0.043769194383055106,
+    "ci": [
+     -0.18683171533388362,
+     0.27317455372258537
+    ],
+    "crosses_zero": true
+   },
+   "trans_dist": {
+    "difference": -0.09878847118654208,
+    "ci": [
+     -0.29586316009804814,
+     0.084437951339264
+    ],
+    "crosses_zero": true
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.04829084541173332,
+     "ci": [
+      -0.08336618034791439,
+      -0.015095627422077054
+     ],
+     "crosses_zero": false
+    },
+    "hand_pen_ratio": {
+     "difference": -0.01587301716002641,
+     "ci": [
+      -0.03420152788009309,
+      0.002192403856170935
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.7495464861146988,
+     "ci": [
+      -1.2972816118267767,
+      -0.23073159894090142
+     ],
+     "crosses_zero": false
+    },
+    "human_pen_ratio": {
+     "difference": -0.01407524405654458,
+     "ci": [
+      -0.0315706415617715,
+      0.0032886083333017254
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "gaps_to_released": {
+   "hand_pen_loss_omomo": 0.11531230409587155,
+   "human_pen_loss_infbagel": 0.11093951933101749,
+   "contact_f1": -0.023352284062257426,
+   "note": "just outside the +/-10% band D2-AG cleared"
+  },
+  "head_to_head_AG_vs_AE_guided": {
+   "contact_f1": {
+    "difference": -0.016845176552373657,
+    "ci": [
+     -0.03400184603768143,
+     0.00012733578753664547
+    ],
+    "crosses_zero": true
+   },
+   "contact_recall": {
+    "difference": -0.030070415553604242,
+    "ci": [
+     -0.05077888697383456,
+     -0.009513855184781175
+    ],
+    "crosses_zero": false
+   },
+   "contact_precision": {
+    "difference": 0.01651876267574561,
+    "ci": [
+     0.0031279890647508833,
+     0.030719693812496607
+    ],
+    "crosses_zero": false
+   },
+   "contact_percent": {
+    "difference": -0.02741538015510618,
+    "ci": [
+     -0.04374184605348989,
+     -0.011233873305791117
+    ],
+    "crosses_zero": false
+   },
+   "hand_pen_loss_omomo": {
+    "difference": -0.00898958306828286,
+    "ci": [
+     -0.03481748431192548,
+     0.01753421129570349
+    ],
+    "crosses_zero": true
+   },
+   "human_pen_loss_infbagel": {
+    "difference": -0.12995150147901494,
+    "ci": [
+     -0.5350961523650596,
+     0.28840597274380786
+    ],
+    "crosses_zero": true
+   },
+   "foot_sliding": {
+    "difference": -0.0013239908627614954,
+    "ci": [
+     -0.020433015145981517,
+     0.017945041408968968
+    ],
+    "crosses_zero": true
+   },
+   "end_obj_trans_err": {
+    "difference": -0.5440196547658345,
+    "ci": [
+     -0.7394434854046621,
+     -0.35017905836788976
+    ],
+    "crosses_zero": false
+   },
+   "obj_trans_dist": {
+    "difference": -0.43920983176321177,
+    "ci": [
+     -0.8163665851298268,
+     -0.07017843022885038
+    ],
+    "crosses_zero": false
+   },
+   "mpjpe": {
+    "difference": -0.073322533846718,
+    "ci": [
+     -0.29209130371338154,
+     0.13635247899006755
+    ],
+    "crosses_zero": true
+   },
+   "penetration_181_subset_secondary": {
+    "hand_pen_loss_omomo": {
+     "difference": -0.00898958306828286,
+     "ci": [
+      -0.03478659776970192,
+      0.017760717712809716
+     ],
+     "crosses_zero": true
+    },
+    "hand_pen_ratio": {
+     "difference": -0.014250636136787042,
+     "ci": [
+      -0.030562134701707166,
+      0.002193502360538085
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_loss_infbagel": {
+     "difference": -0.12995150147901494,
+     "ci": [
+      -0.5340228623168408,
+      0.294809651866025
+     ],
+     "crosses_zero": true
+    },
+    "human_pen_ratio": {
+     "difference": -0.014820662008094196,
+     "ci": [
+      -0.03030014256805243,
+      0.0011838990911964883
+     ],
+     "crosses_zero": true
+    }
+   }
+  },
+  "neither_arm_dominates": "D2-AG closes penetration further (to +6.0% / +6.1%) but loses contact significantly against D2-X + Arm B; D2-AE keeps contact statistically intact (its contact_f1 CI against D2-X + Arm B crosses zero) but pays significantly on end-object translation and foot sliding, and its penetration gaps stay just outside the band. No selection is made and none is authorized: both checkpoints remain sealed negatives."
+ },
+ "synthesis": {
+  "redundant_on_contact": {
+   "statement": "guidance and the sparse relation field both push the hand toward the object, so their contact gains do not stack",
+   "evidence": "the guidance gain on contact_f1 falls monotonically as the relation field is added and then self-conditioned, and both interaction terms exclude zero"
+  },
+  "complementary_on_penetration": {
+   "statement": "the field improves penetration; guidance barely moves it",
+   "hand_pen_loss_omomo_unguided_to_guided": {
+    "D2-X": [
+     0.24535650279805918,
+     0.22941977261668464
+    ],
+    "D2-AG": [
+     0.1836719029758619,
+     0.17213934413666845
+    ],
+    "D2-AE": [
+     0.17937916498745957,
+     0.18112892720495133
+    ]
+   },
+   "guidance_effect_on_hand_pen": {
+    "D2-X": {
+     "difference": -0.015936730181374547,
+     "ci": [
+      -0.03466356697957645,
+      0.0005850945374396872
+     ],
+     "crosses_zero": true
+    },
+    "D2-AG": {
+     "difference": -0.011532558839193439,
+     "ci": [
+      -0.02606632496685791,
+      0.001185398857293804
+     ],
+     "crosses_zero": true
+    },
+    "D2-AE": {
+     "difference": 0.0017497622174917622,
+     "ci": [
+      -0.015390097811937517,
+      0.01792944508011867
+     ],
+     "crosses_zero": true
+    }
+   },
+   "penetration_interaction_all_cross_zero": true
+  },
+  "operating_point_note": "consistent with the recorded HOIPrior failure mode: contact failures are gross misses, not near-misses, so a mechanism that already moved the hand closer leaves guidance less to do."
+ },
+ "measurement_caveats": {
+  "contact_percent_per_sequence": {
+   "issue": "contact_percent is NOT present per sequence in evaluation/per_sequence_metrics.json; that file carries only contact_precision / contact_recall / contact_f1 among the contact family. A per-sequence contact_percent contrast taken straight from those files is undefined and returns NaN.",
+   "aggregate_only_in_the_evaluator_dump": [
+    "contact_percent",
+    "contact_acc",
+    "gt_contact_percent",
+    "feet_height",
+    "xy_points_err"
+   ],
+   "resolution": "computed properly rather than left aggregate-only: the per-sequence contact statistics were recomputed from the frozen geometry in code/eval_metrics.py (compute_hand_object_interaction, determine_floor_height_and_contacts, compute_foot_sliding_for_smpl) over each run's own motion_params dump and chois export, reusing the P2 extractor unchanged.",
+   "gate": "the recomputation reproduces the published aggregate EXACTLY (binary equality) for contact_f1, contact_recall, contact_precision, contact_percent, gt_contact_percent, contact_acc and foot_sliding in all six cells; only feet_height differs, by at most 5.96e-09, from float accumulation order.",
+   "consequence": "every contact_percent contrast and interaction in this file is a genuine paired sequence-level quantity, not an aggregate difference."
+  },
+  "end_obj_trans_err_construction": {
+   "issue": "the per-sequence construction and the published aggregate are not the same quantity: the aggregate uses the pre-interpolation window endpoint, the per-sequence value uses the final frame of the interpolated trajectory. Inherited from P2.",
+   "relative_difference_percent": {
+    "X_u": 0.6924471446912929,
+    "X_g": 0.6579706932462999,
+    "AG_u": 0.8050084725132591,
+    "AG_g": 0.7657694351631785,
+    "AE_u": 0.539029655270885,
+    "AE_g": 0.5469018921473525
+   },
+   "consequence": "the end_obj_trans_err CIs here, including PROTECTION (ii), are per-sequence-construction CIs, not CIs on the published aggregate"
+  },
+  "penetration_sequence_coverage": {
+   "scored_sequences": 181,
+   "total_sequences": 438,
+   "reason": "the frozen metric code does not compute the penetration terms for six object classes; the unscored set is identical in all six cells, so the pairing is intact",
+   "primary_convention": "the preregistered 438-sequence tools/summarize_hoi_phase1b.py:112 bootstrap with np.nanmean, which is what the plan registered",
+   "secondary_convention": "the P2 precedent - a 181-length index matrix over the scored subset - is reported alongside every penetration contrast under penetration_181_subset_secondary. Point estimates are identical under both; only the CI half-width differs, in the third decimal, and no verdict in this file changes between them."
+  },
+  "released_row_has_no_per_sequence_output": "every cost or parity contrast against p0-hoi-protocol-decomp-a0-old-s42-20260801 is a point estimate without a CI",
+  "post_hoc_selection": "D2-AG was chosen after its penetration numbers were seen. The preregistration disclosed this, locked the checkpoint set to exactly D2-AG and D2-AE, and required both arms to be reported regardless of outcome. Both are reported here and no third checkpoint was added."
+ },
+ "headline_findings": [
+  "All three preregistered same-tree hash gates passed bit-exactly, so the 5f7dde7 -> c40dc00 guidance implementation is empirically inert on the unguided path for three different architectures. The sealed unguided cells stand with no substitution and the main effects of the design are interpretable, not only the tree-immune interaction term.",
+  "PREREGISTERED COST FAILURE. Penetration closure is met - hand 0.1721 vs 0.1624020 (+6.0%, was +41.3%) and body 2.7466 vs 2.5892666 (+6.1%, was +40.0%), both inside +/-10% - but contact parity is not met (contact_f1 0.6934 against the 0.7072577 floor) and PROTECTION (i) fails (-0.0331 [-0.0517, -0.0145] against D2-X + Arm B).",
+  "The additive prediction is falsified on contact and the interaction is significant on contact only: contact_f1 -0.0458 [-0.0591, -0.0329] and contact_recall -0.0592 [-0.0759, -0.0428], while every penetration, foot-sliding and end-object interaction crosses zero.",
+  "Monotone dose-response on the contact gain from guidance: D2-X +0.0891, D2-AE +0.0683, D2-AG +0.0433. The sparse relation field damps guidance's contact effect and self-conditioning its source damps it about twice as much.",
+  "The relation field's penetration advantage is not engagement-bought: unguided contact_percent is 0.4766 / 0.4771 / 0.4766 for D2-X / D2-AG / D2-AE while hand penetration is 0.2454 / 0.1837 / 0.1794. The pre-committed artefact narrative did not materialise.",
+  "Neither arm dominates. D2-AG closes penetration further but loses contact significantly; D2-AE keeps contact statistically intact but pays significantly on end-object (+0.4521 [+0.2309, +0.6774]) and foot sliding (+0.0411 [+0.0218, +0.0604]) and its penetration gaps sit just outside the band.",
+  "Inference guidance and the sparse relation field are partially redundant on contact and complementary on penetration."
+ ],
+ "conclusion": "P3 completes a 3x2 {checkpoint: D2-X, D2-AG, D2-AE} x {sampler: 500-step unguided, 500-step + P2 Arm B} on the fixed official 438-sequence protocol, one execution tree, five new cells and one sealed cell reused by reference. All three preregistered same-tree hash gates passed bit-exactly, which is a methodological result in its own right: the guidance implementation is empirically inert on the unguided path for three architectures, so the sealed unguided cells stand without substitution and the main effects are interpretable, not just the tree-immune interaction. The preregistered verdict is a COST FAILURE. Penetration closure is met - D2-AG + Arm B reads hand penetration 0.1721393 against the released 0.1624020 (+6.0%, previously +41.3%) and body penetration 2.7465671 against 2.5892666 (+6.1%, previously +40.0%), both inside the preregistered +/-10% band - and PROTECTION (ii) holds (end_obj_trans_err +0.0515 [-0.0091, +0.1178] against the +0.25 cm bar). But contact parity is NOT met (contact_f1 0.6934294 against the 0.7072577 floor) and PROTECTION (i) is violated (-0.0331 [-0.0517, -0.0145] against D2-X + Arm B, lower bound below -0.02). The pre-run additive prediction of contact_f1 0.7391880 is FALSIFIED by -0.0458, exactly where the plan said an interaction would show: the interaction on contact_f1 is -0.0458 [-0.0591, -0.0329] and on contact_recall -0.0592 [-0.0759, -0.0428], both excluding zero, while the interactions on hand penetration, body penetration, foot sliding and end-object all cross zero. The mechanism is a monotone dose-response the declared second arm was built to expose: the guidance gain on contact_f1 is +0.0891 on D2-X, +0.0683 on D2-AE and +0.0433 on D2-AG, and D2-AE's interaction (-0.0208 [-0.0359, -0.0057]) is about half D2-AG's. The sparse relation field damps guidance's contact effect and making its source self-conditioned damps it about twice as much. This retroactively vindicates part of P2's reason for excluding D2-AG - not as a safety issue, since non-finite values and out-of-range positions are zero everywhere, but as an efficacy one; the P3 overturn of that exclusion was correct on safety and wrong on efficacy, and neither record is rewritten. The pre-committed artefact narrative did NOT materialise: in the unguided cells engagement is essentially identical (contact_percent 0.4766 / 0.4771 / 0.4766) while hand penetration is 0.2454 / 0.1837 / 0.1794 and hand_pen_ratio 0.1439 / 0.1129 / 0.1216, so the relation field's penetration advantage is not bought with engagement. The declared second arm is reported as declared and not elevated: D2-AE + Arm B against D2-X + Arm B has contact_f1 -0.0163 [-0.0342, +0.0016] (crosses zero, contact statistically intact), hand penetration -0.0483 [-0.0827, -0.0161], body penetration -0.7495 [-1.2884, -0.2482], but foot sliding +0.0411 [+0.0218, +0.0604] and end-object +0.4521 [+0.2309, +0.6774], with penetration gaps to released of +11.5% and +11.1%, just outside the band D2-AG cleared. Neither arm dominates. The synthesis is that inference guidance and the sparse relation field are partially redundant on contact - both push the hand toward the object, so their contact gains do not stack - and complementary on penetration, which guidance barely moves (D2-X 0.2454 -> 0.2294, D2-AG 0.1837 -> 0.1721). Nothing was trained, no checkpoint was selected or produced, the evaluator and the fixed native D2 protocol are unchanged, guidance remains default-off, and the D2-AG and D2-AE negative classifications stand.",
+ "next_action": "Record P3 as a preregistered cost failure and stop this direction. Do not read the penetration closure as a headline result and do not use either guided arm as a checkpoint-selection signal: D2-AG remains selfcond-relation-source-transfer-negative-stop and D2-AE remains sparse-relation-field-transfer-negative-stop, neither is selectable as a prior initializer, guidance stays default-off, and Phase 1B HOIPrior search stays closed. The transferable finding for any later contact work is the redundancy structure: mechanisms that move the hand toward the object at sampling time do not stack with each other, while penetration and contact respond to different levers. The next-session entry point is unchanged: a dated Phase 1C HSIPrior plan-only preregistration on phase/01c-hsi, trained from random initialization. Any production use of guidance, any stepwise object requery, and any new direction still require a separate dated plan amendment and explicit user approval."
+}

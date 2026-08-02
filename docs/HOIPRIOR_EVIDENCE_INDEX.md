@@ -1,7 +1,8 @@
 # Phase 1B HOIPrior evidence index
 
 Status: compact research handoff through D2-AG0, P1 protocol decomposition,
-P2 inference guidance and the D2-AH negative preflight, 2026-08-02.
+P2 inference guidance, the D2-AH negative preflight and the P3 relation-field
+lineage under guidance, 2026-08-02.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -10,9 +11,9 @@ protocols, confidence intervals and hashes.
 ## 1. Locked comparison points
 
 All D2-* values are from the unchanged official 438-sequence, three-window, 500-step
-unguided native protocol, except the P2 row, which is the same sealed D2-X checkpoint
-under the same protocol with inference-time contact guidance added and is marked as
-such. The released InfBaGel row is measured on the same 438
+unguided native protocol, except the P2 and P3 rows, which are the same sealed
+checkpoints under the same protocol with inference-time contact guidance added and are
+marked as such. The released InfBaGel row is measured on the same 438
 sequences with a byte-identical `code/eval_metrics.py`, but **not** under that protocol:
 per `results/experiments/p0-hoi-table5-baseline-s42-20260712/resolved_config.yaml` it was
 produced at commit `c358fa4` with the consistency sampler (`sample_type: consistency`,
@@ -35,6 +36,7 @@ Do not read the released row against the D2-* rows as a protocol-matched compari
 | D2-AE sparse relation field | 4.2990 | 0.39896 | 0.80363 / 0.59614 / 0.64194 | 0.17938 | 12.1558 | internal positive, transfer negative |
 | D2-AF reliability routing | 5.5735 | 0.35958 | 0.79093 / 0.59904 / 0.64106 | 0.22689 | 12.4221 | mechanism and repair negative |
 | D2-AG self-conditioned relation source | 3.6922 | 0.40092 | 0.81120 / 0.59850 / 0.65009 | 0.18367 | 12.0129 | source-provenance and transfer negative; **best D2 contact F1, precision and MPJPE**, and `hand_pen_ratio` `0.11287` beats the released guided row's `0.13286` at D2-X-level engagement |
+| D2-AG + P3 inference guidance, Arm B | 3.7448 | 0.39543 | 0.82237 / 0.65271 / 0.69343 | 0.17214 | 12.0498 | 2026-08-02 P3; **guided**, not the unguided native protocol. Penetration closes to `+6.0%` / `+6.1%` of the released guided row but contact parity fails and the protection bound against D2-X + Arm B is violated: preregistered **cost failure**. D2-AE + Arm B is 4.2940 / 0.39675 / 0.80585 / 0.68278 / 0.71027 / 0.18113 / 12.1231, keeps contact intact and pays on end-object and FS instead. Neither arm is selectable |
 
 Released InfBaGel is not a valid initializer. D2-X is the sealed autonomous-diffusion
 control; no D2 checkpoint is selectable as a new prior initializer.
@@ -164,6 +166,61 @@ is therefore a cross-protocol quantity that overstates the model deficit.
   remains unexplained. Future effort on this metric should move off diffusion-training
   changes.
 
+### Relation field x inference guidance
+
+- P3 (2026-08-02) completed a 3x2 `{D2-X, D2-AG, D2-AE} x {500-step unguided, 500-step
+  + P2 Arm B}` in one execution tree, five new cells plus the sealed D2-X + Arm B cell
+  reused by reference, with frozen Arm B hyperparameters and no sweep. Its preregistered
+  verdict is a **cost failure**. Penetration closure passed: D2-AG + Arm B reads
+  `hand_pen_loss_omomo` `0.17214` against the released `0.16240` (`+6.0%`, previously
+  `+41.3%`) and `human_pen_loss_infbagel` `2.74657` against `2.58927` (`+6.1%`,
+  previously `+40.0%`), both inside the preregistered `+/-10%`. But contact parity
+  failed (`contact_f1` `0.69343` against the `0.72726 - 0.02` floor) and PROTECTION (i)
+  was violated (`-0.0331` `[-0.0517, -0.0145]` against D2-X + Arm B). PROTECTION (ii)
+  held (`end_obj_trans_err` `+0.0515` `[-0.0091, +0.1178]` against the `+0.25 cm` bar),
+  and every finiteness gate passed. Classification
+  `relation-field-guidance-contact-redundancy-cost-negative-stop`; see
+  `experiments/results/p1_hoi_p3_relation_field_guidance_s42_20260802.json`.
+- **All three preregistered same-tree unguided hash gates passed bit-exactly**
+  (D2-AG `eb701cf4...`, D2-X `69cc811c...`, D2-AE `8533b66e...`). The
+  `5f7dde7 -> c40dc00` guidance implementation is therefore **empirically inert on the
+  unguided path for three different architectures**, which is a methodological result in
+  its own right: it is the first measurement of that boundary rather than a source-level
+  guard argument. Consequence: no sealed unguided cell needed substitution, and the main
+  effects are interpretable, not only the tree-immune interaction term.
+- The pre-run additive prediction (`contact_f1` `0.73919`) was **falsified by `-0.0458`,
+  exactly where the plan said an interaction would show**. The interaction
+  `(AG_g - AG_u) - (X_g - X_u)` is `-0.0458` `[-0.0591, -0.0329]` on `contact_f1` and
+  `-0.0592` `[-0.0759, -0.0428]` on `contact_recall`, while the interactions on hand
+  penetration, body penetration, foot sliding and end-object all cross zero. The
+  interaction is on contact and only on contact.
+- The mechanism is a **monotone dose-response** that the declared second arm was built to
+  expose: the guidance gain on `contact_f1` is `+0.0891` on D2-X, `+0.0683` on D2-AE and
+  `+0.0433` on D2-AG, and D2-AE's interaction against D2-X (`-0.0208`
+  `[-0.0359, -0.0057]`) is about half D2-AG's. The sparse relation field damps guidance's
+  contact effect; making its source self-conditioned damps it about twice as much. This
+  retroactively vindicates part of P2's reason for excluding D2-AG - **not on safety**
+  (non-finite values and out-of-range positions are zero everywhere) **but on efficacy**.
+  P3's overturn of that exclusion was correct on safety and wrong on efficacy; neither
+  record is rewritten.
+- The pre-committed engagement-artefact narrative **did not materialise**. In the
+  unguided cells engagement is essentially identical (`contact_percent` `0.47655` /
+  `0.47706` / `0.47663`, both relation-field-minus-D2-X contrasts crossing zero on both
+  `contact_percent` and `contact_recall`) while `hand_pen_loss_omomo` is `0.24536` /
+  `0.18367` / `0.17938`. The relation field's penetration advantage is **not
+  engagement-bought**.
+- Synthesis: inference guidance and the sparse relation field are **partially redundant
+  on contact** - both push the hand toward the object, so their contact gains do not
+  stack - and **complementary on penetration**, which guidance barely moves (D2-X
+  `0.24536 -> 0.22942`, D2-AG `0.18367 -> 0.17214`; all three guidance main effects on
+  hand penetration cross zero). Neither arm dominates: D2-AG closes penetration further
+  but loses contact significantly, D2-AE keeps contact statistically intact
+  (`contact_f1` `-0.0163` `[-0.0342, +0.0016]` against D2-X + Arm B) but pays on
+  end-object (`+0.4521` `[+0.2309, +0.6774]`) and foot sliding (`+0.0411`
+  `[+0.0218, +0.0604]`) and its penetration gaps sit at `+11.5%` / `+11.1%`, just
+  outside the band D2-AG cleared. No checkpoint was selected and both remain sealed
+  negatives.
+
 ## 3. Strongest current conclusions
 
 1. The scene-free 232-D denoiser has sufficient capacity: D2-V/D2-X reach strong
@@ -187,6 +244,12 @@ is therefore a cross-protocol quantity that overstates the model deficit.
 8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
    scene supervision and train/sample relation sources. Copying it would violate the
    independent scene-free HOIPrior objective.
+9. Contact and penetration respond to different levers, and contact levers do not
+   stack. P3 measured a significant negative interaction between the sparse relation
+   field and inference contact guidance on contact F1/recall/percent, with no
+   interaction on any penetration, foot-sliding or end-object term. Any future proposal
+   that expects to add a contact mechanism on top of an existing one must state why it
+   would not be absorbed the same way.
 
 ## 4. Open research question for the next review
 
@@ -219,6 +282,11 @@ sweep or several loosely coupled interventions.
   `experiments/results/p1_hoi_p2_inference_contact_guidance_s42_20260801.json`.
   Protocol alignment only: guidance stays default-off, no checkpoint was selected,
   and the 0.83 cm genuine generative-geometry gap is unchanged.
+- 2026-08-02 P3 relation field x inference guidance:
+  `experiments/results/p1_hoi_p3_relation_field_guidance_s42_20260802.json` and the
+  dated closure section of `docs/EXPERIMENT_PLAN.md`. Preregistered cost failure;
+  guidance stays default-off, no checkpoint was selected, and the D2-AG and D2-AE
+  negative classifications stand.
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,
