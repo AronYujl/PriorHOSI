@@ -8476,5 +8476,93 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
   同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
 
+#### 2026-08-02 Phase 1B P4 预算-指标曲线（D2-X cadence 评测，用户批准）
+
+动机：一个**此前从未被检视的共享常数**被发现。D2-X 的留出验证损失序列
+(`p1-hoi-d2x-fk-foot-temporal-routing-r1-s42-20260723/metrics.json`, 20 个 cadence)
+在 **24,576,000 窗口处触底**后单调上升，到封存的 61,440,000 点时 `total` 比最低点高
+**+8.4%**、`contact` 项高 **+28.7%**。把同一检查扫过全部 D2 谱系，**九个配置无一例外**：
+
+| run | argmin(total) | total drift @61.44M | contact drift |
+|---|---:|---:|---:|
+| D2-AF | 21.50M | +12.4% | +28.5% |
+| D2-Y | 21.50M | +11.2% | +29.7% |
+| D2-AG | 21.50M | +11.0% | +30.5% |
+| D2-Z | 21.50M | +10.4% | +29.7% |
+| D2-AE | 21.50M | +9.8% | +30.6% |
+| D2-V | 24.58M | +8.9% | +27.3% |
+| D2-X | 24.58M | +8.4% | +28.7% |
+| D2-AD | 21.50M | +5.7% | +26.7% |
+| D2-AC | 21.50M | +5.6% | +25.4% |
+
+即 **61,440,000 这个固定预算本身就是谱系里每一个模型都越过其验证最优点约 2.5 倍的共享常数**，
+而十个配置正是在这个共同的过训练点上被互相比较的。这一事实此前从未进入任何 D2 判定。
+
+**但验证损失是去噪目标，评测指标是采样后的运动质量，扩散模型中两者可以脱钩。**
+封存的 61.44M 点在原生指标上是否真的更差，**从未被测量**。本实验只测这一件事。
+
+设计：对 D2-X 的 **6 个既有 cadence checkpoint** 跑冻结的官方原生协议（438 序列 × 3 窗口、
+`sample_type=diffusion` 500 步 ancestral DDPM、`load_scene=false`、无 CFG、seed 42、
+`--config-name=config_eval_hoi_prior`、`sampler.pelvis.guidance.enabled=false`）：
+
+| 点 | windows | 角色 |
+|---|---:|---|
+| C1 | 3,072,000 | 早期，曲线左端 |
+| C2 | 12,288,000 | 上升段 |
+| C3 | **21,504,000** | **预注册的唯一比较点**（九个配置里七个的 contact argmin） |
+| C4 | 24,576,000 | D2-X 的 total argmin |
+| C5 | 43,008,000 | 最优点之后 |
+| C6 | 61,440,000 | 封存 D2-X 点 |
+
+判定规则（在任何结果存在之前逐字固定）：
+
+- **PRIMARY（单一预注册比较，无多重性）**：`contact_f1` 在 **C3(21.504M) 对 C6(61.44M)** 的
+  配对序列级 bootstrap（438 序列，seed 42，10,000 replicates，
+  `tools/summarize_hoi_phase1b.py:112` 约定）。
+  - 若 **C3 − C6 的 CI 下界 > 0**：过拟合**已兑现到指标空间**。结论为
+    「固定 61.44M 预算劣于其内部最优点」，**增加预算方向被证伪**，转向早停/正则/数据方向。
+  - 若 **CI 跨零或上界 < 0**：验证损失与指标**脱钩**，增加预算方向**保持开放**，
+    本曲线成为它的基线。
+  - C3 是**在看到验证曲线之后、但在看到任何指标之前**选定的，依据是九个配置的 contact argmin
+    的众数（7/9 为 21.50M）。这一选择连同其依据在此固定，**不得在看到指标后更换比较点**。
+- **报告但不设门**：18 个 aggregate 指标 × 6 个点全表。特别记录 `end_obj_trans_err`、
+  `xy_points_err`、`hand_pen_loss_omomo`、`human_pen_loss_infbagel`、`foot_sliding`、
+  `mpjpe`、`contact_percent`、`contact_precision`、`contact_recall`。
+- **门控项**：每格 `nonfinite_values == 0` 且 `position_outside_rate == 0.0`。
+- **树对照（承重）**：C6 是封存 D2-X 的同一 checkpoint。其 `per_sequence_metrics.json`
+  的 sha256 **必须等于** `69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a`
+  （`5f7dde7` 上 `p1-hoi-d2x-distance-probe-s42-20260801` 已逐位复现封存值）。
+  不相等即判本实验执行环境失效，全部结果作废重跑，**不得沿用**。
+
+治理边界（严格）：
+
+- **这是测曲线，不是挑 checkpoint。** 六个点全部报告；封存的 D2-X 行**不被替换、不被重新定义**；
+  D2-X 的 `windows061440000` 仍是该谱系唯一的正式最终权重。任何"改用 C3 作为 D2-X"的动作
+  **不在本实验授权范围内**，需要另一次用户批准的实验。
+- **不训练、不产生 checkpoint、不分配训练 run id、零源码改动**、不解除 `hoiprior_search_closed`、
+  不改动任何既有分类。仅推理。
+- 执行树 `/data/yujinlun/InfBaGel-head-baseline`、commit
+  `5f7dde73903b78d70e6423d525de819e7f4ebfe3`（该树已被证明逐位复现封存 D2-X 的 18 个 aggregate）。
+- 六格可并发于空闲 GPU；每格约 3.5 分钟，`hoi_timing_warmup=true`，
+  **并发会污染计时**，故本实验的 wall-clock 数字不作性能记录，也不用于任何 ETA 判据。
+- 允许改动的文件范围：`docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl`、
+  `experiments/results/`、`docs/HOIPRIOR_EVIDENCE_INDEX.md`。
+
+事前预测（写死，无论对错都保留）：验证损失的 `contact` 项在 C3→C6 上升 28.7%，若指标空间同向，
+`contact_f1` 应在 C3 高于 C6 约 0.01–0.03。**若实测跨零，则说明去噪损失的过拟合不等于采样质量的
+过拟合**，这本身是关于扩散模型评估的一个可复用结论，须如实记录而非改述。
+
+已被既有证据否决的备选：
+
+- **(a) 直接跑 299.52M 的加预算实验。** 上表九个配置的一致漂移使其先验变差；且 26 GPU 小时
+  对 15 分钟的信息量比不合理。本实验的结果决定它是否还值得做。
+- **(b) 把 216 条留出序列并入训练以缓解过拟合。** 留出集正是产生上表证据的**唯一过拟合探测器**；
+  并入即拆表。且固定预算下它只把重复次数从 108.1 降到 102.8。
+- **(c) 用 8 卡合并训练提速。** `code/priors/losses.py:177` 的 `object_goal` 是**按 micro-batch
+  自归一化**的掩码均值，终点窗口仅占 0.719%；micro-batch 从 512 降到 256 使"该 micro-batch 无终点
+  窗口"的概率从 2.48% 升到 15.76%，令终点目标项被**相对压低约 13.6%**。换 8 卡会在自称"只改预算"
+  的同时**静默改动目标函数**，且该项正是 `xy_points_err` 与 `end_obj_trans_err` 的监督来源。
+  8 卡若要使用，须为两个并发的 4 卡任务（micro-batch 保持 512，`world_size in {1,4}` 守卫不变）。
+
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
