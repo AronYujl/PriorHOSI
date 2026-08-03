@@ -1,8 +1,8 @@
 # Phase 1B HOIPrior evidence index
 
 Status: compact research handoff through D2-AG0, P1 protocol decomposition,
-P2 inference guidance, the D2-AH negative preflight and the P3 relation-field
-lineage under guidance, 2026-08-02.
+P2 inference guidance, the D2-AH negative preflight, the P3 relation-field
+lineage under guidance and the P4 budget-metric curve, 2026-08-02.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -239,8 +239,15 @@ is therefore a cross-protocol quantity that overstates the model deficit.
    The 2026-08-01 decomposition rescales this: against a protocol-matched unguided
    released row, D2 precision is at or above it (`0.78806` vs `0.78115`) and the recall
    gap is `0.0458`, not `0.1331`.
-7. Width, depth, token count, point count, adapter placement, LR, batch and longer
-   budget sweeps have no positive evidence and are poor uses of the remaining budget.
+7. Width, depth, token count, point count, adapter placement, LR and batch sweeps have no
+   positive evidence and are poor uses of the remaining budget. **Longer budget is the one
+   exception, and this item previously said otherwise.** P4 (2026-08-02) measured six D2-X
+   cadence checkpoints under the frozen protocol: `contact_f1`, `contact_recall`,
+   `contact_acc`, `mpjpe`, `xy_points_err` and `obj_rot_dist` are strictly monotone in
+   budget, and the final 43.01M->61.44M segment carries the *largest* contact increments of
+   the whole curve (`contact_f1` +0.0367, `contact_recall` +0.0568). Nothing has saturated at
+   the formal budget. The earlier "longer budget" pessimism rested on D2-V and on the
+   held-out loss series, and item 10 explains why the latter was misread.
 8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
    scene supervision and train/sample relation sources. Copying it would violate the
    independent scene-free HOIPrior objective.
@@ -250,6 +257,32 @@ is therefore a cross-protocol quantity that overstates the model deficit.
    interaction on any penetration, foot-sliding or end-object term. Any future proposal
    that expects to add a contact mechanism on top of an existing one must state why it
    would not be absorbed the same way.
+10. **The held-out denoising validation loss anticorrelates with the native rollout
+    metrics and must not gate budget, early-stopping or checkpoint decisions.** All nine
+    D2 configs show `total` rising +5.6..+12.4% and the `contact` term +25..+31% after a
+    minimum at 21.5-24.6M windows. P4 tested whether that reached metric space and
+    falsified it in the opposite direction: `contact_f1` at 21.504M is **0.108 below**
+    61.44M, CI [-0.1340, -0.0827], 438 paired sequences. The validation loss is
+    single-step denoising; the metric is a 500-step reverse diffusion chained across three
+    windows on generated history. See
+    `experiments/results/p1_hoi_p4_budget_metric_curve_s42_20260802.json`.
+11. **HOIPrior is under-engaged at every budget, so any penetration improvement must be
+    read against `contact_percent` first.** It climbs monotonically 0.28358 -> 0.47655
+    across the P4 curve against GT 0.66188. Penetration and foot sliding *worsen* with
+    budget purely because engagement rises; at 3.07M, `hand_pen_loss_omomo` is 0.13559
+    only because `contact_percent` is 0.28358. Same confound as the D2-AH epoch100 row.
+12. **`end_obj_trans_err` and `xy_points_err` are goal-recall metrics, not forecasting
+    metrics.** The object goal handed to the model *is* GT object translation at
+    `end_range-4`, which is the exact frame the metric scores (verified across all 438
+    sequences, agreeing to 0.0574 cm — float round-trip only); `pelvis_goal` equals GT
+    pelvis at frame 15 to 0.0000 cm while the metric scores frame 14. Both HOIPrior and
+    released/e500 receive both goals, so the comparison is commensurable and no "gap vs
+    released" number has a goal-leakage problem — but a gap on these two metrics is a
+    constraint-satisfaction deficit, not a dynamics-prediction deficit. HOIPrior routes
+    both goals through one shared `Linear(12,512)` (`code/priors/models.py:302`) as a
+    single conditioning token, of which `goals[3:6]` is never written and pelvis y is
+    zeroed; released uses three separate embedding modules. Prose elsewhere that describes
+    these two metrics as prediction quality is wrong and should be qualified.
 
 ## 4. Open research question for the next review
 

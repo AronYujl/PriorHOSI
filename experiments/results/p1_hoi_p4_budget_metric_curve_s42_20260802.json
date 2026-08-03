@@ -1,0 +1,309 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-p4-budget-metric-curve-s42-20260802",
+ "phase": "p1",
+ "subphase": "P4",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-02",
+ "classification": "budget-not-saturated-preregistered-prediction-falsified",
+ "preregistration": {
+  "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-02 Phase 1B P4 预算-指标曲线（D2-X cadence 评测，用户批准）'",
+  "registry_row": "p1-hoi-p4-budget-metric-curve-preregister-s42-20260802",
+  "commit": "e588de1"
+ },
+ "training_performed": false,
+ "produces_checkpoint": false,
+ "checkpoint_selected": false,
+ "model_or_training_changed": false,
+ "source_change": "none",
+ "hoiprior_search_closed": "unchanged",
+ "sealed_d2x_row_replaced": false,
+ "execution": {
+  "worktree": "/data/yujinlun/InfBaGel-head-baseline",
+  "commit": "5f7dde73903b78d70e6423d525de819e7f4ebfe3",
+  "protocol": "official 438 sequences x 3 windows, sample_type=diffusion 500-step ancestral DDPM, load_scene=false, no CFG, seed 42, config_eval_hoi_prior, guidance disabled",
+  "concurrency": "six cells on GPUs 0-5 concurrently; wall-clock therefore NOT a performance record (declared in preregistration)",
+  "launch_defect": "cells were launched without capping per-process thread pools (185 threads x 6 on 112 cores), slowing the CPU-side dataset/BPS phase. Local command mistake before any run id or manifest existed; no scientific content affected (same checkpoints, protocol, seed; deterministic)."
+ },
+ "tree_control": {
+  "cell": "61440000",
+  "expected_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+  "actual_per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+  "bit_exact": true,
+  "aggregate_metrics_reproduced": 18
+ },
+ "gates_as_preregistered": {
+  "rule": "nonfinite_values == 0 and position_outside_rate == 0.0 per cell",
+  "outcome": "FAILED AS WRITTEN on 5 of 6 cells",
+  "nonfinite_values_all_cells": 0,
+  "detail": {
+   "3072000": {
+    "position_outside_rate": 4.8130934261071245e-05,
+    "object_outside_rate": 0.001458650431253171
+   },
+   "12288000": {
+    "position_outside_rate": 0.0008623930927013118,
+    "object_outside_rate": 0.0018074581430745813
+   },
+   "21504000": {
+    "position_outside_rate": 0.0001364653547872726,
+    "object_outside_rate": 0.0005232115677321156
+   },
+   "24576000": {
+    "position_outside_rate": 3.963723997970573e-06,
+    "object_outside_rate": 0.001902587519025875
+   },
+   "43008000": {
+    "position_outside_rate": 6.2287091396680434e-06,
+    "object_outside_rate": 0.0
+   },
+   "61440000": {
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0
+   }
+  },
+  "interpretation": "under-trained checkpoints generate positions outside the normalization range; max rate 8.6e-4. The gate was copied from P2/P3 where every cell was a fully-trained 61.44M checkpoint, and no tolerance or early-cadence exemption was written. Recorded as failed as written; the criterion was NOT redefined after seeing the numbers.",
+  "consequence": "does not invalidate the curve (nonfinite=0 everywhere, tree control bit-exact), but is retained as a preregistration defect"
+ },
+ "primary_result": {
+  "comparison": "contact_f1, C3=21,504,000 minus C6=61,440,000, paired sequence-level bootstrap, seed 42, 10000 replicates, 438 paired sequences",
+  "prediction_written_before_execution": "C3 above C6 by 0.01-0.03 (validation contact term rises 28.7% over this interval)",
+  "measured": {
+   "c3": 0.5291388536317448,
+   "c6": 0.6374259391059788,
+   "diff": -0.10828708547423394,
+   "ci_low": -0.1340292886266854,
+   "ci_high": -0.08268173686916955,
+   "paired_sequences": 438,
+   "ci_excludes_zero": true
+  },
+  "verdict": "PREDICTION FALSIFIED IN THE OPPOSITE DIRECTION. C3 is 0.108 BELOW C6, CI excludes zero. Per the preregistered rule this is the second branch: validation loss and native metrics DECOUPLE, and the increase-the-budget direction remains open."
+ },
+ "secondary_paired_bootstraps": {
+  "end_obj_trans_err": {
+   "c3": 7.377564126186627,
+   "c6": 3.7661075636195736,
+   "diff": 3.6114565625670534,
+   "ci_low": 3.2898979673900848,
+   "ci_high": 3.931236270902673,
+   "paired_sequences": 438,
+   "ci_excludes_zero": true
+  },
+  "hand_pen_loss_omomo": {
+   "c3": 0.17825637444828077,
+   "c6": 0.24535650279805918,
+   "diff": -0.06710012834977841,
+   "ci_low": -0.11754688914708185,
+   "ci_high": -0.02089431045528715,
+   "paired_sequences": 181,
+   "ci_excludes_zero": true
+  },
+  "human_pen_loss_infbagel": {
+   "c3": 2.9100186646634723,
+   "c6": 3.8690846209915826,
+   "diff": -0.9590659563281103,
+   "ci_low": -1.7295888624311178,
+   "ci_high": -0.24414835460475623,
+   "paired_sequences": 181,
+   "ci_excludes_zero": true
+  },
+  "foot_sliding": {
+   "c3": 0.48222166002481665,
+   "c6": 0.3630100213939385,
+   "diff": 0.11921163863087814,
+   "ci_low": 0.08486670812421093,
+   "ci_high": 0.1538008085200826,
+   "paired_sequences": 438,
+   "ci_excludes_zero": true
+  },
+  "mpjpe": {
+   "c3": 14.369704772518379,
+   "c6": 12.050845133795585,
+   "diff": 2.3188596387227935,
+   "ci_low": 1.9807974341406267,
+   "ci_high": 2.6590652974773215,
+   "paired_sequences": 438,
+   "ci_excludes_zero": true
+  },
+  "contact_precision": {
+   "c3": 0.7795543770091355,
+   "c6": 0.7880618755952097,
+   "diff": -0.008507498586074136,
+   "ci_low": -0.033495820482166955,
+   "ci_high": 0.017229346755367723,
+   "paired_sequences": 438,
+   "ci_excludes_zero": false
+  },
+  "contact_recall": {
+   "c3": 0.460556581450182,
+   "c6": 0.5944546940443982,
+   "diff": -0.1338981125942162,
+   "ci_low": -0.16124272377503215,
+   "ci_high": -0.10703906945908431,
+   "paired_sequences": 438,
+   "ci_excludes_zero": true
+  }
+ },
+ "curve": {
+  "3072000": {
+   "end_obj_trans_err": 20.52379548549652,
+   "xy_points_err": 29.533571004867554,
+   "feet_height": 0.04468698427081108,
+   "foot_sliding": 0.24225125967563146,
+   "contact_acc": 0.5427629194752482,
+   "contact_precision": 0.6220544952051165,
+   "contact_recall": 0.3334632711762329,
+   "contact_f1": 0.3826359797708332,
+   "contact_percent": 0.2835761397405233,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 19.618427753448486,
+   "trans_dist": 25.44906437397003,
+   "obj_trans_dist": 38.03553363421677,
+   "obj_rot_dist": 1.5783877272163427,
+   "hand_pen_loss_omomo": 0.13558740680589884,
+   "hand_pen_ratio": 0.10137684643268585,
+   "human_pen_loss_infbagel": 2.666931964398546,
+   "human_pen_ratio": 0.1268964409828186
+  },
+  "12288000": {
+   "end_obj_trans_err": 6.079168990254402,
+   "xy_points_err": 5.5315665900707245,
+   "feet_height": 0.03655092790722847,
+   "foot_sliding": 0.3433693125259969,
+   "contact_acc": 0.586196274552439,
+   "contact_precision": 0.710826896755209,
+   "contact_recall": 0.38405362588505054,
+   "contact_f1": 0.45270176867585765,
+   "contact_percent": 0.31171631514097264,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 15.158948302268982,
+   "trans_dist": 11.59425973892212,
+   "obj_trans_dist": 22.893491501151235,
+   "obj_rot_dist": 1.2742250458047935,
+   "hand_pen_loss_omomo": 0.22670900007414382,
+   "hand_pen_ratio": 0.13189512491226196,
+   "human_pen_loss_infbagel": 3.909246270915826,
+   "human_pen_ratio": 0.14693503081798553
+  },
+  "21504000": {
+   "end_obj_trans_err": 7.354384660720825,
+   "xy_points_err": 4.999354854226112,
+   "feet_height": 0.05257575213909149,
+   "foot_sliding": 0.48222166002481665,
+   "contact_acc": 0.637457418279336,
+   "contact_precision": 0.7795543770091355,
+   "contact_recall": 0.460556581450182,
+   "contact_f1": 0.5291388536317448,
+   "contact_percent": 0.37308835254040734,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 14.36970829963684,
+   "trans_dist": 10.135232657194138,
+   "obj_trans_dist": 22.91833546097534,
+   "obj_rot_dist": 1.2298255137910974,
+   "hand_pen_loss_omomo": 0.17825637444828077,
+   "hand_pen_ratio": 0.1235639899969101,
+   "human_pen_loss_infbagel": 2.910018664663472,
+   "human_pen_ratio": 0.13474524021148682
+  },
+  "24576000": {
+   "end_obj_trans_err": 6.5106891095638275,
+   "xy_points_err": 4.726584255695343,
+   "feet_height": 0.06503216177225113,
+   "foot_sliding": 0.5027296503991745,
+   "contact_acc": 0.6511016887729215,
+   "contact_precision": 0.760067340169333,
+   "contact_recall": 0.46668077379986256,
+   "contact_f1": 0.5342188803629744,
+   "contact_percent": 0.3725628759875335,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 13.326208293437958,
+   "trans_dist": 10.17293781042099,
+   "obj_trans_dist": 18.592867433937613,
+   "obj_rot_dist": 1.0934754882787479,
+   "hand_pen_loss_omomo": 0.2139882822297429,
+   "hand_pen_ratio": 0.1291765421628952,
+   "human_pen_loss_infbagel": 3.4409555816779873,
+   "human_pen_ratio": 0.13443832099437714
+  },
+  "43008000": {
+   "end_obj_trans_err": 4.817960038781166,
+   "xy_points_err": 4.115027189254761,
+   "feet_height": 0.03854777291417122,
+   "foot_sliding": 0.30564387917807656,
+   "contact_acc": 0.700677683554396,
+   "contact_precision": 0.8045270500822033,
+   "contact_recall": 0.5376931169952454,
+   "contact_f1": 0.6007007881069589,
+   "contact_percent": 0.42540044937305205,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 12.981358170509338,
+   "trans_dist": 8.458194136619568,
+   "obj_trans_dist": 18.085281745455514,
+   "obj_rot_dist": 1.0620955479700336,
+   "hand_pen_loss_omomo": 0.22290642817676798,
+   "hand_pen_ratio": 0.13641147315502167,
+   "human_pen_loss_infbagel": 3.5387267362221304,
+   "human_pen_ratio": 0.14114707708358765
+  },
+  "61440000": {
+   "end_obj_trans_err": 3.7402085959911346,
+   "xy_points_err": 4.050519689917564,
+   "feet_height": 0.049811847507953644,
+   "foot_sliding": 0.3630100213939385,
+   "contact_acc": 0.7316445604116837,
+   "contact_precision": 0.7880618755952097,
+   "contact_recall": 0.5944546940443982,
+   "contact_f1": 0.6374259391059788,
+   "contact_percent": 0.4765528738131478,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 12.050843983888626,
+   "trans_dist": 8.170091360807419,
+   "obj_trans_dist": 15.994049727002507,
+   "obj_rot_dist": 1.0309440299298087,
+   "hand_pen_loss_omomo": 0.24535650279805918,
+   "hand_pen_ratio": 0.1438656598329544,
+   "human_pen_loss_infbagel": 3.869084620991582,
+   "human_pen_ratio": 0.1461896151304245
+  }
+ },
+ "monotone_improving_in_budget": [
+  "contact_acc",
+  "contact_f1",
+  "contact_recall",
+  "mpjpe",
+  "xy_points_err",
+  "obj_rot_dist"
+ ],
+ "final_segment_increments_43M_to_61M": {
+  "contact_f1": 0.03672515099901985,
+  "contact_recall": 0.056761577049152856,
+  "mpjpe": -0.9305141866207123
+ },
+ "engagement_artefact": {
+  "contact_percent_by_budget": {
+   "3072000": 0.2835761397405233,
+   "12288000": 0.31171631514097264,
+   "21504000": 0.37308835254040734,
+   "24576000": 0.3725628759875335,
+   "43008000": 0.42540044937305205,
+   "61440000": 0.4765528738131478
+  },
+  "gt_contact_percent": 0.6618830180474017,
+  "note": "contact_percent climbs monotonically 0.284 -> 0.477 against GT 0.662; HOIPrior is under-engaged at every budget. Apparent penetration/foot-sliding 'degradation' with budget is the engagement artefact, not a regression."
+ },
+ "conclusions": [
+  "The preregistered prediction was falsified in the opposite direction and at 4-10x the predicted magnitude.",
+  "At 61,440,000 windows nothing has saturated: contact_f1 +0.0367 and contact_recall +0.0568 over the final 43.01M->61.44M segment, larger than mid-curve increments.",
+  "The held-out denoising validation loss ANTICORRELATES with the native rollout metrics for this architecture. It must not gate budget, early-stopping or checkpoint decisions.",
+  "The nine-configuration validation-loss rise after 21.5-24.6M windows is therefore NOT evidence of over-training in metric space.",
+  "Penetration and foot sliding worsen with budget only because engagement rises toward GT; contact_percent is below GT at every point."
+ ],
+ "what_this_does_not_show": [
+  "It does not measure a NEW full-budget training run; it reads existing cadence checkpoints of one lineage (D2-X).",
+  "Log-log extrapolation to 299.52M is reported as direction only. The end_obj_trans_err extrapolation (-62%) is dominated by the final segment and is not credible as a magnitude.",
+  "It says nothing about whether the 216 held-out sequences should be folded in.",
+  "Single lineage, single seed."
+ ],
+ "next_action": "Report to the user. Any full-budget training run remains unauthorized and requires explicit approval of one concrete experiment."
+}
