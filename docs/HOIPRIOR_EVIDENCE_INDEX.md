@@ -246,8 +246,12 @@ is therefore a cross-protocol quantity that overstates the model deficit.
    `contact_acc`, `mpjpe`, `xy_points_err` and `obj_rot_dist` are strictly monotone in
    budget, and the final 43.01M->61.44M segment carries the *largest* contact increments of
    the whole curve (`contact_f1` +0.0367, `contact_recall` +0.0568). Nothing has saturated at
-   the formal budget. The earlier "longer budget" pessimism rested on D2-V and on the
-   held-out loss series, and item 10 explains why the latter was misread.
+   the formal budget. The earlier "longer budget" pessimism was never actually tested: D2-V's
+   "long budget" was 61.44M — a tenfold step up from the 6.144M screening budget, which
+   *established* 61.44M as formal — so no D2 run had ever gone beyond it. D2-W is an early
+   consistent signal, having found the final D2-V checkpoint better than its midpoint on the
+   registered FK-foot diagnostic. Item 10 explains why the held-out loss series pointed the
+   other way.
 8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
    scene supervision and train/sample relation sources. Copying it would violate the
    independent scene-free HOIPrior objective.

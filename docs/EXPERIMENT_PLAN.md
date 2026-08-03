@@ -8639,5 +8639,145 @@ checkpoint——未为早期 cadence 写容差或豁免。**看到数字之后�
 对 299.52M 的对数外推只作方向参考，`end_obj_trans_err` 的 −62% 由最后一段主导，量级不可信；
 单谱系、单 seed。**封存 D2-X 行未被替换，`windows061440000` 仍是该谱系唯一正式最终权重。**
 
+#### 2026-08-03 Phase 1B D2-AI 全预算与 D2-AJ 目标条件通路（双臂，用户批准）
+
+动机：P4（`EP` 上节，compact result `p1_hoi_p4_budget_metric_curve_s42_20260802.json`）在官方协议
+上测得 61.44M 处**六项指标严格单调改善且最后一段增量最大**（`contact_f1` +0.0367、
+`contact_recall` +0.0568、`mpjpe` −0.931），无饱和信号。**这不是孤证**：`D2-W`
+（`p1_hoi_phase1b_d2w_checkpoint_frontier_r1_s42_20260723.json`，2026-07-23 封存）在内部 rollout 上
+比较同样的 24.576M 中点与 61.44M 终点，得到 `final_minus_midpoint_fk_foot_sliding.mean = −0.447`，
+中点在六项能力保持检查中失败三项，且 `direct_fk_foot_disagreement_cm` 在 6.14M→24.58M→61.44M 上
+单调 11.29→5.26→3.28。两次独立测量、不同协议、同一方向。（限制:D2-W 三点的
+`physical_contact_precision` 均为 0，其与 P4 的一致仅在运动学侧。)
+
+此前"长预算无正面证据"的判断从未被真正检验:D2-V 名为 long budget，其
+`max_processed_windows` 同为 61,440,000——那是相对 6.144M 筛选预算的十倍，**确立**了 61.44M 为正式
+预算，没有任何 D2 运行越过它。
+
+**Arm 1 = D2-AI：D2-X 在 299,520,000 窗口（146,250 updates，4.875×）。** 唯一被操纵的因子是
+`max_processed_windows`。其余科学设置与封存 D2-X 逐字相同：seed 42、随机初始化、有效 batch 2048
+（`batch_size 512 × num_gpus 4 × accum 1`）、lr 1e-4 恒定、无 warmup、无 scheduler、无 EMA
+（`minimum_lr_ratio: 1.0`、`weight_decay 0`、`amp false`）、balanced 损失权重
+（`fk 0.3569973401779424`、`object_surface 0.4772322188400037`、`velocity 0.1`、`goal 1.0`）、
+`fk_foot_temporal_routing: true`、`hoi_architecture_variant: base`、同一 4,088 序列 split。
+**216 条留出序列不并入**——本次唯一被操纵的因子必须是预算，否则 Arm 1 与封存 D2-X 不再是单因子对比。
+
+**Arm 2 = D2-AJ：目标条件通路拆分，预算与 Arm 1 对齐。** 当前
+`models.py:116-118` 把 `goals`(9) + `progress`(3) 融合进单个 `Linear(12,512)` 并只发出**一个**
+条件 token（`:298-303`）。其中 `goals[3:6]` 在训练（`data.py:200,206`）与评测
+（`diffusion.py:519,521`）**两侧都从未被写入**，骨盆 y 恒为 0——12 个输入维中 4 维是死的。
+released InfBaGel 则用三个独立模块各发一个 token。D2-AJ 改为:
+
+```
+pelvis_goal: Linear(2,512)+SiLU+Linear(512,512)   # 仅 xz
+object_goal: Linear(3,512)+SiLU+Linear(512,512)
+progress:    Linear(3,512)+SiLU+Linear(512,512)
+条件 token 4 -> 6；self.position 20 -> 22
+```
+
+参数 +525,312（524,288 模块 + 1,024 位置编码），+1.77%。`architecture_variant` 记为
+`d2aj_split_goal_tokens`。
+
+**先验诚实声明（写在最前，不作脚注）：本臂更可能是惰性的。** 融合的 `Linear(12,512)` 已是同一批
+信息的仿射映射，拆成三个仿射映射再作独立 token，在第一层近似重参数化;增益只可能来自**注意力
+能按头、按帧分别加权两个目标**，而非容量。证据索引结论 9 记录接触杠杆不叠加（联合训练可把新通路
+吸收为通用残差），同样的吸收风险适用于此。D2-AE 是前车之鉴:五个内部因果门全过、CI 分离良好，
+原生迁移仍为零。**运行它的理由**是它是第一个专门瞄准**目标召回**缺口的改动（P4 已确立
+`end_obj_trans_err` 与 `xy_points_err` 是目标召回而非预测指标:交给模型的物体目标**就是**
+指标所评分帧的 GT 物体平移，全 438 序列吻合到 0.0574 cm;`pelvis_goal` 与第 15 帧 GT 骨盆吻合到
+0.0000 cm 而指标评第 14 帧），且它搭在一个无论如何都要付的预算臂上。
+
+**已知混淆（登记，不掩盖）：** D2-AJ 同时（i）拆分 token 与（ii）移除 4 个死输入维。任一效应都可能
+来自其中之一。下述诊断第 4 项专门分离它。
+
+判定规则（在任何 GPU 运行之前逐字固定）:
+
+- **Arm 2 的 61.44M go/no-go（用户指定的提前停止规则）。** 两臂的 61,440,000 均为 cadence #20，
+  自动写出。在该点对 D2-AJ 跑一次官方 438 序列原生评测（与封存 D2-X 逐字同协议、无引导）。
+  - **继续到全预算**当且仅当:`contact_f1`、`end_obj_trans_err`、`xy_points_err` 三者中**至少一项**
+    相对封存 D2-X 同预算点（`contact_f1 0.6374259`、`end_obj 3.7402086`、`xy_points 4.0505197`）
+    的配对序列级 bootstrap CI **排除零且方向有利**;
+  - **否则提前停止**，分类 `d2aj-goal-pathway-null-at-matched-budget-stop`，如实登记并保留
+    checkpoint 与全部指标。
+  - 该判据**只用 61.44M 点**，不看 Arm 1 的任何结果，不因 Arm 1 表现而调整。
+- **Arm 1 无 go/no-go**:它是承重预算臂，跑满 299,520,000 无论中途指标如何。
+- **主结果（两臂共同）**:各自最终 checkpoint 对封存 D2-X 的官方 438 序列配对 bootstrap
+  （seed 42、10,000 replicates、`tools/summarize_hoi_phase1b.py:112` 约定），**18 个 aggregate
+  指标全部报告**。
+- **保护门（两臂）**:`nonfinite_values == 0`。**不设 `position_outside_rate == 0.0` 门**——P4 已
+  实测该门对欠训练 checkpoint 会按字面失败（6 格中 5 格，最大 8.6e-4），此处改为**记录该值**而非
+  设门;这一放宽在见到任何本次数值之前写定。
+- **参与度强制读法**:任何穿透或 foot sliding 的改善必须与 `contact_percent` 一并报告。P4 测得该
+  值在每个预算点都低于 GT 0.66188（0.28358→0.47655），**HOIPrior 全程欠参与**，孤立的穿透改善
+  不得被叙述为几何改善。
+- **D2-AJ 内部因果诊断（预注册，共享初始 latent／posterior noise／条件／顺序）**:
+  1. **骨盆目标替换**——换成另一序列的骨盆目标。通路被使用当且仅当 `pelvis_goal_error_cm` 退化
+     且 CI 排除零，**而 `object_goal_error_cm` 不退化**。
+  2. **物体目标替换**——对称。1+2 共同检验**可分离性**，即所声称的机制本身;基线的单融合 token
+     在原理上做不到分离，故基线对照应表现出交叉污染。
+  3. **token 消融不对称性**——分别置零骨盆／物体 token，与基线置零单融合 token 对比。
+  4. **死维对照（分离上述混淆）**——给基线模型的 `goals[3:6]` 灌随机噪声。若基线不受影响，则死维
+     从未贡献，D2-AJ 的任何效应可归因于 token 拆分而非死维移除。
+  5. **progress token 对照**——替换 `progress`，两模型应同向退化;显著不对称意味着拆分改变了
+     progress 的使用方式，那不是本臂的主张。
+  - **通路被使用**当且仅当 1 与 2 均呈现所预测的不对称退化且 CI 分离良好。**"被使用"不蕴含
+    原生迁移**——D2-AE 正是反例。诊断结果不改变 61.44M go/no-go 的判据。
+
+执行与资源（在启动前固定，因其影响吞吐记录）:
+
+- 两臂**同机并发**，各 4 卡。**Arm 1 → GPU4-7**（该四卡两两 `PIX`），**Arm 2 → GPU0-3**
+  （GPU1-2-3 互为 `PIX`，GPU0 为 `NODE`）。跨组为 `SYS`，故**两臂 all-reduce 各自留在本组 PCIe 内，
+  不共享链路**。以 `taskset -c` 绑定 NUMA CPU（Arm 1: 28-55,84-111;Arm 2: 0-27,56-83);
+  `numactl` 未安装。
+- 数据集全部 `mmap_mode="r"`（`data.py:97-159`），两臂**共享同一份 page cache**（27G 数据、
+  406G 已缓存、492G 可用），内存不构成竞争。每 rank 峰值显存 3.88 GiB，headroom 21.2 GiB。
+- **竞争登记规则**:启动后实测每臂 windows/s，对照封存 D2-X 的 **3243.04 windows/s**。
+  **任一臂低于 2757（−15%）即在 registry 与 compact result 中如实登记竞争及其幅度**，不得省略。
+  预计单臂 ~26 h（`18945.21 s × 4.875`）。
+- **不采用 8 卡合并训练**:`code/priors/losses.py:177` 的 `object_goal` 是按 micro-batch 自归一化的
+  掩码均值，终点窗口仅占 0.719%;micro-batch 512→256 会使"该 micro-batch 无终点窗口"的概率从
+  2.48% 升到 15.76%，令终点目标项被**相对压低约 13.6%**——而该项正是 `xy_points_err` 与
+  `end_obj_trans_err` 的监督来源。合并会在自称"只改预算"的同时静默改动目标函数。
+
+实现边界:
+
+- `d2ai`/`d2aj` 均设 **`d2x_fk_foot_temporal_routing: false`**（`_is_d2x` 的唯一输入，
+  `:2733-2734`）与 **`fk_foot_temporal_routing: true`**（真正被消费的 key，`:2587`、`:2911`）。
+  二者独立，故两臂继承 D2-X 的 FK-foot routing 而**留在 `_validate_d2x_contract`
+  （硬编码 61,440,000／30,000 updates，`:3261-3327`）之外**，并满足其余十二处
+  `d2x_mode_off` 断言。
+- 两个新模式须加入四个 allow-list:`_uses_author_update_rule`（`:2773-2778`，否则被强制
+  AdamW + cosine + EMA）、`_validate_fk_foot_temporal_routing_mode`（`:2786`）、
+  `_locked_loss_weights`（`:2870`，否则回落到 50/50）、
+  `_validate_author_update_execution_host` 的 `modes` 元组（`:4410-4423`，否则
+  `label = next(...)` 在每个 worker 里抛裸 `StopIteration`）。
+- `:4425` 的 `hostname == "node01"` 门须**按模式放宽**，仅对 `d2ai`/`d2aj` 允许本机 `ubuntu`;
+  既有十二个模式仍须 `node01`。这是唯一触及策略的改动，范围受限，不削弱任何封存模式的守卫。
+- 终端预算 299,520,000 不落在 cadence（97.5）上，但退出保存块
+  `if last_checkpoint_windows != processed_windows:` 会持久化最终权重，**无需凑整**。
+  61,440,000 为 cadence #20，两臂均免费写出。
+- 新模式的 ETA gate 若设置，须按 4.875× 预算定尺;沿用 61.44M 的常数会自证否决。
+  既有 `D2A{E,F,G}_MAXIMUM_ETA_HOURS` 仅由各自模式契约调用，不影响新模式。
+- **允许改动的文件范围**:`code/priors/models.py`、`code/train_hoi_prior.py`、
+  `code/config/config_train_hoi_prior_d2a{i,j}.yaml`、`tests/test_hoi_d2a{i,j}*.py`、
+  `docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl`、`experiments/results/`、
+  `docs/HOIPRIOR_EVIDENCE_INDEX.md`、`docs/phase_summaries/`。
+  **`code/eval_metrics.py`、`code/test_infbagel_hoi.py` 与官方 438 协议零改动。**
+- 因共享 model/training 代码改动，GPU 发布前跑一次完整 authority 测试套件、两臂各一次真实数据
+  functional smoke（有限 forward/backward、梯度、显存、输出 API），并跑一次
+  full-micro-batch 性能基准（两臂并发改变了计算/通信剖面，不得沿用封存剖面）。
+- **released 或任何既有 checkpoint 不得用于初始化**（`AGENTS.md:11-12`）;两臂均随机初始化。
+- 本次不解除 `hoiprior_search_closed`，不改动任何既有分类，不替换封存 D2-X 行。
+
+被既有证据否决的备选:
+
+- **(a) 把 216 条留出序列并入本次训练。** 会使 Arm 1 不再是单因子对比。P4 之后其正当性上升
+  （过拟合探测器指错方向，见 `EP` 上节），但它应作为**独立的后续实验**，不与预算变量混合。
+- **(b) 8 卡合并单臂。** 见上，静默改动 `object_goal` 定价。
+- **(c) 为 D2-AJ 调整任何损失权重、LR 或 batch。** 未登记 sweep;两臂必须与封存 D2-X 在预算之外
+  逐字同参，否则无法归因。
+- **(d) 以验证损失做早停或 checkpoint 选择。** P4 测得留出去噪损失与原生指标**反相关**
+  （21.504M 的 `contact_f1` 比 61.44M **低** 0.108，CI 排除零），该序列此后不得用于任何预算判定。
+
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
