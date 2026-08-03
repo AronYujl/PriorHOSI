@@ -31,3 +31,7 @@ third_party/
 # returning them inline. Must stay ignored: tools/experiment.py treats any
 # untracked file as a dirty worktree and refuses to start a reportable run.
 .claude/scratch/
+
+# Local session transcript dumps written at the repository root. Same reason as
+# above: an untracked file blocks every reportable training/evaluation start.
+/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.txt
