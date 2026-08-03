@@ -1,0 +1,73 @@
+defaults:
+  - config_train_hoi_prior
+  - _self_
+
+# D2-AI: the sealed D2-X recipe with max_processed_windows as the ONLY
+# manipulated factor (61,440,000 -> 299,520,000; 30,000 -> 146,250 updates).
+#
+# d2x_fk_foot_temporal_routing stays FALSE on purpose: that flag is the sole
+# input to _is_d2x, which would pull in _validate_d2x_contract and its
+# hardcoded 61,440,000 / 30,000, and would break the twelve sibling
+# "d2x_mode_off" assertions.  fk_foot_temporal_routing -- the key the routing
+# behaviour is actually read from -- stays TRUE, so the routing is inherited.
+mode: d2ai-full-budget
+subphase: 1B-D2-AI0
+run_id: p1-hoi-d2ai-full-budget-s42-20260803
+seed: 42
+
+d2t_author_update_rule: false
+d2u_balanced_author_update: false
+d2v_balanced_long_budget: false
+d2x_fk_foot_temporal_routing: false
+d2ai_full_budget: true
+d2aj_split_goal_tokens: false
+fk_foot_temporal_routing: true
+hoi_architecture_variant: base
+optimizer_name: Adam
+scheduler_name: none
+gradient_clipping: false
+primary_weight_variant: online
+
+num_gpus: 4
+batch_size: 512
+effective_batch_size: 2048
+gradient_accumulation_steps: 1
+num_workers: 4
+dataset_limit: 0
+
+# 299,520,000 / 2,048 = 146,250 updates exactly.
+# 299,520,000 / 3,072,000 = 97.5, i.e. the terminal point is off-cadence; the
+# loop-exit save persists the final weight, so no rounding is required.
+# 61,440,000 is cadence #20 and is written for free, giving a budget-matched
+# comparison point against sealed D2-X.
+max_processed_windows: 299520000
+validation_windows: 32768
+validation_batch_size: 512
+validation_interval_windows: 3072000
+checkpoint_interval_windows: 3072000
+pause_after_windows: null
+
+learning_rate: 0.0001
+warmup_windows: 0
+minimum_lr_ratio: 1.0
+weight_decay: 0.0
+beta1: 0.9
+beta2: 0.999
+gradient_clip_norm: null
+ema_decays: []
+amp: false
+max_consecutive_amp_overflows: 0
+
+fk_weight: 0.3569973401779424
+object_surface_weight: 0.4772322188400037
+velocity_weight: 0.1
+goal_weight: 1.0
+
+init_checkpoint: null
+resume_checkpoint: null
+weight_init_checkpoint: null
+weight_init_sha256: null
+weight_init_variant: null
+d2m_candidate: null
+d2m_rng_audit: false
+profile_every_update: true

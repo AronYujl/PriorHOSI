@@ -47,7 +47,11 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     # default-off inference-guidance hook to the same sampler; base-path
     # parity is proved bitwise against the pre-P2 source by
     # tests/test_hoi_p2_guidance.py.
-    "code/priors/models.py": "31c5ddfd5441156521d41c29830f8d8c9ef080a2afba4c4718f4a3aa0a551d82",
+    # D2-AJ adds the split pelvis/object/progress goal tokens behind the
+    # d2aj_split_goal_tokens variant; base-path parity (identical init,
+    # key order and output at two trunk sizes, and unchanged D2-AE/D2-AG
+    # initialization) is locked by tests/test_hoi_d2ai_d2aj.py.
+    "code/priors/models.py": "7efa4796cf425ac38355cb566279cc413ca76cde376ecb3a35c610a20ecd59a1",
     "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
     "code/priors/diffusion.py": "12bc4ce0c2eb96ad79bc83d93de5e7ab6dcf8425b1707e75f6dfdb9f2b38c01a",
 }

@@ -67,6 +67,8 @@ d2ad_local_frame_interaction_adapter: false
 d2ae_sparse_relation_field: false
 d2af_sqrt_alpha_bar_reliability: false
 d2ag_selfcond_relation_source: false
+d2ai_full_budget: false
+d2aj_split_goal_tokens: false
 hoi_architecture_variant: base
 local_bps_query_workers: null
 fk_foot_temporal_routing: false

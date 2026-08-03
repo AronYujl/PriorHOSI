@@ -32,6 +32,7 @@ from .sparse_relation import (
 HOI_ARCHITECTURE_BASE = "base"
 HOI_ARCHITECTURE_D2AC = "d2ac_interaction_adapter"
 HOI_ARCHITECTURE_D2AD = "d2ad_local_frame_interaction_adapter"
+HOI_ARCHITECTURE_D2AJ = "d2aj_split_goal_tokens"
 HOI_SPARSE_RELATION_ARCHITECTURES = frozenset({
     HOI_ARCHITECTURE_D2AE,
     HOI_ARCHITECTURE_D2AF,
@@ -41,8 +42,19 @@ HOI_ARCHITECTURES = frozenset({
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
+    HOI_ARCHITECTURE_D2AJ,
     *HOI_SPARSE_RELATION_ARCHITECTURES,
 })
+
+# D2-AJ splits the single fused goal/progress conditioning token into separate
+# pelvis, object and progress tokens. The pelvis projection reads xz only,
+# because the pelvis goal's y channel is zeroed on both the training
+# (priors/data.py) and sampling (priors/diffusion.py) sides, and neither side
+# ever writes goals[3:6].
+HOI_D2AJ_CONDITION_TOKENS = 6
+HOI_BASE_CONDITION_TOKENS = 4
+HOI_D2AJ_PELVIS_GOAL_CHANNELS = (0, 2)
+HOI_D2AJ_OBJECT_GOAL_SLICE = slice(6, 9)
 
 
 def _time_embedding(timesteps: torch.Tensor, width: int) -> torch.Tensor:
@@ -113,9 +125,27 @@ class _HOICleanMotionNetwork(nn.Module):
         self.bps = nn.Sequential(
             nn.Linear(1024 * 3, 768), nn.SiLU(), nn.Linear(768, dim_model),
         )
-        self.goal_progress = nn.Sequential(
-            nn.Linear(12, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
-        )
+        self.goal_progress: Optional[nn.Module] = None
+        self.pelvis_goal: Optional[nn.Module] = None
+        self.object_goal: Optional[nn.Module] = None
+        self.progress: Optional[nn.Module] = None
+        if architecture_variant == HOI_ARCHITECTURE_D2AJ:
+            self.pelvis_goal = nn.Sequential(
+                nn.Linear(2, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+            )
+            self.object_goal = nn.Sequential(
+                nn.Linear(3, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+            )
+            self.progress = nn.Sequential(
+                nn.Linear(3, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+            )
+            condition_tokens = HOI_D2AJ_CONDITION_TOKENS
+        else:
+            self.goal_progress = nn.Sequential(
+                nn.Linear(12, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
+            )
+            condition_tokens = HOI_BASE_CONDITION_TOKENS
+        self.condition_tokens = condition_tokens
         self.time = nn.Sequential(
             nn.Linear(dim_model, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model),
         )
@@ -129,7 +159,9 @@ class _HOICleanMotionNetwork(nn.Module):
             norm_first=True,
         )
         self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
-        self.position = nn.Parameter(torch.zeros(1, REPRESENTATION.window_frames + 4, dim_model))
+        self.position = nn.Parameter(
+            torch.zeros(1, REPRESENTATION.window_frames + condition_tokens, dim_model)
+        )
         nn.init.normal_(self.position, std=0.02)
         self.output_norm = nn.LayerNorm(dim_model)
         self.output = nn.Linear(dim_model, REPRESENTATION.dimension)
@@ -295,12 +327,28 @@ class _HOICleanMotionNetwork(nn.Module):
             raise ValueError(
                 "sparse relation metadata is restricted to D2-AE/D2-AF/D2-AG"
             )
-        conditions = torch.stack((
+        shared_conditions = (
             self.time(_time_embedding(timesteps, self.dim_model)),
             self.text(text_embedding),
             self.bps(object_bps.reshape(object_bps.shape[0], -1)),
-            self.goal_progress(torch.cat((goals, progress), dim=-1)),
-        ), dim=1)
+        )
+        if self.architecture_variant == HOI_ARCHITECTURE_D2AJ:
+            # Separate pelvis / object / progress tokens so attention can weight
+            # the two goals independently.  The pelvis projection reads xz only
+            # and goals[3:6] is never read, because both are identically zero on
+            # the training and sampling sides alike.
+            pelvis_xz = goals[..., HOI_D2AJ_PELVIS_GOAL_CHANNELS]
+            conditions = torch.stack((
+                *shared_conditions,
+                self.pelvis_goal(pelvis_xz),
+                self.object_goal(goals[..., HOI_D2AJ_OBJECT_GOAL_SLICE]),
+                self.progress(progress),
+            ), dim=1)
+        else:
+            conditions = torch.stack((
+                *shared_conditions,
+                self.goal_progress(torch.cat((goals, progress), dim=-1)),
+            ), dim=1)
         motion = self.motion_input(noisy)
         if self.sparse_relation_field is not None:
             # Mark the in-flight pass on the module itself before the call so
@@ -557,6 +605,20 @@ def load_trained_hoi_prior(
         validate_selfcond_relation_source_contract(
             checkpoint.get("selfcond_relation_source_contract")
         )
+    elif architecture_variant == HOI_ARCHITECTURE_D2AJ:
+        if checkpoint_variant != HOI_ARCHITECTURE_D2AJ:
+            raise ValueError("D2-AJ checkpoint is missing its architecture provenance")
+        contract = checkpoint.get("split_goal_token_contract")
+        if not isinstance(contract, dict):
+            raise ValueError("D2-AJ checkpoint is missing its split-goal-token contract")
+        if (
+            contract.get("architecture_variant") != HOI_ARCHITECTURE_D2AJ
+            or int(contract.get("condition_tokens", 0)) != HOI_D2AJ_CONDITION_TOKENS
+            or bool(contract.get("goals_3_to_6_read", True))
+            or bool(contract.get("pelvis_goal_y_read", True))
+            or bool(contract.get("fused_goal_progress_module_present", True))
+        ):
+            raise ValueError("D2-AJ checkpoint split-goal-token contract mismatch")
     elif checkpoint_variant not in (None, HOI_ARCHITECTURE_BASE):
         raise ValueError("base HOIPrior checkpoint carries an incompatible architecture variant")
     if (

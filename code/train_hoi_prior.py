@@ -56,6 +56,7 @@ from priors.models import (
     HOI_ARCHITECTURE_D2AE,
     HOI_ARCHITECTURE_D2AF,
     HOI_ARCHITECTURE_D2AG,
+    HOI_ARCHITECTURE_D2AJ,
     build_expert,
 )
 from priors.representation import REPRESENTATION
@@ -2533,6 +2534,7 @@ def _model_config(cfg: DictConfig) -> Dict[str, object]:
         or bool(cfg.get("d2ae_sparse_relation_field", False))
         or bool(cfg.get("d2af_sqrt_alpha_bar_reliability", False))
         or bool(cfg.get("d2ag_selfcond_relation_source", False))
+        or bool(cfg.get("d2aj_split_goal_tokens", False))
     ):
         value["architecture_variant"] = str(cfg.get("hoi_architecture_variant"))
     return value
@@ -2766,6 +2768,54 @@ def _is_d2ag(cfg: DictConfig) -> bool:
     return bool(cfg.get("d2ag_selfcond_relation_source", False))
 
 
+def _is_d2ai(cfg: DictConfig) -> bool:
+    """D2-AI: the sealed D2-X recipe at the 299,520,000-window budget.
+
+    Budget is the only manipulated factor, so this mode deliberately leaves
+    ``d2x_fk_foot_temporal_routing`` false -- that flag is the sole input to
+    ``_is_d2x`` and would drag in ``_validate_d2x_contract``, which hardcodes
+    61,440,000 windows -- while still setting ``fk_foot_temporal_routing``,
+    the key the routing behaviour is actually read from.
+    """
+    return bool(cfg.get("d2ai_full_budget", False))
+
+
+def _is_d2aj(cfg: DictConfig) -> bool:
+    """D2-AJ: split pelvis/object/progress goal conditioning tokens."""
+    return bool(cfg.get("d2aj_split_goal_tokens", False))
+
+
+def _is_long_budget_arm(cfg: DictConfig) -> bool:
+    return _is_d2ai(cfg) or _is_d2aj(cfg)
+
+
+D2AJ_CONDITION_TOKENS = 6
+D2AJ_PARAMETER_DELTA = 525312
+
+
+def _split_goal_token_contract(cfg: DictConfig, model) -> Dict[str, object]:
+    """Record the D2-AJ goal-pathway architecture and provenance contract."""
+    network = model.module.network
+    return {
+        "architecture_variant": HOI_ARCHITECTURE_D2AJ,
+        "condition_tokens": int(network.condition_tokens),
+        "condition_token_order": [
+            "time", "text", "bps", "pelvis_goal", "object_goal", "progress",
+        ],
+        "position_tokens": int(network.position.shape[1]),
+        "pelvis_goal_input_channels": "goals[0], goals[2]",
+        "pelvis_goal_input_width": 2,
+        "object_goal_input_channels": "goals[6:9]",
+        "object_goal_input_width": 3,
+        "progress_input_width": 3,
+        "goals_3_to_6_read": False,
+        "pelvis_goal_y_read": False,
+        "fused_goal_progress_module_present": network.goal_progress is not None,
+        "parameter_delta_vs_base": D2AJ_PARAMETER_DELTA,
+        "parameter_delta_sweepable": False,
+    }
+
+
 def _is_sparse_relation(cfg: DictConfig) -> bool:
     return _is_d2ae(cfg) or _is_d2af(cfg) or _is_d2ag(cfg)
 
@@ -2775,6 +2825,7 @@ def _uses_author_update_rule(cfg: DictConfig) -> bool:
         _is_d2t(cfg) or _is_d2u(cfg) or _is_d2v(cfg)
         or _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
         or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_sparse_relation(cfg)
+        or _is_long_budget_arm(cfg)
     )
 
 
@@ -2785,6 +2836,7 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
     if routing and not (
         _is_d2x(cfg) or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
         or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_sparse_relation(cfg)
+        or _is_long_budget_arm(cfg)
     ):
         raise ValueError(
             "FK-foot temporal routing is restricted to registered "
@@ -2835,11 +2887,12 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         int(value)
         for value in (
             _is_d2ac(cfg), _is_d2ad(cfg), _is_d2ae(cfg), _is_d2af(cfg),
-            _is_d2ag(cfg),
+            _is_d2ag(cfg), _is_d2ai(cfg), _is_d2aj(cfg),
         )
     ) > 1:
         raise ValueError(
-            "D2-AC, D2-AD, D2-AE, D2-AF and D2-AG modes are mutually exclusive"
+            "D2-AC, D2-AD, D2-AE, D2-AF, D2-AG, D2-AI and D2-AJ modes are "
+            "mutually exclusive"
         )
     if _is_d2ac(cfg):
         if architecture_variant != HOI_ARCHITECTURE_D2AC:
@@ -2858,6 +2911,11 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
             raise ValueError(
                 "D2-AG requires the registered selfcond-relation-source architecture"
             )
+    elif _is_d2aj(cfg):
+        if architecture_variant != HOI_ARCHITECTURE_D2AJ:
+            raise ValueError(
+                "D2-AJ requires the registered split-goal-tokens architecture"
+            )
     elif architecture_variant != HOI_ARCHITECTURE_BASE:
         raise ValueError(
             "HOIPrior architecture variants are forbidden outside registered "
@@ -2870,6 +2928,7 @@ def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
         _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
         or _is_d2y(cfg) or _is_d2z(cfg) or _is_d2ab(cfg)
         or _is_d2ac(cfg) or _is_d2ad(cfg) or _is_sparse_relation(cfg)
+        or _is_long_budget_arm(cfg)
     ):
         return {
             "fk": 0.3569973401779424,
@@ -4408,6 +4467,8 @@ def _validate_author_update_execution_host(cfg: DictConfig) -> None:
     if not _uses_author_update_rule(cfg):
         return
     modes = (
+        (_is_d2aj(cfg), "D2-AJ"),
+        (_is_d2ai(cfg), "D2-AI"),
         (_is_d2ag(cfg), "D2-AG"),
         (_is_d2af(cfg), "D2-AF"),
         (_is_d2ae(cfg), "D2-AE"),
@@ -4421,9 +4482,25 @@ def _validate_author_update_execution_host(cfg: DictConfig) -> None:
         (_is_d2u(cfg), "D2-U"),
         (_is_d2t(cfg), "D2-T"),
     )
-    label = next(name for enabled, name in modes if enabled)
-    if socket.gethostname() != "node01":
-        raise RuntimeError(f"{label} HOIPrior CUDA workload is restricted to infbagel-4gpu/node01")
+    label = next((name for enabled, name in modes if enabled), None)
+    if label is None:
+        raise RuntimeError(
+            "the author update rule is enabled but no registered HOIPrior mode "
+            "claims it; add the new mode to this modes tuple"
+        )
+    # The D2-AI/D2-AJ long-budget arms were approved to train on the local 8-GPU
+    # authority host (four GPUs each, two concurrent arms).  Every previously
+    # registered mode keeps its original fail-closed behaviour and message.
+    if _is_long_budget_arm(cfg):
+        permitted_hosts = ("node01", "ubuntu")
+        description = "infbagel-4gpu/node01 or the 8-GPU authority host ubuntu"
+    else:
+        permitted_hosts = ("node01",)
+        description = "infbagel-4gpu/node01"
+    if socket.gethostname() not in permitted_hosts:
+        raise RuntimeError(
+            f"{label} HOIPrior CUDA workload is restricted to {description}"
+        )
     if os.environ.get("INFBAGEL_WORKER_EXPERT") != "hoi":
         raise RuntimeError(f"{label} requires INFBAGEL_WORKER_EXPERT=hoi")
     configured_python = os.environ.get("INFBAGEL_PYTHON")
@@ -5159,6 +5236,9 @@ def _checkpoint_value(
         value["selfcond_relation_source_contract"] = (
             model.module.network.sparse_relation_field.contract_metadata()
         )
+    if _is_d2aj(cfg):
+        value["architecture_variant"] = HOI_ARCHITECTURE_D2AJ
+        value["split_goal_token_contract"] = _split_goal_token_contract(cfg, model)
     if ema_models:
         # Retain the legacy name for pre-D2-T official evaluator compatibility.
         value["ema_model"] = ema_models["0.9999"].state_dict()
