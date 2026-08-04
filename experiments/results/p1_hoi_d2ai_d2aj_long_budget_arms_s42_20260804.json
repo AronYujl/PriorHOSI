@@ -1,0 +1,397 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-d2ai-d2aj-long-budget-arms-s42-20260804",
+ "phase": "p1",
+ "subphase": "D2-AI/D2-AJ",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-04",
+ "classification": "budget-positive-goal-pathway-null",
+ "preregistration": {
+  "plan_section": "docs/EXPERIMENT_PLAN.md, 2026-08-03 Phase 1B D2-AI 全预算与 D2-AJ 目标条件通路（双臂，用户批准）",
+  "registry_rows": [
+   "p1-hoi-d2ai-full-budget-preregister-s42-20260803",
+   "p1-hoi-d2aj-goal-pathway-preregister-s42-20260803"
+  ],
+  "commit": "22882b9"
+ },
+ "arm1_d2ai": {
+  "run_id": "p1-hoi-d2ai-full-budget-s42-20260803",
+  "status": "completed",
+  "processed_windows": 299520000,
+  "optimizer_updates": 146250,
+  "budget_ratio_to_d2x": 4.875,
+  "epochs_equivalent": 526.8731331994104,
+  "wall_seconds": 78259.36444823258,
+  "wall_hours": 21.738712346731273,
+  "mean_update_seconds": 0.3661796563463397,
+  "loss_finite": true,
+  "amp_overflow_skips": 0,
+  "terminal_checkpoint_sha256": "a190e56c249161c0b52f0aebb097d0d5b95cb0c3810abb664000fc3c2fdda224",
+  "parameters": 29673448,
+  "manipulated_factor": "max_processed_windows only; every other setting byte-identical to sealed D2-X",
+  "shutdown_note": "the training log ends with DataLoader worker shutdown tracebacks (RuntimeError: DataLoader worker killed by signal: Aborted). These occur AFTER training completed and the terminal checkpoint was written; status is 'completed', the recorded and recomputed checkpoint sha256 agree, and every weight is finite."
+ },
+ "arm2_d2aj": {
+  "run_id": "p1-hoi-d2aj-split-goal-tokens-s42-20260803",
+  "status": "aborted",
+  "stopped_at_windows": 150528000,
+  "fraction_of_planned_budget": 0.503,
+  "reason": "preregistered 61,440,000 go/no-go returned stop_early",
+  "classification": "d2aj-goal-pathway-null-at-matched-budget-stop",
+  "decision": "stop_early",
+  "criteria": {
+   "contact_f1": {
+    "direction": "higher",
+    "sealed_d2x": 0.6374259391059788,
+    "d2aj": 0.6375297570599808,
+    "paired_difference": 0.00010381795400205007,
+    "ci_low": -0.02222273132073864,
+    "ci_high": 0.02208979878925571,
+    "ci_excludes_zero": false,
+    "favourable_and_significant": false,
+    "sealed_d2x_recorded": 0.6374259391059788
+   },
+   "end_obj_trans_err": {
+    "direction": "lower",
+    "sealed_d2x": 3.7661075636195736,
+    "d2aj": 3.7176139539291797,
+    "paired_difference": -0.048493609690393846,
+    "ci_low": -0.2980942261378842,
+    "ci_high": 0.19882198704315882,
+    "ci_excludes_zero": false,
+    "favourable_and_significant": false,
+    "sealed_d2x_recorded": 3.7402085959911346
+   }
+  },
+  "informational_only": {
+   "pelvis_goal_error_cm": {
+    "direction": "lower",
+    "sealed_d2x": 4.0505195589370375,
+    "d2aj": 4.2434054475753955,
+    "paired_difference": 0.19288588863835798,
+    "ci_low": 0.04281268769250033,
+    "ci_high": 0.3412512615301805,
+    "ci_excludes_zero": true,
+    "favourable_and_significant": false,
+    "counts_towards_decision": false
+   }
+  },
+  "preregistration_defect": {
+   "criterion": "xy_points_err",
+   "detail": "preregistered but absent from per-sequence output; per-sequence analogue is pelvis_goal_error_cm, reported for information only",
+   "effect_on_rule": "the rule is 'at least one favourable', so dropping an unevaluable criterion makes it stricter, never looser"
+  },
+  "prior_stated_before_running": "the preregistration stated plainly that this arm was more likely inert than not: the fused Linear(12,512) is already an affine map of the same information and the split is close to a first-layer reparameterization. The measurement was worse than inert: both decision criteria null, and the one significant informational metric moved the wrong way.",
+  "gpu_hours_saved": "~8 (stopped at 50.3% of the planned budget)"
+ },
+ "tree_control": {
+  "run": "p1-hoi-d2aj-gonogo-treecontrol-d2x-s42-20260804",
+  "per_sequence_sha256": "69cc811c256345ba64c84e89c4b19ca1b4ff64113e6585ec89d88fdbe0438b4a",
+  "bit_exact_with_sealed_d2x": true,
+  "note": "the D2-AJ variant did not exist at 5f7dde7, so both evaluations ran on the main repo at HEAD; this control establishes that HEAD reproduces sealed D2-X bit-exactly, so no tree effect contaminates either comparison."
+ },
+ "evaluation": {
+  "protocol": "official 438 sequences x 3 windows, sample_type=diffusion 500-step ancestral DDPM, load_scene=false, no CFG, seed 42, config_eval_hoi_prior",
+  "cells": {
+   "d2ai_unguided": "p1-hoi-d2ai-native-eval-s42-20260804",
+   "d2ai_arm_b": "p1-hoi-d2ai-guidance-armb-s42-20260804",
+   "d2aj_gonogo": "p1-hoi-d2aj-gonogo-w061440000-s42-20260804"
+  },
+  "gates": {
+   "nonfinite_values": 0,
+   "position_outside_rate": 0.0,
+   "object_outside_rate": 0.0,
+   "sequences": 438,
+   "scene_condition_loaded": false
+  }
+ },
+ "aggregate_metrics": {
+  "d2ai_unguided": {
+   "end_obj_trans_err": 3.8375046104192734,
+   "xy_points_err": 3.463898226618767,
+   "feet_height": 0.05089600384235382,
+   "foot_sliding": 0.35435088119149727,
+   "contact_acc": 0.7455787490034065,
+   "contact_precision": 0.8147396089394372,
+   "contact_recall": 0.6148021927100731,
+   "contact_f1": 0.6536601231333199,
+   "contact_percent": 0.4904508226426034,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 11.741457879543304,
+   "trans_dist": 7.701396942138672,
+   "obj_trans_dist": 14.819808373126591,
+   "obj_rot_dist": 0.9965642948250726,
+   "hand_pen_loss_omomo": 0.1748106970962101,
+   "hand_pen_ratio": 0.11838989704847336,
+   "human_pen_loss_infbagel": 2.760487667610351,
+   "human_pen_ratio": 0.12216084450483322
+  },
+  "d2ai_armb": {
+   "end_obj_trans_err": 3.8964875042438507,
+   "xy_points_err": 3.4647416323423386,
+   "feet_height": 0.0461253859102726,
+   "foot_sliding": 0.3417699453795713,
+   "contact_acc": 0.7624483583387693,
+   "contact_precision": 0.8157902377461403,
+   "contact_recall": 0.6381884461336481,
+   "contact_f1": 0.6757017455384731,
+   "contact_percent": 0.5089874610422556,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 11.769875138998032,
+   "trans_dist": 7.528897374868393,
+   "obj_trans_dist": 14.817250683293814,
+   "obj_rot_dist": 0.9921641296570304,
+   "hand_pen_loss_omomo": 0.16676087110068818,
+   "hand_pen_ratio": 0.1166798323392868,
+   "human_pen_loss_infbagel": 2.6351923926954903,
+   "human_pen_ratio": 0.12097694724798203
+  },
+  "d2x_treecontrol": {
+   "end_obj_trans_err": 3.7402085959911346,
+   "xy_points_err": 4.050519689917564,
+   "feet_height": 0.049811847507953644,
+   "foot_sliding": 0.3630100213939385,
+   "contact_acc": 0.7316445604116837,
+   "contact_precision": 0.7880618755952097,
+   "contact_recall": 0.5944546940443982,
+   "contact_f1": 0.6374259391059788,
+   "contact_percent": 0.4765528738131478,
+   "gt_contact_percent": 0.6618830180474017,
+   "mpjpe": 12.050843983888626,
+   "trans_dist": 8.170091360807419,
+   "obj_trans_dist": 15.994049727002507,
+   "obj_rot_dist": 1.0309440299298087,
+   "hand_pen_loss_omomo": 0.24535650279805918,
+   "hand_pen_ratio": 0.1438656598329544,
+   "human_pen_loss_infbagel": 3.869084620991582,
+   "human_pen_ratio": 0.1461896151304245
+  }
+ },
+ "paired_bootstrap_d2ai_vs_d2x": {
+  "design": "438 paired sequences, both unguided, same tree, seed 42, 10000 replicates",
+  "results": {
+   "contact_f1": {
+    "d2ai": 0.6536601231333199,
+    "d2x": 0.6374259391059788,
+    "diff": 0.016234184027341114,
+    "ci_low": -0.004997509986563916,
+    "ci_high": 0.03727613443025709,
+    "significant": false,
+    "verdict": "null",
+    "paired_sequences": 438
+   },
+   "contact_precision": {
+    "d2ai": 0.8147396089394372,
+    "d2x": 0.7880618755952097,
+    "diff": 0.026677733344227517,
+    "ci_low": 0.009803341907498212,
+    "ci_high": 0.04528410866797908,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 438
+   },
+   "contact_recall": {
+    "d2ai": 0.6148021927100731,
+    "d2x": 0.5944546940443982,
+    "diff": 0.020347498665674868,
+    "ci_low": -0.00450332790761829,
+    "ci_high": 0.04496669920200661,
+    "significant": false,
+    "verdict": "null",
+    "paired_sequences": 438
+   },
+   "end_obj_trans_err": {
+    "d2ai": 3.8422660958299586,
+    "d2x": 3.7661075636195736,
+    "diff": 0.07615853221038504,
+    "ci_low": -0.17114631503923447,
+    "ci_high": 0.3162260169981649,
+    "significant": false,
+    "verdict": "null",
+    "paired_sequences": 438
+   },
+   "foot_sliding": {
+    "d2ai": 0.35435088119149727,
+    "d2x": 0.3630100213939385,
+    "diff": -0.00865914020244124,
+    "ci_low": -0.0315903215296483,
+    "ci_high": 0.014607566070170828,
+    "significant": false,
+    "verdict": "null",
+    "paired_sequences": 438
+   },
+   "hand_pen_loss_omomo": {
+    "d2ai": 0.1748106970962101,
+    "d2x": 0.24535650279805918,
+    "diff": -0.07054580570184907,
+    "ci_low": -0.11799659247655625,
+    "ci_high": -0.027045778998311898,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 181
+   },
+   "hand_pen_ratio": {
+    "d2ai": 0.11838990401023824,
+    "d2x": 0.1438656582841804,
+    "diff": -0.025475754273942164,
+    "ci_low": -0.0453205917738745,
+    "ci_high": -0.005601895279728018,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 181
+   },
+   "human_pen_loss_infbagel": {
+    "d2ai": 2.7604876676103505,
+    "d2x": 3.8690846209915826,
+    "diff": -1.108596953381232,
+    "ci_low": -1.8603325596195528,
+    "ci_high": -0.43539181068525423,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 181
+   },
+   "human_pen_ratio": {
+    "d2ai": 0.12216084171601092,
+    "d2x": 0.14618960842078563,
+    "diff": -0.024028766704774704,
+    "ci_low": -0.04414153707369132,
+    "ci_high": -0.004218712085206263,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 181
+   },
+   "mpjpe": {
+    "d2ai": 11.741457742609118,
+    "d2x": 12.050845133795585,
+    "diff": -0.3093873911864673,
+    "ci_low": -0.5184454097705953,
+    "ci_high": -0.09656241121085345,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 438
+   },
+   "obj_rot_dist": {
+    "d2ai": 0.9965642948250741,
+    "d2x": 1.0309440299298194,
+    "diff": -0.034379735104745235,
+    "ci_low": -0.06589259643423986,
+    "ci_high": -0.0026670593653890613,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 438
+   },
+   "obj_trans_dist": {
+    "d2ai": 14.819808373126591,
+    "d2x": 15.994049727002505,
+    "diff": -1.1742413538759138,
+    "ci_low": -1.591007195485264,
+    "ci_high": -0.766392220971171,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 438
+   },
+   "trans_dist": {
+    "d2ai": 7.701397718240817,
+    "d2x": 8.170090813921195,
+    "diff": -0.4686930956803783,
+    "ci_low": -0.656936083405733,
+    "ci_high": -0.284438348974879,
+    "significant": true,
+    "verdict": "BETTER",
+    "paired_sequences": 438
+   }
+  },
+  "significantly_better": [
+   "contact_precision",
+   "hand_pen_loss_omomo",
+   "hand_pen_ratio",
+   "human_pen_loss_infbagel",
+   "human_pen_ratio",
+   "mpjpe",
+   "obj_rot_dist",
+   "obj_trans_dist",
+   "trans_dist"
+  ],
+  "significantly_worse": []
+ },
+ "gap_to_released": {
+  "convention": "positive = still worse than released; negative = beats released",
+  "d2x_arm_b": {
+   "end_obj_trans_err": 26.433538344022857,
+   "xy_points_err": 5.453085570084893,
+   "feet_height": -11.989299610894935,
+   "foot_sliding": 6.686465082793386,
+   "contact_acc": -0.0748045730529049,
+   "contact_precision": -2.7086152173088345,
+   "contact_recall": 2.715815225607829,
+   "contact_f1": 0.10037675659324154,
+   "contact_percent": 45.24858401510381,
+   "mpjpe": 0.6815535453370116,
+   "trans_dist": -5.101567210997886,
+   "obj_trans_dist": 2.344386400562138,
+   "obj_rot_dist": 0.657681940700808,
+   "hand_pen_loss_omomo": 41.26847290640396,
+   "hand_pen_ratio": 10.296552762306185,
+   "human_pen_loss_infbagel": 40.04217404905629,
+   "human_pen_ratio": 9.299622202847994
+  },
+  "d2ai_arm_b": {
+   "end_obj_trans_err": 28.290405244361672,
+   "xy_points_err": -11.683575938866236,
+   "feet_height": 12.172631104748545,
+   "foot_sliding": 2.522781791328082,
+   "contact_acc": 4.942293465973973,
+   "contact_precision": -3.1588166242384808,
+   "contact_recall": 12.287353298746801,
+   "contact_f1": 7.089384052680877,
+   "contact_percent": 140.54836211098853,
+   "mpjpe": -1.8980050243588005,
+   "trans_dist": -8.283165426723684,
+   "obj_trans_dist": -5.776545431865684,
+   "obj_rot_dist": -2.7528419841185707,
+   "hand_pen_loss_omomo": 2.685265456088791,
+   "hand_pen_ratio": -12.178358919699834,
+   "human_pen_loss_infbagel": 1.7735652402217756,
+   "human_pen_ratio": -12.106257448429226
+  },
+  "metrics_beating_released": {
+   "d2x_arm_b": 4,
+   "d2ai_arm_b": 8,
+   "of": 17
+  }
+ },
+ "validation_loss_trajectory": {
+  "records": 98,
+  "argmin_windows": 27648000,
+  "argmin_total": 0.04515064298288962,
+  "final_total": 0.05539229252849509,
+  "drift_percent": 22.6832861482984,
+  "interpretation": "the held-out denoising loss bottoms at 27,648,000 windows and rises +22.7% by 299,520,000, while the native metrics improve on 9 of 18 with zero regressions over the same interval. This is a far stronger version of the P4 finding: gating this run on validation loss would have stopped it at ~27.65M and forfeited every gain."
+ },
+ "concurrency": {
+  "layout": "Arm 1 GPU4-7 (NUMA1), Arm 2 GPU0-3 (NUMA0), taskset-pinned, mmap-shared dataset",
+  "arm1_concurrent_windows_per_second": 3816.8,
+  "arm1_solo_windows_per_second": 3843.4,
+  "solo_speedup": 1.007,
+  "contention_floor": 2757.0,
+  "contention_recorded": false,
+  "note": "both arms ran ABOVE sealed D2-X's 3243.04 windows/s throughout. Arm 1 gained only 0.7% when Arm 2 stopped, so concurrent two-arm training on this host costs ~nothing."
+ },
+ "conclusions": [
+  "Budget is the first model-side intervention in this phase to produce a broad significant gain: 9 of 18 metrics significantly better than sealed D2-X, 0 significantly worse, at 4.875x the formal budget with budget as the only manipulated factor.",
+  "The two largest real gaps against released -- hand penetration +41.3% and human penetration +40.0% -- collapse to +2.7% and +1.8%, and this is a training-side gain, not a guidance artefact: unguided D2-AI already reaches 0.17481 and 2.76049.",
+  "Metrics beating released rise from 4/17 to 8/17.",
+  "The cost is on the contact side. contact_f1 deficit grows +0.1% -> +7.1% and contact_percent deviation +45.2% -> +140.5%, because D2-X + Arm B bought contact parity largely through guidance raising engagement 0.47655 -> 0.56956, while D2-AI responds to the same guidance far less (0.49045 -> 0.50899).",
+  "P4's direction was right and its magnitude was wrong. The log-log extrapolation predicted contact_f1 ~0.856; the measurement is 0.65366. The 'not saturated' conclusion holds; the extrapolated magnitudes do not.",
+  "D2-AJ is the tenth failed model-side intervention and confirms the prior stated in its own preregistration. Nine loss/representation attempts plus one conditioning-pathway attempt now point the same way.",
+  "Validation loss anticorrelates with native metrics across a 4.875x budget, far more strongly than P4 measured."
+ ],
+ "what_this_does_not_show": [
+  "Single seed, single lineage.",
+  "It does not isolate WHY longer budget helps; budget is confounded with the number of times each window is revisited (526.87 epochs).",
+  "The released row remains protocol-incomparable (16-step consistency sampling, guidance, CFG, scene/object-voxel conditioning, 50,014,184 params vs 29,673,448); gap percentages against it are point estimates with no CI.",
+  "end_obj_trans_err did not improve and is not expected to: released reaches 3.03724 via 16-step CM sampling, and the author's own diffusion recipe at the same budget does not close it either."
+ ],
+ "next_entry_point": "Contact engagement is now the single mechanism explaining the three remaining contact-side deficits (contact_percent +140.5%, contact_recall +12.3%, contact_f1 +7.1%). D2-AI made it MORE visible, not less: the model is under-engaged at every budget (0.49045 unguided vs GT 0.66188) and has become less responsive to inference guidance. Any next proposal should target engagement directly and state why it will not be absorbed the way the ten previous model-side interventions were."
+}

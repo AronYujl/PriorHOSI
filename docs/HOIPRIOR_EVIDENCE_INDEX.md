@@ -2,7 +2,8 @@
 
 Status: compact research handoff through D2-AG0, P1 protocol decomposition,
 P2 inference guidance, the D2-AH negative preflight, the P3 relation-field
-lineage under guidance and the P4 budget-metric curve, 2026-08-02.
+lineage under guidance, the P4 budget-metric curve and the D2-AI/D2-AJ
+long-budget arms, 2026-08-04.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -29,6 +30,8 @@ Do not read the released row against the D2-* rows as a protocol-matched compari
 | released InfBaGel, guidance off | 3.1251 | 0.36903 | 0.78115 / 0.64877 / 0.66842 | 0.18591 | 12.0328 | 2026-08-01 A-old; same checkpoint at `cm_timesteps: 16` with `guidance_weight: 0`; the closest protocol-matched reference the released model has |
 | D2-V long budget | 3.6807 | 0.37828 | 0.78911 / 0.58529 / 0.62859 | 0.26405 | 12.1224 | strong but FS/penetration negative |
 | D2-X FK-foot routing | 3.7402 | 0.36301 | 0.78806 / 0.59445 / 0.63743 | 0.24536 | 12.0508 | sealed autonomous control |
+| **D2-AI full budget (299.52M, 4.875x)** | 3.8375 | 0.35435 | 0.81474 / 0.61480 / 0.65366 | **0.17481** | **11.7415** | 2026-08-04; budget the ONLY manipulated factor vs D2-X. **9 of 18 metrics significantly better on a 438-sequence paired bootstrap, 0 significantly worse.** `human_pen` 2.76049 (−1.109), `obj_trans_dist` 14.8198 (−1.174), `trans_dist` 7.7014 (−0.469). With Arm B: 3.8965 / 0.34177 / 0.81579 / 0.63819 / 0.67570 / 0.16676 / 11.7699, and **8 of 17 metrics beat released** (up from 4/17 for D2-X + Arm B). Contact is the cost: `contact_percent` 0.49045 unguided, deviation from GT grows +45.2% → +140.5% |
+| D2-AJ split goal tokens | — | — | — / — / 0.63753 | — | — | 2026-08-04; **stopped early at the preregistered 61.44M go/no-go**, both criteria null (`contact_f1` +0.00010 [−0.02222, +0.02209]; `end_obj` −0.04849 [−0.29809, +0.19882]) and `pelvis_goal_error_cm` significantly *worse*. Tenth failed model-side intervention; its own preregistration predicted this |
 | D2-X + P2 inference guidance, Arm A | 4.2156 | 0.39903 | 0.80216 / 0.72332 / 0.73071 | 0.24265 | 12.3466 | 2026-08-02 P2; **guided**, not the unguided native protocol. Protocol alignment, not a model change: same sealed D2-X weights sampled with the author's full `apply_hoi_guidance_loss`. Statistical contact parity with the guided released row (recall, precision, F1, contact_percent all cross zero). Arm B (late-steps-only, variance-scaled, clamped) is 3.8401 / 0.35565 / 0.81223 / 0.70783 / 0.72653 / 0.22942 / 12.0794 and is the arm that survives cost scrutiny |
 | D2-AB no-slip objective | 3.6840 | 0.36606 | 0.78957 / 0.59533 / 0.63831 | 0.23832 | 12.0639 | mechanism/FS negative |
 | D2-AC local adapter | 5.6473 | 0.39861 | 0.78758 / 0.60416 / 0.64799 | 0.25179 | 12.4268 | locality and protection negative |
@@ -241,17 +244,18 @@ is therefore a cross-protocol quantity that overstates the model deficit.
    gap is `0.0458`, not `0.1331`.
 7. Width, depth, token count, point count, adapter placement, LR and batch sweeps have no
    positive evidence and are poor uses of the remaining budget. **Longer budget is the one
-   exception, and this item previously said otherwise.** P4 (2026-08-02) measured six D2-X
-   cadence checkpoints under the frozen protocol: `contact_f1`, `contact_recall`,
-   `contact_acc`, `mpjpe`, `xy_points_err` and `obj_rot_dist` are strictly monotone in
-   budget, and the final 43.01M->61.44M segment carries the *largest* contact increments of
-   the whole curve (`contact_f1` +0.0367, `contact_recall` +0.0568). Nothing has saturated at
-   the formal budget. The earlier "longer budget" pessimism was never actually tested: D2-V's
-   "long budget" was 61.44M — a tenfold step up from the 6.144M screening budget, which
-   *established* 61.44M as formal — so no D2 run had ever gone beyond it. D2-W is an early
-   consistent signal, having found the final D2-V checkpoint better than its midpoint on the
-   registered FK-foot diagnostic. Item 10 explains why the held-out loss series pointed the
-   other way.
+   exception, and it is now measured rather than extrapolated.** D2-AI (2026-08-04) trained the
+   sealed D2-X recipe at 299,520,000 windows (4.875x, budget the only manipulated factor) and is
+   **significantly better on 9 of 18 metrics with 0 significantly worse** on a 438-sequence
+   paired bootstrap: `obj_trans_dist` −1.174, `human_pen` −1.109, `trans_dist` −0.469, `mpjpe`
+   −0.309, `hand_pen` −0.071, `obj_rot_dist` −0.034, `contact_precision` +0.027, and both
+   penetration ratios. Metrics beating released rise 4/17 → 8/17, and the two largest real gaps
+   (hand/human penetration, +41.3%/+40.0%) collapse to **+2.7%/+1.8%** — a training-side gain,
+   since unguided D2-AI already reaches 0.17481 and 2.76049. P4's *direction* was right and its
+   *magnitude* was not: the log-log fit predicted `contact_f1` ~0.856, the measurement is
+   0.65366. The earlier pessimism was never tested — D2-V's "long budget" was itself 61.44M, a
+   tenfold step up from the 6.144M screening budget that *established* 61.44M as formal.
+   See `experiments/results/p1_hoi_d2ai_d2aj_long_budget_arms_s42_20260804.json`.
 8. The author's dynamic occupancy offers direct temporal spatial routing but mixes
    scene supervision and train/sample relation sources. Copying it would violate the
    independent scene-free HOIPrior objective.
@@ -260,21 +264,30 @@ is therefore a cross-protocol quantity that overstates the model deficit.
    field and inference contact guidance on contact F1/recall/percent, with no
    interaction on any penetration, foot-sliding or end-object term. Any future proposal
    that expects to add a contact mechanism on top of an existing one must state why it
-   would not be absorbed the same way.
+   would not be absorbed the same way. **D2-AI adds a second form of this**: it responds to
+   Arm B guidance far less than D2-X did (engagement 0.49045 → 0.50899 versus D2-X's
+   0.47655 → 0.56956), so the contact parity D2-X + Arm B enjoyed was substantially
+   *bought by guidance* and does not survive a stronger base model.
 10. **The held-out denoising validation loss anticorrelates with the native rollout
     metrics and must not gate budget, early-stopping or checkpoint decisions.** All nine
     D2 configs show `total` rising +5.6..+12.4% and the `contact` term +25..+31% after a
     minimum at 21.5-24.6M windows. P4 tested whether that reached metric space and
     falsified it in the opposite direction: `contact_f1` at 21.504M is **0.108 below**
-    61.44M, CI [-0.1340, -0.0827], 438 paired sequences. The validation loss is
-    single-step denoising; the metric is a 500-step reverse diffusion chained across three
-    windows on generated history. See
-    `experiments/results/p1_hoi_p4_budget_metric_curve_s42_20260802.json`.
+    61.44M, CI [-0.1340, -0.0827], 438 paired sequences. **D2-AI reproduces this far more
+    strongly over 4.875x**: validation `total` bottoms at 27,648,000 windows and rises
+    **+22.7%** by 299,520,000 while the native metrics improve on 9 of 18 with zero
+    regressions. Gating that run on validation loss would have stopped it near 27.65M and
+    forfeited every gain. The validation loss is single-step denoising; the metric is a
+    500-step reverse diffusion chained across three windows on generated history.
 11. **HOIPrior is under-engaged at every budget, so any penetration improvement must be
-    read against `contact_percent` first.** It climbs monotonically 0.28358 -> 0.47655
-    across the P4 curve against GT 0.66188. Penetration and foot sliding *worsen* with
-    budget purely because engagement rises; at 3.07M, `hand_pen_loss_omomo` is 0.13559
-    only because `contact_percent` is 0.28358. Same confound as the D2-AH epoch100 row.
+    read against `contact_percent` first, and engagement is now the primary remaining
+    deficit.** It climbs monotonically 0.28358 → 0.47655 across the P4 curve against GT
+    0.66188, and D2-AI at 4.875x still reads only 0.49045 unguided. **D2-AI made this more
+    visible, not less**: `contact_percent` deviation from GT grows +45.2% → +140.5% and
+    `contact_recall` +2.7% → +12.3% against released, and it is the single mechanism
+    explaining all three remaining contact-side deficits. Penetration and foot sliding can
+    *worsen* with budget purely because engagement rises — same confound as the D2-AH
+    epoch100 row.
 12. **`end_obj_trans_err` and `xy_points_err` are goal-recall metrics, not forecasting
     metrics.** The object goal handed to the model *is* GT object translation at
     `end_range-4`, which is the exact frame the metric scores (verified across all 438
@@ -282,11 +295,23 @@ is therefore a cross-protocol quantity that overstates the model deficit.
     pelvis at frame 15 to 0.0000 cm while the metric scores frame 14. Both HOIPrior and
     released/e500 receive both goals, so the comparison is commensurable and no "gap vs
     released" number has a goal-leakage problem — but a gap on these two metrics is a
-    constraint-satisfaction deficit, not a dynamics-prediction deficit. HOIPrior routes
-    both goals through one shared `Linear(12,512)` (`code/priors/models.py:302`) as a
-    single conditioning token, of which `goals[3:6]` is never written and pelvis y is
-    zeroed; released uses three separate embedding modules. Prose elsewhere that describes
-    these two metrics as prediction quality is wrong and should be qualified.
+    constraint-satisfaction deficit, not a dynamics-prediction deficit. Prose elsewhere that
+    describes these two metrics as prediction quality is wrong and should be qualified.
+    Note `xy_points_err` does **not** exist per sequence; the per-sequence analogue is
+    `pelvis_goal_error_cm`, which cost the D2-AJ preregistration one unevaluable criterion.
+13. **Restructuring the goal conditioning pathway is inert — the tenth failed model-side
+    intervention.** D2-AJ split the fused `Linear(12,512)` goal/progress token into separate
+    pelvis (xz), object and progress tokens (+525,312 params, 4 → 6 condition tokens),
+    mirroring released InfBaGel's three-module structure, at budget matched to D2-AI. At the
+    preregistered 61.44M go/no-go both criteria were null (`contact_f1` +0.00010
+    [−0.02222, +0.02209]; `end_obj_trans_err` −0.04849 [−0.29809, +0.19882]) and the one
+    significant informational metric moved the *wrong* way (`pelvis_goal_error_cm` +0.19289
+    [+0.04281, +0.34125]). Stopped early at 50.3% of budget. Its own preregistration had
+    stated the arm was more likely inert than not, because the fused layer is already an
+    affine map of the same information and the split is close to a first-layer
+    reparameterization. Nine loss/representation attempts plus this now point the same way:
+    **model-side additions get absorbed as generic residuals.** Do not revisit without a
+    mechanism that addresses absorption directly.
 
 ## 4. Open research question for the next review
 
