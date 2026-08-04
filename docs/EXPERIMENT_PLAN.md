@@ -8880,5 +8880,103 @@ manifest 封为 `aborted` 并明记 `operational_failure: false`。仅供参考�
 且对推理引导的响应变弱。任何下一个提案必须直接瞄准参与度，并说明它为何不会像前十次模型侧
 干预那样被联合训练吸收。
 
+#### 2026-08-04 Phase 1B P5 推理期接触 mask 剂量-响应与 GT 上界探针（用户批准）
+
+动机：D2-AI 对 Arm B 引导的响应比 D2-X 弱约 5 倍——`contact_percent` 增量 `+0.09301` 对
+`+0.01854`，`contact_recall` `+0.11338` 对 `+0.02339`，`contact_f1` `+0.08910` 对 `+0.02204`。
+两者对 GT 参与度的余量几乎相同（`0.18533` 对 `0.17143`），所以这不是"没有空间"。
+
+机制已定位到一行。`code/guidance_loss.py:31`：
+
+```python
+contact_labels = pred_contact_semantic > 0.95   # 模型自己预测的接触
+```
+
+**引导只在"模型自己已以 >0.95 置信度预测接触"的帧上把手掌拉向物体表面**（阈值 2 cm 死区，
+`:36`）。它是**放大器而非发生器**：无法创造参与度，只能锐化模型已经承诺的参与度。据此推断
+D2-X 存在大量"预测接触但手离得远"的帧供引导发力，而更长训练把这一不一致区间消除了——这与
+D2-AI 的 `hand_pen` 从 `0.24536` 降到 `0.17481` 是同一件事。**该推断本实验直接检验。**
+
+同时确认：`code/guidance_loss.py:42-47` 对物体做 `.detach()`（`pred_seq_com_pos.detach()`、
+`pred_obj_rot_mat.detach()`），**引导只移动手与脚，从不移动物体**。故引导在结构上无法改善
+`end_obj_trans_err`，实测两臂加引导后该项均**变差**（`+0.09988`、`+0.05898`）。本实验不以
+`end_obj` 为目标。
+
+设计：单一操纵因子为**引导接触 mask**，在 D2-AI 最终 checkpoint
+（`a190e56c249161c0b52f0aebb097d0d5b95cb0c3810abb664000fc3c2fdda224`）上跑，其余一切与封存
+Arm B 逐字相同（`arm=b`、`guidance_scale=1000.0`、`last_steps=10`、`clamp=1.0`、
+`clamp_target=update`、438 序列 × 3 窗口、500 步、`load_scene=false`、seed 42）：
+
+| 格 | `contact_mask_source` | `contact_mask_threshold` | 角色 |
+|---|---|---:|---|
+| A0 | predicted | 0.95 | 基线，**复用已封存的 D2-AI + Arm B，不重跑** |
+| A1 | predicted | 0.90 | 剂量 |
+| A2 | predicted | 0.75 | 剂量 |
+| A3 | predicted | 0.50 | 剂量 |
+| A4 | predicted | 0.25 | 剂量 |
+| **U** | **ground_truth** | — | **上界探针,不可部署** |
+
+**选择/确认分裂（在任何结果存在之前固定）。** 官方 438 条按
+`sha256("42:" + 序列名)[0] & 1` 分为**选择半 A = 209 条**与**确认半 B = 229 条**
+（两半 subject 与 object 分布均衡，各 13 类物体；名单存于 compact result）。
+
+- **阈值在 A 半上选定**：取 `contact_f1` 最大者，且须同时满足下述保护门；
+- **胜者的数值在 B 半上报告**，该数字**无选择偏差**，因为 B 半未参与选择；
+- **两半 × 全部六格 × 18 指标的完整表格一并报告**，剂量-响应曲线本身即结果，不只报一个赢家。
+
+这一分裂是必要的：若在全部 438 条上试五个阈值再挑最好，那个值将混入对这 438 条的过拟合而
+无法与真实收益分离，且属未登记 sweep。分裂使额外成本为零——每格本就要跑一次全 438 评测，
+分裂只发生在**聚合**阶段。
+
+判定规则（逐字固定）：
+
+- **PRIMARY**：胜者阈值在 **B 半**上对 A0 的 `contact_f1` 配对序列级 bootstrap
+  （seed 42、10,000 replicates、`tools/summarize_hoi_phase1b.py:112` 约定）CI 排除零且为正。
+- **保护门（任一违反即该阈值不得被选为胜者）**：
+  (i) `contact_precision` 相对 A0 的下降，其 CI 下界不得低于 `−0.02`;
+  (ii) `hand_pen_loss_omomo` 相对 A0 不得显著变差;
+  (iii) `mpjpe` 相对 A0 不得显著变差;
+  (iv) 每格 `nonfinite_values == 0`。
+- **参与度强制读法**：`contact_percent` 必须与每一项接触或穿透结论并列报告。GT 为
+  `0.66188`，A0 为 `0.50899`。降低阈值必然提高参与度，因此**任何接触改善都必须与穿透同时
+  检视**，不得孤立叙述。
+- **U 格（GT mask）的地位**：**诊断性上界探针，不可部署**（推理期无 GT），
+  **不得进入任何主表、不得被选为胜者、不得作为部署配置**。它只回答一个问题：
+  若参与度判断完全正确，引导最多能拿回多少接触缺口。
+  - 若 **U 也拿不回接触缺口** → mask 不是瓶颈，几何才是,方向立即转向,不再在 mask 上投入;
+  - 若 **U 拿回大半** → "改善参与度预测"成为一个有明确收益上界的目标。
+- **事前预测（写死，无论对错都保留）**：降低阈值将提高 `contact_percent` 与 `contact_recall`、
+  降低 `contact_precision`，且穿透变差；`end_obj_trans_err` 不受益（物体被 detach）。
+  U 格的接触增益应显著大于任何 predicted 阈值。**若降低阈值对 `contact_recall` 无效果，
+  则"mask 门限制了引导作用面"这一推断被证伪。**
+
+治理边界：
+
+- **零训练、零 checkpoint、不分配训练 run id、不改动任何既有分类、不替换任何封存行。**
+- 默认路径必须逐位不变:新增的 `contact_mask_source: predicted` /
+  `contact_mask_threshold: 0.95` 为默认值,启用前须由针对性测试证明与 HEAD 逐位一致,
+  且封存的 D2-AI + Arm B 格**复用不重跑**。
+- GT-mask 路径须为显式非默认值,不可被误启用,并在源码注释中标注其不可部署性。
+- 允许改动:`code/priors/inference_guidance.py`、`code/config/sampler/hoi_prior.yaml`、
+  `tests/test_hoi_guidance_mask.py`、`docs/EXPERIMENT_PLAN.md`、`experiments/registry.jsonl`、
+  `experiments/results/`、`docs/HOIPRIOR_EVIDENCE_INDEX.md`、`docs/phase_summaries/`。
+  **`code/eval_metrics.py` 与官方 438 协议零改动**;`code/guidance_loss.py` 优先不动
+  （作者代码,且可能被源码哈希钉覆盖）。
+- 因改动共享推理路径,GPU 发布前跑一次完整 authority 测试套件。
+
+并行审计（零 GPU，与本实验同期）：查明作者 `end_obj_trans_err` ≈3.0 的来源。用户已复现作者
+训练代码并蒸馏得 `3.555`，released 权重本地评测得 `3.037`，论文 Table 5 报 `3.06`——**本地无
+任何训练管线能产出 3.0 附近的值**。审计范围:作者训练期物体目标的取帧是否与评测评分帧一致、
+是否存在额外的终点监督、蒸馏阶段是否引入教师所无的终点项、以及 `cm_sample_loop` 在末步是否
+直接把 `object_goal` 注入物体通道（`code/test_infbagel_hoi.py:407` 有一行被注释掉的、直接以
+`object_goal_temp` 计算 `end_obj_trans_err` 的代码,其意图须一并说明）。结论须明确归为
+"我们缺失的正当机制""采样期直接注入""本仓库代码无法解释""取帧不对称"之一,不得超出代码所示
+妄加推测。
+
+**关于 `end_obj` 的取向,一并写明:** 我们在整条物体轨迹 `obj_trans_dist` 上已达
+`14.81981`,反超 released 的 `15.72565` 约 5.8%;差距仅在终点那一帧的对齐。`end_obj` 是
+"复现一个被告知的数"的能力,不是运动质量,**追逐它有过拟合单帧的风险**,故本阶段不将其设为
+优化目标。
+
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
