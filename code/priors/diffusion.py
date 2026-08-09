@@ -455,8 +455,19 @@ class HOIPriorSampler:
         self.guidance_rest_vertex_cache = {}
         self.guidance_audit = GuidanceAudit()
 
-    def _build_guidance(self, mat, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, batch):
-        """Build one window's guidance context from the evaluator's own inputs."""
+    def _build_guidance(
+        self, mat, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, batch,
+        ground_truth_contact=None, object_goal=None,
+    ):
+        """Build one window's guidance context from the evaluator's own inputs.
+
+        ``ground_truth_contact`` is the NON-DEPLOYABLE P6 cell-U probe: ground
+        truth contact does not exist at inference time, so it may only bound how
+        much of the engagement gap guidance could recover given a perfect
+        engagement decision.  It must be window-local and aligned frame-for-frame
+        with the predicted contact the codec decodes, and it is validated as such
+        by :meth:`_validate_ground_truth_contact_window` before use.
+        """
         from .contact_guidance import deterministic_vertex_subset
         from .inference_guidance import HOIContactGuidance
         if self.guidance_codec is None:
@@ -487,6 +498,24 @@ class HOIPriorSampler:
                 )
                 self.guidance_rest_vertex_cache[object_name] = cached
             surfaces.append(cached)
+        if ground_truth_contact is not None:
+            ground_truth_contact = self._validate_ground_truth_contact_window(
+                ground_truth_contact, batch,
+            )
+        goal_world = None
+        if object_goal is not None:
+            # The codec decodes ``object_translation`` in GLOBAL coordinates
+            # (window_codec.py:251) while ``sample_step`` has already converted
+            # ``object_goal`` to the WINDOW-LOCAL frame (test_infbagel_hoi.py:377).
+            # Differencing them as-is would pull the object toward a meaningless
+            # point without raising, so the goal is lifted back to global with
+            # the very same frame the decode uses.
+            goal_world = WindowStateCodec.global_position(
+                object_goal.reshape(batch, 1, 3).to(
+                    device=self.device, dtype=torch.float32,
+                ),
+                frame,
+            ).reshape(batch, 3)
         return HOIContactGuidance(
             self.guidance_settings,
             posterior_variance=self.diffusion.posterior_variance,
@@ -496,14 +525,58 @@ class HOIPriorSampler:
             parents_24=self.guidance_parents_24,
             rest_vertices=torch.stack(surfaces),
             audit=self.guidance_audit,
+            ground_truth_contact=ground_truth_contact,
+            object_goal=goal_world,
         )
+
+    def _validate_ground_truth_contact_window(self, contact, batch):
+        """Reject a misaligned or malformed cell-U ground-truth window.
+
+        A misaligned slice does not crash: it produces a plausible-looking
+        ceiling, which would then be used to decide whether to abandon
+        inference-time guidance entirely.  The shape check below is what makes
+        an off-by-``auto_regre_num`` slice impossible to pass silently, since a
+        shifted window that ran off the end of a sequence would arrive short.
+
+        The engagement fraction is recorded rather than compared against the
+        evaluator's ``gt_contact_percent``: that statistic is a GEOMETRIC
+        judgement (GT hand joints within ``contact_threshold`` of the GT object
+        surface, ``eval_metrics.py:246``) computed on interpolated evaluation
+        frames, whereas this tensor is the dataset's own annotation channel
+        thresholded at 0.95.  Measured over all 482 test annotation files those
+        two quantities are 0.66188 and 0.62794 respectively -- they are not the
+        same statistic, so equating them would make the gate fire on correct
+        alignment.
+        """
+        window_frames = REPRESENTATION.window_frames
+        if contact.ndim != 3 or contact.shape[:2] != (batch, window_frames):
+            raise ValueError(
+                "cell-U ground-truth contact must be window-local "
+                f"[{batch},{window_frames},4], got {tuple(contact.shape)}; a "
+                "slice of the wrong length means the per-window alignment is "
+                "off and the probe is void"
+            )
+        if contact.shape[-1] != 4:
+            raise ValueError(
+                "cell-U ground-truth contact must carry the 4 contact channels, "
+                f"got {contact.shape[-1]}"
+            )
+        contact = contact.to(device=self.device, dtype=torch.float32)
+        if not bool(torch.isfinite(contact).all()):
+            raise ValueError("cell-U ground-truth contact contains non-finite values")
+        engaged = (contact[..., -4:-2] > 0.95).any(dim=-1)
+        if self.guidance_audit is not None:
+            self.guidance_audit.record_ground_truth_window(
+                int(engaged.sum()), int(engaged.numel()),
+            )
+        return contact
 
     @torch.no_grad()
     def p_sample_loop(
         self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal,
         need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object,
         obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict,
-        obj_rot_mat_prefix=None, object_only=False,
+        obj_rot_mat_prefix=None, object_only=False, ground_truth_contact=None,
     ):
         del scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
         del is_loco, object_points
@@ -584,6 +657,8 @@ class HOIPriorSampler:
             guidance_arguments = {
                 "guidance": self._build_guidance(
                     mat, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, batch,
+                    ground_truth_contact=ground_truth_contact,
+                    object_goal=raw_goal,
                 ),
             }
             if self.guidance_audit is not None:

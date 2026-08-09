@@ -1,0 +1,1192 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-p6-guidance-subterm-reweight-s42-20260805",
+ "phase": "p1",
+ "subphase": "1B",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-05",
+ "classification": "guidance-hand-subterm-reweighting-FIRST-POSITIVE-contact-result-with-void-round-disclosure",
+ "preregistration": {
+  "registry_row": "p1-hoi-p6-guidance-subterm-reweight-preregister-s42-20260804",
+  "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-04 Phase 1B P6 推理期手部子项重加权与 GT 参与度上界（用户批准）'"
+ },
+ "training_performed": false,
+ "produces_checkpoint": false,
+ "checkpoint_selected": null,
+ "model_or_training_changed": false,
+ "official_evaluator_changed": false,
+ "native_d2_protocol_changed": false,
+ "sealed_cells_regenerated": 0,
+ "guidance_default_enabled_in_production": false,
+ "hoiprior_search_closed": "unchanged",
+ "source_change": {
+  "files": [
+   "code/priors/inference_guidance.py",
+   "code/config/sampler/hoi_prior.yaml",
+   "tests/test_hoi_guidance_subterms.py"
+  ],
+  "author_file_guidance_loss_py_edited": false,
+  "summary": "exposed sampler.pelvis.guidance.{contact_weight,consistency_weight,consistency_normalization}; reimplemented the author's hand arithmetic verbatim as author_hand_subterms so the two halves can be weighted independently; extended GuidanceAudit with sub-term and clamp-saturation accumulators. code/guidance_loss.py is author code and was NOT edited.",
+  "default_path_identity": "at contact_weight=1, consistency_weight=1, normalization=author the code calls the author's apply_hoi_guidance_loss itself rather than the reimplementation",
+  "reconciliation": "tests/test_hoi_guidance_subterms.py reconciles 10*bs*(contact+consistency) + 500*feet against the author's own scalar over shapes (1,10,64)(2,16,128)(3,8,32)(1,1,16)(4,20,96): EXACT equality, max abs err 0.0, max rel err 0.0"
+ },
+ "execution": {
+  "checkpoint_sha256": "a190e56c249161c0b52f0aebb097d0d5b95cb0c3810abb664000fc3c2fdda224",
+  "checkpoint_weight_variant": "online",
+  "protocol": "official 438 sequences x 3 windows, sample_type=diffusion 500-step ancestral DDPM, load_scene=false, no CFG, seed 42, config_eval_hoi_prior",
+  "held_fixed": "arm=b, guidance_scale=1000.0, last_steps=10, clamp=1.0, clamp_target=update, contact_mask_source=predicted, contact_mask_threshold=0.95",
+  "manipulated_factor": "the two hand sub-term weights and the consistency normalizer",
+  "gpu_cost": "first round ~14 min VOID (defect below), second round ~10 min valid (four cells concurrent on four GPUs), plus ~3.5 min for the B0 bit-exactness control"
+ },
+ "void_first_round": {
+  "status": "VOID, RETAINED not deleted, per the no-overwrite rule",
+  "void_run_dirs": [
+   "results/experiments/p1-hoi-p6-subterm-b1-s42-20260804",
+   "results/experiments/p1-hoi-p6-subterm-b2-s42-20260804",
+   "results/experiments/p1-hoi-p6-subterm-b3-s42-20260804",
+   "results/experiments/p1-hoi-p6-subterm-b4-s42-20260804"
+  ],
+  "defect": "guidance_gradient did not forward `settings` to author_full_hoi_loss, so the loss producing the guided update was always the author's UNWEIGHTED one. The sub-terms were computed under no_grad for the audit only, so each cell's audit correctly reported its intended weights while the sample was never affected.",
+  "consequence": "all four void cells were bit-exact re-runs of B0 -- 0 of 438 sequences differed on any metric",
+  "detection": "guidance_loss_mean was byte-identical at 5063.7384 across a cell that zeroes the consistency term and a cell that scales contact by 10x, which is arithmetically impossible. Found by reading the audit BEFORE the metrics.",
+  "counterfactual": "had the metrics been read first, a clean four-cell null would have been reported and the inference-time guidance direction closed on an experiment whose manipulated factor never varied",
+  "test_coverage_gap": "the then-existing 52 tests passed BEFORE the fix: they exercised author_full_hoi_loss directly and never drove guidance_gradient, the function that dropped the settings",
+  "remediation": "tests/test_hoi_guidance_subterms.py gained GuidanceGradientRoutingTest, which drives the real guidance_gradient through a stub codec. NEGATIVE CONTROL VERIFIED: reintroducing the exact defect makes it fail with a diagnostic message, and restoring the fix returns 25/25 green. A first version of those tests asserted AROUND the call site (calling author_full_hoi_loss directly, and grepping for a string that survives elsewhere in the same function) and did NOT trip on the reintroduced defect; it was rewritten."
+ },
+ "b0_bit_exactness_control": {
+  "run_dir": "results/experiments/p1-hoi-p6-subterm-b0control-s42-20260805",
+  "purpose": "re-run B0 with the CURRENT code, after the settings-forwarding fix, to prove the fix did not disturb the sealed default path, and to obtain the true baseline clamp saturation on the official 438-sequence protocol",
+  "aggregate_metric_mismatches_vs_sealed_B0": 0,
+  "per_sequence_sequences_differing_of_438": 0,
+  "verdict": "BIT-EXACT. Every sealed P2/P3/P5 result remains comparable against the current code.",
+  "true_baseline_clamp_saturation_fraction": 0.0009481501163421333,
+  "correction": "an earlier statement of mine quoted the baseline saturation as 0.000538 and derived ratios of 2.9x/9.4x/3.1x for B2/B3/B4. That 0.000538 came from an 8-sequence decomposition probe on a different protocol and was the wrong denominator. On the official 438-sequence baseline the fraction is 0.000948 and the ratios are 1.67x/5.35x/1.75x -- the same direction, smaller magnitude, which makes the winner MORE credible, not less."
+ },
+ "cells": {
+  "B0": {
+   "run_dir": "p1-hoi-d2ai-guidance-armb-s42-20260804",
+   "contact_weight": 1.0,
+   "consistency_weight": 1.0,
+   "consistency_normalization": "author",
+   "sequences_differing_from_B0_of_438": 0,
+   "nonfinite_values": 0,
+   "guidance_loss_mean": 5063.738425925926,
+   "guidance_gradient_rms": 0.3118701810904054,
+   "guidance_gradient_max_abs": 282.806640625,
+   "guidance_loss_contact_mean": null,
+   "guidance_loss_consistency_mean": null,
+   "clamp_saturation_fraction": null,
+   "clamp_saturation_ratio_vs_B0": null,
+   "aggregate_metrics": {
+    "contact_acc": 0.7624483583387693,
+    "contact_f1": 0.6757017455384731,
+    "contact_recall": 0.6381884461336481,
+    "contact_precision": 0.8157902377461403,
+    "contact_percent": 0.5089874610422556,
+    "hand_pen_loss_omomo": 0.16676087110068818,
+    "hand_pen_ratio": 0.1166798323392868,
+    "human_pen_loss_infbagel": 2.6351923926954903,
+    "human_pen_ratio": 0.12097694724798203,
+    "mpjpe": 11.769875138998032,
+    "foot_sliding": 0.3417699453795713,
+    "obj_trans_dist": 14.817250683293814,
+    "obj_rot_dist": 0.9921641296570304,
+    "end_obj_trans_err": 3.8964875042438507,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.528897374868393
+   },
+   "engagement": {
+    "contact_percent": 0.5089874610422556,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1528956,
+    "percent_of_gap_closed_vs_B0": 0.0
+   }
+  },
+  "B1": {
+   "run_dir": "p1-hoi-p6-subterm-b1-s42-20260805",
+   "contact_weight": 1.0,
+   "consistency_weight": 0.0,
+   "consistency_normalization": "author",
+   "sequences_differing_from_B0_of_438": 369,
+   "nonfinite_values": 0,
+   "guidance_loss_mean": 279.845287181713,
+   "guidance_gradient_rms": 0.1606152628103911,
+   "guidance_gradient_max_abs": 17.089387893676758,
+   "guidance_loss_contact_mean": 0.014624243533169781,
+   "guidance_loss_consistency_mean": 1.097598535043222,
+   "clamp_saturation_fraction": 0.00035338649643975575,
+   "clamp_saturation_ratio_vs_B0": 0.3727,
+   "aggregate_metrics": {
+    "contact_acc": 0.7621946800028992,
+    "contact_f1": 0.6759454064038264,
+    "contact_recall": 0.638294126222031,
+    "contact_precision": 0.8153727460756731,
+    "contact_percent": 0.5097484960498659,
+    "hand_pen_loss_omomo": 0.16763329675925573,
+    "hand_pen_ratio": 0.11742524057626724,
+    "human_pen_loss_infbagel": 2.649518179197695,
+    "human_pen_ratio": 0.12137158215045929,
+    "mpjpe": 11.761663109064102,
+    "foot_sliding": 0.3417965111986997,
+    "obj_trans_dist": 14.811582811393894,
+    "obj_rot_dist": 0.9949298797200046,
+    "end_obj_trans_err": 3.879227489233017,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.514398545026779
+   },
+   "engagement": {
+    "contact_percent": 0.5097484960498659,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1521345,
+    "percent_of_gap_closed_vs_B0": 0.4977
+   },
+   "bootstrap_vs_B0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.000129,
+      -0.0020587,
+      0.0017797
+     ],
+     "contact_recall": [
+      0.000305,
+      -0.0018983,
+      0.0025525
+     ],
+     "contact_precision": [
+      -0.0006775,
+      -0.0020073,
+      0.0004763
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      0.0003321,
+      -0.0011353,
+      0.0019525
+     ],
+     "hand_pen_ratio": [
+      0.0011724,
+      -0.0007215,
+      0.0033369
+     ],
+     "human_pen_loss_infbagel": [
+      0.005892,
+      -0.0175587,
+      0.0315617
+     ],
+     "human_pen_ratio": [
+      0.0008117,
+      -0.0013528,
+      0.0031566
+     ],
+     "mpjpe": [
+      0.002471,
+      -0.0079914,
+      0.0125276
+     ],
+     "foot_sliding": [
+      -0.000359,
+      -0.0077893,
+      0.0070304
+     ],
+     "obj_trans_dist": [
+      -0.0022792,
+      -0.0276039,
+      0.0217217
+     ],
+     "obj_rot_dist": [
+      -0.0006578,
+      -0.0032204,
+      0.0014255
+     ],
+     "end_obj_trans_err": [
+      -0.0083786,
+      -0.0455526,
+      0.019697
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0117631,
+      -0.0303391,
+      0.0059671
+     ],
+     "trans_dist": [
+      -0.0258382,
+      -0.0444609,
+      -0.0083605
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0005838,
+      -0.0019613,
+      0.0032866
+     ],
+     "contact_recall": [
+      -7.62e-05,
+      -0.0026661,
+      0.0027516
+     ],
+     "contact_precision": [
+      -0.0001801,
+      -0.0021004,
+      0.0013621
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      0.0013837,
+      -0.0034709,
+      0.0058188
+     ],
+     "hand_pen_ratio": [
+      0.0003414,
+      -0.0017068,
+      0.0021335
+     ],
+     "human_pen_loss_infbagel": [
+      0.0223061,
+      -0.0544224,
+      0.0926148
+     ],
+     "human_pen_ratio": [
+      0.0,
+      -0.0022188,
+      0.0019628
+     ],
+     "mpjpe": [
+      -0.0179605,
+      -0.0457977,
+      0.0044085
+     ],
+     "foot_sliding": [
+      0.0003785,
+      -0.0046109,
+      0.0057382
+     ],
+     "obj_trans_dist": [
+      -0.0087606,
+      -0.0358926,
+      0.0159228
+     ],
+     "obj_rot_dist": [
+      0.0058903,
+      -0.0003897,
+      0.0146941
+     ],
+     "end_obj_trans_err": [
+      -0.0247126,
+      -0.0919322,
+      0.0171787
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0015968,
+      -0.0209723,
+      0.0200992
+     ],
+     "trans_dist": [
+      -0.0041486,
+      -0.030984,
+      0.0164191
+     ]
+    }
+   }
+  },
+  "B2": {
+   "run_dir": "p1-hoi-p6-subterm-b2-s42-20260805",
+   "contact_weight": 3.0,
+   "consistency_weight": 1.0,
+   "consistency_normalization": "author",
+   "sequences_differing_from_B0_of_438": 369,
+   "nonfinite_values": 0,
+   "guidance_loss_mean": 5211.1099537037035,
+   "guidance_gradient_rms": 0.36764310231424935,
+   "guidance_gradient_max_abs": 95.19786071777344,
+   "guidance_loss_contact_mean": 0.014194670650694106,
+   "guidance_loss_consistency_mean": 1.0948538603606048,
+   "clamp_saturation_fraction": 0.0015787239323641071,
+   "clamp_saturation_ratio_vs_B0": 1.6651,
+   "aggregate_metrics": {
+    "contact_acc": 0.7843552946292672,
+    "contact_f1": 0.7039225268017353,
+    "contact_recall": 0.6705798066404127,
+    "contact_precision": 0.8180897913931324,
+    "contact_percent": 0.5354968471406827,
+    "hand_pen_loss_omomo": 0.1642672784273603,
+    "hand_pen_ratio": 0.11589055508375168,
+    "human_pen_loss_infbagel": 2.5953001438058516,
+    "human_pen_ratio": 0.12001229077577591,
+    "mpjpe": 11.740932613611221,
+    "foot_sliding": 0.34053733103733874,
+    "obj_trans_dist": 14.807520564024426,
+    "obj_rot_dist": 0.9912639351390884,
+    "end_obj_trans_err": 3.9108633995056152,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.537980377674103
+   },
+   "engagement": {
+    "contact_percent": 0.5354968471406827,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1263862,
+    "percent_of_gap_closed_vs_B0": 17.3382
+   },
+   "bootstrap_vs_B0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0274111,
+      0.0192078,
+      0.0364497
+     ],
+     "contact_recall": [
+      0.03308,
+      0.0247498,
+      0.0421905
+     ],
+     "contact_precision": [
+      0.0011753,
+      -0.0015635,
+      0.0043824
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      -0.0008947,
+      -0.0047852,
+      0.0021896
+     ],
+     "hand_pen_ratio": [
+      0.0002706,
+      -0.0026154,
+      0.0030664
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0143576,
+      -0.0740438,
+      0.0332788
+     ],
+     "human_pen_ratio": [
+      0.0001804,
+      -0.0027056,
+      0.0031566
+     ],
+     "mpjpe": [
+      -0.0096884,
+      -0.0237853,
+      0.0041691
+     ],
+     "foot_sliding": [
+      0.0010472,
+      -0.0059365,
+      0.0092547
+     ],
+     "obj_trans_dist": [
+      -0.0002477,
+      -0.03433,
+      0.0324061
+     ],
+     "obj_rot_dist": [
+      -0.0033496,
+      -0.0062569,
+      -0.0007203
+     ],
+     "end_obj_trans_err": [
+      0.0045954,
+      -0.0211362,
+      0.0292154
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0062261,
+      -0.0189972,
+      0.0063765
+     ],
+     "trans_dist": [
+      0.0117815,
+      -0.0013891,
+      0.0260253
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0289597,
+      0.0209819,
+      0.0378258
+     ],
+     "contact_recall": [
+      0.0317628,
+      0.0239423,
+      0.0403226
+     ],
+     "contact_precision": [
+      0.0033256,
+      -0.0004599,
+      0.00754
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      -0.0040065,
+      -0.0072788,
+      -0.0011941
+     ],
+     "hand_pen_ratio": [
+      -0.0017921,
+      -0.0039256,
+      8.53e-05
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0640541,
+      -0.1171581,
+      -0.0187444
+     ],
+     "human_pen_ratio": [
+      -0.0020481,
+      -0.0041816,
+      -0.0001685
+     ],
+     "mpjpe": [
+      -0.046504,
+      -0.0912305,
+      -0.0159552
+     ],
+     "foot_sliding": [
+      -0.0033133,
+      -0.0085325,
+      0.0006832
+     ],
+     "obj_trans_dist": [
+      -0.0183844,
+      -0.0882463,
+      0.0280683
+     ],
+     "obj_rot_dist": [
+      0.0013353,
+      -0.0024643,
+      0.0066446
+     ],
+     "end_obj_trans_err": [
+      0.0251352,
+      -0.028384,
+      0.0759123
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0061797,
+      -0.0241332,
+      0.0147773
+     ],
+     "trans_dist": [
+      0.0066224,
+      -0.0065637,
+      0.0210421
+     ]
+    }
+   }
+  },
+  "B3": {
+   "run_dir": "p1-hoi-p6-subterm-b3-s42-20260805",
+   "contact_weight": 10.0,
+   "consistency_weight": 1.0,
+   "consistency_normalization": "author",
+   "sequences_differing_from_B0_of_438": 369,
+   "nonfinite_values": 0,
+   "guidance_loss_mean": 5615.332175925926,
+   "guidance_gradient_rms": 0.751007112033397,
+   "guidance_gradient_max_abs": 158.25819396972656,
+   "guidance_loss_contact_mean": 0.01286221323189912,
+   "guidance_loss_consistency_mean": 1.0984764099121094,
+   "clamp_saturation_fraction": 0.0050734528172874495,
+   "clamp_saturation_ratio_vs_B0": 5.3509,
+   "aggregate_metrics": {
+    "contact_acc": 0.789374501703269,
+    "contact_f1": 0.7094536060298994,
+    "contact_recall": 0.6780018504827604,
+    "contact_precision": 0.8187753476252537,
+    "contact_percent": 0.5410596506486918,
+    "hand_pen_loss_omomo": 0.1648851837283031,
+    "hand_pen_ratio": 0.11760063469409943,
+    "human_pen_loss_infbagel": 2.6046260050151857,
+    "human_pen_ratio": 0.12115234136581421,
+    "mpjpe": 11.718464642763138,
+    "foot_sliding": 0.34101607400194967,
+    "obj_trans_dist": 14.76602339222305,
+    "obj_rot_dist": 0.9899977474199274,
+    "end_obj_trans_err": 3.8437046110630035,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.576969265937805
+   },
+   "engagement": {
+    "contact_percent": 0.5410596506486918,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1208234,
+    "percent_of_gap_closed_vs_B0": 20.9765
+   },
+   "bootstrap_vs_B0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0331847,
+      0.0227021,
+      0.0442615
+     ],
+     "contact_recall": [
+      0.0398848,
+      0.0284245,
+      0.0519777
+     ],
+     "contact_precision": [
+      0.0018475,
+      -0.0020388,
+      0.0061025
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      0.0010762,
+      -0.0067982,
+      0.007835
+     ],
+     "hand_pen_ratio": [
+      0.0036977,
+      0.0007215,
+      0.0073052
+     ],
+     "human_pen_loss_infbagel": [
+      0.0154424,
+      -0.1081503,
+      0.1208979
+     ],
+     "human_pen_ratio": [
+      0.0023449,
+      -0.0009019,
+      0.0061328
+     ],
+     "mpjpe": [
+      -0.025607,
+      -0.0746391,
+      0.0157361
+     ],
+     "foot_sliding": [
+      0.0017311,
+      -0.0124075,
+      0.0171969
+     ],
+     "obj_trans_dist": [
+      -0.0289276,
+      -0.0777011,
+      0.0186578
+     ],
+     "obj_rot_dist": [
+      -0.0054244,
+      -0.0137971,
+      0.0011882
+     ],
+     "end_obj_trans_err": [
+      -0.073183,
+      -0.1387642,
+      -0.0173717
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0261331,
+      -0.0541071,
+      0.0011622
+     ],
+     "trans_dist": [
+      0.0517326,
+      0.0126649,
+      0.0895475
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0342695,
+      0.0224689,
+      0.0475298
+     ],
+     "contact_recall": [
+      0.0397482,
+      0.0266035,
+      0.0542738
+     ],
+     "contact_precision": [
+      0.0040233,
+      -0.0021651,
+      0.0116891
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      -0.0046689,
+      -0.01158,
+      0.0011974
+     ],
+     "hand_pen_ratio": [
+      -0.0017068,
+      -0.005547,
+      0.0020481
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0741016,
+      -0.183594,
+      0.018762
+     ],
+     "human_pen_ratio": [
+      -0.0018775,
+      -0.0056324,
+      0.0018775
+     ],
+     "mpjpe": [
+      -0.0749597,
+      -0.1227141,
+      -0.0368112
+     ],
+     "foot_sliding": [
+      -0.0030218,
+      -0.0120571,
+      0.0049202
+     ],
+     "obj_trans_dist": [
+      -0.0715794,
+      -0.1411458,
+      -0.0107852
+     ],
+     "obj_rot_dist": [
+      0.0008071,
+      -0.0045432,
+      0.0073227
+     ],
+     "end_obj_trans_err": [
+      -0.031283,
+      -0.1048808,
+      0.0409557
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0157273,
+      -0.0448886,
+      0.0154778
+     ],
+     "trans_dist": [
+      0.0447316,
+      0.016749,
+      0.0744584
+     ]
+    }
+   }
+  },
+  "B4": {
+   "run_dir": "p1-hoi-p6-subterm-b4-s42-20260805",
+   "contact_weight": 1.0,
+   "consistency_weight": 1.0,
+   "consistency_normalization": "masked_pairs",
+   "sequences_differing_from_B0_of_438": 369,
+   "nonfinite_values": 0,
+   "guidance_loss_mean": 590.8695023148148,
+   "guidance_gradient_rms": 0.5626236464994335,
+   "guidance_gradient_max_abs": 787.2153930664062,
+   "guidance_loss_contact_mean": 0.014817807409498427,
+   "guidance_loss_consistency_mean": 0.06932158823366519,
+   "clamp_saturation_fraction": 0.0016548547691527143,
+   "clamp_saturation_ratio_vs_B0": 1.7454,
+   "aggregate_metrics": {
+    "contact_acc": 0.7625208378633036,
+    "contact_f1": 0.6759317839964332,
+    "contact_recall": 0.638211573537689,
+    "contact_precision": 0.8161736822862996,
+    "contact_percent": 0.5085525838950496,
+    "hand_pen_loss_omomo": 0.1659661625508991,
+    "hand_pen_ratio": 0.11589055508375168,
+    "human_pen_loss_infbagel": 2.622488708781276,
+    "human_pen_ratio": 0.12009996920824051,
+    "mpjpe": 11.755263805389404,
+    "foot_sliding": 0.34341317887709516,
+    "obj_trans_dist": 14.788007603297345,
+    "obj_rot_dist": 0.9938029870902347,
+    "end_obj_trans_err": 3.8732554763555527,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.5372181832790375
+   },
+   "engagement": {
+    "contact_percent": 0.5085525838950496,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1533304,
+    "percent_of_gap_closed_vs_B0": -0.2844
+   },
+   "bootstrap_vs_B0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0007522,
+      -0.0031951,
+      0.00186
+     ],
+     "contact_recall": [
+      -0.0012995,
+      -0.0037117,
+      0.0012636
+     ],
+     "contact_precision": [
+      1.22e-05,
+      -0.0012917,
+      0.0017184
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      -0.0003323,
+      -0.0009582,
+      0.0002498
+     ],
+     "hand_pen_ratio": [
+      -0.0008117,
+      -0.0017136,
+      -9.02e-05
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0053215,
+      -0.0153119,
+      0.003774
+     ],
+     "human_pen_ratio": [
+      -0.0008117,
+      -0.0017136,
+      -9.02e-05
+     ],
+     "mpjpe": [
+      0.0013492,
+      -0.0033572,
+      0.0064492
+     ],
+     "foot_sliding": [
+      0.0028944,
+      -0.000792,
+      0.0080788
+     ],
+     "obj_trans_dist": [
+      -0.00727,
+      -0.0167055,
+      0.001927
+     ],
+     "obj_rot_dist": [
+      0.0003362,
+      -0.0005373,
+      0.0013126
+     ],
+     "end_obj_trans_err": [
+      -0.0148848,
+      -0.0247418,
+      -0.0048653
+     ],
+     "pelvis_goal_error_cm": [
+      0.0053865,
+      -0.0007611,
+      0.0120615
+     ],
+     "trans_dist": [
+      0.0091798,
+      0.0015815,
+      0.0178087
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0011265,
+      -0.0009407,
+      0.0035871
+     ],
+     "contact_recall": [
+      0.0012302,
+      -0.0009956,
+      0.0038031
+     ],
+     "contact_precision": [
+      0.0007223,
+      -0.0005644,
+      0.0023251
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      -0.0012323,
+      -0.0038799,
+      0.0013576
+     ],
+     "hand_pen_ratio": [
+      -0.000768,
+      -0.0017068,
+      0.000256
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0196889,
+      -0.0617543,
+      0.0211437
+     ],
+     "human_pen_ratio": [
+      -0.0009387,
+      -0.0019628,
+      0.0001707
+     ],
+     "mpjpe": [
+      -0.0291736,
+      -0.0782567,
+      0.0034759
+     ],
+     "foot_sliding": [
+      0.0005013,
+      -0.0044224,
+      0.0057647
+     ],
+     "obj_trans_dist": [
+      -0.0492971,
+      -0.1228144,
+      -0.0051846
+     ],
+     "obj_rot_dist": [
+      0.0028278,
+      -0.0002601,
+      0.0069206
+     ],
+     "end_obj_trans_err": [
+      -0.0308952,
+      -0.0955927,
+      0.0174299
+     ],
+     "pelvis_goal_error_cm": [
+      0.0155857,
+      0.0027798,
+      0.0321394
+     ],
+     "trans_dist": [
+      0.0075381,
+      -0.0011139,
+      0.0175346
+     ]
+    }
+   }
+  },
+  "U": {
+   "run_dir": "p1-hoi-p6-subterm-u-gtmask-s42-20260805",
+   "contact_weight": 1.0,
+   "consistency_weight": 1.0,
+   "consistency_normalization": "author",
+   "contact_mask_source": "ground_truth",
+   "deployable": false,
+   "role": "NON-DEPLOYABLE diagnostic ceiling. Ground-truth contact does not exist at inference time; this cell bounds how much of the engagement gap guidance could recover GIVEN a perfect engagement decision. It may never be presented as a deployable configuration or selected as a winner.",
+   "reused_sealed_cell": false,
+   "aggregate_metrics": {
+    "contact_acc": 0.7608900485612815,
+    "contact_f1": 0.6734794077149776,
+    "contact_recall": 0.6364438587496601,
+    "contact_precision": 0.8122574003154327,
+    "contact_percent": 0.5086975429441183,
+    "hand_pen_loss_omomo": 0.16709285801267754,
+    "hand_pen_ratio": 0.1168113648891449,
+    "human_pen_loss_infbagel": 2.640469508513494,
+    "human_pen_ratio": 0.12088925391435623,
+    "mpjpe": 11.767520010471344,
+    "foot_sliding": 0.3447703169716821,
+    "obj_trans_dist": 14.799621711916632,
+    "obj_rot_dist": 0.9934750149506822,
+    "end_obj_trans_err": 3.862328454852104,
+    "pelvis_goal_error_cm": null,
+    "trans_dist": 7.521463930606842
+   },
+   "engagement": {
+    "contact_percent": 0.5086975429441183,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1531855,
+    "percent_of_gap_closed_vs_B0": -0.1896
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 4289.868923611111,
+    "guidance_gradient_rms": 0.37614690602069056,
+    "guidance_clamp_saturation_fraction": 0.0013134961248447313,
+    "guidance_ground_truth_windows": 3,
+    "guidance_ground_truth_engaged_frames": 16591,
+    "guidance_ground_truth_total_frames": 21024,
+    "guidance_ground_truth_engagement_fraction": 0.7891457382039574
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_B0_of_438": 365,
+   "bootstrap_vs_B0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0015563,
+      -0.0051289,
+      0.0015516
+     ],
+     "contact_recall": [
+      -0.0010045,
+      -0.0045186,
+      0.0023026
+     ],
+     "contact_precision": [
+      -0.0004213,
+      -0.0019991,
+      0.0012531
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      0.0001249,
+      -0.0002939,
+      0.000555
+     ],
+     "hand_pen_ratio": [
+      -0.0001804,
+      -0.0007215,
+      0.0003608
+     ],
+     "human_pen_loss_infbagel": [
+      0.0019687,
+      -0.0042043,
+      0.0084335
+     ],
+     "human_pen_ratio": [
+      -0.0001804,
+      -0.0007215,
+      0.0003608
+     ],
+     "mpjpe": [
+      -0.0059487,
+      -0.0178152,
+      0.0035479
+     ],
+     "foot_sliding": [
+      0.0049681,
+      -0.0014542,
+      0.012899
+     ],
+     "obj_trans_dist": [
+      -0.0288707,
+      -0.0640269,
+      -0.0018362
+     ],
+     "obj_rot_dist": [
+      0.0010051,
+      -0.0002793,
+      0.0023662
+     ],
+     "end_obj_trans_err": [
+      -0.0547469,
+      -0.1273745,
+      -0.0040266
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0143437,
+      -0.038161,
+      0.0024981
+     ],
+     "trans_dist": [
+      -0.021181,
+      -0.0536999,
+      -0.000856
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0028302,
+      -0.0066495,
+      -7.57e-05
+     ],
+     "contact_recall": [
+      -0.0024201,
+      -0.0053091,
+      -7.16e-05
+     ],
+     "contact_precision": [
+      -0.0063726,
+      -0.0163399,
+      -0.0005914
+     ],
+     "contact_percent": null,
+     "hand_pen_loss_omomo": [
+      0.000528,
+      6.62e-05,
+      0.0011235
+     ],
+     "hand_pen_ratio": [
+      0.0004267,
+      -8.53e-05,
+      0.0011094
+     ],
+     "human_pen_loss_infbagel": [
+      0.0084077,
+      0.0012065,
+      0.0178091
+     ],
+     "human_pen_ratio": [
+      -0.0,
+      -0.0011947,
+      0.0009387
+     ],
+     "mpjpe": [
+      0.0009331,
+      -0.0097651,
+      0.0113405
+     ],
+     "foot_sliding": [
+      0.0012045,
+      -0.0043459,
+      0.0067091
+     ],
+     "obj_trans_dist": [
+      -0.007369,
+      -0.0235641,
+      0.0083931
+     ],
+     "obj_rot_dist": [
+      0.0015899,
+      0.0003988,
+      0.002981
+     ],
+     "end_obj_trans_err": [
+      -0.015338,
+      -0.0389976,
+      0.0086611
+     ],
+     "pelvis_goal_error_cm": [
+      -0.0017832,
+      -0.0117923,
+      0.007118
+     ],
+     "trans_dist": [
+      0.0051153,
+      -0.0056383,
+      0.0162312
+     ]
+    }
+   },
+   "probe_validity": {
+    "window_stride": 14,
+    "window_frames": 16,
+    "auto_regre_num": 2,
+    "rollout_windows": 3,
+    "stride_note": "consecutive windows overlap by auto_regre_num, so the stride is max_window_size - auto_regre_num = 14, NOT 16; an off-by-auto_regre_num slice does not crash, it yields a plausible but wrong ceiling",
+    "negative_control": "injecting stride=16 fails 2 alignment tests in tests/test_hoi_guidance_gt_mask.py; restoring returns 10/10 green",
+    "preregistered_gate_was_wrong": "the preregistration required window engagement to equal gt_contact_percent 0.66188. That is a GEOMETRIC statistic on interpolated evaluation frames (eval_metrics.py:246,306), whereas the annotation channel thresholded at >0.95 measures 0.62794 across all 482 test files. Equating them would have fired on CORRECT alignment, so the gate was implemented as shape/alignment validation plus a recorded engagement fraction.",
+    "measured_window_engagement": 0.7891457382039574
+   },
+   "verdict": "NEGATIVE. Perfecting the engagement decision makes contact metrics significantly WORSE, not better. Ground-truth labels are WIDER (window engagement 0.789) than the model own >0.95 commitment, so guidance is asked to drag palms toward the object on frames where the hand is still far away; those displacements are too large to make in the last 10 reverse steps under clamp=1.0, and the attempt perturbs frames that were already correct. The engagement DECISION is therefore NOT the bottleneck -- it is already good enough that perfecting it hurts."
+  }
+ },
+ "select_confirm_split": {
+  "rule": "sha256('42:'+sequence_name)[0] & 1; 0 -> select half A, 1 -> confirm half B",
+  "select_A_count": 209,
+  "confirm_B_count": 229,
+  "exercised": true,
+  "how": "the cell was chosen on half A and its headline number reported on half B, which took no part in the choice"
+ },
+ "gates_as_preregistered": {
+  "primary": "contact_f1 of the best non-U cell vs B0 on the confirm half, paired sequence-level bootstrap, seed 42, 10000 replicates, nanmean, CI excluding zero and positive",
+  "primary_result": "PASSED by B2: +0.0289597 [+0.0209819, +0.0378258] on the confirm half",
+  "protection_gates": {
+   "contact_precision_CI_lower_bound_ge_-0.02": "PASSED (B2 confirm +0.0033, no drop)",
+   "hand_pen_loss_omomo_not_significantly_worse": "PASSED and significantly IMPROVED (B2 confirm -0.0040 [-0.0073,-0.0012])",
+   "mpjpe_not_significantly_worse": "PASSED and significantly IMPROVED (B2 confirm -0.0465 [-0.0912,-0.0160])",
+   "nonfinite_values_zero": "PASSED in every cell"
+  },
+  "clamp_saturation_gate": {
+   "rule": "a cell materially above the B0 baseline may NOT have a null read as 'this weight does not help'; the only admissible reading is 'the update was destroyed by clamping'",
+   "baseline": 0.0009481501163421333,
+   "ratios": {
+    "B1": 0.37271154677814616,
+    "B2": 1.6650569410407958,
+    "B3": 5.350896160684253,
+    "B4": 1.7453510162894623
+   },
+   "vetoed_anything": false,
+   "note": "B2/B3/B4 are elevated, but none of them is null, so the gate did not veto a reading this round. B3's elevation MATCHES the preregistered prediction that it would saturate and serve as a ceiling probe rather than a candidate configuration."
+  }
+ },
+ "winner": {
+  "cell": "B2",
+  "contact_weight": 3.0,
+  "consistency_weight": 1.0,
+  "consistency_normalization": "author",
+  "headline": "confirm-half contact_f1 +0.0289597 [+0.0209819, +0.0378258]",
+  "why_not_B3": "B3 scores higher on the select half (+0.0331795) but its clamp saturation is 5.35x baseline and the preregistration designates it a ceiling probe on the weight axis, not a candidate configuration",
+  "deployable": true,
+  "note": "uses the author's own arithmetic (normalization=author); only the sub-term weight differs"
+ },
+ "engagement_reading_rule": {
+  "gt_contact_percent": 0.6618830180474017,
+  "rule": "contact_percent is reported beside every contact and penetration claim",
+  "table": {
+   "B0": {
+    "contact_percent": 0.5089874610422556,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1528956,
+    "percent_of_gap_closed_vs_B0": 0.0
+   },
+   "B1": {
+    "contact_percent": 0.5097484960498659,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1521345,
+    "percent_of_gap_closed_vs_B0": 0.4977
+   },
+   "B2": {
+    "contact_percent": 0.5354968471406827,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1263862,
+    "percent_of_gap_closed_vs_B0": 17.3382
+   },
+   "B3": {
+    "contact_percent": 0.5410596506486918,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1208234,
+    "percent_of_gap_closed_vs_B0": 20.9765
+   },
+   "B4": {
+    "contact_percent": 0.5085525838950496,
+    "gt_contact_percent": 0.6618830180474017,
+    "gap_to_gt": 0.1533304,
+    "percent_of_gap_closed_vs_B0": -0.2844
+   }
+  },
+  "reading": "B2 closes 17.34% of the engagement gap and B3 20.98%. 82.66% of the gap remains under the winner. Gains on the weight axis are strongly diminishing: 1x->3x buys 17.34 points of gap closure, 3x->10x buys only 3.64 more at 5.35x the saturation."
+ },
+ "pre_run_predictions_scored": {
+  "B1_gradient_norm_drops_to_~22.3_contact_share_~48.8pct": "directionally right on the audit (B1 gradient_rms 0.16062 vs B0 0.31187) but B1 is METRIC-NULL, which the prediction did not anticipate",
+  "B3_saturates_materially": "CORRECT -- B3 saturation 5.35x baseline, the largest of any cell",
+  "raising_contact_pressure_improves_recall_at_the_cost_of_precision": "HALF RIGHT: recall improved (+0.0324 aggregate for B2) but precision did NOT drop (+0.0023); the predicted trade-off did not appear",
+  "foot_sliding_and_feet_height_expected_to_degrade": "WRONG, and recorded as a failed prediction rather than dropped. foot_sliding is null on both halves (B2 confirm -0.0033 [-0.0085,+0.0007]), direction favourable. The reasoning was that the feet term (x500) is the strongest single steer (cos 0.713 against the total gradient) and would compete for gradient on the same FK joints. It did not."
+ },
+ "mechanism_correction": {
+  "earlier_claim": "the counter-acting loss_consistency term is the binding constraint: widening the mask raises the hinge loss_contact but lowers loss_consistency ~16x harder, so the net loss falls",
+  "what_the_cells_show": "B1 (consistency_weight=0) and B4 (repaired masked_pairs normalization) are BOTH METRIC-NULL, while simply scaling the contact term up (B2, B3) works",
+  "corrected_reading": "the 15.79x opposite-direction ratio measured inside the loss was real, but it was NOT the metric-level bottleneck. The bottleneck was the ABSOLUTE WEIGHT of the contact term. The magnitudes in that analysis were right; the causal attribution was wrong.",
+  "carried_forward_retractions": [
+   "the hand term is 13.1% of the guidance loss -- WRONG, it is 95.68%",
+   "the mask expands +36.8% at the guided steps -- WITHDRAWN, it opens 6/7200 elements = 0.083%"
+  ]
+ },
+ "conclusions": [
+  "B2 (contact_weight=3) is the FIRST intervention in eleven to move contact engagement at all: contact_percent 0.50899 -> 0.53550 against GT 0.66188, closing 17.34% of the gap, with confirm-half contact_f1 +0.0289597 [+0.0209819, +0.0378258].",
+  "The gain is close to free. contact_precision did not drop (+0.0033), and hand_pen_loss_omomo (-0.0040), human_pen_loss_infbagel (-0.0641) and mpjpe (-0.0465) all significantly IMPROVED on the confirm half. The preregistered cost direction (foot_sliding, feet_height) did not materialize.",
+  "The weight axis is near its ceiling. 1x->3x closes 17.34% of the engagement gap; 3x->10x adds only 3.64 points more while clamp saturation rises to 5.35x baseline. 82.66% of the engagement gap remains.",
+  "Removing the counter-acting consistency term (B1) and repairing its normalization (B4) are both NULL. The binding constraint was the contact term's absolute weight, not the counter-action -- a correction to my earlier mechanism claim.",
+  "A first round of all four cells is VOID because guidance_gradient did not forward settings to the loss; the cells were bit-exact re-runs of the baseline while their audits reported the intended weights. It was caught by reading the audit before the metrics, and the test suite that missed it has been repaired with a verified negative control.",
+  "The settings-forwarding fix does not disturb the sealed path: re-running B0 with the current code reproduces the sealed B0 bit-exactly on every aggregate metric and on all 438 sequences."
+ ],
+ "what_this_does_not_show": [
+  "It does not show that inference-time guidance can close the engagement gap. 82.66% of the gap survives the winner, and the weight axis is already returning diminishing gains.",
+  "It does not measure the ceiling of a perfect engagement decision. Cell U (ground-truth contact mask) is NOT part of this closure and is still pending; the direction must not be declared closed before it reports.",
+  "It does not establish that B2 transfers to any other checkpoint, budget, or protocol -- it was measured on the D2-AI final checkpoint under one fixed Arm B configuration.",
+  "masked_pairs (B4) is a deliberate deviation from the author's arithmetic; its null result is not evidence about the author's protocol, and no masked_pairs number may be compared against the paper's Table 5."
+ ],
+ "next_action": "Wire and run cell U (ground-truth contact mask upper-bound probe) with the preregistered per-window alignment gate. U decides whether the residual 82.66% is reachable at inference time at all, or whether the deficit is under-commitment by the model's contact head, a training-side property.",
+ "git_commit": null,
+ "manifest_sha256": null,
+ "cell_u_outcome": {
+  "status": "completed",
+  "deployable": false,
+  "headline": "confirm-half contact_f1 -0.0028307 [-0.0066513, -0.0000785], significantly WORSE",
+  "engagement": "contact_percent 0.50870 vs B0 0.50899 vs GT 0.66188; -0.19% of the gap closed",
+  "consequence": "the preregistered abort criterion is met: the inference-time mask direction is CLOSED and the residual ~82.66% of the engagement gap is a TRAINING-side geometry property"
+ },
+ "retractions": [
+  {
+   "claim": "inference-time guidance never moves the object",
+   "status": "RETRACTED, false",
+   "evidence": "only the consistency term detaches the object (guidance_loss.py:42-47 detaches pred_seq_com_pos and pred_obj_rot_mat); the contact hinge at guidance_loss.py:38 consumes NON-detached obj_verts. Measured on a synthetic batch: object translation gradient L2 2.677682, rotation L2 5.252323.",
+   "consequence": "guidance already moves the object, but toward the HAND rather than the task goal. This explains why end_obj_trans_err WORSENS under stronger contact guidance (3.83750 unguided -> 3.89649 B0 -> 3.91086 B2) while the full trajectory obj_trans_dist IMPROVES (14.81981 -> 14.81725 -> 14.80752)."
+  }
+ ]
+}

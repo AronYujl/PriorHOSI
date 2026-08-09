@@ -368,8 +368,46 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
     return metrics, per_sequence_metrics
 
 
+def _gt_contact_window(sequence_contact, step, cfg):
+    """Slice the ground-truth contact window a rollout step actually covers.
+
+    Consecutive windows overlap by ``auto_regre_num``, so the stride is
+    ``max_window_size - auto_regre_num`` (14 at the shipped 16/2 settings), NOT
+    ``max_window_size``: window ``s`` spans global frames
+    ``[s*stride, s*stride + max_window_size)``.  An off-by-``auto_regre_num``
+    slice does not crash -- it yields a plausible but wrong ceiling -- so this
+    lives in one place and is pinned by tests/test_hoi_guidance_gt_mask.py.
+    Short sequences repeat their last annotated frame so the window stays full
+    length and the sampler's shape guard still means what it says.
+    """
+    stride = cfg.max_window_size - cfg.auto_regre_num
+    start = step * stride
+    frames = sequence_contact.shape[0]
+    if start >= frames:
+        return sequence_contact[-1:].repeat(cfg.max_window_size, 1)
+    piece = sequence_contact[start:start + cfg.max_window_size]
+    if piece.shape[0] < cfg.max_window_size:
+        pad = cfg.max_window_size - piece.shape[0]
+        piece = torch.cat([piece, piece[-1:].repeat(pad, 1)], dim=0)
+    return piece
+
+
+def _hoi_guidance_uses_ground_truth(cfg):
+    """True only when the P6 cell-U ground-truth mask probe is explicitly on.
+
+    The probe is NOT deployable: ground-truth contact does not exist at
+    inference time.  It exists only to bound how much of the engagement gap
+    guidance could recover given a perfect engagement decision, so it must be
+    unreachable unless the sampler is configured for it by hand.
+    """
+    guidance = getattr(getattr(cfg.sampler, "pelvis", None), "guidance", None)
+    if guidance is None or not bool(guidance.get("enabled", False)):
+        return False
+    return str(guidance.get("contact_mask_source", "predicted")) == "ground_truth"
+
+
 def sample_step(cfg, mat, fixed_points, sampler, scene_flag, text_clip_embedding, pelvis_goal, scene_goal, object_goal,
-                need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref_first_step_batch, human_dict):
+                need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref_first_step_batch, human_dict, ground_truth_contact=None):
     batch_size = fixed_points.shape[0]
     object_goal_temp = object_goal.clone()
     pelvis_goal = transform_points(pelvis_goal.reshape(batch_size, 1, 3), torch.inverse(mat)).reshape(batch_size, 1, 3) # convert to local coordinates
@@ -387,7 +425,7 @@ def sample_step(cfg, mat, fixed_points, sampler, scene_flag, text_clip_embedding
                                             object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref_first_step_batch, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=True, w=cfg.w)
     else:
         samples, occs = sampler.p_sample_loop(fixed_points, mat, scene_flag, text_clip_embedding, pelvis_goal, scene_goal,
-                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref_first_step_batch, obj_rest_verts, seq_name_dict, object_only=True)
+                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref_first_step_batch, obj_rest_verts, seq_name_dict, object_only=True, ground_truth_contact=ground_truth_contact)
 
     points_gene = samples[-1]
     
@@ -604,6 +642,10 @@ def test(cfg: DictConfig) -> None:
     object_points_batch = []
     first_object_points_batch = []
     first_object_trans_batch = []
+    # Per-sequence ground-truth contact at the model frame rate, for the
+    # preregistered P6 cell-U upper-bound probe only.  Lengths differ per
+    # sequence, so this stays a list and is sliced per rollout window.
+    gt_contact_label_batch = []
 
     max_len = 3
 
@@ -703,6 +745,12 @@ def test(cfg: DictConfig) -> None:
         object_points_batch.append(object_points)
         first_object_points_batch.append(first_object_points)
         first_object_trans_batch.append(first_object_trans)
+        # Preregistered P6 cell U (docs/EXPERIMENT_PLAN.md, "2026-08-04 ... P6").
+        # NON-DEPLOYABLE upper-bound probe: ground-truth contact does not exist
+        # at inference time.  Kept per sequence at the model frame rate and
+        # sliced per rollout window below, never used unless the sampler is
+        # explicitly configured with contact_mask_source=ground_truth.
+        gt_contact_label_batch.append(contact_label)
 
         pelvis_goal_batch_temp = []
         pi_batch_temp = []
@@ -826,6 +874,15 @@ def test(cfg: DictConfig) -> None:
             is_object_batch[:1], obj_bps_data_first_step_batch[:1], object_points_batch[:1],
             obj_rest_verts, obj_vert_normals, {0: seq_name_dict[0]},
             obj_rot_mat_ref_first_step_batch[:1], warmup_human,
+            ground_truth_contact=(
+                # Discarded timing warmup, but the cell-U guard is deliberately
+                # strict: hand it the matching window-0 slice for sequence 0
+                # rather than relaxing the guard for an untimed path.
+                torch.stack([
+                    _gt_contact_window(gt_contact_label_batch[0], 0, cfg)
+                ]).to(device)
+                if _hoi_guidance_uses_ground_truth(cfg) else None
+            ),
         )
         synchronize_cuda(device)
         seed_everything(int(cfg.seed))
@@ -862,10 +919,25 @@ def test(cfg: DictConfig) -> None:
             obj_bps_data_first_step_batch = current_bps[:, None, None]
 
         human_dict = {'rest_human_offsets': rest_human_offsets_all[:, :cfg.max_window_size], 'transl': transl_batch, 'betas': betas_batch, 'gender': gender_all}
-        
+
+        # Preregistered P6 cell U: slice the ground-truth contact window this
+        # rollout step actually covers.  Consecutive windows overlap by
+        # auto_regre_num, so the stride is (max_window_size - auto_regre_num),
+        # NOT max_window_size -- window s spans global frames
+        # [s*stride, s*stride + max_window_size).  Getting this wrong is the
+        # expected failure mode and does not crash, which is why the sampler
+        # revalidates the shape before using it.  Short sequences are padded by
+        # repeating their last annotated frame so the window stays full length.
+        gt_contact_window = None
+        if _hoi_guidance_uses_ground_truth(cfg):
+            gt_contact_window = torch.stack([
+                _gt_contact_window(sequence_contact, step, cfg)
+                for sequence_contact in gt_contact_label_batch
+            ]).to(device)
+
         synchronize_cuda(device)
         generation_start = time.perf_counter()
-        info_dict = sample_step(cfg, mat_batch, fixed_points_batch, sampler_body, scene_flag_batch, text_clip_embedding_batch, pelvis_goal_batch[:,step], scene_goal_batch, object_goal_batch, need_scene_batch, need_pelvis_dir_batch, pi_batch[:,step], end_pi_batch[:,step], seq_length_batch[:,step], need_pi_batch, is_loco_batch, is_object_batch, obj_bps_data_first_step_batch, object_points_batch, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref_first_step_batch, human_dict)
+        info_dict = sample_step(cfg, mat_batch, fixed_points_batch, sampler_body, scene_flag_batch, text_clip_embedding_batch, pelvis_goal_batch[:,step], scene_goal_batch, object_goal_batch, need_scene_batch, need_pelvis_dir_batch, pi_batch[:,step], end_pi_batch[:,step], seq_length_batch[:,step], need_pi_batch, is_loco_batch, is_object_batch, obj_bps_data_first_step_batch, object_points_batch, obj_rest_verts, obj_vert_normals, seq_name_dict, obj_rot_mat_ref_first_step_batch, human_dict, ground_truth_contact=gt_contact_window)
         synchronize_cuda(device)
         generation_seconds += time.perf_counter() - generation_start
         

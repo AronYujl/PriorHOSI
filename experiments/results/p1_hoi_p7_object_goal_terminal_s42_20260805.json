@@ -1,0 +1,706 @@
+{
+ "experiment_id": "p1-hoi-p7-object-goal-terminal-s42-20260805",
+ "phase": "1B-P7",
+ "date": "2026-08-05",
+ "description": "Preregistered Phase 1B P7: inference-time object-goal terminal guidance term. The author's guidance knows only 'the palm should touch the object'; it has no notion of where the object should END UP. Adds a deployable terminal-frame term weighted by object_goal_weight, on top of the P6 winner (contact_weight=3). object_goal is a task INPUT available at inference time (not ground truth), so unlike cell U this IS deployable.",
+ "baseline_cell": "G0",
+ "winner_cell": "G1",
+ "winner_config": {
+  "contact_weight": 3.0,
+  "consistency_weight": 1.0,
+  "consistency_normalization": "author",
+  "object_goal_weight": 1.0,
+  "guidance_scale": 1000.0,
+  "last_steps": 10,
+  "clamp": 1.0,
+  "clamp_target": "update",
+  "contact_mask_source": "predicted",
+  "contact_mask_threshold": 0.95
+ },
+ "winner_headline": "confirm-half end_obj_trans_err -0.02824 [-0.06620, -0.00175] cm, significantly improved; obj_trans_dist -0.00391 null, contact_f1 +0.00040 null, mpjpe +0.00451 null. The only clean cell: endpoint improved with no significant degradation anywhere, and the full trajectory moved favourably rather than being traded away.",
+ "honest_framing": "The improvement is 0.028 cm, about 0.7% of 3.91, and leaves a large gap to the released model's 3.037. end_obj_trans_err scores the single frame whose target the model was handed, so optimizing it directly sits close to metric-gaming; this is why obj_trans_dist is reported beside it in every claim, and why the term ships disabled by default (object_goal_weight: 0.0 in code/config/sampler/hoi_prior.yaml).",
+ "cells": {
+  "G0": {
+   "run_dir": "p1-hoi-p6-subterm-b2-s42-20260805",
+   "role": "Baseline: the sealed P6 B2 cell (contact_weight=3, consistency_weight=1, object_goal_weight=0). REUSED, not re-run.",
+   "object_goal_weight": 0.0,
+   "reused_sealed_cell": true,
+   "aggregate_metrics": {
+    "contact_acc": 0.7843552946292672,
+    "contact_f1": 0.7039225268017353,
+    "contact_recall": 0.6705798066404127,
+    "contact_precision": 0.8180897913931324,
+    "contact_percent": 0.5354968471406827,
+    "end_obj_trans_err": 3.9108633995056152,
+    "xy_points_err": 3.4585393965244293,
+    "obj_trans_dist": 14.807520564024426,
+    "obj_rot_dist": 0.9912639351390884,
+    "mpjpe": 11.740932613611221,
+    "trans_dist": 7.537980377674103,
+    "foot_sliding": 0.34053733103733874,
+    "feet_height": 0.046081528067588806,
+    "hand_pen_loss_omomo": 0.1642672784273603,
+    "human_pen_loss_infbagel": 2.5953001438058516
+   },
+   "engagement": {
+    "contact_percent": 0.5354968471406827,
+    "gt_contact_percent": 0.6618830180474017,
+    "percent_of_gap_closed_vs_unguided_baseline": 0.0
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 5211.1099537037035,
+    "guidance_gradient_rms": 0.36764310231424935,
+    "guidance_gradient_max_abs": 95.19786071777344,
+    "guidance_clamp_saturation_fraction": 0.0015787239323641071
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_G0_of_438": 0
+  },
+  "G1": {
+   "run_dir": "p1-hoi-p7-objgoal-g1-s42-20260805",
+   "object_goal_weight": 1.0,
+   "reused_sealed_cell": false,
+   "aggregate_metrics": {
+    "contact_acc": 0.784445894034935,
+    "contact_f1": 0.7045144763614063,
+    "contact_recall": 0.6709893435432709,
+    "contact_precision": 0.8195132876630599,
+    "contact_percent": 0.5351888091614119,
+    "end_obj_trans_err": 3.891623765230179,
+    "xy_points_err": 3.4560885280370712,
+    "obj_trans_dist": 14.80092539777802,
+    "obj_rot_dist": 0.9915566078784835,
+    "mpjpe": 11.744853109121323,
+    "trans_dist": 7.534653693437576,
+    "foot_sliding": 0.338791099486018,
+    "feet_height": 0.04615100845694542,
+    "hand_pen_loss_omomo": 0.16450720195303709,
+    "human_pen_loss_infbagel": 2.5992532947784155
+   },
+   "engagement": {
+    "contact_percent": 0.5351888091614119,
+    "gt_contact_percent": 0.6618830180474017,
+    "percent_of_gap_closed_vs_unguided_baseline": -0.2437
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 5377.610532407408,
+    "guidance_gradient_rms": 0.37134108200629384,
+    "guidance_gradient_max_abs": 95.19786071777344,
+    "guidance_clamp_saturation_fraction": 0.0016241472981799309
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_G0_of_438": 438,
+   "bootstrap_vs_G0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0008003,
+      -0.0015608,
+      0.004341
+     ],
+     "contact_recall": [
+      0.0005703,
+      -0.0016523,
+      0.003669
+     ],
+     "contact_precision": [
+      0.0011644,
+      -0.0001932,
+      0.0033658
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0084636,
+      -0.0238593,
+      0.0042717
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      -0.009542,
+      -0.0270567,
+      0.0071649
+     ],
+     "obj_rot_dist": [
+      0.0012308,
+      1e-07,
+      0.0027385
+     ],
+     "mpjpe": [
+      0.003279,
+      -0.0044451,
+      0.0122352
+     ],
+     "trans_dist": [
+      0.0006525,
+      -0.0062582,
+      0.0081692
+     ],
+     "foot_sliding": [
+      0.0002904,
+      -0.0064814,
+      0.00628
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      -0.000357,
+      -0.0013173,
+      0.0004981
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0053641,
+      -0.02029,
+      0.0079099
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      0.0004018,
+      -0.0020995,
+      0.0033017
+     ],
+     "contact_recall": [
+      0.0002629,
+      -0.002046,
+      0.0029536
+     ],
+     "contact_precision": [
+      0.0016599,
+      -0.0001699,
+      0.0041403
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0282409,
+      -0.066205,
+      -0.0017459
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      -0.0039057,
+      -0.0214292,
+      0.0133128
+     ],
+     "obj_rot_dist": [
+      -0.0005635,
+      -0.0018468,
+      0.0005288
+     ],
+     "mpjpe": [
+      0.0045086,
+      -0.0063829,
+      0.0168921
+     ],
+     "trans_dist": [
+      -0.0069591,
+      -0.0151206,
+      0.0008679
+     ],
+     "foot_sliding": [
+      -0.003605,
+      -0.0109537,
+      0.0025224
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      0.0008048,
+      -0.0001683,
+      0.0019553
+     ],
+     "human_pen_loss_infbagel": [
+      0.0127694,
+      -0.002614,
+      0.0308023
+     ]
+    }
+   }
+  },
+  "G2": {
+   "run_dir": "p1-hoi-p7-objgoal-g2-s42-20260805",
+   "object_goal_weight": 10.0,
+   "reused_sealed_cell": false,
+   "aggregate_metrics": {
+    "contact_acc": 0.7829238240197145,
+    "contact_f1": 0.7022713028898577,
+    "contact_recall": 0.6689181397691667,
+    "contact_precision": 0.8184626312022294,
+    "contact_percent": 0.5337754584329927,
+    "end_obj_trans_err": 3.881410136818886,
+    "xy_points_err": 3.462117910385132,
+    "obj_trans_dist": 14.80530512177599,
+    "obj_rot_dist": 0.9911693944937832,
+    "mpjpe": 11.75445169210434,
+    "trans_dist": 7.54409059882164,
+    "foot_sliding": 0.33863593672019093,
+    "feet_height": 0.04602447897195816,
+    "hand_pen_loss_omomo": 0.16452424981565628,
+    "human_pen_loss_infbagel": 2.5994717047655005
+   },
+   "engagement": {
+    "contact_percent": 0.5337754584329927,
+    "gt_contact_percent": 0.6618830180474017,
+    "percent_of_gap_closed_vs_unguided_baseline": -1.362
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 6854.9693287037035,
+    "guidance_gradient_rms": 0.6460408598028912,
+    "guidance_gradient_max_abs": 121.50653076171875,
+    "guidance_clamp_saturation_fraction": 0.0018290080448106743
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_G0_of_438": 438,
+   "bootstrap_vs_G0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0012477,
+      -0.0049062,
+      0.0032382
+     ],
+     "contact_recall": [
+      -0.0014608,
+      -0.0054036,
+      0.0028921
+     ],
+     "contact_precision": [
+      0.0011233,
+      -0.0005462,
+      0.003544
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0251775,
+      -0.0426747,
+      -0.0081004
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      -0.0045557,
+      -0.0288307,
+      0.0201684
+     ],
+     "obj_rot_dist": [
+      0.0023596,
+      0.0005808,
+      0.0041945
+     ],
+     "mpjpe": [
+      0.0086955,
+      -0.0030317,
+      0.0210971
+     ],
+     "trans_dist": [
+      0.0073954,
+      -0.0077588,
+      0.0215585
+     ],
+     "foot_sliding": [
+      -0.0018887,
+      -0.0115796,
+      0.0075167
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      -0.0014695,
+      -0.0032443,
+      0.0001617
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0229537,
+      -0.051151,
+      0.002776
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0020195,
+      -0.0049541,
+      0.0009027
+     ],
+     "contact_recall": [
+      -0.001845,
+      -0.0047093,
+      0.0011691
+     ],
+     "contact_precision": [
+      -0.0003121,
+      -0.0037054,
+      0.002497
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0326768,
+      -0.0663703,
+      -0.0024213
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      -7.96e-05,
+      -0.0289005,
+      0.0285574
+     ],
+     "obj_rot_dist": [
+      -0.0023344,
+      -0.0081824,
+      0.0012617
+     ],
+     "mpjpe": [
+      0.0179232,
+      -0.0008769,
+      0.0371301
+     ],
+     "trans_dist": [
+      0.0049357,
+      -0.008904,
+      0.0188197
+     ],
+     "foot_sliding": [
+      -0.001913,
+      -0.0128888,
+      0.0094484
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      0.0018906,
+      3.88e-05,
+      0.0038722
+     ],
+     "human_pen_loss_infbagel": [
+      0.0298384,
+      0.0005223,
+      0.061444
+     ]
+    }
+   }
+  },
+  "G3": {
+   "run_dir": "p1-hoi-p7-objgoal-g3-s42-20260805",
+   "object_goal_weight": 50.0,
+   "reused_sealed_cell": false,
+   "aggregate_metrics": {
+    "contact_acc": 0.7826701456838443,
+    "contact_f1": 0.7020117810949918,
+    "contact_recall": 0.6683278370916164,
+    "contact_precision": 0.8187290942492356,
+    "contact_percent": 0.5331956222367181,
+    "end_obj_trans_err": 3.888942673802376,
+    "xy_points_err": 3.4655027091503143,
+    "obj_trans_dist": 14.814380028100107,
+    "obj_rot_dist": 0.9912165126318935,
+    "mpjpe": 11.761428415775299,
+    "trans_dist": 7.546306401491165,
+    "foot_sliding": 0.342433861799439,
+    "feet_height": 0.04645080119371414,
+    "hand_pen_loss_omomo": 0.16452114475460233,
+    "human_pen_loss_infbagel": 2.599280352498795
+   },
+   "engagement": {
+    "contact_percent": 0.5331956222367181,
+    "gt_contact_percent": 0.6618830180474017,
+    "percent_of_gap_closed_vs_unguided_baseline": -1.8208
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 13418.672453703704,
+    "guidance_gradient_rms": 2.6773761925358497,
+    "guidance_gradient_max_abs": 607.463623046875,
+    "guidance_clamp_saturation_fraction": 0.0020495414472494855
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_G0_of_438": 438,
+   "bootstrap_vs_G0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0027304,
+      -0.0068883,
+      0.0019822
+     ],
+     "contact_recall": [
+      -0.0031506,
+      -0.0075307,
+      0.0015455
+     ],
+     "contact_precision": [
+      0.0005303,
+      -0.0011876,
+      0.0029847
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0181303,
+      -0.0397535,
+      0.0031184
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      0.0089043,
+      -0.0159358,
+      0.0338801
+     ],
+     "obj_rot_dist": [
+      0.0025191,
+      0.0006185,
+      0.0044678
+     ],
+     "mpjpe": [
+      0.0149928,
+      0.0015267,
+      0.0290325
+     ],
+     "trans_dist": [
+      0.0093881,
+      -0.0069186,
+      0.0247446
+     ],
+     "foot_sliding": [
+      0.003641,
+      -0.006555,
+      0.0137234
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      -0.0007797,
+      -0.0022547,
+      0.0007417
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0121194,
+      -0.0352836,
+      0.0115133
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0011627,
+      -0.0042104,
+      0.002057
+     ],
+     "contact_recall": [
+      -0.0014318,
+      -0.0044616,
+      0.0016431
+     ],
+     "contact_precision": [
+      0.0007388,
+      -0.0032591,
+      0.0048601
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0246836,
+      -0.0606358,
+      0.0080029
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      0.0049932,
+      -0.0250815,
+      0.0347587
+     ],
+     "obj_rot_dist": [
+      -0.0023898,
+      -0.008345,
+      0.0013315
+     ],
+     "mpjpe": [
+      0.0255153,
+      0.0050334,
+      0.0467282
+     ],
+     "trans_dist": [
+      0.0073561,
+      -0.0077421,
+      0.0227538
+     ],
+     "foot_sliding": [
+      0.0003044,
+      -0.0104464,
+      0.0117986
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      0.0012319,
+      -0.0001883,
+      0.0027497
+     ],
+     "human_pen_loss_infbagel": [
+      0.0192143,
+      -0.0029872,
+      0.0429485
+     ]
+    }
+   }
+  },
+  "G4": {
+   "run_dir": "p1-hoi-p7-objgoal-g4-s42-20260805",
+   "object_goal_weight": 200.0,
+   "reused_sealed_cell": false,
+   "aggregate_metrics": {
+    "contact_acc": 0.7822896281800391,
+    "contact_f1": 0.7018555345135739,
+    "contact_recall": 0.6680583371552297,
+    "contact_precision": 0.8186136381719344,
+    "contact_percent": 0.5331412625933174,
+    "end_obj_trans_err": 3.885601833462715,
+    "xy_points_err": 3.465886041522026,
+    "obj_trans_dist": 14.815101142432122,
+    "obj_rot_dist": 0.9913805006187936,
+    "mpjpe": 11.764174699783325,
+    "trans_dist": 7.546357810497284,
+    "foot_sliding": 0.3371334367015803,
+    "feet_height": 0.04610717296600342,
+    "hand_pen_loss_omomo": 0.16441381748613104,
+    "human_pen_loss_infbagel": 2.5975284649451607
+   },
+   "engagement": {
+    "contact_percent": 0.5331412625933174,
+    "gt_contact_percent": 0.6618830180474017,
+    "percent_of_gap_closed_vs_unguided_baseline": -1.8638
+   },
+   "guidance_audit": {
+    "guidance_loss_mean": 38039.59027777778,
+    "guidance_gradient_rms": 10.61166033637067,
+    "guidance_gradient_max_abs": 2429.802734375,
+    "guidance_clamp_saturation_fraction": 0.0022053340243881102
+   },
+   "nonfinite_values": 0,
+   "sequences_differing_from_G0_of_438": 438,
+   "bootstrap_vs_G0": {
+    "select_half_A_209": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0025823,
+      -0.0069291,
+      0.0025668
+     ],
+     "contact_recall": [
+      -0.0029027,
+      -0.0074283,
+      0.002117
+     ],
+     "contact_precision": [
+      0.0003306,
+      -0.0014902,
+      0.0029396
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0210113,
+      -0.0459576,
+      0.0036489
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      0.0105125,
+      -0.0151724,
+      0.036155
+     ],
+     "obj_rot_dist": [
+      0.0029394,
+      0.0005186,
+      0.0056545
+     ],
+     "mpjpe": [
+      0.0172986,
+      0.0028753,
+      0.0324205
+     ],
+     "trans_dist": [
+      0.0096435,
+      -0.0072815,
+      0.0252691
+     ],
+     "foot_sliding": [
+      -0.0016555,
+      -0.013269,
+      0.0093692
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      -0.0005692,
+      -0.0021633,
+      0.0010301
+     ],
+     "human_pen_loss_infbagel": [
+      -0.0087618,
+      -0.0333976,
+      0.0161386
+     ]
+    },
+    "confirm_half_B_229": {
+     "contact_acc": null,
+     "contact_f1": [
+      -0.0015967,
+      -0.0047677,
+      0.0015878
+     ],
+     "contact_recall": [
+      -0.0021736,
+      -0.0054223,
+      0.0009573
+     ],
+     "contact_precision": [
+      0.0007002,
+      -0.0033602,
+      0.0049637
+     ],
+     "contact_percent": null,
+     "end_obj_trans_err": [
+      -0.0294179,
+      -0.0706765,
+      0.0063966
+     ],
+     "xy_points_err": null,
+     "obj_trans_dist": [
+      0.0049047,
+      -0.026022,
+      0.0350087
+     ],
+     "obj_rot_dist": [
+      -0.0024598,
+      -0.0086043,
+      0.0013546
+     ],
+     "mpjpe": [
+      0.0286746,
+      0.0072717,
+      0.0511608
+     ],
+     "trans_dist": [
+      0.0072215,
+      -0.0085878,
+      0.0231816
+     ],
+     "foot_sliding": [
+      -0.0049996,
+      -0.0163943,
+      0.0069068
+     ],
+     "feet_height": null,
+     "hand_pen_loss_omomo": [
+      0.0008238,
+      -0.0006329,
+      0.0023561
+     ],
+     "human_pen_loss_infbagel": [
+      0.0126275,
+      -0.0100512,
+      0.0363659
+     ]
+    }
+   }
+  }
+ },
+ "frame_convention_note": "The codec decodes object_translation in GLOBAL coordinates (window_codec.py:251) while sample_step has already converted object_goal to WINDOW-LOCAL (test_infbagel_hoi.py:415). Differencing them as-is would pull the object toward a meaningless point without raising. The goal is therefore lifted back to global with the decode's own WindowFrame (priors/diffusion.py:513-519), guaranteeing both operands share a frame by construction. Tests include a negative control confirming that a frame mismatch is detectable (tests/test_hoi_guidance_object_goal.py:128-149).",
+ "summary": "G1 (weight 1) is the winner: end_obj significantly improved with no significant degradation. Above weight 1 the endpoint gain stops being significant while mpjpe significantly degrades. G2 (weight 10): end_obj -0.03268 SIG but mpjpe +0.01792 trending degradation. G3/G4 (weight 50/200): end_obj null, mpjpe +0.02552/+0.02867 SIG WORSE, guidance loss 13419/38040 vs G0 5211, gradient RMS 2.677/10.612 vs 0.368. The usable region is narrow: weight 1 is already near saturation.",
+ "split": {
+  "rule": "sha256('42:'+name)[0] & 1; 0 -> select A, 1 -> confirm B",
+  "select_A_count": 209,
+  "confirm_B_count": 229,
+  "reps": 10000,
+  "seed": 42,
+  "convention": "nanmean, tools/summarize_hoi_phase1b.py:112"
+ }
+}

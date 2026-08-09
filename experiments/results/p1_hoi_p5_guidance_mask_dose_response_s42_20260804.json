@@ -1,0 +1,702 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-p5-guidance-mask-dose-response-s42-20260804",
+ "phase": "p1",
+ "subphase": "P5",
+ "status": "completed",
+ "seed": 42,
+ "date": "2026-08-04",
+ "classification": "guidance-contact-mask-dose-response-null-prediction-falsified-direction-dropped",
+ "preregistration": {
+  "plan_section": "docs/EXPERIMENT_PLAN.md, '2026-08-04 Phase 1B P5 推理期接触 mask 剂量-响应与 GT 上界探针（用户批准）'",
+  "registry_row": "p1-hoi-p5-guidance-mask-dose-response-preregister-s42-20260804",
+  "commit": "3c8869e"
+ },
+ "training_performed": false,
+ "produces_checkpoint": false,
+ "checkpoint_selected": false,
+ "model_or_training_changed": false,
+ "official_evaluator_changed": false,
+ "native_d2_protocol_changed": false,
+ "sealed_cells_regenerated": 0,
+ "threshold_selected": null,
+ "guidance_default_enabled_in_production": false,
+ "hoiprior_search_closed": "unchanged",
+ "source_change": "code/priors/inference_guidance.py and code/config/sampler/hoi_prior.yaml only: guidance contact mask source and threshold made configurable, defaults (predicted / 0.95) bit-identical to the author's own gate. code/guidance_loss.py and code/eval_metrics.py unchanged; the mask is applied by rewriting the two contact channels the author's loss consumes to hard 1.0/0.0 so the author's own '> 0.95' reproduces the selected mask exactly.",
+ "execution": {
+  "checkpoint_sha256": "a190e56c249161c0b52f0aebb097d0d5b95cb0c3810abb664000fc3c2fdda224",
+  "checkpoint_run": "p1-hoi-d2ai-full-budget-s42-20260803",
+  "protocol": "official 438 sequences x 3 windows, sample_type=diffusion 500-step ancestral DDPM, load_scene=false, no CFG, seed 42, config_eval_hoi_prior",
+  "guidance": "arm=b, guidance_scale=1000.0, last_steps=10, clamp=1.0, clamp_target=update -- byte-identical to the sealed D2-AI + Arm B cell except for the mask threshold",
+  "manipulated_factor": "sampler.pelvis.guidance.contact_mask_threshold only",
+  "concurrency": "A1-A4 launched together on 4 GPUs, 22:01:26 -> 22:15:32 local, 14.1 min of wall clock for all four; each cell's own end_to_end_seconds is 841.9-846.4 s under 4-way contention, versus 222.3 s for the sealed A0 cell which ran solo. Wall clock is therefore not a performance record.",
+  "gpu_cost_approx_gpu_hours": 0.94
+ },
+ "cells": {
+  "A0": {
+   "run_id": "p1-hoi-d2ai-guidance-armb-s42-20260804",
+   "contact_mask_source": "predicted",
+   "contact_mask_threshold": 0.95,
+   "reused_not_rerun": true,
+   "per_sequence_sha256": "ca999d2d0196684adb6603aad89ac08dfd44058936d8daf61b829154aab1b2cf",
+   "sample_count": 438,
+   "role": "baseline; the sealed D2-AI + Arm B cell, reused by reference and NOT re-run"
+  },
+  "A1": {
+   "run_id": "p1-hoi-p5-mask-a1-s42-20260804",
+   "contact_mask_source": "predicted",
+   "contact_mask_threshold": 0.9,
+   "reused_not_rerun": false,
+   "per_sequence_sha256": "6d69b95cf5bcd049c62c2a8939ab6f66dec2ec2362f5d23b1d32985e333fa611",
+   "sample_count": 438
+  },
+  "A2": {
+   "run_id": "p1-hoi-p5-mask-a2-s42-20260804",
+   "contact_mask_source": "predicted",
+   "contact_mask_threshold": 0.75,
+   "reused_not_rerun": false,
+   "per_sequence_sha256": "42e539e0fd7721b722f0102aa080afcf8d0efcdf16fbbc35b021b79a922f2da8",
+   "sample_count": 438
+  },
+  "A3": {
+   "run_id": "p1-hoi-p5-mask-a3-s42-20260804",
+   "contact_mask_source": "predicted",
+   "contact_mask_threshold": 0.5,
+   "reused_not_rerun": false,
+   "per_sequence_sha256": "478a488c475e30ccf54f82d6d82fc2eba479895d87f210e0e96508514117d9a5",
+   "sample_count": 438
+  },
+  "A4": {
+   "run_id": "p1-hoi-p5-mask-a4-s42-20260804",
+   "contact_mask_source": "predicted",
+   "contact_mask_threshold": 0.25,
+   "reused_not_rerun": false,
+   "per_sequence_sha256": "a8f5cd6f5cf525e1b10e1519d5d06cfcacbc310cd7a629e700796b7efd2d742f",
+   "sample_count": 438
+  },
+  "U": {
+   "run_id": null,
+   "contact_mask_source": "ground_truth",
+   "status": "NOT RUN",
+   "role": "non-deployable diagnostic upper bound -- NOT RUN as part of P5. Has since been separately authorized as an upper-bound probe under a new preregistration.",
+   "why_not_run": "the preregistration made U conditional in effect: it exists only to bound how much contact a perfect engagement decision could recover. The five predicted-mask cells returned a numerically flat dose-response, so the preregistered branch 'if U also fails to recover the contact gap the mask is not the bottleneck and the direction is dropped immediately' was reached without needing U: the mask demonstrably reached the loss (guidance_loss_mean moves monotonically) and the motion demonstrably moved on a growing set of sequences. U would have bounded a lever that was already measured to be inert.",
+   "consequence": "recorded as not run. The upper bound on 'perfect engagement judgement' is therefore UNMEASURED by P5; this result does not claim that a GT mask would also be inert, only that the predicted-mask threshold is. P5 does not close the direction to a GT-mask measurement."
+  }
+ },
+ "gates_as_preregistered": {
+  "rule": "nonfinite_values == 0 per cell; guidance_nonfinite_steps == 0 per cell",
+  "outcome": "PASSED on every cell",
+  "per_cell": {
+   "A0": {
+    "nonfinite_values": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0,
+    "guidance_nonfinite_steps": 0,
+    "scene_condition_loaded": false,
+    "sequences": 438
+   },
+   "A1": {
+    "nonfinite_values": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0,
+    "guidance_nonfinite_steps": 0,
+    "scene_condition_loaded": false,
+    "sequences": 438
+   },
+   "A2": {
+    "nonfinite_values": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0,
+    "guidance_nonfinite_steps": 0,
+    "scene_condition_loaded": false,
+    "sequences": 438
+   },
+   "A3": {
+    "nonfinite_values": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0,
+    "guidance_nonfinite_steps": 0,
+    "scene_condition_loaded": false,
+    "sequences": 438
+   },
+   "A4": {
+    "nonfinite_values": 0,
+    "position_outside_rate": 0.0,
+    "object_outside_rate": 0.0,
+    "guidance_nonfinite_steps": 0,
+    "scene_condition_loaded": false,
+    "sequences": 438
+   }
+  }
+ },
+ "cells_table": {
+  "note": "aggregate_metrics.json of each run directory, read not recomputed. Columns are mask thresholds; A0 = 0.95 is the author's own gate.",
+  "thresholds": {
+   "A0": 0.95,
+   "A1": 0.9,
+   "A2": 0.75,
+   "A3": 0.5,
+   "A4": 0.25
+  },
+  "metrics": {
+   "end_obj_trans_err": {
+    "A0": 3.8964875042438507,
+    "A1": 3.8962941616773605,
+    "A2": 3.8962706923484802,
+    "A3": 3.896292671561241,
+    "A4": 3.896360471844673
+   },
+   "xy_points_err": {
+    "A0": 3.4647416323423386,
+    "A1": 3.4647781401872635,
+    "A2": 3.4646928310394287,
+    "A3": 3.4646570682525635,
+    "A4": 3.464653342962265
+   },
+   "feet_height": {
+    "A0": 0.0461253859102726,
+    "A1": 0.04612494632601738,
+    "A2": 0.046123526990413666,
+    "A3": 0.046123478561639786,
+    "A4": 0.046124376356601715
+   },
+   "foot_sliding": {
+    "A0": 0.3417699453795713,
+    "A1": 0.34178753299281045,
+    "A2": 0.34176687485436036,
+    "A3": 0.3417635015136861,
+    "A4": 0.3417665314424504
+   },
+   "contact_acc": {
+    "A0": 0.7624483583387693,
+    "A1": 0.7624483583387693,
+    "A2": 0.7624483583387693,
+    "A3": 0.7624483583387693,
+    "A4": 0.7624483583387693
+   },
+   "contact_precision": {
+    "A0": 0.8157902377461403,
+    "A1": 0.8157530443059187,
+    "A2": 0.8157530443059187,
+    "A3": 0.8157530443059187,
+    "A4": 0.8157530443059187
+   },
+   "contact_recall": {
+    "A0": 0.6381884461336481,
+    "A1": 0.6382124788180991,
+    "A2": 0.6382124788180991,
+    "A3": 0.6382124788180991,
+    "A4": 0.6382124788180991
+   },
+   "contact_f1": {
+    "A0": 0.6757017455384731,
+    "A1": 0.6757090132150328,
+    "A2": 0.6757090132150328,
+    "A3": 0.6757090132150328,
+    "A4": 0.6757090132150328
+   },
+   "contact_percent": {
+    "A0": 0.5089874610422556,
+    "A1": 0.5090237008045227,
+    "A2": 0.5090237008045227,
+    "A3": 0.5090237008045227,
+    "A4": 0.5090237008045227
+   },
+   "gt_contact_percent": {
+    "A0": 0.6618830180474017,
+    "A1": 0.6618830180474017,
+    "A2": 0.6618830180474017,
+    "A3": 0.6618830180474017,
+    "A4": 0.6618830180474017
+   },
+   "mpjpe": {
+    "A0": 11.769875138998032,
+    "A1": 11.769946664571762,
+    "A2": 11.770028620958328,
+    "A3": 11.770003288984299,
+    "A4": 11.76995038986206
+   },
+   "trans_dist": {
+    "A0": 7.528897374868393,
+    "A1": 7.528983801603317,
+    "A2": 7.529079914093018,
+    "A3": 7.529078423976898,
+    "A4": 7.529069483280182
+   },
+   "obj_trans_dist": {
+    "A0": 14.817250683293814,
+    "A1": 14.817183322650354,
+    "A2": 14.81720463575654,
+    "A3": 14.817267734648565,
+    "A4": 14.81728420416789
+   },
+   "obj_rot_dist": {
+    "A0": 0.9921641296570304,
+    "A1": 0.9921673740866329,
+    "A2": 0.992132269299641,
+    "A3": 0.99213227186696,
+    "A4": 0.9921374871764855
+   },
+   "hand_pen_loss_omomo": {
+    "A0": 0.16676087110068818,
+    "A1": 0.16676062669521702,
+    "A2": 0.16676057140396894,
+    "A3": 0.1667605184924816,
+    "A4": 0.16676052842758063
+   },
+   "hand_pen_ratio": {
+    "A0": 0.1166798323392868,
+    "A1": 0.1166798323392868,
+    "A2": 0.1166798323392868,
+    "A3": 0.1166798323392868,
+    "A4": 0.1166798323392868
+   },
+   "human_pen_loss_infbagel": {
+    "A0": 2.6351923926954903,
+    "A1": 2.6351883224840447,
+    "A2": 2.6351873791837135,
+    "A3": 2.6351864910976253,
+    "A4": 2.635187042792652
+   },
+   "human_pen_ratio": {
+    "A0": 0.12097694724798203,
+    "A1": 0.12097694724798203,
+    "A2": 0.12097694724798203,
+    "A3": 0.12097694724798203,
+    "A4": 0.12097694724798203
+   }
+  }
+ },
+ "pre_run_prediction": {
+  "written_before_execution": "lowering the threshold raises contact_percent and contact_recall, lowers contact_precision, worsens penetration; end_obj_trans_err does not benefit. U should show a contact gain clearly larger than any predicted threshold. If lowering the threshold does NOT move contact_recall, the inference that the mask gate limits guidance's action surface is FALSIFIED.",
+  "measured_0_95_to_0_25": {
+   "contact_percent": [
+    0.5089874610422556,
+    0.5090237008045227
+   ],
+   "contact_recall": [
+    0.6381884461336481,
+    0.6382124788180991
+   ],
+   "contact_f1": [
+    0.6757017455384731,
+    0.6757090132150328
+   ],
+   "contact_precision": [
+    0.8157902377461403,
+    0.8157530443059187
+   ],
+   "hand_pen_loss_omomo": [
+    0.16676087110068818,
+    0.16676052842758063
+   ]
+  },
+  "contact_recall_delta": 2.4032684450947528e-05,
+  "verdict": "PREREGISTERED PREDICTION FALSIFIED. contact_recall moves +0.0000240 across a 3.8x reduction of the threshold. Per the preregistration's own verbatim rule, the inference 'the mask gate limits guidance's action surface' is FALSIFIED."
+ },
+ "dose_response_is_flat": {
+  "aggregate": "the four aggregate contact metrics are NOT bit-identical across A1-A4; they differ from A0 at the ~1e-5 level. Measured A0 -> A4: contact_recall +0.0000240, contact_f1 +0.0000073, contact_percent +0.0000362, contact_precision -0.0000372, contact_acc 0.0000000. A1, A2, A3 and A4 happen to agree with each other to full float precision on the contact aggregates, but that is a property of the contact aggregates only -- the non-contact aggregates (mpjpe, trans_dist, obj_trans_dist, obj_rot_dist, end_obj_trans_err, foot_sliding, human_pen_loss_infbagel, hand_pen_loss_omomo) all separate the four thresholds. An earlier draft of this record said the cells were 'identical to full float precision'; that overstated the flatness and is corrected here to actual deltas.",
+  "per_sequence": {
+   "sequences": 438,
+   "sequences_differing_from_A0_on_ANY_metric_field": {
+    "0.9": 22,
+    "0.75": 26,
+    "0.5": 32,
+    "0.25": 33,
+    "note": "MONOTONE in mask width: the changed-sequence set grows as the threshold falls. This is the correct count. An earlier draft reported '2 of 438 sequences differ', which counted CONTACT fields only and therefore described the degeneracy of the contact metrics rather than the extent of the motion change."
+   },
+   "which_fields_differ_on_the_changed_set": {
+    "differ_on_all_33_at_threshold_0_25": [
+     "end_obj_trans_err",
+     "foot_sliding",
+     "mpjpe",
+     "obj_rot_dist",
+     "obj_trans_dist",
+     "pelvis_goal_error_cm",
+     "trans_dist"
+    ],
+    "hand_pen_loss_omomo_differs_on": 7,
+    "human_pen_loss_infbagel_differs_on": 9,
+    "contact_f1_differs_on": 2,
+    "contact_recall_differs_on": 1,
+    "contact_precision_differs_on": 1
+   },
+   "A0_vs_any_lower_threshold_sequences_differing_on_contact": 2,
+   "A1_vs_A2_vs_A3_vs_A4_sequences_differing_on_contact": 0,
+   "max_abs_per_sequence_contact_f1_difference_A0_vs_A4": 0.00737578,
+   "max_abs_per_sequence_contact_recall_difference_A0_vs_A4": 0.0105263,
+   "corrected_reading": "the motion DID change, on a growing set of sequences (22 -> 26 -> 32 -> 33), and CONTACT did not follow. Only the contact fields are near-degenerate (f1 on 2 sequences, recall on 1, precision on 1). The earlier framing 'the gate opened; nothing came through' is WRONG and is withdrawn: something came through -- the trajectory moved on 33 sequences -- but the contact decision did not change. That is a stronger and more specific null than a no-op would be."
+  },
+  "paired_bootstrap_vs_A0": {
+   "design": "438 paired sequences, seed 42, 10000 replicates, tools/summarize_hoi_phase1b.py:112 convention",
+   "status": "DESCRIPTIVE, not the preregistered PRIMARY. The PRIMARY was defined on the confirm half B for a winner threshold; no threshold was selected, so the PRIMARY was never evaluated. This table is reported so the null is quantified rather than asserted.",
+   "results": {
+    "A1": {
+     "contact_f1": {
+      "diff": 7.267676559763104e-06,
+      "ci": [
+       -2.8715986742049874e-05,
+       5.0519016421339185e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_recall": {
+      "diff": 2.4032684450853236e-05,
+      "ci": [
+       0.0,
+       7.20980533525597e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_precision": {
+      "diff": -3.719344022155865e-05,
+      "ci": [
+       -0.00011158032066467595,
+       0.0
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "hand_pen_loss_omomo": {
+      "diff": -2.4440547118371206e-07,
+      "ci": [
+       -6.914175237530554e-07,
+       4.8997333849795124e-08
+      ],
+      "n": 181,
+      "sig": false
+     },
+     "mpjpe": {
+      "diff": 7.008819003083391e-05,
+      "ci": [
+       -5.032790646161119e-05,
+       0.0002565255312070454
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "end_obj_trans_err": {
+      "diff": -6.612499193734756e-05,
+      "ci": [
+       -0.0004276141346794162,
+       0.00027414803420036394
+      ],
+      "n": 438,
+      "sig": false
+     }
+    },
+    "A2": {
+     "contact_f1": {
+      "diff": 7.267676559763104e-06,
+      "ci": [
+       -2.8715986742049874e-05,
+       5.0519016421339185e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_recall": {
+      "diff": 2.4032684450853236e-05,
+      "ci": [
+       0.0,
+       7.20980533525597e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_precision": {
+      "diff": -3.719344022155865e-05,
+      "ci": [
+       -0.00011158032066467595,
+       0.0
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "hand_pen_loss_omomo": {
+      "diff": -2.9969671925237836e-07,
+      "ci": [
+       -8.256685230530333e-07,
+       4.8997333849795124e-08
+      ],
+      "n": 181,
+      "sig": false
+     },
+     "mpjpe": {
+      "diff": 0.00015130972481209394,
+      "ci": [
+       -5.00598216437858e-05,
+       0.00043543213000308434
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "end_obj_trans_err": {
+      "diff": -9.019938826506351e-05,
+      "ci": [
+       -0.0005718466269236045,
+       0.0003541312130395433
+      ],
+      "n": 438,
+      "sig": false
+     }
+    },
+    "A3": {
+     "contact_f1": {
+      "diff": 7.267676559763104e-06,
+      "ci": [
+       -2.8715986742049874e-05,
+       5.0519016421339185e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_recall": {
+      "diff": 2.4032684450853236e-05,
+      "ci": [
+       0.0,
+       7.20980533525597e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_precision": {
+      "diff": -3.719344022155865e-05,
+      "ci": [
+       -0.00011158032066467595,
+       0.0
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "hand_pen_loss_omomo": {
+      "diff": -3.5260820659861553e-07,
+      "ci": [
+       -9.086159507544294e-07,
+       6.245436957720409e-08
+      ],
+      "n": 181,
+      "sig": false
+     },
+     "mpjpe": {
+      "diff": 0.0001261886804615526,
+      "ci": [
+       -9.449619850883744e-05,
+       0.00041613074606412065
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "end_obj_trans_err": {
+      "diff": -6.820123618155412e-05,
+      "ci": [
+       -0.0006098834140143086,
+       0.0004446430279147771
+      ],
+      "n": 438,
+      "sig": false
+     }
+    },
+    "A4": {
+     "contact_f1": {
+      "diff": 7.267676559763104e-06,
+      "ci": [
+       -2.8715986742049874e-05,
+       5.0519016421339185e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_recall": {
+      "diff": 2.4032684450853236e-05,
+      "ci": [
+       0.0,
+       7.20980533525597e-05
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "contact_precision": {
+      "diff": -3.719344022155865e-05,
+      "ci": [
+       -0.00011158032066467595,
+       0.0
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "hand_pen_loss_omomo": {
+      "diff": -3.4267310756908277e-07,
+      "ci": [
+       -8.996919414900103e-07,
+       7.602795080431562e-08
+      ],
+      "n": 181,
+      "sig": false
+     },
+     "mpjpe": {
+      "diff": 7.416899890115816e-05,
+      "ci": [
+       -0.00021157025032119661,
+       0.00043995716698365665
+      ],
+      "n": 438,
+      "sig": false
+     },
+     "end_obj_trans_err": {
+      "diff": 2.8069330589710777e-07,
+      "ci": [
+       -0.000553590744122182,
+       0.000523711766196028
+      ],
+      "n": 438,
+      "sig": false
+     }
+    }
+   }
+  },
+  "dilution_objection_checked_and_rejected": {
+   "objection": "the aggregate is over 438 sequences but only 33 changed, so a real per-sequence effect could be diluted 13x into invisibility. If so the null would be an artifact of averaging, not a property of the mask.",
+   "test": "recomputed the aggregate restricted to the 33 sequences that changed at threshold 0.25, comparing 0.25 against 0.95 on that subset only.",
+   "subset_n": 33,
+   "results_0_95_to_0_25_on_changed_subset": {
+    "contact_recall": [0.65883, 0.65915, 0.000319],
+    "contact_f1": [0.69396, 0.69406, 9.6e-05],
+    "contact_precision": [0.85961, 0.85912, -0.000494],
+    "mpjpe": [13.06671, 13.0677, 0.000984],
+    "trans_dist": [8.8202, 8.82249, 0.002289],
+    "pelvis_goal_error_cm": [3.54819, 3.54702, -0.001173],
+    "hand_pen_loss_omomo": [0.02773, 0.02773, -6e-06],
+    "tuple_format": "[value at 0.95, value at 0.25, delta]"
+   },
+   "verdict": "REJECTED. The subset deltas are ~13x the corresponding aggregate deltas, which is exactly the 438/33 dilution factor. Undiluting therefore recovers no new information -- it reproduces the same effect at the same size, rescaled. The per-sequence effect is itself negligible: contact_recall moves +0.000319 on the sequences that actually changed, against a contact_percent gap to GT of ~0.15, i.e. roughly three parts in ten thousand of a deficit that is three parts in twenty. The null is a property of the mask lever, not of averaging over unaffected sequences.",
+   "note": "contact_precision and pelvis_goal_error_cm move slightly the wrong way even on the changed subset, so the subset restriction does not reveal a suppressed benefit."
+  }
+ },
+ "mask_plumbing_verifiably_worked": {
+  "claim": "this null is NOT a no-op bug. The mask reached the author's loss.",
+  "guidance_loss_mean_by_threshold": {
+   "0.95": 5063.738425925926,
+   "0.9": 5060.665509259259,
+   "0.75": 5059.053819444444,
+   "0.5": 5058.300347222223,
+   "0.25": 5056.710069444444
+  },
+  "monotone_decreasing_with_threshold": true,
+  "total_change_0_95_to_0_25": -7.028356481481751,
+  "total_change_percent": -0.13879777923553754,
+  "guidance_hand_loss_mean_by_threshold": {
+   "0.95": 484.50519512317794,
+   "0.9": 484.19686677720813,
+   "0.75": 484.03560772648564,
+   "0.5": 483.9599691037779,
+   "0.25": 483.7994913878264
+  },
+  "guidance_applied_steps_all_cells": 27,
+  "interpretation": "every cell's own normalization_audit.inference_guidance records a lower guidance loss at a lower threshold, monotonically, so the widened mask was read by code/guidance_loss.py exactly as intended. The entire effect is -0.14% of the guidance loss end to end, and that perturbation does not survive 10 guided reverse steps into the metric.",
+  "retracted_mask_expansion_probe": {
+   "status": "RETRACTED. Asserted earlier in this phase and possibly cited in earlier drafts of this record.",
+   "what_was_claimed": "on real decoded D2-AI contact the author-visible mask expands from 1000 frames at threshold 0.95 to 1368 frames at 0.25, +36.8%, with 18% of probed frames lying in the newly opened (0.25, 0.95] band.",
+   "why_it_is_wrong": "that probe did not measure the tensor guidance actually consumes. It measured decoded contact outside the guided reverse loop, not the contact channels present at the guided steps. The +36.8% and 18% figures are withdrawn and must not be cited.",
+   "replacement_measurement": "a verified decomposition on the REAL guided path shows the 0.95 -> 0.25 sweep opens only 6 of 7200 channel elements at the guided steps, i.e. 0.083%.",
+   "opened_channel_elements": 6,
+   "total_channel_elements": 7200,
+   "opened_fraction": 0.000833,
+   "why_so_small": "the predicted contact logits are near-saturated and bimodal at the guided steps: 43.67% of elements are already above 0.95 and 43.75% are above 0.25, so almost nothing lies in the band between. Arm B guides only the last 10 reverse steps, where x0_hat is nearly clean and the contact predictions have already binarized. There is very little mass left for a threshold to reclassify.",
+   "consequence": "the null is over-determined. The mask does not merely fail to help -- at the guided steps it barely changes at all, because the threshold operates on a distribution that has already collapsed to its endpoints."
+  },
+  "guided_path_decomposition": {
+   "provenance": "measured on 8 sequences via a monkeypatched real evaluator run on the guided path. Reconciliation against the unpatched path was exact: 72/72 checks, max abs err 0.0.",
+   "author_hand_term_split_0_95_to_0_25": {
+    "loss_contact": [0.02117535, 0.02125364, 7.829e-05, "UP"],
+    "loss_consistency": [1.39546636, 1.39422995, -0.00123641, "DOWN"],
+    "net": "DOWN -- loss_consistency dominates the sum, so widening the mask lowers the hand term overall even though the contact sub-term rises.",
+    "tuple_format": "[value at 0.95, value at 0.25, delta, direction]"
+   },
+   "ratio_on_steps_where_the_mask_actually_changed": {
+    "steps": "6 of 36",
+    "measured_ratio": 15.79,
+    "closed_form_prediction": 15.58,
+    "reading": "the measured |dloss_consistency| / |dloss_contact| ratio agrees with the closed-form prediction, so the cancellation is understood analytically and not merely observed."
+   },
+   "cause_of_the_over_cancellation": "loss_contact is an L1 mean over bs*T*2 slots, so one newly admitted frame adds (d - 0.02) / (2*bs*T) -- LINEAR in the number of admitted frames k. loss_consistency masks a T x T outer product, so one newly admitted frame lights ~2k pairs and subtracts 2k*s_bar / (bs*T*T) -- QUADRATIC in k. The ratio is 4k*s_bar / (T*(d - 0.02)), which GROWS with k. A wider mask therefore over-cancels harder: every frame the threshold admits adds a little contact pull and subtracts proportionally more consistency penalty. No choice of threshold fixes this, because the pathology is in the relative scaling of the two sub-terms, not in where the cut is placed.",
+   "sub_term_shares": {
+    "loss_consistency_share_of_hand_term": 0.985,
+    "loss_contact_share_of_hand_term": 0.015,
+    "loss_contact_share_of_total_loss_value": 0.0186,
+    "loss_contact_share_of_total_gradient_norm": 0.292,
+    "reading": "loss_contact is 1.5% of the hand term by value but 29.2% of the total gradient norm, so it is not negligible in the update -- it is simply outvoted in the loss by a consistency term that moves the other way."
+   },
+   "clamp_is_not_binding": {
+    "saturating_update_elements": 449,
+    "total_update_elements": 835200,
+    "fraction": 0.000538,
+    "reading": "0.0538% of update elements saturate at clamp=1.0, so the clamp is not truncating the mask's effect and cannot be blamed for the null."
+   },
+   "direction_is_unchanged": {
+    "cos_total_grad_0_95_vs_0_25_mean": 0.9977,
+    "steps_with_cos_exactly_1_0": "30 of 36",
+    "reading": "the guidance gradient points in essentially the same direction at 0.95 and at 0.25. The threshold does not redirect guidance; it barely rescales it."
+   },
+   "mechanism_of_the_null": "three independent measurements converge. (1) At the guided steps only 0.083% of channel elements change, because contact predictions have already binarized by the last 10 reverse steps. (2) Of that small change, the contact sub-term's gain is over-cancelled ~15.8x by the consistency sub-term, an effect that grows with mask width by construction. (3) The resulting gradient is 0.9977-cosine-identical in direction and the clamp is not binding. The mask threshold is therefore not a lever on this path at all, and the failure is structural rather than a matter of tuning."
+  }
+ },
+ "retracted_mechanism_claim": {
+  "status": "RETRACTED -- asserted by me earlier in this phase's discussion, and DISPROVEN here.",
+  "what_i_claimed": "that the hand-object contact term is drowned by the feet-floor term, because code/guidance_loss.py:93 weights hand x10 and feet x500, and that the hand term is only 13.1% of the guidance loss.",
+  "what_the_sealed_audits_show": {
+   "source": "normalization_audit.inference_guidance of the sealed A0 cell",
+   "guidance_loss_mean": 5063.738425925926,
+   "guidance_feet_weighted_mean": 218.68647469414603,
+   "guidance_hand_loss_mean": 484.50519512317794,
+   "hand_weighted_x10": 4845.05195123178,
+   "identity_check": "hand_weighted_x10 + guidance_feet_weighted_mean == guidance_loss_mean",
+   "feet_share_of_guidance_loss": 0.04318676367137947,
+   "hand_share_of_guidance_loss": 0.9568132363286205
+  },
+  "correction": "the HAND term is 95.68% of the guidance loss and the feet term is 4.32%. The x500 feet weight is applied to a feet loss whose unweighted mean is only 0.4374, so the weighted feet contribution is 218.69 against a total of 5063.74. The hand term is not drowned; it dominates.",
+  "why_i_was_wrong": "the 13.1% figure came from an unrepresentative ad-hoc probe whose feet loss was ~2000x the real value. The sealed runs' own audits were available and would have refuted it; I did not check them before asserting the mechanism.",
+  "consequence_for_this_result": "the retraction removes the 'wrong term is being weighted' explanation for the null. The mask perturbs a loss the hand term already dominates, and although the motion does move on a growing set of sequences, contact does not follow. The remaining explanation is the guided-path decomposition recorded above: at the guided steps only 0.083% of channel elements change, and within the hand term the contact sub-term's gain is over-cancelled ~15.8x by the consistency sub-term, an over-cancellation that grows with mask width by construction."
+ },
+ "engagement_reading_rule": {
+  "rule": "preregistered: contact_percent must be reported beside every contact or penetration claim.",
+  "gt_contact_percent": 0.6618830180474017,
+  "A0_contact_percent": 0.5089874610422556,
+  "A4_contact_percent": 0.5090237008045227,
+  "engagement_deficit_at_A4": 0.15285931724287893,
+  "reading": "engagement did not rise, so no contact number here is bought by engagement and no penetration number here is flattered by under-engagement. hand_pen_loss_omomo is unchanged at 0.16676 across all five cells. The 0.1529 engagement deficit against GT is exactly where D2-AI left it; the mask lever did not touch it."
+ },
+ "select_confirm_split": {
+  "preregistered_rule": "sha256('42:' + sequence_name)[0] & 1; 0 -> select half A, 1 -> confirm half B",
+  "select_A_count": 209,
+  "confirm_B_count": 229,
+  "exercised": false,
+  "why_not": "the split existed solely to keep threshold selection honest. The dose-response is numerically flat -- the four sub-0.95 cells agree with each other to full float precision on every contact aggregate and differ from A0 only at the ~1e-5 level -- so NO threshold was selected and the PRIMARY test on half B was never run.",
+  "explicit_disclaimer": "the split validated nothing and must not be presented as if it had. It was never exercised. Its only value here is that it was fixed before any result existed, so it could not have been reshaped by the outcome.",
+  "sequence_lists": "retained in the preregistration row p1-hoi-p5-guidance-mask-dose-response-preregister-s42-20260804"
+ },
+ "conclusions": [
+  "The preregistered prediction is FALSIFIED. Lowering the guidance contact mask threshold from 0.95 to 0.25 moves contact_recall by +0.0000240 (0.63819 -> 0.63821), contact_f1 by +0.0000073 (0.67570 -> 0.67571), contact_percent by +0.0000362 (0.50899 -> 0.50902) against GT 0.66188, and leaves hand_pen_loss_omomo unchanged at 0.16676. Per the preregistration's own verbatim rule, the inference 'the mask gate limits guidance's action surface' is FALSIFIED.",
+  "This is not a plumbing failure. Each cell's own audit shows guidance_loss_mean falling monotonically 5063.738 -> 5060.666 -> 5059.054 -> 5058.300 -> 5056.710 with the threshold, and the motion itself changed on a growing, monotone set of sequences (22 / 26 / 32 / 33 of 438 at 0.90 / 0.75 / 0.50 / 0.25). The mask reached the loss and the loss reached the trajectory. What did not follow was contact.",
+  "The correct framing is 'the gate opened, the motion moved, and contact did not follow' -- NOT 'the gate opened and nothing came through'. On the 33 changed sequences at 0.25, end_obj_trans_err, foot_sliding, mpjpe, obj_rot_dist, obj_trans_dist, pelvis_goal_error_cm and trans_dist all differ from A0, and penetration differs on 7-9. Only the contact fields are near-degenerate: contact_f1 differs on 2 sequences, recall on 1, precision on 1. The aggregate contact metrics are not bit-identical either -- they differ at the ~1e-5 level (contact_recall +0.0000240). An earlier draft's claims of '2 of 438' and 'identical to full float precision' both understated the motion change and are corrected.",
+  "The dilution objection was tested and REJECTED. Restricted to the 33 changed sequences, 0.25 vs 0.95 gives contact_recall 0.65883 -> 0.65915 (+0.000319), contact_f1 +0.000096, contact_precision -0.000494, mpjpe +0.000984, trans_dist +0.002289, pelvis_goal_error_cm -0.001173, hand_pen_loss_omomo -0.000006. These are ~13x the aggregate deltas, exactly the 438/33 dilution factor, so undiluting carries no new information. The per-sequence effect is itself negligible against a contact_percent gap to GT of ~0.15.",
+  "RETRACTION: the earlier probe claiming the mask expands 1000 -> 1368 frames (+36.8%) with 18% of frames in the opened (0.25, 0.95] band is WITHDRAWN. It did not measure the tensor guidance consumes. A verified decomposition on the real guided path (reconciliation exact, 72/72 checks, max abs err 0.0) shows the 0.95 -> 0.25 sweep opens only 6 of 7200 channel elements -- 0.083% -- because the predicted contact logits are near-saturated and bimodal at the guided steps: 43.67% already above 0.95, 43.75% above 0.25, almost nothing between. Arm B guides only the last 10 reverse steps, where x0_hat is nearly clean and contact predictions have already binarized.",
+  "MECHANISM OF THE NULL, measured on 8 sequences via a monkeypatched real evaluator run. The author's hand term splits into loss_contact 0.02117535 -> 0.02125364 (+0.000078, UP) and loss_consistency 1.39546636 -> 1.39422995 (-0.001236, DOWN); the net moves DOWN. On the 6 of 36 steps where the mask actually changed the ratio is 15.79x, against a closed-form prediction of 15.58x. The cause is structural: loss_contact is an L1 mean over bs*T*2 slots, so one new frame adds (d-0.02)/(2*bs*T), linear in k, while loss_consistency masks a T x T outer product, so one new frame lights ~2k pairs and subtracts 2k*s_bar/(bs*T*T), quadratic in k. The ratio 4k*s_bar/(T*(d-0.02)) grows with k, so a wider mask over-cancels harder. NO THRESHOLD CAN FIX THIS. loss_consistency is 98.5% of the hand term and loss_contact only 1.5% (1.86% of total loss value but 29.2% of total gradient norm). The clamp is not binding (449/835200 = 0.0538% of update elements saturate) and the direction is unchanged (cos(total grad @0.95, @0.25) mean 0.9977, exactly 1.0 in 30 of 36 steps).",
+  "RETRACTION (separate, and correct as previously recorded): my earlier claim that the hand-object term is drowned by the x500 feet term, with the hand term at 13.1% of the guidance loss, is WRONG. The sealed audits give guidance_feet_weighted_mean 218.69 against guidance_loss_mean 5063.74, so the HAND term is 95.68% and the feet term 4.32%. My 13.1% came from an unrepresentative ad-hoc probe whose feet loss was ~2000x the real value.",
+  "Per the preregistration, a null here means the mask is not the bottleneck and the direction is dropped. The direction is dropped. The engagement deficit against GT (0.1529) is unchanged and remains the open problem; it is not a mask problem.",
+  "Cell U (GT mask) was NOT run as part of P5, so P5 records the perfect-engagement ceiling as UNMEASURED. It has since been separately authorized as an upper-bound probe under a new preregistration; P5 therefore does not claim the direction is permanently closed to a GT-mask measurement.",
+  "No threshold was selected, no checkpoint was selected, guidance stays default-off, and every sealed classification is unchanged."
+ ],
+ "what_this_does_not_show": [
+  "The GT-mask upper bound (cell U) was NOT run as part of P5, so the perfect-engagement ceiling is UNMEASURED. This result refutes the predicted-mask threshold as a lever; it does not prove that a perfect mask would also be inert. Cell U has since been separately authorized as an upper-bound probe under a new preregistration; P5 does not claim the direction is permanently closed.",
+  "Only the mask threshold was varied. guidance_scale, last_steps, clamp and the 2 cm contact deadband (code/guidance_loss.py:36) were all held at sealed Arm B values; a different point in that space is untested.",
+  "Single seed, single checkpoint, single lineage (D2-AI final online).",
+  "The earlier +36.8% / 18% mask-expansion probe has been RETRACTED; it did not measure the tensor guidance consumes. The correct figure is 0.083% (6/7200 channel elements) at the guided steps, and the previous numbers (1000 -> 1368 frames) must not be cited.",
+  "Nothing here revisits whether guidance helps at all; A0 versus unguided D2-AI is the sealed D2-AI/D2-AJ result and is unchanged."
+ ],
+ "next_action": "Report the null. The mask direction is closed per the preregistration. Contact engagement remains the single open deficit (contact_percent 0.50902 against GT 0.66188) and any next proposal must attack it without going through the guidance contact mask, which is now measured to be inert. Any new direction requires a dated plan amendment and registry entry before code changes.",
+ "git_commit": null,
+ "manifest_sha256": null
+}
