@@ -9508,3 +9508,12 @@ losses["hand_object_contact_geometry"] =
 成本：三个新臂各约 22h @ 4 GPU。8 卡权威机上两臂并行 → 首波 22h、A11 次波 22h，墙钟约 **44h**，
 合计约 **264 GPU·h**。评测四格，其中 A00 复用其封存的 `p1-hoi-p8-eval-w3-guided-s42-20260809`
 输出、不重跑，新增三次 438 序列评测。无新增评测协议。
+
+**执行位置更正（2026-08-09，用户指示）。** A11 不再排在次波，而是与 A10/A01 **同时**在 4 卡
+worker `10.181.9.214`（`infbagel-4gpu`，node01）上执行，run id `p1-hoi-p10-geom-both-s42-20260809`，
+配置 `code/config/config_train_hoi_prior_p10_both.yaml`。三臂并行后墙钟从约 44h 降到约 **22h**，
+GPU·h 总量不变。这是**硬件位置**的改动，不是科学改动：worker 与权威机同为 RTX 3090 24GB，
+A11 的种子、数据快照、有效批次（4×512=2048）、预算（299,520,000 windows）、目标函数与提交的
+Git 对象与另外两臂逐字相同，评测仍在权威机上按 P7 封存引导执行。按 `AGENTS.md`
+关于记录硬件替换的要求，A11 的 manifest 与 registry 条目须标明其在 worker 上执行；
+worker 独占其 run 目录与 checkpoint 树，权威机不写入。
