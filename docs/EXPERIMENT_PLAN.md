@@ -9388,3 +9388,123 @@ losses["hand_object_contact_geometry"] =
 - **P3**：若 W3 达标，则甜点上移至 3；若 W1 也达标，则 1 是新的最低达标权重。
 
 成本：两臂各约 22h，并行 4 GPU×2，墙钟约 22h，合计约 176 GPU·h。
+
+---
+
+## 2026-08-09 Phase 1B P10 手-物几何项修复：接触铰链与物体 detach（2×2 全预算，用户批准）
+
+动机：P8–P9c 的八点扫描把 `hand_object_contact_weight` 从 50 降到 3，已经把**剂量**调到帕累托前沿；
+但**公式本身从未被审视过**。W3 相对无几何基线 H0 留下两处退化，它们不是"接触换运动"的必然代价，
+而是该项两个可定位实现缺陷的直接后果：
+
+| 指标 | H0（无几何） | W3（当前封存） | 变化 |
+|---|---:|---:|---|
+| `hand_pen_loss_omomo` | 0.16451 | 0.25874 | **+57%** |
+| `human_pen_loss_infbagel` | 2.59925 | 4.07788 | **+57%** |
+| `end_obj_trans_err` | 3.89162 | 4.68200 | **+0.790 cm** |
+
+**缺陷一：零距离目标，而非铰链。** `masked_hand_object_distance_loss`
+（`code/priors/losses.py:40-91`）用 `nearest.square()`（`:87`）把掌关节到**被预测物体表面**的距离
+逼向 **0**。而 P8 的掌关节索引正是照抄作者推理引导的（`code/guidance_loss.py:15-16`），
+**作者那一侧用的是 2 cm 铰链**——`maximum(dists - 0.02, 0)`（`code/guidance_loss.py:36-39`），
+距离小于 2 cm 时梯度**精确为零**。掌关节位于手部网格**内部**，而 `hand_pen_loss_omomo` 计的是手部
+**顶点**穿透：把关节-表面距离压到 0，等价于把关节周围一圈顶点推进物体内部。P8 抄了索引，
+没抄铰链，把作者刻意留下的 2 cm 死区变成了穿透驱动力。
+
+**缺陷二：物体未 detach。** 该项消费的 `predicted_surface`（`losses.py:75`，来自 `:265-267`）
+**带梯度**，因此损失可以通过把**物体**拖向手来降低自己，而不是把手移向物体。这条通路的量级 P6
+已在引导侧实测：物体平移梯度 L2 `2.678`、旋转 L2 `5.252`。作者的一致性项**明确 detach 了物体**
+（`code/guidance_loss.py:42-47`）——只有铰链项没有。这正预测 `end_obj_trans_err` 的退化。
+
+两个机制**分别且精确地**预测了 W3 的两处退化：缺铰链 → 两个穿透项；缺 detach → 物体终点误差。
+本轮**不改剂量**（权重固定 3.0），只修公式。
+
+**一处必须记录的更正。** 封存紧凑结果的 `next_action`、
+`docs/phase_summaries/PHASE_1B_P8_P9_GEOMETRY_WEIGHT_SWEEP.md:80`、
+`docs/HOIPRIOR_EVIDENCE_INDEX.md:341` 三处均把 W3 的 `end_obj_trans_err` 记作 **"3.99"**。
+**该数字是 w=50（H1）的值 3.9898，不是 W3 的。** W3 在
+`experiments/results/p1_hoi_p8_p9_geometry_weight_sweep_sealed_s42_20260809.json` 中的实际值为
+**4.6820**。对 released `3.0372` 的真实缺口是 **+1.645 cm**，而非 +0.95 cm——该短板此前被低估了
+约 73%。**P10 收尾时必须同步修正上述三处文档**（封存 JSON 的数值行不动，只改其叙述性 `next_action`）。
+
+设计：**2×2，两个二值因子，其余一切不变。**
+
+- **F1** `hand_object_contact_hinge` ∈ {`0.0`（现状）, `0.02`} 米
+- **F2** `hand_object_contact_detach_object` ∈ {`false`（现状）, `true`}
+
+固定不变：`hand_object_contact_weight = 3.0`、`max_processed_windows = 299520000`、seed 42、
+随机初始化、`hoi_architecture_variant: base`、`fk_weight 0.3569973401779424`、
+`object_surface_weight 0.4772322188400037`、有效批次 2048（4 GPU × 512）、学习率 `1e-4`、
+无 warmup、无梯度裁剪、无 EMA、无 AMP——即
+`code/config/config_train_hoi_prior_p9w3.yaml` 的**其余每一个字段**。
+
+臂位（2×2）：
+
+| 格 | hinge | detach | 运行 id |
+|---|---:|---|---|
+| **A00** | 0.0 | false | **复用**封存 `p1-hoi-p8-hand-object-geom-w3-s42-20260807` |
+| **A10** | 0.02 | false | `p1-hoi-p10-geom-hinge-s42-20260809` |
+| **A01** | 0.0 | true | `p1-hoi-p10-geom-detach-s42-20260809` |
+| **A11** | 0.02 | true | 新跑，run id 在其**实际启动日期**分配 |
+
+**复用有效性门（A00 计为一格的前置条件）。** 必须有一个单元测试证明：改动后的实现在
+`(hinge=0.0, detach=false)` 下，对固定随机批次返回的损失值与改动前实现**逐位相同**
+（bit-identical）。**该测试不通过，A00 必须重训而不得复用**——否则 A00 与另外三格不再处于同一
+目标函数下的对照，整个 2×2 失去内部效度。
+
+评估：官方 438 序列、三窗口、500 步原生协议**零改动**，一律以**显式命令行覆盖**应用 P7 封存引导
+配置（`arm=b`、`guidance_scale=1000.0`、`last_steps=10`、`clamp=1.0`、`clamp_target=update`、
+`contact_mask_source=predicted`、`contact_mask_threshold=0.95`、`contact_weight=3.0`、
+`consistency_weight=1.0`、`consistency_normalization=author`、`object_goal_weight=1.0`），
+与 P8/P9 评估**逐字节相同**，四格因此协议匹配。**不得**写入
+`code/config/sampler/hoi_prior.yaml` 的默认值。
+
+事前方向性预测（写死，可证伪，无论对错均保留）：
+
+- **H1 铰链主效应**：`hand_pen_loss_omomo` 与 `human_pen_loss_infbagel` 相对同 detach 设置的
+  非铰链格**双双下降**。证伪条件：任一项不降。
+- **H2 铰链对接触中性**：`contact_percent` 绝对变化 `< 0.02`。理由：评测器的接触判据是掌关节到
+  物体顶点 `< 5 cm`（`code/eval_metrics.py:236`），铰链目标为 2 cm，尚余 3 cm 余量。
+  证伪条件：变化 `≥ 0.02`。
+- **H3 detach 主效应**：`end_obj_trans_err`、`obj_trans_dist`、`trans_dist` 相对同 hinge 设置的
+  非 detach 格**三项全降**。证伪条件：任一项不降。
+- **H4 detach 的接触代价**：`contact_percent` 在 detach 下**允许**下降，但必须保持 `> 0.60`。
+  证伪条件：跌破 0.60。
+
+判定规则：
+
+- **PRIMARY**：某格**可选**，当且仅当在 438 序列配对 bootstrap 对 **A00** 的比较中同时满足
+  (i) `hand_pen_loss_omomo` 显著更低；(ii) `human_pen_loss_infbagel` 显著更低；
+  (iii) `contact_f1` **未**显著更低。
+- **SECONDARY**：在可选格中取 `end_obj_trans_err` 最低者。
+- **保护门**：`contact_percent ≥ 0.60`，且 `mpjpe` 相对 W3 的 `12.3134` 不得显著变差。
+  违反者无论 PRIMARY 如何，一律取消资格。
+- **STOP**：若无任何格满足 PRIMARY，分类为 `geometry-term-repair-negative-stop`，
+  该方向关闭，**W3 保持为封存的接触配置**。
+
+不确定性协议（**显式严于 P8/P9——那两轮一次 bootstrap 都没跑**）：
+
+- 438 序列的**配对序列级 bootstrap**，10,000 次重采样，seed 42，**共享重采样索引矩阵**，
+  取 2.5/97.5 百分位；
+- 对**每一个**上报指标计算，且**同时**对两个基线计算：A00（W3）与 H0（D2-AI 无几何格，
+  训练 `p1-hoi-d2ai-full-budget-s42-20260803`，评估 `p1-hoi-p8-eval-h0-guided-s42-20260806`）；
+- **不做选择/确认分裂**：四格全部预注册，且不存在对任何连续量的事后选择，此处分裂没有对应的
+  多重比较风险。
+
+治理边界：
+
+- 允许改动：`code/priors/losses.py`、`code/train_hoi_prior.py`、
+  `code/config/config_train_hoi_prior.yaml`、`code/config/` 下三个新臂配置、`tests/`、
+  `tools/`（受版本管理的 bootstrap 工具）、`docs/`、`experiments/`。
+- **不可触碰**：`code/guidance_loss.py`（作者代码）、`code/eval_metrics.py`、官方 438 协议入口，
+  以及 `code/config/sampler/hoi_prior.yaml` 的默认值。
+- 两个新字段的默认值必须为 `hand_object_contact_hinge: 0.0` 与
+  `hand_object_contact_detach_object: false`，故所有既有封存配置的目标函数逐字不变
+  （与 P8 中 `hand_object_contact_weight` 默认 `0.0` 同一约定）。
+- 种子 42 唯一合法；有效批次取 `{512,1024,2048,3072}`，1536 禁用；
+  任何已发布 checkpoint 不得用于初始化。
+- 每臂配置必须含显式 `run_id`（P8 教训延续）。
+
+成本：三个新臂各约 22h @ 4 GPU。8 卡权威机上两臂并行 → 首波 22h、A11 次波 22h，墙钟约 **44h**，
+合计约 **264 GPU·h**。评测四格，其中 A00 复用其封存的 `p1-hoi-p8-eval-w3-guided-s42-20260809`
+输出、不重跑，新增三次 438 序列评测。无新增评测协议。
