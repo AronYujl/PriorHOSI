@@ -52,8 +52,25 @@ EXPECTED_FIXED_SOURCE_SHA256 = {
     # key order and output at two trunk sizes, and unchanged D2-AE/D2-AG
     # initialization) is locked by tests/test_hoi_d2ai_d2aj.py.
     "code/priors/models.py": "7efa4796cf425ac38355cb566279cc413ca76cde376ecb3a35c610a20ecd59a1",
-    "code/priors/losses.py": "e14cee19e59e9ac698d4d412ccd388f9d0bf903f22e6774b13cc736087d9d1be",
-    "code/priors/diffusion.py": "12bc4ce0c2eb96ad79bc83d93de5e7ab6dcf8425b1707e75f6dfdb9f2b38c01a",
+    # P8 (a01f879) added the preregistered hand-object relative geometry term
+    # to the shared loss module; it is inert for every configuration sealed
+    # before it, because ``hand_object_contact_weight`` defaults to 0.0 and the
+    # term is not even constructed at that weight.  P10 (this change) added the
+    # ``hinge`` and ``detach_object`` flags to that same term; the hinge=0 /
+    # detach=False path is proved bitwise identical -- value, gradient, and every
+    # entry of the full objective -- against the P8 source blob
+    # 9769a66cab5fe53f224918065e46ad1bb1ea46a7 by
+    # tests/test_p10_geometry_repair.py.
+    "code/priors/losses.py": "e44207025437138e22016c11f5eb1f4af0ac961720a44cfdd788465c27228403",
+    # P5-P7 (5e89644) landed the default-off inference contact-guidance hook in
+    # the sampler, the transition this block's P2 note above already describes;
+    # only the hash was never refreshed, so the lock had been stale since then
+    # and the mismatch stayed hidden behind the losses.py one until P10 fixed
+    # that.  The hook is inert on the unguided path that D2-T/D2-U were sealed
+    # on: P3 measured three same-tree unguided hash gates (D2-X, D2-AE, D2-AG)
+    # and all three reproduced bit-exactly, and base-path parity is locked by
+    # tests/test_hoi_p2_guidance.py.  P10 does not modify this file.
+    "code/priors/diffusion.py": "7e021391f6b7fbe7491d78ad8ae3bbd498763df5355a73afdc6241e7e0f9a58e",
 }
 
 

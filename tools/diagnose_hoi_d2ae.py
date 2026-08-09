@@ -1142,8 +1142,14 @@ def static_contract(repo: Path) -> Dict[str, object]:
     diffusion_source = (repo / "code/priors/diffusion.py").read_text(encoding="utf-8")
     data_source = (repo / "code/priors/data.py").read_text(encoding="utf-8")
     official_hashes = {
+        # P5-P7 (5e89644) added the default-off inference contact guidance entry
+        # points to the official evaluator.  Guidance is off unless a config
+        # enables it, so every sealed native evaluation reproduces; the
+        # null-mask and sub-term parity are locked by
+        # tests/test_hoi_guidance_gt_mask.py and
+        # tests/test_hoi_guidance_subterms.py.
         "code/test_infbagel_hoi.py":
-            "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+            "ca274e5fe358ebaec3b1d08e4480327e94ee39ede3a1a675afad79859fd6e783",
         "code/eval_metrics.py":
             "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
         "code/config/config_eval_hoi_prior.yaml":

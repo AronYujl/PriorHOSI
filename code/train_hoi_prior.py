@@ -85,6 +85,30 @@ LOSS_KEYS = (
     "object_rotation", "contact", "fk", "object_surface", "velocity", "object_goal", "contact_accuracy",
 )
 
+# The P8/P10 hand-object geometry term is the quantity the P10 arms manipulate,
+# but ``hoi_training_losses`` only puts it in the loss dictionary when its weight
+# is non-zero.  It is therefore appended per configuration instead of being added
+# to ``LOSS_KEYS``: every configuration that leaves the weight at 0.0 keeps an
+# unchanged metrics schema and an unchanged all-reduce width, and the eleven
+# tools under ``tools/`` that import ``LOSS_KEYS`` to index a loss dictionary
+# keep working unmodified.
+HAND_OBJECT_GEOMETRY_KEY = "hand_object_contact_geometry"
+
+
+def _loss_keys(cfg: DictConfig) -> Tuple[str, ...]:
+    """Loss keys recorded for this configuration's objective."""
+    if float(cfg.get("hand_object_contact_weight", 0.0)) == 0.0:
+        return LOSS_KEYS
+    if _is_d2z(cfg) or _is_d2ab(cfg):
+        # ``_forward_losses`` routes these modes to loss variants that do not
+        # accept the term, so the weight would be silently dropped and the key
+        # would be missing from the dictionary.  Fail closed instead.
+        raise ValueError(
+            "the D2-Z and D2-AB loss variants do not implement the hand-object "
+            "geometry term; hand_object_contact_weight must stay 0.0 for them"
+        )
+    return LOSS_KEYS + (HAND_OBJECT_GEOMETRY_KEY,)
+
 D2AE_FORMAL_RUN_ID_RE = re.compile(
     r"^p1-hoi-d2ae-sparse-relation-field"
     r"(?P<retry>-r[1-9][0-9]*)?-s42-(?P<date>[0-9]{8})$"
@@ -2594,6 +2618,14 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         # Preregistered P8; 0.0 for every configuration sealed before it, so the
         # recorded contract still reproduces those runs exactly.
         "hand_object_contact_weight": float(cfg.get("hand_object_contact_weight", 0.0)),
+        # Preregistered P10 geometry-term repair.  Both stay at the sealed
+        # no-op values (0.0 / False) for every earlier configuration, so the
+        # recorded objective still describes those runs exactly, while a resume
+        # can never silently swap a hinged/detached objective for the flat one.
+        "hand_object_contact_hinge": float(cfg.get("hand_object_contact_hinge", 0.0)),
+        "hand_object_contact_detach_object": bool(
+            cfg.get("hand_object_contact_detach_object", False)
+        ),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
         "weight_init_sha256": (
@@ -5056,6 +5088,12 @@ def _forward_losses(
         # do not accept it; defaults to 0.0 so every sealed configuration keeps
         # the exact objective it was trained with.
         hand_object_contact_weight=float(cfg.get("hand_object_contact_weight", 0.0)),
+        # Preregistered P10 repair of that term: a 2 cm hinge and/or a
+        # hand-only gradient.  Defaults reproduce the sealed weight-3 objective.
+        hand_object_contact_hinge=float(cfg.get("hand_object_contact_hinge", 0.0)),
+        hand_object_contact_detach_object=bool(
+            cfg.get("hand_object_contact_detach_object", False)
+        ),
         fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
         routed_foot_residual_multiplier=float(
             cfg.get("routed_foot_residual_multiplier", 1.0)
@@ -5091,7 +5129,8 @@ def _validate(
     local_limit = int(cfg.validation_windows) // world_size
     if local_limit * world_size != int(cfg.validation_windows):
         raise ValueError("validation_windows must be divisible by world size")
-    totals = torch.zeros(len(LOSS_KEYS) + 1, dtype=torch.float64, device=minimum.device)
+    loss_keys = _loss_keys(cfg)
+    totals = torch.zeros(len(loss_keys) + 1, dtype=torch.float64, device=minimum.device)
     generator = torch.Generator(device=minimum.device)
     generator.manual_seed(int(cfg.seed) * 1000003 + processed_windows + rank)
     seen = 0
@@ -5111,7 +5150,7 @@ def _validate(
                     processed_windows=processed_windows, rank=rank,
                 )
             count = batch["x"].shape[0]
-            for index, key in enumerate(LOSS_KEYS):
+            for index, key in enumerate(loss_keys):
                 totals[index] += losses[key].detach().double() * count
             totals[-1] += count
             seen += count
@@ -5121,7 +5160,7 @@ def _validate(
     if int(totals[-1].item()) != int(cfg.validation_windows):
         raise RuntimeError(f"validated {int(totals[-1])} windows, expected {cfg.validation_windows}")
     result = {
-        key: float((totals[index] / totals[-1]).item()) for index, key in enumerate(LOSS_KEYS)
+        key: float((totals[index] / totals[-1]).item()) for index, key in enumerate(loss_keys)
     }
     result.update({
         "processed_windows": processed_windows,
@@ -5839,9 +5878,10 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     torch.cuda.synchronize(device)
     wall_start = time.perf_counter()
     compute_update_seconds: List[float] = []
-    loss_sums = {key: 0.0 for key in LOSS_KEYS}
+    loss_keys = _loss_keys(cfg)
+    loss_sums = {key: 0.0 for key in loss_keys}
     loss_observations = 0
-    pending_loss_sums = {key: 0.0 for key in LOSS_KEYS}
+    pending_loss_sums = {key: 0.0 for key in loss_keys}
     pending_loss_observations = 0
     consecutive_amp_overflows = 0
     initial_grad_scale = float(scaler.get_scale())
@@ -5903,7 +5943,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                     scaler.scale(loss).backward()
                 else:
                     loss.backward()
-            for key in LOSS_KEYS:
+            for key in loss_keys:
                 pending_loss_sums[key] += float(losses[key].detach())
             pending_loss_observations += 1
             micro_in_accumulation += 1
@@ -5932,7 +5972,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 consecutive_amp_overflows += 1
                 scaler.update(new_scale=float(scaler.get_scale()) * 0.5)
                 optimizer.zero_grad(set_to_none=True)
-                pending_loss_sums = {key: 0.0 for key in LOSS_KEYS}
+                pending_loss_sums = {key: 0.0 for key in loss_keys}
                 pending_loss_observations = 0
                 micro_in_accumulation = 0
                 group_start = None
@@ -6027,7 +6067,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 _ema_update(ema_models[str(decay)], model.module, decay)
             optimizer_updates += 1
             processed_windows += effective
-            for key in LOSS_KEYS:
+            for key in loss_keys:
                 loss_sums[key] += pending_loss_sums[key]
                 pending_loss_sums[key] = 0.0
             loss_observations += pending_loss_observations
@@ -6156,7 +6196,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
     gathered = [torch.zeros_like(local) for _ in range(world_size)]
     torch.distributed.all_gather(gathered, local)
     loss_vector = torch.tensor(
-        [loss_sums[key] for key in LOSS_KEYS] + [loss_observations],
+        [loss_sums[key] for key in loss_keys] + [loss_observations],
         dtype=torch.float64,
         device=device,
     )
@@ -6199,7 +6239,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
             ]
             averaged_losses = {
                 key: float(loss_vector[index].item() / max(loss_vector[-1].item(), 1.0))
-                for index, key in enumerate(LOSS_KEYS)
+                for index, key in enumerate(loss_keys)
             }
             metrics = {
                 **state_record,

@@ -740,8 +740,13 @@ def _static_contract(repo: Path) -> Dict[str, object]:
     )
     absent = {value: value not in d2ad_source for value in forbidden}
     locked = {
+        # Refreshed at P10: P5-P7 (5e89644) rewrote the guidance plumbing in the
+        # official evaluation entry point, leaving this lock stale.  It causes no
+        # test failure because nothing runs this diagnostic today, but it would
+        # fail closed the moment someone did.  The sibling locks in
+        # tests/test_hoi_d2ac.py and tests/test_hoi_d2ad.py carry the same value.
         "code/test_infbagel_hoi.py":
-            "22886f8797ceb04a892487393dea9f80e19877bc02dd7a6f39127e7319119524",
+            "ca274e5fe358ebaec3b1d08e4480327e94ee39ede3a1a675afad79859fd6e783",
         "code/eval_metrics.py":
             "445e681fb618e5f4c89b407a89f152e539a8819f4e8ec1588ae83f6cb062c547",
         "code/config/config_eval_hoi_prior.yaml":

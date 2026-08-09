@@ -41,6 +41,9 @@ def masked_hand_object_distance_loss(
     fk: torch.Tensor,
     object_surface: torch.Tensor,
     contact_ground_truth: torch.Tensor,
+    *,
+    hinge: float = 0.0,
+    detach_object: bool = False,
 ) -> torch.Tensor:
     """Palm-to-object-surface squared distance, on ground-truth contact frames.
 
@@ -58,7 +61,33 @@ def masked_hand_object_distance_loss(
 
     Returns a mean over engaged frames, so the value does not scale with how
     much of a batch happens to be in contact.
+
+    ``hinge`` (metres, preregistered P10) replaces the per-palm distance with the
+    hinged residual ``(nearest - hinge).clamp_min(0.0)`` *before* squaring, so the
+    term stops pulling once a palm is already within ``hinge`` of the predicted
+    surface.  The author's inference guidance uses exactly this shape with a 2 cm
+    threshold (``code/guidance_loss.py:36-39``: ``contact_threshold = 0.02`` and
+    ``torch.maximum(dists - contact_threshold, 0)``).  Without it the squared
+    term keeps rewarding ever-smaller distances and therefore pays for
+    interpenetration.  ``hinge == 0.0`` executes the literal pre-P10 expression
+    ``nearest.square()``, bit for bit, which is what keeps the sealed weight-3
+    run a valid cell of the P10 comparison; a negative or non-finite hinge is
+    rejected rather than silently ignored by the branch.
+
+    ``detach_object`` (preregistered P10) detaches the *local* view of the object
+    surface, so this term's gradient reaches the hand only.  With it false, the
+    cheapest way to reduce the term is to drag the predicted object toward the
+    hand, which corrupts object placement.  The caller hands the same
+    ``predicted_surface`` tensor to the ``object_surface`` term; ``Tensor.detach``
+    returns a new view and never mutates the caller's tensor or its graph, so
+    object supervision through that term is unaffected.  Never use the in-place
+    ``detach_()`` here.
     """
+    hinge = float(hinge)
+    if not math.isfinite(hinge) or hinge < 0.0:
+        raise ValueError(
+            f"P8 geometry hinge must be a finite non-negative distance in metres, got {hinge}"
+        )
     if fk.ndim != 4 or fk.shape[2] < max(P8_PALM_JOINTS) + 1:
         raise ValueError(
             f"P8 geometry expects [B,T,>=24,3] FK joints, got {tuple(fk.shape)}"
@@ -73,6 +102,10 @@ def masked_hand_object_distance_loss(
     batch = fk.shape[0]
     palms = fk[:, active][:, :, P8_PALM_JOINTS, :]
     surface = object_surface[:, active]
+    if detach_object:
+        # Local view only: the caller's ``predicted_surface`` keeps its graph, so
+        # the separate ``object_surface`` reconstruction term is untouched.
+        surface = surface.detach()
     frames = palms.shape[1]
     if surface.shape[1] != frames:
         raise ValueError("P8 geometry object surface and FK differ in frame count")
@@ -84,7 +117,13 @@ def masked_hand_object_distance_loss(
         surface.reshape(batch * frames, -1, 3),
     )
     nearest = distances.min(dim=-1)[0].reshape(batch, frames, len(P8_PALM_JOINTS))
-    per_frame = nearest.square().mean(dim=-1)
+    if hinge > 0.0:
+        per_frame = (nearest - hinge).clamp_min(0.0).square().mean(dim=-1)
+    else:
+        # Literal sealed pre-P10 expression.  Do not fold this into the hinged
+        # branch with hinge=0: the weight-3 cell of the P10 comparison is reused
+        # from a sealed run and only stays valid while this path is bit-identical.
+        per_frame = nearest.square().mean(dim=-1)
     weight = engaged.to(per_frame)
     # clamp_min keeps the gradient defined when a batch holds no contact frames.
     return (per_frame * weight).sum() / weight.sum().clamp_min(1.0)
@@ -194,6 +233,8 @@ def hoi_training_losses(
     velocity_weight: float = 0.1,
     goal_weight: float = 1.0,
     hand_object_contact_weight: float = 0.0,
+    hand_object_contact_hinge: float = 0.0,
+    hand_object_contact_detach_object: bool = False,
     fk_foot_temporal_routing: bool = False,
     routed_foot_residual_multiplier: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
@@ -273,6 +314,11 @@ def hoi_training_losses(
     if hand_object_contact_weight != 0.0:
         losses["hand_object_contact_geometry"] = masked_hand_object_distance_loss(
             fk, predicted_surface, target[:, :, 228:232],
+            # ``predicted_surface`` is the same tensor the ``object_surface`` term
+            # above consumes; the detach below is applied to a local view inside
+            # the callee and therefore cannot weaken that supervision.
+            hinge=float(hand_object_contact_hinge),
+            detach_object=bool(hand_object_contact_detach_object),
         )
     reconstruction = sum(losses[name] for name in (
         "joint_position", "joint_rotation", "object_translation", "object_rotation", "contact",

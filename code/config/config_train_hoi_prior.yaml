@@ -37,6 +37,14 @@ fk_weight: 50.0
 object_surface_weight: 50.0
 velocity_weight: 0.1
 goal_weight: 1.0
+# Preregistered P8 hand-object relative geometry term and its P10 repair flags.
+# ``hand_object_contact_weight`` is deliberately not declared here: it stays 0.0
+# for every configuration sealed before P8 and the trainer reads it with a 0.0
+# default, so only the arm configs that use the term set it.  The two P10 flags
+# are declared so that a resolved job config always states the objective shape.
+# hinge is in metres; 0.0 keeps the literal sealed squared-distance expression.
+hand_object_contact_hinge: 0.0
+hand_object_contact_detach_object: false
 
 window_frames: 16
 history_frames: 2
