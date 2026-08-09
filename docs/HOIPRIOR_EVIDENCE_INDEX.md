@@ -313,6 +313,35 @@ is therefore a cross-protocol quantity that overstates the model deficit.
     **model-side additions get absorbed as generic residuals.** Do not revisit without a
     mechanism that addresses absorption directly.
 
+14. **A GT-contact-masked hand-object relative geometry training term is the first training-side
+    intervention to close the engagement gap — selected weight is 3.** P8-P9-P9b-P9c swept
+    `hand_object_contact_weight` ∈ {1,3,5,8,10,15,50} at fixed 299.52M budget, all evaluated with
+    sealed guidance (`contact_weight=3`, `object_goal_weight=1`). Winner **W3 (weight=3)**:
+    `contact_percent` 0.64230 (gap +0.020 to GT 0.66188, ~84% closed), `contact_f1` 0.77886,
+    `mpjpe` 12.313 (+0.569 vs no-geometry baseline). This directly contrasts with the D2-AJ-style
+    "model-side additions get absorbed" pattern: the geometry term acts on the loss, not the
+    network, so it cannot be absorbed as a residual. It also settles the P5/P6/U trilogy —
+    inference guidance provably cannot create engagement (Cell U showed perfect labels make
+    contact *worse*), and the deficit was confirmed training-side. See
+    `experiments/results/p1_hoi_p8_p9_geometry_weight_sweep_sealed_s42_20260809.json` and
+    `docs/phase_summaries/PHASE_1B_P8_P9_GEOMETRY_WEIGHT_SWEEP.md`.
+
+15. **Contact gain saturates by weight ≤ 5; motion cost is nearly linear in weight.** Across the
+    eight-point dose-response at 299.52M: `contact_percent` rises sharply 0→1 (+0.083) then
+    decelerates (1→3 +0.024, 3→5 +0.009, 5→8 +0.002, 8→50 +0.010), while `mpjpe` delta grows
+    ~linearly with weight (+0.28/0.57/0.78/0.88/1.15/1.42/2.50 at w=1/3/5/8/10/15/50). Higher
+    weights (>5) trade three times the motion cost for ~1.7% more engagement — pure waste. The
+    Pareto frontier is W3-W5; W3 selected for lower `mpjpe` cost. W15 is an outlier (contact 0.644
+    below W10 0.657, hand_pen 0.571 worst) and not treated as signal.
+
+16. **The geometry term moved contact metrics ahead of the released model, at a motion cost.**
+    W3 vs released: `contact_percent` 0.64230 vs 0.59832 (ahead), `contact_f1` 0.77886 vs 0.72726
+    (ahead), `mpjpe` 12.313 vs 11.998 (worse by +0.31 cm), `hand_pen_loss_omomo` 0.2587 vs 0.16240
+    (worse). The hand is pulled toward the object, increasing penetration. Remaining shortfalls are
+    `hand_pen` (penetration) and `end_obj_trans_err` (3.99 vs released 3.04). Phase 1B's budget
+    lever (4.875×) remains the known complement: budget mitigates the geometry term's motion
+    damage (H1−L1 `mpjpe` −1.55 cm) while improving native motion (H0−L0 −0.31 cm).
+
 ## 4. Open research question for the next review
 
 The next candidate should explain why a relation path that is internally causal under
