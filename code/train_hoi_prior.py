@@ -2591,6 +2591,9 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "max_consecutive_amp_overflows": int(cfg.max_consecutive_amp_overflows),
         "fk_weight": float(cfg.fk_weight),
         "object_surface_weight": float(cfg.object_surface_weight),
+        # Preregistered P8; 0.0 for every configuration sealed before it, so the
+        # recorded contract still reproduces those runs exactly.
+        "hand_object_contact_weight": float(cfg.get("hand_object_contact_weight", 0.0)),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
         "weight_init_sha256": (
@@ -5048,6 +5051,11 @@ def _forward_losses(
     return hoi_training_losses(
         *positional,
         **weights,
+        # Preregistered P8 hand-object relative geometry term.  Kept out of the
+        # shared ``weights`` dict because the D2-Z and D2-AB loss variants above
+        # do not accept it; defaults to 0.0 so every sealed configuration keeps
+        # the exact objective it was trained with.
+        hand_object_contact_weight=float(cfg.get("hand_object_contact_weight", 0.0)),
         fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
         routed_foot_residual_multiplier=float(
             cfg.get("routed_foot_residual_multiplier", 1.0)

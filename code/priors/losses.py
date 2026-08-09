@@ -18,6 +18,78 @@ D2X_FOOT_XZ_VELOCITY_SLOTS = tuple(
     joint * 3 + component for joint in D2X_FOOT_JOINTS for component in (0, 2)
 )
 
+# Preregistered P8 hand-object relative geometry term.
+#
+# The palms in the 24-joint SMPL FK tensor, matching the author's inference
+# guidance (``code/guidance_loss.py:15-16`` uses ``l_palm_idx = 22`` and
+# ``r_palm_idx = 23``).  The existing ``hand_fk`` term reads FK joints
+# ``[20, 21, 22, 23]`` against target slots ``[20, 21, 25, 27]``, where 20/21 are
+# the wrists; this term deliberately uses the palms only.
+P8_PALM_JOINTS = (22, 23)
+# The ground-truth contact annotation carries the two hand-semantic channels
+# FIRST.  Measured over all 482 test annotation files: channel means are
+# 0.5810 / 0.5895 for channels 0-1 and 0.0083 / 0.0118 for channels 2-3, so
+# masking on the LAST two would engage only ~1.9% of frames and silently reduce
+# the whole term to a no-op.  The channels are strictly binary (each has exactly
+# two unique values, 0.0 and 1.0), so the threshold is not a free parameter:
+# ``> 0.5`` and ``> 0.95`` select identical frames.
+P8_CONTACT_HAND_CHANNELS = slice(0, 2)
+P8_CONTACT_THRESHOLD = 0.5
+
+
+def masked_hand_object_distance_loss(
+    fk: torch.Tensor,
+    object_surface: torch.Tensor,
+    contact_ground_truth: torch.Tensor,
+) -> torch.Tensor:
+    """Palm-to-object-surface squared distance, on ground-truth contact frames.
+
+    The existing ``hand_fk`` term is minimised when the palm reaches the GT palm
+    position, *regardless of where the model put the object*.  If the object
+    prediction is off, satisfying ``hand_fk`` therefore places the palm at a
+    point that is NOT on the predicted object surface -- which is exactly the
+    "committed to contact but the hand is far away" failure.  This term is
+    minimised only when the palm and the predicted object are mutually
+    consistent, so the two are complementary rather than redundant.
+
+    Restricted to GT contact frames: on non-contact frames there is no correct
+    palm-to-object distance to pull toward, and applying one would distort
+    locomotion and non-HOI arm poses.
+
+    Returns a mean over engaged frames, so the value does not scale with how
+    much of a batch happens to be in contact.
+    """
+    if fk.ndim != 4 or fk.shape[2] < max(P8_PALM_JOINTS) + 1:
+        raise ValueError(
+            f"P8 geometry expects [B,T,>=24,3] FK joints, got {tuple(fk.shape)}"
+        )
+    if object_surface.ndim != 4 or object_surface.shape[-1] != 3:
+        raise ValueError(
+            f"P8 geometry expects [B,T,V,3] object surface, got {tuple(object_surface.shape)}"
+        )
+    if contact_ground_truth.shape[:2] != fk.shape[:2]:
+        raise ValueError("P8 geometry contact labels differ from FK joints in [B,T]")
+    active = slice(REPRESENTATION.history_frames, None)
+    batch = fk.shape[0]
+    palms = fk[:, active][:, :, P8_PALM_JOINTS, :]
+    surface = object_surface[:, active]
+    frames = palms.shape[1]
+    if surface.shape[1] != frames:
+        raise ValueError("P8 geometry object surface and FK differ in frame count")
+    engaged = (
+        contact_ground_truth[:, active, P8_CONTACT_HAND_CHANNELS] > P8_CONTACT_THRESHOLD
+    ).any(dim=-1)
+    distances = torch.cdist(
+        palms.reshape(batch * frames, len(P8_PALM_JOINTS), 3),
+        surface.reshape(batch * frames, -1, 3),
+    )
+    nearest = distances.min(dim=-1)[0].reshape(batch, frames, len(P8_PALM_JOINTS))
+    per_frame = nearest.square().mean(dim=-1)
+    weight = engaged.to(per_frame)
+    # clamp_min keeps the gradient defined when a batch holds no contact frames.
+    return (per_frame * weight).sum() / weight.sum().clamp_min(1.0)
+
+
 
 def _fk_positions(
     root: torch.Tensor,
@@ -121,6 +193,7 @@ def hoi_training_losses(
     object_surface_weight: float = 50.0,
     velocity_weight: float = 0.1,
     goal_weight: float = 1.0,
+    hand_object_contact_weight: float = 0.0,
     fk_foot_temporal_routing: bool = False,
     routed_foot_residual_multiplier: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
@@ -197,14 +270,26 @@ def hoi_training_losses(
         predicted_surface[:, REPRESENTATION.history_frames:],
         target_surface[:, REPRESENTATION.history_frames:],
     )
+    if hand_object_contact_weight != 0.0:
+        losses["hand_object_contact_geometry"] = masked_hand_object_distance_loss(
+            fk, predicted_surface, target[:, :, 228:232],
+        )
     reconstruction = sum(losses[name] for name in (
         "joint_position", "joint_rotation", "object_translation", "object_rotation", "contact",
     ))
     losses["reconstruction"] = reconstruction
+    weighted_geometry = (
+        float(fk_weight) * losses["fk"]
+        + float(object_surface_weight) * losses["object_surface"]
+    )
+    if hand_object_contact_weight != 0.0:
+        weighted_geometry = (
+            weighted_geometry
+            + float(hand_object_contact_weight) * losses["hand_object_contact_geometry"]
+        )
     losses["total"] = (
         reconstruction
-        + float(fk_weight) * losses["fk"]
-        + float(object_surface_weight) * losses["object_surface"]
+        + weighted_geometry
         + float(velocity_weight) * losses["velocity"]
         + float(goal_weight) * losses["object_goal"]
     )

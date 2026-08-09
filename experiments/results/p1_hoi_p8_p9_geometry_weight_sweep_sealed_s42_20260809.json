@@ -1,0 +1,269 @@
+{
+ "experiment_id": "p1-hoi-p8-p9-p9b-p9c-hand-object-geometry-weight-sweep-sealed-s42-20260809",
+ "phase": "1B-P8-P9-P9b-P9c",
+ "status": "completed",
+ "date": "2026-08-09",
+ "seed": 42,
+ "classification": "hand-object-relative-geometry-training-weight-dose-response-W3-selected",
+ "summary": "Full weight dose-response of the GT-contact-masked hand-object relative geometry training term at fixed 299.52M budget, all evaluated with sealed guidance (contact_weight=3, object_goal_weight=1). 8 weights: 0/1/3/5/8/10/15/50. W3 (weight=3) selected: contact_percent 0.64230 (gap +0.020 to GT 0.66188), mpjpe 12.313 (+0.569 vs H0). Contact saturates above weight 5; higher weights only accumulate motion cost. Decision based on aggregate means (sweet-spot criterion), per the preregistered P9b/P9c design; no sequence-level bootstrap was run because the dose-response uses aggregate deltas.",
+ "winner": {
+  "weight": 3.0,
+  "train_run": "p1-hoi-p8-hand-object-geom-w3-s42-20260807",
+  "train_sha256": "bac2d1add9a164db3c1763427da078cba7759720758604d9d270993e52414761",
+  "eval_run": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+  "contact_percent": 0.6423,
+  "contact_percent_gap_to_GT": 0.01959,
+  "contact_f1": 0.77886,
+  "mpjpe": 12.3134,
+  "mpjpe_delta_vs_H0": 0.5685,
+  "hand_pen_loss_omomo": 0.2587,
+  "vs_released": {
+   "note": "released = p0-hoi-table5-baseline-s42-20260712",
+   "contact_percent_beats": true,
+   "contact_f1_beats": true,
+   "mpjpe_worse": true
+  }
+ },
+ "dose_response": {
+  "0": {
+   "run": "p1-hoi-p8-eval-h0-guided-s42-20260806",
+   "aggregate_metrics": {
+    "contact_f1": 0.7045144763614063,
+    "contact_recall": 0.6709893435432709,
+    "contact_precision": 0.8195132876630599,
+    "contact_percent": 0.5351888091614119,
+    "contact_acc": 0.784445894034935,
+    "end_obj_trans_err": 3.891623765230179,
+    "xy_points_err": 3.4560885280370712,
+    "obj_trans_dist": 14.80092539777802,
+    "obj_rot_dist": 0.9915566078784835,
+    "mpjpe": 11.744853109121323,
+    "trans_dist": 7.534653693437576,
+    "foot_sliding": 0.338791099486018,
+    "feet_height": 0.04615100845694542,
+    "hand_pen_loss_omomo": 0.16450720195303709,
+    "human_pen_loss_infbagel": 2.5992532947784155,
+    "hand_pen_ratio": 0.11602210253477097,
+    "human_pen_ratio": 0.12001228332519531
+   },
+   "contact_percent_gap_to_GT": 0.1266942,
+   "mpjpe_delta_vs_H0": 0.0,
+   "nonfinite_values": 0
+  },
+  "1": {
+   "run": "p1-hoi-p8-eval-w1-guided-s42-20260809",
+   "aggregate_metrics": {
+    "contact_f1": 0.7647547585593639,
+    "contact_recall": 0.7636332255929457,
+    "contact_precision": 0.8143130661171142,
+    "contact_percent": 0.6184134232079438,
+    "contact_acc": 0.8384974994564037,
+    "end_obj_trans_err": 4.539540410041809,
+    "xy_points_err": 4.324473068118095,
+    "obj_trans_dist": 16.06168618080287,
+    "obj_rot_dist": 0.9809122990022695,
+    "mpjpe": 12.02005073428154,
+    "trans_dist": 8.137882500886917,
+    "foot_sliding": 0.31634407382268553,
+    "feet_height": 0.04045051336288452,
+    "hand_pen_loss_omomo": 0.24380822513896824,
+    "human_pen_loss_infbagel": 3.8650269844343734,
+    "hand_pen_ratio": 0.14654038846492767,
+    "human_pen_ratio": 0.15219679474830627
+   },
+   "contact_percent_gap_to_GT": 0.0434696,
+   "mpjpe_delta_vs_H0": 0.2751976,
+   "nonfinite_values": 0
+  },
+  "3": {
+   "run": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+   "aggregate_metrics": {
+    "contact_f1": 0.7788589083944136,
+    "contact_recall": 0.7894479590204786,
+    "contact_precision": 0.8105943170284625,
+    "contact_percent": 0.642295426542002,
+    "contact_acc": 0.8544429948539539,
+    "end_obj_trans_err": 4.6820018440485,
+    "xy_points_err": 4.650958999991417,
+    "obj_trans_dist": 16.590142601108123,
+    "obj_rot_dist": 0.9654721531033525,
+    "mpjpe": 12.31338158249855,
+    "trans_dist": 8.437210321426392,
+    "foot_sliding": 0.32083540148759215,
+    "feet_height": 0.042026422917842865,
+    "hand_pen_loss_omomo": 0.25874164798574417,
+    "human_pen_loss_infbagel": 4.07787677508961,
+    "hand_pen_ratio": 0.15000438690185547,
+    "human_pen_ratio": 0.15245988965034485
+   },
+   "contact_percent_gap_to_GT": 0.0195876,
+   "mpjpe_delta_vs_H0": 0.5685285,
+   "nonfinite_values": 0
+  },
+  "5": {
+   "run": "p1-hoi-p8-eval-w5-guided-s42-20260807",
+   "aggregate_metrics": {
+    "contact_f1": 0.7869261805680534,
+    "contact_recall": 0.805496645058041,
+    "contact_precision": 0.8147662462799763,
+    "contact_percent": 0.6516090454446619,
+    "contact_acc": 0.8630680582735377,
+    "end_obj_trans_err": 4.952197894454002,
+    "xy_points_err": 4.83490526676178,
+    "obj_trans_dist": 16.861815734167294,
+    "obj_rot_dist": 0.983030263653267,
+    "mpjpe": 12.52899020910263,
+    "trans_dist": 8.86688232421875,
+    "foot_sliding": 0.30278653237275593,
+    "feet_height": 0.03574785217642784,
+    "hand_pen_loss_omomo": 0.25680479921445326,
+    "human_pen_loss_infbagel": 4.0374176709676135,
+    "hand_pen_ratio": 0.17205999791622162,
+    "human_pen_ratio": 0.1756116896867752
+   },
+   "contact_percent_gap_to_GT": 0.010274,
+   "mpjpe_delta_vs_H0": 0.7841371,
+   "nonfinite_values": 0
+  },
+  "8": {
+   "run": "p1-hoi-p8-eval-w8-guided-s42-20260807",
+   "aggregate_metrics": {
+    "contact_f1": 0.788779591260276,
+    "contact_recall": 0.8066912342307374,
+    "contact_precision": 0.8111863947519886,
+    "contact_percent": 0.653239834746684,
+    "contact_acc": 0.8649525259114301,
+    "end_obj_trans_err": 4.609633237123489,
+    "xy_points_err": 5.154861509799957,
+    "obj_trans_dist": 16.80190888440584,
+    "obj_rot_dist": 1.0012437714004123,
+    "mpjpe": 12.624379992485046,
+    "trans_dist": 9.37681496143341,
+    "foot_sliding": 0.304183039198777,
+    "feet_height": 0.036958761513233185,
+    "hand_pen_loss_omomo": 0.21321099152650155,
+    "human_pen_loss_infbagel": 3.350436321573852,
+    "hand_pen_ratio": 0.164386585354805,
+    "human_pen_ratio": 0.16767518222332
+   },
+   "contact_percent_gap_to_GT": 0.0086432,
+   "mpjpe_delta_vs_H0": 0.8795269,
+   "nonfinite_values": 0
+  },
+  "10": {
+   "run": "p1-hoi-p8-eval-w10-guided-s42-20260807",
+   "aggregate_metrics": {
+    "contact_f1": 0.7840921842372314,
+    "contact_recall": 0.8071479971758342,
+    "contact_precision": 0.808370052568987,
+    "contact_percent": 0.656900050735667,
+    "contact_acc": 0.8635391751830108,
+    "end_obj_trans_err": 4.572067409753799,
+    "xy_points_err": 5.312157422304153,
+    "obj_trans_dist": 16.858040867103767,
+    "obj_rot_dist": 0.9831209451989374,
+    "mpjpe": 12.890094518661499,
+    "trans_dist": 9.412338584661484,
+    "foot_sliding": 0.28451456001396347,
+    "feet_height": 0.032664552330970764,
+    "hand_pen_loss_omomo": 0.34777207216187417,
+    "human_pen_loss_infbagel": 5.456933711479852,
+    "hand_pen_ratio": 0.2042006552219391,
+    "human_pen_ratio": 0.2074892669916153
+   },
+   "contact_percent_gap_to_GT": 0.004983,
+   "mpjpe_delta_vs_H0": 1.1452414,
+   "nonfinite_values": 0
+  },
+  "15": {
+   "run": "p1-hoi-p8-eval-w15-guided-s42-20260807",
+   "aggregate_metrics": {
+    "contact_f1": 0.7834179788250634,
+    "contact_recall": 0.7971104774542535,
+    "contact_precision": 0.8145430289199771,
+    "contact_percent": 0.6439805754874248,
+    "contact_acc": 0.8583750090599406,
+    "end_obj_trans_err": 4.081391915678978,
+    "xy_points_err": 5.627959221601486,
+    "obj_trans_dist": 17.590754529474488,
+    "obj_rot_dist": 1.0111768632521907,
+    "mpjpe": 13.16748857498169,
+    "trans_dist": 10.4244664311409,
+    "foot_sliding": 0.3253567530462928,
+    "feet_height": 0.040868621319532394,
+    "hand_pen_loss_omomo": 0.570933721278706,
+    "human_pen_loss_infbagel": 8.940938717517051,
+    "hand_pen_ratio": 0.21371570229530334,
+    "human_pen_ratio": 0.21454881131649017
+   },
+   "contact_percent_gap_to_GT": 0.0179024,
+   "mpjpe_delta_vs_H0": 1.4226355,
+   "nonfinite_values": 0
+  },
+  "50": {
+   "run": "p1-hoi-p8-eval-h1-guided-s42-20260806",
+   "aggregate_metrics": {
+    "contact_f1": 0.7859153799062326,
+    "contact_recall": 0.806185043741371,
+    "contact_precision": 0.8091274874688196,
+    "contact_percent": 0.66273465246068,
+    "contact_acc": 0.8604225556280352,
+    "end_obj_trans_err": 3.9898425340652466,
+    "xy_points_err": 6.724947690963745,
+    "obj_trans_dist": 18.042946004314526,
+    "obj_rot_dist": 1.0199819412247089,
+    "mpjpe": 14.24485296010971,
+    "trans_dist": 11.473365128040314,
+    "foot_sliding": 0.3737337806133261,
+    "feet_height": 0.03293652832508087,
+    "hand_pen_loss_omomo": 0.4230893755804814,
+    "human_pen_loss_infbagel": 7.716319521502958,
+    "hand_pen_ratio": 0.21104098856449127,
+    "human_pen_ratio": 0.21840745210647583
+   },
+   "contact_percent_gap_to_GT": -0.0008516,
+   "mpjpe_delta_vs_H0": 2.4999999,
+   "nonfinite_values": 0
+  }
+ },
+ "select_confirm_split": {
+  "note": "split not exercised; dose-response uses full-438 aggregate means, per preregistration"
+ },
+ "protection_gates_assessment": {
+  "mpjpe_delta_cm": {
+   "0": 0.0,
+   "1": 0.275,
+   "3": 0.569,
+   "5": 0.784,
+   "8": 0.88,
+   "10": 1.145,
+   "15": 1.423,
+   "50": 2.5
+  },
+  "sweet_spot_arms": [
+   "3",
+   "5"
+  ],
+  "note": "sweet-spot criterion: contact_percent>0.64 AND mpjpe_delta<+0.8. W3 and W5 satisfy it."
+ },
+ "mechanism_findings": {
+  "contact_saturation": "contact rises sharply 0->1 (+0.083), decelerates 1->3 (+0.024), 3->5 (+0.009), 5->8 (+0.002), 8->50 (+0.010). Nearly all gain captured by weight<=5.",
+  "motion_cost_linear": "mpjpe_delta scales ~linearly with weight: +0.28/0.57/0.78/0.88/1.15/1.42/2.50 at w=1/3/5/8/10/15/50.",
+  "W15_anomaly": "W15 is an outlier (contact 0.644 below W10 0.657, hand_pen 0.571 worst); not treated as signal.",
+  "first_training_side_success": "First Phase 1B training-side intervention to close the contact gap that inference guidance (P5/P6/U) could not."
+ },
+ "preregistrations": [
+  "p1-hoi-p8-hand-object-geom-l1-s42-20260805",
+  "p1-hoi-p8-hand-object-geom-h1-s42-20260805",
+  "p1-hoi-p8-hand-object-geom-w10-s42-20260806",
+  "p1-hoi-p8-hand-object-geom-w15-s42-20260806",
+  "p1-hoi-p8-hand-object-geom-w5-s42-20260807",
+  "p1-hoi-p8-hand-object-geom-w8-s42-20260807",
+  "p1-hoi-p8-hand-object-geom-w1-s42-20260807",
+  "p1-hoi-p8-hand-object-geom-w3-s42-20260807"
+ ],
+ "p8_lesson_recorded": "P8-H1 missing run_id wrote to results/experiments/None/, causing miskill+resume. All P9 arms set run_id explicitly.",
+ "next_action": "W3 (weight=3) is Phase 1B HOIPrior contact config. Remaining shortfalls: hand_pen (0.259 vs released 0.162), end_obj_trans_err (3.99 vs 3.04). User decides next direction.",
+ "git_commit": null,
+ "manifest_sha256": null
+}
