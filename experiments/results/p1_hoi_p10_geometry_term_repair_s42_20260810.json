@@ -1,0 +1,240 @@
+{
+ "schema_version": 1,
+ "experiment_id": "p1-hoi-p10-geometry-term-repair-s42-20260810",
+ "phase": "p1",
+ "subphase": "1B-P10",
+ "seed": 42,
+ "created_at": "2026-08-10",
+ "closes_preregistration": "p1-hoi-p10-geometry-term-repair-preregister-s42-20260809",
+ "design": "2x2 factorial: hand_object_contact_hinge {0.0, 0.02} x hand_object_contact_detach_object {false, true}; hand_object_contact_weight fixed at 3.0; 299,520,000 windows; seed 42; random init; evaluated on the unchanged official 438-sequence three-window 500-step protocol under the sealed P7 guidance",
+ "cells": {
+  "A00": {
+   "hinge": 0.0,
+   "detach": false,
+   "train": "p1-hoi-p8-hand-object-geom-w3-s42-20260807",
+   "eval": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+   "reused": true,
+   "host": "authority 8x3090 (4 GPUs)",
+   "aggregate_metrics": {
+    "end_obj_trans_err": 4.6820018440485,
+    "xy_points_err": 4.650958999991417,
+    "feet_height": 0.042026422917842865,
+    "foot_sliding": 0.32083540148759215,
+    "contact_acc": 0.8544429948539539,
+    "contact_precision": 0.8105943170284625,
+    "contact_recall": 0.7894479590204786,
+    "contact_f1": 0.7788589083944136,
+    "contact_percent": 0.642295426542002,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.31338158249855,
+    "trans_dist": 8.437210321426392,
+    "obj_trans_dist": 16.590142601108123,
+    "obj_rot_dist": 0.9654721531033525,
+    "hand_pen_loss_omomo": 0.25874164798574417,
+    "hand_pen_ratio": 0.15000438690185547,
+    "human_pen_loss_infbagel": 4.07787677508961,
+    "human_pen_ratio": 0.15245988965034485
+   }
+  },
+  "A10": {
+   "hinge": 0.02,
+   "detach": false,
+   "train": "p1-hoi-p10-geom-hinge-s42-20260809",
+   "eval": "p1-hoi-p10-eval-hinge-guided-s42-20260810",
+   "reused": false,
+   "host": "authority 8x3090 (GPU0-3)",
+   "aggregate_metrics": {
+    "end_obj_trans_err": 4.79988120496273,
+    "xy_points_err": 4.542285203933716,
+    "feet_height": 0.04441475495696068,
+    "foot_sliding": 0.32534316802521107,
+    "contact_acc": 0.836323113720374,
+    "contact_precision": 0.8069876736831069,
+    "contact_recall": 0.7666711284557794,
+    "contact_f1": 0.7623025108163898,
+    "contact_percent": 0.6263861709067189,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.309854477643967,
+    "trans_dist": 8.287663757801056,
+    "obj_trans_dist": 16.32679350889056,
+    "obj_rot_dist": 0.9735807850911319,
+    "hand_pen_loss_omomo": 0.24079214865154808,
+    "hand_pen_ratio": 0.15552926063537598,
+    "human_pen_loss_infbagel": 3.807394077327621,
+    "human_pen_ratio": 0.15899325907230377
+   },
+   "training": {
+    "status": "completed",
+    "optimizer_updates": 146250,
+    "terminal_checkpoint_sha256": "180d3bca486df8c68e2456be9f2b8363cdc9a3921c74b379b42aad7b27530d40",
+    "wall_hours": 21.882,
+    "throughput_windows_per_second": 3802.16,
+    "validation_records": 98,
+    "final_hand_object_contact_geometry": 0.003971180555945074
+   }
+  },
+  "A01": {
+   "hinge": 0.0,
+   "detach": true,
+   "train": "p1-hoi-p10-geom-detach-s42-20260809",
+   "eval": "p1-hoi-p10-eval-detach-guided-s42-20260810",
+   "reused": false,
+   "host": "authority 8x3090 (GPU4-7)",
+   "aggregate_metrics": {
+    "end_obj_trans_err": 7.9115502536296844,
+    "xy_points_err": 7.996264845132828,
+    "feet_height": 0.0478932186961174,
+    "foot_sliding": 0.3388754194447569,
+    "contact_acc": 0.835634558237298,
+    "contact_precision": 0.798699132933742,
+    "contact_recall": 0.7742037615226244,
+    "contact_f1": 0.762969181742755,
+    "contact_percent": 0.6380916141190114,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 13.33344429731369,
+    "trans_dist": 11.76418587565422,
+    "obj_trans_dist": 20.36381747567998,
+    "obj_rot_dist": 1.0570254789310007,
+    "hand_pen_loss_omomo": 0.3033771795740698,
+    "hand_pen_ratio": 0.184644415974617,
+    "human_pen_loss_infbagel": 4.76346874091667,
+    "human_pen_ratio": 0.1868806630373001
+   },
+   "training": {
+    "status": "completed",
+    "optimizer_updates": 146250,
+    "terminal_checkpoint_sha256": "0a9c55d1dfe0cfbebeff306295d302232a55504ecceacbec08a01abb32f4034a",
+    "wall_hours": 21.945,
+    "throughput_windows_per_second": 3791.29,
+    "validation_records": 98,
+    "final_hand_object_contact_geometry": 0.0069843435341949995
+   }
+  },
+  "A11": {
+   "hinge": 0.02,
+   "detach": true,
+   "train": "p1-hoi-p10-geom-both-s42-20260809",
+   "eval": "p1-hoi-p10-eval-both-guided-s42-20260810",
+   "reused": false,
+   "host": "worker node01 10.181.9.214, 4x3090 (hardware substitution; measured cost +15.3% wall, -13.2% throughput, +13.9% median checkpoint interval vs the authority-host arms)",
+   "aggregate_metrics": {
+    "end_obj_trans_err": 4.450764879584312,
+    "xy_points_err": 7.4210308492183685,
+    "feet_height": 0.047550324350595474,
+    "foot_sliding": 0.3663685714411583,
+    "contact_acc": 0.8304703921142279,
+    "contact_precision": 0.8055318023741299,
+    "contact_recall": 0.7569224046446367,
+    "contact_f1": 0.7589055559120839,
+    "contact_percent": 0.6198086540552294,
+    "gt_contact_percent": 0.6618830180474017,
+    "mpjpe": 12.806804478168488,
+    "trans_dist": 11.075794696807861,
+    "obj_trans_dist": 17.10081875810305,
+    "obj_rot_dist": 1.0068202616528412,
+    "hand_pen_loss_omomo": 0.2653394754338604,
+    "hand_pen_ratio": 0.17416469752788544,
+    "human_pen_loss_infbagel": 4.2035697929618765,
+    "human_pen_ratio": 0.17964573204517365
+   },
+   "training": {
+    "status": "completed",
+    "optimizer_updates": 146250,
+    "terminal_checkpoint_sha256": "20a9c98178c40d09693607d6bad4c1df52580a9b68a1b048a61c464398b45093",
+    "wall_hours": 25.223,
+    "throughput_windows_per_second": 3298.64,
+    "validation_records": 98,
+    "final_hand_object_contact_geometry": 0.0056978791879114905
+   }
+  }
+ },
+ "primary_rule": "selectable iff vs A00: hand_pen_loss_omomo sig lower AND human_pen_loss_infbagel sig lower AND contact_f1 NOT sig lower",
+ "primary_verdicts": {
+  "A10": {
+   "criterion_i_hand_pen_sig_lower": false,
+   "criterion_ii_human_pen_sig_lower": false,
+   "criterion_iii_contact_f1_not_sig_lower": false,
+   "selectable": false
+  },
+  "A01": {
+   "criterion_i_hand_pen_sig_lower": false,
+   "criterion_ii_human_pen_sig_lower": false,
+   "criterion_iii_contact_f1_not_sig_lower": false,
+   "selectable": false
+  },
+  "A11": {
+   "criterion_i_hand_pen_sig_lower": false,
+   "criterion_ii_human_pen_sig_lower": false,
+   "criterion_iii_contact_f1_not_sig_lower": false,
+   "selectable": false
+  }
+ },
+ "classification": "geometry-term-repair-negative-stop",
+ "selected_checkpoint": null,
+ "decision": "No cell satisfies PRIMARY. The sealed W3 configuration (hand_object_contact_weight=3, hinge=0, detach=false) remains the Phase 1B HOIPrior contact configuration. No checkpoint selected.",
+ "pre_run_predictions": {
+  "H1_hinge_lowers_both_penetration_terms": "PARTIAL: direction correct at both detach levels, but non-significant at detach=0 (hand_pen -0.0179 [-0.0424,+0.0076]; human_pen -0.2705 [-0.6589,+0.1372]). The hinge MAIN EFFECT is significant on both only because it is dominated by rescuing the detach arm.",
+  "H2_hinge_contact_neutral_under_0p02": "HELD: contact_percent 0.64230 -> 0.62639, delta -0.0159, inside the preregistered 0.02 band.",
+  "H3_detach_lowers_end_obj_objtrans_trans": "FALSIFIED, and in the opposite direction by large significant margins: end_obj +3.2279 [+2.8110,+3.6313], obj_trans_dist +3.7737, trans_dist +3.3270.",
+  "H4_detach_contact_percent_above_0p60": "HELD: A01 0.63809, A11 0.61981."
+ },
+ "key_findings": [
+  "The zero-distance target is NOT the cause of the penetration deficit. No cell puts hand_pen_loss_omomo or human_pen_loss_infbagel significantly below W3. The mechanism this sub-phase was built on is refuted.",
+  "The object gradient in the geometry term is load-bearing rather than parasitic, but only because the target is zero-distance: detach alone is catastrophic while detach+hinge recovers end_obj to slightly better than W3 (n.s.).",
+  "The hinge x detach interaction is significant and large on EVERY object/motion metric and absent on EVERY contact and penetration metric. That split is itself the mechanistic evidence: the two factors act on different pathways - the hinge on the term's own value, the detach on where its gradient lands. Neither main effect is interpretable alone, and this statement is only available because the 2x2 was completed rather than truncated after the two main-effect cells.",
+  "Retroactive uncertainty for the P8/P9 seal: W3 vs H0 is 2 significant gains (both contact) against 9 significant degradations on a 438-sequence paired bootstrap, a more one-sided trade than aggregate means showed."
+ ],
+ "limitations": [
+  "contact_percent is a point estimate only: the evaluator computes it per sequence but does not persist it, and the official 438 entry point was off-limits per the preregistration.",
+  "A00/W3 has no hand_object_contact_geometry in its training metrics because P8 shipped the term without a LOSS_KEYS entry; the recorder was added in P10 (91232ad). The geometry-term training curve is three-way, not four-way.",
+  "PROVENANCE: A10/A01 launched at commit 91232ad, but their metrics.json records 5d39ac3. _git_commit() is resolved live at metrics-write time (code/train_hoi_prior.py:6251) and metrics.json is written only at the end of the run, so commits landing mid-run retroactively become that run's recorded provenance. THREE commits landed while A10/A01 were running: 981b9b0 (A11 config, ~18:55, first), b51c3b3 (registry repair) and 5d39ac3 (bootstrap tool); the recorded value is simply the last one. A11 escaped only because AGENTS.md forbids worker source edits mid-run, so the worker was pinned at 981b9b0 - insulation by rule, not by foresight. Verified independently by two sessions: git diff 91232ad..5d39ac3 -- code/ touches exactly one file, config_train_hoi_prior_p10_both.yaml (A11's config), which A10/A01 never load; train_hoi_prior.py, priors/losses.py and their own configs are byte-identical across that range. The executed objective, data and training code are provably those of 91232ad and the 2x2's internal validity is intact, but the record asserts a commit that did not exist at launch. Fix belongs in a later change - resolve the commit at run START and carry it in the record, rather than calling git rev-parse at metrics-write time.",
+  "end_obj_trans_err differs slightly between the aggregate (pre-interpolation final frame) and per-sequence (post-interpolation) definitions; the bootstrap uses the per-sequence values."
+ ],
+ "uncertainty": {
+  "method": "paired sequence-level bootstrap",
+  "sequences": 438,
+  "replicates": 10000,
+  "seed": 42,
+  "shared_resample_index": true,
+  "percentiles": [
+   2.5,
+   97.5
+  ],
+  "source_file": "p1_hoi_p10_geometry_repair_2x2_s42_20260810.json",
+  "source_sha256": "e16fbc481e388b5f439b08a5237eb8823b5477e37d1e0b4d1ad3e663158140cc",
+  "resample_index_sha256": "1a22b313a8441d58b3f6db4947a76b426c09c3d611402bccbe31b75d4acd5724"
+ },
+ "next_action": "Reshaping the attraction term's target is ruled out as a penetration fix. The evidence now points at the objective having an attractor and no repulsor, and at hand pose/orientation rather than palm-to-surface distance, as the remaining candidate explanations for the penetration deficit. User decides the next direction.",
+ "training_side_geometry_curve": {
+  "note": "A00/W3 absent: P8 shipped the term without a LOSS_KEYS entry; the recorder was added in P10 (91232ad).",
+  "A10_hinge": {
+   "wall_h": 21.88,
+   "windows_per_s": 3802,
+   "geom_train_mean": 0.00397,
+   "geom_val_last": 0.00269,
+   "val_total": 0.0697
+  },
+  "A01_detach": {
+   "wall_h": 21.95,
+   "windows_per_s": 3791,
+   "geom_train_mean": 0.00698,
+   "geom_val_last": 0.00417,
+   "val_total": 0.0772
+  },
+  "A11_both": {
+   "wall_h": 25.22,
+   "windows_per_s": 3299,
+   "geom_train_mean": 0.0057,
+   "geom_val_last": 0.00301,
+   "val_total": 0.0749,
+   "curve_first_mid_last": [
+    0.00942,
+    0.00256,
+    0.00301
+   ],
+   "wall_clock_note": "25.22 h vs ~21.9 h is the recorded cost of the worker hardware substitution, not an anomaly."
+  },
+  "reading": "The hinge arm settles lowest, consistent with the hinge removing the sub-2 cm portion of the penalty from the achievable minimum. This did NOT translate into a rollout penetration gain, which is the sub-phase's central negative."
+ },
+ "execution_note": "A11 ran concurrently on the 4-GPU worker node01 on the user's explicit instruction, including the 66->22 h arithmetic. That decision is what made the interaction term obtainable in one wave rather than two; a truncated 2x2 would have left both main effects uninterpretable. Measured substitution cost: 90801.07 s wall and 3298.64 windows/s against 78776.37/79002.08 s and 3802.16/3791.29 windows/s for the two authority arms."
+}

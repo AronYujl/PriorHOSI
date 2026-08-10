@@ -77,5 +77,8 @@ U 格 GT 掩码)三连证伪后,缺口被证明属于训练侧几何,且训练�
 ## 剩余短板
 
 - `hand_pen_loss_omomo` 0.259 vs released 0.162——手贴近后穿透增加,可考虑加穿透惩罚项
-- `end_obj_trans_err` 3.99 vs released 3.04——终点物体对齐
+- `end_obj_trans_err` 4.6820 vs released 3.0372(差 +1.645 cm)——终点物体对齐。**P10 收尾时更正**:此行原写
+  `3.99`,那是 w=50(H1)臂的 3.9898,不是 W3 的值;
+  `experiments/results/p1_hoi_p8_p9_geometry_weight_sweep_sealed_s42_20260809.json` 的 `dose_response`
+  数值一直是对的,只有叙述把它们张冠李戴,原文把缺口低估了约 73%。
 - 后续方向由用户决定。

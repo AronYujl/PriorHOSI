@@ -2,8 +2,9 @@
 
 Status: compact research handoff through D2-AG0, P1 protocol decomposition,
 P2 inference guidance, the D2-AH negative preflight, the P3 relation-field
-lineage under guidance, the P4 budget-metric curve and the D2-AI/D2-AJ
-long-budget arms, 2026-08-04.
+lineage under guidance, the P4 budget-metric curve, the D2-AI/D2-AJ
+long-budget arms, the P8-P9c hand-object geometry weight sweep and the P10
+geometry-term repair, 2026-08-10.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -338,9 +339,61 @@ is therefore a cross-protocol quantity that overstates the model deficit.
     W3 vs released: `contact_percent` 0.64230 vs 0.59832 (ahead), `contact_f1` 0.77886 vs 0.72726
     (ahead), `mpjpe` 12.313 vs 11.998 (worse by +0.31 cm), `hand_pen_loss_omomo` 0.2587 vs 0.16240
     (worse). The hand is pulled toward the object, increasing penetration. Remaining shortfalls are
-    `hand_pen` (penetration) and `end_obj_trans_err` (3.99 vs released 3.04). Phase 1B's budget
-    lever (4.875×) remains the known complement: budget mitigates the geometry term's motion
-    damage (H1−L1 `mpjpe` −1.55 cm) while improving native motion (H0−L0 −0.31 cm).
+    `hand_pen` (penetration) and `end_obj_trans_err` (**4.6820** vs released 3.0372, a **+1.645 cm** gap).
+    Phase 1B's budget lever (4.875×) remains the known complement: budget mitigates the geometry term's
+    motion damage (H1−L1 `mpjpe` −1.55 cm) while improving native motion (H0−L0 −0.31 cm).
+    *Corrected at P10 closure (2026-08-10):* this line previously read `end_obj_trans_err` `3.99`, which is
+    the w=50 (H1) arm's `3.9898`, not W3's. The sealed sweep JSON's `dose_response` rows were always
+    correct and only the prose misattributed them; the true gap is +1.645 cm, so the shortfall had been
+    understated by about 73%.
+
+17. **Reshaping the geometry term's target is ruled out as a penetration fix: the zero-distance target is
+    not the cause of the penetration deficit.** P10 (2026-08-10) tested a 2x2 factorial repair of the P8
+    hand-object geometry term — hinge ∈ {0, 0.02 m} × detach-object ∈ {false, true} — at 299.52M windows
+    with `hand_object_contact_weight` **fixed at 3**, the sealed W3 arm reused as cell A00, all four cells
+    evaluated under the byte-identical sealed P7 guidance on the official 438 sequences, and a
+    10,000-replicate paired sequence bootstrap sharing one resample index across every cell and metric.
+    **No cell was selectable**; classification `geometry-term-repair-negative-stop`, no checkpoint
+    selected, and W3 (weight 3, hinge 0, detach false) remains the sealed contact configuration.
+    - The load-bearing negative: **no cell puts `hand_pen_loss_omomo` or `human_pen_loss_infbagel`
+      significantly below W3.** Hinge alone moves them in the predicted direction but not significantly
+      (`hand_pen` −0.01795 [−0.04243, +0.00757], `human_pen` −0.27048 [−0.65888, +0.13716], n=181);
+      detach alone makes both significantly *worse*; hinge+detach is null on both. The mechanism this
+      sub-phase was built on — that driving palm-joint-to-predicted-surface distance to zero forces the
+      surrounding hand vertices into the object — is **refuted**. All three new cells additionally lose
+      `contact_f1` significantly against W3, so criterion (iii) fails as well.
+    - **The hinge × detach interaction is significant and large on every object/motion metric and absent
+      on every contact and penetration metric, so neither main effect is interpretable alone**:
+      `end_obj_trans_err` −3.599 [−3.989, −3.217], `obj_trans_dist` −3.000 [−3.711, −2.300], `trans_dist`
+      −0.539 [−0.834, −0.241], `mpjpe` −0.523 [−0.838, −0.209], `pelvis_goal_error_cm` −0.467
+      [−0.745, −0.180] and `obj_rot_dist` −0.058 [−0.097, −0.020], while all three contact metrics, both
+      penetration losses, both penetration ratios and foot sliding cross zero.
+    - Concretely: **detach alone is catastrophic** for object placement (`end_obj_trans_err` +3.228
+      [+2.811, +3.631], `obj_trans_dist` +3.774, `trans_dist` +3.327, `mpjpe` +1.020, all significant),
+      **while detach+hinge recovers `end_obj_trans_err` to −0.246 [−0.630, +0.112]** — slightly better
+      than W3 and not significant. The object gradient in the geometry term is therefore load-bearing
+      rather than parasitic, but only because the target is zero-distance; hinging the target is what
+      makes detaching the object survivable.
+    - **P8/P9's aggregate-mean framing understated the W3-vs-H0 trade.** Re-reading the two sealed
+      per-sequence files under P10's shared resample index gives, for W3 against the no-geometry
+      baseline H0/D2-AI, **2 significant gains — both contact (`contact_f1` +0.0743
+      [+0.0559, +0.0932], `contact_recall` +0.1185 [+0.0942, +0.1428]) — against 9 significant
+      degradations** (`end_obj_trans_err`, `hand_pen_loss_omomo`, `hand_pen_ratio`,
+      `human_pen_loss_infbagel`, `human_pen_ratio`, `mpjpe`, `obj_trans_dist`, `pelvis_goal_error_cm`,
+      `trans_dist`), with 3 null. This is retroactive uncertainty on an already-sealed decision: it
+      rewrites no P8/P9 value and does not unseal W3, but conclusions 14-16 should be read against it.
+      The full per-metric table, its two input per-sequence hashes and the shared resample index are
+      recorded under `results.retroactive_w3_vs_h0` of the P10 outcome registry row.
+    - Caveat carried forward: `contact_percent` is a point estimate only (the evaluator computes it per
+      sequence but does not persist it, and the official 438-sequence entry point was off-limits per the
+      preregistration). The protection floor `contact_percent ≥ 0.60` held in every cell
+      (A00 0.64230, A10 0.62639, A01 0.63809, A11 0.61981).
+
+    See `experiments/results/p1_hoi_p10_geometry_term_repair_s42_20260810.json` (decision) and
+    `experiments/results/p1_hoi_p10_geometry_repair_2x2_s42_20260810.json` (full factorial bootstrap),
+    plus the registry rows `p1-hoi-p10-geom-{hinge,detach,both}-s42-20260809`,
+    `p1-hoi-p10-eval-{hinge,detach,both}-guided-s42-20260810` and the outcome row
+    `p1-hoi-p10-geometry-term-repair-s42-20260810`.
 
 ## 4. Open research question for the next review
 

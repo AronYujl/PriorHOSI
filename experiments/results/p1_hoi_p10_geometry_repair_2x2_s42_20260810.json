@@ -1,0 +1,2389 @@
+{
+  "bootstrap": {
+    "cell_mean_note": "cell means under 'cell_summaries' are taken over each cell's own observed sequences, so a difference of two cell means need not equal the corresponding contrast when some cell has missing observations; the contrast is the complete-case quantity and is authoritative",
+    "covariance_note": "each contrast is formed per sequence first and then resampled, so main effects and the interaction carry the correct covariance between the four cells; combining separately bootstrapped pairwise reports would not",
+    "missing_value_rule": "a contrast column is built by arithmetic over the cells it needs, so NaN propagation restricts it to the complete-case subset of exactly those cells; excluded via np.nanmean",
+    "paired": true,
+    "per_replicate_contrasts": true,
+    "percentile_method": "linear",
+    "percentiles": [
+      2.5,
+      97.5
+    ],
+    "replicates": 10000,
+    "resample_index_sha256": "1a22b313a8441d58b3f6db4947a76b426c09c3d611402bccbe31b75d4acd5724",
+    "resample_unit": "sequence",
+    "seed": 42,
+    "shared_across": "all four cells, all contrasts and all metrics",
+    "shared_resample_index_matrix": true,
+    "significance_rule": "confidence interval strictly excludes zero"
+  },
+  "cell_summaries": {
+    "contact_f1": {
+      "a00": {
+        "mean": 0.7788589083944136,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 0.762969181742755,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 0.7623025108163898,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 0.7589055559120839,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "contact_precision": {
+      "a00": {
+        "mean": 0.8105943170284625,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 0.798699132933742,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 0.8069876736831069,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 0.8055318023741299,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "contact_recall": {
+      "a00": {
+        "mean": 0.7894479590204786,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 0.7742037615226244,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 0.7666711284557794,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 0.7569224046446367,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "end_obj_trans_err": {
+      "a00": {
+        "mean": 4.69178380888905,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 7.9197068931657215,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 4.81714468763412,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 4.445926887939128,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "foot_sliding": {
+      "a00": {
+        "mean": 0.32083540148759215,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 0.3388754194447569,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 0.32534316802521107,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 0.3663685714411583,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "hand_pen_loss_omomo": {
+      "a00": {
+        "mean": 0.25874164798574417,
+        "n_observed": 181
+      },
+      "a01": {
+        "mean": 0.3033771795740698,
+        "n_observed": 181
+      },
+      "a10": {
+        "mean": 0.24079214865154808,
+        "n_observed": 181
+      },
+      "a11": {
+        "mean": 0.2653394754338604,
+        "n_observed": 181
+      },
+      "complete_case_n": 181
+    },
+    "hand_pen_ratio": {
+      "a00": {
+        "mean": 0.15000439230455548,
+        "n_observed": 181
+      },
+      "a01": {
+        "mean": 0.1846444018246884,
+        "n_observed": 181
+      },
+      "a10": {
+        "mean": 0.15552925525325767,
+        "n_observed": 181
+      },
+      "a11": {
+        "mean": 0.17416470245720603,
+        "n_observed": 181
+      },
+      "complete_case_n": 181
+    },
+    "human_pen_loss_infbagel": {
+      "a00": {
+        "mean": 4.07787677508961,
+        "n_observed": 181
+      },
+      "a01": {
+        "mean": 4.76346874091667,
+        "n_observed": 181
+      },
+      "a10": {
+        "mean": 3.8073940773276216,
+        "n_observed": 181
+      },
+      "a11": {
+        "mean": 4.2035697929618765,
+        "n_observed": 181
+      },
+      "complete_case_n": 181
+    },
+    "human_pen_ratio": {
+      "a00": {
+        "mean": 0.15245988654250597,
+        "n_observed": 181
+      },
+      "a01": {
+        "mean": 0.18688065555070152,
+        "n_observed": 181
+      },
+      "a10": {
+        "mean": 0.15899325598504663,
+        "n_observed": 181
+      },
+      "a11": {
+        "mean": 0.17964571620239903,
+        "n_observed": 181
+      },
+      "complete_case_n": 181
+    },
+    "mpjpe": {
+      "a00": {
+        "mean": 12.313383755584558,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 13.333444829741024,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 12.309854418107363,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 12.806802758411186,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "obj_rot_dist": {
+      "a00": {
+        "mean": 0.9654721531033464,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 1.0570254789310176,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 0.9735807850911276,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 1.006820261652839,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "obj_trans_dist": {
+      "a00": {
+        "mean": 16.590142601108123,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 20.36381747567998,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 16.326793508890564,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 17.10081875810305,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "pelvis_goal_error_cm": {
+      "a00": {
+        "mean": 4.650959228569446,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 7.9962644538922945,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 4.542285175015937,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 7.421030466057802,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    },
+    "trans_dist": {
+      "a00": {
+        "mean": 8.43721016280387,
+        "n_observed": 438
+      },
+      "a01": {
+        "mean": 11.764185328767997,
+        "n_observed": 438
+      },
+      "a10": {
+        "mean": 8.28766424302437,
+        "n_observed": 438
+      },
+      "a11": {
+        "mean": 11.075794433145763,
+        "n_observed": 438
+      },
+      "complete_case_n": 438
+    }
+  },
+  "contrasts": {
+    "a00_minus_a00": {
+      "cells_required_finite": [
+        "a00"
+      ],
+      "form": "a00 - a00",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_precision": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "foot_sliding": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_ratio": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "mpjpe": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "obj_rot_dist": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "obj_trans_dist": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "trans_dist": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "null_hypothesis": "trivially true; a non-zero value here means the machinery is broken",
+      "positive_means": "nothing: this is the self-control row and must be exactly 0.0 with a degenerate interval [0.0, 0.0]"
+    },
+    "a01_minus_a00": {
+      "cells_required_finite": [
+        "a00",
+        "a01"
+      ],
+      "form": "a01 - a00",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.029258439896836682,
+            -0.0025838553239126917
+          ],
+          "crosses_zero": false,
+          "difference": -0.01588972665165852,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_precision": {
+          "ci": [
+            -0.024712351166243197,
+            0.0005509089175594016
+          ],
+          "crosses_zero": true,
+          "difference": -0.011895184094720648,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.03236150782832126,
+            0.0018898943803661577
+          ],
+          "crosses_zero": true,
+          "difference": -0.015244197497854254,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            2.8110396936956143,
+            3.6313044948574027
+          ],
+          "crosses_zero": false,
+          "difference": 3.227923084276671,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            -0.008562843944387619,
+            0.044653649170165025
+          ],
+          "crosses_zero": true,
+          "difference": 0.018040017957164683,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            0.006777670679676025,
+            0.08113066599064062
+          ],
+          "crosses_zero": false,
+          "difference": 0.04463553158832565,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            0.015562519957143391,
+            0.05529839395008968
+          ],
+          "crosses_zero": false,
+          "difference": 0.034640009520132894,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            0.08620641233904947,
+            1.2643629349213248
+          ],
+          "crosses_zero": false,
+          "difference": 0.6855919658270598,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_ratio": {
+          "ci": [
+            0.014854110794471605,
+            0.05537823261002577
+          ],
+          "crosses_zero": false,
+          "difference": 0.03442076900819553,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "mpjpe": {
+          "ci": [
+            0.7736436176415721,
+            1.2659174878762602
+          ],
+          "crosses_zero": false,
+          "difference": 1.0200610741564673,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            0.056747118676315995,
+            0.1263828704137829
+          ],
+          "crosses_zero": false,
+          "difference": 0.09155332582767117,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            3.1298434387389786,
+            4.432650189059736
+          ],
+          "crosses_zero": false,
+          "difference": 3.773674874571859,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            3.0423888572296085,
+            3.649780067225034
+          ],
+          "crosses_zero": false,
+          "difference": 3.345305225322848,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            2.981510945536264,
+            3.670315639451826
+          ],
+          "crosses_zero": false,
+          "difference": 3.3269751659641256,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "detach has no effect while hinge is held at level 0",
+      "positive_means": "cell a01 (hinge=0, detach=1) reports a LARGER value than the a00 reference cell"
+    },
+    "a10_minus_a00": {
+      "cells_required_finite": [
+        "a00",
+        "a10"
+      ],
+      "form": "a10 - a00",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.028554233160784415,
+            -0.004595286910967286
+          ],
+          "crosses_zero": false,
+          "difference": -0.01655639757802364,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_precision": {
+          "ci": [
+            -0.013433624964743509,
+            0.006482170141003286
+          ],
+          "crosses_zero": true,
+          "difference": -0.0036066433453557493,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.038105932100962414,
+            -0.007387948107043811
+          ],
+          "crosses_zero": false,
+          "difference": -0.022776830564699195,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -0.07638530205956286,
+            0.3257377162428056
+          ],
+          "crosses_zero": true,
+          "difference": 0.1253608787450708,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "foot_sliding": {
+          "ci": [
+            -0.018436014600861004,
+            0.027350828419477523
+          ],
+          "crosses_zero": true,
+          "difference": 0.004507766537618875,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.04243455464198828,
+            0.007569313780854594
+          ],
+          "crosses_zero": true,
+          "difference": -0.017949499334196067,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            -0.008971901058654665,
+            0.02070803918254901
+          ],
+          "crosses_zero": true,
+          "difference": 0.0055248629487021856,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -0.6588817327686407,
+            0.13715878253119107
+          ],
+          "crosses_zero": true,
+          "difference": -0.27048269776198863,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_ratio": {
+          "ci": [
+            -0.008175866815256776,
+            0.02213249841661586
+          ],
+          "crosses_zero": true,
+          "difference": 0.006533369442540638,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "mpjpe": {
+          "ci": [
+            -0.1685743837417465,
+            0.16751930606657775
+          ],
+          "crosses_zero": true,
+          "difference": -0.0035293374771941197,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "obj_rot_dist": {
+          "ci": [
+            -0.01724418521625303,
+            0.033160026346024184
+          ],
+          "crosses_zero": true,
+          "difference": 0.00810863198778105,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "obj_trans_dist": {
+          "ci": [
+            -0.5823542725486666,
+            0.05565358328983192
+          ],
+          "crosses_zero": true,
+          "difference": -0.2633490922175577,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            -0.2606147866521762,
+            0.04054048861968051
+          ],
+          "crosses_zero": true,
+          "difference": -0.10867405355350884,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "trans_dist": {
+          "ci": [
+            -0.3022350742881395,
+            0.011316145659683769
+          ],
+          "crosses_zero": true,
+          "difference": -0.14954591977950102,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "null_hypothesis": "hinge has no effect while detach is held at level 0",
+      "positive_means": "cell a10 (hinge=1, detach=0) reports a LARGER value than the a00 reference cell"
+    },
+    "a11_minus_a00": {
+      "cells_required_finite": [
+        "a00",
+        "a11"
+      ],
+      "form": "a11 - a00",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.03386204227569457,
+            -0.006010518970674626
+          ],
+          "crosses_zero": false,
+          "difference": -0.019953352482329614,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_precision": {
+          "ci": [
+            -0.015933883763832517,
+            0.005337138754604572
+          ],
+          "crosses_zero": true,
+          "difference": -0.005062514654332576,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.05069412491697028,
+            -0.014022481856224895
+          ],
+          "crosses_zero": false,
+          "difference": -0.032525554375842,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -0.6298684632403669,
+            0.11190394311921166
+          ],
+          "crosses_zero": true,
+          "difference": -0.24585692094992267,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "foot_sliding": {
+          "ci": [
+            0.01805382245408621,
+            0.073819416060466
+          ],
+          "crosses_zero": false,
+          "difference": 0.04553316995356615,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.027456544823254842,
+            0.04022444825435213
+          ],
+          "crosses_zero": true,
+          "difference": 0.006597827448116247,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            0.006553220754948103,
+            0.04369400731619989
+          ],
+          "crosses_zero": false,
+          "difference": 0.02416031015265054,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -0.40328726750819843,
+            0.6486662438335569
+          ],
+          "crosses_zero": true,
+          "difference": 0.12569301787226692,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_ratio": {
+          "ci": [
+            0.008917127815777604,
+            0.04743981699175295
+          ],
+          "crosses_zero": false,
+          "difference": 0.027185829659893038,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "mpjpe": {
+          "ci": [
+            0.28494819607500615,
+            0.7013396045924526
+          ],
+          "crosses_zero": false,
+          "difference": 0.49341900282662754,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            0.012648915156389006,
+            0.07068628560255312
+          ],
+          "crosses_zero": false,
+          "difference": 0.041348108549492564,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            -0.0005831299055910025,
+            1.0225914607634294
+          ],
+          "crosses_zero": true,
+          "difference": 0.5106761569949299,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            2.4958754992846095,
+            3.044303497166658
+          ],
+          "crosses_zero": false,
+          "difference": 2.7700712374883563,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            2.3521434407485606,
+            2.927000710238877
+          ],
+          "crosses_zero": false,
+          "difference": 2.638584270341892,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "the two factors together have no combined effect",
+      "positive_means": "cell a11 (both factors at level 1) reports a LARGER value than the a00 reference cell"
+    },
+    "a11_minus_a01": {
+      "cells_required_finite": [
+        "a01",
+        "a11"
+      ],
+      "form": "a11 - a01",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.017087207184015477,
+            0.008788139362457995
+          ],
+          "crosses_zero": true,
+          "difference": -0.004063625830671098,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_precision": {
+          "ci": [
+            -0.006581487752717104,
+            0.019687032771673163
+          ],
+          "crosses_zero": true,
+          "difference": 0.0068326694403880745,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.03274097502957535,
+            -0.0016697206273095287
+          ],
+          "crosses_zero": false,
+          "difference": -0.017281356877987746,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -3.8115840135282553,
+            -3.1369368077268613
+          ],
+          "crosses_zero": false,
+          "difference": -3.473780005226593,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            -0.0002267004687855542,
+            0.056118721526932085
+          ],
+          "crosses_zero": true,
+          "difference": 0.02749315199640147,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.07165983871688322,
+            -0.004005594660273846
+          ],
+          "crosses_zero": false,
+          "difference": -0.038037704140209405,
+          "direction": "negative",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            -0.023809525011364224,
+            0.003130929690033684
+          ],
+          "crosses_zero": true,
+          "difference": -0.010479699367482359,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -1.090151359082657,
+            -0.020626659936121294
+          ],
+          "crosses_zero": false,
+          "difference": -0.5598989479547929,
+          "direction": "negative",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_ratio": {
+          "ci": [
+            -0.020800714656391394,
+            0.006644815754522485
+          ],
+          "crosses_zero": true,
+          "difference": -0.007234939348302494,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "mpjpe": {
+          "ci": [
+            -0.768413630582086,
+            -0.2866432869798381
+          ],
+          "crosses_zero": false,
+          "difference": -0.5266420713298396,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            -0.0812569562095513,
+            -0.01971825922224529
+          ],
+          "crosses_zero": false,
+          "difference": -0.05020521727817861,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            -3.8444427049080225,
+            -2.6838349460180235
+          ],
+          "crosses_zero": false,
+          "difference": -3.2629987175769295,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            -0.8293501163947664,
+            -0.32378897792766015
+          ],
+          "crosses_zero": false,
+          "difference": -0.5752339878344916,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            -0.9384456036833527,
+            -0.4323089932895279
+          ],
+          "crosses_zero": false,
+          "difference": -0.6883908956222338,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "hinge has no effect while detach is held at level 1",
+      "positive_means": "cell a11 reports a LARGER value than cell a01, i.e. turning hinge on raises the metric while detach is held at level 1"
+    },
+    "a11_minus_a10": {
+      "cells_required_finite": [
+        "a10",
+        "a11"
+      ],
+      "form": "a11 - a10",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.015548600180961618,
+            0.008744208435567578
+          ],
+          "crosses_zero": true,
+          "difference": -0.003396954904305979,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_precision": {
+          "ci": [
+            -0.013279402450522402,
+            0.009836788741258332
+          ],
+          "crosses_zero": true,
+          "difference": -0.0014558713089768262,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.02615660408564562,
+            0.0060730061897205125
+          ],
+          "crosses_zero": true,
+          "difference": -0.00974872381114281,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -0.7517395856139779,
+            -0.002029339520727772
+          ],
+          "crosses_zero": false,
+          "difference": -0.3712177996949934,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            0.014711735361954217,
+            0.06749079593949323
+          ],
+          "crosses_zero": false,
+          "difference": 0.04102540341594728,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.004468101547805677,
+            0.05471979479109058
+          ],
+          "crosses_zero": true,
+          "difference": 0.024547326782312313,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            0.002964685790088153,
+            0.03503161060140411
+          ],
+          "crosses_zero": false,
+          "difference": 0.018635447203948354,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -0.055760057886504,
+            0.8669835408759938
+          ],
+          "crosses_zero": true,
+          "difference": 0.3961757156342556,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_ratio": {
+          "ci": [
+            0.004835112518329316,
+            0.03746566686879186
+          ],
+          "crosses_zero": false,
+          "difference": 0.0206524602173524,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "mpjpe": {
+          "ci": [
+            0.26803053330766147,
+            0.7223518894024227
+          ],
+          "crosses_zero": false,
+          "difference": 0.4969483403038217,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            0.0016763021196516256,
+            0.06430368301354421
+          ],
+          "crosses_zero": false,
+          "difference": 0.033239476561711515,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            0.2171116918526931,
+            1.335679582103661
+          ],
+          "crosses_zero": false,
+          "difference": 0.7740252492124876,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            2.606376942473604,
+            3.1536684916344084
+          ],
+          "crosses_zero": false,
+          "difference": 2.878745291041865,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            2.5000628909589424,
+            3.073595551546391
+          ],
+          "crosses_zero": false,
+          "difference": 2.7881301901213926,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "detach has no effect while hinge is held at level 1",
+      "positive_means": "cell a11 reports a LARGER value than cell a10, i.e. turning detach on raises the metric while hinge is held at level 1"
+    },
+    "interaction_hinge_x_detach": {
+      "cells_required_finite": [
+        "a00",
+        "a10",
+        "a01",
+        "a11"
+      ],
+      "form": "(a11 - a01) - (a10 - a00)",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.00501207760138192,
+            0.029980053537633125
+          ],
+          "crosses_zero": true,
+          "difference": 0.012492771747352539,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_precision": {
+          "ci": [
+            -0.008265979832823761,
+            0.028162058608622708
+          ],
+          "crosses_zero": true,
+          "difference": 0.010439312785743822,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.015383769555438196,
+            0.02621117015928538
+          ],
+          "crosses_zero": true,
+          "difference": 0.005495473686711449,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -3.9886141704461973,
+            -3.2169963753242707
+          ],
+          "crosses_zero": false,
+          "difference": -3.5991408839716645,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            -0.012456499860083339,
+            0.05947191465862055
+          ],
+          "crosses_zero": true,
+          "difference": 0.0229853854587826,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.05735510200580657,
+            0.019741013389933733
+          ],
+          "crosses_zero": true,
+          "difference": -0.020088204806013338,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            -0.03518701104266835,
+            0.002186151276586592
+          ],
+          "crosses_zero": true,
+          "difference": -0.016004562316184544,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -0.8885414756743032,
+            0.3523296928146857
+          ],
+          "crosses_zero": true,
+          "difference": -0.28941625019280426,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_ratio": {
+          "ci": [
+            -0.03311883533776209,
+            0.004858375476980739
+          ],
+          "crosses_zero": true,
+          "difference": -0.01376830879084313,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "mpjpe": {
+          "ci": [
+            -0.8375098985156308,
+            -0.20904179141520787
+          ],
+          "crosses_zero": false,
+          "difference": -0.5231127338526456,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            -0.09722091664000475,
+            -0.019594765849433225
+          ],
+          "crosses_zero": false,
+          "difference": -0.05831384926595966,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            -3.7108390407893044,
+            -2.300462171808235
+          ],
+          "crosses_zero": false,
+          "difference": -2.9996496253593716,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            -0.7453719266907196,
+            -0.17981573366283637
+          ],
+          "crosses_zero": false,
+          "difference": -0.46655993428098286,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            -0.833829471609687,
+            -0.2412538253702226
+          ],
+          "crosses_zero": false,
+          "difference": -0.5388449758427328,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "the two factors are additive: the effect of hinge is the same at both levels of detach",
+      "positive_means": "the effect of hinge is MORE POSITIVE when detach is on than when it is off; equivalently the effect of detach is more positive when hinge is on"
+    },
+    "main_effect_detach": {
+      "cells_required_finite": [
+        "a00",
+        "a10",
+        "a01",
+        "a11"
+      ],
+      "form": "0.5 * ((a01 - a00) + (a11 - a10))",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.01910882848709715,
+            -0.0004315287963522051
+          ],
+          "crosses_zero": false,
+          "difference": -0.009643340777982247,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_precision": {
+          "ci": [
+            -0.01470705664184169,
+            0.0011525436359627421
+          ],
+          "crosses_zero": true,
+          "difference": -0.006675527701848738,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.02562382636250165,
+            3.478196122646294e-05
+          ],
+          "crosses_zero": true,
+          "difference": -0.01249646065449853,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            1.0778457647486273,
+            1.7593394451102389
+          ],
+          "crosses_zero": false,
+          "difference": 1.4283526422908388,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            0.01009131109109006,
+            0.04909787151269139
+          ],
+          "crosses_zero": false,
+          "difference": 0.029532710686555972,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            0.006851926902517961,
+            0.062370787458532244
+          ],
+          "crosses_zero": false,
+          "difference": 0.03459142918531898,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            0.011690613315212685,
+            0.04263413779369957
+          ],
+          "crosses_zero": false,
+          "difference": 0.026637728362040626,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            0.10788574182675692,
+            0.9730273839200788
+          ],
+          "crosses_zero": false,
+          "difference": 0.5408838407306577,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_ratio": {
+          "ci": [
+            0.01222378124885031,
+            0.04391694295684781
+          ],
+          "crosses_zero": false,
+          "difference": 0.027536614612773968,
+          "direction": "positive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "mpjpe": {
+          "ci": [
+            0.5798973778972921,
+            0.9372246370132008
+          ],
+          "crosses_zero": false,
+          "difference": 0.7585047072301444,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            0.035753297800058,
+            0.08944681061601528
+          ],
+          "crosses_zero": false,
+          "difference": 0.06239640119469135,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            1.7825659728996965,
+            2.7801200395694834
+          ],
+          "crosses_zero": false,
+          "difference": 2.2738500618921735,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            2.8632512281794464,
+            3.364317697705701
+          ],
+          "crosses_zero": false,
+          "difference": 3.1120252581823564,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            2.7796719018975913,
+            3.3391604814774114
+          ],
+          "crosses_zero": false,
+          "difference": 3.057552678042759,
+          "direction": "positive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "detach has no average effect across the levels of hinge",
+      "positive_means": "averaged over both levels of hinge, turning detach on RAISES the metric"
+    },
+    "main_effect_hinge": {
+      "cells_required_finite": [
+        "a00",
+        "a10",
+        "a01",
+        "a11"
+      ],
+      "form": "0.5 * ((a10 - a00) + (a11 - a01))",
+      "metrics": {
+        "contact_f1": {
+          "ci": [
+            -0.01913101657607083,
+            -0.001213868477139959
+          ],
+          "crosses_zero": false,
+          "difference": -0.01031001170434737,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_precision": {
+          "ci": [
+            -0.00556455036513383,
+            0.008834081438457084
+          ],
+          "crosses_zero": true,
+          "difference": 0.0016130130475161622,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_recall": {
+          "ci": [
+            -0.030922858925958717,
+            -0.008768316898642938
+          ],
+          "crosses_zero": false,
+          "difference": -0.020029093721343465,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "end_obj_trans_err": {
+          "ci": [
+            -1.8739896057907743,
+            -1.4760976345689238
+          ],
+          "crosses_zero": false,
+          "difference": -1.6742095632407612,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "foot_sliding": {
+          "ci": [
+            -0.0016928236226207405,
+            0.03416925298828744
+          ],
+          "crosses_zero": true,
+          "difference": 0.01600045926701017,
+          "direction": "inconclusive",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "hand_pen_loss_omomo": {
+          "ci": [
+            -0.0509514147594178,
+            -0.006146477592128578
+          ],
+          "crosses_zero": false,
+          "difference": -0.027993601737202736,
+          "direction": "negative",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "hand_pen_ratio": {
+          "ci": [
+            -0.013000557954180944,
+            0.008443148805567345
+          ],
+          "crosses_zero": true,
+          "difference": -0.002477418209390087,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_pen_loss_infbagel": {
+          "ci": [
+            -0.7740297971750751,
+            -0.07216484117609401
+          ],
+          "crosses_zero": false,
+          "difference": -0.41519082285839076,
+          "direction": "negative",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_pen_ratio": {
+          "ci": [
+            -0.011094247598270912,
+            0.01073480760222159
+          ],
+          "crosses_zero": true,
+          "difference": -0.0003507849528809279,
+          "direction": "inconclusive",
+          "n": 181,
+          "n_dropped_nonfinite": 257,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "mpjpe": {
+          "ci": [
+            -0.40093035999574955,
+            -0.131414742857541
+          ],
+          "crosses_zero": false,
+          "difference": -0.2650857044035169,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_rot_dist": {
+          "ci": [
+            -0.0411991764042905,
+            -0.0007766270436772365
+          ],
+          "crosses_zero": false,
+          "difference": -0.021048292645198783,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "obj_trans_dist": {
+          "ci": [
+            -2.076009108867623,
+            -1.4615415985936449
+          ],
+          "crosses_zero": false,
+          "difference": -1.7631739048972437,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "pelvis_goal_error_cm": {
+          "ci": [
+            -0.495159163319965,
+            -0.18870605279417224
+          ],
+          "crosses_zero": false,
+          "difference": -0.34195402069400027,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "trans_dist": {
+          "ci": [
+            -0.5683306693928699,
+            -0.26748532334185254
+          ],
+          "crosses_zero": false,
+          "difference": -0.4189684077008674,
+          "direction": "negative",
+          "n": 438,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 438,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "null_hypothesis": "hinge has no average effect across the levels of detach",
+      "positive_means": "averaged over both levels of detach, turning hinge on RAISES the metric"
+    }
+  },
+  "design": {
+    "cell_naming": "a<factor1 level><factor2 level>",
+    "contrast_groups": {
+      "component_effects": [
+        "a10_minus_a00",
+        "a11_minus_a01",
+        "a01_minus_a00",
+        "a11_minus_a10"
+      ],
+      "interaction": [
+        "interaction_hinge_x_detach"
+      ],
+      "main_effects": [
+        "main_effect_hinge",
+        "main_effect_detach"
+      ],
+      "simple_effects_vs_a00": [
+        "a00_minus_a00",
+        "a10_minus_a00",
+        "a01_minus_a00",
+        "a11_minus_a00"
+      ]
+    },
+    "factor1": {
+      "level0_cells": [
+        "a00",
+        "a01"
+      ],
+      "level1_cells": [
+        "a10",
+        "a11"
+      ],
+      "name": "hinge"
+    },
+    "factor2": {
+      "level0_cells": [
+        "a00",
+        "a10"
+      ],
+      "level1_cells": [
+        "a01",
+        "a11"
+      ],
+      "name": "detach"
+    },
+    "group_note": "a contrast is listed once under 'contrasts' and may appear in two groups; a10_minus_a00 and a01_minus_a00 are both simple effects against a00 and components of a main effect",
+    "reference_cell": "a00"
+  },
+  "inputs": {
+    "a00": {
+      "bytes": 275581,
+      "cell": "a00",
+      "evaluation_seed": 42,
+      "label": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+      "path": "/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-p8-eval-w3-guided-s42-20260809/evaluation/per_sequence_metrics.json",
+      "schema_version": 1,
+      "sequence_count": 438,
+      "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+    },
+    "a01": {
+      "bytes": 275660,
+      "cell": "a01",
+      "evaluation_seed": 42,
+      "label": "p1-hoi-p10-eval-detach-guided-s42-20260810",
+      "path": "/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-p10-eval-detach-guided-s42-20260810/evaluation/per_sequence_metrics.json",
+      "schema_version": 1,
+      "sequence_count": 438,
+      "sha256": "e4e15150ac5d266e50f5ce52369a9e95631281be7dd402edcff96a78feb8cee0"
+    },
+    "a10": {
+      "bytes": 275763,
+      "cell": "a10",
+      "evaluation_seed": 42,
+      "label": "p1-hoi-p10-eval-hinge-guided-s42-20260810",
+      "path": "/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-p10-eval-hinge-guided-s42-20260810/evaluation/per_sequence_metrics.json",
+      "schema_version": 1,
+      "sequence_count": 438,
+      "sha256": "80f659a455700e66b19ac780a7eb7ac54fb42a8d88fe658c861b2290555f6e79"
+    },
+    "a11": {
+      "bytes": 276154,
+      "cell": "a11",
+      "evaluation_seed": 42,
+      "label": "p1-hoi-p10-eval-both-guided-s42-20260810",
+      "path": "/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-p10-eval-both-guided-s42-20260810/evaluation/per_sequence_metrics.json",
+      "schema_version": 1,
+      "sequence_count": 438,
+      "sha256": "ee240c30cd7b9b309aa6babc56f4fba866e2154a2fd9244fc203af42894691fc"
+    }
+  },
+  "interaction_identity_check": {
+    "all_agree": true,
+    "claim": "the two algebraic forms of the interaction are the same linear functional of the four cells and must agree to floating-point tolerance; a disagreement means a cell or a sign is wrong in this implementation",
+    "disagreeing_metrics": [],
+    "form_1": "(a11 - a01) - (a10 - a00)",
+    "form_2": "(a11 - a10) - (a01 - a00)",
+    "max_ci_difference": 4.440892098500626e-16,
+    "max_column_difference": 3.552713678800501e-15,
+    "per_metric": {
+      "contact_f1": {
+        "agrees": true,
+        "ci_max_abs_difference": 6.938893903907228e-18,
+        "column_max_abs_difference": 2.220446049250313e-16,
+        "tolerance": 2e-12
+      },
+      "contact_precision": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 3.469446951953614e-18,
+        "tolerance": 2e-12
+      },
+      "contact_recall": {
+        "agrees": true,
+        "ci_max_abs_difference": 3.469446951953614e-18,
+        "column_max_abs_difference": 1.1102230246251565e-16,
+        "tolerance": 2e-12
+      },
+      "end_obj_trans_err": {
+        "agrees": true,
+        "ci_max_abs_difference": 4.440892098500626e-16,
+        "column_max_abs_difference": 1.7763568394002505e-15,
+        "tolerance": 2.6274956741869422e-11
+      },
+      "foot_sliding": {
+        "agrees": true,
+        "ci_max_abs_difference": 3.469446951953614e-18,
+        "column_max_abs_difference": 2.220446049250313e-16,
+        "tolerance": 2.584089949490532e-12
+      },
+      "hand_pen_loss_omomo": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 3.988819219172001e-12
+      },
+      "hand_pen_ratio": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 2e-12
+      },
+      "human_pen_loss_infbagel": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 4.955684079229832e-11
+      },
+      "human_pen_ratio": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 2e-12
+      },
+      "mpjpe": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 3.5786006808280946e-11
+      },
+      "obj_rot_dist": {
+        "agrees": true,
+        "ci_max_abs_difference": 1.3877787807814457e-17,
+        "column_max_abs_difference": 2.220446049250313e-16,
+        "tolerance": 3.645656321836657e-12
+      },
+      "obj_trans_dist": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 3.552713678800501e-15,
+        "tolerance": 6.133790620385987e-11
+      },
+      "pelvis_goal_error_cm": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 2.647265887260437e-11
+      },
+      "trans_dist": {
+        "agrees": true,
+        "ci_max_abs_difference": 0.0,
+        "column_max_abs_difference": 0.0,
+        "tolerance": 3.9992103934288024e-11
+      }
+    },
+    "reported_form": "form_1",
+    "tolerance_rule": "atol 1e-12 + rtol 1e-12 * max |cell value| for that metric"
+  },
+  "metric_coverage": {
+    "analyzed": [
+      "contact_f1",
+      "contact_precision",
+      "contact_recall",
+      "end_obj_trans_err",
+      "foot_sliding",
+      "hand_pen_loss_omomo",
+      "hand_pen_ratio",
+      "human_pen_loss_infbagel",
+      "human_pen_ratio",
+      "mpjpe",
+      "obj_rot_dist",
+      "obj_trans_dist",
+      "pelvis_goal_error_cm",
+      "trans_dist"
+    ],
+    "excluded_non_numeric": [
+      "object_name"
+    ],
+    "excluded_not_in_every_cell": {}
+  },
+  "mode": "factorial_2x2",
+  "schema_version": 1,
+  "sequences": {
+    "expected_count": 438,
+    "matches_expected": true,
+    "order": "sorted-by-name",
+    "paired_across": [
+      "a00",
+      "a10",
+      "a01",
+      "a11"
+    ],
+    "paired_count": 438
+  },
+  "sign_convention": {
+    "direction": "positive means the first-named side of the stated form is LARGER; each contrast repeats this in its own 'positive_means' field",
+    "polarity_note": "this tool does not encode metric polarity, so 'larger' is not 'better': for penetration and error metrics (hand_pen_loss_omomo, human_pen_loss_infbagel, mpjpe, end_obj_trans_err) lower is better, for contact metrics (contact_f1, contact_recall) higher is better",
+    "significance_rule": "'crosses_zero' is false exactly when the interval strictly excludes zero; a degenerate interval at [0.0, 0.0] touches zero and is therefore reported as crossing it",
+    "units": "every reported quantity is a difference in the metric's own units, never a ratio or a percentage"
+  },
+  "tool": "tools/paired_bootstrap.py"
+}

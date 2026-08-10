@@ -263,7 +263,7 @@
   "p1-hoi-p8-hand-object-geom-w3-s42-20260807"
  ],
  "p8_lesson_recorded": "P8-H1 missing run_id wrote to results/experiments/None/, causing miskill+resume. All P9 arms set run_id explicitly.",
- "next_action": "W3 (weight=3) is Phase 1B HOIPrior contact config. Remaining shortfalls: hand_pen (0.259 vs released 0.162), end_obj_trans_err (3.99 vs 3.04). User decides next direction.",
+ "next_action": "W3 (weight=3) is Phase 1B HOIPrior contact config. Remaining shortfalls: hand_pen (0.259 vs released 0.162), end_obj_trans_err (4.6820 vs released 3.0372, a +1.645 cm gap). User decides next direction. CORRECTED AT P10 CLOSURE (2026-08-10): this narrative field previously read 'end_obj_trans_err (3.99 vs 3.04)'. 3.9898 is the w=50 (H1) arm's value, not W3's; W3's value is 4.6820 and is recorded correctly in this file's own dose_response rows, which are NOT edited by this correction. The true gap to released is +1.645 cm, so the shortfall had been understated by about 73%. The same misquote was corrected in the same pass in docs/phase_summaries/PHASE_1B_P8_P9_GEOMETRY_WEIGHT_SWEEP.md and docs/HOIPRIOR_EVIDENCE_INDEX.md conclusion 16. No numeric value in this file changed; see registry row p1-hoi-p10-geometry-term-repair-s42-20260810 for the closure record.",
  "git_commit": null,
  "manifest_sha256": null
 }
