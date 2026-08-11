@@ -22,7 +22,7 @@ from datasets.utils import zup_to_yup
 
 from .data import PriorWindowDataset
 from .interaction_adapter import BPS_SHA256, load_bps_partition
-from .window_codec import zup_to_yup_tensor
+from ..core.window_codec import zup_to_yup_tensor
 
 
 BPS_YUP_TENSOR_SHA256 = (

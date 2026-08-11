@@ -9,8 +9,8 @@ import torch
 import torch.nn.functional as F
 from pytorch3d import transforms
 
-from .representation import REPRESENTATION
-from .window_codec import project_to_so3
+from ..core.representation import REPRESENTATION
+from ..core.window_codec import project_to_so3
 
 
 D2X_FOOT_JOINTS = (7, 8, 10, 11)

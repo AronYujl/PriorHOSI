@@ -1,23 +1,28 @@
-"""Independent randomly initialized HOI and HSI experts.
+"""Independent randomly initialized HOI expert.
 
 The HOI network is deliberately scene-free.  Its condition tokens mirror the
 capacity of the released single-model Transformer while exposing only the
 Phase 1A HOI contract: language/progress, dynamic-object BPS, and object goal.
+
+``HSIPrior`` lives in ``priors.hsi.models``; ``build_expert``,
+``_time_embedding`` and ``assert_parameter_independence`` live in
+``priors.core.expert_api``.  ``build_expert`` is re-exported here so
+``from priors.hoi.models import build_expert`` keeps resolving.
 """
 
-import math
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
 
+from ..core.expert_api import _time_embedding, build_expert
+from ..core.representation import REPRESENTATION
 from .interaction_adapter import (
     LEGACY_BASIS_COORDINATE_SYSTEM,
     LOCAL_BASIS_COORDINATE_SYSTEM,
     LocalObjectInteractionAdapter,
 )
-from .representation import REPRESENTATION
 from .sparse_relation import (
     ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AE,
     D2AF_ARCHITECTURE_VARIANT as HOI_ARCHITECTURE_D2AF,
@@ -55,35 +60,6 @@ HOI_D2AJ_CONDITION_TOKENS = 6
 HOI_BASE_CONDITION_TOKENS = 4
 HOI_D2AJ_PELVIS_GOAL_CHANNELS = (0, 2)
 HOI_D2AJ_OBJECT_GOAL_SLICE = slice(6, 9)
-
-
-def _time_embedding(timesteps: torch.Tensor, width: int) -> torch.Tensor:
-    half = width // 2
-    frequencies = torch.exp(
-        -math.log(10000.0) * torch.arange(half, device=timesteps.device) / max(half - 1, 1)
-    )
-    angles = timesteps.float()[:, None] * frequencies[None]
-    value = torch.cat((angles.cos(), angles.sin()), dim=-1)
-    return value if width % 2 == 0 else torch.nn.functional.pad(value, (0, 1))
-
-
-class _PriorNetwork(nn.Module):
-    def __init__(self, condition_width: int, dim_model: int, num_heads: int, num_layers: int) -> None:
-        super().__init__()
-        self.input = nn.Linear(REPRESENTATION.dimension, dim_model)
-        self.condition = nn.Sequential(nn.Linear(condition_width, dim_model), nn.SiLU(), nn.Linear(dim_model, dim_model))
-        layer = nn.TransformerEncoderLayer(
-            d_model=dim_model, nhead=num_heads, dim_feedforward=dim_model * 4,
-            dropout=0.1, activation="gelu", batch_first=True, norm_first=True,
-        )
-        self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
-        self.output = nn.Linear(dim_model, REPRESENTATION.dimension)
-        self.dim_model = dim_model
-
-    def forward(self, noisy: torch.Tensor, timesteps: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
-        token = self.input(noisy)
-        token = token + self.condition(condition)[:, None] + _time_embedding(timesteps, self.dim_model)[:, None]
-        return self.output(self.transformer(token))
 
 
 class _HOICleanMotionNetwork(nn.Module):
@@ -441,51 +417,6 @@ class HOIPrior(nn.Module):
         )
 
 
-class HSIPrior(nn.Module):
-    """HSI consumes real scene occupancy features and exposes no object condition."""
-    def __init__(self, dim_model: int = 256, num_heads: int = 8, num_layers: int = 4) -> None:
-        super().__init__()
-        self.text = nn.Linear(768, 128)
-        self.scene = nn.Linear(8 * 8 * 8, 128)
-        self.goal_progress = nn.Linear(12, 64)
-        self.network = _PriorNetwork(320, dim_model, num_heads, num_layers)
-
-    def forward(
-        self, noisy: torch.Tensor, timesteps: torch.Tensor, text_embedding: torch.Tensor,
-        scene_condition: torch.Tensor, goals: torch.Tensor, progress: torch.Tensor,
-    ) -> torch.Tensor:
-        condition = torch.cat((
-            self.text(text_embedding), self.scene(scene_condition.flatten(1)),
-            self.goal_progress(torch.cat((goals, progress), dim=-1)),
-        ), dim=-1)
-        return self.network(noisy, timesteps, condition)
-
-
-def build_expert(
-    expert: str, *, init_checkpoint: Optional[str] = None, dim_model: int = 256,
-    num_heads: int = 8, num_layers: int = 4,
-    architecture_variant: str = HOI_ARCHITECTURE_BASE,
-    bps_path: Optional[str] = None,
-) -> nn.Module:
-    if init_checkpoint not in (None, "", False):
-        raise ValueError(
-            "HOIPrior/HSIPrior must be randomly initialized; released InfBaGel checkpoint initialization is forbidden"
-        )
-    if expert == "hoi":
-        return HOIPrior(
-            dim_model,
-            num_heads,
-            num_layers,
-            architecture_variant=architecture_variant,
-            bps_path=bps_path,
-        )
-    if expert == "hsi":
-        if architecture_variant != HOI_ARCHITECTURE_BASE:
-            raise ValueError("HOI architecture variants are forbidden for HSIPrior")
-        return HSIPrior(dim_model, num_heads, num_layers)
-    raise ValueError(f"unknown expert: {expert}")
-
-
 def load_trained_hoi_prior(
     checkpoint_path: str, device: torch.device, *, use_ema: bool = True,
     weight_variant: Optional[str] = None,
@@ -675,17 +606,3 @@ def load_trained_hoi_prior(
     metadata["weight_variant"] = weight_variant
     metadata["path"] = str(path)
     return model, metadata
-
-
-def assert_parameter_independence(first: nn.Module, second: nn.Module) -> None:
-    first_parameters = list(first.parameters())
-    second_parameters = list(second.parameters())
-    if {id(value) for value in first_parameters} & {id(value) for value in second_parameters}:
-        raise AssertionError("experts share Parameter objects")
-    def pointer(value: torch.Tensor) -> int:
-        storage = value.untyped_storage() if hasattr(value, "untyped_storage") else value.storage()
-        return storage.data_ptr()
-    first_storage = {pointer(value) for value in first_parameters}
-    second_storage = {pointer(value) for value in second_parameters}
-    if first_storage & second_storage:
-        raise AssertionError("experts share parameter storage")

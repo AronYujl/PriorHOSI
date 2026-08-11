@@ -8,7 +8,7 @@ from typing import Dict, Mapping, Sequence, Tuple
 import numpy as np
 import torch
 
-from .representation import REPRESENTATION
+from ..core.representation import REPRESENTATION
 
 
 TARGET_TIMESTEPS: Tuple[int, ...] = (0, 1, 10, 50, 100, 250, 498)

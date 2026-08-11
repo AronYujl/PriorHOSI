@@ -1,7 +1,14 @@
+"""HOIPrior expert tests: dataset, model API, checkpoint loader and diffusion.
+
+Split out of the pre-split ``tests/test_independent_priors.py`` at commit
+c77b9d8 with every assertion carried over verbatim.  The expert-agnostic half
+lives in ``tests/core/test_expert_contract.py``.
+"""
+
+import copy
 import inspect
 import json
 import os
-import copy
 import sys
 import tempfile
 import unittest
@@ -10,20 +17,17 @@ from pathlib import Path
 import numpy as np
 import torch
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
-from priors.contracts import HOI_CONTRACT, HSI_CONTRACT, validate_contract_paths
-from priors.data import PriorWindowDataset, hsi_filter, partition_for_scenes
-from priors.diffusion import GaussianDiffusion, normalize_progress
-from priors.losses import hoi_training_losses
-from priors.models import (
-    HSIPrior, HOIPrior, assert_parameter_independence, build_expert,
-    load_trained_hoi_prior,
-)
-from priors.representation import (
-    REPRESENTATION, masked_reconstruction_loss, transform_object_points_for_next_window,
-)
+from priors.core.contracts import HSI_CONTRACT
+from priors.core.expert_api import assert_parameter_independence, build_expert
+from priors.core.representation import masked_reconstruction_loss
+from priors.hoi.data import PriorWindowDataset, hsi_filter, partition_for_scenes
+from priors.hoi.diffusion import GaussianDiffusion, normalize_progress
+from priors.hoi.losses import hoi_training_losses
+from priors.hoi.models import HOIPrior, load_trained_hoi_prior
+from priors.hsi.models import HSIPrior
 from datasets.utils import get_smpl_parents
 
 
@@ -32,44 +36,9 @@ if WORKER_EXPERT not in {None, "hoi", "hsi"}:
     raise ValueError(f"invalid INFBAGEL_WORKER_EXPERT: {WORKER_EXPERT}")
 
 
-class RepresentationTests(unittest.TestCase):
-    def test_schema_is_contiguous_and_232_dimensional(self):
-        self.assertEqual(REPRESENTATION.dimension, 232)
-        self.assertEqual([(field.start, field.stop) for field in REPRESENTATION.fields], [
-            (0, 84), (84, 216), (216, 219), (219, 228), (228, 232),
-        ])
-        self.assertEqual(REPRESENTATION.window_frames, 16)
-        self.assertEqual(REPRESENTATION.history_frames, 2)
-        self.assertEqual(REPRESENTATION.diffusion_steps, 500)
-
-    def test_hsi_mask_removes_object_and_contact_loss_and_gradient(self):
-        prediction = torch.randn(2, 16, 232, requires_grad=True)
-        target = torch.randn_like(prediction)
-        loss = masked_reconstruction_loss(prediction, target, "hsi")
-        loss.backward()
-        self.assertGreater(float(prediction.grad[:, 2:, :216].abs().max()), 0.0)
-        self.assertEqual(float(prediction.grad[:, :, 216:].abs().max()), 0.0)
-        self.assertEqual(float(prediction.grad[:, :2].abs().max()), 0.0)
-
-    def test_hoi_mask_supervises_all_output_fields_after_history(self):
-        prediction = torch.zeros(1, 16, 232, requires_grad=True)
-        target = torch.ones_like(prediction)
-        masked_reconstruction_loss(prediction, target, "hoi").backward()
-        self.assertGreater(float(prediction.grad[:, 2:, 228:].abs().max()), 0.0)
-
-    def test_autoregressive_object_transform_uses_bps_dtype(self):
-        points = torch.tensor([[[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]]], dtype=torch.float32)
-        rotation = torch.eye(3, dtype=torch.float64).unsqueeze(0)
-        translation = torch.tensor([[[0.5, -1.0, 2.0]]], dtype=torch.float64)
-        transformed = transform_object_points_for_next_window(points, rotation, translation)
-        self.assertEqual(transformed.dtype, torch.float32)
-        torch.testing.assert_close(
-            transformed,
-            points + torch.tensor([0.5, -1.0, 2.0], dtype=torch.float32),
-        )
-
-
 class ContractTests(unittest.TestCase):
+    """Real OMOMO/LINGO dataset behaviour behind the contracts."""
+
     def test_hsi_dynamic_object_filter_is_exact(self):
         actual = hsi_filter(np.array([-1, 3, -1, 2]), np.array([-1, -1, 4, 5]))
         np.testing.assert_array_equal(actual, np.array([True, False, False, False]))
@@ -83,19 +52,6 @@ class ContractTests(unittest.TestCase):
         scenes = np.asarray(split["train"]["scenes"][:2] + split["validation"]["scenes"][:2])
         sides = partition_for_scenes(split, scenes)
         np.testing.assert_array_equal(sides, np.asarray(["train", "train", "validation", "validation"], dtype=object))
-
-    @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
-    def test_author_replaced_lingo_normalization_is_omomo_normalization(self):
-        validate_contract_paths(REPO)
-        np.testing.assert_array_equal(np.load(REPO / "data/dataset/norm.npy"), np.load(REPO / "data/train/norm.npy"))
-        self.assertIn("never recompute", HSI_CONTRACT.normalization)
-
-    def test_hoi_worker_contract_paths_require_no_lingo_assets(self):
-        validate_contract_paths(REPO, expert="hoi")
-
-    def test_hoi_contract_forbids_scene_and_hsi_forbids_object_supervision(self):
-        self.assertIn("forbidden", HOI_CONTRACT.scene_condition)
-        self.assertIn("forbidden", HSI_CONTRACT.object_condition)
 
     def test_real_hoi_item_exposes_only_authorized_conditions(self):
         hoi = PriorWindowDataset(str(REPO), "hoi", limit=1)[0]
@@ -136,6 +92,8 @@ class ContractTests(unittest.TestCase):
 
 
 class ExpertTests(unittest.TestCase):
+    """HOIPrior API, cross-expert independence and checkpoint loading."""
+
     def test_hoi_forward_api_has_no_scene_input(self):
         parameters = inspect.signature(HOIPrior.forward).parameters
         self.assertNotIn("scene", parameters)
@@ -152,11 +110,6 @@ class ExpertTests(unittest.TestCase):
         first = build_expert("hoi", dim_model=32, num_heads=4, num_layers=1)
         second = build_expert("hoi", dim_model=32, num_heads=4, num_layers=1)
         assert_parameter_independence(first, second)
-
-    def test_released_checkpoint_initialization_is_rejected(self):
-        for expert in ("hoi", "hsi"):
-            with self.assertRaisesRegex(ValueError, "randomly initialized"):
-                build_expert(expert, init_checkpoint="checkpoint/checkpoint.pth")
 
     def test_released_checkpoint_schema_is_rejected_by_evaluation_loader(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -237,6 +190,8 @@ class ExpertTests(unittest.TestCase):
 
 
 class HOITrainingTests(unittest.TestCase):
+    """Forward noising, the HOI reverse loop and the training losses."""
+
     def test_diffusion_keeps_two_history_frames_exactly_fixed(self):
         clean = torch.randn(3, 16, 232)
         steps = torch.tensor([0, 249, 499])

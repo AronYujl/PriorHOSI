@@ -26,10 +26,10 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "code"))
 
 from datasets.utils import zup_to_yup  # noqa: E402
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.diffusion import GaussianDiffusion, normalize_progress  # noqa: E402
-from priors.models import build_expert  # noqa: E402
-from priors.remediation import (  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.diffusion import GaussianDiffusion, normalize_progress  # noqa: E402
+from priors.hoi.models import build_expert  # noqa: E402
+from priors.hoi.remediation import (  # noqa: E402
     D0_TIMESTEPS,
     deterministic_derangement,
     field_squared_error,
@@ -37,7 +37,7 @@ from priors.remediation import (  # noqa: E402
     select_teacher_windows,
     selection_sha256,
 )
-from priors.representation import REPRESENTATION  # noqa: E402
+from priors.core.representation import REPRESENTATION  # noqa: E402
 
 
 EXPECTED_CHECKPOINT_SHA256 = "e50d5e7f3081d7740e9df3658883013ca509f7f313667cc3ddbec418de582583"

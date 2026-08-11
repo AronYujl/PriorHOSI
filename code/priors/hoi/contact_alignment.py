@@ -11,7 +11,7 @@ import torch
 
 from .optimizer_reset import paired_difference
 from .remediation import selection_sha256, stable_digest
-from .window_codec import project_to_so3
+from ..core.window_codec import project_to_so3
 
 
 RUN_ID = "p1-hoi-d2o-contact-alignment-r1-s42-20260716"

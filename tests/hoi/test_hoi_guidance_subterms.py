@@ -18,14 +18,14 @@ from unittest import mock
 import torch
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "code"))
 
 from guidance_loss import (
     apply_feet_floor_contact_guidance,
     apply_hoi_guidance_loss,
 )
-from priors.inference_guidance import (
+from priors.hoi.inference_guidance import (
     AUTHOR_FEET_WEIGHT,
     AUTHOR_HAND_WEIGHT,
     CONSISTENCY_NORMALIZATION_AUTHOR,
@@ -458,17 +458,17 @@ class GuidanceGradientRoutingTest(unittest.TestCase):
         self.batch, self.frames = 2, 16
 
     def _run(self, settings):
-        from priors.inference_guidance import guidance_gradient
+        from priors.hoi.inference_guidance import guidance_gradient
 
         clean = torch.zeros(
             self.batch, self.frames, 8, dtype=torch.float32
         ).requires_grad_(False)
         codec = _StubCodec(self.inputs)
         with mock.patch(
-            "priors.inference_guidance.decoded_fk_positions",
+            "priors.hoi.inference_guidance.decoded_fk_positions",
             side_effect=lambda decoded, *_: decoded["_fk"],
         ), mock.patch(
-            "priors.inference_guidance.transformed_object_vertices",
+            "priors.hoi.inference_guidance.transformed_object_vertices",
             side_effect=lambda *_: self.inputs["object_vertices"],
         ):
             gradient, loss, _ = guidance_gradient(

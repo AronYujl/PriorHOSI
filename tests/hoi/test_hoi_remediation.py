@@ -9,14 +9,14 @@ import torch
 import trimesh
 from pytorch3d import transforms
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from datasets.utils import get_smpl_parents, zup_to_yup
-from priors.data import PriorWindowDataset
-from priors.diffusion import GaussianDiffusion, prepare_clean_x0
-from priors.losses import hoi_training_losses
-from priors.remediation import (
+from priors.hoi.data import PriorWindowDataset
+from priors.hoi.diffusion import GaussianDiffusion, prepare_clean_x0
+from priors.hoi.losses import hoi_training_losses
+from priors.hoi.remediation import (
     bps_replay_equivalence_gate,
     deterministic_derangement,
     field_squared_error,
@@ -24,7 +24,7 @@ from priors.remediation import (
     select_teacher_windows,
     selection_sha256,
 )
-from priors.window_codec import (
+from priors.core.window_codec import (
     WindowFrame,
     project_to_so3,
     rotation_geodesic,

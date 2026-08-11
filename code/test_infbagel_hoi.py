@@ -13,9 +13,9 @@ import trimesh
 
 from utils import *
 from constants import *
-from priors.models import load_trained_hoi_prior
-from priors.representation import transform_object_points_for_next_window
-from priors.window_codec import WindowStateCodec, project_to_so3
+from priors.hoi.models import load_trained_hoi_prior
+from priors.core.representation import transform_object_points_for_next_window
+from priors.core.window_codec import WindowStateCodec, project_to_so3
 
 
 def sha256_file(path):

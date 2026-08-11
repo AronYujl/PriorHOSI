@@ -10,8 +10,8 @@ import numpy as np
 import torch
 from pytorch3d.ops import knn_points
 
-from .representation import REPRESENTATION
-from .window_codec import yup_to_zup_tensor
+from ..core.representation import REPRESENTATION
+from ..core.window_codec import yup_to_zup_tensor
 
 
 D0_TIMESTEPS: Tuple[int, ...] = (0, 1, 10, 50, 100, 250, 499)

@@ -19,10 +19,10 @@ from pathlib import Path
 import torch
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "code"))
 
-from priors.inference_guidance import (
+from priors.hoi.inference_guidance import (
     GuidanceAudit,
     GuidanceSettings,
     MASK_SOURCE_GROUND_TRUTH,

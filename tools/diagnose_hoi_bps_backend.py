@@ -25,9 +25,9 @@ sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
 from datasets.utils import zup_to_yup  # noqa: E402
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.remediation import select_internal_triples, selection_sha256  # noqa: E402
-from priors.window_codec import (  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.remediation import select_internal_triples, selection_sha256  # noqa: E402
+from priors.core.window_codec import (  # noqa: E402
     BPS_SHA256,
     project_to_so3,
     zup_to_yup_tensor,

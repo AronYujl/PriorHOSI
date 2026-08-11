@@ -23,11 +23,11 @@ sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
 from datasets.utils import zup_to_yup  # noqa: E402
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.diffusion import GaussianDiffusion, normalize_progress  # noqa: E402
-from priors.models import load_trained_hoi_prior  # noqa: E402
-from priors.remediation import select_internal_triples, selection_sha256  # noqa: E402
-from priors.window_codec import WindowFrame, project_to_so3  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.diffusion import GaussianDiffusion, normalize_progress  # noqa: E402
+from priors.hoi.models import load_trained_hoi_prior  # noqa: E402
+from priors.hoi.remediation import select_internal_triples, selection_sha256  # noqa: E402
+from priors.core.window_codec import WindowFrame, project_to_so3  # noqa: E402
 from tools.diagnose_hoi_remediation import physical_summary, stable_seed  # noqa: E402
 
 

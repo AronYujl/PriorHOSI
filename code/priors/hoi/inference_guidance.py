@@ -47,7 +47,7 @@ from .contact_guidance import (
     decoded_fk_positions,
     transformed_object_vertices,
 )
-from .representation import REPRESENTATION
+from ..core.representation import REPRESENTATION
 
 
 ARM_A = "a"

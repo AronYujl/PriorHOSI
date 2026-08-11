@@ -20,17 +20,17 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.diffusion import (  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.diffusion import (  # noqa: E402
     GaussianDiffusion,
     _extract,
     normalize_progress,
     prepare_clean_x0,
 )
-from priors.models import load_trained_hoi_prior  # noqa: E402
-from priors.remediation import select_internal_triples, selection_sha256  # noqa: E402
-from priors.representation import REPRESENTATION  # noqa: E402
-from priors.window_codec import project_to_so3  # noqa: E402
+from priors.hoi.models import load_trained_hoi_prior  # noqa: E402
+from priors.hoi.remediation import select_internal_triples, selection_sha256  # noqa: E402
+from priors.core.representation import REPRESENTATION  # noqa: E402
+from priors.core.window_codec import project_to_so3  # noqa: E402
 from tools.diagnose_hoi_d2p import D2_THRESHOLDS, TRACE_STEPS, field_error_per_sample, field_range  # noqa: E402
 from tools.diagnose_hoi_remediation import stack_items, stable_seed  # noqa: E402
 from tools.evaluate_hoi_remediation import global_goals, stack_frames  # noqa: E402

@@ -29,9 +29,9 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from datasets.utils import get_smpl_parents
-from priors.data import PriorWindowDataset
-from priors.d2ab import D2ABPriorWindowDataset, d2ab_hoi_training_losses
-from priors.d2ad import (
+from priors.hoi.data import PriorWindowDataset
+from priors.hoi.d2ab import D2ABPriorWindowDataset, d2ab_hoi_training_losses
+from priors.hoi.d2ad import (
     BPS_YUP_TENSOR_SHA256,
     DEFAULT_QUERY_WORKERS,
     OBJECT_MAPPING_SHA256,
@@ -40,16 +40,16 @@ from priors.d2ad import (
     D2ADPriorWindowDataset,
     LocalObjectBPSBuilder,
 )
-from priors.d2z import D2ZPriorWindowDataset, d2z_hoi_training_losses
-from priors.diffusion import GaussianDiffusion, normalize_progress
-from priors.interaction_adapter import (
+from priors.hoi.d2z import D2ZPriorWindowDataset, d2z_hoi_training_losses
+from priors.hoi.diffusion import GaussianDiffusion, normalize_progress
+from priors.hoi.interaction_adapter import (
     ADAPTER_PARAMETER_COUNT,
     ASSIGNMENT_SHA256,
     BPS_SHA256 as D2AC_BPS_SHA256,
     LOCAL_BASIS_COORDINATE_SYSTEM,
 )
-from priors.losses import hoi_training_losses
-from priors.models import (
+from priors.hoi.losses import hoi_training_losses
+from priors.hoi.models import (
     HOI_ARCHITECTURE_BASE,
     HOI_ARCHITECTURE_D2AC,
     HOI_ARCHITECTURE_D2AD,
@@ -59,8 +59,8 @@ from priors.models import (
     HOI_ARCHITECTURE_D2AJ,
     build_expert,
 )
-from priors.representation import REPRESENTATION
-from priors.sparse_relation import (
+from priors.core.representation import REPRESENTATION
+from priors.hoi.sparse_relation import (
     BASE_PARAMETER_COUNT as D2AE_BASE_PARAMETER_COUNT,
     D2AG_SELF_CONDITION_PROBABILITY,
     D2AG_VARIABLE_ANCHORS,
@@ -77,7 +77,7 @@ from priors.sparse_relation import (
     validate_selfcond_relation_source_contract,
     validate_sparse_relation_contract,
 )
-from priors.window_codec import BPS_SHA256
+from priors.core.window_codec import BPS_SHA256
 
 
 LOSS_KEYS = (
@@ -429,7 +429,7 @@ def _load_weight_initialization(
             "old_scaler_states_loaded": 0,
             "old_rng_states_loaded": 0,
         }
-    from priors.optimizer_reset import (
+    from priors.hoi.optimizer_reset import (
         CANDIDATES,
         SOURCE_CHECKPOINT_SHA256,
         SOURCE_RUN_ID,
@@ -3587,7 +3587,7 @@ def _validate_d2ab_contract(cfg: DictConfig, world_size: int) -> None:
     try:
         split_payload = json.loads(split_path.read_text(encoding="utf-8"))
         train_sequences = split_payload["train"]["sequence_indices"]
-        from priors.d2ab import validate_metadata
+        from priors.hoi.d2ab import validate_metadata
 
         validate_metadata(
             metadata_path,
@@ -5700,7 +5700,7 @@ def _worker(rank: int, cfg: DictConfig) -> None:
         if cfg.weight_init_checkpoint not in (None, "", False):
             raise ValueError("weight-only initialization requires a registered D2-M candidate")
     else:
-        from priors.optimizer_reset import (
+        from priors.hoi.optimizer_reset import (
             CANDIDATES,
             EFFECTIVE_BATCH_SIZE,
             OPTIMIZER_UPDATES,

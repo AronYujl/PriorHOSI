@@ -16,7 +16,7 @@ from .diffusion import prepare_clean_x0
 from .losses import _fk_positions
 from .optimizer_reset import paired_difference, paired_mean_ratio
 from .remediation import selection_sha256, stable_digest
-from .representation import REPRESENTATION
+from ..core.representation import REPRESENTATION
 
 
 RUN_ID = "p1-hoi-d2q-author-contact-guidance-s42-20260716"

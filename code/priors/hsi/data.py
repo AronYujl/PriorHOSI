@@ -1,4 +1,18 @@
-"""Lean real-data windows for Phase 1A expert smoke updates."""
+"""HSI window dataset.
+
+Forked byte-identically from ``code/priors/hoi/data.py`` at commit c77b9d8 when
+``code/priors/`` was split into ``core``/``hoi``/``hsi``.  The pre-split module
+held the only implementation of ``hsi_filter``, ``partition_for_scenes`` and the
+``expert == "hsi"`` branch, so filing it under ``hoi/`` alone would have deleted
+the HSI dataset the moment ``phase/01c-hsi`` removed ``hoi/``.
+
+This copy is the HSI branch's starting point and is expected to diverge: the HOI
+paths (``_bps``, ``_contact``, ``_rest_object_points`` and their ``__getitem__``
+branches) exist here only so the Phase 1A HSI contract keeps passing from day
+one.  Strip them deliberately, with the tests in ``tests/hsi/`` as the gate --
+the dataset is NOT part of the frozen ``core`` contract and needs no
+cross-branch approval to change.
+"""
 
 import json
 import pickle
@@ -14,8 +28,8 @@ from scipy.spatial.transform import Rotation
 from torch.utils.data import Dataset
 
 from datasets.utils import get_smpl_parents, zup_to_yup
-from .representation import REPRESENTATION
-from .window_codec import WindowStateCodec
+from ..core.representation import REPRESENTATION
+from ..core.window_codec import WindowStateCodec
 
 
 def hsi_filter(left, right) -> np.ndarray:

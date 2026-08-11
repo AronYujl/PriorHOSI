@@ -23,9 +23,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.remediation import selection_sha256  # noqa: E402
-from priors.window_codec import BPS_SHA256  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.remediation import selection_sha256  # noqa: E402
+from priors.core.window_codec import BPS_SHA256  # noqa: E402
 from tools.diagnose_hoi_bps_equivalence import (  # noqa: E402
     PLY_SHA256,
     exclusive_json,

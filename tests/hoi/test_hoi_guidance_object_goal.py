@@ -20,17 +20,17 @@ from pathlib import Path
 import torch
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "code"))
 
 from guidance_loss import apply_hoi_guidance_loss
-from priors.inference_guidance import (
+from priors.hoi.inference_guidance import (
     DEFAULT_OBJECT_GOAL_WEIGHT,
     GuidanceSettings,
     author_full_hoi_loss,
     object_goal_terminal_loss,
 )
-from priors.window_codec import WindowFrame, WindowStateCodec
+from priors.core.window_codec import WindowFrame, WindowStateCodec
 
 
 def _inputs(batch=2, frames=16, vertices=64, seed=42):

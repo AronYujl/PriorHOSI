@@ -267,18 +267,28 @@ class ManifestTests(unittest.TestCase):
         eval_config = (REPO_ROOT / "code/config/config_eval_hoi_prior.yaml").read_text(encoding="utf-8")
         sampler_config = (REPO_ROOT / "code/config/sampler/hoi_prior.yaml").read_text(encoding="utf-8")
         trainer = (REPO_ROOT / "code/train_hoi_prior.py").read_text(encoding="utf-8")
-        model = (REPO_ROOT / "code/priors/models.py").read_text(encoding="utf-8")
-        dataset = (REPO_ROOT / "code/priors/data.py").read_text(encoding="utf-8")
-        sampler = (REPO_ROOT / "code/priors/diffusion.py").read_text(encoding="utf-8")
+        model = (REPO_ROOT / "code/priors/hoi/models.py").read_text(encoding="utf-8")
+        hsi_model = (REPO_ROOT / "code/priors/hsi/models.py").read_text(encoding="utf-8")
+        dataset = (REPO_ROOT / "code/priors/hoi/data.py").read_text(encoding="utf-8")
+        sampler = (REPO_ROOT / "code/priors/hoi/diffusion.py").read_text(encoding="utf-8")
         evaluator = (REPO_ROOT / "code/test_infbagel_hoi.py").read_text(encoding="utf-8")
         self.assertIn("dim_model: 512", train_config)
         self.assertIn("num_heads: 16", train_config)
         self.assertIn("num_layers: 8", train_config)
         self.assertIn("diffusion_steps: 500", train_config)
         self.assertIn("load_scene: false", eval_config)
-        self.assertIn("_target_: priors.diffusion.HOIPriorSampler", sampler_config)
-        hoi_body = model.split("class HOIPrior", 1)[1].split("class HSIPrior", 1)[0]
-        self.assertNotIn("scene_condition:", hoi_body)
+        self.assertIn("_target_: priors.hoi.diffusion.HOIPriorSampler", sampler_config)
+        # The two experts now live in separate packages, so the old
+        # "HOIPrior body = text between class HOIPrior and class HSIPrior"
+        # slice no longer exists.  The scene-freedom guarantee is asserted more
+        # strongly instead: the whole HOI expert module defines HOIPrior and
+        # mentions no scene condition anywhere, and HSIPrior is somewhere else.
+        self.assertIn("class HOIPrior(nn.Module):", model)
+        self.assertNotIn("class HSIPrior", model)
+        self.assertNotIn("scene_condition:", model)
+        self.assertNotIn("scene_condition:", model.split("class HOIPrior", 1)[1])
+        self.assertIn("class HSIPrior(nn.Module):", hsi_model)
+        self.assertIn("scene_condition:", hsi_model)
         self.assertIn("init_checkpoint is forbidden", trainer)
         self.assertIn("resume checkpoint training contract mismatch", trainer)
         self.assertIn("resume checkpoint Git commit mismatch", trainer)

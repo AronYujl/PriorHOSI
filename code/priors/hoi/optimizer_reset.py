@@ -17,7 +17,7 @@ from .auxiliary_balancing import (
 )
 from .exposure import CONDITION_VARIANTS
 from .remediation import selection_sha256, stable_digest
-from .representation import REPRESENTATION
+from ..core.representation import REPRESENTATION
 
 
 RUN_ID = "p1-hoi-d2m-reset-paired-s42-20260716"

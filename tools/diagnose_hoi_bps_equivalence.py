@@ -26,9 +26,9 @@ sys.path.insert(0, str(REPO / "code"))
 sys.path.insert(0, str(REPO))
 
 from datasets.utils import zup_to_yup  # noqa: E402
-from priors.data import PriorWindowDataset  # noqa: E402
-from priors.remediation import bps_replay_equivalence_gate, selection_sha256  # noqa: E402
-from priors.window_codec import BPS_SHA256, project_to_so3, zup_to_yup_tensor  # noqa: E402
+from priors.hoi.data import PriorWindowDataset  # noqa: E402
+from priors.hoi.remediation import bps_replay_equivalence_gate, selection_sha256  # noqa: E402
+from priors.core.window_codec import BPS_SHA256, project_to_so3, zup_to_yup_tensor  # noqa: E402
 
 
 RUN_ID = "p1-hoi-d2c-bps-equivalence-s42-20260715"

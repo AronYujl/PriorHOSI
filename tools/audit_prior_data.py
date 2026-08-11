@@ -15,9 +15,9 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "code"))
 
 from datasets.utils import zup_to_yup  # noqa: E402
-from priors.contracts import HOI_CONTRACT, HSI_CONTRACT  # noqa: E402
-from priors.data import hsi_filter, partition_for_scenes  # noqa: E402
-from priors.representation import REPRESENTATION  # noqa: E402
+from priors.core.contracts import HOI_CONTRACT, HSI_CONTRACT  # noqa: E402
+from priors.hoi.data import hsi_filter, partition_for_scenes  # noqa: E402
+from priors.core.representation import REPRESENTATION  # noqa: E402
 
 
 def sha256_file(path: Path) -> str:

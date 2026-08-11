@@ -18,7 +18,7 @@ from .losses import (
     _velocity_residuals,
     hoi_training_losses,
 )
-from .representation import REPRESENTATION
+from ..core.representation import REPRESENTATION
 
 
 D2AB_METADATA_SCHEMA = "d2ab-predicted-support-no-slip-train-metadata-v1"

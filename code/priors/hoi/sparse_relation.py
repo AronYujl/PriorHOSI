@@ -15,15 +15,15 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple
 import torch
 from torch import nn
 
-from .diffusion_schedule import (
+from ..core.diffusion_schedule import (
     DIFFUSION_STEPS,
     SQRT_ALPHA_BAR_SHA256,
     canonical_diffusion_schedule,
     diffusion_schedule_contract_metadata,
     tensor_sha256,
 )
-from .representation import REPRESENTATION
-from .window_codec import project_to_so3
+from ..core.representation import REPRESENTATION
+from ..core.window_codec import project_to_so3
 
 
 ARCHITECTURE_VARIANT = "d2ae_sparse_relation_field"

@@ -15,10 +15,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from priors.data import PriorWindowDataset
-from priors.diffusion_schedule import canonical_diffusion_schedule
-from priors.models import build_expert
-from priors.representation import REPRESENTATION, masked_reconstruction_loss
+from priors.hoi.data import PriorWindowDataset
+from priors.core.diffusion_schedule import canonical_diffusion_schedule
+from priors.core.expert_api import build_expert
+from priors.core.representation import REPRESENTATION, masked_reconstruction_loss
 
 
 def _free_port() -> int:
