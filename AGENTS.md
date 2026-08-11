@@ -11,11 +11,75 @@ These rules apply to every file in this repository.
 - The released InfBaGel checkpoint is a baseline only. It must never initialize
   HOIPrior, HSIPrior, or the mixer.
 
+## Concurrent expert branches
+
+From 2026-08-10 the two experts and the mixer advance concurrently at different
+rates. `phase/01b-hoi` is not frozen and no expert is sealed before the others
+start; the mixer may later require retraining an expert.
+
+- `phase/01b-hoi` owns `code/priors/hoi/`, `tests/hoi/`, the `*_hoi_*` tools and
+  the `config_train_hoi_prior_*` configs. It iterates on the 4-GPU worker
+  `10.181.9.214`.
+- `phase/01c-hsi` owns `code/priors/hsi/`, `tests/hsi/`, `*_hsi_*` tools and
+  `config_train_hsi_prior_*` configs. It iterates on the 8-GPU authority host.
+- Each branch deletes the other expert's files rather than carrying them, so the
+  two working trees stay context-clean and their tracked paths stay disjoint.
+- `code/priors/hsi/` on `phase/01b-hoi` is a read-only mirror kept only so the
+  parameter-independence and expert-contract tests can run there. Never edit it
+  on the HOI branch.
+
+### The frozen contract
+
+`code/priors/core/` is the only code both branches and the future mixer share.
+Changing any file under it is by definition cross-branch communication and
+requires the user's explicit approval plus a matching change on the other expert
+branch in the same session. `tests/core/test_contract_freeze.py` enforces this
+mechanically: it pins the SHA256 of every `core/` file and asserts that nothing
+in `core/` imports from `priors.hoi` or `priors.hsi`.
+
+Everything outside `core/` — datasets, objectives, architectures, samplers,
+diagnostics — is per-expert and needs no approval to diverge.
+
+### Cross-branch communication
+
+Carrying a result, failure lesson, tuned value or document from one expert
+branch to the other requires the user's explicit approval first. This includes
+writing an HOI conclusion into an HSI plan file and vice versa. The transferable
+Phase 1B lessons that are already approved for HSIPrior are recorded once, in
+`docs/HSIPRIOR_DESIGN_PRIORS.md`; adding to that file is itself a cross-branch
+action.
+
+### Final integration is a graft, not a merge
+
+Because the branches are path-disjoint by construction, recombine them by
+checking the HSI-owned paths out of the HSI branch onto an integration branch
+cut from the HOI branch:
+
+```
+git checkout -b integration/p1-priors phase/01b-hoi
+git checkout phase/01c-hsi -- code/priors/hsi/ tests/hsi/ \
+    docs/plan/PHASE_1C_HSI.md <hsi tools and configs>
+```
+
+A `git merge` would instead raise modify/delete conflicts on every `hoi/` file
+the HSI branch deleted, at the worst possible moment. Verify after the graft that
+`core/` is byte-identical on both branches — if it is not, the mixer's premise
+was violated somewhere and that must be resolved before composition.
+
+
 ## Experiment lifecycle
 
 - Before adding a new direction, update the phase file under `docs/plan/`
   (navigation page: `docs/EXPERIMENT_PLAN.md`) and append a hypothesis to
   `experiments/registry.jsonl`.
+- Follow `docs/EXPERIMENT_CONVENTIONS.md`: an experiment adds one config override
+  fragment, one registry row and one dated plan section, and no new script. The
+  lifecycle path is `tools/experiment.py start` -> trainer/evaluator under its
+  Hydra config -> `tools/paired_bootstrap.py`. Tests are organised by component,
+  never by experiment id.
+- Before proposing or implementing HSIPrior work, read
+  `docs/HSIPRIOR_DESIGN_PRIORS.md`. It carries the measured Phase 1B negatives
+  forward as binding defaults with their evidence and their overturn condition.
 - Training must refuse a dirty worktree. Use `tools/experiment.py start`; do not
   bypass the check for reportable runs.
 - Name runs `<phase>-<component>-<variant>-s<seed>-<YYYYMMDD>`. Never reuse a run

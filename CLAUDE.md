@@ -12,6 +12,18 @@ an experiment:
    `README.md` index; `docs/plan/OVERVIEW.md` holds the cross-phase protocol)
 4. the phase summaries and compact results named by the evidence index
 
+For Phase 1C HSIPrior work, read instead:
+
+1. `docs/plan/OVERVIEW.md` and `docs/plan/PHASE_1C_HSI.md`
+2. `docs/HSIPRIOR_DESIGN_PRIORS.md` — the Phase 1B negatives that bind Phase 1C
+3. `docs/EXPERIMENT_CONVENTIONS.md`
+4. `AGENTS.md`, section "Concurrent expert branches"
+
+Do not read the `docs/plan/PHASE_1B_HOI/` detail files while working on HSIPrior.
+Everything transferable is already in `docs/HSIPRIOR_DESIGN_PRIORS.md`, and
+pulling anything else across is cross-branch communication requiring the user's
+approval.
+
 The proposal stage is read-only. Model/source changes and GPU workloads require the
 user's explicit approval of one concrete experiment.
 
