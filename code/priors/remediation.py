@@ -27,7 +27,8 @@ def select_internal_triples(dataset, count: int = 128) -> List[Tuple[int, int, i
     Dataset positions, rather than global language-window indices, are returned.
     Each triple begins at ``pi=0`` and advances by the 42 source frames emitted
     by a 16-frame/2-history rollout window.  Sequence selection is exactly the
-    hash ordering preregistered in ``docs/EXPERIMENT_PLAN.md``.
+    hash ordering preregistered in
+    ``docs/plan/PHASE_1B_HOI/01_GATE_AND_EARLY_DIAGNOSIS.md``.
     """
     if getattr(dataset, "partition", None) != "internal_validation":
         raise ValueError("D0 sequence selection is internal-validation only")

@@ -4,7 +4,7 @@
 This promotes the ad-hoc analysis used to seal Phase 1B P6/P7 into tracked
 tooling, because preregistered decisions from P10 onward rest on it. The
 protocol is fixed by the 2026-08-09 P10 preregistration in
-``docs/EXPERIMENT_PLAN.md``:
+``docs/plan/PHASE_1B_HOI/06_GEOMETRY_TERM.md``:
 
 * the resampling unit is the evaluation sequence, and sequences are paired
   **by name** across the runs (never by position);

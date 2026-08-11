@@ -1,7 +1,7 @@
 """Preregistered Phase 1B P2 inference-time contact guidance for HOIPrior.
 
-Preregistration: ``docs/EXPERIMENT_PLAN.md`` section "2026-08-01 Phase 1B
-推理期接触引导 P2（协议对齐，用户批准）" and registry row
+Preregistration: ``docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md`` section
+"2026-08-01 Phase 1B 推理期接触引导 P2（协议对齐，用户批准）" and registry row
 ``p1-hoi-p2-inference-contact-guidance-preregister-s42-20260801``.
 
 The module is protocol alignment, not a model change.  It is inert unless a

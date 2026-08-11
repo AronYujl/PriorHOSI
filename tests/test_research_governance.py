@@ -132,7 +132,7 @@ class ManifestTests(unittest.TestCase):
 
     def test_phase_handoff_contract_is_tracked(self):
         agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        plan = (REPO_ROOT / "docs" / "EXPERIMENT_PLAN.md").read_text(encoding="utf-8")
+        plan = (REPO_ROOT / "docs" / "plan" / "OVERVIEW.md").read_text(encoding="utf-8")
         summary_contract = (
             REPO_ROOT / "docs" / "phase_summaries" / "README.md"
         ).read_text(encoding="utf-8")

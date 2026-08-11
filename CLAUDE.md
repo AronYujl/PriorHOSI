@@ -8,7 +8,8 @@ an experiment:
 
 1. `docs/HOIPRIOR_ITERATION_WORKFLOW.md`
 2. `docs/HOIPRIOR_EVIDENCE_INDEX.md`
-3. the relevant dated section of `docs/EXPERIMENT_PLAN.md`
+3. the relevant dated section under `docs/plan/PHASE_1B_HOI/` (start from its
+   `README.md` index; `docs/plan/OVERVIEW.md` holds the cross-phase protocol)
 4. the phase summaries and compact results named by the evidence index
 
 The proposal stage is read-only. Model/source changes and GPU workloads require the

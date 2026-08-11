@@ -45,8 +45,8 @@ Do not read the released row against the D2-* rows as a protocol-matched compari
 Released InfBaGel is not a valid initializer. D2-X is the sealed autonomous-diffusion
 control; no D2 checkpoint is selectable as a new prior initializer.
 
-The 2026-08-01 protocol decomposition (`docs/EXPERIMENT_PLAN.md`, section
-"2026-08-01 Phase 1B 基线协议分解 P1") re-evaluated the released checkpoint on the same
+The 2026-08-01 protocol decomposition (`docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md`,
+section "2026-08-01 Phase 1B 基线协议分解 P1") re-evaluated the released checkpoint on the same
 438 sequences with iteration count and inference guidance ablated. Of the `0.1331`
 contact-recall difference between the released row (`0.72759`) and D2-X (`0.59445`),
 inference-time guidance accounts for `0.0788` (59.2%), the 16-vs-1 iteration count for
@@ -414,7 +414,8 @@ sweep or several loosely coupled interventions.
 
 ## 5. Authoritative files
 
-- Plan and registry: `docs/EXPERIMENT_PLAN.md`, `experiments/registry.jsonl`
+- Plan and registry: `docs/plan/` (navigation page `docs/EXPERIMENT_PLAN.md`; Phase 1B
+  index `docs/plan/PHASE_1B_HOI/README.md`), `experiments/registry.jsonl`
 - D2-X/Y/Z/AA/AB/AC/AD/AE/AF summaries:
   `docs/phase_summaries/PHASE_1B_D2*.md`
 - Compact results: `experiments/results/p1_hoi_phase1b_*.json`
@@ -428,9 +429,9 @@ sweep or several loosely coupled interventions.
   and the 0.83 cm genuine generative-geometry gap is unchanged.
 - 2026-08-02 P3 relation field x inference guidance:
   `experiments/results/p1_hoi_p3_relation_field_guidance_s42_20260802.json` and the
-  dated closure section of `docs/EXPERIMENT_PLAN.md`. Preregistered cost failure;
-  guidance stays default-off, no checkpoint was selected, and the D2-AG and D2-AE
-  negative classifications stand.
+  dated closure section of `docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md`. Preregistered
+  cost failure; guidance stays default-off, no checkpoint was selected, and the D2-AG and
+  D2-AE negative classifications stand.
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,

@@ -42,7 +42,8 @@ artifact, classification, or checkpoint decision.
 After approval:
 
 1. Audit the proposed identifier and actual-date run stem once.
-2. Append one dated amendment to `docs/EXPERIMENT_PLAN.md` and one hypothesis to
+2. Append one dated amendment to the matching topic file under
+   `docs/plan/PHASE_1B_HOI/` (index: its `README.md`) and one hypothesis to
    `experiments/registry.jsonl`.
 3. Lock the single manipulated factor, fixed comparisons, performance condition,
    internal diagnostic, native gates, stop classifications and allowed file scope.

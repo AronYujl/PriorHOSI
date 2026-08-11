@@ -45,7 +45,9 @@ Then read completely:
 
 1. `docs/HOIPRIOR_ITERATION_WORKFLOW.md`
 2. `docs/HOIPRIOR_EVIDENCE_INDEX.md`
-3. the Phase 1B portion and latest dated amendments in `docs/EXPERIMENT_PLAN.md`
+3. `docs/plan/PHASE_1B_HOI/README.md`, then the numbered family file its index
+   points at for the mechanism under review (`docs/plan/OVERVIEW.md` holds the
+   cross-phase protocol)
 4. the decisive summaries `PHASE_1B_D2X.md`, `PHASE_1B_D2AB.md`,
    `PHASE_1B_D2AC.md`, `PHASE_1B_D2AD.md`, `PHASE_1B_D2AE.md` and
    `PHASE_1B_D2AF.md`

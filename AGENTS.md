@@ -13,8 +13,9 @@ These rules apply to every file in this repository.
 
 ## Experiment lifecycle
 
-- Before adding a new direction, update `docs/EXPERIMENT_PLAN.md` and append a
-  hypothesis to `experiments/registry.jsonl`.
+- Before adding a new direction, update the phase file under `docs/plan/`
+  (navigation page: `docs/EXPERIMENT_PLAN.md`) and append a hypothesis to
+  `experiments/registry.jsonl`.
 - Training must refuse a dirty worktree. Use `tools/experiment.py start`; do not
   bypass the check for reportable runs.
 - Name runs `<phase>-<component>-<variant>-s<seed>-<YYYYMMDD>`. Never reuse a run
@@ -163,14 +164,15 @@ context overhead without changing model training or scientific evaluation.
   session after closing the current phase.
 - If a planned phase cannot reasonably be implemented, verified, and summarized
   in one session, split it into numbered subphases before implementation. Update
-  `docs/EXPERIMENT_PLAN.md`, branch names, gates, and registry phase/component
-  labels so every subphase has a concrete deliverable and gate.
-- Merge a phase only after its gate in `docs/EXPERIMENT_PLAN.md` is met; then tag
-  the immutable result (for example `exp/p0-baseline-v1`).
+  the relevant `docs/plan/` phase file, branch names, gates, and registry
+  phase/component labels so every subphase has a concrete deliverable and gate.
+- Merge a phase only after its gate in its `docs/plan/` phase file is met; then
+  tag the immutable result (for example `exp/p0-baseline-v1`).
 - Before merging, write `docs/phase_summaries/PHASE_<N>.md` (or one summary per
   preregistered subphase). It must record scope, implementation and configuration
   changes, experiments and results including failures, verification commands,
   artifacts/hashes, commits/tag, unresolved risks, and the exact next-phase entry
-  point. A new session must read this summary and `docs/EXPERIMENT_PLAN.md` first.
+  point. A new session must read this summary, `docs/plan/OVERVIEW.md`, and the
+  `docs/plan/` file for the phase it is working on first.
 - A failed gate permits only its preregistered diagnostics/fallback. Any new
   direction requires a dated plan and registry update before code changes.

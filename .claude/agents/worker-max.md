@@ -15,7 +15,8 @@ effort: max
 
 1. 完整读 `AGENTS.md`。
 2. 读 `docs/HOIPRIOR_ITERATION_WORKFLOW.md`、`docs/HOIPRIOR_EVIDENCE_INDEX.md`、
-   `docs/EXPERIMENT_PLAN.md` 中同日期小节，以及证据索引指名的 phase summary 与 compact result。
+   `docs/plan/PHASE_1B_HOI/` 下的同日期小节（分册索引见该目录的 `README.md`，
+   跨阶段约定见 `docs/plan/OVERVIEW.md`），以及证据索引指名的 phase summary 与 compact result。
 3. 若涉及多机执行、传输或恢复，读 `docs/MULTI_SERVER_TRAINING.md`。
 4. 动手前读完你要改的整条代码路径，包括调用方与相邻测试。
 

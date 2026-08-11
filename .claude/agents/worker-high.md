@@ -12,7 +12,8 @@ effort: high
 
 1. 完整读 `AGENTS.md`。它是本仓库的约束来源，不要凭印象行事。
 2. 若任务涉及 Phase 1B HOIPrior，读 `docs/HOIPRIOR_ITERATION_WORKFLOW.md`、
-   `docs/HOIPRIOR_EVIDENCE_INDEX.md`、`docs/EXPERIMENT_PLAN.md` 中同日期小节，
+   `docs/HOIPRIOR_EVIDENCE_INDEX.md`、`docs/plan/PHASE_1B_HOI/` 下的同日期小节
+   （分册索引见该目录的 `README.md`，跨阶段约定见 `docs/plan/OVERVIEW.md`），
    以及证据索引指名的 phase summary 与 compact result。
 3. 动手前先读你要改的那几个文件的现有实现与相邻测试，让改动风格与周围代码一致。
 
