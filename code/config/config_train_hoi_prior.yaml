@@ -6,6 +6,17 @@ run_id: null
 seed: 42
 repo_root: ${oc.env:ROOT_DIR}
 
+# Run-start provenance gate.
+#   require_clean_worktree: null  -> enforced exactly when run_id is set, i.e.
+#                                    for every reportable run; explicit
+#                                    true/false overrides that decision.
+#   run_start_git_commit:   null  -> written by the trainer's preflight at run
+#   worktree_preflight:     null     start. Never set either by hand; a value
+#                                    supplied in a config is overwritten.
+require_clean_worktree: null
+run_start_git_commit: null
+worktree_preflight: null
+
 num_gpus: 1
 batch_size: 2
 effective_batch_size: 2

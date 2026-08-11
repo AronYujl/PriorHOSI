@@ -512,6 +512,130 @@ def _git_commit(repo: Path) -> str:
     return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
 
+def _git_status_porcelain(repo: Path) -> List[str]:
+    """Every dirty entry, untracked files included.
+
+    Matches ``tools/experiment.py``'s ``git_state`` byte for byte
+    (``--porcelain=v1 --untracked-files=all``) so that the trainer-side gate and
+    the manifest-side gate cannot disagree about what "clean" means.
+    """
+    output = subprocess.check_output(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=repo,
+        text=True,
+    )
+    return output.splitlines()
+
+
+def _reportable_run(cfg: DictConfig) -> bool:
+    """A run that has been allocated a run id is reportable.
+
+    Run ids are allocated once, never reused, and name a result directory.  A
+    smoke or benchmark invocation leaves ``run_id`` null and is therefore not
+    reportable.
+    """
+    run_id = cfg.get("run_id", None)
+    return run_id is not None and str(run_id) != ""
+
+
+def _validate_clean_worktree(cfg: DictConfig) -> Dict[str, object]:
+    """Refuse to start a reportable run from a dirty worktree.
+
+    ``AGENTS.md`` has required this since Phase 0, but it was only ever enforced
+    by ``tools/experiment.py start`` -- a step the last fourteen reportable runs
+    did not take (every P8/P9/P10 registry row records
+    ``"no tools/experiment.py start manifest exists for this arm"``).  Enforcing
+    it here puts the gate on the path that actually executes.
+
+    ``require_clean_worktree`` is tri-state: null means "required exactly when
+    the run is reportable", and an explicit bool overrides that either way.
+    """
+    repo = Path(str(cfg.repo_root)).resolve()
+    configured = cfg.get("require_clean_worktree", None)
+    required = _reportable_run(cfg) if configured is None else bool(configured)
+    record: Dict[str, object] = {
+        "enforced": required,
+        "reportable_run": _reportable_run(cfg),
+        "configured": None if configured is None else bool(configured),
+    }
+    try:
+        status = _git_status_porcelain(repo)
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError) as error:
+        if required:
+            raise RuntimeError(
+                f"cannot verify a clean worktree at {repo}: {error}; a reportable "
+                "run must execute from a committed Git object"
+            ) from error
+        record["clean"] = None
+        record["unavailable"] = str(error)
+        return record
+    record["clean"] = not status
+    if status and required:
+        listing = "\n".join(status[:20])
+        more = "" if len(status) <= 20 else f"\n... and {len(status) - 20} more"
+        raise RuntimeError(
+            "a reportable run requires a clean worktree; commit or stash these "
+            f"{len(status)} entries first (untracked files count):\n{listing}{more}"
+        )
+    if status:
+        record["dirty_entries"] = len(status)
+    return record
+
+
+def _set_run_field(cfg: DictConfig, key: str, value: object) -> None:
+    """Write a preflight-owned field into cfg, restoring the struct flag."""
+    was_struct = OmegaConf.is_struct(cfg)
+    OmegaConf.set_struct(cfg, False)
+    try:
+        cfg[key] = value
+    finally:
+        OmegaConf.set_struct(cfg, was_struct)
+
+
+def _resolve_run_start_commit(cfg: DictConfig) -> str:
+    """Resolve HEAD once, at run start, and carry it in the config.
+
+    ``metrics.json`` is written a single time, when training ends, so resolving
+    ``git rev-parse HEAD`` there records whatever commit happened to be checked
+    out hours later.  P10's A10/A01 arms started at ``91232ad`` and were recorded
+    as ``5d39ac3`` for exactly this reason.  The value is written into ``cfg``
+    before ``torch.multiprocessing.spawn`` so every rank -- and the archived
+    resolved config -- carries the same start-time identity.
+    """
+    repo = Path(str(cfg.repo_root)).resolve()
+    commit = _git_commit(repo)
+    _set_run_field(cfg, "run_start_git_commit", commit)
+    return commit
+
+
+def _run_commit(cfg: DictConfig) -> str:
+    """The run's start-time commit; never re-resolved from live HEAD."""
+    commit = cfg.get("run_start_git_commit", None)
+    if commit is None or str(commit) == "":
+        raise RuntimeError(
+            "run_start_git_commit is unset: the run start preflight did not run. "
+            "Reportable provenance must be resolved once at run start, not at "
+            "the moment a record is written."
+        )
+    return str(commit)
+
+
+def _git_commit_or_none(cfg: DictConfig) -> Optional[str]:
+    """Live HEAD, for the completion-time comparison field only."""
+    try:
+        return _git_commit(Path(str(cfg.repo_root)).resolve())
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError):
+        return None
+
+
+def _worktree_preflight_record(cfg: DictConfig) -> Optional[Dict[str, object]]:
+    """The clean-worktree gate's verdict, as captured at run start."""
+    record = cfg.get("worktree_preflight", None)
+    if record is None:
+        return None
+    return dict(OmegaConf.to_container(record, resolve=True))
+
+
 def _git_commit_is_ancestor(repo: Path, value: object) -> bool:
     if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None:
         return False
@@ -5212,7 +5336,8 @@ def _checkpoint_value(
         "initialization": "random",
         "run_id": str(cfg.run_id),
         "seed": int(cfg.seed),
-        "git_commit": _git_commit(Path(str(cfg.repo_root)).resolve()),
+        # Resolved once at run start, not at checkpoint-write time.
+        "git_commit": _run_commit(cfg),
         "processed_windows": processed_windows,
         "processed_frames": processed_windows * REPRESENTATION.window_frames,
         "optimizer_updates": optimizer_updates,
@@ -6248,7 +6373,13 @@ def _worker(rank: int, cfg: DictConfig) -> None:
                 "initialization": "random",
                 "training_start": weight_initialization["mode"],
                 "released_checkpoint_used": False,
-                "git_commit": _git_commit(Path(str(cfg.repo_root)).resolve()),
+                # The run's identity is its start-time commit.  The live HEAD at
+                # completion is recorded beside it so that a commit landing
+                # mid-run is visible in the record instead of silently replacing
+                # the run's provenance (the P10 A10/A01 incident).
+                "git_commit": _run_commit(cfg),
+                "git_commit_at_completion": _git_commit_or_none(cfg),
+                "worktree_preflight": _worktree_preflight_record(cfg),
                 "world_size": world_size,
                 "gpu_name": torch.cuda.get_device_name(device),
                 "micro_batch_per_gpu": int(cfg.batch_size),
@@ -6476,6 +6607,15 @@ def _worker(rank: int, cfg: DictConfig) -> None:
 @hydra.main(version_base=None, config_path="config", config_name="config_train_hoi_prior")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg), flush=True)
+    worktree = _validate_clean_worktree(cfg)
+    start_commit = _resolve_run_start_commit(cfg)
+    _set_run_field(cfg, "worktree_preflight", worktree)
+    print(
+        f"[preflight] run_start_git_commit={start_commit} "
+        f"worktree_clean={worktree.get('clean')} "
+        f"clean_gate_enforced={worktree.get('enforced')}",
+        flush=True,
+    )
     _validate_fk_foot_temporal_routing_mode(cfg)
     _validate_d2t_contract(cfg, int(cfg.num_gpus))
     _validate_d2u_contract(cfg, int(cfg.num_gpus))
