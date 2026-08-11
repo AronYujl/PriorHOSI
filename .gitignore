@@ -35,3 +35,19 @@ third_party/
 # Local session transcript dumps written at the repository root. Same reason as
 # above: an untracked file blocks every reportable training/evaluation start.
 /20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.txt
+
+# Host-local asset roots, ignored again WITHOUT a trailing slash. In the main
+# checkout these are real directories, so the `results/` style patterns above
+# match them; in a git worktree they are symlinks into the main checkout, which
+# `dir/` does not match. This branch was cut in a worktree, so the branch commit
+# 1088c7e captured checkpoint, smpl_models and third_party as mode-120000 blobs
+# holding absolute paths into /data/yujinlun/InfBaGel-release, which resolve
+# nowhere on any other machine.
+/results
+/checkpoint
+/smpl_models
+/third_party
+/data
+
+# Session-local git worktrees. Only their branches are shared.
+/.claude/worktrees/
