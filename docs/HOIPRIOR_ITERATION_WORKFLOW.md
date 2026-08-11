@@ -15,8 +15,11 @@ artifact, classification, or checkpoint decision.
   Released, author and prior experimental checkpoints are baselines only.
 - The HOI worker remains `infbagel-4gpu/node01` with 4x RTX 3090, committed clean
   source, verified input assets and `INFBAGEL_WORKER_EXPERT=hoi`.
-- Reportable workloads use `tools/experiment.py start`, a fully resolved config and
-  a same-context manifest. Run ids are never reused and failed runs are retained.
+- Reportable workloads run from a clean worktree with a fully resolved config, and
+  the trainer's own preflight enforces both. Run ids are never reused and failed
+  runs are retained. (Until 2026-08-11 this invariant named `tools/experiment.py
+  start` as the gate; every P8/P9/P10 arm bypassed it, so the gate moved onto the
+  path that executes.)
 - The approved experiment owns one fixed scientific configuration. No unregistered
   sweep, checkpoint selection, best-of-N asymmetry or post-hoc metric change is
   allowed.
