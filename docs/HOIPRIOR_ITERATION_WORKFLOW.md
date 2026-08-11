@@ -57,18 +57,21 @@ logical commit. Keep unrelated user changes untouched.
 
 Required checks are proportional to the changed path:
 
-- always: targeted tests, config resolution, registry validation, `git diff --check`,
-  output/checkpoint provenance contracts and forbidden-source scans relevant to the
-  hypothesis;
-- shared model/diffusion/training/data/evaluator changes: one full authority test
-  suite before GPU publication;
-- documentation/registry-only append: JSON/registry validation and diff check, with
-  no repeated full suite;
+- always: the full authority suite, config resolution, registry validation,
+  `git diff --check`, output/checkpoint provenance contracts and forbidden-source
+  scans relevant to the hypothesis;
 - runtime-code change: one real-data functional smoke with finite forward/backward,
   gradients, memory and output API checks;
 - compute/data/communication/tensor-shape change: one registered full-micro-batch
   performance benchmark; otherwise reuse the sealed execution profile and record the
   reason the benchmark is not applicable.
+
+> **2026-08-11.** This list used to make the full suite conditional, with three
+> clauses deciding when it could be skipped. That was written when the suite was
+> 805 tests and 302 seconds. After the Phase 1B cleanup it is 281 tests and
+> **under 30 seconds** — the rules deciding when to skip it cost more attention
+> than the suite costs to run. Just run it.
+
 
 Publish the resulting clean commit to the worker by Git fast-forward. Do not create a
 governance-only implementation-binding commit unless the worker must execute a
@@ -127,7 +130,6 @@ not a chronological transcript of every shell wrapper.
   workload start;
 - no repeated plan, implementation-binding, evaluation-hardening and recovery-binding
   commits when no scientific/source transition occurred;
-- no full test-suite rerun after registry/summary-only edits;
 - no repeated hashing of unchanged sealed baselines, data snapshots, evaluator assets,
   checkpoint cadences or already recovered trees;
 - no registration of a local typo or wrapper mistake that occurred before a run id or

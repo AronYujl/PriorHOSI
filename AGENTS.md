@@ -107,9 +107,9 @@ context overhead without changing model training or scientific evaluation.
   only when the file was created, changed, transferred, or is the exact target of
   the current workload. Do not repeatedly hash unchanged checkpoint cadences or
   recovered trees.
-- Run targeted tests for every changed component. Run the full authority suite once
-  before the first GPU workload when shared model, diffusion, training, data, or
-  evaluator code changed; do not rerun it after documentation-only lifecycle appends.
+- Run the full authority suite for every change. It is 281 tests and under 30
+  seconds; the rules that used to decide when it could be skipped were written
+  when it was 805 tests and 302 seconds and cost more attention than the suite.
 - A real-data functional smoke is required for runtime-code changes. A full-micro-
   batch performance benchmark is required only when the change can affect per-step
   compute, communication, data loading, tensor shapes, or memory. Record why it is
@@ -137,6 +137,23 @@ context overhead without changing model training or scientific evaluation.
   Phase 1B HOIPrior execution worker. Host-local repository, environment, data,
   and output paths may differ, but every reportable run must use an identical
   committed Git object and verified input hashes.
+- From 2026-08-11 the split of labour is: the authority host runs the complete
+  HSIPrior lifecycle, and for HOIPrior it only dispatches an arm and collects
+  the compact result. A HOIPrior arm runs train, native evaluation and paired
+  bootstrap entirely on the worker via `tools/hoi_chain.py`. No checkpoint is
+  transferred back for evaluation and no HOI evaluation runs on the authority
+  host, because the authority host is expected to be occupied by HSIPrior
+  training and a shared GPU invalidates the recorded throughput.
+- Every expert trainer resolves `git rev-parse HEAD` once, at run start, and
+  carries it to every rank. `metrics.json` is written once at completion, so
+  resolving the commit there records whatever is checked out hours later: P10's
+  A10 and A01 arms started at `91232ad` and were recorded as `5d39ac3`. Record
+  the live HEAD at completion as a separate field. With two experts advancing
+  concurrently, the rule forbidding worker source edits mid-run no longer covers
+  the case where the other branch commits during a run.
+- A reportable run refuses a dirty worktree in the trainer's own preflight, not
+  only in `tools/experiment.py start`. `require_clean_worktree` is enforced
+  whenever a `run_id` is set; smoke and benchmark invocations leave it null.
 - Publish committed code from the authoritative host to the worker with Git and
   transfer immutable data snapshots separately. Never bidirectionally `rsync` a
   live worktree, registry, checkpoint directory, or running result directory.

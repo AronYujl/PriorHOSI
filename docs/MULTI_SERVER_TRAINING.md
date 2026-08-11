@@ -376,6 +376,23 @@ tests must pass. Never satisfy the suite by copying `data/dataset` to this worke
 
 ## 9. Artifact ownership and return flow
 
+From 2026-08-11 a HOIPrior arm completes on the worker: `tools/hoi_chain.py`
+runs training, the fixed native evaluation and the paired bootstrap in sequence,
+so the checkpoint never has to reach the authority host to be evaluated. Launch
+it detached from the worker checkout:
+
+```bash
+cd ~/data/work/InfBaGel-release
+nohup "$INFBAGEL_PYTHON" tools/hoi_chain.py --arm <arm> \
+    --baseline-eval <baseline evaluation run id> > /dev/null 2>&1 &
+```
+
+Per-stage status and logs land under
+`results/experiments/<train-run-id>/chain/`. The chain refuses a dirty worktree,
+the wrong host, or fewer idle GPUs than the arm needs, and it never commits,
+tags or appends to the registry. What returns to the authority host afterwards
+is the compact result and the aggregate metadata, not weights.
+
 Each run id has one writer. While a worker run is active:
 
 - the worker alone writes `results/experiments/<run-id>/` and its checkpoint tree;
