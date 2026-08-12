@@ -245,4 +245,38 @@ contact 更差」；HSI-GPT2 表中所有方法的 non-collision 挤在 99.69–
 「Real motions」参考行，且 Diversity 与 MultiModality 标「→」而非「↑」。**不报告 MM-Dist**
 （Voas et al. MIG 2023：与人类判断相关性一贯最弱，明确建议弃用）。
 
+### D. watertight 审计结果与随之确定的报告规则
+
+`Scene_mesh` 全量审计（127 个 mesh，逐场景表见 `.claude/scratch/watertight_audit.md`）：
+
+- **113 个 watertight，14 个不是**；test 侧 37 个场景**全部有 mesh**，其中 **3 个非 watertight**
+  （`085-play_game-chair`、`090-baseball_bat`、`091-take_shower`），validation 侧 0 个，train 侧 9 个。
+- 这 3 个场景的符号由 generalized winding number 推出，与其余 34 个不同口径。
+
+是否因此高估穿透？用 GT 关节实测对比（各取前 40 条 sequence）：
+
+| test 场景 | watertight | GT pen<−3cm | 深度 mm |
+|---|---|---|---|
+| 085-play_game-chair | 否 | 0.0155 | 37.0 |
+| 090-baseball_bat | 否 | 0.0084 | 58.6 |
+| 091-take_shower | 否 | 0.0252 | 52.0 |
+| 017-new_loco | 是 | 0.0022 | 45.4 |
+| 058-loco | 是 | 0.0150 | 50.6 |
+| 058-loco-1 | 是 | 0.0082 | 40.4 |
+
+**结论：n=3 对 n=3 无法把差异归因于 fallback。** 两组区间显著重叠——watertight 的
+`058-loco`（0.0150）高于 fallback 的 `090-baseball_bat`（0.0084）——且 watertight 组内部本身
+跨 7 倍（0.0022–0.0150）。这与第 C 节已登记的场景间方差主导一致，不构成新问题。
+
+由此固定两条报告规则：
+
+1. 这 3 个场景在结果表中**必须标注符号推导方式不同**，不得与其余 34 个混为一个无注脚的均值。
+2. 逐场景报告（第 C 节已要求，scene 作为 paired bootstrap 分层因子）本身已覆盖该风险；
+   不额外引入 fallback 专用校正项。另注意 test 侧存在极小场景（如 `017-new_loco` 仅 2 条
+   sequence），逐场景数字须与其 sequence 数同列。
+
+SDF 磁盘缓存位于 `.cache/hsi_sdf/`，经 `.gitignore` 的 `*.npz` 排除，不会污染 worktree
+（`tools/experiment.py` 会把未跟踪文件判为 dirty 而拒绝启动 reportable run）。
+
+
 
