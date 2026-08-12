@@ -462,14 +462,17 @@ def validate_split(path: Path) -> None:
         if not hashes or any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in hashes.values()):
             raise ManifestError(f"invalid HOI split source hashes: {path}")
         return
-    if algorithm not in ("scene-family-disjoint-v1", "scene-family-disjoint-v2"):
+    if algorithm not in ("scene-family-disjoint-v1", "scene-family-disjoint-v2", "scene-family-disjoint-v3"):
         raise ManifestError(f"unexpected split algorithm: {path}")
-    if split.get("seed") != 42 or split.get("validation_ratio") != 0.2:
-        raise ManifestError(f"LINGO split must use seed 42 and ratio 0.2: {path}")
+    expected_validation_ratio = 0.1 if algorithm == "scene-family-disjoint-v3" else 0.2
+    if split.get("seed") != 42 or split.get("validation_ratio") != expected_validation_ratio:
+        raise ManifestError(
+            f"LINGO split must use seed 42 and ratio {expected_validation_ratio}: {path}"
+        )
     # v1 partitions the whole dataset into train/validation.  v2 additionally carves
     # out a `test` side and drops the mirrored twins of every held-out family, so the
     # invariants are checked over whichever partitions the manifest declares.
-    partitions = ("train", "validation", "test") if algorithm == "scene-family-disjoint-v2" else ("train", "validation")
+    partitions = ("train", "validation", "test") if algorithm in ("scene-family-disjoint-v2", "scene-family-disjoint-v3") else ("train", "validation")
     sides = {name: split.get(name, {}) for name in partitions}
     for name, side in sides.items():
         if not side.get("scene_families"):
@@ -483,7 +486,12 @@ def validate_split(path: Path) -> None:
     partitioned = set().union(*(set(side.get("scene_families", [])) for side in sides.values()))
     if mapped_families != partitioned:
         raise ManifestError(f"not every scene family is assigned exactly once: {path}")
-    if algorithm != "scene-family-disjoint-v2":
+    if algorithm == "scene-family-disjoint-v1":
+        return
+    if algorithm == "scene-family-disjoint-v3":
+        verification = split.get("mirror_verification", {})
+        if verification.get("pairs_sampled") is not False:
+            raise ManifestError(f"v3 split must verify every mirror pair, not a sample: {path}")
         return
     # The defect v2 exists to repair: every mirrored sequence shipped labelled
     # 005_mirror, so a label-disjoint split was content-duplicated across the

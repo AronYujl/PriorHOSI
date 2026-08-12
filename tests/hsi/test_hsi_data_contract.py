@@ -56,6 +56,7 @@ class HSIDatasetContractTests(unittest.TestCase):
 
 
 V2_SPLIT = Path("experiments/splits/lingo_scene_family_disjoint_v2_seed42.json")
+V3_SPLIT = Path("experiments/splits/lingo_scene_family_disjoint_v3_seed42.json")
 
 
 class LingoMirrorDefectTests(unittest.TestCase):
@@ -122,6 +123,71 @@ class LingoMirrorDefectTests(unittest.TestCase):
     @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
     def test_released_labels_really_do_collapse_the_mirrored_half(self):
         """Guard the premise itself, against the real dataset."""
+        import pickle
+
+        root = REPO / "data" / "dataset"
+        with (root / "scene_name.pkl").open("rb") as handle:
+            scene_names = np.asarray(pickle.load(handle))
+        starts = np.load(root / "start_idx.npy")
+        half = len(starts) // 2
+        labels = scene_names[starts]
+        self.assertEqual(set(labels[half:]), {"005_mirror"})
+        self.assertGreater(len(set(labels[:half])), 100)
+        transl = np.load(root / "transl_aligned.npy", mmap_mode="r")
+        ends = np.load(root / "end_idx.npy")
+        for index in (0, 7, half - 1):
+            source = np.asarray(transl[starts[index] : ends[index] + 1])
+            mirror = np.asarray(transl[starts[index + half] : ends[index + half] + 1])
+            np.testing.assert_array_equal(source[:, 0], -mirror[:, 0])
+            np.testing.assert_array_equal(source[:, 1:], mirror[:, 1:])
+
+
+class LingoV3MirrorDefectTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.split = json.loads((REPO / V3_SPLIT).read_text())
+
+    def test_every_mirror_pair_was_verified_not_sampled(self):
+        verification = self.split["mirror_verification"]
+        self.assertIs(verification["pairs_sampled"], False)
+        self.assertGreater(verification["pairs_checked"], 0)
+        for failure in (
+            "length_equal_failures",
+            "x_exactly_negated_failures",
+            "yz_exactly_equal_failures",
+        ):
+            self.assertEqual(verification[failure], 0, failure)
+
+    def test_relabel_is_unambiguous_and_actually_ran(self):
+        relabel = self.split["mirror_relabel"]
+        self.assertEqual(relabel["source_labels_ending_in_mirror"], 0)
+        self.assertGreater(relabel["relabelled_sequences"], 0)
+        self.assertEqual(relabel["released_second_half_labels"], ["005_mirror"])
+
+    def test_scene_labels_are_injective_with_respect_to_rooms(self):
+        grids = self.split["scene_grid_verification"]
+        self.assertEqual(grids["distinct_grid_sha256"], grids["labels_checked"])
+        self.assertEqual(grids["grid_shape_axis0_reversal_failures"], 0)
+
+    def test_three_way_partitions_are_disjoint_and_cover_every_family(self):
+        sides = {name: self.split[name] for name in ("train", "validation", "test")}
+        for first, second in (("train", "validation"), ("train", "test"), ("validation", "test")):
+            self.assertFalse(set(sides[first]["scene_families"]) & set(sides[second]["scene_families"]))
+            self.assertFalse(set(sides[first]["scenes"]) & set(sides[second]["scenes"]))
+        covered = set().union(*(set(side["scene_families"]) for side in sides.values()))
+        self.assertEqual(covered, set(self.split["scene_to_family"].values()))
+
+    def test_held_out_sides_carry_no_mirrored_content(self):
+        counts = self.split["counts"]
+        assigned = counts["train_sequences"] + counts["validation_sequences"] + counts["test_sequences"]
+        self.assertEqual(assigned + counts["discarded_mirror_sequences"], counts["sequences"])
+        self.assertGreater(counts["discarded_mirror_sequences"], 0)
+
+    def test_test_has_at_least_25_scenes(self):
+        self.assertGreaterEqual(len(self.split["test"]["scenes"]), 25)
+
+    @unittest.skipIf(WORKER_EXPERT == "hoi", "HOI worker intentionally has no real LINGO assets")
+    def test_released_labels_really_do_collapse_the_mirrored_half(self):
         import pickle
 
         root = REPO / "data" / "dataset"

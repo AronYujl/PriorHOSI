@@ -278,5 +278,137 @@ contact 更差」；HSI-GPT2 表中所有方法的 non-collision 挤在 99.69–
 SDF 磁盘缓存位于 `.cache/hsi_sdf/`，经 `.gitignore` 的 `*.npz` 排除，不会污染 worktree
 （`tools/experiment.py` 会把未跟踪文件判为 dirty 而拒绝启动 reportable run）。
 
+---
+
+## 2026-08-12（同日第二次修订）：baseline 身份纠正与三模型口径
+
+本节纠正上文**第 3 节**的事实错误，并据此修订第 4 节的 test 集规则。错误由用户指出：
+作者 `readme.md:81` 明确写着已发布 checkpoint 只在 OMOMO 上训练，与第 3 节矛盾。核查结论是
+**作者没写错，第 3 节错了**。上文原样保留以存证。
+
+### A. 纠正：已发布 checkpoint 从未见过 LINGO
+
+第 3 节称已发布 InfBaGel「由 `config_train_infbagel_mix.yaml:15` 的 `lingo_scene_num: 45`
+训练」。该结论是从仓库里存在这份 config **推断**出来的，而不是从产出该 checkpoint 的证据得出。
+`readme.md:133` 把 mix 明确写为一个可选项（`--config-name config_train_infbagel_mix`），
+其权重从未发布。三项独立证据一致指向 OMOMO-only：
+
+1. `readme.md:81`：`checkpoint/` — Consistency model checkpoints (**trained on OMOMO dataset only**)。
+2. checkpoint 内含 `embedding_hand_goal.*`（4 个张量），**不含** `embedding_scene_goal.*`。
+   `262f2d9` 中该模块名为 `GoalEncoder(mode='hand')`，`75efccc` 才改名为 `mode='scene'`；
+   即该权重早于本仓库的改名，属作者原始产物。
+3. 作者自己的采样默认值（`config_sample_infbagel.yaml`）为 `dataset: omomo_test`、
+   `model: infbagel`（`is_mix: false`）、`sample_type: consistency`。
+
+因此已发布 checkpoint 记为 **A：OMOMO-only 的 consistency model**（CM 属性依据作者文档与
+`sample_type` 默认值，权重本身无法与 diffusion 区分，不声称已实测）。
+
+### B. 随之失效的与随之保留的
+
+- **失效**：第 3 节的 45 个 scene、「44 个 family 被触及 / 32 个未触及」、以及第 4 节据此
+  选 test 集的规则。A 既然未见过 LINGO，则对全部 110 个 scene、76 个 family 均为 zero-shot，
+  该规则没有换来任何东西。
+- **保留且仍然关键**：第 2 节的 mirror 标签缺陷与其修复。那是发布数据的真实缺陷，与 baseline
+  身份无关，v2 的价值几乎全部在此。
+- **代价已量化**：v2 把 eligible window 切成 train 976,993 / validation 113,927 /
+  test 367,443，另有 481,535 个 held-out family 的 mirror window 被整体丢弃（合计
+  1,939,898）。train 只占 50.4%。由于 B/C 改为**仅在 LINGO 上训练**，该分配直接压低训练量。
+- **因此重建 v3**：`scene-family-disjoint-v3` 去掉 baseline 规则，按 eligible window 数
+  以 0.70 / 0.10 / 0.20 三分全部 76 个 family，family-disjoint，seed 42；mirror 规则不变
+  （train family 的 mirror 归 train，held-out family 的 mirror 整体丢弃）；test 侧至少 25 个
+  scene 以维持逐场景报告。v1/v2 的 manifest 与行为逐字节不变，v3 为加法式新增。
+  第 5 节起的几何与指标口径不受影响。
+
+### C. 加载与路由：两条硬约束
+
+1. **A 必须做 key 重映射，且绝不可用 `strict=False` 兜过去。** 实测：A 直接 `strict=True`
+   失败（4 missing / 4 unexpected）；把 `embedding_hand_goal.* → embedding_scene_goal.*`
+   重映射后 `strict=True` 通过。两侧均为 `Linear(3,512) + Linear(512,512)`，形状完全一致。
+   改名是纯粹的重命名：`code/datasets/infbagel.py:327-347` 的取值逻辑与原注释一并保留未改。
+   若改用 `strict=False`，`embedding_scene_goal` 会**保持随机初始化**而预训练权重被丢弃
+   （已实测该张量与初始化逐位相同），而 `load_scene_goal: true` 会让 goal 经一个随机投影进入
+   模型，直接压低 baseline。B/C 原样 `strict=True` 通过。
+2. **`is_mix` 不是装饰性开关。** `infbagel.py:1289-1291` 注明非 mix 模式下 scene-goal 条件
+   不参与。A 训练于 `is_mix: false`，故作者默认采样配置对 A 是**正确**的；B/C 亦为
+   `is_mix: false`。（本次会话早前一度声称「A 需 `is_mix: true`」，那是基于已被推翻的 mix 前提，
+   此处一并纠正。）
+
+### D. 三模型口径与 gate 归属
+
+| | 身份 | 训练语料 | sampler | 角色 |
+|---|---|---|---|---|
+| A | 已发布 checkpoint | **OMOMO only** | consistency | 仅参考 |
+| B | 待训练 | **LINGO only**（v3 train 侧） | diffusion | **gate** |
+| C | 待训练，从 B 蒸馏 | 同 B | consistency | 蒸馏前后对比 |
+
+现有 `p1b-author-{diffusion,cm}-8x3090-full-r1` 两个 checkpoint **不能**充当 B/C：其 config
+的 dataset target 为 `datasets.infbagel.InfBaGelDataset`、folder 为 `data/train`、`lingo`
+键数为 0；`data/train/Scene` 是 87 个 `occ_N.npy`，`data/dataset/Scene` 是 254 个
+`<scene>.npy`，**交集为 0**。该 checkout 下 24 个 run 全部如此。故 B/C 需重新训练。
+
+口径注意事项：
+
+- A 与 B 同时差在**语料**与**模型类别**两个轴上，故「语料差异有多大」只能由 **A vs C**
+  （同为 CM）回答；A vs B 不可归因。
+- goal 槽位是双用途的：有手部交互帧时取手部关节，否则取**终帧 pelvis**
+  （`code/datasets/infbagel.py:347`，原注释 "use hand goal to locate end pelvis goal"）。
+  A 的语料 OMOMO 基本都有手部交互，而 LINGO no-hand 评测集恒为终帧 pelvis，故 A 在该槽位上
+  额外承受一次分布偏移——这是 A 只作参考的又一条理由。B/C 训练与评测在该槽位上自洽。
+- 由此 `last_dist` / `min_dist` / 成功率是**给定目标的可控性**指标，而非场景理解指标，
+  且该目标来自 GT。三个模型同等获得该条件，比较是公平的，但该列必须如实标注。场景理解由
+  penetration 与 `RDS` 承担。
+- 归一化空间统一：`data/train/norm.npy` 与 `data/dataset/norm.npy` 逐字节相同
+  （sha256 前缀 `61bb4b5f2ed5955f`），三个模型同处一个归一化空间，无需分别反归一化。
+
+### E. FPS 与 RDS 的实现口径
+
+- **FPS 沿用仓库既有协议，不另立定义**：`code/test_infbagel_hosi.py:724` 的
+  `_seq_fps = _num_frames / _seq_gen_time`，CUDA 同步边界、`timing_warmup_sequences: 5`、
+  `batch_size: 1`，聚合量 `aits` / `avg_fps` / `aggregate_fps`；计时只包住采样循环，
+  排除 SDF、指标与 IO。与 HOI 表同口径。另加 `rtf = aggregate_fps / 30`（实时倍率，
+  对应 LLM state machine 的 long-horizon 用途）与 `denoiser_calls_per_window`——FPS 本身
+  跨硬件不可比，调用次数才是机制量。FPS 与几何指标共用同一次采样（batch=1）。
+- **`RDS` 必须用 `need_scene=False`，不能用 CFG 的无条件分支**：`infbagel.py:1279-1284`
+  的 `need_scene=False` 会把 `scene_emb` 与 `scene_emb_0..3` 全部置零；而
+  `is_uncondition=True` / `cfg_scale == -1` 只置零 `scene_embs[1:]`（时序体素），
+  保留当前帧场景。用后者会得到被系统性低估的 divergence。该 null-scene 模式已存在，无需新建。
+- scene-only 推理**不是消融而是训练内模式**：`InfBaGelMixDataset(lingo_only=…)`
+  （`code/datasets/infbagel_mix.py:85`）已是一等公民；缺的只是评测侧接线——
+  `code/config/dataset/` 只有 `mix/omomo/omomo_test`，无 LINGO 测试配置，而
+  `code/test_infbagel_hosi.py` 已具备自回归 rollout、逐场景 SDF 穿透与 FPS 协议，
+  但指向 `data/hosi_test/` 的 67 个合成场景。工作量是把它接到 LINGO 的 test 场景，不是改架构。
+
+### F. 尚未预注册的部分
+
+B/C 的 effective batch / LR / warmup 仍须在 GPU 显存审计得出可行 micro-batch 之后另行联合
+预注册（`AGENTS.md` 要求）。作者口径为 4×A100、`batch_size: 512`、diffusion 501 epoch →
+CM 201 epoch 蒸馏；本机为 8×3090（24 GB）。由于语料从 OMOMO 换为 LINGO，「同 epoch 数」并不
+等于「同训练量」，故预算不变量取 **processed windows**，与本文件开头「以 processed
+windows/frames 锁定 HSI 内部预算」一致。C 必须在 B 完成后串行启动。
+
+### G. v3 实测结果与 watertight 重新审计
+
+比例基准为 **eligible source（非镜像）window 池**：镜像只是 train 侧的增广，不参与目标算术，
+否则 train 用含镜像计数、held-out 侧用纯源计数去比同一个目标，单位不一致。family 按 source
+window 数**降序**指派给当前缺口最大的一侧，seed 42 只用于确定性地打破并列。
+
+| | family | scene | sequence | source window | train 镜像 window | 占源池 / 目标 |
+|---|---:|---:|---:|---:|---:|---:|
+| train | 48 | 144 | 12,748 | 678,420 | 678,315 | 69.95% / 70% |
+| validation | 10 | 12 | 1,152 | 97,161 | 0 | 10.02% / 10% |
+| test | 18 | 26 | 2,199 | 194,338 | 0 | 20.04% / 20% |
+
+已独立核验：三侧 family/scene 两两不交；76 个 family 全覆盖且各恰一次；held-out 侧无任何
+`_mirror` scene；序列账目 16,099 已指派 + 3,351 丢弃镜像 = 19,450 全量；三侧
+`sequence_ids_sha256` 互不相同。**train 的 eligible window 由 v2 的 976,993 增至
+1,356,735（+38.9%）**。v1 与 v2 以原调用参数重算后**逐字节相同**，加法式扩展成立。
+
+watertight 重新审计（§D 的表针对 v2 的 37 个 test scene，v3 的 test 集已变）：v3 的
+26 个 test scene **全部有 mesh**，其中**仅 1 个非 watertight（`031`）**；validation 12 个
+scene 全部有 mesh，其中 1 个非 watertight（`049-bed`）。§D 的两条报告规则不变，只是适用对象
+改为 `031`（test）与 `049-bed`（validation）：须标注其符号由 generalized winding number
+推出、与其余场景不同口径，且逐场景数字须与 sequence 数同列。相比 v2 的 3/37，fallback 面
+更小。
+
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the fixed seed-42, scene-family-disjoint LINGO splits.
 
-Two algorithms live here.  ``scene-family-disjoint-v1`` is the Phase 1A split
+Three algorithms live here.  ``scene-family-disjoint-v1`` is the Phase 1A split
 and is frozen: ``experiments/splits/lingo_scene_disjoint_seed42.json`` must stay
 reproducible from it byte-for-byte, so nothing on that path may change.
 
@@ -11,6 +11,9 @@ LINGO scene labels -- every mirrored sequence ships labelled ``005_mirror``
 regardless of which of the 110 rooms it was captured in -- before partitioning,
 and it carves out a third ``test`` partition from the scene families the
 released InfBaGel checkpoint never trained on.
+
+``scene-family-disjoint-v3`` keeps the mirror repair and rebalances all scene
+families by eligible-window counts without consulting the released checkpoint.
 """
 
 from __future__ import annotations
@@ -29,8 +32,12 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, 
 
 ALGORITHM = "scene-family-disjoint-v1"
 ALGORITHM_V2 = "scene-family-disjoint-v2"
+ALGORITHM_V3 = "scene-family-disjoint-v3"
 DEFAULT_SEED = 42
 DEFAULT_VAL_RATIO = 0.20
+DEFAULT_V3_VAL_RATIO = 0.10
+V3_TRAIN_RATIO = 0.70
+V3_TEST_RATIO = 0.20
 MIRROR_SUFFIX = "_mirror"
 # ``code/datasets/infbagel_mix.py:305`` gates scene filtering on this literal.
 BASELINE_SCENE_FILTER_THRESHOLD = 111
@@ -438,6 +445,43 @@ def load_v2_inputs(root: Path, baseline_config: Path) -> Dict[str, Any]:
     }
 
 
+def load_v3_inputs(root: Path) -> Dict[str, Any]:
+    """Read every released artifact the v3 rebuild depends on, and hash it."""
+    np = _require_numpy()
+    scene_path = root / "scene_name.pkl"
+    start_path = root / "start_idx.npy"
+    end_path = root / "end_idx.npy"
+    transl_path = root / "transl_aligned.npy"
+    left_path = root / "left_hand_inter_frame.npy"
+    right_path = root / "right_hand_inter_frame.npy"
+    language_path = root / "language_motion_dict" / "language_motion_dict__inter_and_loco__16.pkl"
+    scene_dir = root / "Scene"
+    required = (scene_path, start_path, end_path, transl_path, left_path, right_path, language_path)
+    for path in required:
+        if not path.is_file():
+            raise SplitError(f"missing LINGO metadata: {path}")
+    if not scene_dir.is_dir():
+        raise SplitError(f"missing LINGO occupancy directory: {scene_dir}")
+    with scene_path.open("rb") as handle:
+        scene_names = pickle.load(handle)
+    with language_path.open("rb") as handle:
+        language = pickle.load(handle)
+    inputs = {
+        str(path.relative_to(root)): sha256_file(path) for path in required
+    }
+    return {
+        "scene_names": scene_names,
+        "starts": np.load(start_path).astype("int64"),
+        "ends": np.load(end_path).astype("int64"),
+        "translations": np.load(transl_path, mmap_mode="r"),
+        "sequence_left_hand": np.load(left_path),
+        "sequence_right_hand": np.load(right_path),
+        "language": language,
+        "scene_dir": scene_dir,
+        "sha256": inputs,
+    }
+
+
 def relabel_mirrored_scenes(scene_names, starts, ends, half: int) -> Tuple[List[str], Dict[str, Any]]:
     """``scene(i + H) := scene(i) + "_mirror"`` after checking the premises."""
     source_labels = [str(scene_names[int(starts[index])]) for index in range(half)]
@@ -600,7 +644,7 @@ def build_split_v2(
 def _assert_v2_invariants(
     partitions: Mapping[str, Mapping[str, Any]], discarded: Mapping[str, Any],
     scene_families: Mapping[str, str], families: Sequence[str],
-    baseline_scenes: Set[str], total: int,
+    baseline_scenes: Optional[Set[str]], total: int,
 ) -> None:
     names = ("train", "validation", "test")
     for key, label in (("scene_families", "scene-family"), ("scenes", "scene"), ("sequence_ids", "sequence")):
@@ -624,9 +668,10 @@ def _assert_v2_invariants(
         ]
         if twins:
             raise SplitError(f"{partition} scenes whose mirror twin is in train: {twins[:10]}")
-    leaked = set(partitions["test"]["scenes"]) & baseline_scenes
-    if leaked:
-        raise SplitError(f"test scenes the released baseline trained on: {sorted(leaked)[:10]}")
+    if baseline_scenes is not None:
+        leaked = set(partitions["test"]["scenes"]) & baseline_scenes
+        if leaked:
+            raise SplitError(f"test scenes the released baseline trained on: {sorted(leaked)[:10]}")
     if not set(discarded["scenes"]).isdisjoint(
         set().union(*(set(partitions[name]["scenes"]) for name in names))
     ):
@@ -648,6 +693,141 @@ def _assert_v2_invariants(
     )
     if unmapped:
         raise SplitError(f"scenes assigned to neither a partition nor the discard bucket: {sorted(unmapped)[:10]}")
+
+
+def build_split_v3(
+    inputs: Mapping[str, Any], seed: int, explicit_families: Mapping[str, str],
+) -> Dict[str, Any]:
+    np = _require_numpy()
+    scene_names = inputs["scene_names"]
+    starts, ends = inputs["starts"], inputs["ends"]
+    total = len(starts)
+    if total != len(ends):
+        raise SplitError("start_idx.npy and end_idx.npy disagree on sequence count")
+    if total % 2 != 0:
+        raise SplitError(f"sequence count {total} is odd; the mirrored half cannot be derived")
+    half = total // 2
+
+    mirror_statistics = verify_mirror_pairs(starts, ends, inputs["translations"], half)
+    labels, relabel_statistics = relabel_mirrored_scenes(scene_names, starts, ends, half)
+    sources = sorted(set(labels[:half]))
+    grid_statistics = verify_mirror_grids(inputs["scene_dir"], sources)
+
+    scene_families: Dict[str, str] = {}
+    scenes_to_sequences: Dict[str, List[int]] = {}
+    sequence_families: List[str] = []
+    for index, scene in enumerate(labels):
+        family = explicit_families.get(scene, infer_scene_family(scene))
+        if scene in scene_families and scene_families[scene] != family:
+            raise SplitError(f"scene {scene} maps to multiple families")
+        scene_families[scene] = family
+        scenes_to_sequences.setdefault(scene, []).append(index)
+        sequence_families.append(family)
+    for source in sources:
+        mirror = f"{source}{MIRROR_SUFFIX}"
+        if scene_families[mirror] != scene_families[source]:
+            raise SplitError(
+                f"{mirror} lands in family {scene_families[mirror]} but {source} is in "
+                f"{scene_families[source]}; the mirror-side rule would split one room"
+            )
+
+    families = sorted(set(scene_families.values()))
+    language = inputs["language"]
+    eligible = np.nonzero(
+        (np.asarray(language["left_hand_inter_frame"]) == -1)
+        & (np.asarray(language["right_hand_inter_frame"]) == -1)
+    )[0]
+    origins = np.asarray(language["ori_sequence_idx"])[eligible].astype("int64")
+    source_family_windows = {family: 0 for family in families}
+    for origin in origins.tolist():
+        if origin < half:
+            source_family_windows[sequence_families[origin]] += 1
+
+    ratios = {
+        "train": V3_TRAIN_RATIO,
+        "validation": DEFAULT_V3_VAL_RATIO,
+        "test": V3_TEST_RATIO,
+    }
+    source_total = sum(source_family_windows.values())
+    targets = {name: source_total * ratio for name, ratio in ratios.items()}
+    assigned_windows = {name: 0 for name in ratios}
+    assignment = {name: set() for name in ratios}
+    shuffled = list(families)
+    random.Random(seed).shuffle(shuffled)
+    shuffled.sort(key=lambda family: source_family_windows[family], reverse=True)
+    for family in shuffled:
+        partition = max(ratios, key=lambda name: targets[name] - assigned_windows[name])
+        assignment[partition].add(family)
+        assigned_windows[partition] += source_family_windows[family]
+
+    partitions: Dict[str, Dict[str, Any]] = {}
+    discarded_scenes: List[str] = []
+    for partition, selected in assignment.items():
+        if partition == "train":
+            scenes = sorted(scene for scene, family in scene_families.items() if family in selected)
+        else:
+            scenes = sorted(
+                scene for scene, family in scene_families.items()
+                if family in selected and not scene.endswith(MIRROR_SUFFIX)
+            )
+            discarded_scenes.extend(
+                scene for scene, family in scene_families.items()
+                if family in selected and scene.endswith(MIRROR_SUFFIX)
+            )
+        sequences = sorted(index for scene in scenes for index in scenes_to_sequences[scene])
+        partitions[partition] = {
+            "scene_families": sorted(selected),
+            "scenes": scenes,
+            "sequence_ids": [str(index) for index in sequences],
+        }
+    if len(partitions["validation"]["scenes"]) < 12:
+        raise SplitError("validation must contain at least 12 distinct non-mirror scenes")
+    if len(partitions["test"]["scenes"]) < 25:
+        raise SplitError("test must contain at least 25 distinct non-mirror scenes")
+    discarded_scenes = sorted(discarded_scenes)
+    discarded_sequences = sorted(index for scene in discarded_scenes for index in scenes_to_sequences[scene])
+    discarded = {
+        "reason": (
+            "mirror sequences of validation/test families are dropped entirely; moving them "
+            "to train would recreate the released leakage the v3 rebuild exists to remove"
+        ),
+        "scene_families": sorted({scene_families[scene] for scene in discarded_scenes}),
+        "scenes": discarded_scenes,
+        "sequence_ids": [str(index) for index in discarded_sequences],
+    }
+
+    _assert_v2_invariants(partitions, discarded, scene_families, families, None, total)
+
+    counts = {
+        "families": len(families),
+        "scenes": len(scene_families),
+        "sequences": int(total),
+        "source_scenes": len(sources),
+        "mirror_scenes": len(sources),
+    }
+    for partition in ("train", "validation", "test"):
+        counts[f"{partition}_families"] = len(partitions[partition]["scene_families"])
+        counts[f"{partition}_scenes"] = len(partitions[partition]["scenes"])
+        counts[f"{partition}_sequences"] = len(partitions[partition]["sequence_ids"])
+    counts["discarded_mirror_scenes"] = len(discarded["scenes"])
+    counts["discarded_mirror_sequences"] = len(discarded["sequence_ids"])
+
+    return {
+        "algorithm": ALGORITHM_V3,
+        "seed": seed,
+        "validation_ratio": DEFAULT_V3_VAL_RATIO,
+        "validation_ratio_scope": "all scene families",
+        "ratio_basis": (
+            "eligible source (non-mirror) windows; train mirrors are augmentation and are not targeted"
+        ),
+        "scene_to_family": dict(sorted(scene_families.items())),
+        "counts": counts,
+        "mirror_verification": mirror_statistics,
+        "mirror_relabel": relabel_statistics,
+        "scene_grid_verification": grid_statistics,
+        "discarded_mirror": discarded,
+        **partitions,
+    }
 
 
 def summarize_hand_filters(
@@ -717,8 +897,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="track scene lists plus hashes/counts rather than every sequence id",
     )
     parser.add_argument(
-        "--algorithm", choices=(ALGORITHM, ALGORITHM_V2), default=ALGORITHM,
-        help="v1 is the frozen Phase 1A split; v2 is the Phase 1C mirror-repaired three-way split",
+        "--algorithm", choices=(ALGORITHM, ALGORITHM_V2, ALGORITHM_V3), default=ALGORITHM,
+        help="v1 is frozen; v2 and v3 are mirror-repaired three-way splits",
     )
     parser.add_argument(
         "--baseline-config", type=Path, default=DEFAULT_BASELINE_CONFIG,
@@ -763,12 +943,46 @@ def main_v2(args: argparse.Namespace, family_map: Mapping[str, str]) -> int:
     return 0
 
 
+def main_v3(args: argparse.Namespace, family_map: Mapping[str, str]) -> int:
+    if not args.dataset_root:
+        raise SplitError("scene-family-disjoint-v3 requires --dataset-root")
+    root = args.dataset_root.resolve()
+    inputs = load_v3_inputs(root)
+    split = build_split_v3(inputs, args.seed, family_map)
+    extra = summarize_hand_filters(inputs, split)
+    if args.compact:
+        for partition in ("train", "validation", "test"):
+            sequence_ids = split[partition].pop("sequence_ids")
+            split[partition]["sequence_count"] = len(sequence_ids)
+            split[partition]["sequence_ids_sha256"] = sha256_json(sequence_ids)
+        sequence_ids = split["discarded_mirror"].pop("sequence_ids")
+        split["discarded_mirror"]["sequence_count"] = len(sequence_ids)
+        split["discarded_mirror"]["sequence_ids_sha256"] = sha256_json(sequence_ids)
+    manifest = {
+        "schema_version": 1,
+        "dataset": "LINGO",
+        "source": {
+            "type": "lingo_dataset_root",
+            "path": str(args.dataset_root),
+            "sha256": inputs["sha256"],
+        },
+        "explicit_family_map": dict(sorted(family_map.items())),
+        **split,
+        **extra,
+    }
+    atomic_write(args.output.resolve(), manifest)
+    print(args.output.resolve())
+    return 0
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         family_map = load_family_map(args.family_map)
         if args.algorithm == ALGORITHM_V2:
             return main_v2(args, family_map)
+        if args.algorithm == ALGORITHM_V3:
+            return main_v3(args, family_map)
         input_hashes: Dict[str, str]
         extra: Dict[str, Any]
         if args.dataset_root:
