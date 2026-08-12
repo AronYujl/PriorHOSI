@@ -145,3 +145,104 @@ baseline 评测完成前不成立。
 - `AGENTS.md:197-199` 要求的 seed-42 scene-family-disjoint 算法与「变体同 family 同侧」
   意图在 v2 中**得到恢复**而非放弃：v1 的意图被数据缺陷击穿，v2 修复标签后才真正成立。
 
+---
+
+## 2026-08-12（同日修订）：几何口径纠正与指标公式定版
+
+本节修订上文第 5 节。修订发生在**任何模型测量之前**，依据是数据本身的性质与文献调研，
+不是看到结果后的调整。上文第 5 节的几何主口径判断有误，此处纠正并保留原文以存证。
+
+### A. 纠正：occupancy grid 不是几何，不能作为 penetration 的评分基准
+
+上文第 5 节将 `Scene/<scene>.npy` 定为主口径、mesh 定为交叉校验。**这是反的。** 实测：
+
+- scene `004` 的 occupancy 比例为 **0.5119**；按高度分层后，最高的一层是
+  **y≈1.98 m 的天花板层，占据率 0.807**。实体家具不可能如此。
+- LINGO 官方文档对该文件的措辞是「occupied by scene objects **or unreachable**」。
+  因此该网格是**可达性/自由空间体**，不是实体几何。
+- 后果：GT 关节落在「占据」体素内的比例聚合为 **7.1%**（分场景 1.37%–8.95%），
+  另有 **4.3% 的 GT 关节完全落在世界 bbox 之外**。以该网格计的 penetration，其 GT
+  参考值约为 0.07 而非 0，且一个远离所有表面悬浮的模型会**优于 GT**。
+
+**纠正后的口径：**
+
+| 用途 | 几何源 |
+|---|---|
+| penetration / contact 评分**主口径** | `Scene_mesh/<scene>/mesh_low.obj` |
+| 模型的 scene 条件输入 | `Scene/<scene>.npy` occupancy（不变） |
+| 次要诊断，须显式标注为「可达性违规」而非穿透 | `Scene/<scene>.npy` |
+
+可行性已核实：110 个被引用的非镜像 scene **全部**有 mesh（缺失 0 个）；`004/mesh_low.obj`
+为 watertight，1,012,799 顶点 / 2,025,986 面，bbox 落在网格 bbox 内且地面 y≈0。
+`Scene_mesh` 不含 `_mirror`，但 v2 的 validation/test 只取非镜像 sequence，故评测集覆盖完整；
+训练侧镜像不参与评分。逐场景 watertight 须在构建时断言，非 watertight 场景改用
+generalized winding number 定符号并登记。
+
+预计算 2 cm SDF 网格后三线性采样（DeSeG 在 LINGO 上的同分辨率先例）；分辨率、符号约定、
+插值模式与 bbox 外规则必须与数值一同登记。bbox 外样本按「不裁剪、记为正距离」处理，
+并单独报告越界比例。
+
+### B. 为什么必须写死公式：同名指标不是同一个量
+
+文献调研的首要结论：`Pene_mean`/`Pene_max` 至少是四个互不兼容的量共用一个符号。同一个
+LINGO baseline 被不同论文报为 `Pene_mean` **0.402 / 0.421 / 0.392 / 1397**——DIMOS 官方
+代码是「逐帧对顶点求和的深度积分」（随网格分辨率缩放，且 `Pene_max` 不是最深顶点），
+TeSMo 是「仅穿透顶点的平均 SDF」，Dyn-HSI 是「穿透顶点计数」，PSI 是「非碰撞比例」。
+因此本项目不写「following DIMOS/LINGO」，只写表达式、聚合顺序、单位与符号约定。
+
+### C. 定版公式
+
+采样体：**SMPL-X 顶点（10475）为主口径**，28 关节为快速诊断；两者不可互换，均已登记。
+帧率 30 fps；地面 y = 0（LINGO 世界系中精确，无需估计）。
+
+**穿透**（三个量同时报告，均需 **GT 参考行**——LINGO Tab.2 没有，我们加）
+1. `pen_ratio` = SDF < −3 cm 的「顶点×帧」比例（TeSMo 阈值）。
+2. `pen_depth_mean` = 仅对穿透顶点取 |SDF| 均值，单位 m（TeSMo）。`pen_depth_max` 同理取 max。
+3. `pen_burst` = `100 × mean_t[(每帧穿透顶点比例)²]`（Dyn-HSI Eq. 9）。平方项是刻意的
+   超线性，使一帧灾难性穿透不被长序列稀释——正对自回归 rollout 的突发型失败。
+
+不采用 DIMOS 的逐顶点求和式。**scene 必须作为 paired bootstrap 的分层因子**：实测 GT
+的逐帧穿透率在三个场景间为 30.8%–94.7%，聚合值更多由评测集含哪些场景决定，而非由模型决定。
+
+**engagement**（与每一个 penetration 与 FS 数字同表，`HSIPRIOR_DESIGN_PRIORS.md:141-144`）
+1. `contact_count` = 每帧落在表面 +5 cm 带内的顶点**数量均值**。**不得使用二值形式**：
+   实测 GT 的「≥1 关节接近表面」在三个场景为 0.746 / 0.996 / 0.9996，已饱和无信号；
+   计数形式跨场景为 1.64 / 3.46 / 2.72（28 关节口径），才有区分度。
+2. `RDS`（FantasyHSI）= 同噪声、同 seed 下「给 scene 条件」与「不给 scene 条件」两次生成
+   的逐关节平均距离。它在结构上免疫「靠远离场景刷低穿透」这一失效模式，并且正是
+   design prior #6 要求的成对干预形式。
+
+文献佐证该失效模式是实测而非臆测：SUMMON 的 *w/o contact loss* 消融拿到全表最好的
+non-collision 0.995 而 contact 仅 0.194；MOVER 明确写出「悬浮的坐姿 non-collision 更好、
+contact 更差」；HSI-GPT2 表中所有方法的 non-collision 挤在 99.69–99.82。**LINGO 谱系中
+没有任何一篇在 penetration 旁报告 human-scene engagement**，故此列是可辩护的增强而非偏离。
+
+**足部**（三者不是彼此的单调变换，同时报告）
+1. `fs_nemf` — LINGO 引用的 NeMF FS：`s = v·(2 − 2^(h/H))`，H = 4 cm（趾）/ 8 cm（踝），
+   位移取 **L1** 且**求和**不取平均，序列先平移使最低足高为 0，单位 cm/frame。
+2. `skate_ratio` — GMD/TeSMo：足高 < 5 cm 且单帧滑动 > 2.5 cm 的帧比例。该阈值**不是
+   帧率无关的**，30 fps 下须换算为 0.75 m/s 后使用。
+3. 现有 `compute_foot_sliding_for_smpl`，仅为与 HOI 表同口径而保留。
+
+**目标到达**
+1. `last_dist` 与 `min_dist`：对关节取 min、仅水平 (xz)（DIMOS）。两者同时报告——它们在
+   模型到达后又漂走时分离，而那正是自回归的真实失效模式。
+2. 成功率同时按 **10 cm**（InfBaGel，即本项目 baseline 的口径）与 **20 cm**（DIMOS/LINGO 谱系）报告。
+3. TeSMo 三分解：水平位置 / 朝向 / 高度分列，用以区分「到错地方」与「到了但朝向错」。
+4. `time_to_goal` = 首次满足阈值的帧，按 30 fps 折算为秒。
+
+**窗口接缝连续性**（本项目自定义：HSI 文献中无此指标，不得声称沿用）
+1. `jerk_ratio` = 接缝处 jerk / 内部 jerk（SEAM 形式）。自归一化、不需 GT、且无法靠整体
+   平滑作弊——分子分母会同时下降。
+2. TEACH transition distance，对齐与未对齐两种都报。
+3. **实现约束**：从第二个窗口起，重叠的 2 个 history frame 必须在计算任何指标前丢弃
+   （DIMOS 的 `start_frame = 2`）；所有时序指标在**拼接后的整条序列**上计算，不得逐窗口计算
+   后再平均。
+
+**分布/语义指标**（仍属未批准范围，此处只定框架）
+`R-Precision` Top-1/2/3、gallery 32 为主要语义数字——自训练 evaluator 下它是唯一可迁移的量，
+因为它衡量同一嵌入空间内的相对排序；FID/Diversity/MultiModality 只在本表内部可比，须附
+「Real motions」参考行，且 Diversity 与 MultiModality 标「→」而非「↑」。**不报告 MM-Dist**
+（Voas et al. MIG 2023：与人类判断相关性一贯最弱，明确建议弃用）。
+
+
