@@ -410,5 +410,71 @@ scene 全部有 mesh，其中 1 个非 watertight（`049-bed`）。§D 的两条
 推出、与其余场景不同口径，且逐场景数字须与 sequence 数同列。相比 v2 的 3/37，fallback 面
 更小。
 
+---
+
+## 2026-08-13：B/C 训练预算与 batch/LR/warmup 联合预注册
+
+`AGENTS.md` 要求 effective batch、LR 与 warmup 联合预注册。本节据 2026-08-12 的 GPU 实测
+给出取值与其推导。**本节尚有一个未解除的前置条件，见 §4，B 不得在其解除前启动。**
+
+### 1. 实测基础（8×RTX 3090，24 GB，GPU 0 单卡，fp32，real `p_losses` 路径）
+
+| micro-batch | peak alloc | peak reserved | 占 23.57 GiB | step | node 吞吐 |
+|---:|---:|---:|---:|---:|---:|
+| 64 | 6.16 | 7.14 | 30% | 0.311 s | 1,647 win/s |
+| 128 | 7.88 | 12.90 | 55% | 0.459 s | 2,232 win/s |
+| 256 | 11.32 | 18.68 | 79% | 0.773 s | 2,650 win/s |
+| 384 | — | 失败时 20.14 | — | OOM | — |
+
+5 步与 200 步的 peak reserved 逐位相同，故非短程假象。384 的失败是 allocator 碎片
+（已分配 9.89 GiB 而保留 20.14 GiB），不是 24 GB 容量不足。**显存不是约束**：作者口径的
+effective 512 只用掉单卡 30%，accumulation factor 为 1。
+
+### 2. 取值与推导
+
+| 项 | 取值 | 依据 |
+|---|---|---|
+| effective batch | **2048** | 用户决定，取自 `AGENTS.md` 许可集 `{512,1024,2048,3072}` |
+| micro-batch × GPU | **256 × 8，accum 1** | 实测可跑；**回退** 128 × 8 accum 2（语义等价，55% 显存，+5.9 h） |
+| lr | **2e-4** | 作者 1e-4 @ 512，Adam 用 **√k** 缩放：√(2048/512)=2 |
+| warmup | **线性 2,000 updates**（约 1.4%）0→2e-4，其后恒定 | 作者无 warmup；4× batch 下 warmup 是使大 batch 追平小 batch 的标准手段，加它是**减少**结果偏离而非增加偏离 |
+| 精度 | **fp32** | AMP 快 17–28% 且 loss 有限，但改变数值口径；baseline 以保真优先 |
+| 预算不变量 | **processed windows** | 语料由 OMOMO 换为 LINGO，同 epoch 数 ≠ 同训练量 |
+
+LR 用 √k 而非线性：优化器是朴素 `Adam`（`code/train_infbagel.py:83,86`，`lr` 恒定、无
+scheduler）。Adam 的更新被梯度二阶矩归一化，batch 增大 k 倍使梯度噪声标准差降为 1/√k，
+故 √k 缩放才保持更新的信噪比；线性缩放是 SGD+momentum 的结论，用于 Adam 通常不稳。
+
+### 3. 预算
+
+OMOMO（`data/train`）共 **597,868** 个 window，故作者训练量为：
+
+| | 作者 epoch | 作者 processed windows | v3 train 等效 epoch | optimizer updates @2048 |
+|---|---:|---:|---:|---:|
+| B diffusion | 501 | 299,531,868 | 220.8 | 146,255 |
+| C consistency | 201 | 120,171,468 | 88.6 | 58,678 |
+
+v3 train 侧为 1,356,735 个 eligible window。若改为「对齐 epoch 数」而非 processed windows，
+将处理 2.27× 于作者的训练量（约 115 h），故该不变量是实质性的。
+
+B 的墙钟约 **31.4 h**（2,650 win/s，不含 DDP allreduce，故为下界）。C 的 consistency loss
+含 teacher/target 额外前向，其单步成本**未实测**，故 C 的墙钟未知，不在此处编造。
+
+**已知偏离作者的项，全部登记**：语料 OMOMO → LINGO-only；effective batch 512 → 2048
+（optimizer updates 由 585,023 降至 146,255，是本次最大的保真代价）；lr 1e-4 → 2e-4；
+warmup 无 → 2,000；硬件 4×A100 → 8×3090。墙钟由 micro-batch 而非 effective batch 决定：
+effective 2048 相对 1024 只多省 5.9 h，代价是 optimizer updates 再减半。
+
+### 4. 未解除的前置条件
+
+`lingo_only=true` 时 `use_object_keypoints` 仍为 True，`p_losses` 因而对**全零**的
+`transformed_obj_verts` 计算 `50 × loss_object` 并叠加 `50 × loss_fk`，即训练模型把 object
+keypoint 放到原点；实测总 loss 79–203 由该项主导。这是目标函数语义问题，位于任何
+batch/LR 选择之上。**B 不得在其修复并经用户确认前启动。** 修复方案另行提交。
+
+同时登记三项已知缺陷（修复中，不改变本节取值）：scene-only guidance 函数不存在且其分支被
+`is_mix` 门控；`_compute_occ_sample` 在 batch > 1 抛错；`get_nearest_free_voxel` 未在
+`InfBaGelMixDataset` 上暴露。三者只影响采样与评测路径，不影响训练预算。
+
 
 
