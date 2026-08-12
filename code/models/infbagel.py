@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from vit_pytorch import ViT
 from tqdm import tqdm
 from utils import *
+from guidance_loss import apply_hsi_guidance_loss
 import pytorch3d.transforms as transforms
 
 @torch.no_grad()
@@ -560,7 +561,7 @@ class Sampler:
                     object_points_temp = object_points.clone()
                     pred_obj_rot_mat_rel = x[:, :, 219:228].reshape(x.shape[0], -1, 3, 3)
                     
-                    obj_rot_mat_ref_temp = obj_rot_mat_ref
+                    obj_rot_mat_ref_temp = obj_rot_mat_ref.unsqueeze(1).repeat(1, pred_obj_rot_mat_rel.shape[1], 1, 1)
                     pred_obj_rot_mat = pred_obj_rot_mat_rel @ obj_rot_mat_ref_temp # [b, t, 3, 3]
                     pred_obj_rot_mat = pred_obj_rot_mat @ pred_obj_rot_mat[:, 0:1, :, :].transpose(2, 3)
 
@@ -704,9 +705,9 @@ class Sampler:
                 # verts, joints = zup_to_yup(verts), zup_to_yup(joints)
                 # verts = verts.reshape(self.batch_size, self.dataset.max_window_size, -1, 3)
 
-                if self.is_mix and not is_object.any():
-                    # mix, scene-only batch: human-scene penetration guidance (no object geometry)
-                    loss = guidance_fn(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
+                if not is_object.any():
+                    # scene-only batch: human-scene penetration guidance (no object geometry)
+                    loss = apply_hsi_guidance_loss(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
                 else:
                     pred_seq_com_pos = x_start[:, :, 216:219].reshape(self.batch_size, self.dataset.max_window_size, 3)
                     pred_seq_com_pos = transform_points(self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat)

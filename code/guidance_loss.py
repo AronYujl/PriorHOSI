@@ -93,6 +93,11 @@ def apply_hoi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_ro
     loss = loss_hand_object_interaction * 10 + loss_feet_floor_contact * 500
     return loss
 
+def apply_hsi_guidance_loss(human_jnts, scene_flag, get_nearest_free_voxel):
+    is_penetrating, nearest_free_points = get_nearest_free_voxel(human_jnts, scene_flag)
+    loss = F.mse_loss(human_jnts, nearest_free_points) * 20000
+    return loss
+
 def apply_hosi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, get_nearest_free_voxel):
     bs = human_jnts.shape[0]
 
@@ -105,8 +110,7 @@ def apply_hosi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_r
                 torch.zeros_like(obj_verts[:, :, :, -2])).abs().mean()
     loss += bs * loss_floor_object * 100
 
-    is_penetrating, nearest_free_points = get_nearest_free_voxel(human_jnts, scene_flag)
-    loss += F.mse_loss(human_jnts, nearest_free_points) * 20000
+    loss += apply_hsi_guidance_loss(human_jnts, scene_flag, get_nearest_free_voxel)
 
     is_penetrating, nearest_free_points = get_nearest_free_voxel(obj_verts, scene_flag)
     loss += F.mse_loss(obj_verts, nearest_free_points) * 1000
