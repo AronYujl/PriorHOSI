@@ -37,8 +37,21 @@ train: true
 load_state_dict: false
 batch_size: 256
 effective_batch_size: 2048
-gradient_accumulation_steps: 1
-# Fallback: batch_size 128 x 8 GPUs, gradient_accumulation_steps 2 (55% memory, +5.9 h).
+gradient_accumulation_steps: 2
+# 256 x 4 GPUs x accum 2 = effective 2048, identical to the preregistered
+# 256 x 8 x accum 1: same effective batch, same 146,255 optimizer updates, and
+# the warmup advances per optimizer update so its schedule is unchanged
+# (verified: accumulation 1 and 2 give identical per-update lr sequences).
+#
+# 4 GPUs rather than 8 because HOST RAM, not VRAM, is the binding constraint.
+# Measured peak RSS is 31.6 GB per rank -- only 3.3 GB of that is the named
+# arrays; the rest is transient CPU-side staging of the 254-scene occupancy
+# grid.  8 ranks plus their 16 DataLoader workers exhausted the 503 GB host and
+# the OOM killer took a rank holding 42.7 GB anon-RSS, which surfaced as
+# "_pickle.UnpicklingError: pickle data was truncated" during worker spawn.
+# 4 ranks is ~126 GB and fits with headroom.  It also leaves cards free for
+# other projects on this shared host, and a 4-way DDP job cannot be killed by
+# one displaced rank the way an 8-way job can.
 lr: 0.0002
 warmup_updates: 2000
 device: cuda:0
@@ -50,7 +63,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 0
 
-num_gpus: 8
+num_gpus: 4
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16

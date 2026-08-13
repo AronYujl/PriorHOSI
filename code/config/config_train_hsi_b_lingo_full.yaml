@@ -27,7 +27,7 @@ train: true
 load_state_dict: false
 batch_size: 256
 effective_batch_size: 2048
-gradient_accumulation_steps: 1
+gradient_accumulation_steps: 2
 # Fallback: batch_size 128 x 8 GPUs, gradient_accumulation_steps 2 (55% memory, +5.9 h).
 lr: 0.0002
 warmup_updates: 2000
@@ -40,7 +40,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 0
 
-num_gpus: 8
+num_gpus: 4
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16
