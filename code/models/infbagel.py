@@ -677,6 +677,9 @@ class Sampler:
                 self.solver.ddim_alpha_cumprods_prev, timestep_index, pred_x_0.shape
             ).float()
             x_prev = alpha_cumprod_prev.sqrt() * pred_x_0 + (1.0 - alpha_cumprod_prev).sqrt() * noise
+
+            if guidance_fn is None:
+                return x_prev.float(), occ, pred_x_0
             
             with torch.enable_grad():
                 x_start = pred_x_0.detach().requires_grad_(True)
@@ -882,7 +885,7 @@ class Sampler:
 
     @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \
-                    need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix=None, object_only=False):
+                    need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
         self.batch_size = fixed_points.shape[0]
         device = next(self.student_model.parameters()).device
         shape = (self.batch_size, self.dataset.max_window_size, self.channel)
@@ -900,7 +903,7 @@ class Sampler:
             points, occ, pred_x0 = self.p_sample(model_used, x0[-1], points, fixed_points, mat, scene_flag,
                                         torch.full((self.batch_size,), i, device=device, dtype=torch.long), i,
                                         text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix, object_only)
+                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix, object_only)
             if self.auto_regre_num > 0:
                 self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
 
@@ -915,7 +918,7 @@ class Sampler:
     @torch.no_grad()
     def p_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix=None, object_only=False):
+                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
         occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix)
 
         cond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True)
@@ -935,7 +938,75 @@ class Sampler:
             # posterior_variance_t = extract(self.posterior_variance, t, x.shape)
             # return model_mean + torch.sqrt(posterior_variance_t) * torch.randn_like(x), occ
             model_log_variance = extract(self.posterior_log_variance_clipped, t, x.shape)
-            return model_mean + (0.5 * model_log_variance).exp() * torch.randn_like(x), occ, model_output
+            x_prev = model_mean + (0.5 * model_log_variance).exp() * torch.randn_like(x)
+
+            if guidance_fn is None:
+                return x_prev, occ, model_output
+
+            with torch.enable_grad():
+                x_start = model_output.detach().requires_grad_(True)
+
+                global_jpos = x_start[:, :, :84].reshape(self.batch_size, self.dataset.max_window_size, 84)
+                global_jpos = transform_points(self.dataset.denormalize_torch(global_jpos), mat).reshape(self.batch_size, self.dataset.max_window_size, 28, 3)
+
+                # FK to get joint positions.
+                rest_human_offsets, transl, betas, gender = human_dict['rest_human_offsets'], human_dict['transl'], human_dict['betas'], human_dict['gender']
+                
+                curr_seq_local_jpos = rest_human_offsets # [b, t, 24, 3]
+                curr_seq_local_jpos = curr_seq_local_jpos.reshape(-1, 24, 3) # [b*t, 24, 3]
+                curr_seq_local_jpos[:, 0, :] = global_jpos.reshape(-1, 28, 3)[:, 0, :]
+
+                global_jrot_6d = x_start[:, :, 84:216].reshape(self.batch_size, self.dataset.max_window_size, 22, 6)
+                global_jrot_mat = transforms.rotation_6d_to_matrix(global_jrot_6d) # [b, t, 22, 3, 3]
+                global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat
+
+                local_jrot_mat = self.dataset.quat_ik_torch(global_jrot_mat.reshape(-1, 22, 3, 3)) # [b*t, 22, 3, 3]
+                _, human_jnts = self.dataset.quat_fk_torch(local_jrot_mat, curr_seq_local_jpos) # [b*t, 24, 3]
+                human_jnts = human_jnts.reshape(self.batch_size, -1, 24, 3) # [b, t, 24, 3]
+
+                if not is_object.any():
+                    # scene-only batch: human-scene penetration guidance (no object geometry)
+                    loss = apply_hsi_guidance_loss(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
+                else:
+                    pred_seq_com_pos = x_start[:, :, 216:219].reshape(self.batch_size, self.dataset.max_window_size, 3)
+                    pred_seq_com_pos = transform_points(self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat)
+
+                    object_rot_mat = x_start[:, :, 219:228].reshape(self.batch_size, self.dataset.max_window_size, 3, 3) # B X 16 X 3 X 3
+
+                    if self.dataset.vis:
+                        pred_obj_rot_mat = (obj_rot_mat_prefix @ object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
+                    else:
+                        pred_obj_rot_mat = (object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
+
+                    contact_labels = x_start[:, :, 228:232].reshape(self.batch_size, self.dataset.max_window_size, 4)
+
+                    obj_verts = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
+                    obj_normals = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
+
+                    for seg_id in range(self.batch_size):
+                        obj_name = seq_name_dict[seg_id].split('_')[1]
+                        pred_obj_rot_mat_seg = pred_obj_rot_mat[seg_id].reshape(-1, 3, 3)
+                        pred_seq_com_pos_seg = pred_seq_com_pos[seg_id].reshape(-1, 3)
+                        obj_rest_verts_seg, obj_rest_normals_seg = load_object_geometry_w_rest_geo_and_normals(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name], obj_vert_normals[obj_name])
+                        obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
+                        obj_rest_normals_seg = obj_rest_normals_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
+                        num_obj_verts = obj_rest_verts_seg.shape[2]
+                        if num_obj_verts > 10000:
+                            # randomly select indices of 10000 points
+                            indices = torch.randperm(num_obj_verts)[:10000]
+                            obj_rest_verts_seg = obj_rest_verts_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
+                            obj_rest_normals_seg = obj_rest_normals_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
+                        obj_verts = torch.cat([obj_verts, obj_rest_verts_seg], dim=0)
+                        obj_normals = torch.cat([obj_normals, obj_rest_normals_seg], dim=0)
+
+                    assert obj_verts.shape[0] == self.batch_size
+
+                    loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
+
+                gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
+                x_prev = x_prev + gradient
+
+            return x_prev, occ, model_output
     
 
     def set_fixed_points(self, img, goal, fixed_points, mat, joint_id, fix_mode, fix_goal):

@@ -40,6 +40,8 @@ use_random_frame_bps: false
 add_object_voxel: true
 
 guidance_weight: 1
+# Enable guidance for either sampling method; false selects unguided sampling.
+use_guidance: true
 
 # Latency protocol: exclude complete episodes from aggregate timing after model
 # construction and synchronize CUDA at every measured boundary.
