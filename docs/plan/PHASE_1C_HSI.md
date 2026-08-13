@@ -528,7 +528,7 @@ guard 已拆分，使 `loss_object is None` 时 `loss_fk` 仍被累加与记录�
 gap 的 59%，迭代步数贡献为零」。若以 guided-A 对 unguided-B 成表，则 protocol 差异与语料、
 模型类别差异混在同一轴上，95% 门槛将读在一个被混淆的数字上。
 
-三个候选口径（**尚未选定，待用户决定**）：
+三个候选口径（用户已选 **3**，见 §D）：
 
 1. 把 guidance 移植进 `p_sample`，使三模型同为 guided。可比性最强，但属 sampler 实质变更，
    且作者从未运行 diffusion+guidance，无参考行为可对照。
@@ -537,7 +537,42 @@ gap 的 59%，迭代步数贡献为零」。若以 guided-A 对 unguided-B 成�
 3. 改以 C 为 gate（与 A 同为 CM，正是 §D 已指出的「A vs C 才可归因」）。但 C 依赖 B 先完成，
    gate 因此移到链尾，B 在消耗约 31 h 算力期间无 gate。
 
-倾向 2（最便宜且诚实，unguided 列无论如何都要采），必要时叠加 1；不单取 3，因其使 B 无 gate。
+（我倾向 2 并可叠加 1；用户选定 3，见下节。）
+
+### D. 用户决定：gate 改为 C（2026-08-13）
+
+用户选定候选 3：**gate 由 B 改为 C**。据此修订 §D 的 gate 归属表：
+
+| | 身份 | 训练语料 | sampler | guidance | 角色 |
+|---|---|---|---|---|---|
+| A | 已发布 checkpoint | OMOMO only | consistency | 可用 | 参考（与 C 同 sampler，可归因） |
+| B | 待训练 | LINGO only（v3 train） | diffusion | **不可用** | 中间产物；C 的 teacher |
+| C | 由 B 蒸馏 | 同 B | consistency | 可用 | **gate** |
+
+该选择使 gate 落在 **guided C vs guided A** 上——同为 CM、同为 guided，protocol 恒定，
+正是 §D 原文已指出「语料差异只能由 A vs C 回答」的那一组比较。`p_sample` 不改动，
+guidance 不移植，sampler 保持作者原状。
+
+代价与其缓解（一并登记）：
+
+1. **B 在约 31 h 训练期间无 gate。** 这是该选择的固有代价，用户已知并接受。
+2. **蒸馏效应仍可测**：B 与 C 均原生支持 unguided 采样，故 **unguided B vs unguided C**
+   是同 protocol 的合法比较，可量化蒸馏前后差异，无需 guidance。该列不额外花费采样预算
+   （B 无论如何只能 unguided）。
+3. **B 仍须评测**，作为 C 的诊断基线与「蒸馏是否退化」的判据，但其数字**不得**与 guided A
+   同表并列作门槛比较——只能出现在 unguided 列。
+
+由此本次评测的采样矩阵定为：
+
+| 模型 | guided | unguided | 用途 |
+|---|:-:|:-:|---|
+| A | ✓ | ✓ | 参考行；unguided 列使 A/B/C 三者有一列同 protocol |
+| B | — | ✓ | 蒸馏前基线（结构上无法 guided） |
+| C | ✓ | ✓ | **gate**（guided 对 A）；unguided 对 B 测蒸馏 |
+
+即需要三条采样路径：guided CM、unguided CM、以及 diffusion（`p_sample_loop`，
+`code/test_infbagel_hosi.py` 目前只接了 `cm_sample_loop`）。95% 门槛按 guided C / guided A
+计算。
 
 
 
