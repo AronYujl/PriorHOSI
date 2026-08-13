@@ -476,5 +476,68 @@ batch/LR 选择之上。**B 不得在其修复并经用户确认前启动。** �
 `is_mix` 门控；`_compute_occ_sample` 在 batch > 1 抛错；`get_nearest_free_voxel` 未在
 `InfBaGelMixDataset` 上暴露。三者只影响采样与评测路径，不影响训练预算。
 
+---
+
+## 2026-08-13（同日修订）：§4 前置条件解除、v3 接线与 guidance 不对称
+
+本节记录 §4 前置条件的解除，并登记一项**改变三模型可比性**的新发现。
+
+### A. §4 的前置条件已解除
+
+`p_losses` 读取 mix wrapper 的 `use_object_keypoints`（True），而 LINGO 子数据集以
+`use_object_keypoints=False` 构造，故 `lingo_only` 下 `loss_object` 对**全零**的
+`transformed_obj_verts` 计算，在 `loss_w_obj_pts: 50` 下主导总 loss（实测 79–203）。
+现按 per-sample `is_object` 门控，无样本存活时返回 `None`；`loss_fk` 属纯人体监督，保留。
+
+**同一缺陷在 `consistency_loss`（`code/models/infbagel.py:373-427`）另有一份**，该函数训练
+C，若不修则蒸馏阶段重现该 bug；已一并修复并保留 `NotImplementedError` 分支。训练循环的
+guard 已拆分，使 `loss_object is None` 时 `loss_fk` 仍被累加与记录。
+
+`loss_otrans` / `loss_orot` / `loss_contact` **刻意保持**对 LINGO 样本的零目标监督，
+依据是 216:232 通道的 zero-target 决定（未来 mixer 可能消费这些通道）。
+
+**B 的启动条件就此解除。**
+
+### B. `occ_ref` 与 v3 接线
+
+- `compute_occ_ref` 原仅在 `vis=True` 下执行，真实 254 场景下 `scene_occ_ref` 恒为 `[]`，
+  `get_nearest_free_voxel` 抛 `IndexError`，guided 采样不可达。实测每场景 72 MB / 2.6 s，
+  全量 254 场景为 **18.3 GB**，与 3.0 GB 的 `scene_occ` 并存不可行。`occ_ref` 是 `occ` 的
+  纯函数，故改为 `LazyOccRef` 按需计算 + 4 项 LRU；`vis=True` 路径逐位不变。
+- **v3 接线附带修复 scene 条件缺陷**：数据集原以 `scene_name[start_ind[idx]]` 取 scene，
+  即 §2 的缺陷标签，约半数语料被喂入错误房间的几何。现按
+  `scene(w) = scene_name[start_idx[seq]]`（`seq < H`）或
+  `scene_name[start_idx[seq-H]] + "_mirror"`（`seq >= H`）逐窗口改正，并同时用于选择与
+  `__getitem__` 的 `scene_flag`。该规则在实施前已独立核验可**精确**复现 manifest 的四个
+  partition 计数。
+- **预算口径的次要更正**：数据集另有 `seq_length <= 48` 过滤（manifest 计数不含），故
+  dataset-true 的 train 池为 **1,343,667** 而非 1,356,735（低 0.96%）。预算不变量是
+  processed windows，故 effective batch / lr / warmup / 146,255 optimizer updates
+  **均不变**，仅等效 epoch 由 220.8 变为 222.9。
+- 默认路径（无 `split_manifest`）逐项复核未变：仍为 `all_scenes[:45]` 的 495,179 窗口、
+  不构造改正标签、保留发布侧条件，故既有复现仍然有效。
+
+### C. 新发现：guidance 只存在于 consistency 路径（影响 gate 归属）
+
+`guidance_fn` 在 `code/models/infbagel.py` 全文仅 4 处，**全部位于 `cm_sample_loop` /
+`cm_sample`**。`p_sample_loop`（`:884`）与 `p_sample`（`:916`）均带 `@torch.no_grad()`
+且签名中**没有** `guidance_fn` / `guidance_scale` / `human_dict`。
+
+后果：§D 表中 **B（gate，diffusion）是唯一无法 guided 采样的模型**，而 A/C 皆可。这不是
+装饰性差异——HOI 阶段已实测「已发布 baseline 行是 guided 16-step CM 采样，guidance 占 contact
+gap 的 59%，迭代步数贡献为零」。若以 guided-A 对 unguided-B 成表，则 protocol 差异与语料、
+模型类别差异混在同一轴上，95% 门槛将读在一个被混淆的数字上。
+
+三个候选口径（**尚未选定，待用户决定**）：
+
+1. 把 guidance 移植进 `p_sample`，使三模型同为 guided。可比性最强，但属 sampler 实质变更，
+   且作者从未运行 diffusion+guidance，无参考行为可对照。
+2. 三模型各报 guided 与 unguided 两列，gate 取 unguided（三者原生可比的那一列）。无新
+   sampler 代码，代价是采样时间翻倍，且 gate 落在 baseline 未发表过的 protocol 上。
+3. 改以 C 为 gate（与 A 同为 CM，正是 §D 已指出的「A vs C 才可归因」）。但 C 依赖 B 先完成，
+   gate 因此移到链尾，B 在消耗约 31 h 算力期间无 gate。
+
+倾向 2（最便宜且诚实，unguided 列无论如何都要采），必要时叠加 1；不单取 3，因其使 B 无 gate。
+
 
 
