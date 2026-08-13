@@ -1,12 +1,25 @@
 # Model B short-budget LINGO-only diffusion training config
+#
+# is_mix must be false on BOTH the model and the sampler, matching the
+# preregistration and matching A's routing.  The two flags do different things:
+#   Sampler.is_mix  (sampler/pelvis*.yaml)  gates infbagel.py:793-794, which
+#     overwrites the *input* object channels with the *target* for scene-only
+#     samples.  Under lingo_only that is every sample, so the model would
+#     satisfy loss_otrans/orot/contact by copying its input and never learn to
+#     denoise 216:232 -- while both sample loops start from randn over all 232
+#     dims with no such substitution.  That mismatch defeats the zero-target
+#     guarantee the mixer depends on.
+#   Unet.is_mix     (model/infbagel*.yaml)   gates pelvis-goal vs scene-goal
+#     routing at infbagel.py:1377,1391.  Keeping it false matches A, so A vs B
+#     is not confounded by a routing difference on top of corpus and model class.
 defaults:
   - dataset: lingo_v3_train
   - guidance:
       - pelvis
   - model:
-      - infbagel_mix
+      - infbagel
   - sampler:
-      - pelvis_mix
+      - pelvis
   - _self_
 
 exp_name: hsi_b_lingo_short

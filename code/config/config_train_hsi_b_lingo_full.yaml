@@ -1,12 +1,15 @@
 # Model B full-budget LINGO-only diffusion training config
+#
+# is_mix false on both model and sampler; see the rationale in
+# config_train_hsi_b_lingo_short.yaml.
 defaults:
   - dataset: lingo_v3_train
   - guidance:
       - pelvis
   - model:
-      - infbagel_mix
+      - infbagel
   - sampler:
-      - pelvis_mix
+      - pelvis
   - _self_
 
 exp_name: hsi_b_lingo_full
