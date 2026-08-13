@@ -606,7 +606,78 @@ class InfBaGelMixDataset(Dataset):
                 # occ = occ.unsqueeze(0)
                 # occ[0, voxel[:, 0], voxel[:, 1], voxel[:, 2]] = 2
 
-    def get_occ_for_points(self, points, obj_points, scene_flag):
+    def _get_occ_for_points_direct(self, points, obj_points, scene_flag):
+        """Query mixed-scene occupancy without materializing full scene batches."""
+        batch_size = points.shape[0]
+        seq_len = points.shape[1]
+        query_count = points.numel() // (batch_size * 3)
+        points = points.reshape(-1, 3)
+        voxel_size = torch.div(self.omomo_dataset.scene_grid_torch[3: 6] - self.omomo_dataset.scene_grid_torch[:3], self.omomo_dataset.scene_grid_torch[6:])
+        grid_size = self.omomo_dataset.scene_grid_torch[6:].to(dtype=torch.long)
+        voxel = torch.div((points - self.omomo_dataset.scene_grid_torch[:3]), voxel_size)
+        voxel = voxel.to(dtype=torch.long)
+        lb = torch.all(voxel >= 0, dim=-1)
+        ub = torch.all(voxel < self.omomo_dataset.scene_grid_torch[6:] - 0, dim=-1)
+        in_bound = torch.logical_and(lb, ub)
+        voxel[torch.logical_not(in_bound)] = 0
+
+        scene_flag = scene_flag.reshape(-1)
+        batch_id = torch.arange(batch_size, device=points.device, dtype=torch.long) \
+            .view(-1, 1).expand(-1, query_count).reshape(-1)
+        occ_for_points = self.merged_scene_occ[
+            scene_flag[batch_id], voxel[:, 0], voxel[:, 1], voxel[:, 2]
+        ].to(dtype=torch.int8)
+
+        if self.empty_omomo_scene:
+            need_clear = self._omomo_scene_mask[scene_flag]
+            occ_for_points = torch.where(
+                need_clear[batch_id], torch.zeros_like(occ_for_points), occ_for_points
+            )
+
+        if obj_points is not None:
+            object_points = obj_points.reshape(batch_size, -1, 3)
+            object_count = object_points.shape[1]
+            object_voxel = torch.div(
+                object_points.reshape(-1, 3) - self.omomo_dataset.scene_grid_torch[:3],
+                voxel_size,
+            ).to(dtype=torch.long)
+            object_lb = torch.all(object_voxel >= 0, dim=-1)
+            object_ub = torch.all(
+                object_voxel < self.omomo_dataset.scene_grid_torch[6:] - 0,
+                dim=-1,
+            )
+            object_in_bound = torch.logical_and(object_lb, object_ub)
+            object_voxel[torch.logical_not(object_in_bound)] = 0
+
+            def voxel_key(batch, xyz):
+                return (((batch * grid_size[0] + xyz[:, 0]) * grid_size[1] +
+                         xyz[:, 1]) * grid_size[2] + xyz[:, 2])
+
+            object_batch = torch.arange(
+                batch_size, device=points.device, dtype=torch.long
+            ).view(-1, 1).expand(-1, object_count).reshape(-1)
+            object_keys = torch.sort(voxel_key(object_batch, object_voxel)).values
+            query_keys = voxel_key(batch_id, voxel)
+            positions = torch.searchsorted(object_keys, query_keys)
+            in_key_range = positions < object_keys.numel()
+            safe_positions = positions.clamp(max=object_keys.numel() - 1)
+            is_object_voxel = in_key_range & (
+                object_keys[safe_positions] == query_keys
+            )
+            occ_for_points = torch.where(
+                is_object_voxel,
+                torch.full_like(occ_for_points, 2),
+                occ_for_points,
+            )
+
+        occ_for_points = torch.where(
+            in_bound, occ_for_points, torch.ones_like(occ_for_points)
+        )
+        occ_for_points = occ_for_points.reshape(batch_size, seq_len, -1)
+
+        return occ_for_points
+
+    def _get_occ_for_points_materialized(self, points, obj_points, scene_flag):
         batch_size = points.shape[0]
         seq_len = points.shape[1]
         points = points.reshape(-1, 3)
@@ -655,3 +726,8 @@ class InfBaGelMixDataset(Dataset):
         occ_for_points = occ_for_points.reshape(batch_size, seq_len, -1)
         
         return occ_for_points
+
+    def get_occ_for_points(self, points, obj_points, scene_flag):
+        if self.train:
+            return self._get_occ_for_points_direct(points, obj_points, scene_flag)
+        return self._get_occ_for_points_materialized(points, obj_points, scene_flag)
