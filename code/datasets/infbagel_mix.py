@@ -3,6 +3,8 @@ import numpy as np
 from torch.utils.data import Dataset
 from datasets.infbagel import InfBaGelDataset, LazyOccRef
 import os
+import json
+import pickle
 
 class InfBaGelMixDataset(Dataset):
     """Mixed dataset class, supports joint training of OMOMO and LINGO datasets"""
@@ -21,6 +23,8 @@ class InfBaGelMixDataset(Dataset):
                  empty_omomo_scene=False,
                  lingo_only=False,
                  random_seed=42,
+                 split_manifest=None,
+                 split_partition=None,
                  **kwargs):
         
         # Initialize the two datasets
@@ -83,6 +87,11 @@ class InfBaGelMixDataset(Dataset):
         self.omomo_size = len(self.omomo_dataset)
         self.lingo_size = len(self.lingo_dataset)
         self.lingo_only = lingo_only
+        self.split_manifest = split_manifest
+        self.split_partition = split_partition
+
+        if self.split_manifest is not None:
+            self.lingo_window_scene_name = self._create_corrected_lingo_scene_labels()
 
         # Save configuration parameters
         self.train = train
@@ -321,6 +330,23 @@ class InfBaGelMixDataset(Dataset):
 
         return filtered_indices
 
+    def _create_corrected_lingo_scene_labels(self):
+        """Create the corrected LINGO scene label for every language window."""
+        if hasattr(self.lingo_dataset, 'scene_name'):
+            scene_name = self.lingo_dataset.scene_name
+        else:
+            with open(os.path.join(self.lingo_dataset.folder, 'scene_name.pkl'), 'rb') as f:
+                scene_name = pickle.load(f)
+
+        start_idx = self.lingo_dataset.ori_sequence_start_idx
+        half = len(start_idx) // 2
+        source_scene_names = [str(scene_name[int(start_idx[i])]) for i in range(half)]
+        sequence_scene_names = np.asarray(
+            source_scene_names + [f"{name}_mirror" for name in source_scene_names],
+            dtype=object,
+        )
+        return sequence_scene_names[np.asarray(self.lingo_dataset.ori_sequence_idx)]
+
     def _create_mixed_indices(self):
         """Create the index mapping for the mixed dataset, supporting scene and data-ratio filtering"""
         omomo_size = len(self.omomo_dataset)
@@ -328,7 +354,16 @@ class InfBaGelMixDataset(Dataset):
         # 1. Scene filtering (for the LINGO dataset)
         lingo_indices = list(range(len(self.lingo_dataset)))
 
-        if self.lingo_scene_num < 111:
+        if self.split_manifest is not None:
+            with open(self.split_manifest, 'r') as f:
+                split = json.load(f)
+            selected_scenes = set(split[self.split_partition]['scenes'])
+            lingo_indices = [
+                idx for idx, scene_name in enumerate(self.lingo_window_scene_name)
+                if scene_name in selected_scenes
+            ]
+            print(f"LINGO scene selection: Select {len(selected_scenes)} scenes from {self.split_partition} partition")
+        elif self.lingo_scene_num < 111:
             # Get all unique scenes and their corresponding data indices
             scene_to_indices = {}
             for idx in lingo_indices:
@@ -388,7 +423,11 @@ class InfBaGelMixDataset(Dataset):
 
         print(f"Mixed dataset creation completed:")
         print(f"  - OMOMO: {omomo_size} seqs")
-        print(f"  - LINGO: {len(lingo_indices)} seqs (scene: {self.lingo_scene_num}, proportion: {self.lingo_data_ratio})")
+        if self.split_manifest is not None:
+            # lingo_scene_num / lingo_data_ratio are ignored on the split path
+            print(f"  - LINGO: {len(lingo_indices)} seqs (split: {self.split_partition}, scene: {len(set(self.lingo_window_scene_name[lingo_indices]))})")
+        else:
+            print(f"  - LINGO: {len(lingo_indices)} seqs (scene: {self.lingo_scene_num}, proportion: {self.lingo_data_ratio})")
         print(f"  - All: {len(indices)} seqs")
     
     def __getitem__(self, idx):
@@ -403,7 +442,11 @@ class InfBaGelMixDataset(Dataset):
         else:
             # Fetch from the LINGO dataset
             info = self.lingo_dataset[sample_idx]
-            original_scene_flag = info['scene_flag']
+            if self.split_manifest is not None:
+                scene_name = self.lingo_window_scene_name[sample_idx]
+                original_scene_flag = self.lingo_dataset.scene_dict[scene_name]
+            else:
+                original_scene_flag = info['scene_flag']
             # Convert to the unified scene encoding
             info['scene_flag'] = self.scene_flag_mapping[('lingo', original_scene_flag)]
 
