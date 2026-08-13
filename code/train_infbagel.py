@@ -153,10 +153,11 @@ def train_ddp(rank, world_size, cfg):
                 loss_consistency, loss_object, loss_fk = \
                     loss_dict['loss_consistency'], loss_dict['loss_object'], loss_dict['loss_fk']
 
+                loss = loss_consistency
                 if loss_object is not None:
-                    loss = loss_consistency + cfg.loss_w_obj_pts * loss_object + cfg.loss_w_fk * loss_fk
-                else:
-                    loss = loss_consistency
+                    loss = loss + cfg.loss_w_obj_pts * loss_object
+                if loss_fk is not None:
+                    loss = loss + cfg.loss_w_fk * loss_fk
 
                 if step % 10 == 0:
                     current_lr = optimizer.param_groups[0]['lr']
@@ -166,6 +167,7 @@ def train_ddp(rank, world_size, cfg):
                         writer.add_scalar('Loss_consistency', loss_consistency.item(), epoch * len(dataloader) + step)
                         if loss_object is not None:
                             writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
+                        if loss_fk is not None:
                             writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
             else:
                 loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
@@ -175,7 +177,9 @@ def train_ddp(rank, world_size, cfg):
                     loss_dict['loss'], loss_dict['loss_object'], loss_dict['loss_fk']
                     
                 if loss_object is not None:
-                    loss = loss + cfg.loss_w_obj_pts * loss_object + cfg.loss_w_fk * loss_fk
+                    loss = loss + cfg.loss_w_obj_pts * loss_object
+                if loss_fk is not None:
+                    loss = loss + cfg.loss_w_fk * loss_fk
 
                 if step % 10 == 0:
                     current_lr = optimizer.param_groups[0]['lr']
@@ -184,6 +188,7 @@ def train_ddp(rank, world_size, cfg):
                         writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
                         if loss_object is not None:
                             writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
+                        if loss_fk is not None:
                             writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
 
             last_loss = float(loss.detach().item())

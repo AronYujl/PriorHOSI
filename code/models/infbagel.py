@@ -418,15 +418,19 @@ class Sampler:
             
             mask_points = torch.ones(mask_inv.shape[0], self.dataset.max_window_size, 100, 3, dtype=torch.bool).to(mask_inv.device)
             mask_points[:, :self.auto_regre_num, :, :] = False
+            mask_points = torch.logical_and(mask_points, is_object.to(mask_inv.device, dtype=torch.bool).reshape(-1, 1, 1, 1))
 
-            if loss_type == 'l1':
-                loss_object = F.l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
-            elif loss_type == 'l2':
-                loss_object = F.mse_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
-            elif loss_type == "huber":
-                loss_object = F.smooth_l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+            if mask_points.any():
+                if loss_type == 'l1':
+                    loss_object = F.l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+                elif loss_type == 'l2':
+                    loss_object = F.mse_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+                elif loss_type == "huber":
+                    loss_object = F.smooth_l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+                else:
+                    raise NotImplementedError()
             else:
-                raise NotImplementedError()
+                loss_object = None
 
         else: 
             loss_object = None
@@ -858,8 +862,12 @@ class Sampler:
             
             mask_points = torch.ones(mask_inv.shape[0], self.dataset.max_window_size, 100, 3, dtype=torch.bool).to(mask_inv.device)
             mask_points[:, :self.auto_regre_num, :, :] = False
+            mask_points = torch.logical_and(mask_points, is_object.to(mask_inv.device, dtype=torch.bool).reshape(-1, 1, 1, 1))
 
-            loss_object = F.smooth_l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+            if mask_points.any():
+                loss_object = F.smooth_l1_loss(transformed_obj_verts[mask_points], pred_seq_obj_kpts[mask_points])
+            else:
+                loss_object = None
 
         else: 
             loss_object = None

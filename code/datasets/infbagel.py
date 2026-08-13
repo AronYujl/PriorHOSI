@@ -1,4 +1,6 @@
 import os
+from collections import OrderedDict
+
 import torch
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -11,6 +13,47 @@ from datasets.utils import get_occupancy_from_npy, zup_to_yup, get_smpl_parents
 from bps_torch.bps import bps_torch
 import pytorch3d.transforms as transforms
 from scipy.ndimage import distance_transform_edt
+
+
+def _compute_single_occ_ref(occ):
+    dist_transform = distance_transform_edt(occ, return_distances=True, return_indices=True)
+    indices = np.array(dist_transform[1])  # [3, W, H, D]
+
+    w, h, d = occ.shape
+    x, y, z = np.meshgrid(np.arange(w), np.arange(h), np.arange(d), indexing='ij')
+    coords = np.stack([x, y, z], axis=0)  # [3, W, H, D]
+
+    displacements = indices - coords  # [3, W, H, D]
+    return np.transpose(displacements, (1, 2, 3, 0))
+
+
+class LazyOccRef:
+    def __init__(self, occ, capacity=4):
+        self.occ = occ
+        self.capacity = capacity
+        self.cache = OrderedDict()
+
+    def __len__(self):
+        return self.occ.shape[0]
+
+    def __getitem__(self, scene_id):
+        if isinstance(scene_id, int):
+            return self._get(scene_id)
+        return torch.stack([self._get(sid) for sid in scene_id.tolist()])
+
+    def _get(self, scene_id):
+        if scene_id in self.cache:
+            self.cache.move_to_end(scene_id)
+            return self.cache[scene_id]
+
+        displacements = _compute_single_occ_ref(self.occ[scene_id].cpu().numpy())
+        occ_ref = torch.from_numpy(displacements).to(device=self.occ.device, dtype=torch.int16)
+
+        if len(self.cache) >= self.capacity:
+            self.cache.popitem(last=False)
+        self.cache[scene_id] = occ_ref
+        return occ_ref
+
 
 class InfBaGelDataset(Dataset):
     def __init__(self, folder, device, mesh_grid, batch_size, step, nb_voxels, train=True,
@@ -178,6 +221,8 @@ class InfBaGelDataset(Dataset):
             
             if self.vis:
                 self.scene_occ_ref = self.compute_occ_ref(self.scene_occ)
+            else:
+                self.scene_occ_ref = LazyOccRef(self.scene_occ)
 
             if not self.vis:
                 self.scene_grid_np = np.array([-3, 0, -4, 3, 2, 4, 300, 100, 400])
@@ -288,6 +333,8 @@ class InfBaGelDataset(Dataset):
 
         if self.vis:
             self.scene_occ_ref = self.compute_occ_ref(self.scene_occ)
+        else:
+            self.scene_occ_ref = LazyOccRef(self.scene_occ)
 
         if not self.vis:
             self.scene_grid_np = np.array([-3, 0, -4, 3, 2, 4, 300, 100, 400])
@@ -845,20 +892,7 @@ class InfBaGelDataset(Dataset):
         batch_displacements = []
 
         for b in range(batch_size):
-            dist_transform = distance_transform_edt(occ[b], return_distances=True, return_indices=True)
-            indices = np.array(dist_transform[1])  # [3, W, H, D]
-
-            # Create grid coordinates
-            w, h, d = occ[b].shape
-            x, y, z = np.meshgrid(np.arange(w), np.arange(h), np.arange(d), indexing='ij')
-            coords = np.stack([x, y, z], axis=0)  # [3, W, H, D]
-
-            # Compute the displacement vector for each position
-            displacements = indices - coords  # [3, W, H, D]
-
-            # Convert to the required output format [W, H, D, 3]
-            displacements = np.transpose(displacements, (1, 2, 3, 0))
-            batch_displacements.append(displacements)
+            batch_displacements.append(_compute_single_occ_ref(occ[b]))
 
         # Stack the results of all batches [B, W, H, D, 3]
         batch_displacements = np.stack(batch_displacements, axis=0)

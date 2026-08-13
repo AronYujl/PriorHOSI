@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from datasets.infbagel import InfBaGelDataset
+from datasets.infbagel import InfBaGelDataset, LazyOccRef
 import os
 
 class InfBaGelMixDataset(Dataset):
@@ -197,6 +197,8 @@ class InfBaGelMixDataset(Dataset):
         # Create the merged scene occupancy data list
         self.merged_scene_occ = []
         self.merged_scene_occ_ref = []
+        lazy_occ_ref = isinstance(self.omomo_dataset.scene_occ_ref, LazyOccRef) or \
+            isinstance(self.lingo_dataset.scene_occ_ref, LazyOccRef)
 
         # Merge scene data in unified-code order
         scene_name_to_data = {}
@@ -207,7 +209,7 @@ class InfBaGelMixDataset(Dataset):
             for scene_name, original_flag in self.omomo_dataset.scene_dict.items():
                 scene_data = self.omomo_dataset.scene_occ[original_flag]
                 scene_name_to_data[scene_name] = scene_data
-                if len(self.omomo_dataset.scene_occ_ref) > 0:
+                if not lazy_occ_ref and len(self.omomo_dataset.scene_occ_ref) > 0:
                     scene_name_to_ref[scene_name] = self.omomo_dataset.scene_occ_ref[original_flag]
 
         # Collect scene data from the LINGO dataset (if not duplicated)
@@ -215,7 +217,7 @@ class InfBaGelMixDataset(Dataset):
             if scene_name not in scene_name_to_data:
                 scene_data = self.lingo_dataset.scene_occ[original_flag]
                 scene_name_to_data[scene_name] = scene_data
-                if len(self.lingo_dataset.scene_occ_ref) > 0:
+                if not lazy_occ_ref and len(self.lingo_dataset.scene_occ_ref) > 0:
                     scene_name_to_ref[scene_name] = self.lingo_dataset.scene_occ_ref[original_flag]
 
         # Organize data in unified-code order
@@ -228,17 +230,20 @@ class InfBaGelMixDataset(Dataset):
             
             if scene_name and scene_name in scene_name_to_data:
                 self.merged_scene_occ.append(scene_name_to_data[scene_name])
-                if scene_name in scene_name_to_ref:
+                if not lazy_occ_ref and scene_name in scene_name_to_ref:
                     self.merged_scene_occ_ref.append(scene_name_to_ref[scene_name])
         
         # Convert to torch.stack format
         if self.merged_scene_occ:
             self.merged_scene_occ = torch.stack(self.merged_scene_occ)
-        if self.merged_scene_occ_ref:
+        if not lazy_occ_ref and self.merged_scene_occ_ref:
             self.merged_scene_occ_ref = torch.stack(self.merged_scene_occ_ref)
 
         self.scene_occ = self.merged_scene_occ
-        self.scene_occ_ref = self.merged_scene_occ_ref
+        if lazy_occ_ref:
+            self.scene_occ_ref = LazyOccRef(self.merged_scene_occ)
+        else:
+            self.scene_occ_ref = self.merged_scene_occ_ref
         self.scene_grid_torch = self.omomo_dataset.scene_grid_torch
 
         # Release the original dataset scene data to save GPU memory
