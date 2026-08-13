@@ -3,6 +3,7 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.optim import Adam
+from torch.optim.lr_scheduler import LambdaLR
 from utils import *
 from constants import *
 import os
@@ -99,6 +100,20 @@ def train_ddp(rank, world_size, cfg):
     dataloader = DataLoader(infbagel_dataset, batch_size=cfg.batch_size, drop_last=True, num_workers=cfg.num_workers,
                             sampler=sampler, pin_memory=True, persistent_workers=cfg.num_workers > 0)
 
+    micro_steps = int(cfg.start_epoch) * len(dataloader)
+    optimizer_updates = micro_steps // int(cfg.gradient_accumulation_steps)
+    warmup_updates = int(cfg.get('warmup_updates', 0))
+    for param_group in optimizer.param_groups:
+        param_group['initial_lr'] = cfg.lr
+    # (update + 1) because the loop calls optimizer.step() before lr_scheduler.step():
+    # the u-th update must already run at the warmed lr, not at the value for u-1.
+    # Without the offset the first update runs at lr exactly 0 and is a no-op.
+    lr_scheduler = LambdaLR(
+        optimizer,
+        lr_lambda=lambda update: 1.0 if warmup_updates == 0 else min((update + 1) / warmup_updates, 1.0),
+        last_epoch=optimizer_updates - 1,
+    )
+
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
         trainer.set_dataset_and_model(infbagel_dataset, student_model, teacher_model, target_model)
@@ -108,8 +123,6 @@ def train_ddp(rank, world_size, cfg):
     if cfg.use_tensorboard and rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(cfg.exp_dir, 'tensorboard_logs'))
 
-    optimizer_updates = 0
-    micro_steps = 0
     last_loss = None
     stop_training = False
     torch.cuda.reset_peak_memory_stats(device)
@@ -202,6 +215,7 @@ def train_ddp(rank, world_size, cfg):
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_updates += 1
+                lr_scheduler.step()
                 if cfg.max_optimizer_updates is not None and optimizer_updates >= int(cfg.max_optimizer_updates):
                     stop_training = True
                     break
