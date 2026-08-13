@@ -35,6 +35,243 @@ TRAIN_BATCH_KEYS = (
     'global_rot_6d', 'contact_label', 'rest_human_offsets', 'seg_len', 'end_pi',
 )
 
+# ---------------------------------------------------------------------------
+# Resumable training state.
+#
+# `{exp_name}_epoch{NNN}.pth` keeps its historical meaning exactly: it is
+# `model.module.state_dict()` and nothing else, under the same name, so every
+# downstream consumer (evaluation, distillation, checkpoint audits) is
+# unaffected.  Everything a restart additionally needs -- optimizer moments, the
+# epoch and optimizer-update counters, the warmup position, an AMP scaler if one
+# ever exists, the per-rank RNG, and any gradients pending inside an
+# accumulation group the epoch boundary cut in half -- lives in one separate,
+# rolling artifact `{exp_name}_resume.pth`.
+#
+# Resume granularity is the EPOCH BOUNDARY, matching the existing checkpoint
+# cadence.  `DistributedSampler.set_epoch(e)` seeds its permutation from
+# `seed + e`, so a resumed epoch replays exactly the permutation an
+# uninterrupted run would have used: no window is re-shown and none is skipped.
+# Mid-epoch resume is not supported and is not silently approximated.
+# ---------------------------------------------------------------------------
+
+RESUME_STATE_VERSION = 1
+
+# Fields whose value silently changes the optimization trajectory if it differs
+# between the process that saved and the process that resumes.
+RESUME_GEOMETRY_FIELDS = (
+    'world_size',
+    'micro_batch_per_gpu',
+    'gradient_accumulation_steps',
+    'effective_batch_size',
+    'steps_per_epoch',
+    'warmup_updates',
+    'lr',
+    'seed',
+    'sample_type',
+    'precision',
+)
+
+
+def resume_state_path(exp_dir, exp_name):
+    return os.path.join(str(exp_dir), 'checkpoints', f'{exp_name}_resume.pth')
+
+
+def atomic_torch_save(payload, path):
+    """Write to a temporary file, fsync, then rename over `path`.
+
+    A process killed mid-write therefore never leaves a truncated file under
+    `path`: the previously completed checkpoint stays intact and remains the one
+    a resume picks up.
+    """
+    path = str(path)
+    directory = os.path.dirname(path)
+    os.makedirs(directory, exist_ok=True)
+    temporary_path = f'{path}.tmp'
+    with open(temporary_path, 'wb') as handle:
+        torch.save(payload, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary_path, path)
+    directory_fd = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def build_lr_scheduler(optimizer, base_lr, warmup_updates, completed_updates):
+    """Linear warmup measured in OPTIMIZER UPDATES, never in micro-steps.
+
+    `completed_updates` is the number of `optimizer.step()` calls already made.
+    The same value always maps to the same learning rate, so the schedule is
+    continuous whether the process reached that update in one go or across a
+    restart.
+    """
+    for param_group in optimizer.param_groups:
+        param_group['initial_lr'] = base_lr
+    # (update + 1) because the loop calls optimizer.step() before
+    # lr_scheduler.step(): the u-th update must already run at the warmed lr,
+    # not at the value for u-1.  Without the offset the first update runs at lr
+    # exactly 0 and is a no-op.
+    return LambdaLR(
+        optimizer,
+        lr_lambda=lambda update: 1.0 if warmup_updates == 0 else min((update + 1) / warmup_updates, 1.0),
+        last_epoch=int(completed_updates) - 1,
+    )
+
+
+def detach_to_cpu(value):
+    """Deep-copy every tensor in a state dict onto the CPU.
+
+    Saving CUDA tensors would tag them with the saving rank's device, and
+    `torch.load` would then materialize the whole payload on `cuda:0` on every
+    rank at once.  CPU tensors load anywhere; `Optimizer.load_state_dict` and
+    `Module.load_state_dict` move them back to the right device themselves.
+    """
+    if torch.is_tensor(value):
+        return value.detach().to('cpu', copy=True)
+    if isinstance(value, dict):
+        return {key: detach_to_cpu(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(detach_to_cpu(item) for item in value)
+    return value
+
+
+def collect_rng_state(device):
+    """This rank's python / numpy / torch-CPU / torch-CUDA generator state."""
+    return {
+        'python': random.getstate(),
+        'numpy': np.random.get_state(),
+        'torch_cpu': torch.get_rng_state(),
+        'torch_cuda': torch.cuda.get_rng_state(device) if torch.cuda.is_available() else None,
+    }
+
+
+def restore_rng_state(state, device):
+    random.setstate(state['python'])
+    np.random.set_state(state['numpy'])
+    torch.set_rng_state(state['torch_cpu'].cpu())
+    if state['torch_cuda'] is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state(state['torch_cuda'].cpu(), device)
+
+
+def collect_pending_gradients(model):
+    """Gradients of an accumulation group that an epoch boundary cut in half.
+
+    `is_accumulation_boundary` counts micro-steps globally, so with an odd
+    number of steps per epoch an accumulation group straddles the boundary and
+    real gradients are sitting in `.grad` when the checkpoint is written.
+    Dropping them would make one update of the resumed run half-size.
+
+    DDP synchronizes on every micro-step here (the loop deliberately does not
+    use `no_sync`), so every rank holds the same reduced `.grad` and rank 0's
+    copy is authoritative for all of them.
+    """
+    return {
+        name: parameter.grad.detach().to('cpu', copy=True)
+        for name, parameter in model.module.named_parameters()
+        if parameter.grad is not None
+    }
+
+
+def restore_pending_gradients(model, pending_gradients):
+    if not pending_gradients:
+        return 0
+    restored = 0
+    for name, parameter in model.module.named_parameters():
+        saved = pending_gradients.get(name)
+        if saved is not None:
+            parameter.grad = saved.to(device=parameter.device, dtype=parameter.dtype, copy=True)
+            restored += 1
+    return restored
+
+
+def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
+    return {
+        'world_size': int(world_size),
+        'micro_batch_per_gpu': int(cfg.batch_size),
+        'gradient_accumulation_steps': int(cfg.gradient_accumulation_steps),
+        'effective_batch_size': int(cfg.effective_batch_size),
+        'steps_per_epoch': int(steps_per_epoch),
+        'warmup_updates': int(warmup_updates),
+        'lr': float(cfg.lr),
+        'seed': int(cfg.seed),
+        'sample_type': str(cfg.sample_type),
+        'precision': str(cfg.get('precision', 'fp32')),
+    }
+
+
+def check_resume_compatibility(state, geometry):
+    """Reject, loudly, any resume that would silently change the schedule.
+
+    Resuming at a different world size (or micro-batch, or accumulation) keeps
+    the optimizer moments but changes the effective batch and the data sharding,
+    so the run would no longer be the preregistered one.  It is rejected rather
+    than adapted.  A resume is therefore supported at any world size, including
+    4 and 8, provided it is the world size that wrote the state.
+    """
+    version = int(state.get('schema_version', -1))
+    if version != RESUME_STATE_VERSION:
+        raise ValueError(
+            f'resume state schema version {version} is not {RESUME_STATE_VERSION}; '
+            f'this state was written by a different trainer and is not resumable'
+        )
+    if not bool(state.get('epoch_completed', False)):
+        raise ValueError(
+            f'resume state was written after epoch {state.get("epoch")} stopped mid-epoch at the '
+            f'optimizer-update budget; the run is finished and there is nothing to resume'
+        )
+    saved = state['geometry']
+    mismatches = [
+        f'{field}: saved {saved.get(field)!r} != current {geometry[field]!r}'
+        for field in RESUME_GEOMETRY_FIELDS
+        if saved.get(field) != geometry[field]
+    ]
+    if mismatches:
+        raise ValueError(
+            'refusing to resume: the training geometry changed, which would silently alter the '
+            'preregistered schedule.\n  ' + '\n  '.join(mismatches)
+        )
+
+
+def resolve_resume_path(cfg):
+    """`''` starts fresh, `'auto'` resumes the default path when it exists, and
+    an explicit path must exist."""
+    requested = str(cfg.get('resume_from', '') or '').strip()
+    if requested == '':
+        return None
+    default_path = resume_state_path(cfg.exp_dir, cfg.exp_name)
+    if requested == 'auto':
+        return default_path if os.path.exists(default_path) else None
+    if not os.path.exists(requested):
+        raise FileNotFoundError(f'resume_from={requested!r} does not exist')
+    return requested
+
+
+def build_resume_state(geometry, epoch, epoch_completed, micro_steps, optimizer_updates,
+                       model, optimizer, lr_scheduler, scaler, rng_states, pending_gradients,
+                       target_model=None):
+    return {
+        'schema_version': RESUME_STATE_VERSION,
+        'geometry': geometry,
+        'epoch': int(epoch),
+        'epoch_completed': bool(epoch_completed),
+        'next_epoch': int(epoch) + 1,
+        'micro_steps': int(micro_steps),
+        'optimizer_updates': int(optimizer_updates),
+        'model': detach_to_cpu(model.module.state_dict()),
+        # The consistency objective EMA-updates target_model (infbagel.py:262),
+        # so it is trained state, not a reconstructible constant.  The teacher is
+        # frozen and is rebuilt identically from ckpt_path.
+        'target_model': None if target_model is None else detach_to_cpu(target_model.module.state_dict()),
+        'optimizer': detach_to_cpu(optimizer.state_dict()),
+        'lr_scheduler': lr_scheduler.state_dict(),
+        'grad_scaler': scaler.state_dict() if scaler is not None else None,
+        'rng_states': rng_states,
+        'pending_gradients': pending_gradients,
+    }
+
+
 @hydra.main(version_base=None, config_path="config", config_name="config_train_infbagel")
 def train(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
@@ -52,6 +289,24 @@ def train_ddp(rank, world_size, cfg):
     OmegaConf.register_new_resolver("times", lambda x, y: int(x) * int(y))
 
     device = torch.device(f"cuda:{rank}" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        # Required before any NCCL object collective (the checkpoint gathers the
+        # per-rank RNG state); without it every rank would stage its payload on
+        # cuda:0.
+        torch.cuda.set_device(rank)
+    precision = str(cfg.get('precision', 'fp32'))
+    if precision == 'bf16_tf32':
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        use_bf16_autocast = True
+    elif precision == 'fp32':
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        use_bf16_autocast = False
+    else:
+        raise ValueError(
+            f'unsupported precision {precision!r}; expected "bf16_tf32" or "fp32"'
+        )
     cfg.device = f"cuda:{rank}"
     random.seed(int(cfg.seed) + rank)
     np.random.seed(int(cfg.seed) + rank)
@@ -103,16 +358,65 @@ def train_ddp(rank, world_size, cfg):
     micro_steps = int(cfg.start_epoch) * len(dataloader)
     optimizer_updates = micro_steps // int(cfg.gradient_accumulation_steps)
     warmup_updates = int(cfg.get('warmup_updates', 0))
-    for param_group in optimizer.param_groups:
-        param_group['initial_lr'] = cfg.lr
-    # (update + 1) because the loop calls optimizer.step() before lr_scheduler.step():
-    # the u-th update must already run at the warmed lr, not at the value for u-1.
-    # Without the offset the first update runs at lr exactly 0 and is a no-op.
-    lr_scheduler = LambdaLR(
-        optimizer,
-        lr_lambda=lambda update: 1.0 if warmup_updates == 0 else min((update + 1) / warmup_updates, 1.0),
-        last_epoch=optimizer_updates - 1,
-    )
+    steps_per_epoch = len(dataloader)
+    geometry = resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates)
+
+    # bf16 has fp32-like exponent range and does not use GradScaler.  Keeping
+    # this explicitly None also preserves the resume contract: a checkpoint
+    # carrying an fp16 scaler state is rejected rather than silently ignored.
+    scaler = None
+
+    resume_path = resolve_resume_path(cfg)
+    resume_state = None
+    if resume_path is None:
+        start_epoch = int(cfg.start_epoch)
+        if rank == 0:
+            print(f'No resume state in use; starting at epoch {start_epoch}', flush=True)
+    else:
+        resume_state = torch.load(resume_path, map_location='cpu')
+        check_resume_compatibility(resume_state, geometry)
+        model.module.load_state_dict(resume_state['model'], strict=True)
+        if is_consistency:
+            if resume_state.get('target_model') is None:
+                raise ValueError('resume state has no EMA target_model but this is a consistency run')
+            target_model.module.load_state_dict(resume_state['target_model'], strict=True)
+        optimizer.load_state_dict(resume_state['optimizer'])
+        if resume_state['grad_scaler'] is not None and scaler is None:
+            raise ValueError('resume state carries an AMP GradScaler but this run has no scaler')
+        if resume_state['grad_scaler'] is not None:
+            scaler.load_state_dict(resume_state['grad_scaler'])
+        restore_rng_state(resume_state['rng_states'][rank], device)
+        start_epoch = int(resume_state['next_epoch'])
+        micro_steps = int(resume_state['micro_steps'])
+        optimizer_updates = int(resume_state['optimizer_updates'])
+        if int(cfg.start_epoch) not in (0, start_epoch):
+            raise ValueError(
+                f'start_epoch={int(cfg.start_epoch)} contradicts the resume state, which continues '
+                f'at epoch {start_epoch}; leave start_epoch at 0 when resuming'
+            )
+        if rank == 0:
+            print(
+                f'Resuming from {resume_path}: epoch {start_epoch}, '
+                f'optimizer update {optimizer_updates}, micro step {micro_steps}',
+                flush=True,
+            )
+
+    lr_scheduler = build_lr_scheduler(optimizer, float(cfg.lr), warmup_updates, optimizer_updates)
+    if resume_state is not None:
+        saved_position = int(resume_state['lr_scheduler']['last_epoch'])
+        if saved_position != int(lr_scheduler.last_epoch):
+            raise ValueError(
+                f'lr schedule position mismatch on resume: saved {saved_position}, '
+                f'rebuilt {int(lr_scheduler.last_epoch)}'
+            )
+        # Host RAM, not VRAM, is the binding constraint for this run, so the CPU
+        # copies are consumed and released here rather than held until the loop.
+        optimizer.zero_grad(set_to_none=True)
+        restored_grads = restore_pending_gradients(model, resume_state.pop('pending_gradients', None))
+        if rank == 0 and restored_grads:
+            print(f'Restored {restored_grads} pending gradients from an unfinished '
+                  f'accumulation group', flush=True)
+        resume_state = None
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
@@ -126,9 +430,12 @@ def train_ddp(rank, world_size, cfg):
     last_loss = None
     stop_training = False
     torch.cuda.reset_peak_memory_stats(device)
-    optimizer.zero_grad(set_to_none=True)
+    if resume_path is None:
+        # The resume branch above already zeroed the gradients and then restored
+        # the pending accumulation group; do not wipe it here.
+        optimizer.zero_grad(set_to_none=True)
 
-    for epoch in range(cfg.start_epoch, cfg.epochs):
+    for epoch in range(start_epoch, cfg.epochs):
         print(f'Start epoch {epoch}', flush=True)
         sampler.set_epoch(epoch)
 
@@ -159,50 +466,44 @@ def train_ddp(rank, world_size, cfg):
             with torch.no_grad():
                 mask, _, _ = get_mask(x_start, -1, p=1., fixed_frame=cfg.auto_regre_num)
 
-            if is_consistency:
-                loss_dict = trainer.consistency_loss(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
-                    need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
+            with torch.autocast(
+                device_type='cuda', dtype=torch.bfloat16, enabled=use_bf16_autocast
+            ):
+                if is_consistency:
+                    loss_dict = trainer.consistency_loss(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
+                        need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
 
-                loss_consistency, loss_object, loss_fk = \
-                    loss_dict['loss_consistency'], loss_dict['loss_object'], loss_dict['loss_fk']
+                    loss_consistency, loss_object, loss_fk = \
+                        loss_dict['loss_consistency'], loss_dict['loss_object'], loss_dict['loss_fk']
 
-                loss = loss_consistency
-                if loss_object is not None:
-                    loss = loss + cfg.loss_w_obj_pts * loss_object
-                if loss_fk is not None:
-                    loss = loss + cfg.loss_w_fk * loss_fk
+                    loss = loss_consistency
+                    if loss_object is not None:
+                        loss = loss + cfg.loss_w_obj_pts * loss_object
+                    if loss_fk is not None:
+                        loss = loss + cfg.loss_w_fk * loss_fk
+                else:
+                    loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
+                        need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
 
-                if step % 10 == 0:
-                    current_lr = optimizer.param_groups[0]['lr']
-                    print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
-                    if cfg.use_tensorboard and rank == 0:
-                        writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
+                    loss, loss_object, loss_fk = \
+                        loss_dict['loss'], loss_dict['loss_object'], loss_dict['loss_fk']
+
+                    if loss_object is not None:
+                        loss = loss + cfg.loss_w_obj_pts * loss_object
+                    if loss_fk is not None:
+                        loss = loss + cfg.loss_w_fk * loss_fk
+
+            if step % 10 == 0:
+                current_lr = optimizer.param_groups[0]['lr']
+                print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
+                if cfg.use_tensorboard and rank == 0:
+                    writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
+                    if is_consistency:
                         writer.add_scalar('Loss_consistency', loss_consistency.item(), epoch * len(dataloader) + step)
-                        if loss_object is not None:
-                            writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
-                        if loss_fk is not None:
-                            writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
-            else:
-                loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
-                    need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
-
-                loss, loss_object, loss_fk = \
-                    loss_dict['loss'], loss_dict['loss_object'], loss_dict['loss_fk']
-                    
-                if loss_object is not None:
-                    loss = loss + cfg.loss_w_obj_pts * loss_object
-                if loss_fk is not None:
-                    loss = loss + cfg.loss_w_fk * loss_fk
-
-                if step % 10 == 0:
-                    current_lr = optimizer.param_groups[0]['lr']
-                    print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
-                    if cfg.use_tensorboard and rank == 0:
-                        writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
-                        if loss_object is not None:
-                            writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
-                        if loss_fk is not None:
-                            writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
+                    if loss_object is not None:
+                        writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
+                    if loss_fk is not None:
+                        writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
 
             last_loss = float(loss.detach().item())
             is_accumulation_boundary = micro_steps % int(cfg.gradient_accumulation_steps) == 0
@@ -220,11 +521,35 @@ def train_ddp(rank, world_size, cfg):
                     stop_training = True
                     break
 
-        if rank == 0 and cfg.save_checkpoints and epoch % cfg.ckpt_interval == 0:
-            print(f'Saving checkpoint', flush=True)
-            ckpt_folder = os.path.join(cfg.exp_dir, 'checkpoints')
-            os.makedirs(ckpt_folder, exist_ok=True)
-            torch.save(model.module.state_dict(), os.path.join(ckpt_folder, f"{cfg.exp_name}_epoch{epoch:03d}.pth"))
+        # Unchanged cadence and unchanged meaning of save_checkpoints /
+        # ckpt_interval.  What is new is that every rank now takes part, because
+        # the resume state has to gather the per-rank RNG before rank 0 writes.
+        if cfg.save_checkpoints and (
+            epoch % cfg.ckpt_interval == 0 or epoch == cfg.epochs - 1
+        ):
+            rng_states = [None] * world_size
+            torch.distributed.all_gather_object(rng_states, collect_rng_state(device))
+            if rank == 0:
+                print(f'Saving checkpoint', flush=True)
+                ckpt_folder = os.path.join(cfg.exp_dir, 'checkpoints')
+                os.makedirs(ckpt_folder, exist_ok=True)
+                atomic_torch_save(
+                    model.module.state_dict(),
+                    os.path.join(ckpt_folder, f"{cfg.exp_name}_epoch{epoch:03d}.pth"),
+                )
+                pending_gradients = (
+                    collect_pending_gradients(model)
+                    if micro_steps % int(cfg.gradient_accumulation_steps) != 0
+                    else None
+                )
+                atomic_torch_save(
+                    build_resume_state(
+                        geometry, epoch, not stop_training, micro_steps, optimizer_updates,
+                        model, optimizer, lr_scheduler, scaler, rng_states, pending_gradients,
+                        target_model=target_model if is_consistency else None,
+                    ),
+                    resume_state_path(cfg.exp_dir, cfg.exp_name),
+                )
 
         torch.distributed.barrier()
 

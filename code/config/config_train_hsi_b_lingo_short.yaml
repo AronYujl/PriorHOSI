@@ -37,21 +37,28 @@ train: true
 load_state_dict: false
 batch_size: 256
 effective_batch_size: 2048
-gradient_accumulation_steps: 2
-# 256 x 4 GPUs x accum 2 = effective 2048, identical to the preregistered
-# 256 x 8 x accum 1: same effective batch, same 146,255 optimizer updates, and
-# the warmup advances per optimizer update so its schedule is unchanged
+gradient_accumulation_steps: 1
+precision: bf16_tf32
+# 256 x 8 GPUs x accum 1 = effective 2048, the preregistered layout, restored.
+# The warmup advances per optimizer update, so the schedule is unchanged
 # (verified: accumulation 1 and 2 give identical per-update lr sequences).
 #
-# 4 GPUs rather than 8 because HOST RAM, not VRAM, is the binding constraint.
-# Measured peak RSS is 31.6 GB per rank -- only 3.3 GB of that is the named
-# arrays; the rest is transient CPU-side staging of the 254-scene occupancy
-# grid.  8 ranks plus their 16 DataLoader workers exhausted the 503 GB host and
-# the OOM killer took a rank holding 42.7 GB anon-RSS, which surfaced as
-# "_pickle.UnpicklingError: pickle data was truncated" during worker spawn.
-# 4 ranks is ~126 GB and fits with headroom.  It also leaves cards free for
-# other projects on this shared host, and a 4-way DDP job cannot be killed by
-# one displaced rank the way an 8-way job can.
+# The earlier retreat to 4 GPUs blamed "transient CPU-side staging of the
+# 254-scene occupancy grid".  That diagnosis was wrong on both counts and has
+# been replaced by measurement.  The 30.25 GiB per-rank peak was RETAINED, not
+# transient (VmHWM == post-construction RSS; gc.collect() freed nothing), and
+# the LINGO sub-dataset that owns all 254 scenes contributed ~0 GiB of it --
+# its scenes go straight to the GPU one at a time.  The whole cost was the
+# OMOMO sub-dataset's per-sample object payload: object_points (9.21 GiB,
+# infbagel.py:118-119) and the 4379-file BPS list-then-cat (18.8 GiB peak,
+# infbagel.py:261-274).  Under lingo_only no mixed index maps to that dataset,
+# so its __getitem__ never runs and none of it is ever read.
+#
+# Skipping it (load_object_payload=False, threaded from infbagel_mix.py:31)
+# takes a rank from 30.25 -> 5.82 GiB, proven value-identical.  Each DataLoader
+# worker costs roughly a full copy of its parent, which is what actually
+# exhausted the 503 GiB host: pre-fix ~90 GiB per rank+workers, ~720 GiB total.
+# Post-fix the 8-rank run peaks at 150 GiB with 353 GiB free.
 lr: 0.0002
 warmup_updates: 2000
 device: cuda:0
@@ -63,7 +70,7 @@ exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
 
 w: 0
 
-num_gpus: 4
+num_gpus: 8
 num_workers: 2
 scene_type: occ_temp
 max_window_size: 16
@@ -91,6 +98,10 @@ auto_regre_num: 2
 
 start_epoch: 0
 ckpt_path: ""
+# "" starts fresh; "auto" continues {exp_dir}/checkpoints/{exp_name}_resume.pth
+# when it exists; an explicit path must exist.  Resuming at a world size other
+# than the one that wrote the state is rejected, not adapted.
+resume_from: ""
 
 hydra:
   run:

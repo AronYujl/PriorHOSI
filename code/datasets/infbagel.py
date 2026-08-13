@@ -58,7 +58,8 @@ class LazyOccRef:
 class InfBaGelDataset(Dataset):
     def __init__(self, folder, device, mesh_grid, batch_size, step, nb_voxels, train=True,
                  load_scene=True, load_language=True, load_pelvis_goal=False, load_scene_goal=False,
-                 load_object_goal=False, use_random_frame_bps=False, use_object_keypoints=False,
+                 load_object_goal=False, load_object_payload=True,
+                 use_random_frame_bps=False, use_object_keypoints=False,
                  max_window_size=16,
                  use_pi=True,
                  vis=True,
@@ -74,6 +75,11 @@ class InfBaGelDataset(Dataset):
         self.load_pelvis_goal = load_pelvis_goal
         self.load_scene_goal = load_scene_goal
         self.load_object_goal = load_object_goal
+        # Per-sample object tensors: the ~19 GB of object_points / cano BPS /
+        # contact labels that only __getitem__ reads.  A corpus that draws no
+        # sample from this dataset (lingo_only) still needs its normalization
+        # scalars and its scene table, but never these.
+        self.load_object_payload = load_object_payload
         self.use_pi = use_pi
         self.vis = vis
         self.start_type = start_type
@@ -115,7 +121,7 @@ class InfBaGelDataset(Dataset):
                 self.scene_name = pkl.load(f)
             self.object_rot_mat = np.load(os.path.join(folder, 'object_rot_mat.npy'))
             self.object_trans = np.load(os.path.join(folder, 'object_trans.npy'))
-            if os.path.exists(os.path.join(folder, 'object_points.npy')):
+            if self.load_object_payload and os.path.exists(os.path.join(folder, 'object_points.npy')):
                 self.object_points = np.load(os.path.join(folder, 'object_points.npy'))
             else:
                 self.object_points = None
@@ -258,22 +264,42 @@ class InfBaGelDataset(Dataset):
             self.obj_max = norm[3].astype(np.float32)
             self.obj_min_torch = torch.tensor(self.obj_min).to(device)
             self.obj_max_torch = torch.tensor(self.obj_max).to(device)
-            self.obj_bps_data = []
+            self.obj_bps_data = None
             self.bps_dict = {}
             self.rest_bps_data = {}
             self.rest_obj_verts = {}
 
-            start_idx = 0
-            bps_file_list = sorted(os.listdir(self.dest_obj_bps_npy_folder))
-            for bid, file in enumerate(bps_file_list):
-                obj_bps_npy_path = os.path.join(self.dest_obj_bps_npy_folder, file)
-                obj_bps_data = torch.from_numpy(np.load(obj_bps_npy_path))# .to(device) # T X 1024 X 3 
-                self.obj_bps_data.append(obj_bps_data)
-                self.bps_dict[file[:-4]] = (start_idx, start_idx + obj_bps_data.shape[0])
-                start_idx += obj_bps_data.shape[0]
-            self.obj_bps_data = torch.cat(self.obj_bps_data, dim=0)
+            if self.load_object_payload:
+                start_idx = 0
+                bps_file_list = sorted(os.listdir(self.dest_obj_bps_npy_folder))
+                # Two passes so the destination is allocated exactly once.  The
+                # previous list-then-cat held the whole payload twice at its
+                # peak (~9.4 GB each).  Pass 1 reads only the .npy headers via
+                # mmap, so the offsets and dtype are known before any data is
+                # materialized; pass 2 copies each file into its final slice.
+                # Concatenation order, offsets and values are unchanged.
+                shapes = []
+                for file in bps_file_list:
+                    header = np.load(os.path.join(self.dest_obj_bps_npy_folder, file), mmap_mode='r')
+                    shapes.append(header.shape)
+                    bps_dtype = header.dtype
+                    self.bps_dict[file[:-4]] = (start_idx, start_idx + header.shape[0])
+                    start_idx += header.shape[0]
+                    del header
 
-            if self.use_object_keypoints:
+                self.obj_bps_data = torch.empty(
+                    (start_idx,) + tuple(shapes[0][1:]),
+                    dtype=torch.from_numpy(np.empty(0, dtype=bps_dtype)).dtype,
+                )
+                offset = 0
+                for file, shape in zip(bps_file_list, shapes):
+                    obj_bps_npy_path = os.path.join(self.dest_obj_bps_npy_folder, file)
+                    obj_bps_data = np.load(obj_bps_npy_path)  # T X 1024 X 3
+                    self.obj_bps_data[offset:offset + shape[0]] = torch.from_numpy(obj_bps_data)
+                    offset += shape[0]
+                    del obj_bps_data
+
+            if self.use_object_keypoints and self.load_object_payload:
                 self.bps_torch = bps_torch()
                 self.obj_bps = zup_to_yup(torch.load('./bps.pt')['obj'])
                 for object_file in os.listdir(self.rest_object_geo_folder):
@@ -283,9 +309,10 @@ class InfBaGelDataset(Dataset):
 
         if self.load_object_goal:
             self.contact_label = {}
-            contact_label_folder = os.path.join(folder, 'contact_label_npy_files')
-            for file in os.listdir(contact_label_folder):
-                self.contact_label[file[:-4]] = np.load(os.path.join(contact_label_folder, file))
+            if self.load_object_payload:
+                contact_label_folder = os.path.join(folder, 'contact_label_npy_files')
+                for file in os.listdir(contact_label_folder):
+                    self.contact_label[file[:-4]] = np.load(os.path.join(contact_label_folder, file))
 
     def set_test_scene(self, test_scene_name):
         """[accel] Switch test scene: recompute only scene-related data (scene_occ / scene_dict /

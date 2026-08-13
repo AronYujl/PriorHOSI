@@ -41,6 +41,12 @@ class InfBaGelMixDataset(Dataset):
             load_pelvis_goal=load_pelvis_goal,
             load_scene_goal=load_scene_goal,
             load_object_goal=True,  # OMOMO dataset loads objects
+            # Under lingo_only no mixed index maps to this dataset (see
+            # _create_mixed_indices), so its __getitem__ never runs and the
+            # per-sample object payload is dead weight -- ~19 GB per rank,
+            # which is what kept the 8-GPU layout from fitting in host RAM.
+            # The normalization scalars and the scene table are still loaded.
+            load_object_payload=not lingo_only,
             use_random_frame_bps=use_random_frame_bps,
             use_object_keypoints=use_object_keypoints,
             max_window_size=max_window_size,

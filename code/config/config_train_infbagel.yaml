@@ -59,6 +59,10 @@ temp_voxel_num: 3
 
 start_epoch: 0
 ckpt_path: ""
+# "" starts fresh; "auto" continues {exp_dir}/checkpoints/{exp_name}_resume.pth
+# when it exists; an explicit path must exist.  Resuming at a world size other
+# than the one that wrote the state is rejected, not adapted.
+resume_from: ""
 
 hydra:
   run:
