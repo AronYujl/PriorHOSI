@@ -671,3 +671,133 @@ A11 的种子、数据快照、有效批次（4×512=2048）、预算（299,520,
 Git 对象与另外两臂逐字相同，评测仍在权威机上按 P7 封存引导执行。按 `AGENTS.md`
 关于记录硬件替换的要求，A11 的 manifest 与 registry 条目须标明其在 worker 上执行；
 worker 独占其 run 目录与 checkpoint 树，权威机不写入。
+
+---
+
+## 2026-08-14 Phase 1B P11 手-物几何项根平移梯度解耦（单臂全预算，用户批准）
+
+标识符：
+
+| 项 | 固定值 |
+|---|---|
+| 子阶段 | `1B-P11` |
+| 训练 run id | `p1-hoi-p11-geom-rootdetach-s42-20260814` |
+| 臂配置 | `code/config/config_train_hoi_prior_p11_rootdetach.yaml` |
+| 配置组合 | `defaults: [config_train_hoi_prior, recipe: d2ai, _self_]` |
+| 评测 run id | `p1-hoi-p11-geom-rootdetach-eval-guided-s42-20260814`（由 `tools/hoi_chain.py` 派生） |
+
+动机：P8/P9 加入并完成八点剂量扫描的 `masked_hand_object_distance_loss`，以 GT contact mask 选择
+接触帧，再最小化掌关节到**预测物体表面**的平方距离；W3（`hand_object_contact_weight=3.0`）被封存。
+P10 随后用 hinge ∈ {0, 0.02 m} × detach-object ∈ {false, true} 的 2×2 修复公式，但四格均不可选，
+以 `geometry-term-repair-negative-stop` 结案。W3 的接触收益真实存在，但代价广泛：对 H0（D2-AI，
+weight=0）的封存引导原生协议配对 bootstrap 只有 2 项显著改善（`contact_f1 +0.0743`、
+`contact_recall +0.1185`），却有 9 项显著退化，包括 `trans_dist +0.9026`、
+`pelvis_goal_error_cm +1.1949`、`mpjpe +0.5685`、`end_obj_trans_err +0.7936`、
+`obj_trans_dist +1.7892`、`hand_pen_loss_omomo +0.0942` 与
+`human_pen_loss_infbagel +1.4786`。
+
+本轮检验的是此前未切断的**根平移梯度耦合**。`code/priors/hoi/losses.py:266-268` 只构建一次 FK：
+
+```python
+fk = _fk_positions(
+    predicted_positions[..., 0, :], predicted_rotation, rest_human_offsets, parents_24,
+)
+```
+
+`_fk_positions`（`:133-148`）把每个关节写成 `root + Σ(rotated rest offsets)`。因此几何项对根平移
+通道 `prediction[..., 0:3]` 的梯度是**恒等、无衰减**的，而对 132 个旋转通道
+`prediction[..., 84:216]` 的梯度都要乘力臂。对该项而言，降低掌到物体的距离最便宜的下降方向，
+按构造就是**平移整个身体**。
+
+这与既有 `hand_fk`（当前 `losses.py:270`）不同：`hand_fk` 以 GT 掌位置为目标，故把根拉向 GT；
+P8 几何项以模型**自己的预测物体表面**为目标，根梯度是自指的，并不与 GT 根平移对齐。封存剂量响应
+留下了对应指纹：权重 1、3、5、8、10、15、50 的 `trans_dist`（Troot）退化依次为
+`+0.60/+0.90/+1.33/+1.84/+1.88/+2.89/+3.94`，单调增长，而且每个权重下都大于同臂的 MPJPE
+退化——身体移动得比姿态改变得更多。P10 detach 的是**物体**，从未 detach **根**。
+
+为什么该干预不能像此前十一次 model-side 干预一样被吸收：那十一次都向网络**增加**了内容，联合训练
+可以把它们吸收成通用残差；本轮从既有损失中**移除一条梯度路径**，与真正移动过 operating point 的
+P8 同属 objective-side 改动，而不是再向网络增加可忽略结构。
+
+设计：**单臂、单一操纵因子，其余全部固定为封存 W3。** 新字段
+`hand_object_contact_detach_root: true`，在几何项内部单独使用由
+`predicted_positions[..., 0, :].detach()` 构建的 FK；`losses["fk"]`、速度残差及其他所有消费者继续
+使用原本全连接梯度的 `fk`。该字段在其他所有配置中默认 `false`；当其为 `false` 时，训练路径必须与
+封存 W3 **逐位相同（bit-identical）**。
+
+固定不变：`hand_object_contact_weight=3.0`、`hand_object_contact_hinge=0.0`、
+`hand_object_contact_detach_object=false`、封存 D2-AI recipe、`max_processed_windows=299520000`、
+seed 42、随机初始化。发布的 InfBaGel checkpoint、W3 checkpoint 或任何既有实验 checkpoint 均不得
+初始化本臂；W3 checkpoint 只允许作为下述因果诊断的输入。
+
+固定比较点（全部复用，绝不重新生成）：
+
+| 用途 | 评测 run id |
+|---|---|
+| PRIMARY 基线 W3 | `p1-hoi-p8-eval-w3-guided-s42-20260809` |
+| SECONDARY 参考 H0 = D2-AI | `p1-hoi-p8-eval-h0-guided-s42-20260806` |
+
+评测契约：官方 438 序列、每序列三窗口、500 步 diffusion 原生协议不变；`load_scene=false`、
+`sample_type=diffusion`、seed 42、`checkpoint_weight_variant=online`。引导必须通过**显式 CLI override**
+应用 P7 封存配置，并与 W3、P10 评测逐字节相同：
+
+```text
+sampler.pelvis.guidance.{enabled=true, arm=b, guidance_scale=1000.0, last_steps=10, clamp=1.0, clamp_target=update, contact_mask_source=predicted, contact_mask_threshold=0.95, contact_weight=3.0, consistency_weight=1.0, consistency_normalization=author, object_goal_weight=1.0}
+```
+
+这些值**不得**写入 `code/config/sampler/hoi_prior.yaml` 的默认值。不确定性固定使用
+`tools/paired_bootstrap.py`：438 序列配对、seed 42、10,000 replicates、所有指标共享同一重采样索引。
+
+预注册的正式 GPU 臂前因果诊断与中止规则：新增命名 probe
+`root_gradient_share_probe`，放在 HOI expert 的 `code/priors/hoi/diagnostics.py`。之所以为此新建该
+expert 诊断模块，是因为当前**不存在**这个模块；遵循 `docs/EXPERIMENT_CONVENTIONS.md` §4，诊断必须
+是 expert diagnostic module 中按名称调用的函数，禁止新增 `diagnose_<experiment>.py` 文件。
+
+该 probe 在封存 W3 checkpoint 和一个真实训练 micro-batch 上，以 W3 objective 报告：
+
+1. 几何项在 `prediction[..., 0:3]`、`prediction[..., 3:84]`、
+   `prediction[..., 84:216]`、`prediction[..., 216:228]` 四组通道上的梯度 L2；
+2. 根通道 `prediction[..., 0:3]` 上，几何项梯度 L2 占**总目标**梯度 L2 的比例。
+
+**中止规则在看到结果之前写死：若第 2 项低于 5%，则几何项不是根平移监督的实质贡献者，detach
+该路径不可能改变训练，约 21.7 wall-hour 的正式臂不得启动。** 第 1 项只作上下文报告，不设门禁。
+
+原生判定规则（全部在上述配对 bootstrap 中对 W3 比较）：
+
+- **(i) 参与保持**：`contact_percent ≥ 0.60`，且 `contact_f1` 不得显著差于 W3；
+- **(ii) 耦合打破——PRIMARY**：`trans_dist` 与 `pelvis_goal_error_cm` 必须双双显著优于 W3；
+- **(iii) 保护**：`end_obj_trans_err` 与 `mpjpe` 均不得显著差于 W3。
+
+停止分类：
+
+- `root-coupling-repair-positive`： (i)、(ii)、(iii) 全部成立；
+- `root-coupling-repair-partial`： (ii) 成立，但 (i) 或 (iii) 失败；
+- `contact-engagement-was-root-translation-bought`： (ii) 成立，但 `contact_percent` 回落到 H0 水平
+  `0.53519`，且 `contact_f1` 显著差于 W3；这是关闭 geometry lineage 的信息性阴性；
+- `root-coupling-negative-stop`： (ii) 失败；说明耦合并非经由根通道，下一入口回到 P10 的
+  “objective has attractors but no repulsor” 指针。
+
+Stage C 实现的允许文件范围（后续实现受本修正案约束，仅限）：
+
+- `code/priors/hoi/losses.py`
+- `code/priors/hoi/diagnostics.py`（新建）
+- `code/train_hoi_prior.py`（仅 kwarg plumbing）
+- `code/config/config_train_hoi_prior.yaml`（一个新字段，默认 `false`）
+- `code/config/config_train_hoi_prior_p11_rootdetach.yaml`（新建）
+- `tools/hoi_chain.py`（仅 evaluation-override passthrough）
+- `tests/hoi/test_losses.py`（新建）
+- `tests/hoi/test_hoi_chain.py`
+
+明确**不在范围内**：`code/priors/core/**`、`code/config/recipe/d2ai.yaml`、
+`code/config/sampler/hoi_prior.yaml` 的默认值、`experiments/results/**`。
+
+被既有证据否定的备选：
+
+- **只增加预算。** D2-AI 已经花过 4.875× 预算；预算只能与几何项互补，不能代替几何项。
+- **继续做剂量扫描。** P8/P9c 的八个剂量点已经耗尽该问题，继续加点不会定位根梯度耦合。
+- **继续做 hinge/object-detach 公式 2×2。** P10 已按完整 2×2 判负结案，没有格可选。
+- **把 consistency distillation 当作质量杠杆。** 它被限定为 Phase 6 压缩；发布的 16-step CM 在无引导
+  接触指标上与作者 500-step diffusion 不可区分，现有证据不支持把它当作质量修复。
+
+成本：若 5% 前置门通过，单臂约 **21.7 wall-hours @ 4 GPU**，随后一次固定原生评测与配对
+bootstrap；若门失败，正式训练不启动并按预注册规则结案。
