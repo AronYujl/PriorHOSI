@@ -72,13 +72,17 @@ LINEAGE_ARMS = {
         "hand_object_contact_hinge": 0.02,
         "hand_object_contact_detach_object": True,
     },
+    "p11_rootdetach": {
+        "hand_object_contact_weight": 3.0,
+        "hand_object_contact_detach_root": True,
+    },
 }
 
 
-def _resolve(config_name):
+def _resolve(config_name, overrides=()):
     GlobalHydra.instance().clear()
     with initialize_config_dir(config_dir=str(CONFIG_DIR), version_base=None):
-        cfg = compose(config_name=config_name)
+        cfg = compose(config_name=config_name, overrides=list(overrides))
     return OmegaConf.to_container(cfg, resolve=True)
 
 
@@ -152,6 +156,15 @@ class LineageArmTests(unittest.TestCase):
                 ]
                 self.assertLessEqual(len(lines), 16, f"{arm} restates the recipe again")
                 self.assertIn("  - recipe: d2ai", lines)
+
+    def test_p11_is_a_single_factor_contrast_against_sealed_w3(self):
+        # Normalize the three identity fields before resolving so their derived
+        # output/checkpoint/metrics/state paths also share one comparison value.
+        identity = ("run_id=contrast", "exp_name=contrast", "subphase=contrast")
+        p11 = _resolve("config_train_hoi_prior_p11_rootdetach", identity)
+        w3 = _resolve("config_train_hoi_prior_p9w3", identity)
+        differing = {key for key in set(p11) | set(w3) if p11.get(key) != w3.get(key)}
+        self.assertEqual(differing, {"hand_object_contact_detach_root"})
 
 
 if __name__ == "__main__":

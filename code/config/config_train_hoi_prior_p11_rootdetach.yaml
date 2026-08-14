@@ -1,0 +1,13 @@
+# p11 rootdetach: the sealed D2-AI/W3 objective with the manipulated factor below.
+
+defaults:
+  - config_train_hoi_prior
+  - recipe: d2ai
+  - _self_
+
+run_id: "p1-hoi-p11-geom-rootdetach-s42-20260814"
+exp_name: "p1-hoi-p11-geom-rootdetach-s42-20260814"
+subphase: "1B-P11"
+
+hand_object_contact_detach_root: true
+hand_object_contact_weight: 3.0

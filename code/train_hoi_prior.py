@@ -2750,6 +2750,11 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         "hand_object_contact_detach_object": bool(
             cfg.get("hand_object_contact_detach_object", False)
         ),
+        # Preregistered P11 single-factor removal of the geometry term's
+        # self-referential root-translation gradient.
+        "hand_object_contact_detach_root": bool(
+            cfg.get("hand_object_contact_detach_root", False)
+        ),
         "velocity_weight": float(cfg.velocity_weight),
         "goal_weight": float(cfg.goal_weight),
         "weight_init_sha256": (
@@ -5217,6 +5222,9 @@ def _forward_losses(
         hand_object_contact_hinge=float(cfg.get("hand_object_contact_hinge", 0.0)),
         hand_object_contact_detach_object=bool(
             cfg.get("hand_object_contact_detach_object", False)
+        ),
+        hand_object_contact_detach_root=bool(
+            cfg.get("hand_object_contact_detach_root", False)
         ),
         fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
         routed_foot_residual_multiplier=float(

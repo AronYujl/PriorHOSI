@@ -220,6 +220,25 @@ class CommandTests(unittest.TestCase):
         self.assertIn("exp_name=p1-hoi-x-eval-guided-s42-20260812", command)
         self.assertIn("ckpt_path=/tmp/final.pth", command)
 
+    def test_evaluation_overrides_are_appended_verbatim(self):
+        overrides = [
+            "sampler.pelvis.guidance.enabled=true",
+            "sampler.pelvis.guidance.guidance_scale=1000.0",
+        ]
+        command = hoi_chain.evaluate_command(
+            "py", "p1-hoi-x-eval-guided-s42-20260812", Path("/tmp/final.pth"),
+            overrides,
+        )
+        self.assertEqual(command[-2:], overrides)
+
+    def test_eval_override_is_repeatable(self):
+        args = hoi_chain.build_parser().parse_args([
+            "--arm", "p9w3",
+            "--eval-override", "a=1",
+            "--eval-override", "b=x y",
+        ])
+        self.assertEqual(args.eval_override, ["a=1", "b=x y"])
+
     def test_no_stage_invokes_a_per_experiment_wrapper(self):
         commands = [
             hoi_chain.train_command("py", "config_train_hoi_prior_p9w3"),
@@ -282,6 +301,26 @@ class StageBookkeepingTests(unittest.TestCase):
                                          [sys.executable, "-c", "print('ok')"])
             self.assertEqual(record["status"], "completed")
             self.assertTrue(hoi_chain.stage_completed(root, run_id, "train"))
+
+    def test_evaluation_status_records_overrides(self):
+        run_id = "p1-hoi-x-s42-20260812"
+        overrides = ["sampler.pelvis.guidance.enabled=true", "x=y"]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            record = hoi_chain.run_stage(
+                root,
+                run_id,
+                "evaluate",
+                [sys.executable, "-c", "pass", *overrides],
+                extra={"eval_overrides": overrides},
+            )
+            persisted = json.loads(
+                hoi_chain.stage_status_path(root, run_id, "evaluate").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(record["eval_overrides"], overrides)
+            self.assertEqual(persisted["eval_overrides"], overrides)
 
 
 class GovernanceTests(unittest.TestCase):

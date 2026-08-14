@@ -235,9 +235,34 @@ def hoi_training_losses(
     hand_object_contact_weight: float = 0.0,
     hand_object_contact_hinge: float = 0.0,
     hand_object_contact_detach_object: bool = False,
+    hand_object_contact_detach_root: bool = False,
     fk_foot_temporal_routing: bool = False,
     routed_foot_residual_multiplier: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
+    """Compute the preregistered HOI training objective.
+
+    ``hand_object_contact_detach_root`` is the preregistered P11 manipulated
+    factor.  ``_fk_positions`` writes every joint as ``root + sum(rotated rest
+    offsets)``, so the geometry term's gradient on root-translation channels
+    ``prediction[..., 0:3]`` is the undamped identity, while its gradient on
+    each of the 132 rotation channels ``prediction[..., 84:216]`` is scaled by
+    a moment arm.  Translating the whole body is therefore by construction the
+    cheapest descent direction available to this term.  The neighbouring
+    ``hand_fk`` term pulls the root toward ground-truth palms; this term targets
+    the model's own predicted object surface, so its root gradient is
+    self-referential and need not align with ground truth.
+
+    Detaching only the root used by this term changes no forward value: its loss
+    and every rotation-channel gradient are bit-identical, while its gradient on
+    ``prediction[..., 0:3]`` becomes exactly zero.  The original attached ``fk``
+    remains the tensor consumed by ``losses["fk"]``, velocity routing and every
+    other objective term.
+    """
+    if hand_object_contact_detach_root and hand_object_contact_weight == 0.0:
+        raise ValueError(
+            "root-detached hand-object geometry requires non-zero "
+            "hand_object_contact_weight"
+        )
     if prediction.shape != target.shape or prediction.shape[-1] != REPRESENTATION.dimension:
         raise ValueError(f"expected matching [B,16,232], got {prediction.shape}/{target.shape}")
     predicted = prediction[:, REPRESENTATION.history_frames:]
@@ -312,8 +337,15 @@ def hoi_training_losses(
         target_surface[:, REPRESENTATION.history_frames:],
     )
     if hand_object_contact_weight != 0.0:
+        if hand_object_contact_detach_root:
+            geometry_fk = _fk_positions(
+                predicted_positions[..., 0, :].detach(), predicted_rotation,
+                rest_human_offsets, parents_24,
+            )
+        else:
+            geometry_fk = fk
         losses["hand_object_contact_geometry"] = masked_hand_object_distance_loss(
-            fk, predicted_surface, target[:, :, 228:232],
+            geometry_fk, predicted_surface, target[:, :, 228:232],
             # ``predicted_surface`` is the same tensor the ``object_surface`` term
             # above consumes; the detach below is applied to a local view inside
             # the callee and therefore cannot weaken that supervision.

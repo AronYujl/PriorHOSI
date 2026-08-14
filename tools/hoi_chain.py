@@ -219,14 +219,21 @@ def train_command(python: str, config_name: str) -> List[str]:
     return [python, "code/train_hoi_prior.py", f"--config-name={config_name}"]
 
 
-def evaluate_command(python: str, eval_run_id: str, checkpoint: Path) -> List[str]:
-    return [
+def evaluate_command(
+    python: str,
+    eval_run_id: str,
+    checkpoint: Path,
+    overrides: Sequence[str] = (),
+) -> List[str]:
+    command = [
         python,
         "code/test_infbagel_hoi.py",
         "--config-name=config_eval_hoi_prior",
         f"exp_name={eval_run_id}",
         f"ckpt_path={checkpoint}",
     ]
+    command.extend(overrides)
+    return command
 
 
 def bootstrap_command(python: str, baseline: str, arm: str, output: Path) -> List[str]:
@@ -295,6 +302,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="override the derived evaluation run id")
     parser.add_argument("--eval-tag", default="guided",
                         help="sampler condition recorded in the evaluation run id")
+    parser.add_argument("--eval-override", action="append", default=[], metavar="KEY=VALUE",
+                        help="repeatable Hydra override appended verbatim to evaluation")
     parser.add_argument("--stages", default=",".join(STAGES),
                         help=f"comma-separated subset of {','.join(STAGES)}")
     parser.add_argument("--python", default=os.environ.get("INFBAGEL_PYTHON", sys.executable))
@@ -360,8 +369,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 else final_checkpoint(repo, train_run_id)
             )
             run_stage(repo, train_run_id, "evaluate",
-                      evaluate_command(args.python, eval_run_id, checkpoint),
-                      extra={"eval_run_id": eval_run_id, "checkpoint": str(checkpoint)},
+                      evaluate_command(
+                          args.python, eval_run_id, checkpoint, args.eval_override,
+                      ),
+                      extra={
+                          "eval_run_id": eval_run_id,
+                          "checkpoint": str(checkpoint),
+                          "eval_overrides": list(args.eval_override),
+                      },
                       dry_run=args.dry_run)
 
     if "bootstrap" in stages:
