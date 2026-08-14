@@ -107,9 +107,11 @@ context overhead without changing model training or scientific evaluation.
   only when the file was created, changed, transferred, or is the exact target of
   the current workload. Do not repeatedly hash unchanged checkpoint cadences or
   recovered trees.
-- Run the full authority suite for every change. It is 281 tests and under 30
-  seconds; the rules that used to decide when it could be skipped were written
-  when it was 805 tests and 302 seconds and cost more attention than the suite.
+- Run the full authority suite for every change. It is 291 tests and about 40
+  seconds; `pytest 8.3.5` is installed in the `infbagel` environment, and the
+  suite is run as `pytest tests` from the repository root. The rules that used
+  to decide when it could be skipped were written when it was 805 tests and 302
+  seconds and cost more attention than the suite.
 - A real-data functional smoke is required for runtime-code changes. A full-micro-
   batch performance benchmark is required only when the change can affect per-step
   compute, communication, data loading, tensor shapes, or memory. Record why it is

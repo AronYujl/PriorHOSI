@@ -801,3 +801,53 @@ Stage C 实现的允许文件范围（后续实现受本修正案约束，仅限
 
 成本：若 5% 前置门通过，单臂约 **21.7 wall-hours @ 4 GPU**，随后一次固定原生评测与配对
 bootstrap；若门失败，正式训练不启动并按预注册规则结案。
+
+> **Stage C 实现记录与更正，2026-08-14.**
+>
+> **实现提交。** `d07ed6e`「Implement P11 root-gradient detachment」。
+>
+> **文件范围更正。** 本修正案中的 Stage C 允许文件范围列出了八个文件，却遗漏了
+> Stage C 实现实际编辑的 `tests/hoi/test_hoi_training_recipe.py`。遗漏发生在预注册，
+> 而非实现：`docs/EXPERIMENT_CONVENTIONS.md` §3 要求单因素断言位于组件测试模块中，
+> 且每个既有 lineage arm 都注册在该文件的 `LINEAGE_ARMS` 中。若不加入 P11，新 arm
+> 就会落在该文件旨在提供的机械保证之外，形成其 docstring 明确指出的非受控比较风险。
+> 该编辑仅涉及测试，不可能影响训练目标。因此 P11 的范围是九个文件，并包含该测试文件。
+>
+> **与封存 W3 的逐位一致性，已验证。** 从 `6e24719` 提取 `losses.py`，在相同合成
+> batch 上与已提交版本对跑：float32 与 float64、`hand_object_contact_weight` 为 3.0
+> 与 0.0 的所有组合中，全部 13 个 loss key 及完整 232-channel total-gradient tensor
+> 均逐位相等，zero mismatches。flag 关闭时实际执行的表达式是 `geometry_fk = fk`：
+> 是同一对象，没有 clone，也没有额外 `_fk_positions` 调用。
+>
+> **精确等价性，附一项实测限定。** flag 开启时，geometry term 的 forward value
+> 逐位相同，其自身在 132 个 rotation channel 上的梯度也逐位相同（`max|diff| = 0`）；
+> 它在 root channel `prediction[..., 0:3]` 上的梯度严格为零。*累积 total* objective
+> 的梯度在 6336 个 rotation element 中有 864 个相差约 one ULP（float64 为
+> `1.39e-16`，float32 为 `2.98e-8`）；这是从 backward graph 移除 root edge 所致的
+> floating-point non-associativity，并非语义变化。channel `3:84`、`216:228` 和
+> `228:232` 的差异严格为零，且 `(g_total_off − g_total_on)[..., 0:3]` 与 geometry
+> term 的 root gradient 在 `3.3e-16` 内相等。这对该 manipulation 的任何实现都不可避免，
+> 且不影响 flag-off path。
+>
+> **Pre-GPU 记录 — 真实数据功能性 smoke。** Single GPU，2 steps / 4 windows：loss
+> finite，geometry-key gradient present，geometry loss `78.7527`，reconstruction
+> `3.90995`，peak allocated `596.9 MiB` / reserved `640 MiB`。checkpoint 的
+> `resume_contract` 确认 P11 objective 确实执行：
+> `{weight: 3.0, hinge: 0.0, detach_object: false, detach_root: true}`。
+>
+> **Pre-GPU 记录 — full-micro-batch benchmark。** 未使用
+> `tools/benchmark_train_microbatch.py`：它是驱动 `code/train_infbagel.py` 的 Phase-0
+> InfBaGel 8-GPU instrument，属于错误的 expert，且 8-GPU job 超出本 stage 授权。
+> 改用 purpose-written single-GPU HOI A/B，并按 `docs/EXPERIMENT_CONVENTIONS.md` §1
+> 以方法而非 tracked script 记录于此：一张 RTX 3090 上 micro-batch 512，5 次 warmup，
+> 随后 25 次 interleaved paired repeat，对比 flag off 与 on。flag off median
+> `141.51 ms/step`，flag on median `146.37 ms/step`，paired median delta
+> `+4.56 ms (+3.43%)`，25 个 paired delta 中 21 个为正（sign test p ≈ `0.0009`），
+> 两者 peak reserved 均为 `3476 MiB`，每个 real-data pair 的 forward value 均逐位相同。
+> **这是很小但真实的 per-step cost，并非 run-to-run noise**；最初一个 5-repeat
+> measurement 因以 paired delta 对比 unpaired spread 而得出“within noise”的结论，
+> 现已丢弃。预算影响：封存的 21.7 wall-hour execution profile 不再描述此 arm；预计约
+> **22.4 h (+45 min)**。
+>
+> **Authority suite。** 291 tests pass（此前为 281；十个新增测试是 P11 loss、probe、
+> chain-override 与 recipe assertion）。
