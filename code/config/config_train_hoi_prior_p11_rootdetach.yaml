@@ -5,8 +5,8 @@ defaults:
   - recipe: d2ai
   - _self_
 
-run_id: "p1-hoi-p11-geom-rootdetach-s42-20260814"
-exp_name: "p1-hoi-p11-geom-rootdetach-s42-20260814"
+run_id: "p1-hoi-p11-geom-rootdetach-r1-s42-20260814"
+exp_name: "p1-hoi-p11-geom-rootdetach-r1-s42-20260814"
 subphase: "1B-P11"
 
 hand_object_contact_detach_root: true

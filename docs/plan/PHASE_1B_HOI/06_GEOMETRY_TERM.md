@@ -851,3 +851,34 @@ bootstrap；若门失败，正式训练不启动并按预注册规则结案。
 >
 > **Authority suite。** 291 tests pass（此前为 281；十个新增测试是 P11 loss、probe、
 > chain-override 与 recipe assertion）。
+
+> **P11 首次执行 contract failure 与 r1 严格重试更正，2026-08-14.**
+>
+> **首次启动的操作合同失败。** `p1-hoi-p11-geom-rootdetach-s42-20260814` 于
+> `2026-08-14T12:44:07Z` 在 worker 启动；chain 自身的 clean-worktree preflight 已通过，
+> 但启动命令只导出了 `ROOT_DIR` 与 `INFBAGEL_PYTHON`，没有导出
+> `INFBAGEL_WORKER_EXPERT=hoi`，因此 trainer 在 `code/train_hoi_prior.py:4668-4669`
+> 的 D2-AI worker-role guard 拒绝执行。拒绝发生在任何 window 被处理之前：没有 manifest、
+> `metrics.json`、checkpoint 或 CUDA context，processed windows 与 training updates 均为 0。
+>
+> **分类与 identity 保留。** 本次失败分类为 **`contract-failure-stop`**，沿用
+> `01_GATE_AND_EARLY_DIAGNOSIS.md:1827-1855` 的 2026-07-17 D2-S0 先例。
+> `tools/hoi_chain.py:283-286` 已在该 id 下留下 `chain/train.json`（`status: failed`），
+> 并明确规定 “The failure is retained: do not reuse this run id.”；因此原 id 永不复用，
+> 其在两台主机上各 28,506 bytes（约 28.5 KB）的失败目录均原样保留。
+>
+> **唯一一次严格操作重试。** 现授权 training id
+> `p1-hoi-p11-geom-rootdetach-r1-s42-20260814` 与 evaluation id
+> `p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260814`。唯一允许的执行差异，是在
+> `ROOT_DIR` 与 `INFBAGEL_PYTHON` 旁同时导出 `INFBAGEL_WORKER_EXPERT=hoi`；科学配置、
+> manipulated factor（`hand_object_contact_detach_root: true`）、固定比较、原生判定条件与
+> stop classifications 全部保持原预注册不变。
+>
+> **实际派生的 evaluation contract。** worker 启动向 `tools/hoi_chain.py` 传入 24 个
+> `--eval-override`，按封存 W3 的
+> `results/experiments/p1-hoi-p8-eval-w3-guided-s42-20260809/hydra/.hydra/overrides.yaml`
+> 原顺序取得。该文件有 27 项：删除由 `tools/hoi_chain.py:222-236` 提供的 `exp_name` 与
+> `ckpt_path`；删除运行前不可知的 `checkpoint_sha256`——
+> `code/test_infbagel_hoi.py:563-572` 仅将其作为 optional assertion，同时无论是否提供都
+> 记录真实 hash。其余 24 项中只有 `hoi_output_dir` 与 `per_sequence_metrics_path` 改指向
+> worker 上 r1 evaluation id 下的输出路径，并明确保留 `checkpoint_weight_variant=online`。
