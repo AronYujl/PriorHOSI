@@ -337,9 +337,12 @@ SDF 磁盘缓存位于 `.cache/hsi_sdf/`，经 `.gitignore` 的 `*.npz` 排除�
 
 | | 身份 | 训练语料 | sampler | 角色 |
 |---|---|---|---|---|
-| A | 已发布 checkpoint | **OMOMO only** | consistency | 仅参考 |
-| B | 待训练 | **LINGO only**（v3 train 侧） | diffusion | **gate** |
-| C | 待训练，从 B 蒸馏 | 同 B | consistency | 蒸馏前后对比 |
+| A | 已发布 checkpoint | **OMOMO only** | consistency | ~~仅参考~~ → **已移出评测矩阵**（2026-08-15） |
+| B | **已训练**（epoch222） | **LINGO only**（v3 train 侧） | diffusion | ~~**gate**~~ → **teacher / 蒸馏前对照**（2026-08-15） |
+| C | 待训练，从 B 蒸馏 | 同 B | consistency | ~~蒸馏前后对比~~ → **gate（guided consistency 采样）**（2026-08-15） |
+
+**本表的「角色」列已于 2026-08-15（同日第二次修订）改写**，理由与代价见该节 §A。原值保留
+为删除线，不是覆盖。评测矩阵自该日起只含 **B 与 C** 两个模型。
 
 现有 `p1b-author-{diffusion,cm}-8x3090-full-r1` 两个 checkpoint **不能**充当 B/C：其 config
 的 dataset target 为 `datasets.infbagel.InfBaGelDataset`、folder 为 `data/train`、`lingo`
@@ -476,6 +479,12 @@ batch/LR 选择之上。**B 不得在其修复并经用户确认前启动。** �
 `is_mix` 门控；`_compute_occ_sample` 在 batch > 1 抛错；`get_nearest_free_voxel` 未在
 `InfBaGelMixDataset` 上暴露。三者只影响采样与评测路径，不影响训练预算。
 
+> **2026-08-15 订正（第一项已不成立）**：截至 HEAD `886aa16`，scene-only guidance 函数
+> **存在**——`code/guidance_loss.py:96` 的 `apply_hsi_guidance_loss`，由
+> `code/models/infbagel.py:8` 导入，在 `cm_sample`（`:717`）与 `p_sample`（`:969`）两处调用；
+> 且其分支**不由 `is_mix` 门控**，而由 `if not is_object.any():`（`:715` / `:967`）门控。
+> 上述两处描述均已被 commit `154b24d` / `130882e` / `886aa16` 推翻。后两项缺陷的登记不变。
+
 ---
 
 ## 2026-08-13（同日修订）：§4 前置条件解除、v3 接线与 guidance 不对称
@@ -527,6 +536,15 @@ guard 已拆分，使 `loss_object is None` 时 `loss_fk` 仍被累加与记录�
 装饰性差异——HOI 阶段已实测「已发布 baseline 行是 guided 16-step CM 采样，guidance 占 contact
 gap 的 59%，迭代步数贡献为零」。若以 guided-A 对 unguided-B 成表，则 protocol 差异与语料、
 模型类别差异混在同一轴上，95% 门槛将读在一个被混淆的数字上。
+
+> **2026-08-15 订正（本段的事实前提已不成立）**：本节写于 commit `c3ce25e` 之前。截至 HEAD
+> `886aa16`，`p_sample` 的签名已带 `guidance_fn` / `guidance_scale` / `human_dict`
+> （`code/models/infbagel.py:919-921`），并在 `:943` 以 `if guidance_fn is None:` 分流、
+> 在 `:969` / `:1004` 施加梯度，与 `cm_sample` 结构同构。**「B 是唯一无法 guided 采样的模型」
+> 已被推翻**；guided diffusion 可运行，其相对 unguided 的墙钟代价已由并行的 run-B 评测
+> session 实测（数字记录在该 session 的 registry，尚未并入本 checkout，故此处不复述）。
+> 这一订正正是下文 §D 决定要求实施的那半个口径 1 已经落地的结果，本段只是没有随之更新。
+> 它同时移除了 2026-08-15（同日第二次修订）§A 把 gate 迁到 C 的一个反对理由。
 
 三个候选口径（**尚未选定，待用户决定**）：
 
@@ -616,3 +634,435 @@ row 存在前已引用 `p1-hsi-b-layout-4x512-s42-20260814`；今日 amendment �
 8-GPU hardware pool，不描述单次 run 的用卡数；run B 的 4-of-8 分配已由 manifest override
 `visible_and_allocated_gpus=0,1,2,3` 记录，且 `tests/test_research_governance.py:177` 固定
 `hardware_assignment["hsi"]["gpu_count"] == 8`，不能为描述单次分配而改写该治理不变量。
+
+---
+
+## 2026-08-15（同日第二次修订）：model C 蒸馏预注册、gate 迁移与三处文档订正
+
+本节预注册 **model C**（从 run B 的 consistency-model 蒸馏），把 gate 从 unguided-B 迁到
+guided-C，并订正三处已被 HEAD 推翻的旧描述。**本节不启动任何 GPU 工作负载**；C 的启动仍需
+用户对本节给出的那一条具体命令逐条批准。
+
+### A. 用户决定：gate 由 unguided-B 迁至 guided-C；A 移出评测矩阵
+
+2026-08-13 §C 曾列出三个候选口径，其中「以 C 为 gate」被否，唯一理由是它
+「使 gate 移到链尾，B 在消耗约 31 h 算力期间无 gate」。**该反对理由已随 run B 训练完成而失效**
+（run B 于 2026-08-15 以 `TRAINER_EXIT=0` 收尾，见本文件同日 §A）。B 已训练，不再存在
+「B 无 gate 地烧算力」这一风险，故当初否掉 C-gate 的成本论据不再成立。
+
+同时，2026-08-13 §C 的另一条前提也已不成立：**guided 采样不再是 CM 独有**（见下文 §E 第 2 条
+订正）。因此「gate 必须落在 unguided 列」这一为求原生可比而设的约束，其必要性已经减弱——
+B 与 C 现在两列都能出。
+
+用户据此定版：
+
+1. **gate = C，在 guided consistency 采样下判定。** 理由是 C 才是本阶段要交付的产物形态
+   （16 步 CM + guidance），gate 应当判在交付形态上，而不是判在它的 teacher 上。
+2. **B 由 gate 降为 teacher 与蒸馏前对照**，仍报 guided / unguided 双列，用于回答
+   「蒸馏损失了多少」。
+3. **A 整体移出评测矩阵。** A 是 OMOMO-only、从未见过 LINGO，其指标不为迭代提供信息；
+   2026-08-12 §D 已记录 A 在 goal 槽位上另受一次分布偏移。评测矩阵自此为 **B 与 C 两个模型**。
+4. 2026-08-13 §D 关于 guided / unguided 双列、`RDS` 必须用 `need_scene=False`、以及 v3 test
+   的确定性抽样规则**全部不变**，只是 gate 所在的列由 unguided 改为 guided。
+
+**代价，如实登记**：gate 落在 guided 列意味着 gate 数字里含有 guidance 的贡献，而 HOI 阶段
+实测 guidance 可占 contact gap 的 59%。这使 gate 更贴近交付形态，但更不容易归因到模型本身。
+unguided 列仍然必报，正是为了把这部分拆开。**具体 gate 阈值仍由用户暂缓定义，本节不定义
+任何阈值。**
+
+### B. C 的配置
+
+`code/config/config_train_hsi_c_lingo_cm.yaml`（本节新增，未提交）。构造原则是
+**作者的 CM 程序 + run B 的数据/场景设定**，逐键核对过
+`code/config/config_train_infbagel_cm.yaml` 与 `code/config/config_train_hsi_b_lingo_full.yaml`
+两份来源，除下列四项外每一个键都等于其中之一：`exp_name`、`epochs`、
+`max_optimizer_updates`、`ckpt_path`。
+
+取自作者 CM 配置：`sample_type: consistency`、`load_state_dict: true`、
+`loss_w_obj_pts: 0.5`、`loss_w_fk: 1`、`batch_size: 512`、`ckpt_interval: 20`。
+取自 run B：`dataset: lingo_v3_train`、`lingo_only`、`lingo_scene_num: 45`、
+`lingo_data_ratio: 0.5`、`empty_omomo_scene: false`、`human_only_ratio: 0.4`、
+`scene_type: occ_temp`、`temp_voxel_num: 3`、`max_window_size: 16`、全部 `load_*` 标志、
+`seed`/`random_seed: 42`、`precision: bf16_tf32`、`num_gpus: 4`、`effective_batch_size: 2048`、
+`gradient_accumulation_steps: 1`、`lr`、`warmup_updates`。
+
+**`is_mix` 在 model 与 sampler 两侧均为 false**，已从**解析后**的配置确认
+（`model.infbagel.is_mix == false` 且 `sampler.pelvis.is_mix == false`），不是从
+defaults 推断。run B 曾为此专门提交 `e99d3f2`，因为只改一侧是静默错误的。
+
+**teacher checkpoint**：`ckpt_path` 指向 run B 的**末 epoch** checkpoint
+`results/hsi_b_lingo_full/checkpoints/hsi_b_lingo_full_epoch222.pth`
+（sha256 `931a6f1f…48c5e`，已重新校验），配合 `load_state_dict: true`。这与用户的
+final-epoch-only 规则一致，也与作者自己的做法一致——作者 CM 复现run 的 `ckpt_path` 指向其
+diffusion run 的 `epoch500`，即同样是末 epoch。
+
+**已核实的加载语义**：`code/utils.py:253-274` 用 `strict=False` 加载，会静默容忍键不匹配
+（2026-08-12 §C 记录过 A 因此把 `embedding_scene_goal` 留在随机初始化）。已在 CPU 上逐键比对：
+B 的 checkpoint 与新实例化的 `Unet` **各 218 个键，missing 与 unexpected 均为空集**。
+B → C 不存在被 `strict=False` 掩盖的不匹配。
+
+**已核实的可训练面**：`code/train_infbagel.py:328-333` 先 `requires_grad_(False)`，再只放开
+`embedding_input` / `embedding_output` / `transformer` / `out`。因此 `scene_embedding`（ViT）、
+`embedding_language`、三个 goal embedding、`embed_timestep`、`bps_encoder`、
+`cfg_scale_embedding` **全部冻结在 B 的取值上**。其中 `cfg_scale_embedding` 值得单独记一笔：
+`p_losses` 从不传 `cfg_scale`，所以 B 训练期间该模块无梯度、始终停留在随机初始化，而 C 又把它
+冻结——即 C 的 w-conditioning 走的是一个**固定随机投影**。这是作者结构本身的性质（作者的
+diffusion→CM 链路完全相同），不是本仓库引入的偏离，故照录不改，仅登记。
+
+**`AGENTS.md:189-191` 的解析配置 preflight 已执行**，产物为
+`.claude/scratch/config_train_hsi_c_lingo_cm.resolved.yaml`，**未解析插值计数为 0**。
+run B 未做该 preflight，C 补上。
+
+顺带订正一条流传中的说法：**`ROOT_DIR` 并不需要在 `--cfg job --resolve` 之前导出**。
+`code/train_infbagel.py:18` 在**模块导入期**就无条件执行 `os.environ['ROOT_DIR'] = '..'`，
+早于 Hydra 组装，也会覆盖任何已导出的值。已实测：导出与不导出两次运行**退出码均为 0、输出
+逐字节相同**，都没有 `InterpolationResolutionError`。真正需要预先导出的是评测入口
+`code/test_infbagel_hosi.py`（其 `ROOT_DIR` 赋值在 `:897`，位于 `@hydra.main` 之后）。
+其直接后果是：解析后的配置里所有路径都是**相对 `code/` 的相对路径**（例如
+`../results/hsi_b_lingo_full/checkpoints/hsi_b_lingo_full_epoch222.pth`），因此 C 的启动脚本
+必须像 B 的 `launch.sh` 一样先 `cd` 到 `code/`。
+
+### C. 四个开放问题的裁定
+
+**0.（前置核实）几何损失权重：`consistency_loss` 与 `p_losses` 的施加方式相同，但只有
+`loss_w_fk` 真正生效。**
+`code/train_infbagel.py:476-483`（consistency）与 `:488-494`（diffusion）用**完全相同**的两行
+把 `cfg.loss_w_obj_pts * loss_object` 与 `cfg.loss_w_fk * loss_fk` 加到基项上，两个目标下这两个
+键的语义一致。因此「作者蒸馏时把几何权重降 50–100 倍」这一读法在代码上成立，C 取
+`loss_w_fk: 1` / `loss_w_obj_pts: 0.5` 是对的。
+
+但要点明两处：(a) **`loss_w_obj_pts` 在 `lingo_only` 下是死键**——`infbagel_mix.py:460` 对每个
+LINGO 样本置 `is_object = False`，而 `lingo_only` 下所有样本都走该分支，故
+`consistency_loss` 的 `mask_points` 恒为空、`loss_object` 恒为 `None`（2026-08-13 同日修订 §A
+的修复正是如此设计）。50 → 0.5 这一半对 B/C 都无效果，**唯一真正改变目标函数的是
+`loss_w_fk` 50 → 1**。(b) 权重虽同名同施加方式，**基项的量级并不相同**：`p_losses` 的基项是
+五个重建项之和，`consistency_loss` 的基项是 student 与 EMA target 之间的单个 MSE。作者之所以
+必须调低几何权重，机制正在于此——同一个 50 在两个基项下对应完全不同的相对定价。这也说明
+「照抄 B 的 50/50」在蒸馏里是错的，而不只是不忠实。
+
+**1. `w`：该键对 CM 训练完全无效，问题本身不成立。**
+`w` 经 `sampler/pelvis.yaml` 的 `w: ${w}` 进入 `Sampler.self.w`（`infbagel.py:38`），而
+`self.w` 在全文**只被读取一处**：`p_sample` 的 `:928`，即 diffusion **采样**时的 CFG 系数。
+两个训练目标都不读它——`p_losses` 从不引用；`consistency_loss` 在 `:306` 用
+`w, is_uncond = self.sample_cfg_scale_mixed(...)` **就地覆盖**了这个名字，改为按样本随机抽
+CFG 尺度（硬编码 `uncond_prob=0.1`、`w_max=2.0`，即 10% 抽 `w=-1`、其余均匀取 `[0,2)`）。
+`code/train_infbagel.py` 全文不出现 `cfg.w`。
+
+结论：作者 CM 配置的 `w: 1` 与 mix 配置的 `w: 0` **不是训练程序差异**，而只是各自 sampling
+默认值的继承；run B 的 `w: 0` 同样对 B 的训练零影响，是从 mix 配置带过来的惰性值，
+`e99d3f2` 无须处理它是对的。C 取 **`w: 1`**，理由纯属文档性：与作者 plain CM 配置一致，
+且与评测配置 `config_sample_infbagel_lingo_hsi.yaml:44` 的 `w: 1` 一致，使归档的解析配置不至于
+暗示一个和 gate 实际所用不同的采样尺度。**它不构成对 C 的任何约束，也不需要在 B 与 C 之间对齐。**
+
+**2. `lr`：取 2e-4，与 B 相同，并保留 `warmup_updates: 2000`。**
+作者的 1e-4 是在 effective batch 512 上取的；2026-08-13 §2 已用 Adam 的 √k 规则把它折算到
+effective 2048 得到 2e-4，C 的 effective batch 与 B 相同，同一推导给出同一结果。另一条独立
+理由：作者在 diffusion 与 CM 之间**保持 lr 不变**，因此「与自己的 teacher run 同 lr」才是作者
+口径下的忠实关系，照抄字面 1e-4 反而引入一个已知的 batch 失配。warmup 保留 2000 update——在
+蒸馏里它比在 B 里更有理由：第 0 步时 student / target / teacher 三者**逐位等于 B**，consistency
+残差极小且高度结构化，一个全尺寸的首步会把 student 直接踢离 teacher 的流形。
+**反对意见如实登记**：2000 update 在 B 是总量的 1.4%，在 C 是 3.4%，比例不同；且 2e-4 在 B 下
+已实测出两次未裁剪梯度事件（见第 4 条）。若用户否决第 4 条的裁剪建议，则此处应回退到 1e-4。
+
+**3. `epochs`：取 90，`max_optimizer_updates: 58678`——即 2026-08-13 §3 已预注册的值。**
+「作者 CM 是 201 epoch 对其 501 epoch diffusion，比值 0.40」这个读法**经不起检验**：作者的 mix
+配置对是 `config_train_infbagel_mix.yaml` 的 **1001** epoch 对 `config_train_infbagel_mix_cm.yaml`
+的 **201** epoch，比值 0.20。作者的 CM 预算是一个**常数 201**，不是比值。故「同比值」没有作者
+依据，「同字面 201 epoch」则因语料从 OMOMO 换成 LINGO 而不等于同训练量（201 × 656 =
+131,856 update，约为应有量的 2.25 倍）。
+
+本阶段的预算不变量早已定为 **processed windows**（2026-08-13 §2），且 C 的数值当时就已连同 B
+一起预注册：作者 C = 201 × 597,868 = 120,171,468 processed window ÷ 2048 = **58,678 optimizer
+update**。B 用同一规则得 146,255，实际就以该值收尾。58,678 ÷ 656 update/epoch = 89.45，故
+`epochs: 90` 是让 `max_optimizer_updates` 恰好绑定的最小值，第 89 个 epoch 在第 294 步被截断，
+而 `epoch == cfg.epochs - 1` 使 `epoch089.pth` 仍被写出——与 B 的 222/223 完全同构。
+
+**`epochs: 90` 是承重的，不是随手取的**：checkpoint 条件为
+`epoch % ckpt_interval == 0 or epoch == cfg.epochs - 1`，而 89 % 20 = 9。若写成 `epochs: 91`，
+`stop_training` 仍在 epoch 89 触发，但两个条件都不满足，**末 epoch checkpoint 不会被写出**，
+而 checkpoint 选择规则是 final-epoch-only。反方向的余量则很薄：90 个 epoch 要凑满 58,678 次
+update 需要 ≥ 651.98 step/epoch，实测为 656（余量 0.6%）。C 的 dataset 键与 B 逐项相同，故
+656 应当复现；即便偏低，后果也只是预算少 ≤0.6%，而非缺 checkpoint。
+
+**巧合值得点明**：0.401 × 223 = 89.4，与 processed-windows 规则给出的 89.45 几乎相同。原因是
+B 的 223 本身就是按 processed windows 对齐到作者 501 的，所以两种算法在此处必然重合。用户的
+「0.40 比值」直觉在数值上是对的，只是其归因（作者用比值）不成立。
+
+**一处已登记不改的舍入不一致**：120,171,468 ÷ 2048 = 58,677.47，向下取整为 58,677；而
+2026-08-13 §3 登记的是 58,678（向上取整）。B 的 146,255 则取的是向下取整
+（299,531,868 ÷ 2048 = 146,255.79）。两行的取整方向不一致，差 1 个 update、2,048 个 window，
+占 0.0017%。**此处沿用已预注册的 58,678，不静默改写预注册预算**，仅在此登记该不一致。
+
+**4. 梯度裁剪：建议加，但本节不实施。**
+`code/train_infbagel.py:513-519` 在 `backward()` 与 `optimizer.step()` 之间没有任何裁剪。
+run B 实测两次未裁剪梯度事件，第二次（epoch 160 step 340，0.2038 → 0.7454）耗掉约 23 个 epoch
+才恢复。**在 C 上这件事比在 B 上更危险**：C 只有 58,678 个 update（B 的 40%），而
+checkpoint 选择是 final-epoch-only。按 B 的事件率（2 次 / 146,255 update）与 B 的恢复长度
+（约 15,000 update）粗算，C 期望遭遇约 0.8 次事件，其中落在「来不及恢复」的尾部区间的概率
+约两成——即**约 20% 的概率让 gate 读在一个受损的 checkpoint 上**。
+
+裁剪的忠实度代价比它看上去小：`clip_grad_norm_` 只在梯度范数超过阈值的那些步上生效，其余步
+的更新与不裁剪**逐位相同**。也就是说这个偏离是**条件性的**，只改变那些本来就已经异常的步。
+这是加它的最强理由。
+
+**但本节仍不实施**，原因有三：(a) 它改的是 `code/train_infbagel.py` 这一共享训练代码，按
+`AGENTS.md` 需在首个 GPU 工作负载前跑一次完整 authority suite，并补真实数据 smoke，属于独立的
+一个变更单元；(b) 改后 C 的 trainer 将不再等于产出 B 的那个 trainer，这是必须单独登记的偏离；
+(c) **阈值无据可取**——B 的日志只记 loss，不记 grad norm，凭空取 `max_norm=1.0` 有真实风险：
+若典型范数远大于 1，裁剪会在每一步静默地压低有效 lr，那是比 spike 更坏的、不可见的改动。
+故正确顺序是先测一次 grad norm 分布再定值，该测量本身是 GPU 工作负载，需用户批准（见 §F）。
+
+### D. 预算
+
+C 的墙钟不能只由 B 的 0.71223 s/update 线性外推：`consistency_loss` 每步比 `p_losses`
+多三次无梯度前向（teacher 的 cond 与 uncond、target 各一次，`infbagel.py:325-348`）外加一次
+全参数 EMA（`:262`）。该倍率**不在本 checkout 的记录内**，故按下述方式取值并如实标注来源：
+
+> **2026-08-16 作废：本表整体被本分支的直接实测取代，见下文 2026-08-16 §A。** 表中的
+> 2.30 倍率与由它导出的 26.7 h / 107 GPU-h **已被丢弃，不是被批准**；本分支现有自己对
+> `consistency_loss` 真实路径的 s/update 实测，不再需要任何跨 checkout 数字。**不得再从
+> 2.30 重新推导任何预算。** 本分支自己的数据还直接否定了 2.30：见 2026-08-16 §B。
+> 原表原样保留以存证。
+
+| 项 | 值 | 依据 |
+|---|---:|---|
+| optimizer updates | 58,678 | 2026-08-13 §3 预注册 |
+| 布局 | 4 GPU × micro-batch 512 × accum 1 | 同 B，effective 2048 |
+| diffusion s/update | 0.71223 | run B 布局实测（`p1-hsi-b-layout-4x512-s42-20260814`） |
+| CM / diffusion 倍率 | ~~**约 2.30**~~ **已丢弃** | 见下 |
+| **墙钟** | ~~**约 26.7 h**~~ → **实测 10.32 h** | 2026-08-16 §A |
+| **GPU-h** | ~~**约 107**~~ → **实测 41.3** | 2026-08-16 §A |
+
+若改用 run B 全程实测的 0.7305 s/update sustained，则为 27.4 h / 110 GPU-h（+2.6%）。倍率取
+2.0–2.6 的区间时墙钟为 23.2–30.2 h。**该 2.30 的来源需要用户裁决后才能写成本仓库的依据**：
+它来自本机上一对作者复现 run（同主机、同 8×256×accum1 布局、同 fp32、同 OMOMO 语料、同为
+291 step/epoch）的 checkpoint 时间戳——diffusion 316.51 s/epoch 对 CM 727.49 s/epoch，
+比值 2.298；其 diffusion 侧 1.0877 s/update 与本仓库 commit `ca62f74` 已记录的 1.0845 相差
+0.3%，互为佐证。但那两个 run 位于另一个 checkout 且以 `p1b-` 命名，**引用它属于跨分支取数，
+按 `AGENTS.md` 需用户批准**，故本节标注其为待批准的外部佐证，而不把它登记为本分支的实测值。
+在批准之前，本节的墙钟应读作**估计**：唯一无争议的下界是倍率取 1 时的 11.6 h，而该下界在机制上
+不可能达到。
+
+作为对照：若误取「作者字面 201 epoch」，则为 131,856 update ≈ 60 h / 240 GPU-h，是本方案的 2.25 倍。
+
+### E. 三处文档订正（已就地施行，原文以删除线／引用块保留）
+
+1. **§D 三模型表（本文件 2026-08-12 同日第二次修订）**：B 的「gate」角色已改写，见上文 §A。
+2. **2026-08-13 同日修订 §C「B 是唯一无法 guided 采样的模型」——已推翻。** 截至 HEAD
+   `886aa16`，`p_sample`（`infbagel.py:919-921`）签名已含 `guidance_fn` / `guidance_scale` /
+   `human_dict`，`:943` 以 `if guidance_fn is None:` 分流，`:969` 调用
+   `apply_hsi_guidance_loss`、`:1004` 调用 `guidance_fn`，与 `cm_sample` 结构同构。该节所写的
+   「`guidance_fn` 全文仅 4 处且全部位于 `cm_sample_loop` / `cm_sample`」在当时为真，之后被
+   commit `c3ce25e` 改变，而该节未随之更新。
+3. **2026-08-13 §4「scene-only guidance 函数不存在且其分支被 `is_mix` 门控」——两半都不成立。**
+   函数存在（`code/guidance_loss.py:96` 的 `apply_hsi_guidance_loss`），分支由
+   `if not is_object.any():`（`infbagel.py:715` / `:967`）门控，与 `is_mix` 无关。
+
+### F. 本节未做、需用户批准才能做的事
+
+1. **启动 C 的训练**（约 27 h / 107 GPU-h）。
+2. **一次 ≤300 update 的 C 冒烟**，用途有三，缺一不可：(a) `consistency_loss` 在
+   `lingo_only` 修复（2026-08-13 同日修订 §A）之后**从未被执行过**，C 将是首次；
+   (b) 实测 CM/diffusion 倍率，把 §D 的估计换成本分支自己的实测值，从而不必跨分支取数；
+   (c) 实测三模型并存下 micro-batch 512 的显存峰值——run B 未写
+   `benchmark_metrics_path`，本 checkout 没有 B 的显存记录，而 C 的 student 计算图与
+   teacher/target 的无梯度前向在同一区间内共存。
+3. **梯度裁剪的实施**（§C 第 4 条），及其所需的 grad-norm 分布测量与完整 authority suite。
+4. **引用 §D 那个 2.30 倍率的跨 checkout 来源**。
+
+> **2026-08-16 结清**：第 2 项已执行（≤300 update 的 C 冒烟，实为多组计时/等价性探针，见下节）；
+> 第 1 项已获用户批准并于本日启动；第 4 项**不再需要**——2.30 已丢弃，本分支改用自己的实测值，
+> 该跨 checkout 引用请求就此撤回。第 3 项仍未实施：grad-norm 分布测量已做（本 run 全程开启
+> 仪表），但**阈值仍未定**，裁剪推迟到 update 2,000 之后的分布再决定，见下节 §E。
+
+---
+
+## 2026-08-16：C 的墙钟改为本分支实测、OMP 线程上限、8×256 的进程不中性、裁剪推迟
+
+本节把上文 2026-08-15 §D 的估计预算替换为**本分支自己的实测值**，登记为此所做的三组
+探针及其对照，并固定 C 启动时的最终参数。**本节写于 C 启动之前**；其后的 run 由
+`p1-hsi-c-lingo-cm-s42-20260816` 登记。
+
+所有探针都跑在真实的 C 配置上（`config_train_hsi_c_lingo_cm`，只覆盖
+`exp_name` / `max_optimizer_updates` / `save_checkpoints` / `benchmark_metrics_path` /
+`hydra.run.dir`），即真实的 `consistency_loss` 路径、真实 teacher、真实 LINGO v3 train 数据，
+不是代理基准。计时口径：稳态取 update 51–300，由仪表自身写下的 per-update `t_mono`
+（rank 0）求算，不用 stdout 时间戳（后者仅作交叉核对，两者相差 ≤0.4%）。原始
+`grad_norms/*.jsonl` 保留在各探针的 `results/hsi_c_lab_*/`，独立复算脚本与输出为
+`.claude/scratch/c_verify_independent.py` / `.out`。
+
+### A. 实测墙钟：10.32 h / 41.3 GPU-h（取代 26.7 h / 107 GPU-h）
+
+固定布局 4 GPU × micro-batch 512 × accum 1（effective 2048）、bf16+TF32、seed 42。
+counterbalanced ABBA，每臂两 rep：先 U,O,O,U，再 X,X。
+
+| 臂 | `OMP_NUM_THREADS` | 两 rep | s/update | 臂内散布 | 58,678 update 墙钟 | GPU-h |
+|---|---|---|---:|---:|---:|---:|
+| uncapped | 未设置 | 1.12008 / 1.12289 | 1.12149 | 0.25% | 18.28 h | 73.1 |
+| capped 9 | 9 | 0.63617 / 0.63171 | 0.63394 | 0.70% | 10.33 h | 41.3 |
+| **capped 4（本 run 采用）** | **4** | 0.63550 / 0.63120 | **0.63335** | 0.68% | **10.32 h** | **41.3** |
+
+加速比 **1.771×**。独立复算（从原始 `t_mono` 重算，方法为端点跨度／区间数而非逐差均值）
+给出 uncapped 1.12193、OMP=9 0.63393、OMP=4 0.63339，与上表相差 ≤0.05%，故上表数字不是
+单一脚本的产物。
+
+一并登记一个**同布局的会话间偏移**：更早的布局探针里 4×512 uncapped 臂为 1.14273 s/update
+（18.63 h / 74.5 GPU-h），比本次新鲜 uncapped 臂高 1.9%。上表取新鲜臂，因为它与两个 capped
+臂同会话、同 ABBA 序列，是唯一无会话混淆的比较基准；归档臂的数字不作废，只是不作比较基准。
+
+### B. 2.30 倍率被丢弃，并且被本分支的数据否定
+
+2026-08-15 §D 的 26.7 h 来自一个 **2.30 的 CM/diffusion 倍率**，其来源是另一个 checkout 的
+一对 `p1b-` 复现 run。该引用请求**撤回，该倍率丢弃**——不是获批，而是不再需要，因为本分支
+现在有对同一目标函数的直接实测。**任何后续工作都不得再从 2.30 重新推导预算。**
+
+顺带记下它错得有多远：run B 的 4×512 diffusion 布局实测为 0.71223 s/update（uncapped），
+本节 4×512 CM 的 uncapped 实测为 1.12149（归档臂 1.14273），故本分支自己的 CM/diffusion
+倍率为 **1.57–1.60**，而非 2.30——原估计高了约 44–46%。（口径提示：这是两个不同 run 之间
+的比值，两者同分支、同布局、同为 uncapped，不是一次受控 A/B。）
+
+### C. OMP 线程上限是逐位中性的，因此它是调度改动而非数值改动
+
+**验收测试**：capped 与 uncapped 的每一对，比较全部 post-allreduce 梯度范数与 stdout loss。
+`O1,O2,X1,X2` × `B1,B2` 共 **8 对直接比较**全部逐位相同（每对 1,200 条范数记录、120 行 loss）；
+再加 `U1,U2` 对每个 capped rep、以及 `U1 vs U2`、`O1 vs O2`、`X1 vs X2` 亦全部逐位相同。
+
+**一处必须写明的口径修正**：那 1,200 条记录并非 1,200 个独立值。仪表刻意不使用 `no_sync`，
+记录的是 DDP 已跨 rank 平均后的**全局**范数，四个 rank 在每个 update 上写下同一个数
+（已逐 update 核验：`all 4 ranks equal at every update: True`，distinct 值恰为 300）。故每对
+比较的独立样本是 **300 个 per-update 全局范数 + 120 行 loss**，不是 1,200。把 1,200 当独立值
+会把该测试的效力高估 4 倍。
+
+**对照**（否则「全都相同」可能只是测试没有分辨力）：
+
+- *会话间确定性（正对照）*：新鲜 uncapped `U1`/`U2` 与归档 `B1`/`B2` 逐位相同，说明基线本身
+  可跨会话复现，比较不是靠噪声掩盖差异通过的。
+- *值级负对照（效力证明）*：把 world size 由 4 改为 8（其余一切相同、数据可证同一），
+  **1,200/1,200 条全部不同**；update 1 的相对分歧为 **4.6012%**，在 300 个 update 的窗口上
+  相对分歧中位 **18.46%**、均值 21.79%、最大 66.98%。即真正改变计算的干预会被大声检出。
+- *分辨力下限*：所记范数为 float64，1 ULP 对应的相对步长在 **1.11e-16 – 2.22e-16**
+  （中位 1.61e-16）；而 capped 各对在任何一位上都没有差异。
+
+**机制（现场实测，不是推测）**：uncapped 时 12 个进程（4 rank + 8 个 dataloader worker）
+在 112 个硬件线程上共开 **1,344 个 OS 线程**；cap 9 降到 276，**cap 4 降到 176**（即 48 个
+OpenMP 线程对 56 个物理核，留有余量）。拓扑快照见
+`.claude/scratch/omp_probe/topology_O1.txt` 与 `topology_X1.txt`。
+
+**由此产生一条启动约束**：`OMP_NUM_THREADS=4` 必须设在**启动 shell** 上，才能经
+`torch.multiprocessing.spawn` 传到各 rank 与 dataloader worker；拓扑快照显示 worker 进程确实
+继承了该值。只加一半（例如只在 rank 内设）会静默丢掉 43% 的收益，因此启动后必须读
+`/proc/<pid>/environ` 逐进程复核，而不是只看启动命令。
+
+### D. 8×256 布局被否，理由是**进程不中性**，不是慢
+
+**缺陷本身**（作者代码，run B 已带，**本 run 刻意不修**）：
+
+- `code/models/infbagel.py:1257-1259`：在 `if cfg_scale is not None:` 之内，
+  `if int(timesteps[0]) == 499 or is_uncondition:` 把 `cfg_scale` 整体覆写为 −1，
+  作用域是**整个 rank-local batch**，而判据只看**样本 0** 的 timestep。
+- `consistency_loss` 传入的是 `start_timestep = solver.ddim_timesteps[randint(0,25)]`
+  （`:271-274`），而 `ddim_timesteps=25`、`timesteps=500`（`:1040-1043`），故 `start_timestep`
+  只取 25 个离散值、其最大者恰为 499 ⇒ 该分支**以 p = 1/25 每 rank 每 step 触发**。
+- 下游 `:1320-1325` 的训练分支读这个已被覆写的 `cfg_scale`
+  （`is_uncond = (cfg_scale == -1)`），把 `scene_embs[1:]`——即全部时序 scene embedding——
+  对该 rank-local batch 的**每一个样本**置零。
+- 叠加 per-rank seeding `seed + rank`（`code/train_infbagel.py:326-329`），被丢掉 scene 条件的
+  样本集合就依赖 world size：4 rank 以 512 为块丢，8 rank 以 256 为块丢。**期望比例两者相同**
+  （都是 effective_batch/25 = 4%），差别在方差与实现轨迹，不在均值——这点必须写清，否则会被
+  误读成两种布局的条件 dropout 率不同。
+- 实测后果：同一配置、可证同一数据下，8×256 与 4×512 **自 update 1 即分歧**（全局梯度范数
+  相对差 4.6012%），300 个 update 上 1,200/1,200 条范数全部不同（§C 的负对照就是这一组）。
+
+**为什么不以速度为否决理由**：实测 8×256 为 2.30765 s/update，对 4×512 的 1.14273
+（两者皆 uncapped），即每 update 慢 **2.02×**，全程 37.61 h / 300.9 GPU-h。但该比较是在
+**uncapped** 下做的，而 8×256 **从未在 cap 下重测**。uncapped 时 8-rank 布局要跑 24 个进程
+而非 12 个，压在同样的 112 个硬件线程上，正好被 §C 那条 cap 所消除的超订阅病理打得更重，
+因此 2.02× 是**被混淆的数字，不能承担布局裁决**。（24 对 12 这个进程数是从启动拓扑推出的，
+8-rank 臂没有取拓扑快照，此处标明为推断而非实测。）进程不中性则是布局内在的、与 cap 无关，
+所以否决落在它上面。
+
+**不修该缺陷的理由**：它来自 run B 与作者代码。修了之后 C 的目标函数就不再等于产出其
+teacher 的那一个，B↔C 的「蒸馏损失了多少」不再可比。故照录、登记、不修。
+附带登记一条不触发的相邻风险：覆写用的是 `torch.full((self.batch_size, 1), -1.0)`，取的是
+`cfg.batch_size` 而非运行时 batch；训练侧 `DataLoader(..., drop_last=True)`
+（`code/train_infbagel.py:370`）保证两者恒等，故本 run 不受影响。
+
+### E. 梯度裁剪：本 run 只测量，不实施
+
+300-update 探针的范数分布（OMP=4 rep，四 rank 汇总 1,200 条 = 300 个全局范数）：
+**min 0.0219、median 0.0602、mean 0.0672、max 0.1910、非有限值 0 个**。
+
+**该分布不足以定 `max_norm`，有两条独立原因**：
+
+1. **它整段落在 warmup 之内**。线性 warmup 为 2,000 update，探针只到 300，即这些范数是在
+   目标 lr 2e-4 的 **≤15.0%**（300/2000）下产生的。warmup 之后的范数量级无从由它外推。
+2. **趋势本身随窗口摇摆，不构成一个统计量**。同一 rep 的 rank 0：update 251–300 均值比
+   1–50 均值高 **+18.6%**；换窗口则得 +6.2%（1–25 对 276–300）、+14.4%（1–100 对 201–300）、
+   +74.2%（51–100 对 251–300）、**−32.1%**（1–10 对 291–300）。一个能从 −32% 摆到 +74% 的
+   量，无法支撑任何阈值。（2026-08-15 §C 第 4 条担心的正是「凭空取 `max_norm=1.0`，若典型范数
+   远大于 1 就等于每步静默压低有效 lr」；此处实测典型范数远**小于** 1，若真取 1.0 则几乎从不
+   触发，那是另一种无意义。）
+
+**因此本 run 不加裁剪**，与 2026-08-15 §C 第 4 条的「建议加、本节不实施」一致，只是把「不实施」
+的依据由「无数据」升级为「有数据但不足以定值」。本 run **全程开启 `+log_grad_norm=true`**，
+裁剪的取值决定改由 **update 2,000 之后（warmup 结束）的分布**作出。
+
+裁剪之所以仍值得要的风险不变，一并重记：B 在 146,255 个 update 上实测两次未裁剪梯度事件，
+C 只有 58,678 个 update，而 checkpoint 选择是 final-epoch-only。
+
+### F. 仪表：opt-in，关闭时逐位惰性
+
+`code/train_infbagel.py` 增加 `flush_grad_norms` 与一个由 `+log_grad_norm=true` 开启的分支，
+**默认关闭**。关闭时的逐位惰性由本日独立复核（脚本 `.claude/scratch/inert_check.sh`，
+12 个 update × 两臂，一臂完全不带该 flag）：
+
+- 两臂的 `epoch000.pth` **sha256 完全相同**
+  （`b552009d66129a8058e19a5185c1f80da069c57bee5632141acfbca03c035bad`，179,662,353 bytes，
+  218 个张量 / 50.01M 元素；可训练面 12.98M）；
+- 两臂 `last_loss` 相同至最后一位（`0.0029015124309808016`）；
+- `grad_norms/` 只在开启臂出现，关闭臂不留任何痕迹。
+
+**如实登记仪表自身的成本**：开启后 per-rank peak allocated 由 7,604,502,528 增至
+7,604,506,112 bytes，即 **+3,584 bytes（3.5 KiB）**——`torch.stack` 那 218 个标量范数。
+不是零，但对 7.08 GiB 的峰值无影响，且不改数值（checkpoint 哈希相同已证）。
+
+两处实现选择随之登记：(a) **刻意不用 `clip_grad_norm_(max_norm=inf)` 来取范数**——torch 1.13.1
+的实现算 `max_norm / (total_norm + 1e-6)`、clamp 到 ≤1.0 后就地乘每个梯度，`inf/inf` 得 NaN
+会静默改写全部梯度；(b) 范数取自 **post-allreduce** 的梯度（循环不用 `no_sync`），即未来
+`max_norm` 真正会作用的那个量，且**留在 GPU 上**不做 per-update `item()`，以免同步点吃掉
+本节所测的重叠。
+
+> 一处未复现的旧数字：上一会话曾报告该等价性检查的 checkpoint 哈希为 `581aebeb…`、
+> 「45M 参数」。其产物未归档，其配置不可知，本日复核得到 `b552009d…` 与 50.01M。**被验证的
+> 命题是「两臂相等」，而不是某个绝对哈希值**；本节记录本日自己测到的值，不沿用旧数字。
+
+### G. C 启动的最终参数
+
+| 项 | 值 |
+|---|---|
+| run id | `p1-hsi-c-lingo-cm-s42-20260816` |
+| config | `code/config/config_train_hsi_c_lingo_cm.yaml`（不改） |
+| 布局 | 4 GPU（`CUDA_VISIBLE_DEVICES=0,1,2,3`）× micro-batch 512 × accum 1 = effective 2048 |
+| 预算 | 58,678 optimizer update / `epochs: 90` / 656 step/epoch |
+| 线程 | `OMP_NUM_THREADS=4`，设在启动 shell 上 |
+| 仪表 | `+log_grad_norm=true` |
+| 裁剪 | 无（见 §E） |
+| 预期墙钟 | 10.32 h / 41.3 GPU-h（§A） |
+| 预期 per-rank peak alloc | 约 7.08 GiB |
+| teacher | `results/hsi_b_lingo_full/checkpoints/hsi_b_lingo_full_epoch222.pth`，sha256 `931a6f1f…48c5e`（本日重校，与 registry 全 64 位相符） |
+| `is_mix` | model 与 sampler **两侧均为 false**，从解析后配置读出 |
+| preflight | 解析后配置归档于 run 输出目录，未解析插值 **0** 处（`AGENTS.md:189-191`；run B 缺此项，C 补上） |
+
+启动命令（`cd` 到 `code/` 是承重的：`train_infbagel.py:18` 在模块导入期就设
+`ROOT_DIR='..'`，故解析后配置里所有路径都相对 `code/`）：
+
+```
+OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=0,1,2,3 \
+  /data/yujinlun/anaconda3/envs/infbagel/bin/python train_infbagel.py \
+  --config-name config_train_hsi_c_lingo_cm +log_grad_norm=true
+```
+
+必须 detached 启动（`setsid` + `nohup`，日志落在 run 自己的输出目录），因为它必须活过启动它的
+会话；启动后须核验进程存活且其父进程在启动 shell 之外。
+
+
