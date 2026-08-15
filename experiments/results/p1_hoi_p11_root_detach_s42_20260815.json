@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-p11-root-coupling-repair-s42-20260815",
+  "phase": "p1",
+  "subphase": "1B-P11",
+  "status": "completed",
+  "date": "2026-08-15",
+  "seed": 42,
+  "classification": "root-coupling-negative-stop",
+  "preregistration": {
+    "scientific_row": "p1-hoi-p11-root-coupling-repair-preregister-s42-20260814",
+    "strict_retry_row": "p1-hoi-p11-geom-rootdetach-r1-preregister-s42-20260814",
+    "plan_section": "docs/plan/PHASE_1B_HOI/06_GEOMETRY_TERM.md, 2026-08-14 Phase 1B P11",
+    "manipulated_factor": "hand_object_contact_detach_root=true; the geometry term alone consumes FK built from predicted_positions[...,0,:].detach()",
+    "held_fixed": {
+      "hand_object_contact_weight": 3.0,
+      "hand_object_contact_hinge": 0.0,
+      "hand_object_contact_detach_object": false,
+      "recipe": "sealed code/config/recipe/d2ai.yaml",
+      "max_processed_windows": 299520000,
+      "seed": 42,
+      "initialization": "random"
+    }
+  },
+  "pre_gpu_probe": {
+    "name": "root_gradient_share_probe",
+    "module": "code/priors/hoi/diagnostics.py",
+    "checkpoint": "sealed W3",
+    "root_gradient_share": 1.011,
+    "geometry_vs_non_geometry_root_gradient_cosine": -0.319,
+    "gate": "root_gradient_share >= 0.05",
+    "gate_passed": true,
+    "measured_reading": "The geometry term dominated the root-translation gradient and the non-geometry terms were anti-aligned there. P11 tested whether this dominance was pathological; the native outcome shows it was load-bearing for global placement. Removing it did not redirect the geometry term into rotations and instead removed a signal on which the model depended."
+  },
+  "training": {
+    "run_id": "p1-hoi-p11-geom-rootdetach-r1-s42-20260814",
+    "status": "completed",
+    "stability": "stable",
+    "loss_finite": true,
+    "key_gradient_present": true,
+    "worktree_preflight": {
+      "required": true,
+      "enforced": true,
+      "status": "clean"
+    },
+    "processed_windows": 299520000,
+    "processed_frames": 4792320000,
+    "seed": 42,
+    "initialization": "random",
+    "released_checkpoint_used": false,
+    "effective_batch_size": 2048,
+    "micro_batch_per_gpu": 512,
+    "gradient_accumulation_steps": 1,
+    "world_size": 4,
+    "optimizer_updates": 146250,
+    "epochs_equivalent": 526.8731331994104,
+    "optimizer": "Adam",
+    "learning_rate": 0.0001,
+    "scheduler": "none",
+    "warmup": false,
+    "amp": false,
+    "amp_overflow_skips": 0,
+    "gradient_clipping": false,
+    "wall_seconds": 91000.61439041095,
+    "wall_hours": 25.28,
+    "started_at": "2026-08-14T13:18:54Z",
+    "ended_at": "2026-08-15T14:35:52Z",
+    "host": "node01",
+    "hardware": "4x NVIDIA GeForce RTX 3090",
+    "throughput_windows_per_second": 3291.4063493571475,
+    "throughput_frames_per_second": 52662.50158971436,
+    "git_commit": "c924e7a5a217df7eb5cf911df9fcc50bfc0146cc",
+    "git_commit_at_completion": "c924e7a5a217df7eb5cf911df9fcc50bfc0146cc",
+    "final_checkpoint": {
+      "name": "p1-hoi-p11-geom-rootdetach-r1-s42-20260814_windows299520000.pth",
+      "bytes": 356284715,
+      "sha256": "5e59fb65e83a7580d6b3c0d5f81c5f850203e6edb7c97614ffdde9a86fa2eb98"
+    },
+    "input_hashes": {
+      "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "bps_sha256": "fdff7204b4697e105457cb7e39267b9555bc0d8d854dbc92cd67e2d8c3e77042"
+    }
+  },
+  "evaluation": {
+    "run_id": "p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260815",
+    "status": "completed",
+    "started_at": "2026-08-15T15:31:33Z",
+    "ended_at": "2026-08-15T15:37:23Z",
+    "returncode": 0,
+    "cwd": "/home/yujinlun/data/work/InfBaGel-release/code",
+    "override_count": 24,
+    "checkpoint_weight_variant": "online",
+    "load_scene": false,
+    "sample_type": "diffusion",
+    "expected_sequences": 438,
+    "guidance": {
+      "sealed_lineage": "P7",
+      "arm": "b",
+      "guidance_scale": 1000.0,
+      "last_steps": 10,
+      "clamp": 1.0,
+      "clamp_target": "update",
+      "contact_mask_source": "predicted",
+      "contact_mask_threshold": 0.95,
+      "contact_weight": 3.0,
+      "consistency_weight": 1.0,
+      "consistency_normalization": "author",
+      "object_goal_weight": 1.0
+    },
+    "aggregate_metrics_sha256": "58800593da45e0292cf7006fe163a721a1f1c89db3783f8235e844637b276984"
+  },
+  "execution_provenance": {
+    "training_git_head": "c924e7a5a217df7eb5cf911df9fcc50bfc0146cc",
+    "evaluation_chain_preflight_git_head": "fdfd671f78683e08cb5745ea030f7de0bd304a23",
+    "heads_differ": true,
+    "delta": "orchestration-only: per-stage working directory, cwd recorded in stage status JSON, and a regression test; no model, loss, sampler, evaluator or config value changed"
+  },
+  "first_evaluation_failure": {
+    "retained_path": "results/experiments/p1-hoi-p11-geom-rootdetach-r1-s42-20260814/chain_failed_eval_20260814/",
+    "failed_evaluation_run_id": "p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260814",
+    "reused": false,
+    "duration_seconds": 21,
+    "failure": "FileNotFoundError at code/test_infbagel_hoi.py:502 for ../data/test/seq_id.pkl",
+    "cause": "code/constants.py:4 defines ROOT_DIR='..' for an evaluator authored to run with cwd=code/, while tools/hoi_chain.py ran the stage from the repository root, resolving data paths above the checkout",
+    "gpu_work_started": false,
+    "metrics_written": false,
+    "partial_outputs_written": false,
+    "fix_commit": "fdfd671f78683e08cb5745ea030f7de0bd304a23",
+    "fix_scope": "orchestration only: per-stage working directory, cwd status recording, regression test",
+    "fix_verification": "292 passed"
+  },
+  "bootstrap": {
+    "tool": "tools/paired_bootstrap.py",
+    "mode": "pairwise",
+    "schema_version": 1,
+    "replicates": 10000,
+    "seed": 42,
+    "paired": true,
+    "resample_unit": "sequence",
+    "shared_resample_index_matrix": true,
+    "resample_index_sha256": "1a22b313a8441d58b3f6db4947a76b426c09c3d611402bccbe31b75d4acd5724",
+    "percentiles": [2.5, 97.5],
+    "percentile_method": "linear",
+    "significance_rule": "confidence interval strictly excludes zero",
+    "delta_convention": "b_minus_a",
+    "missing_value_rule": "a non-finite paired difference is excluded from each replicate mean via np.nanmean; the pair never contributes",
+    "sequences": {
+      "expected_count": 438,
+      "paired_count": 438,
+      "matches_expected": true,
+      "order": "sorted-by-name"
+    },
+    "nan_replicates_per_metric": 0,
+    "source": {
+      "path": "results/experiments/p1-hoi-p11-geom-rootdetach-r1-s42-20260814/chain/bootstrap_p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260815.json",
+      "sha256": "99e92a39be50685bc279a578d03f5831c635dc25e93dd17afa2f5f87c6668ef8"
+    },
+    "inputs": {
+      "a": {
+        "label": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+        "file": "per_sequence_metrics.json",
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2",
+        "sequence_count": 438,
+        "evaluation_seed": 42
+      },
+      "b": {
+        "label": "p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260815",
+        "file": "per_sequence_metrics.json",
+        "bytes": 276169,
+        "sha256": "cfc388a3af0df3e1e9bcb8888e8fca78a98cc6df7cfa06c078506d061e05fa6d",
+        "sequence_count": 438,
+        "evaluation_seed": 42
+      }
+    }
+  },
+  "aggregate_contact": {
+    "w3_contact_percent": 0.642295426542002,
+    "p11_contact_percent": 0.6169638327172573,
+    "w3_gt_contact_percent": 0.6618830180474017,
+    "p11_gt_contact_percent": 0.6618830180474017,
+    "h0_reference_contact_percent": 0.53519
+  },
+  "paired_metrics": {
+    "contact_f1": {"mean_a": 0.7788589083944136, "mean_b": 0.7597642181668011, "mean_delta": -0.019094690227612555, "ci_low": -0.033875306030107216, "ci_high": -0.004885658194303703, "significant": true, "direction": "b_lower", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "contact_precision": {"mean_a": 0.8105943170284625, "mean_b": 0.8074512964314415, "mean_delta": -0.0031430205970210206, "ci_low": -0.01505269587715201, "ci_high": 0.008127435599593983, "significant": false, "direction": "inconclusive", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "contact_recall": {"mean_a": 0.7894479590204786, "mean_b": 0.7598492653008142, "mean_delta": -0.02959869371966442, "ci_low": -0.04680228155163989, "ci_high": -0.012768373599568818, "significant": true, "direction": "b_lower", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "end_obj_trans_err": {"mean_a": 4.69178380888905, "mean_b": 8.557712089765419, "mean_delta": 3.8659282808763686, "ci_low": 3.3629333145136506, "ci_high": 4.3608128869779526, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "foot_sliding": {"mean_a": 0.32083540148759215, "mean_b": 0.346336941981994, "mean_delta": 0.025501540494401755, "ci_low": -0.004324656247849458, "ci_high": 0.054953689806693316, "significant": false, "direction": "inconclusive", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "hand_pen_loss_omomo": {"mean_a": 0.25874164798574417, "mean_b": 0.25649464418195883, "mean_delta": -0.0022470038037853135, "ci_low": -0.034427549739748375, "ci_high": 0.02746974221545946, "significant": false, "direction": "inconclusive", "n_pairs_used": 181, "n_pairs_dropped_nonfinite": 257},
+    "hand_pen_ratio": {"mean_a": 0.15000439230455548, "mean_b": 0.16991143579497028, "mean_delta": 0.01990704349041479, "ci_low": 0.007263389389236619, "ci_high": 0.034090959733675076, "significant": true, "direction": "b_greater", "n_pairs_used": 181, "n_pairs_dropped_nonfinite": 257},
+    "human_pen_loss_infbagel": {"mean_a": 4.07787677508961, "mean_b": 4.055461823665692, "mean_delta": -0.022414951423917556, "ci_low": -0.5284404323228983, "ci_high": 0.4469194330911492, "significant": false, "direction": "inconclusive", "n_pairs_used": 181, "n_pairs_dropped_nonfinite": 257},
+    "human_pen_ratio": {"mean_a": 0.15245988654250597, "mean_b": 0.1755678425311466, "mean_delta": 0.023107955988640613, "ci_low": 0.008838361435046668, "ci_high": 0.039147111828524324, "significant": true, "direction": "b_greater", "n_pairs_used": 181, "n_pairs_dropped_nonfinite": 257},
+    "mpjpe": {"mean_a": 12.313383755584558, "mean_b": 15.103434123200913, "mean_delta": 2.790050367616355, "ci_low": 2.3676287655646333, "ci_high": 3.22629809485893, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "obj_rot_dist": {"mean_a": 0.9654721531033464, "mean_b": 1.000268710010062, "mean_delta": 0.03479655690671563, "ci_low": 0.004136575723872358, "ci_high": 0.06580889358764871, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "obj_trans_dist": {"mean_a": 16.590142601108123, "mean_b": 19.496280411656056, "mean_delta": 2.906137810547933, "ci_low": 2.367099603690776, "ci_high": 3.442842623003349, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "pelvis_goal_error_cm": {"mean_a": 4.650959228569446, "mean_b": 12.904819034754414, "mean_delta": 8.253859806184968, "ci_low": 7.431480166806359, "ci_high": 9.113061047471703, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0},
+    "trans_dist": {"mean_a": 8.43721016280387, "mean_b": 17.52702829738458, "mean_delta": 9.089818134580709, "ci_low": 8.02119313337368, "ci_high": 10.220037403018914, "significant": true, "direction": "b_greater", "n_pairs_used": 438, "n_pairs_dropped_nonfinite": 0}
+  },
+  "decision": {
+    "significant_metrics": 10,
+    "significantly_better": [],
+    "significantly_worse": ["contact_f1", "contact_recall", "end_obj_trans_err", "hand_pen_ratio", "human_pen_ratio", "mpjpe", "obj_rot_dist", "obj_trans_dist", "pelvis_goal_error_cm", "trans_dist"],
+    "criteria": {
+      "i_engagement_retained": {
+        "passed": false,
+        "reason": "contact_percent 0.6169638327172573 >= 0.60 passes, but contact_f1 is significantly worse than W3"
+      },
+      "ii_primary_coupling_broken": {
+        "passed": false,
+        "reason": "trans_dist and pelvis_goal_error_cm are both significantly worse than W3, not significantly better"
+      },
+      "iii_protection": {
+        "passed": false,
+        "reason": "end_obj_trans_err and mpjpe are both significantly worse than W3"
+      }
+    },
+    "classification": "root-coupling-negative-stop",
+    "alternatives_ruled_out": {
+      "root-coupling-repair-positive": "requires all three criteria; none passed",
+      "root-coupling-repair-partial": "requires criterion (ii); criterion (ii) failed",
+      "contact-engagement-was-root-translation-bought": "requires criterion (ii) to hold, but it failed; contact_percent 0.6169638327172573 also did not fall to the H0 reference level 0.53519"
+    },
+    "checkpoint_selected": false,
+    "selected_checkpoint": null
+  },
+  "baseline_reuse_verification": {
+    "all_p11_mean_a_equal_p10_a00_cell_means": true,
+    "meaning": "the identical sealed W3 per-sequence file was reused rather than regenerated",
+    "end_obj_estimator_note": "The P8/P9 sealed aggregate file records W3 end_obj_trans_err as 4.6820018440485, while 4.69178380888905 is the mean over per-sequence values used by both P10 and P11 bootstrap; these are different estimators, not an error or correction."
+  },
+  "open_caveat": {
+    "status": "open; not resolved",
+    "field": "sampler.pelvis._target_",
+    "w3_value": "priors.diffusion.HOIPriorSampler",
+    "p11_value": "priors.hoi.diffusion.HOIPriorSampler",
+    "origin": "refactor commit 9259d3a relocated GaussianDiffusion and related code into frozen priors.core.ddpm and re-exported them",
+    "known": "the relocation was verified to be structural",
+    "unknown": "numerical equivalence across the refactor has not been proven",
+    "scope": "pre-existing branch-wide property affecting any post-refactor comparison against sealed pre-refactor baselines; P11 did not introduce it"
+  },
+  "conclusion": "Unambiguous negative. The preregistered PRIMARY failed in the opposite direction: trans_dist more than doubled from 8.43721016280387 to 17.52702829738458 and pelvis_goal_error_cm rose from 4.650959228569446 to 12.904819034754414. The root-gradient dominance measured by the pre-GPU probe was load-bearing for global placement, not a pathological shortcut under this test. Contact engagement also declined, so the arm did not purchase the intended trade.",
+  "next_entry_point": "Return to P10's objective-has-attractors-but-no-repulsor pointer. No new direction is authorized by this record."
+}

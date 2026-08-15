@@ -3,8 +3,8 @@
 Status: compact research handoff through D2-AG0, P1 protocol decomposition,
 P2 inference guidance, the D2-AH negative preflight, the P3 relation-field
 lineage under guidance, the P4 budget-metric curve, the D2-AI/D2-AJ
-long-budget arms, the P8-P9c hand-object geometry weight sweep and the P10
-geometry-term repair, 2026-08-10.
+long-budget arms, the P8-P9c hand-object geometry weight sweep, the P10
+geometry-term repair and the P11 root-gradient detach, 2026-08-15.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -169,6 +169,12 @@ is therefore a cross-protocol quantity that overstates the model deficit.
   consistency distillation explains `0.1313` of the `0.6493` residual and `0.5181`
   remains unexplained. Future effort on this metric should move off diffusion-training
   changes.
+- P8/P9/P9b/P9c then established the objective-side geometry lineage: an eight-point
+  weight dose-response produced its one positive and selected W3 (`weight=3`). P10's
+  hinge × object-detach formula 2×2 was negative; P11's root-gradient detach was also
+  negative. P11 removed a gradient path from an existing loss rather than adding content
+  to the network, so it is the **second consecutive objective-side negative after P10**
+  and does not increment the model-side count. See conclusions 14–18.
 
 ### Relation field x inference guidance
 
@@ -395,22 +401,50 @@ is therefore a cross-protocol quantity that overstates the model deficit.
     `p1-hoi-p10-eval-{hinge,detach,both}-guided-s42-20260810` and the outcome row
     `p1-hoi-p10-geometry-term-repair-s42-20260810`.
 
+18. **Detaching the geometry term's root-translation gradient is ruled out: that gradient was
+    load-bearing for global placement under the sealed W3 objective.** P11 (2026-08-15) changed only
+    `hand_object_contact_detach_root=true`, leaving the forward value and every non-geometry FK consumer
+    unchanged. The pre-GPU probe measured `root_gradient_share=1.011` and geometry-vs-non-geometry root
+    gradient cosine `−0.319`; the hypothesis read that dominance as pathological. Native evaluation
+    falsified that reading: `trans_dist` **8.43721016280387 → 17.52702829738458**, delta
+    **+9.089818134580709** [**+8.02119313337368, +10.220037403018914**], and
+    `pelvis_goal_error_cm` **4.650959228569446 → 12.904819034754414**, delta
+    **+8.253859806184968** [**+7.431480166806359, +9.113061047471703**]. Both PRIMARY metrics were
+    significantly worse, not better. Engagement also fell (`contact_percent`
+    0.642295426542002 → 0.6169638327172573; `contact_f1` significantly worse), while protection failed
+    on both `end_obj_trans_err` and `mpjpe`. Classification `root-coupling-negative-stop`; no checkpoint
+    selected; next entry returns to P10's “objective has attractors but no repulsor” pointer.
+    - Ten of 14 metrics were significant, all in the worse direction; zero were significantly better.
+      The two significant penetration-ratio regressions, `hand_pen_ratio` and `human_pen_ratio`, are
+      **n=181**, not 438. All four penetration metrics use 181/438 finite pairs and drop 257; every other
+      metric uses all 438 pairs.
+    - Model-side count arithmetic is unchanged: D2-AJ remains the **tenth failed model-side intervention**
+      (nine loss/representation attempts plus it), and the README's tally remains eleven interventions
+      through P6 when D2-AH's pre-diagnosis negative is included. P11 is objective-side by its own
+      preregistration: P8/P9/P9b/P9c dose-response is the geometry lineage's one positive (W3 selected),
+      P10 formula repair is its first subsequent objective-side negative, and P11 root detach is the
+      **second consecutive objective-side negative**. Do not add P11 to the model-side tally.
+    - Open caveat: sealed W3 records `sampler.pelvis._target_=priors.diffusion.HOIPriorSampler`, whereas
+      P11 records `priors.hoi.diffusion.HOIPriorSampler` after structural refactor `9259d3a`. Numerical
+      equivalence across that refactor has not been proven; this pre-existing branch-wide caveat remains
+      open. See `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json` and
+      `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md`.
+
 ## 4. Open research question for the next review
 
-The next candidate should explain why a relation path that is internally causal under
-paired interventions does not improve production rollout. A useful proposal must make
-one falsifiable change that targets this train-to-rollout transfer gap while retaining:
+The preregistered next entry returns to P10's “objective has attractors but no repulsor”
+pointer. A useful proposal must make one falsifiable change while retaining:
 
 - scene-free current-state provenance;
 - the clean `[B,16,232]` expert interface;
 - random initialization and the fixed formal budget;
 - D2-X-class object-goal, FS, penetration and kinematic protection;
-- a diagnostic that distinguishes useful relation use from generic residual reliance.
+- a causal diagnostic fixed before the formal run.
 
 The reviewer may recommend a previously untried training or inference mechanism, but
 must identify which old prohibition or protocol it changes and obtain explicit user
-approval before implementation. One remaining full-budget experiment does not permit a
-sweep or several loosely coupled interventions.
+approval before implementation. This closure does not itself authorize a repulsor or any
+other new mechanism.
 
 ## 5. Authoritative files
 
@@ -432,6 +466,11 @@ sweep or several loosely coupled interventions.
   dated closure section of `docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md`. Preregistered
   cost failure; guidance stays default-off, no checkpoint was selected, and the D2-AG and
   D2-AE negative classifications stand.
+- 2026-08-15 P11 root-gradient detach:
+  `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md` and
+  `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json`; full paired bootstrap at
+  `results/experiments/p1-hoi-p11-geom-rootdetach-r1-s42-20260814/chain/bootstrap_p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260815.json`.
+  Classification `root-coupling-negative-stop`, no checkpoint selected.
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,

@@ -849,6 +849,10 @@ bootstrap；若门失败，正式训练不启动并按预注册规则结案。
 > 现已丢弃。预算影响：封存的 21.7 wall-hour execution profile 不再描述此 arm；预计约
 > **22.4 h (+45 min)**。
 >
+> **Stage F 实测更正，2026-08-15.** 上述 **22.4 h (+45 min)** 是运行前投影，不是实测。
+> r1 正式训练从 `2026-08-14T13:18:54Z` 到 `2026-08-15T14:35:52Z`，记录
+> `wall_seconds=91000.61439041095`，即实测 **25.28 h**。原投影保留在上文供审计，以本实测值为准。
+>
 > **Authority suite。** 291 tests pass（此前为 281；十个新增测试是 P11 loss、probe、
 > chain-override 与 recipe assertion）。
 

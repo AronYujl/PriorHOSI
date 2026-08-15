@@ -25,12 +25,12 @@
 | [`03_INTERACTION_REPRESENTATION.md`](03_INTERACTION_REPRESENTATION.md) | 交互表示与关系场谱系：D2-AB no-slip、D2-AC 局部物体 token、D2-AD human-local BPS 坐标修复、D2-AE GPU-native 稀疏关系场、D2-AF 可靠性路由、D2-AG self-conditioned relation source，以及 2026-07-30 的精简迭代工作流转折 | 3546-7434 | 3889 |
 | [`04_BUDGET_AND_LONG_ARMS.md`](04_BUDGET_AND_LONG_ARMS.md) | 预算杠杆：P4 预算-指标曲线（61.44M 处远未饱和）与 D2-AI/D2-AJ 长预算双臂（4.875×），含目标条件通路被判为第十次模型侧失败 | 8479-8882 | 404 |
 | [`05_INFERENCE_GUIDANCE.md`](05_INFERENCE_GUIDANCE.md) | 基线协议分解与推理期接触引导：P1 released 协议归因、P2 引导协议对齐（Arm A/B）、P3 关系场 × 引导 2×3、P5 接触 mask 剂量-响应与 GT 上界、P6 手部子项重加权 | 7435-7677、7934-8270、8883-9107 | 805 |
-| [`06_GEOMETRY_TERM.md`](06_GEOMETRY_TERM.md) | 训练侧手-物几何项：D2-AH 度量几何权重恢复（前置诊断判负）、P8/P9/P9b/P9c 权重八点剂量扫描、P10 接触铰链 × 物体 detach 的 2×2 公式修复 | 7678-7933、9108-9519 | 668 |
+| [`06_GEOMETRY_TERM.md`](06_GEOMETRY_TERM.md) | 训练侧手-物几何项：D2-AH 度量几何权重恢复（前置诊断判负）、P8/P9/P9b/P9c 权重八点剂量扫描、P10 接触铰链 × 物体 detach 的 2×2 公式修复、P11 几何项根平移梯度 detach | 7678-7933、9108-9519，及后续 dated amendments | 668（原文） |
 
 Phase 1B 之外：[`../PHASE_0.md`](../PHASE_0.md)、[`../PHASE_1A_DATA.md`](../PHASE_1A_DATA.md)、
 [`../PHASE_1C_HSI.md`](../PHASE_1C_HSI.md)、[`../PHASE_1D_GATE.md`](../PHASE_1D_GATE.md)。
 
-## 当前状态（截至 2026-08-10）
+## 当前状态（截至 2026-08-15）
 
 **1. 95% 原生 gate 于 2026-07-14 失败，此后从未重新通过。**
 `p1-hoi-eval-native-r1-s42-20260714` 完成 438 序列 × 3 窗口，全部指标有限，但 object/pelvis
@@ -46,6 +46,8 @@ penetration 一项过线（`01_GATE_AND_EARLY_DIAGNOSIS.md`，原 `EP:223-234`�
 原 `EP:7687`）；连同 D2-AH 的前置诊断判负，到 P6 为止**十一次干预**没有一次真正移动接触参与度
 （`docs/phase_summaries/PHASE_1B_P6_GUIDANCE_SUBTERM.md:13`）。反复出现的机制是：
 **加在网络上的东西会被联合训练吸收成通用残差**。任何新的模型侧提案必须先说明它为什么不会被这样吸收。
+P11 从既有 loss 移除一条根平移梯度路径，按预注册与 P8 同属 **objective-side**，因此不增加该计数：
+D2-AJ 仍是第十次 model-side failure，连同 D2-AH 前置阴性仍是到 P6 为止的十一次干预。
 
 **3. 预算是唯一被测量到的有效杠杆。**
 D2-AI 在 299,520,000 windows（4.875× 正式预算，预算是唯一被操纵因子）上对封存对照 D2-X
@@ -63,10 +65,12 @@ D2-AI 在 299,520,000 windows（4.875× 正式预算，预算是唯一被操纵�
 版本 tag、以及是否把 W3 作为 v1 的接触变体）由主 session 在用户批准后写入，本索引只作记录。
 
 **5. 两条已经走完的路。** 推理期引导已触顶（P5/P6：即使给完美 GT 接触标签，参与度也不会
-被引导创造出来）；训练侧几何项的剂量（P8–P9c 八点扫描）与公式（P10 铰链 × detach）
-两条路也都走完，P10 分类 `geometry-term-repair-negative-stop`。证据现在指向
-"目标函数里只有吸引子、没有排斥子"和"穿透可能由手的姿态/朝向而非掌关节距离驱动"
-（`docs/phase_summaries/PHASE_1B_P10_GEOMETRY_REPAIR.md` 的"下一入口"一节，陈述为指向、不作为推荐）。
+被引导创造出来）；训练侧几何项的剂量（P8–P9c 八点扫描）、公式（P10 铰链 × detach）与根平移
+梯度耦合（P11 root detach）也都走完。P10 分类 `geometry-term-repair-negative-stop`；P11 的 PRIMARY
+两项均大幅显著变差，以 `root-coupling-negative-stop` 结案，未选 checkpoint。P11 是几何谱系继 P10
+之后连续第二个 objective-side negative；它不增加 model-side failure 计数。下一入口回到 P10 的
+"目标函数里只有吸引子、没有排斥子"指针
+（`docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md` 的"下一入口"一节）。
 
 ## 锁定对照点与不可越线的事实
 
