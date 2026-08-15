@@ -130,7 +130,7 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
     human_dict['rest_human_offsets'] = human_dict['rest_human_offsets'][None, None, :].repeat(1, cfg.max_window_size, 1, 1)
 
-    guidance_fn = apply_hosi_guidance_loss if cfg.use_guidance else None
+    guidance_fn = select_guidance_fn(cfg.use_guidance, is_object)
 
     if cfg.sample_type == 'consistency':
         samples, occs = sampler.cm_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
