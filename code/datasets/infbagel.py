@@ -714,7 +714,47 @@ class InfBaGelDataset(Dataset):
         
         return occ_for_points
 
-    def get_nearest_free_voxel(self, points, scene_flag):
+    def _get_nearest_free_voxel_direct(self, points, scene_flag):
+        """Query occupancy and references without materializing full scene batches."""
+        original_shape = points.shape[:-1]
+        batch_size = points.shape[0]
+        seq_len = points.shape[1]
+        N = points.shape[2]
+
+        points_flat = points.reshape(-1, 3)
+
+        voxel_size = torch.div(self.scene_grid_torch[3: 6] - self.scene_grid_torch[:3], self.scene_grid_torch[6:])
+        voxel_indices = torch.div(points_flat - self.scene_grid_torch[:3], voxel_size).long()
+
+        valid_mask = torch.all((voxel_indices >= 0) & (voxel_indices < self.scene_grid_torch[6:] - 0), dim=-1)
+        voxel_indices[torch.logical_not(valid_mask)] = 0
+        voxel_indices = voxel_indices.reshape(batch_size, seq_len*N, 3)
+
+        scene_flag = scene_flag.reshape(-1)
+        b_idx = torch.arange(batch_size, device=self.scene_occ.device).unsqueeze(1).expand(batch_size, seq_len*N)
+
+        is_penetrating = (self.scene_occ[scene_flag[b_idx], voxel_indices[..., 0], voxel_indices[..., 1], voxel_indices[..., 2]] == 1)
+        valid_mask = valid_mask.reshape(is_penetrating.shape)
+
+        nearest_free_points = points_flat.clone().reshape(batch_size, seq_len*N, 3)
+
+        # For penetrating points, get the displacement and compute the safe position
+        penetrating_mask = valid_mask & is_penetrating
+        if penetrating_mask.any():
+            pen_indices = voxel_indices[penetrating_mask]
+            penetrating_scene_flags = scene_flag[b_idx[penetrating_mask]]
+            displacements = torch.empty_like(pen_indices, dtype=torch.int16)
+            for scene_id in torch.unique(penetrating_scene_flags).tolist():
+                scene_mask = penetrating_scene_flags == scene_id
+                scene_pen_indices = pen_indices[scene_mask]
+                occ_ref = self.scene_occ_ref[int(scene_id)]
+                displacements[scene_mask] = occ_ref[scene_pen_indices[:, 0], scene_pen_indices[:, 1], scene_pen_indices[:, 2]]
+            # Compute the safe position
+            nearest_free_points[penetrating_mask] = (pen_indices + displacements) * voxel_size + self.scene_grid_torch[:3]
+
+        return is_penetrating.reshape(original_shape), nearest_free_points.reshape(*original_shape, 3)
+
+    def _get_nearest_free_voxel_materialized(self, points, scene_flag):
         with torch.no_grad():
             occ = self.scene_occ[scene_flag]
             occ_ref = self.scene_occ_ref[scene_flag]
@@ -751,6 +791,9 @@ class InfBaGelDataset(Dataset):
             # import pdb; pdb.set_trace()
         
         return is_penetrating.reshape(original_shape), nearest_free_points.reshape(*original_shape, 3)
+
+    def get_nearest_free_voxel(self, points, scene_flag):
+        return self._get_nearest_free_voxel_direct(points, scene_flag)
 
     def create_meshgrid(self, batch_size=1):
         bbox = self.mesh_grid
