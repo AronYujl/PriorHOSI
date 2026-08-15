@@ -561,4 +561,58 @@ gap 的 59%，迭代步数贡献为零」。若以 guided-A 对 unguided-B 成�
 自回归接缝，而接缝连续性是 Tier 3 的测量对象。
 
 
+---
 
+## 2026-08-15：run B 训练完成、checkpoint 选择与 run-B 评测预注册
+
+### A. Run B 训练完成
+
+Run B 已以 `TRAINER_EXIT=0` 完成 223 个 epoch、146,255 次 optimizer update；已记录的
+`29.6 h wall clock` 与 `0.7305 s/update sustained` 原样沿用，不在本节重新测量。epoch 222
+平均训练 loss 为 0.2021，共产出 13 个 epoch checkpoint。封口记录见
+`results/experiments/p1-hsi-b-lingo-full-s42-20260814/manifest.json:1`，训练登记见
+`experiments/registry.jsonl:276`。该 manifest 在本会话任何提交出现之前，以干净工作树封口于
+`a61ffe7`，因此记录的是实际运行代码。
+
+### B. 用户决定：checkpoint 选择 = final-epoch-only
+
+**评测 checkpoint 在运行前固定为 `hsi_b_lingo_full_epoch222.pth`；这不是 checkpoint 间的
+质量比较，也不是从评测集择优。** 下列 spike 分析只检查固定规则没有落在受扰 checkpoint 上，
+不构成选择依据：epoch 160 step 340 的未裁剪梯度事件将 loss 从 0.2038 推至 0.7454；
+`epoch160.pth` 写于该 spike 后，checkpoint 邻近 loss 为 0.4830；`epoch180.pth` 仍在恢复中
+（0.2147）。epoch 222 已完全恢复至 0.2021，略低于 spike 前 epoch 158 的 0.2032。
+
+### C. 发现（写给后续 run，不改本 run）
+
+`code/train_infbagel.py` 全文没有梯度裁剪。本 run 实测两次未裁剪梯度事件：epoch 10
+step 50（5.94x）与 epoch 160 step 340（3.66x）。**本阶段不修改 trainer**——B 已训练完成，
+裁剪无法追溯生效；任何 trainer 变更都属于 C 或后续 run 的独立预注册决定，不在本节范围内。
+
+### D. 用户决定：`RDS` 落地实现，不降级、不裁掉
+
+`RDS` 正由并行 agent 在独立 worktree 实现，其接线将在评测运行前落到 `phase/01c-hsi`。
+沿用 2026-08-12 §E 的硬约束：null-scene 必须使用 `need_scene=False`，绝不能走 CFG 的
+`is_uncondition=True` / `cfg_scale == -1` 分支。
+
+### E. run-B 评测预注册
+
+评测协议在执行前完全由以下既有定版段落约束；本节只引用，不重写或改变任何公式：
+
+- 2026-08-12（同日修订）§C：penetration triple、包含 `RDS` 的 engagement、foot-skate
+  triple、goal reaching 与 seam continuity 的固定公式；
+- 2026-08-12（同日第二次修订）§D：三模型表、B 的 gate 角色与 goal-slot caveat；
+- 2026-08-12（同日第二次修订）§E：FPS 协议及 `RDS` 的 `need_scene=False` 约束；
+- 2026-08-13（同日修订）§D：guided/unguided 双列、unguided gate 列及 v3 test 的确定性抽样。
+
+用户在 2026-08-15 另行固定 final-epoch-only checkpoint 选择，并决定 `RDS` 按实现落地而非
+降级。今日登记 `p1-hsi-b-layout-4x512-s42-20260814` 与
+`p1-hsi-b-eval-preregister-s42-20260815`；后者明确发生在任何 run-B 评测之前。
+**Phase 1C 的具体 gate 判据仍由用户暂缓定义，本节不定义任何阈值或 gate 数值。**
+当前不存在 run-B 评测指标。
+
+治理修复：`code/config/config_train_hsi_b_lingo_full.yaml:35` 与 commit `a61ffe7` 在 registry
+row 存在前已引用 `p1-hsi-b-layout-4x512-s42-20260814`；今日 amendment 关闭该悬空引用。
+`experiments/training_resource_protocol.json` 刻意不改：`hardware_assignment` 描述 HSI 所属的
+8-GPU hardware pool，不描述单次 run 的用卡数；run B 的 4-of-8 分配已由 manifest override
+`visible_and_allocated_gpus=0,1,2,3` 记录，且 `tests/test_research_governance.py:177` 固定
+`hardware_assignment["hsi"]["gpu_count"] == 8`，不能为描述单次分配而改写该治理不变量。
