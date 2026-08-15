@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hoi-p8-w3-eval-replication-s42-20260816",
+  "phase": "p1",
+  "subphase": "1B-P8-W3-replication",
+  "status": "completed",
+  "date": "2026-08-16",
+  "seed": 42,
+  "classification": "refactor-numerical-equivalence-null",
+  "question": "Does structural refactor 9259d3a, which relocated GaussianDiffusion into the frozen priors.core.ddpm and re-exported it, change any number on the HOI evaluation path? Every post-refactor arm is compared against the sealed pre-refactor baseline p1-hoi-p8-eval-w3-guided-s42-20260809, so an unproven equivalence sat under the branch's most-referenced comparison point.",
+  "answer": "No. The residual is exactly zero, not merely small. Re-evaluating the sealed W3 checkpoint at HEAD on two hosts and two NVIDIA drivers reproduces per_sequence_metrics.json bitwise, byte for byte.",
+  "no_registry_row": {
+    "appended": false,
+    "reason": "Evaluation runs get no registry row of their own; they live under their parent training run's results field. This audit re-evaluates an existing sealed checkpoint and has no parent training run, and no validator or test enumerates results/experiments/ against experiments/registry.jsonl. tools/experiment.py exposes only start/finish/register/validate and does not scan run directories."
+  },
+  "subject": {
+    "checkpoint": {
+      "run_id": "p1-hoi-p8-hand-object-geom-w3-s42-20260807",
+      "name": "p1-hoi-p8-hand-object-geom-w3-s42-20260807_windows299520000.pth",
+      "sha256": "bac2d1add9a164db3c1763427da078cba7759720758604d9d270993e52414761",
+      "weight_variant": "online",
+      "architecture_variant": "base",
+      "training_git_commit": "3c8869e36871ed34ec7b16560a8c9764bdccb8d4"
+    },
+    "protocol": {
+      "source": "results/experiments/p1-hoi-p8-eval-w3-guided-s42-20260809/hydra/.hydra/overrides.yaml",
+      "override_count": 27,
+      "override_count_note": "27 entries, not 26; the file is 1400 bytes and 27 lines.",
+      "guidance_arm": "b",
+      "diffusion_steps": 500,
+      "sample_type": "diffusion",
+      "load_scene": false,
+      "expected_sequences": 438,
+      "changed_per_run": ["exp_name", "hoi_output_dir", "per_sequence_metrics_path"],
+      "changed_per_run_note": "Run B additionally re-rooted ckpt_path to the worker checkout; no protocol value differs."
+    },
+    "refactor_under_test": {
+      "commit": "9259d3a82936d8ff2e9187aa2b70cfb06e8bee45",
+      "committed_at": "2026-08-11T13:04:44+08:00",
+      "config_field": "sampler.pelvis._target_",
+      "sealed_value": "priors.diffusion.HOIPriorSampler",
+      "post_refactor_value": "priors.hoi.diffusion.HOIPriorSampler",
+      "composed_config_line": 107,
+      "refactored_path_executed": true,
+      "prior_evidence_status": "The refactor commit's own message already claimed 52/52 bit-equivalence checks against pre-split code at c77b9d8, including the full 500-step sample() byte-equal in three configurations with a real HOIPrior, plus 40/40 model checks and byte-equal forwards and samples for the two sealed final checkpoints. This audit CONFIRMS that claim end-to-end on real data and the full native metric suite; it does not overturn an unverified claim. The gap it closes is that the claim had never been exercised through the evaluator on the 438-sequence test set."
+    }
+  },
+  "runs": [
+    {
+      "role": "sealed baseline",
+      "run_id": "p1-hoi-p8-eval-w3-guided-s42-20260809",
+      "host": "authority",
+      "device": "cuda:0",
+      "started_at": "2026-08-09T12:24:25+08:00",
+      "ended_at": "2026-08-09T12:27:43+08:00",
+      "generation_seconds": 63.35301164817065,
+      "per_sequence_metrics": {
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+      },
+      "aggregate_metrics": {
+        "bytes": 5282,
+        "sha256": "fc63bdb6971ee5f9dcd0926709349014eae6f03819c8805f9b440a3fbb323aae"
+      },
+      "recorded_environment": null,
+      "recorded_environment_note": "This run's driver, torch, cuDNN and evaluation-time commit were never recorded and are unrecoverable. aggregate_metrics.json schema v1 carried no execution environment and no evaluation-time git commit at all; its only commit was checkpoint.git_commit, the TRAINING commit."
+    },
+    {
+      "role": "replication A",
+      "run_id": "p1-hoi-p8-eval-w3-guided-replication-authority-s42-20260816",
+      "host": "authority",
+      "device": "cuda:0",
+      "generation_seconds": 62.89035706873983,
+      "per_sequence_metrics": {
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+      },
+      "aggregate_metrics": {
+        "bytes": 5403,
+        "sha256": "427db27594a6536367732cb2a2bd89a499b8fa6f6ac5aef1144916fcc500bc64"
+      },
+      "hardware": {
+        "gpu": "NVIDIA GeForce RTX 3090",
+        "nvidia_driver_version": "570.133.20",
+        "torch": "1.13.1+cu117",
+        "cuda": "11.7",
+        "cudnn": 8500
+      }
+    },
+    {
+      "role": "replication B",
+      "run_id": "p1-hoi-p8-eval-w3-guided-replication-worker-s42-20260816",
+      "host": "worker",
+      "device": "cuda:0",
+      "generation_seconds": 62.112682808889076,
+      "per_sequence_metrics": {
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+      },
+      "aggregate_metrics": {
+        "bytes": 5436,
+        "sha256": "656af8612c5ef226c9ab1ef70cfb4d3c794d384e7ace7071b903e62ca375dee6"
+      },
+      "hardware": {
+        "gpu": "NVIDIA GeForce RTX 3090",
+        "nvidia_driver_version": "580.126.09",
+        "torch": "1.13.1+cu117",
+        "cuda": "11.7",
+        "cudnn": 8500
+      }
+    },
+    {
+      "role": "provenance-schema inertness verification, pre-timeout code",
+      "run_id": "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-s42-20260816",
+      "host": "authority",
+      "device": "cuda:0",
+      "physical_gpu": 4,
+      "physical_gpu_note": "CUDA_VISIBLE_DEVICES=4 so the 27 protocol overrides stayed byte-identical to the sealed set while avoiding GPUs 0-3, which were running a concurrent HSIPrior training job (train_infbagel.py --config-name config_train_hsi_c_lingo_cm). AGENTS.md forbids sharing a GPU with the other expert's run.",
+      "started_at": "2026-08-16T02:23:07+08:00",
+      "ended_at": "2026-08-16T02:26:23+08:00",
+      "generation_seconds": 63.283970879390836,
+      "superseded_by": "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-r2-s42-20260816",
+      "superseded_reason": "A 30 s subprocess timeout was added to the provenance helper after this run, so this run does not prove the code that was committed. Retained rather than deleted; both runs produced the same per-sequence hash.",
+      "per_sequence_metrics": {
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+      },
+      "aggregate_metrics": {
+        "bytes": 5907,
+        "sha256": "fd2f5cd3ebb93d320412ad34fa3e96b13ec2b8f3ac7459396bddc47fef5035a8"
+      },
+      "hardware": {
+        "gpu": "NVIDIA GeForce RTX 3090",
+        "nvidia_driver_version": "570.133.20",
+        "torch": "1.13.1+cu117",
+        "cuda": "11.7",
+        "cudnn": 8500
+      }
+    },
+    {
+      "role": "provenance-schema inertness verification, committed code (authoritative)",
+      "run_id": "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-r2-s42-20260816",
+      "host": "authority",
+      "device": "cuda:0",
+      "physical_gpu": 4,
+      "generation_seconds": 63.195109783671796,
+      "per_sequence_metrics": {
+        "bytes": 275581,
+        "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"
+      },
+      "aggregate_metrics": {
+        "bytes": 5915,
+        "sha256": "e333222c7f984a1cdaada95bb772a858dc97c1023401ef0b76a8bcac4437c3b7"
+      },
+      "hardware": {
+        "gpu": "NVIDIA GeForce RTX 3090",
+        "nvidia_driver_version": "570.133.20",
+        "torch": "1.13.1+cu117",
+        "cuda": "11.7",
+        "cudnn": 8500
+      }
+    }
+  ],
+  "equivalence": {
+    "per_sequence_metrics_sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2",
+    "identical_across": [
+      "p1-hoi-p8-eval-w3-guided-s42-20260809",
+      "p1-hoi-p8-eval-w3-guided-replication-authority-s42-20260816",
+      "p1-hoi-p8-eval-w3-guided-replication-worker-s42-20260816",
+      "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-s42-20260816",
+      "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-r2-s42-20260816"
+    ],
+    "sequences_compared": 438,
+    "per_sequence_numeric_metrics_bitwise_identical": "14/14",
+    "aggregate_metrics_bitwise_identical": "18/18",
+    "guidance_audit_scalars_bitwise_identical": "32/32",
+    "normalization_audit_non_guidance_bitwise_identical": true,
+    "penetration_metric_pairing": "each penetration metric has 181 numeric pairs and 257 paired nulls; the paired nulls match and are excluded from the numeric denominator. Every other metric has all 438 pairs.",
+    "spot_checks": {
+      "trans_dist": 8.437210321426392,
+      "contact_f1": 0.7788589083944136,
+      "guidance_clamp_saturated_elements": 74131
+    },
+    "estimator_note": "8.437210321426392 is the AGGREGATE trans_dist field. The paired bootstrap and evidence-index conclusion 18 quote 8.43721016280387, the mean over per-sequence values, and 4.650959228569446 against the aggregate xy_points_err 4.650958999991417. These are different estimators over the same identical data, not a correction of one another.",
+    "independent_executions_not_copies": {
+      "evidence": "five distinct generation_seconds across five runs that share one per-sequence hash",
+      "values": [63.35301164817065, 62.89035706873983, 62.112682808889076, 63.283970879390836, 63.195109783671796]
+    },
+    "per_sequence_hash_is_a_valid_readout": "per_sequence_metrics.json contains no absolute paths (zero occurrences of the checkout root), so its file hash is host-independent. The absolute paths live in aggregate_metrics.json: checkpoint.path, per_sequence_metrics.path, chois_export.prediction_dir and chois_export.ground_truth_dir.",
+    "bootstrap_skipped": "Run B is bitwise identical to sealed, so a conditional paired bootstrap has nothing to estimate."
+  },
+  "p11_baseline_validity": {
+    "resolved": true,
+    "residual": 0,
+    "residual_note": "exactly zero, not merely small",
+    "p11_deltas_for_scale": {
+      "trans_dist": 9.089818134580709,
+      "pelvis_goal_error_cm": 8.253859806184968
+    },
+    "supersedes": {
+      "file": "experiments/results/p1_hoi_p11_root_detach_s42_20260815.json",
+      "field": "open_caveat",
+      "recorded_status": "open; not resolved",
+      "note": "That record is append-only and is deliberately not edited. This file and the two documents below carry the resolution; the P11 record's own open_caveat text remains as written."
+    },
+    "sealed_w3_code_identity": "The sealed W3 evaluation ran 12:24:25-12:27:43 on 2026-08-09 while the commit holding its code, 5e89644204c240599a2190a338319bbe77beeab3, landed at 12:43:32 the same day, 15 minutes 49 seconds later. That baseline was produced from an uncommitted worktree with no recorded code identity. It is now pinned empirically instead: HEAD 5828b35a215844005b438d82dbe7730a04329806 reproduces it bitwise."
+  },
+  "scope": {
+    "proven_for": {
+      "checkpoint": "bac2d1add9a164db3c1763427da078cba7759720758604d9d270993e52414761 only",
+      "sampling": "guided Arm B only",
+      "diffusion_steps": 500,
+      "architecture_variant": "base",
+      "nvidia_drivers": ["570.133.20", "580.126.09"],
+      "path": "the HOI evaluation path only"
+    },
+    "not_covered": [
+      "unguided sampling",
+      "every other guidance arm",
+      "the sparse_relation architecture variant",
+      "the interaction_adapter architecture variant",
+      "any future NVIDIA driver version",
+      "the entire training path"
+    ],
+    "warning": "This is not a general guarantee that refactor 9259d3a is numerically inert. It is one checkpoint, one arm, one variant, two drivers, and the evaluation path only. Any claim beyond that list is unsupported by this record."
+  },
+  "provenance_schema_change": {
+    "motivation": "aggregate_metrics.json recorded no execution environment and no evaluation-time git commit, which is what forced a two-run, two-host re-execution to answer a one-run question.",
+    "file": "code/test_infbagel_hoi.py",
+    "aggregate_schema_version": {"from": 1, "to": 2},
+    "per_sequence_schema_version": {"from": 1, "to": 1},
+    "per_sequence_untouched_because": "its hash bbcd9e1b... is pinned by docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md, experiments/results/p1_hoi_p11_root_detach_s42_20260815.json, experiments/results/p1_hoi_p10_geometry_repair_2x2_s42_20260810.json and experiments/registry.jsonl. Provenance is host-dependent by design and must never enter that file.",
+    "block": "execution_provenance",
+    "fields": ["hostname", "device", "gpu_name", "nvidia_driver_version", "torch_version", "cuda_version", "cudnn_version", "python_version", "git.commit", "git.branch", "git.dirty", "git.dirty_entry_count", "git.resolved_at"],
+    "dirty_definition": "git status --porcelain=v1 --untracked-files=all, matching tools/experiment.py git_state and train_hoi_prior.py _git_status_porcelain so the three gates cannot disagree about what clean means",
+    "never_raises": "A CPU-only host, an absent nvidia-smi and a non-Git directory each yield null fields. An evaluation is never lost to a failed metadata read.",
+    "hang_is_not_an_exception": "Every subprocess call carries timeout=30. A hang is not an exception, so an unbounded nvidia-smi wedged on a sick driver would block after per_sequence_metrics.json was written but before aggregate_metrics.json, and both files open with mode 'x', so the half-finished directory would then also block a clean retry. subprocess.TimeoutExpired is a SubprocessError and lands in the same handler.",
+    "numerically_inert": {
+      "argument": "collected once, after the last metric is computed and after per_sequence_metrics.json is written; consumes no RNG; adds no synchronization to the sampling loop; reorders nothing before or during sampling",
+      "proof": "p1-hoi-p8-eval-w3-guided-provenance-schema-verify-r2-s42-20260816, run against the exact committed code, reproduced per_sequence_metrics.json byte-identically and all 18 aggregate metrics, all 32 guidance audit scalars and every normalization_audit field bitwise. The only differing aggregate fields are the 14 new provenance fields, the schema_version bump, the run-name-derived paths, and wall-clock timings."
+    },
+    "known_limitation": "The commit is resolved at metrics-write time, not at evaluator start. AGENTS.md requires trainers to resolve HEAD once at run start because a multi-hour run can outlive its own commit (P10's A10/A01 started at 91232ad and were recorded as 5d39ac3). The same exposure exists here but is bounded by the ~6 minute evaluation. Write-time collection is what keeps the read entirely downstream of sampling, which is the stronger requirement for an evaluator compared bitwise against sealed baselines. The field git.resolved_at records this explicitly so no future reader mistakes it for a start-time value.",
+    "nothing_pinned_an_aggregate_hash_for_w3": "The sealed W3 aggregate_metrics.json hash fc63bdb6971ee5f9dcd0926709349014eae6f03819c8805f9b440a3fbb323aae appears in no tracked file. No test or tool reads aggregate_metrics.json at all. Many experiments/results/*.json record an aggregate_metrics_sha256 for their own run, but those are historical readings of files that do not change, and nothing recomputes or cross-compares them. tools/diagnose_hoi_d2p.py and tools/diagnose_hoi_d2f.py do hash-verify files, but the files they verify are compact results under experiments/results/, not evaluator aggregates.",
+    "verification_run_recorded_a_dirty_worktree": {
+      "dirty": true,
+      "dirty_entry_count": 6,
+      "note": "Both verification runs necessarily executed before the commit, because a matching hash is the gate that authorizes committing. The first recorded dirty_entry_count 2 (the modified evaluator and the new test module); the authoritative r2 run recorded 6, exactly the six files in this commit. The count tracking reality across two runs is a live demonstration that the flag works: had it existed on 2026-08-09 it would have marked the sealed W3 baseline dirty."
+    },
+    "hostname_is_weakly_discriminating": "The authority host reports hostname 'ubuntu'. Host identity is better read from nvidia_driver_version (570.133.20 authority, 580.126.09 worker) than from hostname alone."
+  },
+  "artifact_recovery": {
+    "direction": "worker to authority",
+    "initiator": "worker",
+    "transport": "rsync over ssh -i ~/.ssh/id_ed25519_infbagel_8gpu, --ignore-existing",
+    "key_note": "The worker has no ~/.ssh/config, so the dedicated key must be passed explicitly with -i. Omitting it is what caused an earlier transfer in this project to report success while moving zero bytes.",
+    "already_present_and_reasserted_on_both_hosts": [
+      {"file": "hydra/.hydra/overrides.yaml", "bytes": 1487, "sha256": "1168462deb724a05ae5e3a95141334b1ae66df3a6a4eec94ca36aa86c385d18b"},
+      {"file": "evaluation/aggregate_metrics.json", "bytes": 5436, "sha256": "656af8612c5ef226c9ab1ef70cfb4d3c794d384e7ace7071b903e62ca375dee6"},
+      {"file": "evaluation/per_sequence_metrics.json", "bytes": 275581, "sha256": "bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2"}
+    ],
+    "transferred_now": [
+      {"file": "hydra/.hydra/config.yaml", "bytes": 3115, "sha256": "b3daf76211fc577a296a4eaf75b62386ca9c405a7861cfa8ae1691580b3f2d92"},
+      {"file": "hydra/.hydra/hydra.yaml", "bytes": 6431, "sha256": "c41a3313ba4c8862fc9b9cda36212b984596d5a075857d60e5d7199a6d7123d0"},
+      {"file": "hydra/test_infbagel_hoi.log", "bytes": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "note": "empty at source; Hydra's job log is empty because the evaluator's stdout went to the nohup log. Not a transfer failure."},
+      {"file": "runB_eval.log", "bytes": 3665, "sha256": "ec6ed991566afde623604225b56d9c4c0fd40d80cfd817f0d786d2fbde21b75f"}
+    ],
+    "total_transferred_bytes": 13211,
+    "assertion": "all four destination hashes and byte counts equal their worker-side source values; nothing pre-existing was overwritten",
+    "replication_trees_retained": true
+  },
+  "verification_commands": [
+    "sha256sum results/experiments/{p1-hoi-p8-eval-w3-guided-s42-20260809,p1-hoi-p8-eval-w3-guided-replication-authority-s42-20260816,p1-hoi-p8-eval-w3-guided-replication-worker-s42-20260816,p1-hoi-p8-eval-w3-guided-provenance-schema-verify-s42-20260816}/evaluation/per_sequence_metrics.json",
+    "cmp results/experiments/p1-hoi-p8-eval-w3-guided-s42-20260809/evaluation/per_sequence_metrics.json results/experiments/p1-hoi-p8-eval-w3-guided-provenance-schema-verify-s42-20260816/evaluation/per_sequence_metrics.json",
+    "cd code && ROOT_DIR=/data/yujinlun/InfBaGel-release CUDA_VISIBLE_DEVICES=4 python test_infbagel_hoi.py --config-name=config_eval_hoi_prior <the sealed 27 overrides with exp_name and the two output paths retargeted>",
+    "pytest tests"
+  ],
+  "suite": "320 passed in 35.21s (292 before this change, plus 28 new evaluation-provenance tests)",
+  "conclusion": "Refactor 9259d3a is numerically inert on the HOI evaluation path, and the NVIDIA driver difference between 570.133.20 and 580.126.09 is numerically inert there too. The P11 baseline is valid with a residual of exactly zero rather than merely small relative to the P11 deltas trans_dist +9.089818134580709 and pelvis_goal_error_cm +8.253859806184968; no P11 conclusion moves. The sealed W3 baseline's previously unrecorded evaluation-time code identity is now pinned empirically to HEAD 5828b35a215844005b438d82dbe7730a04329806, and aggregate_metrics.json schema v2 records host, accelerator, driver, torch, CUDA, cuDNN and the evaluation-time commit with a dirty flag so no future run needs a two-host re-execution to answer this question. This closes one caveat for one checkpoint, one arm, one variant and two drivers; it authorizes no broader claim and no new experimental direction.",
+  "next_entry_point": "Unchanged: return to P10's objective-has-attractors-but-no-repulsor pointer. This record authorizes no new mechanism."
+}

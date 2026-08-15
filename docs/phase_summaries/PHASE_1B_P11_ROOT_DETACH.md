@@ -191,11 +191,35 @@ consistency weight 1 / author normalization、object-goal weight 1。
   指标同样只有 n=181。
 - `contact_percent` 是 aggregate point estimate，没有 sequence-level CI。
 - 单 seed、单 lineage；不主张跨 seed 或跨谱系外推。
-- **开放且未解决的 sampler `_target_` caveat：** W3 的 Hydra config line 107 是
+- **已解决（2026-08-16）的 sampler `_target_` caveat：** W3 的 Hydra config line 107 是
   `priors.diffusion.HOIPriorSampler`，P11 是 `priors.hoi.diffusion.HOIPriorSampler`。refactor
-  `9259d3a` 把 GaussianDiffusion 等迁入 frozen `priors.core.ddpm` 并 re-export；迁移已验证为结构性，
-  但跨 refactor 的数值等价性**尚未证明**。这是任何 post-refactor arm 对 sealed pre-refactor baseline
-  的既有 branch-wide 属性，不是 P11 引入，也不能在本记录中写成已解决。
+  `9259d3a` 把 GaussianDiffusion 等迁入 frozen `priors.core.ddpm` 并 re-export。该 commit 自身的
+  message 已声明 52/52 bit-equivalence 检查，其中包含用真实 HOIPrior 跑完整 500 步 `sample()` 的
+  byte-equal；也就是说 sampling loop 当时**已被验证**。2026-08-16 的复现把这一声明在真实数据与完整
+  native 指标上端到端确认了：在 HEAD `5828b35` 上于两台主机、两个 NVIDIA driver 重新评测 sealed W3
+  checkpoint，`per_sequence_metrics.json` 的 sha256 仍然是
+  `bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2`——与 sealed run 逐字节相同。
+  438 条序列、14 个 per-sequence 数值指标、18 个 aggregate 指标与 32 个 guidance audit 标量全部
+  bitwise 相同，包含整数 `guidance_clamp_saturated_elements = 74131`。三次运行的
+  generation_seconds 各不相同（63.35301164817065 / 62.89035706873983 / 62.112682808889076），
+  证明它们是独立执行而非拷贝。**残差恰好为零**，而不只是相对 P11 的 `trans_dist +9.0898` 与
+  `pelvis_goal_error_cm +8.2539` 而言很小，因此 P11 的任何结论都不移动。
+  复现 run id：`p1-hoi-p8-eval-w3-guided-replication-authority-s42-20260816`（authority，driver
+  570.133.20）与 `p1-hoi-p8-eval-w3-guided-replication-worker-s42-20260816`（worker，driver
+  580.126.09）；两台均为 RTX 3090 / torch 1.13.1+cu117 / CUDA 11.7 / cuDNN 8500。
+  **范围限制与结论同等重要，不可读成一般性保证：** 仅对该 checkpoint
+  （`bac2d1add9a164db3c1763427da078cba7759720758604d9d270993e52414761`）、guided Arm B、500 步
+  diffusion、`base` architecture variant、以及 driver 570.133.20 与 580.126.09 成立，且**仅限评测
+  路径**。**不覆盖**：unguided sampling、其余 guidance arm、`sparse_relation` 与
+  `interaction_adapter` variant、未来的 driver 版本、以及整条训练路径。
+  详见 `experiments/results/p1_hoi_p8_w3_eval_replication_s42_20260816.json` 与
+  `docs/HOIPRIOR_EVIDENCE_INDEX.md` 结论 19。P11 自己的 compact result 是 append-only，其
+  `open_caveat` 字段按原样保留，解决记录只写在上述两处。
+- sealed W3 的评测期 code identity 原先**完全没有记录**：它在 2026-08-09 12:24:25-12:27:43 运行，
+  而承载其代码的 commit `5e89644` 在同日 12:43:32 才落地，晚 15 分 49 秒——即该 baseline 出自一个
+  未提交的 worktree。`aggregate_metrics.json` 当时只记录 `checkpoint.git_commit`（**训练**期
+  commit），没有任何评测期 commit 或执行环境。schema v2 起该文件记录 host、GPU、driver、torch、
+  CUDA、cuDNN 与带 dirty flag 的评测期 commit；W3 的这一身份现已由上述复现在经验上钉住。
 - 训练与评测 HEAD 不同；差异已限定为 orchestration-only，但仍作为显式 provenance caveat 保留。
 
 ---

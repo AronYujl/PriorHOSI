@@ -424,11 +424,61 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       preregistration: P8/P9/P9b/P9c dose-response is the geometry lineage's one positive (W3 selected),
       P10 formula repair is its first subsequent objective-side negative, and P11 root detach is the
       **second consecutive objective-side negative**. Do not add P11 to the model-side tally.
-    - Open caveat: sealed W3 records `sampler.pelvis._target_=priors.diffusion.HOIPriorSampler`, whereas
-      P11 records `priors.hoi.diffusion.HOIPriorSampler` after structural refactor `9259d3a`. Numerical
-      equivalence across that refactor has not been proven; this pre-existing branch-wide caveat remains
-      open. See `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json` and
-      `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md`.
+    - Resolved 2026-08-16, previously open: sealed W3 records
+      `sampler.pelvis._target_=priors.diffusion.HOIPriorSampler`, whereas P11 records
+      `priors.hoi.diffusion.HOIPriorSampler` after structural refactor `9259d3a`. Numerical
+      equivalence across that refactor is now proven on the evaluation path with a residual of exactly
+      zero; see conclusion 19 and
+      `experiments/results/p1_hoi_p8_w3_eval_replication_s42_20260816.json`. No P11 number moves.
+      P11's own compact result is append-only and its `open_caveat` field is left as written.
+
+19. **Structural refactor `9259d3a` is numerically inert on the HOI evaluation path, and so is the
+    NVIDIA driver difference between 570.133.20 and 580.126.09 — the residual is exactly zero, not
+    merely small.** Re-evaluating the sealed W3 checkpoint
+    (`bac2d1add9a164db3c1763427da078cba7759720758604d9d270993e52414761`) at HEAD `5828b35` on both
+    hosts reproduces `per_sequence_metrics.json` with sha256
+    `bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2`, byte for byte identical to the
+    sealed run: `p1-hoi-p8-eval-w3-guided-replication-authority-s42-20260816` (driver 570.133.20) and
+    `p1-hoi-p8-eval-w3-guided-replication-worker-s42-20260816` (driver 580.126.09), both RTX 3090 /
+    torch 1.13.1+cu117 / CUDA 11.7 / cuDNN 8500. All 438 sequences, all 14 per-sequence numeric
+    metrics, all 18 aggregate metrics and all 32 guidance audit scalars are bitwise identical,
+    including the integer `guidance_clamp_saturated_elements = 74131`; aggregate `trans_dist`
+    **8.437210321426392** and `contact_f1` **0.7788589083944136** agree to the last digit in all
+    three. The refactored path genuinely executed — the composed configs differ at line 107
+    `_target_`, `priors.diffusion.HOIPriorSampler` → `priors.hoi.diffusion.HOIPriorSampler` — and the
+    runs are independent executions rather than copies, with `generation_seconds` 63.35301164817065 /
+    62.89035706873983 / 62.112682808889076. Because the residual is zero, no P11 conclusion moves
+    against its deltas `trans_dist` +9.089818134580709 and `pelvis_goal_error_cm` +8.253859806184968.
+    - **Scope limits, of equal standing with the result. This is not a general guarantee that
+      `9259d3a` is numerically inert.** Proven only for: this checkpoint, guided Arm B, 500-step
+      diffusion, the `base` architecture variant, drivers 570.133.20 and 580.126.09, and the
+      evaluation path. **Not covered:** unguided sampling, every other guidance arm, the
+      `sparse_relation` and `interaction_adapter` variants, any future driver version, and the entire
+      training path.
+    - Commit `9259d3a`'s own message already claimed 52/52 bit-equivalence checks against pre-split
+      code at `c77b9d8`, including the full 500-step `sample()` byte-equal with a real HOIPrior. The
+      sampling loop was therefore verified at the time; this audit **confirms** that claim end-to-end
+      on real data and the full native metric suite rather than overturning an unverified one. What it
+      adds is that the claim had never been exercised through the evaluator on the 438-sequence test
+      set.
+    - **The sealed W3 baseline's evaluation-time code identity, previously unrecorded, is now pinned
+      empirically.** That evaluation ran 12:24:25-12:27:43 on 2026-08-09 while the commit holding its
+      code, `5e89644`, landed at 12:43:32 the same day — 15 minutes 49 seconds later — so the branch's
+      most-referenced baseline was produced from an uncommitted worktree with no recorded code
+      identity. `aggregate_metrics.json` recorded no execution environment and no evaluation-time
+      commit at all; its only commit was `checkpoint.git_commit`, the *training* commit. From schema
+      v2 the file carries an `execution_provenance` block with host, GPU, NVIDIA driver, torch, CUDA,
+      cuDNN and the evaluation-time commit with a dirty-worktree flag, so no future question of this
+      kind needs a two-host re-execution to answer. The schema change was itself proven inert:
+      `p1-hoi-p8-eval-w3-guided-provenance-schema-verify-r2-s42-20260816`, run against the exact
+      committed code, reproduces the same `per_sequence_metrics.json` hash and all 18 aggregate
+      metrics bitwise. Five runs now share that one hash while reporting five distinct
+      `generation_seconds`.
+    - `per_sequence_metrics.json` contains no absolute paths, so its file hash is a valid cross-host
+      readout; the absolute paths live in `aggregate_metrics.json`. The sealed overrides file has 27
+      entries, not 26. See
+      `experiments/results/p1_hoi_p8_w3_eval_replication_s42_20260816.json`.
+    - This closure authorizes no new mechanism and no new direction. The next entry point is unchanged.
 
 ## 4. Open research question for the next review
 
@@ -471,6 +521,15 @@ other new mechanism.
   `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json`; full paired bootstrap at
   `results/experiments/p1-hoi-p11-geom-rootdetach-r1-s42-20260814/chain/bootstrap_p1-hoi-p11-geom-rootdetach-r1-eval-guided-s42-20260815.json`.
   Classification `root-coupling-negative-stop`, no checkpoint selected.
+- 2026-08-16 W3 evaluation replication and provenance schema:
+  `experiments/results/p1_hoi_p8_w3_eval_replication_s42_20260816.json`, plus the run trees
+  `results/experiments/p1-hoi-p8-eval-w3-guided-replication-{authority,worker}-s42-20260816` and
+  `results/experiments/p1-hoi-p8-eval-w3-guided-provenance-schema-verify{,-r2}-s42-20260816`.
+  Classification `refactor-numerical-equivalence-null`, no checkpoint selected, no registry row —
+  evaluation runs live under their parent training run's `results` field and this audit has none.
+  `aggregate_metrics.json` is at `schema_version` 2 from this commit; `per_sequence_metrics.json`
+  stays at 1 by design, because its hash is pinned by several sealed records and the provenance block
+  is host-dependent.
 - Early targeted diagnostics: `docs/D2H_EXPOSURE_DIAGNOSTIC.md`,
   `docs/D2I_GRADIENT_ROUTING_DIAGNOSTIC.md`,
   `docs/D2J_GRADIENT_CLIP_ROUTING_DIAGNOSTIC.md`,

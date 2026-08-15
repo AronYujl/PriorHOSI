@@ -107,7 +107,7 @@ context overhead without changing model training or scientific evaluation.
   only when the file was created, changed, transferred, or is the exact target of
   the current workload. Do not repeatedly hash unchanged checkpoint cadences or
   recovered trees.
-- Run the full authority suite for every change. It is 291 tests and about 40
+- Run the full authority suite for every change. It is 320 tests and about 35
   seconds; `pytest 8.3.5` is installed in the `infbagel` environment, and the
   suite is run as `pytest tests` from the repository root. The rules that used
   to decide when it could be skipped were written when it was 805 tests and 302

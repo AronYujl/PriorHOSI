@@ -985,7 +985,7 @@ def test(cfg: DictConfig) -> None:
         }, handle, indent=2, default=convert_to_serializable)
 
     evaluation_result = {
-        'schema_version': 1,
+        'schema_version': 2,
         'model_name': model_name,
         'seed': int(cfg.seed),
         'sample_count': sample_len,
@@ -1022,6 +1022,7 @@ def test(cfg: DictConfig) -> None:
             'prediction_dir': str(cfg.chois_eval_output_dir),
             'ground_truth_dir': str(cfg.chois_eval_ground_truth_dir),
         },
+        'execution_provenance': _execution_provenance(device),
     }
     metrics_path = os.path.join(output_dir, 'aggregate_metrics.json')
     with open(metrics_path, 'x') as handle:
@@ -1038,6 +1039,178 @@ def test(cfg: DictConfig) -> None:
         print(f"  {key}: {value:.4f}")
 
     print(f"\nTest completed.")
+
+
+# --- Execution provenance -----------------------------------------------------
+#
+# Deliberately placed below ``test()`` rather than beside the other helpers at
+# the top of the file.  Twenty tracked sites cite absolute line numbers in this
+# module (158, 249, 337-345, 377, 384-389, 407, 415, 502, 563-572, 625), and
+# seven of them live in ``experiments/results/*.json`` and
+# ``experiments/registry.jsonl`` -- append-only records, two of which are
+# hash-verified by ``tools/diagnose_hoi_d2p.py`` and ``tools/diagnose_hoi_d2f.py``
+# and none of which may be edited to follow a shifted line.  P11's sealed result
+# says "FileNotFoundError at code/test_infbagel_hoi.py:502 for
+# ../data/test/seq_id.pkl"; inserting anything above line 502 would silently
+# falsify that record.  Mid-file imports match this module's existing style
+# (lines 70-76).  ``tests/hoi/test_hoi_evaluation_provenance.py`` pins the
+# anchor.
+import platform
+import socket
+import subprocess
+
+
+def _safe(callback):
+    """``callback()``, or None if it raised for any reason.
+
+    Provenance is metadata about an evaluation that has already finished.
+    Losing the evaluation because one metadata read failed would be strictly
+    worse than recording that field as null, so every field is read through
+    here.
+    """
+    try:
+        return callback()
+    except Exception:
+        return None
+
+
+def _subprocess_text(command, cwd=None):
+    """Stripped stdout of ``command``, or None if it could not be run.
+
+    The timeout is the point of this wrapper as much as the exception handling.
+    A hang is not an exception: an ``nvidia-smi`` wedged on a sick driver would
+    block here forever, after ``per_sequence_metrics.json`` has been written but
+    before ``aggregate_metrics.json``, and both files open with mode ``'x'`` -- so
+    the half-finished output would then also block a clean retry.
+    ``TimeoutExpired`` is a ``SubprocessError``, so it lands in the same handler.
+    """
+    try:
+        return subprocess.check_output(
+            command, cwd=cwd, text=True, stderr=subprocess.DEVNULL, timeout=30,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _nvidia_driver_version():
+    value = _subprocess_text(
+        ['nvidia-smi', '--query-gpu=driver_version', '--format=csv,noheader']
+    )
+    if not value:
+        return None
+    return value.splitlines()[0].strip()
+
+
+def _gpu_name(device):
+    resolved = torch.device(device)
+    if resolved.type != 'cuda' or not torch.cuda.is_available():
+        return None
+    return torch.cuda.get_device_name(resolved)
+
+
+def _null_git_provenance():
+    return {
+        'commit': None,
+        'branch': None,
+        'dirty': None,
+        'dirty_entry_count': None,
+        'resolved_at': 'metrics_write',
+    }
+
+
+def _git_provenance(repo):
+    """Evaluation-time Git identity, or null fields outside a repository.
+
+    ``dirty`` is defined by ``--porcelain=v1 --untracked-files=all``, matching
+    ``tools/experiment.py``'s ``git_state`` and ``train_hoi_prior.py``'s
+    ``_git_status_porcelain``, so the three cannot disagree about what "clean"
+    means.  The porcelain listing itself is deliberately not stored -- only
+    whether it was empty and how many entries it had.
+
+    ``resolved_at`` is recorded because this identity is read when
+    ``aggregate_metrics.json`` is written rather than at evaluator start.
+    AGENTS.md requires trainers to resolve HEAD once at run start precisely
+    because a multi-hour run can outlive its own commit (P10's A10/A01 arms
+    started at ``91232ad`` and were recorded as ``5d39ac3``).  A full HOI
+    evaluation takes about six minutes, so the same exposure exists here but is
+    bounded by six minutes rather than a day; reading it at write time is what
+    keeps provenance collection entirely downstream of sampling and metric
+    computation, which is the stronger requirement for an evaluator whose
+    outputs are compared bitwise against sealed baselines.
+    """
+    record = _null_git_provenance()
+    commit = _subprocess_text(['git', 'rev-parse', 'HEAD'], cwd=repo)
+    if commit is None:
+        return record
+    record['commit'] = commit
+    record['branch'] = _subprocess_text(['git', 'branch', '--show-current'], cwd=repo) or None
+    status = _subprocess_text(
+        ['git', 'status', '--porcelain=v1', '--untracked-files=all'], cwd=repo
+    )
+    if status is not None:
+        entries = status.splitlines()
+        record['dirty'] = bool(entries)
+        record['dirty_entry_count'] = len(entries)
+    return record
+
+
+def _null_execution_provenance():
+    return {
+        'hostname': None,
+        'device': None,
+        'gpu_name': None,
+        'nvidia_driver_version': None,
+        'torch_version': None,
+        'cuda_version': None,
+        'cudnn_version': None,
+        'python_version': None,
+        'git': _null_git_provenance(),
+    }
+
+
+def _execution_provenance(device):
+    """Host, accelerator and code identity of the process that wrote the metrics.
+
+    ``aggregate_metrics.json`` recorded no execution environment and no
+    evaluation-time commit at all; its only commit was ``checkpoint.git_commit``,
+    which is the *training* commit.  The sealed baseline
+    ``p1-hoi-p8-eval-w3-guided-s42-20260809`` therefore had no recorded code
+    identity: it ran 12:24:25-12:27:43 on 2026-08-09 while the commit holding its
+    code, ``5e89644``, landed at 12:43:32, about sixteen minutes later.  Closing
+    that gap is what this block is for.
+
+    Numerically inert by construction.  It is called once, after the last metric
+    has been computed and after ``per_sequence_metrics.json`` has been written;
+    it consumes no RNG and adds no synchronization to the sampling loop.
+
+    It also never raises.  A CPU-only host, an absent ``nvidia-smi`` and a
+    non-Git directory each yield null fields rather than an exception, because an
+    evaluation must not be lost to a failed metadata read.
+
+    These fields make ``aggregate_metrics.json`` host-dependent by design, which
+    is exactly why they are not written into ``per_sequence_metrics.json``: that
+    file carries no absolute paths, so its hash is a valid cross-host readout and
+    several sealed records pin it
+    (``bbcd9e1b550d42bf4ac19f9a55db4b9eebb896a8ddb2d562b5226a11b297f6b2``).
+    """
+    record = _null_execution_provenance()
+    try:
+        record['hostname'] = _safe(socket.gethostname)
+        record['device'] = _safe(lambda: str(device))
+        record['gpu_name'] = _safe(lambda: _gpu_name(device))
+        record['nvidia_driver_version'] = _safe(_nvidia_driver_version)
+        record['torch_version'] = _safe(lambda: str(torch.__version__))
+        record['cuda_version'] = _safe(lambda: torch.version.cuda)
+        record['cudnn_version'] = _safe(torch.backends.cudnn.version)
+        record['python_version'] = _safe(platform.python_version)
+        git = _safe(lambda: _git_provenance(Path(__file__).resolve().parents[1]))
+        if git is not None:
+            record['git'] = git
+    except Exception as error:  # defence in depth; every field is already guarded
+        record = _null_execution_provenance()
+        record['unavailable'] = str(error)
+    return record
+
 
 if __name__ == '__main__':
     os.environ['HYDRA_FULL_ERROR'] = '1'
