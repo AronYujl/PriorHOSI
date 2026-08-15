@@ -11,6 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 import json
 import random
+import time
 from pathlib import Path
 
 import numpy as np
@@ -70,6 +71,20 @@ RESUME_GEOMETRY_FIELDS = (
     'sample_type',
     'precision',
 )
+
+
+def flush_grad_norms(buffer, path, rank):
+    norm_values = torch.stack([entry[3] for entry in buffer]).cpu().tolist()
+    with open(path, 'a', encoding='utf-8') as handle:
+        for (update, t_wall, t_mono, _), grad_norm in zip(buffer, norm_values):
+            handle.write(json.dumps({
+                'rank': rank,
+                'update': update,
+                'grad_norm': grad_norm,
+                't_wall': t_wall,
+                't_mono': t_mono,
+            }) + '\n')
+    buffer.clear()
 
 
 def resume_state_path(exp_dir, exp_name):
@@ -360,6 +375,12 @@ def train_ddp(rank, world_size, cfg):
     warmup_updates = int(cfg.get('warmup_updates', 0))
     steps_per_epoch = len(dataloader)
     geometry = resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates)
+    log_grad_norm = bool(cfg.get('log_grad_norm', False))
+    grad_norm_buffer = []
+    if log_grad_norm:
+        grad_norm_dir = os.path.join(cfg.exp_dir, 'grad_norms')
+        os.makedirs(grad_norm_dir, exist_ok=True)
+        grad_norm_path = os.path.join(grad_norm_dir, f'grad_norms_rank{rank}.jsonl')
 
     # bf16 has fp32-like exponent range and does not use GradScaler.  Keeping
     # this explicitly None also preserves the resume contract: a checkpoint
@@ -513,6 +534,38 @@ def train_ddp(rank, world_size, cfg):
             (loss / int(cfg.gradient_accumulation_steps)).backward()
 
             if is_accumulation_boundary:
+                if log_grad_norm:
+                    # Do not use clip_grad_norm_ with max_norm=inf.  Torch 1.13.1
+                    # computes max_norm / (total_norm + 1e-6), clamps that value
+                    # to at most 1.0, and multiplies every gradient in place.  A
+                    # finite norm gives a bitwise-neutral multiplier of 1.0, but
+                    # an infinite norm makes inf / inf NaN and silently overwrites
+                    # every gradient with NaN.  It also adds a redundant write
+                    # pass over all gradients.
+                    # The comprehension is inlined deliberately.  Binding the
+                    # gradient list to a local name keeps every gradient tensor
+                    # alive past the zero_grad(set_to_none=True) below, so the
+                    # old set would still be resident while the next backward
+                    # allocates a fresh one: a measured +49.5 MiB per rank that
+                    # the instrument would then be reporting as the run's own.
+                    total_norm = torch.norm(torch.stack([
+                        torch.norm(parameter.grad.detach(), 2.0)
+                        for parameter in model.parameters()
+                        if parameter.grad is not None
+                    ]), 2.0)
+                    # This loop deliberately does not use no_sync, so DDP has
+                    # already averaged every gradient across ranks.  This is the
+                    # global averaged-gradient norm that a future max_norm would
+                    # use, and every rank logs it so equality is checkable.
+                    # Keeping the scalar on the GPU avoids a per-update item(),
+                    # which would wait for backward before the CPU could launch
+                    # the optimizer step, next H2D copy, and next forward pass,
+                    # removing overlap that the C-budget timing depends on.
+                    grad_norm_buffer.append((
+                        optimizer_updates + 1, time.time(), time.perf_counter(), total_norm
+                    ))
+                    if len(grad_norm_buffer) == 128:
+                        flush_grad_norms(grad_norm_buffer, grad_norm_path, rank)
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_updates += 1
@@ -566,6 +619,11 @@ def train_ddp(rank, world_size, cfg):
     )
     gathered_peaks = [torch.zeros_like(local_peaks) for _ in range(world_size)]
     torch.distributed.all_gather(gathered_peaks, local_peaks)
+
+    # Flush after peak collection so its temporary stack cannot enter the
+    # training peak-memory measurement.
+    if grad_norm_buffer:
+        flush_grad_norms(grad_norm_buffer, grad_norm_path, rank)
 
     if rank == 0 and cfg.benchmark_metrics_path is not None:
         metrics_path = Path(str(cfg.benchmark_metrics_path))
