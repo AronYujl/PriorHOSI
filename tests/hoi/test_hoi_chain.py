@@ -213,9 +213,12 @@ class CommandTests(unittest.TestCase):
         )
 
     def test_evaluation_uses_the_fixed_native_evaluator(self):
-        command = hoi_chain.evaluate_command("py", "p1-hoi-x-eval-guided-s42-20260812",
-                                             Path("/tmp/final.pth"))
-        self.assertEqual(command[1], "code/test_infbagel_hoi.py")
+        command = hoi_chain.evaluate_command(
+            "py", REPO, "p1-hoi-x-eval-guided-s42-20260812", Path("/tmp/final.pth")
+        )
+        self.assertEqual(
+            command[1], str((REPO / "code" / "test_infbagel_hoi.py").resolve())
+        )
         self.assertIn("--config-name=config_eval_hoi_prior", command)
         self.assertIn("exp_name=p1-hoi-x-eval-guided-s42-20260812", command)
         self.assertIn("ckpt_path=/tmp/final.pth", command)
@@ -226,7 +229,7 @@ class CommandTests(unittest.TestCase):
             "sampler.pelvis.guidance.guidance_scale=1000.0",
         ]
         command = hoi_chain.evaluate_command(
-            "py", "p1-hoi-x-eval-guided-s42-20260812", Path("/tmp/final.pth"),
+            "py", REPO, "p1-hoi-x-eval-guided-s42-20260812", Path("/tmp/final.pth"),
             overrides,
         )
         self.assertEqual(command[-2:], overrides)
@@ -242,18 +245,36 @@ class CommandTests(unittest.TestCase):
     def test_no_stage_invokes_a_per_experiment_wrapper(self):
         commands = [
             hoi_chain.train_command("py", "config_train_hoi_prior_p9w3"),
-            hoi_chain.evaluate_command("py", "p1-hoi-x-eval-guided-s42-20260812", Path("c.pth")),
+            hoi_chain.evaluate_command(
+                "py", REPO, "p1-hoi-x-eval-guided-s42-20260812", Path("c.pth")
+            ),
             hoi_chain.bootstrap_command("py", "a", "b", Path("o.json")),
         ]
         entry_points = {command[1] for command in commands}
         self.assertEqual(
             entry_points,
-            {"code/train_hoi_prior.py", "code/test_infbagel_hoi.py",
-             "tools/paired_bootstrap.py"},
+            {
+                "code/train_hoi_prior.py",
+                str((REPO / "code" / "test_infbagel_hoi.py").resolve()),
+                "tools/paired_bootstrap.py",
+            },
         )
 
 
 class StageBookkeepingTests(unittest.TestCase):
+    def test_evaluate_runs_from_code_but_train_and_bootstrap_run_from_repo(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertEqual(
+                hoi_chain.stage_working_directory(root, "evaluate"),
+                (root / "code").resolve(),
+            )
+            for stage in ("train", "bootstrap"):
+                with self.subTest(stage=stage):
+                    self.assertEqual(
+                        hoi_chain.stage_working_directory(root, stage), root.resolve()
+                    )
+
     def test_a_completed_stage_is_not_rerun(self):
         run_id = "p1-hoi-x-s42-20260812"
         with tempfile.TemporaryDirectory() as directory:
@@ -285,7 +306,7 @@ class StageBookkeepingTests(unittest.TestCase):
             root = Path(directory)
             with self.assertRaises(hoi_chain.ChainError) as raised:
                 hoi_chain.run_stage(root, run_id, "train",
-                                    [sys.executable, "-c", "raise SystemExit(3)"])
+                                    [sys.executable, "-c", "raise SystemExit(3)"], root)
             self.assertIn("do not reuse this run id", str(raised.exception))
             record = json.loads(
                 hoi_chain.stage_status_path(root, run_id, "train").read_text(encoding="utf-8")
@@ -298,8 +319,9 @@ class StageBookkeepingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             record = hoi_chain.run_stage(root, run_id, "train",
-                                         [sys.executable, "-c", "print('ok')"])
+                                         [sys.executable, "-c", "print('ok')"], root)
             self.assertEqual(record["status"], "completed")
+            self.assertEqual(record["cwd"], str(root.resolve()))
             self.assertTrue(hoi_chain.stage_completed(root, run_id, "train"))
 
     def test_evaluation_status_records_overrides(self):
@@ -307,11 +329,13 @@ class StageBookkeepingTests(unittest.TestCase):
         overrides = ["sampler.pelvis.guidance.enabled=true", "x=y"]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            (root / "code").mkdir()
             record = hoi_chain.run_stage(
                 root,
                 run_id,
                 "evaluate",
                 [sys.executable, "-c", "pass", *overrides],
+                root / "code",
                 extra={"eval_overrides": overrides},
             )
             persisted = json.loads(

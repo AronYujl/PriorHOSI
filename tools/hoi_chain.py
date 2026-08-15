@@ -221,13 +221,14 @@ def train_command(python: str, config_name: str) -> List[str]:
 
 def evaluate_command(
     python: str,
+    repo: Path,
     eval_run_id: str,
     checkpoint: Path,
     overrides: Sequence[str] = (),
 ) -> List[str]:
     command = [
         python,
-        "code/test_infbagel_hoi.py",
+        str((repo / "code" / "test_infbagel_hoi.py").resolve()),
         "--config-name=config_eval_hoi_prior",
         f"exp_name={eval_run_id}",
         f"ckpt_path={checkpoint}",
@@ -246,17 +247,25 @@ def bootstrap_command(python: str, baseline: str, arm: str, output: Path) -> Lis
     ]
 
 
+def stage_working_directory(repo: Path, stage: str) -> Path:
+    """Resolve the authored working directory for one orchestration stage."""
+    return (repo / "code").resolve() if stage == "evaluate" else repo.resolve()
+
+
 def run_stage(
     repo: Path,
     train_run_id: str,
     stage: str,
     command: Sequence[str],
+    working_directory: Path,
     extra: Optional[Dict[str, object]] = None,
     dry_run: bool = False,
 ) -> Dict[str, object]:
+    resolved_cwd = working_directory.resolve()
     record: Dict[str, object] = {
         "stage": stage,
         "command": list(command),
+        "cwd": str(resolved_cwd),
         "started_at": utc_now(),
         "status": "running",
     }
@@ -273,7 +282,8 @@ def run_stage(
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "ab") as handle:
         completed = subprocess.run(
-            list(command), cwd=repo, stdout=handle, stderr=subprocess.STDOUT, check=False
+            list(command), cwd=resolved_cwd, stdout=handle, stderr=subprocess.STDOUT,
+            check=False,
         )
     record["returncode"] = completed.returncode
     record["ended_at"] = utc_now()
@@ -354,7 +364,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print("[chain] train already completed; not rerunning", flush=True)
         else:
             run_stage(repo, train_run_id, "train",
-                      train_command(args.python, config_name), dry_run=args.dry_run)
+                      train_command(args.python, config_name),
+                      stage_working_directory(repo, "train"), dry_run=args.dry_run)
 
     checkpoint = None
     if "evaluate" in stages:
@@ -370,8 +381,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             )
             run_stage(repo, train_run_id, "evaluate",
                       evaluate_command(
-                          args.python, eval_run_id, checkpoint, args.eval_override,
+                          args.python, repo, eval_run_id, checkpoint, args.eval_override,
                       ),
+                      stage_working_directory(repo, "evaluate"),
                       extra={
                           "eval_run_id": eval_run_id,
                           "checkpoint": str(checkpoint),
@@ -388,6 +400,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             output = chain_dir(repo, train_run_id) / f"bootstrap_{eval_run_id}.json"
             run_stage(repo, train_run_id, "bootstrap",
                       bootstrap_command(args.python, args.baseline_eval, eval_run_id, output),
+                      stage_working_directory(repo, "bootstrap"),
                       extra={"baseline_eval": args.baseline_eval, "output": str(output)},
                       dry_run=args.dry_run)
 
