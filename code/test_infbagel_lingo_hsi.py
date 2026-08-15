@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
 import pickle
+import random
 import time
 from collections import OrderedDict, defaultdict
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 import hydra
 import numpy as np
@@ -249,6 +252,87 @@ def compute_metric_record(
     return record
 
 
+def _aggregate_timing(
+    sequences: Sequence[Mapping[str, float]],
+    warmup_sequences: int,
+    fps: float,
+) -> Dict[str, object]:
+    excluded = min(warmup_sequences, len(sequences))
+    timed = sequences[excluded:]
+    result: Dict[str, object] = {
+        "aits": None,
+        "avg_fps": None,
+        "aggregate_fps": None,
+        "rtf": None,
+        "total_generation_seconds": None,
+        "timed_sequence_count": len(timed),
+        "avg_frames_per_seq": None,
+        "avg_end_to_end_episode_seconds": None,
+        "warmup_sequences_required": warmup_sequences,
+        "warmup_sequences_excluded": excluded,
+        "protocol_complete": bool(timed),
+    }
+    if timed:
+        generation_seconds = [item["gen_seconds"] for item in timed]
+        frames = [item["frames"] for item in timed]
+        episode_seconds = [item["episode_seconds"] for item in timed]
+        per_sequence_fps = [
+            frame_count / seconds if seconds > 0 else 0.0
+            for frame_count, seconds in zip(frames, generation_seconds)
+        ]
+        aggregate_fps = float(sum(frames) / sum(generation_seconds))
+        result.update(
+            {
+                "aits": float(np.mean(generation_seconds)),
+                "avg_fps": float(np.mean(per_sequence_fps)),
+                "aggregate_fps": aggregate_fps,
+                "rtf": aggregate_fps / fps,
+                "total_generation_seconds": float(sum(generation_seconds)),
+                "avg_frames_per_seq": float(np.mean(frames)),
+                "avg_end_to_end_episode_seconds": float(np.mean(episode_seconds)),
+            }
+        )
+    return result
+
+
+def _capture_rng_state() -> Dict[str, object]:
+    return {
+        "torch": torch.get_rng_state(),
+        "torch_cuda": torch.cuda.get_rng_state_all(),
+        "numpy": np.random.get_state(),
+        "python": random.getstate(),
+    }
+
+
+def _restore_rng_state(state: Mapping[str, object]) -> None:
+    torch.set_rng_state(state["torch"])
+    torch.cuda.set_rng_state_all(state["torch_cuda"])
+    np.random.set_state(state["numpy"])
+    random.setstate(state["python"])
+
+
+@contextmanager
+def _rng_rewound(state: Mapping[str, object]) -> Iterator[None]:
+    post_state = _capture_rng_state()
+    _restore_rng_state(state)
+    try:
+        yield
+    finally:
+        _restore_rng_state(post_state)
+
+
+class _ForwardCallCounter:
+    def __init__(self, model: torch.nn.Module):
+        self.count = 0
+        self.handle = model.register_forward_pre_hook(self._increment)
+
+    def _increment(self, _module, _args) -> None:
+        self.count += 1
+
+    def reset(self) -> None:
+        self.count = 0
+
+
 def _aggregate_by_scene(records: Mapping[str, Mapping]) -> OrderedDict:
     grouped = defaultdict(list)
     for record in records.values():
@@ -366,13 +450,13 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
     return _write_payload(Path(cfg.lingo_output_dir), payload)
 
 
-def _strict_released_model(cfg: DictConfig) -> torch.nn.Module:
-    """Load the released artifact after its one documented module rename."""
-    model = hydra.utils.instantiate(cfg.model.infbagel)
-    checkpoint = torch.load(str(cfg.ckpt_path), map_location="cpu")
+def _remap_checkpoint_keys(
+    state_dict: Mapping[str, Any],
+) -> Tuple["OrderedDict[str, Any]", int]:
+    """Normalize DataParallel and legacy hand-goal checkpoint key names."""
     remapped = OrderedDict()
     remap_count = 0
-    for original_key, value in checkpoint.items():
+    for original_key, value in state_dict.items():
         key = original_key[len("module.") :] if original_key.startswith("module.") else original_key
         if key.startswith("embedding_hand_goal."):
             key = "embedding_scene_goal." + key[len("embedding_hand_goal.") :]
@@ -380,12 +464,57 @@ def _strict_released_model(cfg: DictConfig) -> torch.nn.Module:
         if key in remapped:
             raise KeyError("checkpoint remap produced duplicate key %s" % key)
         remapped[key] = value
-    if remap_count != 4:
-        raise RuntimeError("expected to remap 4 scene-goal tensors, found %d" % remap_count)
+    return remapped, remap_count
+
+
+def _assert_key_sets_match(
+    remapped_keys: Iterable[str], expected_keys: Iterable[str]
+) -> None:
+    checkpoint_keys = set(remapped_keys)
+    model_keys = set(expected_keys)
+    if checkpoint_keys != model_keys:
+        missing = sorted(model_keys - checkpoint_keys)
+        unexpected = sorted(checkpoint_keys - model_keys)
+        raise RuntimeError(
+            "checkpoint key set mismatch: checkpoint=%d model=%d; missing=%d %s; "
+            "unexpected=%d %s"
+            % (
+                len(checkpoint_keys),
+                len(model_keys),
+                len(missing),
+                missing[:10],
+                len(unexpected),
+                unexpected[:10],
+            )
+        )
+
+
+def _load_strict_checkpoint(
+    cfg: DictConfig,
+) -> Tuple[torch.nn.Module, Dict[str, Any]]:
+    """Instantiate and strictly load either supported checkpoint orientation."""
+    model = hydra.utils.instantiate(cfg.model.infbagel)
+    checkpoint_path = Path(str(cfg.ckpt_path)).resolve()
+    checkpoint = torch.load(str(checkpoint_path), map_location="cpu")
+    remapped, remap_count = _remap_checkpoint_keys(checkpoint)
+    _assert_key_sets_match(remapped, model.state_dict())
     model.load_state_dict(remapped, strict=True)
     model.to(str(cfg.device))
     model.eval()
-    return model
+
+    digest = hashlib.sha256()
+    with checkpoint_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    provenance = {
+        "checkpoint_path": str(checkpoint_path),
+        "checkpoint_sha256": digest.hexdigest(),
+        "checkpoint_size_bytes": checkpoint_path.stat().st_size,
+        "remapped_tensor_count": remap_count,
+        "embedding_orientation": "hand_goal" if remap_count > 0 else "scene_goal",
+        "tensor_count": len(remapped),
+    }
+    return model, provenance
 
 
 def _scene_only_dataset(cfg: DictConfig):
@@ -456,6 +585,8 @@ def sampled_motion(
     episode: Mapping,
     source: GroundTruthSource,
     smplx_cache: MutableMapping[str, torch.nn.Module],
+    call_counter: _ForwardCallCounter,
+    need_scene: bool = True,
 ):
     # Importing here keeps the GT-first path independent of model sampling while
     # reusing the established autoregressive helpers verbatim.
@@ -468,7 +599,7 @@ def sampled_motion(
     sequence_index, _ = source.episode_indices(data_idx, int(episode["episode_num"]))
     source_start = int(source.sequence_start[sequence_index])
 
-    cond = _scene_condition(cfg, episode)
+    cond = _scene_condition(cfg, episode, need_scene=need_scene)
     cond["raw_text"] = dataset.lingo_dataset.text[data_idx][0]
     cond["text_emb"] = data["text_clip_embedding"].to(device).unsqueeze(0)
     trajectory = _straight_trajectory(episode["start_location"], episode["pelvis_goal"])
@@ -514,6 +645,7 @@ def sampled_motion(
 
     point_windows, rotation_windows = [], []
     sampling_seconds = []
+    denoiser_call_counts = []
     points = points_world
     generated_object_trans = object_trans_world
     generated_object_rotation = object_rotation.reshape(1, WINDOW_FRAMES, 9)
@@ -614,6 +746,7 @@ def sampled_motion(
             ).to(device, dtype=torch.float32),
             "gender": gender,
         }
+        call_counter.reset()
         synchronize_cuda(device)
         begin = time.perf_counter()
         generated = sample_step(
@@ -638,6 +771,7 @@ def sampled_motion(
         )
         synchronize_cuda(device)
         sampling_seconds.append(time.perf_counter() - begin)
+        denoiser_call_counts.append(call_counter.count)
 
         points = generated["points_orig"].clone()
         generated_object_trans = generated["obj_trans_orig"].clone()
@@ -685,6 +819,7 @@ def sampled_motion(
         _upsampled_stitched(coarse_points, metric_joints, int(cfg.interp_s)),
         sequence_index,
         sampling_seconds,
+        denoiser_call_counts,
     )
 
 
@@ -693,7 +828,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         raise ValueError("LINGO HSI timing protocol requires batch_size=1")
     if str(cfg.sample_type) not in ("consistency", "diffusion"):
         raise ValueError("sample_type must be consistency or diffusion")
-    from test_infbagel_hosi import seed_everything
+    from test_infbagel_hosi import seed_everything, synchronize_cuda
 
     seed_everything(int(cfg.seed))
     episodes = _load_episodes(
@@ -701,14 +836,26 @@ def evaluate_model(cfg: DictConfig) -> Path:
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
     )
     dataset = _scene_only_dataset(cfg)
-    model = _strict_released_model(cfg)
+    model, checkpoint_provenance = _load_strict_checkpoint(cfg)
+    model_name = (
+        str(cfg.model_name) if cfg.model_name is not None else Path(str(cfg.ckpt_path)).stem
+    )
+    output_dir = Path(cfg.lingo_output_dir) / (
+        f"{Path(str(cfg.ckpt_path)).stem}-"
+        f"{checkpoint_provenance['checkpoint_sha256'][:12]}"
+    )
+    if output_dir.exists():
+        raise FileExistsError("refusing to overwrite LINGO HSI output: %s" % output_dir)
     sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
     sampler.set_dataset_and_model(dataset, model)
+    call_counter = _ForwardCallCounter(model)
     source = GroundTruthSource(DATASET_ROOT)
     smplx_cache: Dict[str, torch.nn.Module] = {}
     geometries: Dict[str, SceneGeometry] = {}
     records = OrderedDict()
     all_window_seconds: List[float] = []
+    all_window_call_counts: List[int] = []
+    timing_sequences: List[Mapping[str, float]] = []
 
     for ordinal, (scene_name, scene_index, episode) in enumerate(episodes, start=1):
         if scene_name not in geometries:
@@ -718,14 +865,53 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 mesh_root=Path(cfg.lingo_mesh_root),
                 cache_dir=default_cache_dir(),
             )
-        vertices, joints, sequence_index, window_seconds = sampled_motion(
-            cfg, dataset, sampler, episode, source, smplx_cache
+        pre_rng_state = _capture_rng_state()
+        episode_start = time.perf_counter()
+        vertices, joints, sequence_index, window_seconds, window_call_counts = (
+            sampled_motion(
+                cfg,
+                dataset,
+                sampler,
+                episode,
+                source,
+                smplx_cache,
+                call_counter,
+                need_scene=True,
+            )
         )
-        if not torch.isfinite(vertices.frames).all() or not torch.isfinite(joints.frames).all():
-            raise RuntimeError("non-finite sampled motion for scene %s episode %d" % (scene_name, scene_index))
+        synchronize_cuda(cfg.device)
+        episode_seconds = time.perf_counter() - episode_start
+        with _rng_rewound(pre_rng_state):
+            _, joints_null, _, _, _ = sampled_motion(
+                cfg,
+                dataset,
+                sampler,
+                episode,
+                source,
+                smplx_cache,
+                call_counter,
+                need_scene=False,
+            )
+        scene_conditioned_finite = bool(
+            torch.isfinite(vertices.frames).all() and torch.isfinite(joints.frames).all()
+        )
+        null_scene_finite = bool(torch.isfinite(joints_null.frames).all())
+        if not scene_conditioned_finite or not null_scene_finite:
+            raise RuntimeError(
+                "non-finite sampled motion for scene %s episode %d: "
+                "scene-conditioned finite=%s, paired null-scene finite=%s"
+                % (
+                    scene_name,
+                    scene_index,
+                    scene_conditioned_finite,
+                    null_scene_finite,
+                )
+            )
         metric = compute_metric_record(
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
         )
+        metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null))
+        excluded_as_warmup = ordinal <= int(cfg.timing_warmup_sequences)
         metric.update(
             {
                 "scene_name": scene_name,
@@ -733,7 +919,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 "source_sequence_index": sequence_index,
                 "is_object": False,
                 "non_watertight": scene_name in NON_WATERTIGHT_SCENES,
-                "rds_available": False,
+                "rds_available": True,
+                "excluded_as_warmup": excluded_as_warmup,
                 "sampling_seconds": float(sum(window_seconds)),
                 "per_window_wall_seconds": float(np.mean(window_seconds)),
             }
@@ -741,6 +928,14 @@ def evaluate_model(cfg: DictConfig) -> Path:
         sequence_name = "%s:%06d" % (scene_name, sequence_index)
         records[sequence_name] = metric
         all_window_seconds.extend(window_seconds)
+        all_window_call_counts.extend(window_call_counts)
+        timing_sequences.append(
+            {
+                "gen_seconds": float(sum(window_seconds)),
+                "frames": int(joints.frames.shape[0]),
+                "episode_seconds": episode_seconds,
+            }
+        )
         print(
             "MODEL %d/%d %s windows=%d sec/window=%.4f finite=1"
             % (ordinal, len(episodes), sequence_name, len(window_seconds), np.mean(window_seconds)),
@@ -748,32 +943,57 @@ def evaluate_model(cfg: DictConfig) -> Path:
         )
 
     scene_summary = _aggregate_by_scene(records)
-    denoiser_calls = 16 if str(cfg.sample_type) == "consistency" else 500
+    distinct_call_counts = sorted(set(all_window_call_counts))
+    if len(distinct_call_counts) != 1:
+        raise RuntimeError(
+            "denoiser calls per window varied across the run: %s" % distinct_call_counts
+        )
+    denoiser_calls_per_window = distinct_call_counts[0]
+    sampler_steps_per_window = (
+        int(sampler.cm_timesteps)
+        if str(cfg.sample_type) == "consistency"
+        else int(sampler.timesteps)
+    )
+    # cm_sample evaluates once per step; p_sample evaluates conditional and unconditional passes.
+    timing = {
+        "per_window_wall_seconds": float(np.mean(all_window_seconds)),
+        "total_sampling_seconds": float(np.sum(all_window_seconds)),
+        "window_count": len(all_window_seconds),
+        "denoiser_calls_per_window": denoiser_calls_per_window,
+        "sampler_steps_per_window": sampler_steps_per_window,
+        "cuda_synchronized": True,
+        "batch_size": 1,
+    }
+    timing.update(
+        _aggregate_timing(
+            timing_sequences,
+            warmup_sequences=int(cfg.timing_warmup_sequences),
+            fps=float(cfg.fps),
+        )
+    )
     payload = {
         "schema_version": 1,
-        "model_name": "released_checkpoint",
+        "model_name": model_name,
+        "checkpoint": checkpoint_provenance,
+        "output_dir": str(output_dir),
         "seed": int(cfg.seed),
         "sample_type": str(cfg.sample_type),
         "guided": bool(cfg.use_guidance),
+        "rds": {
+            "joint_set": "smplx_joints_28",
+            "null_scene_mode": "need_scene=False",
+            "noise_shared": "rng_state_rewound",
+            "guided": bool(cfg.use_guidance),
+        },
         "sampling_body": "smplx_vertices_10475",
         "fps": float(cfg.fps),
         "sequence_count": len(records),
         "scene_count": len(scene_summary),
         "scene_summary": scene_summary,
-        "timing": {
-            "per_window_wall_seconds": float(np.mean(all_window_seconds)),
-            "total_sampling_seconds": float(np.sum(all_window_seconds)),
-            "window_count": len(all_window_seconds),
-            "denoiser_calls_per_window": denoiser_calls,
-            "cuda_synchronized": True,
-            "batch_size": 1,
-            "warmup_sequences_required": int(cfg.timing_warmup_sequences),
-            "warmup_sequences_excluded": 0,
-            "protocol_complete": len(records) > int(cfg.timing_warmup_sequences),
-        },
+        "timing": timing,
         "metrics": records,
     }
-    return _write_payload(Path(cfg.lingo_output_dir), payload)
+    return _write_payload(output_dir, payload)
 
 
 @hydra.main(

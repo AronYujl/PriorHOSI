@@ -53,6 +53,8 @@ lingo_episode_dir: ${oc.env:ROOT_DIR}/data/lingo_hsi_test/data
 lingo_mesh_root: /data/yujinlun/datasets/LINGO/Scene_mesh
 lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/${lingo_hsi_mode}-${sample_type}-${oc.select:use_guidance,false}
 ckpt_path: ${oc.env:ROOT_DIR}/checkpoint/checkpoint.pth
+# When null, the evaluator uses the checkpoint file stem.
+model_name: null
 smplx_batch_size: 128
 
 hydra:
