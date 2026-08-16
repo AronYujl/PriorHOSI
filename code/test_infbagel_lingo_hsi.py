@@ -354,6 +354,396 @@ def _aggregate_by_scene(records: Mapping[str, Mapping]) -> OrderedDict:
     return summaries
 
 
+def plan_episode_shards(
+    window_counts: Sequence[int], shard_count: int
+) -> Tuple[Tuple[int, ...], ...]:
+    """Partition canonical episode ordinals into ``shard_count`` balanced shards.
+
+    Balance is by *window* count, not episode count: the LINGO HSI test split has
+    375 episodes carrying 2271 windows with min 2 and max 55, so a round-robin by
+    episode index would hand one shard several 55-window episodes and let another
+    finish early.  A sharded run costs the slowest shard, so the objective is the
+    maximum per-shard window total.
+
+    Deterministic greedy longest-first bin packing: episodes sorted by descending
+    window count with the canonical ordinal as tie-break, each placed into the
+    currently least-loaded shard with the lowest shard index as tie-break.  Each
+    shard's ordinals are returned in ascending canonical order so a shard walks
+    the episodes in the same relative order a serial run does.
+    """
+    if int(shard_count) < 1:
+        raise ValueError("shard_count must be >= 1, got %s" % shard_count)
+    shard_count = int(shard_count)
+    counts = [int(value) for value in window_counts]
+    if shard_count > len(counts):
+        raise ValueError(
+            "shard_count %d exceeds episode count %d" % (shard_count, len(counts))
+        )
+    loads = [0] * shard_count
+    bins: List[List[int]] = [[] for _ in range(shard_count)]
+    order = sorted(range(len(counts)), key=lambda index: (-counts[index], index))
+    for index in order:
+        target = min(range(shard_count), key=lambda shard: (loads[shard], shard))
+        bins[target].append(index)
+        loads[target] += counts[index]
+    return tuple(tuple(sorted(shard)) for shard in bins)
+
+
+def select_latency_subset(
+    episodes: Sequence[Tuple[str, int, Mapping]], target_windows: int
+) -> Tuple[int, ...]:
+    """Pick a deterministic, scene-spanning episode subset under a window budget.
+
+    Per-window sampling cost is architecturally near-constant (the model input is
+    a fixed ``[1, 16, 232]``), but the guidance/penetration branch queries a
+    per-scene occupancy grid and its lazily built EDT, so a subset must span
+    scenes rather than take the first N episodes of one scene.
+
+    Rule, two phases, both deterministic:
+
+    1. *Coverage.*  Consider scenes in ascending order of their smallest episode's
+       window count (canonical scene order breaks ties) and take that smallest
+       episode while it fits the budget.  Taking the cheapest items first is the
+       greedy optimum for maximizing the number of distinct scenes under a size
+       budget, and it makes coverage monotone in the budget -- a plain canonical
+       round-robin is not: at 50 windows it covered 14 scenes but at 60 only 6,
+       because the extra room let one 40-window locomotion episode in early.
+    2. *Fill.*  Round-robin over the covered scenes in canonical order taking each
+       scene's next-smallest unused episode while it fits, to spend the remainder.
+
+    Smallest-first buys scene coverage per window spent.  It does bias the
+    fraction of step-0 (history-from-ground-truth) windows above the full
+    protocol's 375/2271 = 0.165, which is the accepted cost of coverage; and eight
+    of the 26 scenes have a *minimum* episode of 33-50 windows, so no subset under
+    ~394 windows can cover every scene.  Returns canonical ordinals ascending.
+    """
+    target = int(target_windows)
+    if target < 1:
+        raise ValueError("latency_target_windows must be >= 1, got %s" % target_windows)
+    by_scene: "OrderedDict[str, List[int]]" = OrderedDict()
+    for ordinal, (scene_name, _scene_index, _episode) in enumerate(episodes):
+        by_scene.setdefault(scene_name, []).append(ordinal)
+
+    def windows_of(ordinal: int) -> int:
+        return int(episodes[ordinal][2]["episode_num"])
+
+    for scene_ordinals in by_scene.values():
+        scene_ordinals.sort(key=lambda ordinal: (windows_of(ordinal), ordinal))
+    scene_order = list(by_scene)
+    cursor = {scene_name: 0 for scene_name in by_scene}
+    selected: List[int] = []
+    total = 0
+
+    covered: List[str] = []
+    coverage_order = sorted(
+        scene_order,
+        key=lambda scene_name: (windows_of(by_scene[scene_name][0]), scene_order.index(scene_name)),
+    )
+    for scene_name in coverage_order:
+        ordinal = by_scene[scene_name][0]
+        if total + windows_of(ordinal) > target:
+            continue
+        cursor[scene_name] = 1
+        selected.append(ordinal)
+        total += windows_of(ordinal)
+        covered.append(scene_name)
+
+    progressed = bool(covered)
+    while progressed and total < target:
+        progressed = False
+        for scene_name in scene_order:
+            if scene_name not in cursor or cursor[scene_name] == 0 or total >= target:
+                continue
+            scene_ordinals = by_scene[scene_name]
+            position = cursor[scene_name]
+            if position >= len(scene_ordinals):
+                continue
+            ordinal = scene_ordinals[position]
+            if total + windows_of(ordinal) > target:
+                continue
+            cursor[scene_name] = position + 1
+            selected.append(ordinal)
+            total += windows_of(ordinal)
+            progressed = True
+    if not selected:
+        raise ValueError(
+            "latency_target_windows=%d is smaller than every episode's window count"
+            % target
+        )
+    return tuple(sorted(selected))
+
+
+# Wall-clock aggregates that a contended sharded run cannot measure.  Kept
+# separate from call counts (``denoiser_calls_per_window``,
+# ``sampler_steps_per_window``), which are hardware-independent and stay valid.
+SHARD_INVALID_TIMING_KEYS = (
+    "per_window_wall_seconds",
+    "total_sampling_seconds",
+    "aits",
+    "avg_fps",
+    "aggregate_fps",
+    "rtf",
+    "total_generation_seconds",
+    "avg_end_to_end_episode_seconds",
+)
+SHARD_INVALID_RECORD_TIMING_KEYS = ("sampling_seconds", "per_window_wall_seconds")
+SHARD_TIMING_INVALID_REASON = (
+    "shard_count>1: concurrent shards contend for host CPU, PCIe and the SDF "
+    "cache, so every wall-clock aggregate is contaminated; FPS comes only from "
+    "a serial latency_subset pass"
+)
+
+
+def _invalidate_timing(timing: MutableMapping[str, Any]) -> None:
+    """Null every wall-clock aggregate and mark the block explicitly invalid."""
+    for key in SHARD_INVALID_TIMING_KEYS:
+        if key in timing:
+            timing[key] = None
+    timing["protocol_complete"] = False
+    timing["timing_valid"] = False
+    timing["timing_invalid_reason"] = SHARD_TIMING_INVALID_REASON
+
+
+def _invalidate_scene_summary_timing(scene_summary: Mapping[str, Any]) -> None:
+    """Null the per-scene means of the two per-record wall-clock fields.
+
+    ``_aggregate_by_scene`` silently drops a key whose values are all ``None``, so
+    without this the merged payload would be structurally *different* from a
+    serial one rather than explicitly null.
+    """
+    for summary in scene_summary.values():
+        for key in SHARD_INVALID_RECORD_TIMING_KEYS:
+            summary["metrics_mean"][key] = None
+
+
+def merge_shard_payloads(
+    payloads: Sequence[Mapping[str, Any]],
+    expected_episodes: int,
+    expected_windows: int,
+    expected_shard_count: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Combine shard payloads into one structurally serial-identical payload.
+
+    Every guard raises: a silently short merge is the worst possible outcome
+    because it reads as a complete result.  The per-scene aggregation is
+    recomputed over the union of records, never averaged from per-shard averages.
+
+    ``expected_shard_count`` is the operator's own statement of how many shards
+    the run had.  Without it the shard count is self-declared by the payloads on
+    disk, so "merge 8 shards" over a directory holding a 2-shard pair would
+    succeed: the pair is internally consistent.
+    """
+    if not payloads:
+        raise ValueError("merge_shard_payloads received no shard payloads")
+    expected_episodes = int(expected_episodes)
+    expected_windows = int(expected_windows)
+
+    by_index: Dict[int, Mapping[str, Any]] = {}
+    for payload in payloads:
+        block = payload.get("sharding")
+        if not isinstance(block, Mapping):
+            raise ValueError("shard payload has no 'sharding' block; not a sharded run")
+        index = int(block["shard_index"])
+        if index in by_index:
+            raise ValueError("two payloads both claim shard_index=%d" % index)
+        by_index[index] = payload
+
+    declared = {int(item["sharding"]["shard_count"]) for item in payloads}
+    if len(declared) != 1:
+        raise ValueError("shard payloads disagree on shard_count: %s" % sorted(declared))
+    shard_count = declared.pop()
+    if expected_shard_count is not None and shard_count != int(expected_shard_count):
+        raise ValueError(
+            "payloads on disk declare shard_count=%d, the merge was asked for %d"
+            % (shard_count, int(expected_shard_count))
+        )
+    if len(payloads) != shard_count:
+        raise ValueError(
+            "expected %d shard payloads, received %d" % (shard_count, len(payloads))
+        )
+    missing = sorted(set(range(shard_count)) - set(by_index))
+    if missing:
+        raise ValueError(
+            "shard indices %s are missing; refusing to merge %d of %d shards"
+            % (missing, len(by_index), shard_count)
+        )
+
+    # Merging shards produced by different checkpoints, seeds, samplers or
+    # guidance settings would fabricate a result that no run ever produced.
+    agreement_keys = ("seed", "sample_type", "guided", "fps", "sampling_body", "model_name")
+    reference = by_index[0]
+    for index in range(1, shard_count):
+        candidate = by_index[index]
+        for key in agreement_keys:
+            if candidate.get(key) != reference.get(key):
+                raise ValueError(
+                    "shard %d disagrees with shard 0 on %r: %r vs %r"
+                    % (index, key, candidate.get(key), reference.get(key))
+                )
+        if candidate["checkpoint"]["checkpoint_sha256"] != reference["checkpoint"]["checkpoint_sha256"]:
+            raise ValueError(
+                "shard %d evaluated a different checkpoint (%s) than shard 0 (%s)"
+                % (
+                    index,
+                    candidate["checkpoint"]["checkpoint_sha256"][:12],
+                    reference["checkpoint"]["checkpoint_sha256"][:12],
+                )
+            )
+        for key in ("canonical_episode_total", "canonical_window_total"):
+            if int(candidate["sharding"][key]) != int(reference["sharding"][key]):
+                raise ValueError(
+                    "shard %d declares %s=%d, shard 0 declares %d"
+                    % (index, key, int(candidate["sharding"][key]), int(reference["sharding"][key]))
+                )
+
+    canonical_episodes = int(reference["sharding"]["canonical_episode_total"])
+    canonical_windows = int(reference["sharding"]["canonical_window_total"])
+    if canonical_episodes != expected_episodes:
+        raise ValueError(
+            "shards enumerate %d canonical episodes, protocol expects %d"
+            % (canonical_episodes, expected_episodes)
+        )
+    if canonical_windows != expected_windows:
+        raise ValueError(
+            "shards enumerate %d canonical windows, protocol expects %d"
+            % (canonical_windows, expected_windows)
+        )
+
+    records: Dict[str, Mapping[str, Any]] = {}
+    ordinals: List[int] = []
+    window_total = 0
+    call_counts = set()
+    sampler_steps = set()
+    warmup_excluded = 0
+    timed_sequences = 0
+    warmup_required = set()
+    for index in range(shard_count):
+        payload = by_index[index]
+        for key, record in payload["metrics"].items():
+            if key in records:
+                raise ValueError(
+                    "duplicate sequence key %r appears in shard %d and an earlier shard"
+                    % (key, index)
+                )
+            records[key] = record
+            ordinals.append(int(record["canonical_ordinal"]))
+        timing = payload["timing"]
+        window_total += int(timing["window_count"])
+        call_counts.add(int(timing["denoiser_calls_per_window"]))
+        sampler_steps.add(int(timing["sampler_steps_per_window"]))
+        warmup_excluded += int(timing["warmup_sequences_excluded"])
+        timed_sequences += int(timing["timed_sequence_count"])
+        warmup_required.add(int(timing["warmup_sequences_required"]))
+
+    if len(records) != expected_episodes:
+        raise ValueError(
+            "merged %d episode records, protocol expects %d"
+            % (len(records), expected_episodes)
+        )
+    duplicate_ordinals = sorted(
+        ordinal for ordinal, count in
+        {value: ordinals.count(value) for value in set(ordinals)}.items() if count > 1
+    )
+    if duplicate_ordinals:
+        raise ValueError("canonical ordinals appear in more than one shard: %s" % duplicate_ordinals[:10])
+    absent = sorted(set(range(expected_episodes)) - set(ordinals))
+    if absent:
+        raise ValueError(
+            "canonical ordinals missing from the merge: %d of %d, first %s"
+            % (len(absent), expected_episodes, absent[:10])
+        )
+    if window_total != expected_windows:
+        raise ValueError(
+            "merged %d windows, protocol expects %d" % (window_total, expected_windows)
+        )
+    if len(call_counts) != 1:
+        raise ValueError("shards disagree on denoiser_calls_per_window: %s" % sorted(call_counts))
+    if len(sampler_steps) != 1:
+        raise ValueError("shards disagree on sampler_steps_per_window: %s" % sorted(sampler_steps))
+    if len(warmup_required) != 1:
+        raise ValueError("shards disagree on warmup_sequences_required: %s" % sorted(warmup_required))
+
+    ordered = OrderedDict(
+        sorted(records.items(), key=lambda item: int(item[1]["canonical_ordinal"]))
+    )
+    scene_summary = _aggregate_by_scene(ordered)
+    _invalidate_scene_summary_timing(scene_summary)
+
+    timing = dict(reference["timing"])
+    timing.update(
+        {
+            "window_count": window_total,
+            "denoiser_calls_per_window": sorted(call_counts)[0],
+            "sampler_steps_per_window": sorted(sampler_steps)[0],
+            "timed_sequence_count": timed_sequences,
+            "avg_frames_per_seq": None,
+            "warmup_sequences_required": sorted(warmup_required)[0],
+            "warmup_sequences_excluded": warmup_excluded,
+        }
+    )
+    _invalidate_timing(timing)
+
+    merged = dict(reference)
+    merged.update(
+        {
+            "sequence_count": len(ordered),
+            "scene_count": len(scene_summary),
+            "scene_summary": scene_summary,
+            "timing": timing,
+            "metrics": ordered,
+            "sharding": {
+                "shard_index": None,
+                "shard_count": shard_count,
+                "merged_shard_count": shard_count,
+                "canonical_episode_total": canonical_episodes,
+                "canonical_window_total": canonical_windows,
+                "shard_window_totals": [
+                    int(by_index[index]["timing"]["window_count"]) for index in range(shard_count)
+                ],
+                "shard_episode_counts": [
+                    int(by_index[index]["sequence_count"]) for index in range(shard_count)
+                ],
+                "partition_rule": reference["sharding"]["partition_rule"],
+                "per_episode_seeding": reference["sharding"]["per_episode_seeding"],
+                "timing_valid": False,
+            },
+            "latency_subset": {"enabled": False},
+        }
+    )
+    merged.pop("output_dir", None)
+    return merged
+
+
+def _merge_shards(cfg: DictConfig) -> Path:
+    parent = Path(
+        str(cfg.merge_shard_dir) if cfg.get("merge_shard_dir", None) is not None
+        else str(cfg.lingo_output_dir)
+    )
+    shard_count = int(cfg.shard_count)
+    if shard_count < 2:
+        raise ValueError("merge_shards requires shard_count >= 2, got %d" % shard_count)
+    if not parent.is_dir():
+        raise FileNotFoundError("shard parent directory does not exist: %s" % parent)
+    paths = sorted(parent.glob("*-shard[0-9][0-9]of[0-9][0-9]/evaluation/per_sequence_metrics.json"))
+    if not paths:
+        raise FileNotFoundError("no shard payloads found under %s" % parent)
+    payloads = []
+    for path in paths:
+        with path.open("r", encoding="utf-8") as handle:
+            payloads.append(json.load(handle))
+    merged = merge_shard_payloads(
+        payloads,
+        expected_episodes=int(cfg.merge_expected_episodes),
+        expected_windows=int(cfg.merge_expected_windows),
+        expected_shard_count=shard_count,
+    )
+    merged["merged_from"] = [str(path) for path in paths]
+    output_dir = parent / (
+        "%s-merged%02d" % (Path(str(cfg.ckpt_path)).stem, shard_count)
+    )
+    return _write_payload(output_dir, merged)
+
+
 def _write_payload(output_dir: Path, payload: Mapping) -> Path:
     if output_dir.exists():
         raise FileExistsError("refusing to overwrite LINGO HSI output: %s" % output_dir)
@@ -912,14 +1302,75 @@ def evaluate_model(cfg: DictConfig) -> Path:
         Path(cfg.lingo_episode_dir),
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
     )
+    window_counts = [int(episode["episode_num"]) for _, _, episode in episodes]
+    canonical_episode_total = len(episodes)
+    canonical_window_total = int(sum(window_counts))
+    shard_count = int(cfg.shard_count)
+    shard_index = int(cfg.shard_index)
+    if not 0 <= shard_index < shard_count:
+        raise ValueError(
+            "shard_index %d out of range for shard_count %d" % (shard_index, shard_count)
+        )
+    latency_subset = bool(cfg.get("latency_subset", False))
+    if latency_subset and shard_count != 1:
+        raise ValueError(
+            "latency_subset requires shard_count=1: a contended shard cannot measure latency"
+        )
+    sharded = shard_count > 1
+    if latency_subset:
+        selected = select_latency_subset(episodes, int(cfg.latency_target_windows))
+        partition_rule = "latency_subset_two_phase_coverage_then_fill"
+    elif sharded:
+        selected = plan_episode_shards(window_counts, shard_count)[shard_index]
+        partition_rule = "greedy_longest_first_bin_packing_by_window_count"
+    else:
+        selected = tuple(range(canonical_episode_total))
+        partition_rule = "serial_full_enumeration"
+    # (canonical ordinal, scene name, scene-local index, episode).  The ordinal is
+    # the episode's index in the FULL enumeration, never its index in this shard:
+    # it is what makes the per-episode seed, and therefore every per-episode
+    # metric, independent of how the episodes were partitioned.
+    work = [(ordinal,) + episodes[ordinal] for ordinal in selected]
+    shard_window_total = int(sum(window_counts[ordinal] for ordinal in selected))
+    warmup_required = int(cfg.timing_warmup_sequences)
+    # Warmup is canonical for the quality pass so eight shards flag the same five
+    # episodes a serial run flags rather than five each.  In latency mode the
+    # subset is scene-spanning rather than a canonical prefix, so warmup reverts
+    # to its normal meaning: the first episodes actually executed.  For the full
+    # serial enumeration the two definitions coincide exactly.
+    if latency_subset:
+        warmup_ordinals = frozenset(selected[:warmup_required])
+    else:
+        warmup_ordinals = frozenset(
+            ordinal for ordinal in selected if ordinal < warmup_required
+        )
+    warmup_in_selection = len(warmup_ordinals)
+    print(
+        "SELECTION shard %d/%d episodes=%d windows=%d (canonical %d/%d) rule=%s"
+        % (
+            shard_index,
+            shard_count,
+            len(work),
+            shard_window_total,
+            canonical_episode_total,
+            canonical_window_total,
+            partition_rule,
+        ),
+        flush=True,
+    )
     dataset = _scene_only_dataset(cfg)
     model, checkpoint_provenance = _load_strict_checkpoint(cfg)
     model_name = (
         str(cfg.model_name) if cfg.model_name is not None else Path(str(cfg.ckpt_path)).stem
     )
+    # model_name is payload metadata only; per-run isolation is lingo_output_dir.
+    # The shard suffix means eight shards stay isolated even when they share one
+    # lingo_output_dir, instead of racing on the same directory.
+    shard_suffix = "" if shard_count == 1 else "-shard%02dof%02d" % (shard_index, shard_count)
     output_dir = Path(cfg.lingo_output_dir) / (
         f"{Path(str(cfg.ckpt_path)).stem}-"
         f"{checkpoint_provenance['checkpoint_sha256'][:12]}"
+        f"{shard_suffix}"
     )
     if output_dir.exists():
         raise FileExistsError("refusing to overwrite LINGO HSI output: %s" % output_dir)
@@ -934,7 +1385,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
     all_window_call_counts: List[int] = []
     timing_sequences: List[Mapping[str, float]] = []
 
-    for ordinal, (scene_name, scene_index, episode) in enumerate(episodes, start=1):
+    for position, (canonical_ordinal, scene_name, scene_index, episode) in enumerate(work, start=1):
         if scene_name not in geometries:
             geometries[scene_name] = SceneGeometry.from_scene(
                 scene_name,
@@ -942,6 +1393,12 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 mesh_root=Path(cfg.lingo_mesh_root),
                 cache_dir=default_cache_dir(),
             )
+        # Re-seed per episode from the canonical ordinal.  A single run-level seed
+        # would make each episode's result depend on how many RNG draws every
+        # earlier episode consumed, so a shard -- which sees a different
+        # subsequence -- would produce different numbers.  This is unconditional,
+        # not sharding-only: every cell from here must share one regime.
+        seed_everything(int(cfg.seed) + int(canonical_ordinal))
         pre_rng_state = _capture_rng_state()
         episode_start = time.perf_counter()
         vertices, joints, sequence_index, window_seconds, window_call_counts = (
@@ -993,9 +1450,12 @@ def evaluate_model(cfg: DictConfig) -> Path:
         )
         metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null)
                       if rds_available else {"rds": None, "rds_max": None})
-        excluded_as_warmup = ordinal <= int(cfg.timing_warmup_sequences)
+        # Canonical, not shard-local: eight shards must flag the same five
+        # episodes a serial run flags, not five each.
+        excluded_as_warmup = int(canonical_ordinal) in warmup_ordinals
         metric.update(
             {
+                "canonical_ordinal": int(canonical_ordinal),
                 "scene_name": scene_name,
                 "scene_sequence_index": scene_index,
                 "source_sequence_index": sequence_index,
@@ -1003,11 +1463,13 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 "non_watertight": scene_name in NON_WATERTIGHT_SCENES,
                 "rds_available": rds_available,
                 "excluded_as_warmup": excluded_as_warmup,
-                "sampling_seconds": float(sum(window_seconds)),
-                "per_window_wall_seconds": float(np.mean(window_seconds)),
+                "sampling_seconds": None if sharded else float(sum(window_seconds)),
+                "per_window_wall_seconds": None if sharded else float(np.mean(window_seconds)),
             }
         )
         sequence_name = "%s:%06d" % (scene_name, sequence_index)
+        if sequence_name in records:
+            raise ValueError("duplicate sequence key %s" % sequence_name)
         records[sequence_name] = metric
         all_window_seconds.extend(window_seconds)
         all_window_call_counts.extend(window_call_counts)
@@ -1019,12 +1481,22 @@ def evaluate_model(cfg: DictConfig) -> Path:
             }
         )
         print(
-            "MODEL %d/%d %s windows=%d sec/window=%.4f finite=1"
-            % (ordinal, len(episodes), sequence_name, len(window_seconds), np.mean(window_seconds)),
+            "MODEL %d/%d (canonical %d/%d) %s windows=%d sec/window=%.4f finite=1"
+            % (
+                position,
+                len(work),
+                canonical_ordinal,
+                canonical_episode_total,
+                sequence_name,
+                len(window_seconds),
+                np.mean(window_seconds),
+            ),
             flush=True,
         )
 
     scene_summary = _aggregate_by_scene(records)
+    if sharded:
+        _invalidate_scene_summary_timing(scene_summary)
     distinct_call_counts = sorted(set(all_window_call_counts))
     if len(distinct_call_counts) != 1:
         raise RuntimeError(
@@ -1046,13 +1518,31 @@ def evaluate_model(cfg: DictConfig) -> Path:
         "cuda_synchronized": True,
         "batch_size": 1,
     }
+    # The warmup episodes are a canonical-order prefix, so within a shard -- which
+    # walks its ordinals in ascending order -- they are still this list's prefix.
     timing.update(
         _aggregate_timing(
             timing_sequences,
-            warmup_sequences=int(cfg.timing_warmup_sequences),
+            warmup_sequences=warmup_in_selection,
             fps=float(cfg.fps),
         )
     )
+    timing["warmup_sequences_required"] = warmup_required
+    if sharded:
+        _invalidate_timing(timing)
+    else:
+        # timing_valid means "the wall-clock numbers in this block are valid
+        # measurements".  An uncontended run whose every episode fell inside the
+        # warmup prefix has no timed data at all, and every aggregate below is
+        # null; claiming validity there would be the same trap as claiming it
+        # under contention.
+        timing["timing_valid"] = bool(timing["protocol_complete"])
+        timing["timing_invalid_reason"] = (
+            None
+            if timing["timing_valid"]
+            else "no timed sequences: warmup_sequences_required=%d consumed all %d "
+            "selected episodes" % (warmup_required, len(work))
+        )
     rds_block: Dict[str, Any] = {
         "joint_set": "smplx_joints_28",
         "null_scene_mode": "need_scene=False",
@@ -1082,6 +1572,23 @@ def evaluate_model(cfg: DictConfig) -> Path:
         "scene_count": len(scene_summary),
         "scene_summary": scene_summary,
         "timing": timing,
+        "sharding": {
+            "shard_index": shard_index,
+            "shard_count": shard_count,
+            "canonical_episode_total": canonical_episode_total,
+            "canonical_window_total": canonical_window_total,
+            "shard_episode_ordinals": list(selected),
+            "shard_window_total": shard_window_total,
+            "partition_rule": partition_rule,
+            "per_episode_seeding": "seed_everything(seed + canonical_ordinal)",
+            "timing_valid": bool(timing["timing_valid"]),
+        },
+        "latency_subset": {
+            "enabled": latency_subset,
+            "target_windows": int(cfg.latency_target_windows) if latency_subset else None,
+            "selected_windows": shard_window_total if latency_subset else None,
+            "selection_rule": partition_rule if latency_subset else None,
+        },
         "metrics": records,
     }
     return _write_payload(output_dir, payload)
@@ -1099,8 +1606,12 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_ground_truth(cfg)
     elif mode == "sample":
         path = evaluate_model(cfg)
+    elif mode == "merge_shards":
+        path = _merge_shards(cfg)
     else:
-        raise ValueError("lingo_hsi_mode must be ground_truth or sample, got %s" % mode)
+        raise ValueError(
+            "lingo_hsi_mode must be ground_truth, sample or merge_shards, got %s" % mode
+        )
     print("Wrote %s" % path)
 
 

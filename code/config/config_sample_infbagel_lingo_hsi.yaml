@@ -49,6 +49,28 @@ timing_warmup_sequences: 5
 
 lingo_hsi_mode: ground_truth
 lingo_sequence_limit: null
+
+# Episode sharding for the quality pass.  shard_count=1 is the serial protocol
+# and is the default; >1 splits the canonical episode enumeration by greedy
+# longest-first bin packing over per-episode window counts, and invalidates
+# every timing aggregate because the shards contend for the host.
+shard_index: 0
+shard_count: 1
+
+# Serial latency pass.  Selects a deterministic scene-spanning episode subset
+# sized by window budget; requires shard_count=1 so timing stays valid.
+# 70 windows = 19 episodes over 18 of the 26 scenes; after the 5 warmup episodes
+# that leaves 48 timed windows, i.e. ~47 min of measured guided-diffusion
+# sampling at the measured 59.1 s/window (~68 min of total run wall clock).
+latency_subset: false
+latency_target_windows: 70
+
+# lingo_hsi_mode=merge_shards inputs.  merge_shard_dir defaults to the parent
+# directory the sharded runs wrote into; the expected totals are the full
+# protocol and are the external anchor against a silently short merge.
+merge_shard_dir: null
+merge_expected_episodes: 375
+merge_expected_windows: 2271
 lingo_episode_dir: ${oc.env:ROOT_DIR}/data/lingo_hsi_test/data
 lingo_mesh_root: /data/yujinlun/datasets/LINGO/Scene_mesh
 lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/${lingo_hsi_mode}-${sample_type}-${oc.select:use_guidance,false}

@@ -1285,8 +1285,11 @@ guided / unguided 双列评测，**gate 读 unguided 列**。那是**另一个 w
 | 单趟（2271 窗口，RDS 已 gate） | 38.92 h | 38.33 h |
 | 双趟（RDS 未 gate） | 77.04 h | 74.60 h |
 
-**订正**：本 session 先前向用户报出的「OMP=4 时 59.125 s/window、加速 1.033×」是错的——
-59.125 来自 **seed 43 的负对照臂**。仅取 seed-42 两臂，比值是 **1.0154×，且两臂区间重叠**
+**订正**：本 session 先前向用户报出的「OMP=4 时 59.125 s/window、加速 1.033×」是错的。
+该数字的来源需要二次订正：它**不是** seed 43 负对照臂的实测值（那一臂实测 59.211），而是探针
+`extrapolation.txt` 里的 tqdm 进度条算术——B1/B2 的 473 s bar 总量除以 8 次窗口采样。两者数值
+接近但来源不同；**manifest 是权威**，seed-42 两臂的实测 `per_window_wall_seconds` 是
+60.167 / 61.354。仅取 seed-42 两臂，比值是 **1.0154×，且两臂区间重叠**
 （未设的最快 61.195 低于设了的最慢 61.354）。因此**训练路径上的 1.771× 并不迁移到评测采样路径**：
 run-total 墙钟那 17.7 s 差距里只有约 7.5 s 落在采样上，其余约 10 s 是一次性启动开销。
 该上限仍然保留——它已验证逐位中性（比对 126 个值，负对照在 56 个值上不同）、且免费——
@@ -1309,3 +1312,32 @@ manifest 以 `status: aborted` 封存（`git.commit` = `final_git.commit` = `622
 调用过该方法，evaluator 的 `hasattr` 前置检查还会通过。direct 与 materialized 两条实现在真实
 400×100×600 网格、53.7% 查询穿透、位移达 0.31 m 的条件下**逐位一致**，故 `087848f` 没有改变
 guidance 几何，只是打断了派发。
+
+### G. `:1257` 与 `:1316`：同一判据的两条分支，训练侧与评测侧必须分开记
+
+本节 §D（2026-08-16）记的是**训练侧**机制，经复核**准确、不需修改**。这里补评测侧的实测澄清，
+因为它决定了分片逐位一致性必须在哪个步数下验证。
+
+- **评测侧 diffusion：`:1257` 整块不可达。** `p_sample` 的 conditional / unconditional 两次调用
+  （`code/models/infbagel.py:924` / `:926`）**不传 `cfg_scale`**，故 `if cfg_scale is not None:`
+  为假。仪表实测：500 步下 8000 次 `Unet.forward` 全部 `cfg_scale=None`，`:1259` 的整批覆写
+  在**任何 `sample_type=diffusion` 的 cell、任何步数下都不触发**。
+- **评测侧真正活跃的是 `:1316`。** 它在 `if is_sample:` 之下带有与 `:1257` **字面相同**的判据
+  `int(timesteps[0]) == 499 or is_uncondition`，把 `scene_embs[1:]` 置零。实测 500 步下触发
+  8 次 conditional（每次窗口采样的 t=499 首步）加全部 3992 次 unconditional；
+  **100 步下 conditional 触发 0 次**——DDIM 网格根本到不了 499。因此「在 100 步下证明的逐位
+  一致性」结构性地绕开了一条在 500 步下活着的分支，500 步重测是必需的而非保险。
+  重测结果：**159/159 逐位一致**（3 episode / 13 窗口，seed-43 负对照 69/159 不同）。
+- **C 的 cell 与 B 不同，但仍然无害。** consistency 调用（`:653`）传 `cfg_scale=w` 且
+  `is_sample=True`，故 `:1257` 在 C 的评测中**可达**。但评测恒为 `batch_size=1`
+  （evaluator 对 `batch_size != 1` 硬拒），「样本 0 替整个 rank-local batch 决定」在单样本下是
+  **空的**，批粒度缺陷在评测中不可能发生；分支按判据触发是设计行为，不是缺陷。
+  实测 `batch_sizes_observed: [1]`。
+- **不要把上一条读成「该缺陷是评测期的」。** 训练侧 `consistency_loss`（`:309`）传 `cfg_scale=w`
+  且**不传 `is_sample`**（`:1218` 默认 `False`），于是 `:1257`→`:1259` 先把整批 `cfg_scale`
+  覆写为 −1，`:1319` 的 `elif cfg_scale is not None` 再「按样本」读这个已被污染的向量——
+  两条分支都触发，per-sample mask 只是忠实地施加一个已经整批错掉的向量。这正是 §D 的记载，
+  也正是 8×256 布局不中性的机制；本节不推翻它，只是把评测侧与训练侧分开。
+
+**结论口径**：批粒度缺陷是**训练专有**的（`is_sample=False` 且 batch > 1）；评测两个 sampler
+都不受它影响。仍然**不修**——理由同 §D：修了 C 的目标函数就不再等于产出其 teacher 的那一个。
