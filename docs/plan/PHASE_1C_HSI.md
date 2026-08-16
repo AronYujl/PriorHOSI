@@ -1231,3 +1231,81 @@ guided / unguided 双列评测，**gate 读 unguided 列**。那是**另一个 w
 
 
 
+
+## 2026-08-16（同日第二次修订）：FPS 协议拆分、评测分片，以及串行方案被用户否决
+
+本节由用户的一次明确否决触发，并**取代** 2026-08-12（同日第二次修订）§E 中
+「FPS 与几何指标共用同一次采样（batch=1）」这一句所隐含的**串行强制**。原文保留、不删除，
+但自本节起不再作为启动约束。
+
+### A. 用户决定：不为「FPS 协议纯粹」多付约 50 h 墙钟
+
+用户的判断，原样登记：串行的唯一理由是让 FPS 口径与 infbagel 对齐，而为这份「协议纯粹」
+多花 50 多小时墙钟，性价比不成立；并且**对 B 的实时性评估本来就没那么重要——已知蒸馏就是
+为了解决 B 推理慢的问题**。
+
+这条理由推翻了本 session 之前给出的反对意见。那条反对意见是「B 的 FPS 是蒸馏加速主张的分母」，
+它站不住，因为该主张的机制量是 `denoiser_calls_per_window`（B 1000 / C 16），
+**与硬件无关、也与是否分片无关**；B 的 latency 只需要「够得上被引用」，不需要全量协议纯度。
+
+### B. 拆分后的口径
+
+- **质量列**：8 卡分片，episode 级切分，只出几何指标。该模式下一切时间量
+  （`aits` / `avg_fps` / `aggregate_fps` / `rtf` / `per_window_wall_seconds` /
+  `sampling_seconds` / `total_generation_seconds` 及其 per-scene 均值）**必须写成 `null`
+  并带显式 `timing_valid: false` 标记**。8 进程互相争用，这些数字是被污染的；把它们照常填进
+  payload 是本项目已经犯过一次的错误类型——一个「看起来权威」的污染数字，日后会被引用。
+- **latency 列**：单卡串行、静默主机、**跨 scene 的固定确定性子集**，是 FPS 的唯一来源。
+  逐窗口成本近似恒定（模型输入固定为 `[1,16,232]`），但 penetration 分支随 scene 变化，
+  因此子集必须跨 scene 取，而不是取前 N 个 episode。
+
+### C. 分片带来的三条硬要求（启动前必须验收）
+
+1. **按窗口数而非 episode 数做负载均衡**。窗口数是各 episode JSON 的 `episode_num`：
+   375 episodes、合计 **2271** 窗口、mean 6.06、median 4、**min 2、max 55**。按 episode
+   轮转会让某个 shard 独自扛下若干个 55 窗口的 episode，而全局成本等于最慢的那个 shard。
+2. **逐 episode 确定性播种，且用「全量枚举下的 canonical ordinal」而非 shard 内序号**。
+   现状是全程只 `seed_everything(cfg.seed)` 一次、各 episode 共享一条 RNG 流；分片后每个进程
+   会消费**不同的子序列**，结果就会依赖切分方式。验收标准是 1 shard 与 2 shard 的逐 episode
+   payload **逐位相同**，且必须附一个「本应失败」的对照（例如换 seed）——本仓库已有过
+   在空 glob 上打印 `IDENTICAL (0 values)` 的空洞 PASS，只被一个没能失败的负对照抓住。
+   该改动会让 B 的数值不同于「假想的串行单播种 run」，这是可接受的：guided HSI 评测从未
+   跑完过，不存在需要保持可比的基线。但因此它必须**无条件生效**，B / C 的四个 cell 同制。
+3. **merge 必须大声失败**。episode 数须等于 375、窗口数须等于 2271，重复键、缺失 ordinal、
+   缺 shard 一律 raise，而不是把 7/8 合成一份看起来完整的结果；`excluded_as_warmup` 必须按
+   canonical ordinal 判定，否则 8 个 shard 会标 40 个 warmup 而串行只标 5 个。
+
+### D. 实测成本（取代此前的解析估算），以及一处必须订正的数字
+
+`p1-hsi-b-eval-epoch222-s42-20260816` 启动前的 ABBA 探针，seed-42 两臂各 2 rep，单卡：
+
+| 口径 | OMP 未设 | `OMP_NUM_THREADS=4` |
+|---|---:|---:|
+| 逐窗口 | 61.195 / 62.193（mean 61.694） | 60.167 / 61.354（mean 60.761） |
+| 单趟（2271 窗口，RDS 已 gate） | 38.92 h | 38.33 h |
+| 双趟（RDS 未 gate） | 77.04 h | 74.60 h |
+
+**订正**：本 session 先前向用户报出的「OMP=4 时 59.125 s/window、加速 1.033×」是错的——
+59.125 来自 **seed 43 的负对照臂**。仅取 seed-42 两臂，比值是 **1.0154×，且两臂区间重叠**
+（未设的最快 61.195 低于设了的最慢 61.354）。因此**训练路径上的 1.771× 并不迁移到评测采样路径**：
+run-total 墙钟那 17.7 s 差距里只有约 7.5 s 落在采样上，其余约 10 s 是一次性启动开销。
+该上限仍然保留——它已验证逐位中性（比对 126 个值，负对照在 56 个值上不同）、且免费——
+但预算时应按「从约 40 h 里省下不到 1 h」计，不是省一半。
+
+### E. 已作废的 run
+
+`p1-hsi-b-eval-epoch222-s42-20260816` 以串行口径启动，跑完 19 / 2271 窗口后按本节决定终止，
+manifest 以 `status: aborted` 封存（`git.commit` = `final_git.commit` = `6225429`，
+无 `commit_transition`），未产出任何 metric。payload 只在结束时写出，因此没有可用的部分结果。
+分片版本将以新的 run id 启动，并同样引用 `p1-hsi-b-eval-preregister-s42-20260815`，
+但须在 `closes_preregistration` 之外显式登记本节对 §E 的修订。
+
+### F. 一个与本节无关但已在此前修好的启动阻塞
+
+`6225429` 修复了 `code/datasets/infbagel_mix.py` 借用 `InfBaGelDataset` 未绑定方法的失效：
+`087848f` 把 `get_nearest_free_voxel` 改成派发到 `self._get_nearest_free_voxel_direct`，
+而 `InfBaGelMixDataset` 并不继承 `InfBaGelDataset`，于是**任何 guided HSI 评测都会在第一次
+施加 guidance 时 AttributeError**——包括 Phase 1C 的 gate（C + guided）本身。当时无任何测试
+调用过该方法，evaluator 的 `hasattr` 前置检查还会通过。direct 与 materialized 两条实现在真实
+400×100×600 网格、53.7% 查询穿透、位移达 0.31 m 的条件下**逐位一致**，故 `087848f` 没有改变
+guidance 几何，只是打断了派发。
