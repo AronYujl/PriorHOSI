@@ -1065,4 +1065,169 @@ OMP_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=0,1,2,3 \
 必须 detached 启动（`setsid` + `nohup`，日志落在 run 自己的输出目录），因为它必须活过启动它的
 会话；启动后须核验进程存活且其父进程在启动 shell 之外。
 
+---
+
+## 2026-08-16（同日修订）：run C 蒸馏完成、gate 工件校验、裁剪决定落定
+
+本节记录 `p1-hsi-c-lingo-cm-s42-20260816` **实际产出了什么**，并把上文 §E 推迟的裁剪取值
+决定就地落定。本节写于 `tools/experiment.py finish` / `register` **之后**：manifest 与 registry
+行先于本节存在，故本节不构成该 run 的 provenance，只是其读数。封存时 HEAD 为 `8bdc132`、
+工作树干净，manifest 记 `status: completed`、`git.commit 8bdc132…`、`dirty: false`，且**无**
+`commit_transition` 段——即干净封存，而非哈希绑定的转移记录。registry 由 278 行增至 279 行，
+`tools/experiment.py validate` 通过（279 records / 4 splits / 2 evaluators / 1 training protocol）。
+
+### A. 预算：实测 10 h 25 m 01 s，对 10.32 h 超出 0.94%
+
+| 项 | 预注册（§A/§G） | 实测 |
+|---|---:|---:|
+| 墙钟 | 10.32 h | **10.4169 h = 10 h 25 m 01 s** |
+| GPU-h（4 GPU） | 41.3 | **41.7** |
+| s/update | 0.63335 | **0.6380**（循环内）/ 0.6391（墙钟÷update 数） |
+| optimizer update | 58,678 | **58,678 / 58,678** |
+
+超出 **0.94%**，故 §C 那条 `OMP_NUM_THREADS=4` 的启动约束在 10 小时量级上确实成立——不是
+探针窗口里的假象。循环外的启动＋收尾开销实测仅 **62 s**，即墙钟几乎全部是 update 循环本身。
+
+预算按预注册在 **update 数**上收口，而非 epoch 数：58,678 ÷ 656 = 89.45，故
+`max_optimizer_updates` 在 **epoch 89 的第 294 / 656 步**停机（2026-08-13 §3 与 §G 已登记此不
+整齐）。`epoch089.pth` 因此是 **update 58,678 处的权重**，其落盘走的是
+`code/train_infbagel.py:580-582` 的 `epoch == cfg.epochs - 1` 分支，而不是 `ckpt_interval` 分支。
+六个 checkpoint（epoch 000/020/040/060/080/089）加 `_resume.pth`，哈希与字节数全部登记于
+`results/hsi_c_lingo_cm/metrics.json`。
+
+### B. 数值健康：一次孤立梯度尖峰，无非有限值
+
+仪表全程开启，四个 rank × 58,678 个 update 共 234,712 条 post-allreduce 范数记录：
+
+- **非有限值 0 个**；日志中 `Traceback` / `RuntimeError` / OOM / `Loss: nan` **0 处**。
+- 四个 rank 在**每一个 update** 上写下的范数**逐位相同**（最大绝对散布恰为 `0.000e+00`）。这与
+  §C 的口径提示一致：独立样本是 58,678 个全局范数，不是 234,712 个。
+
+唯一的梯度事件：
+
+| 项 | 值 |
+|---|---|
+| 范数 | **0.830289** |
+| 位置 | update **28403**（epoch 43，step 195） |
+| 邻居 | update 28402 = 0.037076，28404 = 0.034474（前后各两步均在 0.03–0.07） |
+| loss 扰动 | epoch 40–42 的 step-190 带 ~0.001710 → epoch 43 step 220 峰值 **0.001908**（**+11.6%**） |
+| 恢复 | epoch 43 step 280 已回到 epoch 40–42 的 step-300 带 `[0.001737, 0.001768]` 之内，即约 85–105 个 update；step 300 = 0.001748 |
+
+即单步冲击、无级联、约百步内完全恢复。对照 run B 在 146,255 个 update 上的两次未裁剪事件
+（其中 epoch 160 那次代价约 23 个 epoch），C 的这一次**没有可比的代价**。
+
+### C. 裁剪：仍然不加，而且本 run 给出了「不加是对的」的证据
+
+§E 曾把 `max_norm` 的取值决定推迟到 **warmup 之后（update > 2,000）的分布**。该分布现已实测
+（56,678 个 post-warmup update）：
+
+| 统计量 | 值 |
+|---|---:|
+| min | 0.0130 |
+| median | **0.0543** |
+| mean | 0.0646 |
+| **max** | **0.8303**（= §B 的尖峰） |
+| **第二大** | **0.7736**（update 28760，epoch 43 step 552） |
+
+反事实计数（post-warmup）：
+
+| `max_norm` | 会裁掉的 update 数 |
+|---|---:|
+| 1.0 | **0** |
+| 0.7736 | 2 |
+| 0.5 | 9 |
+| 0.4 | 14 |
+| 0.2 | 391 |
+
+**结论：不加裁剪。** 理由不是「没数据」，也不是「懒」，而是这批数据直接反驳了裁剪能起作用的
+前提：
+
+1. §E 曾担心的 `max_norm=1.0` 果然**一次都不触发**（0 / 56,678），因此它既不会静默压低有效
+   lr，也**抓不到那次 0.830 的尖峰**——两头都落空。
+2. 更要紧的是，**那次尖峰不是可分离的离群点**。第二大范数 0.7736 与它只差 6.8%，两者又都长在
+   一条连续的尾巴上（0.5 以上 9 个、0.4 以上 14 个）。任何低到能抓住 0.830 的阈值（≤0.77）
+   同时会裁掉合法 update；而唯一能把它单独挑出来的阈值区间是 (0.7736, 0.830289)，宽度 7%，
+   那是对本 run 的过拟合，不是一个可移植的超参。
+
+因此 §E 的「有数据但不足以定值」在本 run 收尾时升级为：**有数据，且数据说不该定值。** 这条
+结论绑定的是 C 这个目标函数与这个预算；换 loss 权重或换预算需重测。
+
+### D. 一处必须订正的窗口口径：末 9 个 epoch 是 median 0.0486 / max 0.6437
+
+因为 checkpoint 选择规则是 final-epoch-only，产出 gate 工件的那段窗口是否平静，本身是要登记的。
+**本次封存时的重算订正了一个先前口径**：先前报告的 **median 0.0494 / max 0.3954** 并不是末 9 个
+epoch，而是 **epoch 72–80**（即以 epoch 80 结尾的 9 个 epoch）的统计量——差了整整九个 epoch。
+
+以 rank 0 的全部范数重算，实测如下：
+
+| 窗口 | n | median | max | argmax |
+|---|---:|---:|---:|---|
+| **epoch 81–89（真正的末 9 个 epoch）** | 5,542 | **0.0486** | **0.6437** | update 56602（epoch 86 step 186） |
+| epoch 72–80（先前误报为「末 9 个」） | 5,904 | 0.0494 | 0.3954 | update 52937（epoch 80 step 457） |
+| 全部 post-warmup 尾部 | 56,678 | 0.0543 | 0.8303 | update 28403 |
+
+**该订正不改变结论的方向，但改变了它的强度**：末 9 个 epoch 在 median（0.0486 < 0.0543）与
+max（0.6437 < 0.8303）两项上都确实比全程尾部平静，所以「gate 工件产生于平静区间」仍然成立；
+但其 max 是 **0.6437 而非 0.3954**，即该窗口内含一个 0.64 量级的事件（epoch 86），比先前的说法
+粗糙得多。逐 epoch 的 max 为：81=0.2500、82=0.1243、83=0.5234、84=0.2360、85=0.1794、
+**86=0.6437**、87=0.1919、88=0.3246、89=0.3857。不得再引用 0.3954 作为末 9 个 epoch 的 max。
+
+### E. gate 工件 `epoch089.pth` 的校验（只加载与比对，不采样、不评测）
+
+`epoch089.pth`（sha256 `8527b03ae9003c884b0af94fce26f9e9a063f301c39cdfcacb18962a0e20a0d6`，
+179,662,353 bytes）是后续约 40 GPU-h 评测要消耗的对象，故先做无 GPU 的加载与张量比对：
+
+- **能加载**：以本 run 归档的解析后配置新建 `models.infbagel.Unet`（CPU），`strict=True`
+  加载成功；`strict=False` 下 **missing 0 / unexpected 0**；state_dict **218 个 key**，与 run B
+  的 218 一致。39,774,184 个参数元素。
+  （口径：218 个 key 对应 **216 个不同张量**——`positional_encoder.pos_encoding` 与
+  `embed_timestep.sequence_pos_encoder.pos_encoding` 共享同一 storage，`embedding_language`
+  下那一对同理；`state_dict()` 列出两个名字，`named_buffers()` 去重。这不是缺陷。）
+- **确实被蒸馏过，不是 teacher 的副本**：与 teacher
+  `hsi_b_lingo_full_epoch222.pth`（sha256 `931a6f1f…48c5e`，本日全 64 位重校相符）逐张量比对，
+  218 个 key 全部同名同形，无单侧 key：
+
+| 集合 | 大小 | 逐位相同 | 已移动 |
+|---|---:|---:|---:|
+| 冻结面（112 个冻结参数 + 2 个 buffer + 2 个别名 key） | 116 | **116** | **0** |
+| 可训练面（`embedding_input` / `embedding_output` / `transformer` / `out`） | 102 | 2 | **100** |
+
+  可训练面的相对 L2 变化 min 0.0204、**median 0.4099**、max 0.8677——量级在 10⁻¹，是真蒸馏而
+  非数值噪声。**反向失效也已检查**：没有任何应当冻结的张量发生移动（116/116 逐位相同）。
+
+- **两个没动的可训练张量已定性，是良性的**：`embedding_output.weight` / `.bias`。
+  `embedding_output` 是 `code/models/infbagel.py:1162` 的 `nn.Linear(232, 512)`，
+  **除 `__init__` 外没有任何方法引用它**，即它不在 forward 路径上，因而 `grad` 恒为 `None`、
+  Adam 从不更新它，于是原样继承 teacher 的值。119,296 / 39,774,184 = **0.30%** 的参数元素是
+  这样的死重。这是作者架构里既有的东西（teacher 侧完全相同），也正是 DDP 必须开
+  `find_unused_parameters=True` 的原因。与 12-update 抽查时看到的「100/102 移动」是同一现象，
+  且在全程 58,678 个 update 之后仍然如此——**它不会自行消失，不是训练不足**。
+- **文件互不相同**：`epoch089.pth` / `_resume.pth` / `epoch080.pth` 三者 sha256、inode 互不相同，
+  `nlink` 均为 1，均非符号链接，故无误链或覆写。`_resume.pth`（503,287,345 bytes，含
+  `optimizer` / `target_model` / `rng_states` 等）其 `['model']` 与 `epoch089.pth` 逐位相同——
+  同一时刻的权重，本应如此，而**文件本身是两个不同对象**。
+- **末 9 个 epoch 确实改动了权重**：`epoch080` 与 `epoch089` 之间 218 个 key 有 **100 个不同**
+  （恰为可训练且非死重的那 100 个），相对 L2 变化 median 0.0380、max 0.2732。
+
+复算脚本与完整表格：`.claude/scratch/seal_c_verify_ckpt.py`、
+`.claude/scratch/seal_c_checkpoint_verify.md`、`.claude/scratch/seal_c_gradnorm_analysis.py`。
+
+### F. 训练 loss 的平台期——**只作为观察登记**
+
+epoch 末（step 650）的 loss 均值自 epoch 30 起进入窄带：epoch 30–88 共 59 个值，
+min **0.001641**（epoch 85）、max **0.001874**（epoch 31）、median **0.001710**。全程所有 loss
+记录的 min/max 为 0.001545 / 0.003005，非有限值 0 个。
+
+**不得**把这段平台期读成「后半程预算白花」。本项目已实测 held-out 去噪 loss 与原生 rollout
+指标**反相关**，训练 loss 的平坦度对 rollout 质量没有已建立的预测力；§D 的 epoch080→089 权重
+位移（median 0.0380）也说明模型在平台期内仍在实质移动。后半程预算是否值得，只能由 §G 那次
+原生域评测回答。
+
+### G. 下一步（需用户批准后才能启动）
+
+按 2026-08-13（同日修订）§D 的预注册协议，在 LINGO v3 test 上对 `epoch089.pth` 做
+guided / unguided 双列评测，**gate 读 unguided 列**。那是**另一个 workload**，需要自己的 run id
+与 registry 行，且需用户明确批准方可启动。本节不启动它，也不预判其结果。
+
+
 
