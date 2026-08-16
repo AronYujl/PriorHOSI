@@ -580,7 +580,14 @@ class InfBaGelMixDataset(Dataset):
         return self.omomo_dataset.quat_fk_torch(lrot_mat, lpos, use_joints24)
 
     def get_nearest_free_voxel(self, points, scene_flag):
-        return InfBaGelDataset.get_nearest_free_voxel(self, points, scene_flag)
+        # InfBaGelMixDataset subclasses Dataset, not InfBaGelDataset, so it borrows
+        # the implementation unbound.  Target the direct variant explicitly: the
+        # dispatcher InfBaGelDataset.get_nearest_free_voxel resolves
+        # self._get_nearest_free_voxel_direct, which does not exist here.  The
+        # direct body is the compatible one -- it indexes scene_occ_ref per scene
+        # (int key), which this class's LazyOccRef supports, whereas the
+        # materialized body batch-indexes it and would stack one ref per sample.
+        return InfBaGelDataset._get_nearest_free_voxel_direct(self, points, scene_flag)
     
     def add_object_points(self, points, occ):
         points = points.reshape(-1, 3)

@@ -517,6 +517,73 @@ def _load_strict_checkpoint(
     return model, provenance
 
 
+def _preflight_nearest_free_voxel(dataset) -> None:
+    """Invoke the guidance occupancy query once, before any GPU hours are spent.
+
+    ``hasattr`` is not enough: ``InfBaGelMixDataset.get_nearest_free_voxel``
+    exists but borrows its body from ``InfBaGelDataset`` unbound, so a change to
+    that body's internal dispatch raises only on the first guidance application,
+    many hours into a run.  Cost is seconds, not the sub-millisecond of a bare
+    query: probing an occupied voxel forces one ``LazyOccRef`` EDT for scene 0
+    and parks it in that cache's four slots.  Against a multi-hour guided run
+    that is free; it is not free enough to put on a per-window path.
+    """
+    grid = dataset.scene_grid_torch
+    device = grid.device
+    lower = grid[:3]
+    upper = grid[3:6]
+    dims = grid[6:]
+    voxel_size = torch.div(upper - lower, dims)
+    probes = [(lower + upper) / 2.0]
+    # Probe one known-occupied voxel so the call also exercises the occ_ref
+    # displacement branch, which is where the direct and materialized bodies
+    # index differently.  argmax, not nonzero: the grid is 400x100x600.
+    occupancy = (dataset.scene_occ[0] == 1).reshape(-1)
+    if bool(occupancy.any()):
+        flat_index = int(occupancy.to(torch.uint8).argmax())
+        depth = int(dims[2])
+        height = int(dims[1])
+        voxel = torch.tensor(
+            [flat_index // (height * depth), (flat_index // depth) % height, flat_index % depth],
+            device=device,
+            dtype=torch.float64,
+        )
+        probes.append(lower + (voxel + 0.5) * voxel_size)
+    points = torch.stack([probe.to(torch.float32) for probe in probes])
+    points = points.reshape(1, 1, len(probes), 3).to(device=device, dtype=torch.float32)
+    scene_flag = torch.zeros((1,), device=device, dtype=torch.long)
+    try:
+        is_penetrating, nearest_free_points = dataset.get_nearest_free_voxel(points, scene_flag)
+    except Exception as error:  # surface the real cause with the real cost attached
+        raise RuntimeError(
+            "%s.get_nearest_free_voxel is not callable on this instance (%s: %s); "
+            "guided evaluation would fail on its first guidance application"
+            % (type(dataset).__name__, type(error).__name__, error)
+        ) from error
+    if tuple(is_penetrating.shape) != (1, 1, len(probes)):
+        raise RuntimeError(
+            "get_nearest_free_voxel returned penetration shape %s, expected %s"
+            % (tuple(is_penetrating.shape), (1, 1, len(probes)))
+        )
+    if tuple(nearest_free_points.shape) != (1, 1, len(probes), 3):
+        raise RuntimeError(
+            "get_nearest_free_voxel returned free-point shape %s, expected %s"
+            % (tuple(nearest_free_points.shape), (1, 1, len(probes), 3))
+        )
+    if is_penetrating.dtype is not torch.bool:
+        raise RuntimeError(
+            "get_nearest_free_voxel penetration dtype is %s, expected torch.bool"
+            % is_penetrating.dtype
+        )
+    if nearest_free_points.dtype is not points.dtype:
+        raise RuntimeError(
+            "get_nearest_free_voxel free-point dtype is %s, expected %s"
+            % (nearest_free_points.dtype, points.dtype)
+        )
+    if not bool(torch.isfinite(nearest_free_points).all()):
+        raise RuntimeError("get_nearest_free_voxel returned non-finite free points")
+
+
 def _scene_only_dataset(cfg: DictConfig):
     dataset = hydra.utils.instantiate(cfg.dataset)
     if not hasattr(dataset, "get_nearest_free_voxel"):
@@ -525,6 +592,7 @@ def _scene_only_dataset(cfg: DictConfig):
 
     if not isinstance(dataset.scene_occ_ref, LazyOccRef):
         raise TypeError("scene-only evaluation requires LazyOccRef, found %s" % type(dataset.scene_occ_ref).__name__)
+    _preflight_nearest_free_voxel(dataset)
     # test_infbagel_hosi.sample_step uses the legacy dataset spelling.
     dataset.scene_dict = dataset.unified_scene_dict
     dataset.scene_grid_np = dataset.lingo_dataset.scene_grid_np
@@ -831,6 +899,15 @@ def evaluate_model(cfg: DictConfig) -> Path:
     from test_infbagel_hosi import seed_everything, synchronize_cuda
 
     seed_everything(int(cfg.seed))
+    guided = bool(cfg.get("use_guidance", False))
+    # RDS is scoped to unguided cells: guidance_loss.apply_hsi_guidance_loss pulls
+    # joints toward free voxels regardless of need_scene, so the paired
+    # "null-scene" rollout is still scene-driven and its divergence from the
+    # scene-conditioned rollout is confounded.  Skipping the pass also halves the
+    # guided cell cost.  The unguided path is the gate column and is untouched:
+    # the null pass runs inside _rng_rewound, which restores the post-pass RNG
+    # state on exit, so omitting it leaves the next episode's RNG identical.
+    rds_available = not guided
     episodes = _load_episodes(
         Path(cfg.lingo_episode_dir),
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
@@ -881,21 +958,25 @@ def evaluate_model(cfg: DictConfig) -> Path:
         )
         synchronize_cuda(cfg.device)
         episode_seconds = time.perf_counter() - episode_start
-        with _rng_rewound(pre_rng_state):
-            _, joints_null, _, _, _ = sampled_motion(
-                cfg,
-                dataset,
-                sampler,
-                episode,
-                source,
-                smplx_cache,
-                call_counter,
-                need_scene=False,
-            )
+        joints_null = None
+        if rds_available:
+            with _rng_rewound(pre_rng_state):
+                _, joints_null, _, _, _ = sampled_motion(
+                    cfg,
+                    dataset,
+                    sampler,
+                    episode,
+                    source,
+                    smplx_cache,
+                    call_counter,
+                    need_scene=False,
+                )
         scene_conditioned_finite = bool(
             torch.isfinite(vertices.frames).all() and torch.isfinite(joints.frames).all()
         )
-        null_scene_finite = bool(torch.isfinite(joints_null.frames).all())
+        null_scene_finite = (
+            True if joints_null is None else bool(torch.isfinite(joints_null.frames).all())
+        )
         if not scene_conditioned_finite or not null_scene_finite:
             raise RuntimeError(
                 "non-finite sampled motion for scene %s episode %d: "
@@ -910,7 +991,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
         metric = compute_metric_record(
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
         )
-        metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null))
+        metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null)
+                      if rds_available else {"rds": None, "rds_max": None})
         excluded_as_warmup = ordinal <= int(cfg.timing_warmup_sequences)
         metric.update(
             {
@@ -919,7 +1001,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 "source_sequence_index": sequence_index,
                 "is_object": False,
                 "non_watertight": scene_name in NON_WATERTIGHT_SCENES,
-                "rds_available": True,
+                "rds_available": rds_available,
                 "excluded_as_warmup": excluded_as_warmup,
                 "sampling_seconds": float(sum(window_seconds)),
                 "per_window_wall_seconds": float(np.mean(window_seconds)),
@@ -971,6 +1053,20 @@ def evaluate_model(cfg: DictConfig) -> Path:
             fps=float(cfg.fps),
         )
     )
+    rds_block: Dict[str, Any] = {
+        "joint_set": "smplx_joints_28",
+        "null_scene_mode": "need_scene=False",
+        "noise_shared": "rng_state_rewound",
+        "guided": guided,
+        "available": rds_available,
+    }
+    if not rds_available:
+        rds_block["rds"] = None
+        rds_block["rds_max"] = None
+        rds_block["skipped_reason"] = (
+            "guidance pulls joints toward free voxels regardless of need_scene, so a "
+            "guided null-scene rollout is confounded; RDS is scoped to unguided cells"
+        )
     payload = {
         "schema_version": 1,
         "model_name": model_name,
@@ -978,13 +1074,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
         "output_dir": str(output_dir),
         "seed": int(cfg.seed),
         "sample_type": str(cfg.sample_type),
-        "guided": bool(cfg.use_guidance),
-        "rds": {
-            "joint_set": "smplx_joints_28",
-            "null_scene_mode": "need_scene=False",
-            "noise_shared": "rng_state_rewound",
-            "guided": bool(cfg.use_guidance),
-        },
+        "guided": guided,
+        "rds": rds_block,
         "sampling_body": "smplx_vertices_10475",
         "fps": float(cfg.fps),
         "sequence_count": len(records),
