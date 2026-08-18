@@ -183,14 +183,14 @@ def compute_metrics(sampler_body, cfg, points_orig, global_rot_6d, points_gt_ori
         transl = transl_all[seg_id_true] # 3
         betas = betas_all[seg_id_true] # 16
         gender = gender_all[seg_id_true] # 'male'
-        root_trans = yup_to_zup(joints.reshape(-1, 28, 3)[:, 0, :] + transl)
-        pose_pred = yup_to_zup(transforms.matrix_to_axis_angle(local_jrot_mat_48).reshape(-1, 22, 3))
-        
+        # Everything below this line is y-up.  The released code wrapped this call in yup_to_zup/zup_to_yup because OMOMO's rotation channel held global rotations of a zup_to_yup-rotated template and transl held -zup_to_yup(J0) instead of -J0; datasets/infbagel.py now fixes both at the source (see its "One y-up world, one y-up template" block and datasets/utils.py, "Asset world frame"), so that sandwich is the error rather than the correction and has to be deleted in the same change -- measured on real OMOMO with the real SMPL-X model, keeping it against the fixed source moves the vertices 1.87 m, which does not crash but silently collapses hand_pen/human_pen toward zero because the SDF query leaves the object's box.  The two yup_to_zup uses further down, the CHOIS npz export and the collision inputs, are unrelated genuine frame conversions and stay.
+        root_trans = joints.reshape(-1, 28, 3)[:, 0, :] + transl  # y-up pelvis + y-up SMPL-X translation offset
+        pose_pred = transforms.matrix_to_axis_angle(local_jrot_mat_48).reshape(-1, 22, 3)  # already y-up locals
+
         if gender not in smplx_model_cache:
             smplx_model_cache[gender] = create_smplx_model(gender, device, batch_size=1)
         verts, joints = run_smplx_model(pose_pred, root_trans, betas[None].repeat(root_trans.shape[0], 1), gender, joints_ind=None, smpl_model=smplx_model_cache[gender])
-        verts, joints = zup_to_yup(verts), zup_to_yup(joints)
-        
+
         points_all_48 = torch.cat((points_all_48, human_jnts_48.reshape(-1, cfg.max_window_size*cfg.interp_s-6, 3*(cfg.dataset.nb_joints-4))), dim=0)
 
         obj_trans = obj_trans.reshape(-1, (cfg.max_window_size-2)*cfg.interp_s, 3)

@@ -6,7 +6,10 @@ from torch.utils.data import Dataset
 import pickle as pkl
 import trimesh
 import random
-from datasets.utils import get_occupancy_from_npy, zup_to_yup, get_smpl_parents
+from datasets.utils import (get_occupancy_from_npy, zup_to_yup, yup_to_zup,
+                            get_smpl_parents, resolve_asset_world_up,
+                            rest_offsets_to_yup, world_up_correction,
+                            apply_world_correction_to_axis_angle)
 
 from bps_torch.bps import bps_torch
 import pytorch3d.transforms as transforms
@@ -21,6 +24,7 @@ class InfBaGelDataset(Dataset):
                  vis=True,
                  start_type='stand',
                  test_scene_name=None,
+                 asset_world_up='auto',
                  **kwargs):
 
         self.folder = folder
@@ -38,11 +42,19 @@ class InfBaGelDataset(Dataset):
         self.max_window_size = max_window_size
 
         self.rest_object_geo_folder = os.path.join(folder, 'rest_object_geo')
+        # Loaded verbatim.  The world-frame normalization happens once, below,
+        # after rest_human_offsets_aligned is available -- it is the array that
+        # decides the frame, and normalizing the rotations without it is how the
+        # two frames got mixed in the first place.
         self.global_orient = np.load(os.path.join(folder, 'human_orient.npy'))
-        self.global_orient = zup_to_yup(self.global_orient)
 
+        # human_pose holds parent-relative local rotations.  They are properties
+        # of the SMPL template, not of the world frame, so no world change of
+        # basis applies to them and none is performed.  Verified: forward
+        # kinematics from the untouched locals plus the corrected root plus the
+        # y-up rest template reproduces human_joints_aligned.npy to 4e-7 m on
+        # LINGO and 8e-7 m on OMOMO, against 0.56 m for every other combination.
         self.human_pose = np.load(os.path.join(folder, 'human_pose.npy'))
-        self.human_pose = zup_to_yup(self.human_pose.reshape(-1, 3)).reshape(self.human_pose.shape)
 
         self.transl = np.load(os.path.join(folder, 'transl_aligned.npy'))
         
@@ -109,6 +121,80 @@ class InfBaGelDataset(Dataset):
             self.object_name = None
         
         self.rest_human_offsets = np.load(os.path.join(folder, 'rest_human_offsets_aligned.npy'))
+
+        # ------------------------------------------------------------------
+        # One y-up world, one y-up template.
+        #
+        # joints / scene occupancy / pelvis and scene goals are y-up in every
+        # corpus, but human_orient is y-up only in LINGO (data/dataset) and z-up
+        # in OMOMO (data/train, data/test), and rest_human_offsets_aligned.npy
+        # ships with zup_to_yup already applied to the y-up SMPL template.  The
+        # released code reconciled that with zup_to_yup(human_orient) +
+        # zup_to_yup(human_pose), which is a *conjugation*: it happens to cancel
+        # against the conjugated template on OMOMO and does not cancel on LINGO,
+        # leaving the LINGO rotation channel 90 deg about +x away from its own
+        # joint channel and every FK against rest_human_offsets wrong by 0.56 m.
+        #
+        # resolve_asset_world_up decides the frame functionally -- FK from the
+        # candidate correction must reproduce human_joints_aligned.npy -- and
+        # raises rather than guessing.  The two hypotheses are ~1e-7 m against
+        # ~1.2 m apart, so there is no grey zone.
+        self.asset_world_up, self.asset_frame_probe_errors = resolve_asset_world_up(
+            self.global_orient, self.human_pose, self.joints, self.rest_human_offsets,
+            self.ori_sequence_start_idx, self.parents_22, requested=asset_world_up,
+        )
+        self.rest_human_offsets = rest_offsets_to_yup(self.rest_human_offsets)
+        if self.asset_world_up != 'y':
+            self.global_orient = apply_world_correction_to_axis_angle(
+                self.global_orient, world_up_correction(self.asset_world_up),
+            )
+            # transl_aligned carries the same baked-in conjugation the template
+            # does: the SMPL-X translation it encodes is -zup_to_yup(J0) rather
+            # than -J0, where J0 is the pelvis of the rest SMPL-X body for this
+            # subject's betas.  Restore the y-up value so `pelvis + offset` is
+            # what SMPL-X's own y-up template expects and the caller needs no
+            # yup_to_zup/zup_to_yup sandwich around the forward pass.
+            #
+            # The array ships in two different layouts and __getitem__ below
+            # consumes both (:562 subtracts the pelvis, :564 does not), so the
+            # restoration has to be layout-aware.  Measured 2026-08-18 against
+            # the real SMPL-X rest pelvis, with offset := the quantity
+            # __getitem__ hands to the caller:
+            #   data/train    (804460, 3) per frame     offset = transl - pelvis
+            #   data/test     (482, 3)    per sequence  offset = transl
+            #   data/dataset  (2915752, 3) per frame    offset = transl - pelvis
+            # On both OMOMO corpora offset reproduces -zup_to_yup(J0) (7.8e-05 m
+            # on data/test) and never -J0 (0.39 m away); on LINGO it reproduces
+            # -J0 to 5e-08 m, which is why this whole block is inside the z-up
+            # branch and LINGO's translations are left untouched.  Per-frame the
+            # offset is constant within a sequence to 1e-08 m, so both layouts
+            # encode the same per-sequence constant.
+            #
+            # yup_to_zup is linear, so restoring the OFFSET is the single
+            # operation in both cases: per frame that is
+            # pelvis - yup_to_zup(pelvis - transl), and per sequence, where the
+            # stored value already IS the offset, it is yup_to_zup(transl).
+            # Broadcasting the per-frame form onto a per-sequence array is not a
+            # harmless fallback -- it raises on data/test (482 against 83559) and,
+            # forced, displaces the pelvis by 1.2769 m -- so an unrecognised
+            # layout raises instead.
+            transl = np.asarray(self.transl, dtype=np.float64)
+            transl_dtype = np.asarray(self.transl).dtype
+            if transl.shape == (len(self.joints), 3):
+                pelvis = np.asarray(self.joints[:, 0], dtype=np.float64)
+                transl = pelvis - yup_to_zup(pelvis - transl)
+            elif transl.shape == (len(self.ori_sequence_start_idx), 3):
+                transl = yup_to_zup(transl)
+            else:
+                raise ValueError(
+                    "transl_aligned.npy has shape %s, which is neither per frame "
+                    "(%d, 3) nor per sequence (%d, 3); the y-up restoration cannot "
+                    "tell which offset convention it holds and refuses to broadcast."
+                    % (transl.shape, len(self.joints), len(self.ori_sequence_start_idx)))
+            # Keep the released dtype: OMOMO ships float32 here, and letting the
+            # restoration widen it to float64 would silently promote root_trans in
+            # every downstream SMPL-X call.
+            self.transl = transl.astype(transl_dtype)
 
         if self.load_language:
             if self.max_window_size == 16:
@@ -437,6 +523,24 @@ class InfBaGelDataset(Dataset):
 
         global_orient = self.global_orient[start_idx: end_idx]
         init_global_orient = global_orient[0]
+        # Window heading canonicalization.  scipy's lowercase 'zxy' is
+        # EXTRINSIC, so R_root = Ry(c) @ Rx(b) @ Rz(a) for angles [a, b, c] and
+        # index 2 is the outermost rotation -- the one about world +y.  Removing
+        # it is therefore a heading removal in the strict sense: the shift axis
+        # is exactly +-y, and the root's uprightness (R[1,1], the angle between
+        # the body up axis and world up) is algebraically invariant under it.
+        #
+        # This arithmetic is the released code's, unchanged.  What changed is its
+        # input: before the world-frame normalization above, global_orient was
+        # conjugated, its vertical was +-z, and index 2 read a rotation about a
+        # horizontal axis -- so the shift removed 3.6 deg (p50) of a heading that
+        # is uniform on the circle, i.e. it canonicalized nothing.
+        #
+        # pytorch3d's matrix_to_euler_angles(R, 'ZXY') is INTRINSIC and its index
+        # 2 is the innermost y rotation, which is a body-frame rotation and not a
+        # heading.  priors/core/window_codec.py uses 'YXZ'[..., 0] instead, which
+        # is the same quantity as the line below; see that file and gate E in
+        # tests/hsi/test_representation_frame.py.
         init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
         shift_euler = np.array([0, 0, -init_global_orient_euler[2]])
         shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix()
