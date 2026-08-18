@@ -20,8 +20,8 @@
 |---|---|
 | 子阶段 | `1B-P12` |
 | 训练 run id（拟） | `p1-hoi-p12-frame-repair-baseline-s42-20260819` |
-| 臂配置 | `code/config/config_train_hoi_prior.yaml` + `recipe: d2ai`（**不新建臂配置**） |
-| 配置组合 | `defaults: [config_train_hoi_prior, recipe: d2ai, _self_]` |
+| 臂配置 | `code/config/config_train_hoi_prior_p12.yaml`——**只含配方组合与 run id，无任何被操纵因子** |
+| 配置组合 | `defaults: [config_train_hoi_prior, recipe: d2ai, _self_]`；`hand_object_contact_weight` 保持 0.0 默认（即 D2-AI 的目标函数，非 W3/P10/P11 的） |
 | 评测 run id（拟） | 由 `tools/hoi_chain.py` 派生，主 cell 与对照 cell 各一 |
 | 主机 | worker `node01` / `infbagel-4gpu`（10.181.9.214），4× RTX 3090 |
 | 载体 | `tools/hoi_chain.py` 链式 train → evaluate → bootstrap，只回传结果 |
@@ -156,8 +156,9 @@ FK 对 `human_joints_aligned.npy` 的误差修复前 **2.80e-07 m** / 修复后 
 
 ### 文件范围（锁定）
 
-上表 8 个文件，加 `tests/hoi/` 下一个新增表示帧回归测试，加本节与一行 registry。
-**不新建臂配置文件，不改 `recipe/d2ai.yaml`，不改任何既有测试或 validator，
+上表 8 个文件，加 `tests/hoi/` 下一个新增表示帧回归测试，加 `config_train_hoi_prior_p12.yaml`
+（`tools/hoi_chain.py:70` 要求可上报的臂自己声明 run id，故该 fragment 必需；它不含任何被操纵因子），
+加本节与一行 registry。**不改 `recipe/d2ai.yaml`，不改任何既有测试或 validator，
 不改 `experiments/training_resource_protocol.json`。**
 
 ### 已知局限（预先声明，不等结果出来再解释）

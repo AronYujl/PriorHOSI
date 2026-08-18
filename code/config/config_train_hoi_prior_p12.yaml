@@ -1,0 +1,21 @@
+# P12: the sealed D2-AI recipe, unchanged, on the corrected representation frame.
+#
+# There is deliberately NO manipulated factor here.  P12's single change lives in
+# the source -- the representation-frame repair of 2026-08-19 (six files, see
+# docs/plan/PHASE_1B_HOI/07_REPRESENTATION_FRAME.md) -- and this fragment exists
+# only because tools/hoi_chain.py:70 requires a reportable arm to name its own
+# run id.  Every training hyperparameter, every loss weight and the whole budget
+# come from recipe/d2ai.yaml, which is frozen and untouched; in particular
+# fk_weight stays 0.3569973401779424, justified by a measured sensitivity ratio
+# of 1.021 rather than by re-derivation, and hand_object_contact_weight stays at
+# its 0.0 default so this is D2-AI's objective and not W3/P10/P11's.
+
+defaults:
+  - config_train_hoi_prior
+  - recipe: d2ai
+  - _self_
+
+run_id: "p1-hoi-p12-frame-repair-baseline-s42-20260819"
+exp_name: "p1-hoi-p12-frame-repair-baseline-s42-20260819"
+subphase: "1B-P12"
+seed: 42
