@@ -156,17 +156,23 @@ class InfBaGelMixDataset(Dataset):
             self.unified_obj_min_torch = self.omomo_dataset.obj_min_torch
             self.unified_obj_max_torch = self.omomo_dataset.obj_max_torch
         else:
-            # When using only the LINGO dataset
-            # self.unified_min = self.lingo_dataset.min
-            # self.unified_max = self.lingo_dataset.max
-            # self.unified_min_torch = self.lingo_dataset.min_torch
-            # self.unified_max_torch = self.lingo_dataset.max_torch
-            norm = np.load(os.path.join(lingo_folder, 'norm_inter_and_loco__16frames.npy'))
-
-            self.unified_min = norm[0].astype(np.float32)
-            self.unified_max = norm[1].astype(np.float32)
-            self.unified_min_torch = torch.tensor(self.unified_min).to(self.lingo_dataset.device)
-            self.unified_max_torch = torch.tensor(self.unified_max).to(self.lingo_dataset.device)
+            # When using only the LINGO dataset.  InfBaGelDataset.__getitem__ has
+            # already normalized `joints` with <lingo_folder>/norm.npy
+            # (infbagel.py:301-306), so the unified constants must be those same
+            # rows or the mix normalizes and denormalizes in two different boxes.
+            # The released code loaded LINGO's own norm_inter_and_loco__16frames.npy
+            # here -- a (2,3) box whose per-axis range is only
+            # [0.39924, 1.04313, 0.39456] of norm.npy's -- so every
+            # denormalize_torch site disagreed with the data by up to 1.03 m per
+            # joint.  That file is LINGO's genuine and much tighter box; it is
+            # deliberately not used, because the single position box shared with
+            # HOIPrior and the mixer (priors/core/contracts.py:44, which names
+            # norm.npy and forbids recomputing it) outranks the better fit.
+            # Retuning the box is a later design decision, not part of this fix.
+            self.unified_min = self.lingo_dataset.min
+            self.unified_max = self.lingo_dataset.max
+            self.unified_min_torch = self.lingo_dataset.min_torch
+            self.unified_max_torch = self.lingo_dataset.max_torch
 
             # (LINGO dataset has no objects) keep the default values
             self.unified_obj_min = self.lingo_dataset.obj_min

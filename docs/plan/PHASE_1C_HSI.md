@@ -2395,3 +2395,146 @@ agent 论证 `test_infbagel_lingo_hsi.py` 的改动 hunk（66-80、96-104、1396
 - 未验证 LINGO 镜像半区（序号 ≥9725）行为一致；探针与抽样取自非镜像半区。
 - 闸门 C 残余的 2.14 mm **全部**来自 `SMPLX_JOINTS_28` 的槽位 25/27（仓库数组里各 28.018 mm），
   关节 0–21 精确。属既有问题，与本轮无关。
+
+## 2026-08-18（同日第九次修订）：归一化盒分裂已修复，`mask_fk` 补齐；两项代价登记为设计先验
+
+用户已批准本轮的两处改动并指定了方案。改动已落地于 `code/datasets/infbagel_mix.py`
+与 `code/models/infbagel.py`，新增 `tests/hsi/test_normalization_box.py`（8 个测试）。
+**未 commit、未 tag、未分配 run id、未启动任何训练或评测负载。** 证据在
+`.claude/scratch/normbox/TABLES.md`（前置调查）与 `.claude/scratch/normfix_accept.json`（本轮验收）。
+
+### A. 缺陷：同一个量，归一化用一个盒，反归一化用另一个盒
+
+`lingo_only` 下的两处证据：
+
+1. `code/datasets/infbagel.py:301-306`：`InfBaGelDataset.__getitem__` 用
+   `<lingo_folder>/norm.npy`（OMOMO 常量，sha1 `8dac1c678d2a`）归一化 `joints`。
+2. `code/datasets/infbagel_mix.py:164-169`（改前）：mix 的 `unified_min/max` 从
+   `<lingo_folder>/norm_inter_and_loco__16frames.npy` 载入——一个 (2,3) 的盒，逐轴 range 只有
+   `norm.npy` 的 **[0.39924, 1.04313, 0.39456]**。
+
+于是 `mix.denormalize_torch(sub.normalize(v)) = S v + c`，
+`S = [0.39924, 1.04313, 0.39456]`，`c = [-0.03386, -0.07942, -0.12771] m`（水平常数偏移 0.1321 m），
+而不是 `v`。归一化器与反归一化器对同一个量不一致，**没有任何读法能把它读成有意设计**，所以它是缺陷。
+
+### B. 四个候选盒（全部 1,343,667 条 v3-train 窗口实测）
+
+| 候选 | box min | box max | 占 [-1,1] 比例 (x,y,z) | 越界值 | 越界窗口 | 逐轴方差失衡 | 水平 SNR≥1 末步（共 500） |
+|---|---|---|---|---:|---:|---:|---:|
+| **(a) `norm.npy` 行 0-1 = OMOMO（原归一化器）** | [-3.24436, -0.04858, -2.43991] | [3.41397, 2.15093, 4.53536] | 0.436 / 0.939 / 0.422 | 2,922,403 | 168,247 (12.52%) | 54.2× | 10 / 11（竖直 89） |
+| (b) `norm_inter_and_loco__16frames.npy`（原反归一化器，LINGO 自己的盒） | [-1.32912, -0.13010, -1.09040] | [1.32912, 2.16427, 1.66177] | 1.092 / 0.900 / 1.069 | 399 | 128 (0.0095%) | 7.9× | 29 / 32（竖直 85） |
+| (c) `data/test/..._new.npy` (4,3)，逐元素并集 | [-3.24436, -0.13010, -2.43991] | [3.41397, 2.16427, 4.53536] | 0.436 / 0.900 / 0.422 | 240 | 60 (0.0045%) | 49.9× | 10 / 11（竖直 85） |
+| (d) v3-train 现测 min/max | [-1.45022, -0.13343, -1.22812] | [1.45249, 1.93215, 1.71323] | 1.000 / 1.000 / 1.000 | 0 | 0 | 11.7× | 26 / 29（竖直 94） |
+
+(c) **逐位**等于 `infbagel_mix.py:143-146` 那段被注释掉的 `np.minimum`/`np.maximum` 的输出，即作者为
+OMOMO+LINGO 混训准备、后来放弃的并集归一化器。(b) 的载入出自 `262f2d9`，代码与历史里都没有理由说明。
+
+### C. 为什么选 (a)：这是 bug 修复，不是创新
+
+调查列出的四条理由都成立（`priors/core/contracts.py:44` 指名 `norm.npy` 并写着 "never recompute"；
+`priors/hsi/data.py:151` 与 `core/window_codec.py` 两个方向都已在用它；Phase 2/3 mixer 需要两位专家
+共用一个位置盒；(2,3) 形状隐患消失）。**但决定性的理由是另一条**：本分支的协议是「复现 InfBaGel、
+只修作者的 bug，把创新留给后续 HSIPrior 迭代」。**盒的选择是设计决策**，而作者的设计就是「OMOMO 的盒
+跨语料共用」。换盒是创新，而且会污染复现口径。因此 (a) 是唯一让本轮仍然是 bug 修复的选项。
+
+旁证：`tests/core/test_expert_contract.py:84` 早已断言 `data/dataset/norm.npy` 与
+`data/train/norm.npy` 逐位相同、且契约文本含 "never recompute"。修改后代码才真正服从这条契约。
+
+### D. 登记为创新阶段的设计先验（(a) 的两项代价，不在本轮消化）
+
+1. **12.52% 的 v3-train 窗口带有竖直分量低于 −1 的值（最差 −1.077）**，因为 OMOMO 的地板
+   （−0.0486 m）高于 LINGO 的（−0.1334 m）。**任何地方都不裁剪**——已核实无 `clip_denoised`，
+   `models/infbagel.py` 里唯一的 `clamp` 是 `posterior_variance.clamp(min=1e-20)`。仿射映射可逆，
+   越界值被精确表示，所以这不是数据损失，而是网络输出范围的先验偏置。
+2. **水平两轴只占用 [−1,1] 的 ±0.436 (x) 与 ±0.422 (z)**，于是 `loss_jpos` 对 1 m 水平误差的定价
+   只有 1 m 高度误差的 **1/3.03 与 1/3.17**；逐轴方差失衡 **54×**；水平方向的 diffusion SNR 在
+   500 步中于 **t=10/11** 就跌破 1，而竖直方向在 **t=89**。在一个以位移为主的 locomotion 语料上，
+   这是把主信号定价过低。**这是后续「有意为之」的换盒（选项 (d)，重新在 v3-train 上取盒）的最强候选**，
+   必须先写下来，好让那次改动是一个决定而不是一次重新发现。
+
+### E. 验收（四项全部复现，`.claude/scratch/normfix_accept.json`）
+
+| 检查 | 改前（原样） | 改后 |
+|---|---:|---:|
+| 200 条真实窗口，world 误差 max | **1.026292 m** | **4.768e-07 m** |
+| 同上，local 误差 max | 1.164959 m | 4.768e-07 m |
+| mix 与 sub 反归一化之差 max | 1.164959 m | **0.0（逐位相同）** |
+| `loss_fk` @ 完美预测（256 窗口真实 batch，未加掩码口径） | **0.024817798** | **6.2424e-14** |
+| 同上，生产口径（已加掩码，real `p_losses`） | 0.02487195 | **6.3293e-14** |
+| 五项基础 loss @ 完美预测 | 全 0.0 | 全 0.0 |
+| evaluator 解码 `S` / `c` | [0.39924, 1.04313, 0.39456] / [-0.03386, -0.07942, -0.12771] | **[1,1,1] / [0,0,0]（精确）** |
+| `_compute_occ` 主网格查询中心偏移（frame 0） | **0.13212 m**（p50=p90=max，常数） | **max 2.384e-07 m** |
+| `occ_temp` frame 15 系统性偏移（同一 256 batch） | max 0.7319 m，>0.6 m 占 3.91% | **0** |
+
+`loss_fk` 从 0.0248178 掉到 6.2e-14、而五项基础 loss 在两种口径下都恰好为 0，说明
+**旋转帧缺陷（`3ded4eb`）与本缺陷两者合起来解释了整个 `loss_fk` 地板，没有剩余项**。
+
+`occ_temp` 在改后仍有 0.079–0.137 m 的残差，那是 `_compute_occ` 对 `x_denorm` 故意施加的
+±0.1 m 增广（`models/infbagel.py:211-212`），不是缺陷；系统性成分（改前减改后）才是缺陷，
+它归零。全语料口径下该系统性偏移的 p100 是 0.9774 m、>0.6 m 占 4.363%（`TABLES.md` §5）；
+256 窗口 batch 只到 0.7319 m / 3.91%，与之一致。
+
+`ground-truth-v3` 不动：`GroundTruthSource`（`test_infbagel_lingo_hsi.py:161-216`）直接读
+`DATASET_ROOT` 的原始 `.npy`，类体内不出现 `normalize`/`denormalize`，也不引用 `dataset`/`sampler`。
+
+### F. `mask_fk`：`p_losses` 补上历史帧掩码（与归一化修复分属两个改动）
+
+`code/models/infbagel.py:846-848`（改前）建出 `mask_fk` 后从不使用，而 `consistency_loss`
+的 `:404-405` 用了。这是作者代码内部的不一致，所以在修复范围内。它要紧的理由是**可比性**：
+C 从 B 蒸馏，掩码不加时 B 的 `loss_fk` 在同一几何上恰好是 C 的 **0.875 倍**
+（= (16−2)/16；实测比值 0.8749999472，历史帧精确时），于是两阶段的 `loss_w_fk` 互相之间无法解读。
+
+实质上被掩掉的帧就是 `auto_regre_num` 个历史帧：采样时 `set_fixed_points` 每一步都会覆写它们的
+输出，而 `mask_inv` 早已把它们从全部五项基础 loss 里排除——所以未加掩码的那一项是唯一在监督
+一个没人读的输出。
+
+**重训预注册必须记录 `loss_w_fk` 的重新推导，并把它归因到这两处改动中的哪一处**：两者都会重定标
+`loss_fk`（归一化改动改的是几何，掩码改动改的是分母），混在一起就无法归因。本轮两处改动分处
+两个文件，diff 天然可分离。
+
+### G. 波及面比预期大：18 个人体位置归一化点，且是双向的
+
+一处改动修好了所有读 `unified_*` 的点：
+
+- `code/models/infbagel.py`：AST 计数 18 个 `(de)normalize_torch` 调用点，其中 7 个是
+  `is_object=True`（用 `unified_obj_*`，两侧本来就一致，从未错），**11 个是人体位置点**
+  （`:136`、`:210`、`:378`、`:384`、`:486`、`:579`、`:689`、`:824`、`:828`、`:958`、`:1031`），
+  含 `loss_fk` 的 FK（`:824`/`:828`）与 `_compute_occ` 的场景查询（`:136`/`:210`）。
+- `code/test_infbagel_lingo_hsi.py`：`:1426`（解码）、`:1477`、`:1514`（编码回通道）。
+- `code/test_infbagel_hosi.py`：`:145`、`:530`（解码）、`:604`、`:647`（编码回通道）。
+
+**注意 `:604`/`:647` 是正方向**：自回归续写把世界米制的历史用 mix 的盒 `normalize_torch` 回通道，
+再交给 `set_fixed_points`。所以缺陷不只压缩了输出的读数，还把注入模型的历史条件整体缩放了，
+整条自回归链都在错的尺度上。本文档第八次修订 F 节列出的模型侧行，因此在「表示已作废」之上
+**还叠加了一层约 0.4× 的水平压缩**。`:1427`/`:151`/`:531`/`:607`/`:650` 走 `unified_obj_*`；
+`lingo_only` 下 LINGO 不带物体、216: 通道恒为 0，那几处本就是空操作。
+三个文件合计 **18 个人体位置点 + 14 个物体点**，一处改动全部修好。
+
+`_compute_occ` 的 goal 查询（`:158`）本身不经反归一化，但对既非 `need_pelvis_dir` 又非
+`is_object` 的样本会回落到 `mat_for_query` 的中心，那部分同样被修好（实测 p50 0，max 0.1321 m）。
+
+### H. 测试、性能与遗留
+
+1. **`tests/hsi/test_normalization_box.py`（新增，8 个测试）**。缺陷能活下来是因为
+   mix 的 `unified_*` 反归一化器**零测试覆盖**：既有的
+   `test_representation_frame.py:228`、`:248`、`:267` 只走 sub-dataset 自洽的那条路，两个对象之间的分歧
+   它看不见。新测试用真实 `InfBaGelMixDataset.__init__`（`lingo_only`，8.6 s / 11.7 GB 峰值）
+   断言盒的数组本身、跨对象双向往返、以及两阶段 FK 语句的 AST 同构。
+   **证伪已做**：把两个源文件回退到原样后，8 个中 **6 个失败**（另 2 个是「物体行不变」与
+   「0.875 代数」，按设计本就与改动无关）；再逐位恢复，patch 与备份 `diff` 一致。
+2. **完整 authority suite**：`pytest tests -q --tb=short --no-header`（需
+   `INFBAGEL_PYTHON`，`OMP_NUM_THREADS=4`）→ **289 passed / 3 skipped**，即基线 281/3 加本轮 8 个。
+   `tests/core/test_contract_freeze.py` **4 passed**，未触碰 `core/`，未重新 pin 哈希。
+3. **性能**：归一化改动只改四个常量的取值（且改为别名 `lingo_dataset.min/max`，与
+   `not lingo_only` 分支既有写法一致），不改形状、算子或通信，无需基准。`mask_fk` 改动确实
+   改变 per-step 计算——布尔索引替代密集 MSE。micro-batch 256、fwd+bwd 实测
+   **235 µs → 1183 µs（+947 µs）**，峰值分配 **+2.4 MiB**；对照本文档 §1 实测的
+   micro-batch 256 单步 **0.773 s**，为 **+0.12%**，回退档 128 时 +0.21%。可忽略。
+   另注：`consistency_loss` 一直在付这份开销，run C 的 10 h 25 m 已包含它。
+4. **未修、已记录**：`tools/audit_prior_data.py` 本轮未动。更正第八次修订 G.4 的一处措辞：
+   该工具用的是 `root/"norm.npy"`（`:55-56`），**盒一直是对的**，所以它报的 `|normalized| > 1`
+   比例本来就是在测上面 D.1 那项代价；它失效的原因只是 `:68` 的 `zup_to_yup(orient)` 走的是
+   旧的旋转帧（第八次修订 C 节），与本轮的盒无关。
+5. **未跟踪文件**：`tests/hsi/test_normalization_box.py` 与第八次修订的
+   `tests/hsi/test_representation_frame.py` 一样，在用户 `git add` 之前会让
+   `tools/experiment.py` 判定工作树脏并拒绝可上报的 run。
