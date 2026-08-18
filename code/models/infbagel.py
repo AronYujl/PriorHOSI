@@ -845,8 +845,16 @@ class Sampler:
 
             mask_fk = torch.ones(mask_inv.shape[0], self.dataset.max_window_size, 4, 3, dtype=torch.bool).to(mask_inv.device)
             mask_fk[:, :self.auto_regre_num, :, :] = False
-            fk_hand_loss = F.mse_loss(pred_global_hand_jpos, gt_global_hand_jpos)
-            fk_foot_loss = F.mse_loss(pred_global_foot_jpos, gt_global_foot_jpos)
+            # The released code built mask_fk here and then never applied it, while
+            # consistency_loss (:404-405) does.  The masked frames are the
+            # auto_regre_num history frames, which set_fixed_points overwrites at
+            # every sampling step and which mask_inv already excludes from all five
+            # base losses, so the unmasked term supervised an output nobody reads --
+            # and made loss_fk exactly (T - auto_regre_num) / T = 0.875x the
+            # consistency stage's on identical geometry, so the two stages'
+            # loss_w_fk values were not comparable.
+            fk_hand_loss = F.mse_loss(pred_global_hand_jpos[mask_fk], gt_global_hand_jpos[mask_fk])
+            fk_foot_loss = F.mse_loss(pred_global_foot_jpos[mask_fk], gt_global_foot_jpos[mask_fk])
             loss_fk = fk_hand_loss + fk_foot_loss
             
             model_mean = predicted_noise # x_start
