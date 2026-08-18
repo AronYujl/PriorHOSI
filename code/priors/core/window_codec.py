@@ -138,10 +138,19 @@ class WindowStateCodec:
         origin = pelvis.clone()
         origin[..., 1] = 0.0
         root = project_to_so3(global_human_rotation[..., 0, 0, :, :])
-        yaw = transforms.matrix_to_euler_angles(root, "ZXY")[..., 2]
+        # Heading = the rotation about world +y, i.e. the OUTERMOST y factor of
+        # R = Ry(yaw) @ Rx(b) @ Rz(a).  pytorch3d's conventions are intrinsic, so
+        # that factor is matrix_to_euler_angles(R, "YXZ")[..., 0]; the earlier
+        # "ZXY"[..., 2] read the INNERMOST y angle, which is a body-frame
+        # rotation and not a heading, and disagreed with the legacy dataset
+        # (scipy's extrinsic as_euler('zxy')[2], which *is* the outermost y) by
+        # 8.06 deg mean / 163.4 deg max on real LINGO windows.  Both paths now
+        # compute the same quantity; tests/hsi/test_representation_frame.py
+        # asserts the composed 6-D channels agree to float32 precision.
+        yaw = transforms.matrix_to_euler_angles(root, "YXZ")[..., 0]
         zeros = torch.zeros_like(yaw)
-        shift_euler = torch.stack((zeros, zeros, -yaw), dim=-1)
-        world_to_local = transforms.euler_angles_to_matrix(shift_euler, "ZXY")
+        shift_euler = torch.stack((-yaw, zeros, zeros), dim=-1)
+        world_to_local = transforms.euler_angles_to_matrix(shift_euler, "YXZ")
         if global_object_rotation is None:
             reference = torch.eye(3, device=global_joints.device, dtype=global_joints.dtype)
             reference = reference.expand(*origin.shape[:-1], 3, 3).clone()

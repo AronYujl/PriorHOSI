@@ -34,10 +34,11 @@ Frames, floor and units
 * The floor is **exactly** ``y = 0`` (plan section C: "地面 y = 0（LINGO 世界系中
   精确，无需估计）").  Nothing in this module estimates a floor height, and
   ``code/eval_metrics.py:determine_floor_height_and_contacts`` (DBSCAN over
-  static foot heights) is deliberately not used.  The single exception is
-  :func:`fs_nemf`, whose pinned NeMF definition pre-translates the sequence so
-  that the *minimum foot height* is 0; that is part of the metric's definition,
-  not a floor estimate, and it is an explicit keyword argument.
+  static foot heights) is deliberately not used.  There is no longer any
+  exception: :func:`fs_nemf` used to pre-translate each sequence so that its
+  *minimum foot height* was 0, and the 2026-08-18 revision removed that -- see
+  that function's docstring for the four deviations it repaired and why the
+  pre-translation was the only one that reordered sequences.
 * Frame rate is **never** a module-level constant on a hot path.  Every metric
   whose value depends on it takes ``fps`` as a required keyword argument, because
   the GMD/TeSMo 2.5 cm-per-frame skating threshold is *not* frame-rate invariant
@@ -92,6 +93,20 @@ DEFAULT_HISTORY_FRAMES = 2
 
 #: TeSMo's penetration threshold: SDF < -3 cm (plan C, 穿透 item 1).
 PENETRATION_THRESHOLD_M = -0.03
+
+#: The surface itself.  The 2026-08-17 revision of plan section C adds three
+#: published penetration columns that are all defined at **SDF < 0**, not at
+#: TeSMo's -3 cm: LINGO's ``Pene%_scene``, TeSMo's ``Pen. Value`` and the
+#: floor-excluded DIMOS summed form.  It is a separate constant rather than a
+#: literal so that "which threshold produced this number" stays greppable.
+SURFACE_THRESHOLD_M = 0.0
+
+#: Floor-contact exclusion band for the summed DIMOS form: 2 cm above the exact
+#: LINGO floor ``y = 0``.  Measured on the sealed GT motion, 92.07% of the walk
+#: subset's penetration mass and 68.33% of the full split's sits below this
+#: height, i.e. the unexcluded summed form is mostly a measurement of the soles
+#: of the feet resting on the ground plane rather than of scene penetration.
+FLOOR_EXCLUSION_HEIGHT_M = 0.02
 
 #: Engagement band: samples within +5 cm of the surface (plan C, engagement item 1).
 CONTACT_BAND_M = 0.05
@@ -322,8 +337,10 @@ def penetration_metrics(
     geometry: SceneGeometry,
     *,
     threshold_m: float = PENETRATION_THRESHOLD_M,
+    floor_exclusion_height_m: float = FLOOR_EXCLUSION_HEIGHT_M,
 ) -> Dict[str, float]:
-    """Human-scene penetration for one sequence.  Plan section C, 穿透 items 1-3.
+    """Human-scene penetration for one sequence.  Plan section C, 穿透 items 1-3,
+    extended by the 2026-08-17 revision with the three published columns below.
 
     ``points``
         ``[T, S, 3]`` metres.  ``S`` is the sampling body: SMPL-X's 10475
@@ -332,22 +349,74 @@ def penetration_metrics(
         used must be registered beside the number.  This function does not know
         or care which it was given.
 
-    Returned, all for this one sequence:
+    Returned, all for this one sequence.  Two thresholds are in play and every
+    key below says which one it uses: ``threshold_m`` (TeSMo's -3 cm) for the
+    ``pen_*`` family, and the surface itself (``SURFACE_THRESHOLD_M`` = 0) for
+    the three ``pene_*`` / ``pen_value`` columns that exist to be comparable with
+    published numbers.
 
     ``pen_ratio``
         Fraction of **sample x frame** pairs with ``sdf < threshold_m``.  TeSMo's
-        threshold; TeSMo's own ratio is over *frames*, and the plan deliberately
-        restates it over sample-frames, so ``pen_frame_ratio`` below carries the
-        literal TeSMo form as a separate, separately-named number.
+        threshold; TeSMo's own ratio is over *frames*, which this deliberately
+        restates over sample-frames.  The literal frame-basis form
+        (``pen_frame_ratio``, fraction of frames containing at least one
+        penetrating sample) was reported until 2026-08-17 and has been removed:
+        it measured GT 0.9960 over the full split and 0.9911 over the walk
+        subset, i.e. it is saturated and carries no signal, and TeSMo's own
+        ``Pen. Ratio`` publishes 0.0611 / 0.1076, so it was not even usable as
+        the comparability column it was kept for.  ``pene_pct_scene`` below is
+        the comparable fraction that is *not* saturated.
     ``pen_depth_mean`` / ``pen_depth_max``
-        Mean and max of ``|sdf|`` over the penetrating samples only, metres.
+        Mean and max of ``|sdf|`` over the penetrating samples only, metres, at
+        ``threshold_m``.  Both fall back to ``0.0`` when nothing penetrates;
+        that zero-fill is a sealed semantic and is deliberately left alone.
+        ``pen_value`` is the non-zero-filled surface-threshold counterpart.
     ``pen_burst``
         ``100 * mean_t[(per-frame penetrating fraction)^2]`` -- Dyn-HSI Eq. 9.
         The square is deliberately superlinear so one catastrophic frame is not
         diluted by a long clean sequence, which is the bursty failure shape of an
         autoregressive rollout.
-    ``pen_frame_ratio``
-        Fraction of frames containing at least one penetrating sample.
+    ``pene_pct_scene``
+        LINGO's ``Pene%_scene``: mean over frames of ``(count of samples with
+        sdf < 0) / S``.  **A fraction in [0, 1], not a percentage** -- the key
+        keeps LINGO's column name so the comparison is greppable, and this
+        sentence exists because the name says otherwise.  Since every frame
+        carries the same ``S``, the per-frame mean and the global sample-frame
+        fraction are the same number, and this is computed as the latter.
+        Direction: lower is better.  GT reference (SMPL-X vertices, threshold 0):
+        0.05044 over all 375, 0.03358 over the 130 walk episodes.
+    ``pen_value``
+        TeSMo's ``Pen. Value``: mean of ``|sdf|`` over the sample-frame pairs
+        with ``sdf < 0``, metres, lower is better.  ``nan`` -- **not** ``0.0`` --
+        when that set is empty, so "no penetration" cannot be read as "perfectly
+        shallow penetration"; ``code/test_infbagel_lingo_hsi.py`` drops
+        non-finite values from its aggregates, which is the correct behaviour.
+        At threshold 0 the empty case is vanishingly rare: it occurred in 0 of
+        the 375 sealed GT sequences.  GT reference: 0.03416 / 0.02480 (all /
+        walk).
+    ``pene_samples``
+        Count of sample-frame pairs with ``sdf < SURFACE_THRESHOLD_M``, i.e.
+        **the denominator ``pen_value`` was averaged over** and the numerator
+        ``pene_pct_scene`` divided by ``pen_sample_frames``.  Reported for the
+        same reason as ``pen_samples`` / ``pen_sample_frames`` /
+        ``skate_frames``: a ratio or a conditional mean whose support is not
+        also reported cannot be pooled, bootstrapped or sanity-checked after the
+        fact, and it is what distinguishes ``pen_value = nan`` on an empty set
+        from a real measurement.  A count, not a fraction.
+    ``pene_sum_mean_floorexcl`` / ``pene_sum_max_floorexcl``
+        DIMOS's summed form, floor-excluded.  Per frame,
+        ``sum_v |min(sdf_v, 0)|`` over only those samples whose height satisfies
+        ``y >= floor + floor_exclusion_height_m`` with the floor at the exact
+        LINGO ``y = 0``; then the **mean** over frames and the **max** over
+        frames.  Unit: **metres summed over samples** -- an *extensive* quantity,
+        not a depth.  It scales with the sampling body's resolution and with
+        sequence-independent mesh detail, so it is comparable only against
+        another number computed on the same sampling body, and
+        ``pene_sum_max_floorexcl`` is the worst *frame total*, never the deepest
+        sample (``pen_depth_max`` is that).  Direction: lower is better.  GT
+        reference: 5.973 / 19.376 over all 375, 0.449 / 5.919 over walk; the
+        walk mean is 1.12x LINGO's published 0.402.  Non-finite SDF samples are
+        excluded from the sum rather than propagating ``nan`` through the frame.
     ``oob_ratio``
         Fraction of sample-frames outside the geometry's world bbox.  Plan
         section A pins the rule as "不裁剪、记为正距离" and requires this to be
@@ -357,18 +426,17 @@ def penetration_metrics(
         Fraction of sample-frames whose SDF is not finite (a diverged rollout).
         These never count as penetrating, so they must be visible.
 
-    Deliberately **not** implemented: DIMOS's ``penetration_mean``/``max``
-    (``evaluation/cal_metric_interaction.py``), which is
-    ``negative_values.abs().sum(axis=-1)`` -- a **sum over vertices** of depth,
-    i.e. a penetration-volume proxy, then mean/max over frames.  Three reasons it
-    is excluded rather than added: (1) it scales with mesh resolution and body
-    model, so it is not comparable to any published number computed on a
-    different sampling body -- and we score SMPL-X vertices against a mesh SDF,
-    not DIMOS's object SDF; (2) its ``Pene_max`` is the max over frames of the
-    *summed* depth, not the deepest vertex, so every reader misreads it; (3) it
-    is the single largest contributor to the four-incompatible-quantities problem
-    in plan section B.  ``pen_depth_mean`` / ``pen_depth_max`` answer the question
-    readers think DIMOS's columns answer.
+    On the floor exclusion, which is the whole reason the summed form is now
+    reportable at all: without it the quantity is dominated by feet standing on
+    the ground.  Measured on the sealed GT motion, excluding the band drops the
+    walk mean from 9.161 to 0.449 (x0.049) and the full-split mean from 20.452
+    to 5.973 (x0.292).  The unexcluded form is therefore **not** implemented --
+    it is the single largest contributor to the four-incompatible-quantities
+    problem in plan section B, and at GT it measures the floor.  The accepted
+    cost is that geometry lying entirely below the band -- a low step, an object
+    resting on the floor -- becomes invisible to these two columns; ``pen_ratio``
+    and ``pene_pct_scene`` still see it, which is why the exclusion is applied to
+    the summed form only.
     """
     frames, _ = _frames_and_seams(points, expect_ndim=3, what="points")
     if int(frames.shape[-1]) != 3:
@@ -392,15 +460,35 @@ def penetration_metrics(
     total = float(n_frames * n_samples)
     per_frame_fraction = penetrating.to(torch.float64).mean(dim=1)
 
+    # Surface threshold (0), the basis of the three published columns.  Derived
+    # from the same SDF tensor, so they cost no extra geometry query.
+    inside = finite & (sdf < float(SURFACE_THRESHOLD_M))
+    inside_depths = sdf[inside].abs()
+    inside_depth_field = torch.where(inside, sdf.abs(), torch.zeros_like(sdf))
+    # float64 before the comparison: the heights arrive as float32 and the band
+    # boundary is a Python float, so comparing in float32 would silently round
+    # the boundary to 0.019999999552965164 and move the set.  The floor is
+    # exactly y = 0 (module docstring: stated by the LINGO world frame, never
+    # estimated), so ``floor + band`` is the band height itself.
+    height = frames[..., 1].to(torch.float64)
+    above_floor_band = height >= float(floor_exclusion_height_m)
+    floorexcl_frame_sum = torch.where(
+        above_floor_band, inside_depth_field, torch.zeros_like(inside_depth_field)
+    ).sum(dim=1)
+
     depths = sdf[penetrating].abs()
     out = {
         "pen_ratio": _float(penetrating.to(torch.float64).mean()),
         "pen_depth_mean": _float(depths.mean()) if depths.numel() else 0.0,
         "pen_depth_max": _float(depths.max()) if depths.numel() else 0.0,
         "pen_burst": 100.0 * _float((per_frame_fraction ** 2).mean()),
-        "pen_frame_ratio": _float(penetrating.any(dim=1).to(torch.float64).mean()),
+        "pene_pct_scene": _float(inside.to(torch.float64).mean()),
+        "pen_value": _float(inside_depths.mean()) if inside_depths.numel() else _nan(),
+        "pene_sum_mean_floorexcl": _float(floorexcl_frame_sum.mean()),
+        "pene_sum_max_floorexcl": _float(floorexcl_frame_sum.max()),
         "nonfinite_ratio": float((~finite).sum().item()) / total,
         "pen_samples": float(int(penetrating.sum().item())),
+        "pene_samples": float(int(inside.sum().item())),
         "pen_sample_frames": total,
     }
     oob = _out_of_bounds(geometry, frames)
@@ -533,43 +621,83 @@ def fs_nemf(
     toe_joints: Sequence[int] = TOE_JOINTS,
     ankle_height_m: float = NEMF_ANKLE_HEIGHT_M,
     toe_height_m: float = NEMF_TOE_HEIGHT_M,
-    translate_to_min_foot_height: bool = True,
+    clamp_height_in_weight: bool = True,
 ) -> Dict[str, float]:
-    """NeMF foot skate, the FS variant LINGO cites.  Plan section C, 足部 item 1.
+    """NeMF foot skate, the FS variant LINGO cites.  Plan section C, 足部 item 1,
+    **redefined by the 2026-08-18 revision** -- read that section before comparing
+    any value here against one produced before it.
 
-    ``s = v * (2 - 2^(h/H))``, accumulated over the ankle and toe joints while
-    their height ``h`` is below ``H``; ``H`` = 4 cm for toes and 8 cm for ankles
+    ``s = v * (2 - 2^(h/H))`` per foot joint per transition, accumulated while the
+    joint's height ``h`` is below ``H``; ``H`` = 4 cm for toes and 8 cm for ankles
     (NeMF takes these from HuMoR).  The weight is 1 at ``h = 0`` and ramps to 0 at
-    ``h = H``, so there is no hard contact decision.
+    ``h = H``, so there is no hard contact decision.  Reduced as the **mean over
+    the four foot joints**, divided by the **``T - 1``** transitions, times 100.
+    Unit: **cm per frame**.  Heights are absolute against the exact LINGO
+    ``y = 0`` floor; nothing is pre-translated.
 
-    Three implementation details that the NeMF paper body omits and that plan
-    section C pins, each of which changes the number:
+    What the 2026-08-18 revision changed, and by how much on GT (all 375 / walk
+    130, measured -- ``.claude/scratch/fs_nemf_audit/``, and the numbers are
+    reproduced in the plan section so they survive the scratch directory):
 
-    * ``v`` is the **L1** horizontal displacement ``|dx| + |dz|``, not the L2 norm.
-      This is where this function differs from
-      ``code/eval_metrics.py:compute_foot_sliding_for_smpl``, which uses L2.
-    * the four joints are **summed**, not averaged -- again unlike
-      ``compute_foot_sliding_for_smpl``, which divides by 4.  That legacy function
-      is retained by plan section C 足部 item 3 purely so the HSI table can carry a
-      column comparable with the HOI table; it is a *different quantity* and this
-      module does not reimplement or replace it.
-    * the sequence is first translated so the **minimum foot height is 0**.
-      Without it a sequence floating above the floor scores 0 by construction.
+    * ``v`` is the **L2** horizontal magnitude ``sqrt(dx^2 + dz^2)``.  It was L1
+      ``|dx| + |dz|``, which inflated the value 1.263x on the GT anisotropy.  The
+      textual reading decides this: NeMF projects the displacement onto the
+      horizontal plane and takes "the magnitude v", and the magnitude of a
+      2-vector is its L2 norm.  Repo lineage agrees --
+      ``code/eval_metrics.py:compute_foot_sliding_for_smpl`` uses L2.
+    * the four joints are **averaged**.  They were summed: exactly 4.000x.
+    * the denominator is ``T - 1``, the number of transitions actually summed
+      over, not ``T``: 0.994x.
+    * the sequence is **not** pre-translated.  It used to be shifted so the
+      minimum foot height over the whole sequence was 0, which deflated the value
+      2.458x on GT because LINGO GT feet sink below the floor in 358 of 375
+      sequences.  This is the only one of the four that is not a scalar factor --
+      it reorders sequences (Spearman 0.522 all / 0.212 walk against the faithful
+      form, per-sequence ratio span 0.14x-7.17x), which is why **no sealed
+      ``fs_nemf`` number can be converted; it can only be recomputed from motion.**
 
-    Note the resulting tension, which is real and is left visible rather than
-    silently resolved: the pre-translation makes ``fs_nemf`` measure drift
-    relative to the lowest foot the sequence ever reaches, whereas
-    :func:`skate_ratio` uses the exact ``y = 0`` LINGO floor.  A sequence hovering
-    30 cm up is invisible to the first and fully visible to the second.  That is
-    why plan section C reports both and calls them non-monotone in each other.
-    Pass ``translate_to_min_foot_height=False`` to score against the true floor;
-    the default is the pinned NeMF definition.
+    ``clamp_height_in_weight`` (default on, and it is the definition, not a knob
+    to leave off) replaces the pre-translation's only defensible service.  Raw
+    NeMF evaluates the weight at the raw ``h``, so as ``h -> -inf`` the weight
+    tends to 2: a *deeper penetrating* toe scores as *more* foot skate at
+    identical horizontal displacement, i.e. the foot column would partly measure
+    penetration, which already has its own four columns.  Clamping the height
+    used in the weight to ``h_eff = max(h, 0)`` bounds the weight by 1 and removes
+    that coupling.  It can only reduce, never inflate, and it is provably an
+    identity on data with no sub-floor feet -- measured on the 17 GT sequences
+    whose minimum foot-joint height is >= 0, clamped minus unclamped is exactly
+    ``0.000e+00``.  On GT it costs 0.2777 -> 0.2597 (all) and 0.4195 -> 0.4082
+    (walk).  Pass ``clamp_height_in_weight=False`` for the literal published
+    weight; nothing in the pipeline does.
 
-    Unit: **cm per frame**.  NeMF's own GT calibration is 0.512 cm/frame, which is
-    the reference any value here should be read against.
+    **Band membership deliberately uses the raw ``h``**, not ``h_eff``: a frame
+    whose foot is below the floor is still a contact frame and must still be
+    counted.  (For ``H > 0`` the two are equivalent, since ``max(h, 0) < H`` iff
+    ``h < H``; the raw form is written out anyway so that a future edit which
+    makes them differ has to argue with this sentence.)
+
+    One thing removing the pre-translation gives up, stated rather than hidden: a
+    rollout that hovers 30 cm above the floor now scores 0 here, because no foot
+    is ever in the band.  :func:`skate_ratio` has the same blind spot by
+    construction (absolute 5 cm contact height), so foot columns alone cannot
+    catch a floating rollout -- ``contact_count`` from :func:`engagement_metrics`
+    and ``goal_height_err_m`` are what do.  Plan section C requires them in the
+    same table for exactly this reason.
+
+    Unit: **cm per frame**.  NeMF's own GT calibration is 0.512 cm/frame.  Read
+    that as an order-of-magnitude check only: it was measured on a different
+    corpus, and under the clamp it is the *rejected* L1 reading that lands on it
+    (0.5141 on GT walk, 0.4% off) while the chosen L2 reading gives 0.4082.  A
+    0.4% agreement across two different mocap corpora is more plausibly luck than
+    signal, and a single published aggregate cannot settle L1 vs L2 -- the textual
+    and lineage arguments above are what settle it.
 
     Returns ``fs_nemf`` plus its ``fs_nemf_ankle`` / ``fs_nemf_toe`` parts, all
-    cm/frame, for this one sequence.
+    cm/frame.  The parts **sum** to the total: each is that group's share of the
+    four-joint mean, i.e. both are divided by 4 (not by their own group size of
+    2), so ``fs_nemf_ankle`` is *half* the ankle pair's own mean, not the ankle
+    pair's NeMF value.  Additivity is kept because these exist to attribute the
+    total, and a decomposition that does not add up cannot do that.
     """
     positions, _ = _positions(joints, what="joints")
     n_frames = int(positions.shape[0])
@@ -581,28 +709,30 @@ def fs_nemf(
     every_foot = ankle_joints + toe_joints
     _check_joints(every_foot, int(positions.shape[1]), "foot joints")
 
-    if translate_to_min_foot_height:
-        offset = positions[:, every_foot, 1].min()
-        positions = positions.clone()
-        positions[:, :, 1] = positions[:, :, 1] - offset
+    two = torch.tensor(2.0, dtype=positions.dtype, device=positions.device)
 
     def group(indices: Tuple[int, ...], height_m: float) -> torch.Tensor:
         pos = positions[:, indices, :]                              # [T, G, 3]
         step = pos[1:] - pos[:-1]                                   # [T-1, G, 3]
-        # L1 horizontal displacement, per plan section C.
-        displacement = step[..., 0].abs() + step[..., 2].abs()      # [T-1, G]
+        # L2 horizontal magnitude.  Spelled as an explicit sqrt of the sum of
+        # squares rather than torch.linalg.vector_norm so that the expression the
+        # 2026-08-18 calibration audit ran is the expression that ships.
+        displacement = torch.sqrt(step[..., 0] ** 2 + step[..., 2] ** 2)   # [T-1, G]
         height = pos[:-1, :, 1]                                     # height at the earlier frame
-        weight = 2.0 - torch.pow(torch.tensor(2.0, dtype=positions.dtype), height / height_m)
-        contributing = height < height_m
+        h_eff = height.clamp(min=0.0) if clamp_height_in_weight else height
+        weight = 2.0 - torch.pow(two, h_eff / height_m)
+        contributing = height < height_m                            # raw h, on purpose
         return (displacement * weight)[contributing].sum()
 
-    ankle = group(ankle_joints, float(ankle_height_m))
-    toe = group(toe_joints, float(toe_height_m))
-    scale = 100.0 / float(n_frames)  # metres -> cm, then per frame
+    ankle = _float(group(ankle_joints, float(ankle_height_m)))
+    toe = _float(group(toe_joints, float(toe_height_m)))
+    # metres -> cm, then per transition, then per foot joint.  Written in this
+    # order (multiply by 100 first, divide once) to match the audit arithmetic.
+    denominator = float(n_frames - 1) * float(len(every_foot))
     return {
-        "fs_nemf": _float((ankle + toe)) * scale,
-        "fs_nemf_ankle": _float(ankle) * scale,
-        "fs_nemf_toe": _float(toe) * scale,
+        "fs_nemf": (ankle + toe) * 100.0 / denominator,
+        "fs_nemf_ankle": ankle * 100.0 / denominator,
+        "fs_nemf_toe": toe * 100.0 / denominator,
     }
 
 
@@ -624,8 +754,12 @@ def skate_ratio(
     argument for exactly that reason -- as a hidden constant this metric silently
     changes meaning whenever the rollout rate changes.
 
-    Floor is the exact LINGO ``y = 0``; heights are absolute and nothing is
-    pre-translated here (contrast :func:`fs_nemf`).
+    Floor is the exact LINGO ``y = 0``; heights are absolute.  Since the
+    2026-08-18 revision dropped :func:`fs_nemf`'s pre-translation, both foot
+    metrics now measure against the same floor, and the "non-monotone in each
+    other" warning plan section C used to carry about the pair no longer applies
+    to the floor; they still differ in weighting (soft ramp vs hard gate), in
+    threshold (8/4 cm vs 5 cm) and in what they count (displacement vs frames).
 
     Horizontal (xz) L2 speed, evaluated over the ``T-1`` displacement frames, with
     the height taken at the earlier frame of each pair, and a frame counted when

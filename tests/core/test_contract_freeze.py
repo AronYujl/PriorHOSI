@@ -36,6 +36,22 @@ FREEZE_MESSAGE = textwrap.dedent(
 
 # sha256 of every tracked file under code/priors/core/ as of the three-layer
 # split of code/priors (Phase 1B, 2026-08-11).
+#
+# window_codec.py was re-pinned on 2026-08-18 for the approved representation-frame
+# correction.  The change is one quantity: WindowStateCodec.frame_from_global took
+# the window heading from pytorch3d's INTRINSIC matrix_to_euler_angles(root,
+# "ZXY")[..., 2], which is the innermost y rotation -- a body-frame rotation, not a
+# heading -- while datasets/infbagel.py took scipy's EXTRINSIC as_euler('zxy')[2],
+# which is the outermost y rotation about world up.  The two disagreed by 8.06 deg
+# mean and 163.4 deg max on real LINGO windows, latently, because the HSI configs
+# train through InfBaGelDataset rather than PriorWindowDataset.  The codec now uses
+# "YXZ"[..., 0], provably the same angle as scipy's extrinsic 'zxy'[2] to 1.1e-16.
+# tests/hsi/test_representation_frame.py asserts the two paths compose the same
+# 232-dim window state, which is the test whose absence let the split survive.
+#
+# This invalidates the sealed comparison points on both expert branches and needs
+# the matching change on phase/01b-hoi before any graft: core/ must be
+# byte-identical on both branches (AGENTS.md, "Final integration is a graft").
 EXPECTED_SHA256 = {
     "__init__.py": "6d14fb16affe4d360cf6d281fa1f8432a68e2e4f307988b38d32608e4c653958",
     "contracts.py": "17fb5dec1c99896cb3d8cae1aa5b8091a9823d9bdaf7c3fbddad9bffbc61f77f",
@@ -43,7 +59,7 @@ EXPECTED_SHA256 = {
     "diffusion_schedule.py": "b4d9cf74174d63de30f75acb3f687e87f824e75b147f3a2efcfd3d76befd5b09",
     "expert_api.py": "7f0f336502d22f50367f2e70b2272a3278b7b828040287921e34dff0806f640c",
     "representation.py": "a510b4ddfb4f6b60e3917219a87898a717d91cbfb858d0993f3e054b5a1abf74",
-    "window_codec.py": "74ed335330425bbc0941d99f9f816c8b81d0eebbc59d2d680770f964a3312b53",
+    "window_codec.py": "d545359ba124bce0e115cada5355a48425880107d9893036c5ad7d8d9138a49f",
 }
 
 FORBIDDEN_PREFIXES = ("priors.hoi", "priors.hsi")

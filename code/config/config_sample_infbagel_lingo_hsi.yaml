@@ -47,6 +47,15 @@ use_guidance: false
 sample_type: consistency
 timing_warmup_sequences: 5
 
+# Opt-in motion export.  When false nothing is written beyond
+# evaluation/per_sequence_metrics.json and that payload carries no
+# motion_export key, so an export-capable build reproduces a pre-export payload
+# byte for byte.  When true, motion/<sequence_id>.npz is written next to it with
+# global_jpos at the rollout rate (fps = fps / interp_s) for the frozen
+# text-motion evaluator, plus the SMPL-X FK inputs so a later metric
+# redefinition is a CPU rebuild instead of another GPU run.
+export_motion: false
+
 lingo_hsi_mode: ground_truth
 lingo_sequence_limit: null
 
@@ -71,7 +80,16 @@ latency_target_windows: 70
 merge_shard_dir: null
 merge_expected_episodes: 375
 merge_expected_windows: 2271
-lingo_episode_dir: ${oc.env:ROOT_DIR}/data/lingo_hsi_test/data
+# 2026-08-18: default moved from `data/lingo_hsi_test/data` (v1) to v2. In v1
+# `pelvis_goal` was the last frame of the FIRST 16-frame window, held fixed for
+# the whole rollout, so start->goal was <= 0.778 m over all 375 episodes and the
+# 0.8 m lookahead in `sample_step` clamped on every window of every episode
+# (measured 0/2271 unclamped). v2 sets the goal to the rollout terminus; GT then
+# scores `last_dist` == 0. The four sealed model cells and every
+# `results/lingo_hsi/ground_truth*` row except `ground-truth-v2`/`-v3` predate
+# this and were run against v1 -- reproduce those with an explicit
+# `lingo_episode_dir=${oc.env:ROOT_DIR}/data/lingo_hsi_test/data` override.
+lingo_episode_dir: ${oc.env:ROOT_DIR}/data/lingo_hsi_test_v2/data
 lingo_mesh_root: /data/yujinlun/datasets/LINGO/Scene_mesh
 lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/${lingo_hsi_mode}-${sample_type}-${oc.select:use_guidance,false}
 ckpt_path: ${oc.env:ROOT_DIR}/checkpoint/checkpoint.pth

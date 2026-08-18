@@ -36,6 +36,81 @@ DATA_STEP = 3
 WINDOW_STRIDE_RAW = (WINDOW_FRAMES - HISTORY_FRAMES) * DATA_STEP
 NON_WATERTIGHT_SCENES = frozenset(("031", "049-bed"))
 
+#: Metric-payload schema version, written into every ``per_sequence_metrics.json``.
+#:
+#: 1  -- the 2026-08-12 metric set as first sealed.
+#: 2  -- the 2026-08-17 penetration key set (``pene_pct_scene``, ``pen_value``,
+#:       ``pene_samples``, ``pene_sum_{mean,max}_floorexcl`` added,
+#:       ``pen_frame_ratio`` removed) **plus** the 2026-08-18 faithful
+#:       ``fs_nemf`` definition (L2 horizontal magnitude, mean over the four foot
+#:       joints, ``T - 1`` denominator, no pre-translation, height clamped to
+#:       ``max(h, 0)`` inside the weight).
+#:
+#: The bump exists for the FS change specifically.  The penetration change is
+#: detectable from a payload's key set alone; the FS change alters the meaning of
+#: three keys that already existed and adds none, so without this field a
+#: schema-2 payload would be indistinguishable from a sealed schema-1 one while
+#: carrying ``fs_nemf`` values roughly 2-5x larger.  The factor is data-dependent
+#: (2.19x on GT, ~5.0x on a rollout whose feet never sink below y = 0), so a
+#: reader must never rescale across the boundary -- compare only equal
+#: ``schema_version``, and supersede an old number by recomputing from motion.
+#: 3  -- the 2026-08-18 generated-arm SMPL-X frame correction.  No key is added
+#:       or removed; the *value* of every FK-derived metric on the generated arm
+#:       moves, because before this bump the generated arm's FK translation was
+#:       mapped with ``yup_to_zup`` and its FK output mapped back with
+#:       ``zup_to_yup`` while the SMPL-X rest template stayed put.  That left the
+#:       whole body rotated 90 degrees about +x relative to its own pelvis and the
+#:       pelvis itself displaced by ``zup_to_yup(J_rest0) - J_rest0``
+#:       (``(0, +0.3795, +0.3542)`` m for the reference betas).  Every metric that
+#:       reads vertices or SMPL-X joints -- penetration, foot skate, jerk,
+#:       boundary jerk, goal decomposition, contact -- is therefore incomparable
+#:       across this boundary on the generated arm.  Ground-truth-arm payloads are
+#:       bit-identical to schema 2: that arm always used the identity path.
+#: 4  -- the 2026-08-18 representation-frame correction.  No key is added or
+#:       removed and the ground-truth arm is again bit-identical to schema 3,
+#:       because it never reads the representation.  Every *model* row, however,
+#:       is incomparable across this boundary for a stronger reason than a metric
+#:       redefinition: the training representation itself changed.
+#:       ``datasets/infbagel.py`` no longer conjugates ``human_orient``/
+#:       ``human_pose`` with ``zup_to_yup``, so the 132-dim rotation channel a
+#:       checkpoint was fitted to no longer exists.  A checkpoint trained before
+#:       this bump cannot be evaluated after it -- not "differently", but on an
+#:       input distribution rotated 90 deg about +x -- so schema-3 model numbers
+#:       are superseded only by a retrained model, never by a recomputation.
+METRICS_SCHEMA_VERSION = 4
+
+#: Motion-export schema version, written into every per-sequence ``.npz``.
+#:
+#: 1  -- the 2026-08-18 export: ``global_jpos`` at the rollout rate plus the
+#:       SMPL-X parameters at the FK-input rate.  On the **generated** arm this
+#:       schema records ``smplx_output_transform == "zup_to_yup"`` and a
+#:       ``transl`` that was mapped with ``yup_to_zup`` before FK.  To use a
+#:       schema-1 generated-arm file, leave ``global_orient``/``body_pose``
+#:       untouched -- they are already in the frame SMPL-X's template lives in --
+#:       replace ``transl`` with ``zup_to_yup(transl)``, and apply **no**
+#:       transform to the FK output despite what the file's own
+#:       ``smplx_output_transform`` field says.  That recipe reproduces the
+#:       exported ``global_jpos`` pelvis to 1.2e-07 m on all 375 files; obeying
+#:       the recorded field instead misses it by 0.3795 m.  Ground-truth-arm
+#:       schema-1 files are already correct and need no repair.
+#: 2  -- the 2026-08-18 frame correction: both arms now use the identity path, so
+#:       ``smplx_output_transform`` is always ``"identity"`` and ``transl`` is the
+#:       literal FK input again.  A schema-2 rebuild needs no repair step.
+#: 3  -- the 2026-08-18 representation-frame correction.  The field set and the
+#:       ``"identity"`` transform are unchanged; the bump exists because
+#:       ``smplx_pose`` on the generated arm is now the decoded rotation channel
+#:       verbatim instead of ``yup_to_zup`` of it.  Ground-truth-arm files are
+#:       bit-identical to schema 2.
+MOTION_EXPORT_SCHEMA_VERSION = 3
+
+#: The frozen text-motion evaluator drops sequences shorter than this and
+#: truncates the rest to a multiple of ``T2M_LENGTH_MULTIPLE``.  Both numbers are
+#: properties of that evaluator, not of this runner; they live here only so the
+#: export can *count* what the evaluator will discard instead of letting a silent
+#: truncation read as full coverage.
+T2M_MIN_FRAMES = 16
+T2M_LENGTH_MULTIPLE = 4
+
 # The legacy utility stores this as a cwd-relative constant.  This entry point is
 # valid from either the repository root or code/, so resolve it once here.
 project_utils.SMPL_DIR = str(REPO_ROOT / "smpl_models")
@@ -86,7 +161,7 @@ def _load_episodes(episode_dir: Path, limit: Optional[int] = None):
 class GroundTruthSource:
     """Memory-mapped LINGO arrays needed to reproduce the sampling body."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, keep_text: bool = False):
         self.root = Path(root)
         self.joints = np.load(self.root / "human_joints_aligned.npy", mmap_mode="r")
         self.orient = np.load(self.root / "human_orient.npy", mmap_mode="r")
@@ -106,6 +181,16 @@ class GroundTruthSource:
             language = pickle.load(handle)
         self.window_sequence = np.asarray(language["ori_sequence_idx"], dtype=np.int64)
         self.window_start = np.asarray(language["start_idx"], dtype=np.int64)
+        # datasets.infbagel reads self.text from this same pickle, so
+        # window_text[data_idx][0] is the identical object the sampling path
+        # reaches as cond["raw_text"].  Retained only on request: the list holds
+        # 2.28 M entries and the real arm has no other use for it.
+        self.window_text = language["text"] if keep_text else None
+
+    def caption(self, data_idx: int) -> str:
+        if self.window_text is None:
+            raise RuntimeError("GroundTruthSource was built without keep_text=True")
+        return str(self.window_text[int(data_idx)][0])
 
     def episode_indices(self, data_idx: int, episode_num: int) -> Tuple[int, np.ndarray]:
         sequence_index = int(self.window_sequence[data_idx])
@@ -193,6 +278,7 @@ def ground_truth_motion(
     interp_scale: int,
     smplx_batch_size: int,
     smplx_cache: MutableMapping[str, torch.nn.Module],
+    export_sink: Optional[MutableMapping[str, Any]] = None,
 ):
     sequence_index, indices = source.episode_indices(
         int(episode["data_idx"]), int(episode["episode_num"])
@@ -222,6 +308,23 @@ def ground_truth_motion(
         smplx_batch_size,
         smplx_cache,
     )
+    if export_sink is not None:
+        # Handles only; the caller materializes them.  See sampled_motion.
+        #
+        # The real arm's global_jpos is the dataset array itself, stitched on the
+        # same stride-3 indices, never ground_truth_motion's FK output.  indices
+        # already carries the stride, so no re-indexing happens here.
+        export_sink.update(
+            {
+                "joints_coarse": _stitch_indexed(source.joints, indices),
+                "smplx_pose": local_axis_angle,
+                "smplx_transl": translation_frames,
+                "betas": betas,
+                "gender": str(source.gender[sequence_index]),
+                "smplx_output_transform": "identity",
+                "interp_scale": int(interp_scale),
+            }
+        )
     return (
         _upsampled_stitched(translation, vertices, interp_scale),
         _upsampled_stitched(translation, joints, interp_scale),
@@ -744,11 +847,226 @@ def _merge_shards(cfg: DictConfig) -> Path:
     return _write_payload(output_dir, merged)
 
 
-def _write_payload(output_dir: Path, payload: Mapping) -> Path:
+def _motion_export_record(
+    *,
+    joints_coarse: hsi_metrics.StitchedSequence,
+    smplx_pose: torch.Tensor,
+    smplx_transl: torch.Tensor,
+    betas: torch.Tensor,
+    gender: str,
+    smplx_output_transform: str,
+    interp_scale: int,
+) -> Dict[str, np.ndarray]:
+    """Build one sequence's export arrays.
+
+    ``joints_coarse``
+        The stitched joint sequence **at the rollout rate**, un-interpolated and
+        un-FK'd: ``coarse_points`` for the generated arm and
+        ``_stitch_indexed(source.joints, indices)`` for the real arm.  Both are
+        the dataset's own 28-slot channel layout in LINGO y-up world metres.
+
+        This is deliberately *not* ``metric_joints``.  ``metric_joints`` is SMPL-X
+        FK indexed by ``SMPLX_JOINTS_28``, whose slots 25/27 are SMPL-X 28/43
+        (``middle1``) where the frozen evaluator's training bundle carries SMPL-X
+        34/49 (``ring1``) -- about 2.3 cm apart -- and it reaches the generated arm
+        through an IK->FK round trip that the real arm never takes.  Exporting FK
+        output would therefore make the two arms incomparable in two independent
+        ways at once.
+
+    ``smplx_pose`` / ``smplx_transl``
+        Exactly the tensors handed to :func:`run_smplx_model`, at the FK-input
+        rate ``interp_scale * len(joints_coarse)``.  Storing the FK *inputs* rather
+        than a resampled version of them is what makes a future metric
+        redefinition a CPU job: the rebuild reproduces the very vertices and
+        joints the sealed metrics were computed on, with no interpolation to
+        re-derive.
+
+    ``smplx_output_transform``
+        From motion-export schema 2 both arms are ``identity``: the parameters are
+        the literal FK inputs and the FK output is used as-is.  The field is kept
+        because schema-1 generated-arm files exist on disk carrying
+        ``"zup_to_yup"``, and a reader must not obey them -- see
+        :data:`MOTION_EXPORT_SCHEMA_VERSION` for the repair recipe.  ``zup_to_yup``
+        stays in the accepted set only so such a file can still be *described*; no
+        code path produces it any more.
+    """
+    if smplx_output_transform not in ("identity", "zup_to_yup"):
+        raise ValueError("unknown smplx_output_transform %r" % smplx_output_transform)
+    joints = joints_coarse.frames.detach().to(torch.float32).cpu().numpy()
+    joints = np.ascontiguousarray(joints.reshape(-1, 28, 3))
+    if not np.isfinite(joints).all():
+        raise ValueError("exported global_jpos is not finite")
+    coarse_length = int(joints.shape[0])
+    pose = smplx_pose.detach().to(torch.float32).cpu().numpy().reshape(-1, 22, 3)
+    transl = smplx_transl.detach().to(torch.float32).cpu().numpy().reshape(-1, 3)
+    if pose.shape[0] != transl.shape[0]:
+        raise ValueError(
+            "SMPL-X pose has %d frames but transl has %d" % (pose.shape[0], transl.shape[0])
+        )
+    if pose.shape[0] != coarse_length * int(interp_scale):
+        raise ValueError(
+            "SMPL-X parameters have %d frames, expected %d coarse frames x interp %d"
+            % (pose.shape[0], coarse_length, int(interp_scale))
+        )
+    if not np.isfinite(pose).all() or not np.isfinite(transl).all():
+        raise ValueError("exported SMPL-X parameters are not finite")
+    return {
+        "global_jpos": joints,
+        # run_smplx_model consumes pose_pred[:, :1] as global_orient and
+        # pose_pred[:, 1:] as body_pose; split here, re-concatenate to rebuild.
+        "global_orient": np.ascontiguousarray(pose[:, 0]),
+        "body_pose": np.ascontiguousarray(pose[:, 1:]),
+        "transl": np.ascontiguousarray(transl),
+        "betas": np.ascontiguousarray(
+            betas.detach().to(torch.float32).cpu().numpy().reshape(-1)
+        ),
+        "gender": np.asarray(str(gender)),
+        "smplx_output_transform": np.asarray(str(smplx_output_transform)),
+        "interp_scale": np.asarray(int(interp_scale), dtype=np.int32),
+        # The seam structure of the coarse sequence.  Any seam-sensitive metric
+        # (boundary_jerk) needs it, and _upsampled_stitched derives the fine-rate
+        # seams from it by multiplying through by interp_scale.
+        "window_lengths": np.asarray(joints_coarse.window_lengths, dtype=np.int32),
+        "seams": np.asarray(joints_coarse.seams, dtype=np.int32),
+        "history_frames": np.asarray(int(joints_coarse.history_frames), dtype=np.int32),
+    }
+
+
+def _motion_export_extra(
+    scene_name: str, episode: Mapping, sequence_index: int
+) -> Dict[str, np.ndarray]:
+    """Per-sequence provenance, built identically for both arms."""
+    return {
+        "scene_name": np.asarray(str(scene_name)),
+        "data_idx": np.asarray(int(episode["data_idx"]), dtype=np.int64),
+        "source_sequence_index": np.asarray(int(sequence_index), dtype=np.int64),
+        "episode_num": np.asarray(int(episode["episode_num"]), dtype=np.int32),
+        "pelvis_goal": np.asarray(episode["pelvis_goal"], dtype=np.float32),
+        "start_location": np.asarray(episode["start_location"], dtype=np.float32),
+    }
+
+
+def _motion_condition_id(episode: Mapping) -> str:
+    """The LINGO language-window index, which is what selects the caption."""
+    return "lingo:%08d" % int(episode["data_idx"])
+
+
+def _write_motion_npz(
+    motion_dir: Path,
+    *,
+    sequence_id: str,
+    condition_id: str,
+    caption: str,
+    fps: float,
+    record: Mapping[str, np.ndarray],
+    extra: Mapping[str, np.ndarray],
+) -> Tuple[str, int]:
+    """Write one non-pickle NPZ and return its file name and size in bytes."""
+    payload = dict(record)
+    payload.update(extra)
+    payload["schema_version"] = np.asarray(MOTION_EXPORT_SCHEMA_VERSION, dtype=np.int32)
+    payload["sequence_id"] = np.asarray(str(sequence_id))
+    payload["condition_id"] = np.asarray(str(condition_id))
+    payload["caption"] = np.asarray(str(caption))
+    payload["fps"] = np.asarray(float(fps), dtype=np.float32)
+    for key, value in payload.items():
+        if np.asarray(value).dtype == np.object_:
+            raise TypeError("export field %r is object dtype; NPZ must load without pickle" % key)
+    file_name = "%s.npz" % str(sequence_id).replace(":", "_")
+    path = motion_dir / file_name
+    # "xb" so a sanitized-name collision is a hard failure, never an overwrite.
+    with path.open("xb") as handle:
+        np.savez(handle, **payload)
+    return file_name, int(path.stat().st_size)
+
+
+def _motion_export_block(
+    lengths: Mapping[str, int], fps: float, arm: str
+) -> Dict[str, Any]:
+    """Describe the export and count what the frozen evaluator will discard.
+
+    The guard counts are reported, never silently applied: the export keeps every
+    frame.  A sequence below ``T2M_MIN_FRAMES`` is dropped whole by the evaluator,
+    and one whose length is not a multiple of ``T2M_LENGTH_MULTIPLE`` loses its
+    tail.  Naming both is what stops a silent truncation from reading as full
+    coverage.
+    """
+    below = sorted(key for key, length in lengths.items() if int(length) < T2M_MIN_FRAMES)
+    truncated = {
+        key: int(length) % T2M_LENGTH_MULTIPLE
+        for key, length in lengths.items()
+        if int(length) % T2M_LENGTH_MULTIPLE
+    }
+    return {
+        "schema_version": MOTION_EXPORT_SCHEMA_VERSION,
+        "arm": arm,
+        "layout": "one non-pickle NPZ per sequence under motion/<sequence_id>.npz",
+        "global_jpos": {
+            "shape": "[T, 28, 3]",
+            "units": "metres",
+            "frame": "LINGO y-up world",
+            "fps": float(fps),
+            "source": (
+                "coarse_points.frames (generated) / "
+                "_stitch_indexed(source.joints, indices).frames (real)"
+            ),
+            "note": (
+                "dataset channel order, no re-indexing and no SMPL-X FK; slots "
+                "24-27 are SMPL-X 25/34/40/49 (index1/ring1) as in the frozen "
+                "evaluator's training bundle, not SMPLX_JOINTS_28's middle1"
+            ),
+        },
+        "smplx": {
+            "fields": ["global_orient[F,3]", "body_pose[F,21,3]", "transl[F,3]", "betas[16]", "gender"],
+            "frame_count": "F = T * interp_scale",
+            "rebuild": (
+                "pose = concatenate([global_orient[:, None], body_pose], axis=1); "
+                "vertices, joints28 = run_smplx_model(pose, transl, betas, gender, "
+                "joints_ind=SMPLX_JOINTS_28).  Wrap with "
+                "StitchedSequence(frames, seams=seams*interp_scale, "
+                "window_lengths=window_lengths*interp_scale, "
+                "history_frames=history_frames*interp_scale) to recompute seam metrics."
+            ),
+            "note": (
+                "schema 2 onward both arms share one SMPL-X parameter frame -- the "
+                "frame human_joints_aligned.npy is stored in -- and "
+                "smplx_output_transform is always 'identity', so the rebuild above "
+                "needs no per-arm branch; a schema-1 generated-arm file instead "
+                "needs transl replaced by zup_to_yup(transl) and its recorded "
+                "'zup_to_yup' output transform ignored"
+            ),
+        },
+        "t2m_min_frames": T2M_MIN_FRAMES,
+        "t2m_length_multiple": T2M_LENGTH_MULTIPLE,
+        "sequences_exported": len(lengths),
+        "frames_exported": int(sum(int(length) for length in lengths.values())),
+        "below_min_frames_count": len(below),
+        "below_min_frames_sequences": below,
+        "losing_frames_to_truncation_count": len(truncated),
+        "frames_lost_to_truncation": int(sum(truncated.values())),
+        "losing_frames_to_truncation_sequences": dict(sorted(truncated.items())),
+    }
+
+
+def _write_payload(
+    output_dir: Path,
+    payload: Mapping,
+    motion_records: Optional[Sequence[Mapping[str, Any]]] = None,
+) -> Path:
     if output_dir.exists():
         raise FileExistsError("refusing to overwrite LINGO HSI output: %s" % output_dir)
     evaluation_dir = output_dir / "evaluation"
     evaluation_dir.mkdir(parents=True, exist_ok=False)
+    # The motion export is written here rather than streamed during the rollout
+    # because the "refuse to overwrite" guard above is the run's isolation
+    # contract: creating output_dir early to stream into it would make this
+    # function reject its own run.  The whole export is ~100 KB/sequence, so
+    # holding it costs about 38 MB for a 375-episode cell.
+    if motion_records is not None:
+        motion_dir = output_dir / "motion"
+        motion_dir.mkdir(parents=False, exist_ok=False)
+        for item in motion_records:
+            _write_motion_npz(motion_dir, **item)
     output_path = evaluation_dir / "per_sequence_metrics.json"
     with output_path.open("x", encoding="utf-8") as handle:
         json.dump(
@@ -764,14 +1082,18 @@ def _write_payload(output_dir: Path, payload: Mapping) -> Path:
 
 def evaluate_ground_truth(cfg: DictConfig) -> Path:
     device = torch.device(str(cfg.device))
+    export_motion = bool(cfg.get("export_motion", False))
     episodes = _load_episodes(
         Path(cfg.lingo_episode_dir),
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
     )
-    source = GroundTruthSource(DATASET_ROOT)
+    source = GroundTruthSource(DATASET_ROOT, keep_text=export_motion)
     smplx_cache: Dict[str, torch.nn.Module] = {}
     geometries: Dict[str, SceneGeometry] = {}
     records = OrderedDict()
+    motion_records: List[Dict[str, Any]] = []
+    export_lengths: "OrderedDict[str, int]" = OrderedDict()
+    export_fps = float(cfg.fps) / float(cfg.interp_s)
 
     for ordinal, (scene_name, scene_index, episode) in enumerate(episodes, start=1):
         if scene_name not in geometries:
@@ -781,6 +1103,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
                 mesh_root=Path(cfg.lingo_mesh_root),
                 cache_dir=default_cache_dir(),
             )
+        export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
         vertices, joints, sequence_index = ground_truth_motion(
             source,
             episode,
@@ -788,6 +1111,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
             int(cfg.interp_s),
             int(cfg.smplx_batch_size),
             smplx_cache,
+            export_sink=export_sink,
         )
         metric = compute_metric_record(
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
@@ -795,6 +1119,19 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
         sequence_name = "%s:%06d" % (scene_name, sequence_index)
         if sequence_name in records:
             raise ValueError("duplicate sequence key %s" % sequence_name)
+        if export_sink is not None:
+            export_record = _motion_export_record(**export_sink)
+            motion_records.append(
+                {
+                    "sequence_id": sequence_name,
+                    "condition_id": _motion_condition_id(episode),
+                    "caption": source.caption(int(episode["data_idx"])),
+                    "fps": export_fps,
+                    "record": export_record,
+                    "extra": _motion_export_extra(scene_name, episode, sequence_index),
+                }
+            )
+            export_lengths[sequence_name] = int(export_record["global_jpos"].shape[0])
         metric.update(
             {
                 "scene_name": scene_name,
@@ -827,7 +1164,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
             % aggregate_pen_ratio
         )
     payload = {
-        "schema_version": 1,
+        "schema_version": METRICS_SCHEMA_VERSION,
         "model_name": "ground_truth",
         "seed": int(cfg.seed),
         "sampling_body": "smplx_vertices_10475",
@@ -837,7 +1174,13 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
         "scene_summary": scene_summary,
         "metrics": records,
     }
-    return _write_payload(Path(cfg.lingo_output_dir), payload)
+    if export_motion:
+        payload["motion_export"] = _motion_export_block(export_lengths, export_fps, "real")
+    return _write_payload(
+        Path(cfg.lingo_output_dir),
+        payload,
+        motion_records=motion_records if export_motion else None,
+    )
 
 
 def _remap_checkpoint_keys(
@@ -1045,11 +1388,12 @@ def sampled_motion(
     smplx_cache: MutableMapping[str, torch.nn.Module],
     call_counter: _ForwardCallCounter,
     need_scene: bool = True,
+    export_sink: Optional[MutableMapping[str, Any]] = None,
 ):
     # Importing here keeps the GT-first path independent of model sampling while
     # reusing the established autoregressive helpers verbatim.
     from test_infbagel_hosi import get_mat, sample_step, synchronize_cuda
-    from utils import transform_points, yup_to_zup, zup_to_yup
+    from utils import transform_points
 
     device = torch.device(str(cfg.device))
     data_idx = int(episode["data_idx"])
@@ -1260,8 +1604,25 @@ def sampled_motion(
     translation_offset = torch.from_numpy(
         np.asarray(source.transl[source_start] - source.joints[source_start, 0]).copy()
     ).to(device, dtype=torch.float32)
-    smpl_translation = yup_to_zup(interpolated_points[:, 0] + translation_offset)
-    smpl_pose = yup_to_zup(local_axis)
+    # No transform, anywhere on this path -- pose, translation and FK output all
+    # live in the single y-up world the dataset now serves.  The rotation channel
+    # carries global rotations of the y-up SMPL template (datasets/infbagel.py
+    # applies a world change of basis to the root and nothing at all to the local
+    # ``human_pose``), so ``quat_ik_torch`` above already yields exactly the
+    # locals SMPL-X expects.  ``translation_offset`` is ``transl - pelvis``, which
+    # is ``-J0(betas)`` in that same frame, so ``pelvis + offset`` is SMPL-X's own
+    # ``transl`` and the returned pelvis lands back on ``interpolated_points[:, 0]``.
+    #
+    # The earlier revision of this block applied ``yup_to_zup`` to the pose to
+    # invert the ``zup_to_yup(human_orient)``/``zup_to_yup(human_pose)``
+    # conjugation the released dataset applied to LINGO.  That conjugation is gone
+    # (it was a template rotation masquerading as a world change of basis, and it
+    # left the LINGO rotation channel 90 deg about +x from its own joint channel),
+    # so inverting it here would now be the error.  Measured after the change:
+    # this chain reproduces ``human_joints_aligned.npy`` to 0.16 mm mean at
+    # ``interp_s=1``; with ``yup_to_zup`` still applied it misses by ~0.6 m.
+    smpl_translation = interpolated_points[:, 0] + translation_offset
+    smpl_pose = local_axis
     vertices, metric_joints = _run_smplx_chunks(
         smpl_pose,
         smpl_translation,
@@ -1271,7 +1632,31 @@ def sampled_motion(
         int(cfg.smplx_batch_size),
         smplx_cache,
     )
-    vertices, metric_joints = zup_to_yup(vertices), zup_to_yup(metric_joints)
+    if export_sink is not None:
+        # Handles only -- no device-to-host copies here.  episode_seconds is timed
+        # around this whole call, so materializing the export inside it would
+        # inflate the end-to-end latency the caller reports.  The caller converts
+        # after it has stopped its clock.
+        #
+        # coarse_points, not metric_joints: the network's own 28-slot joint channel
+        # at the rollout rate, matching the real arm's dataset array slot for slot.
+        # smpl_pose/smpl_translation are the literal FK inputs a few lines above,
+        # so a rebuild reproduces these exact vertices.
+        export_sink.update(
+            {
+                "joints_coarse": coarse_points,
+                "smplx_pose": smpl_pose,
+                "smplx_transl": smpl_translation,
+                "betas": betas,
+                "gender": gender,
+                "smplx_output_transform": "identity",
+                "interp_scale": int(cfg.interp_s),
+                # The caption this rollout was actually conditioned on.  The caller
+                # re-derives it independently and refuses a mismatch, so the
+                # exported caption cannot drift from cond["raw_text"].
+                "caption_from_cond": str(cond["raw_text"]),
+            }
+        )
     return (
         _upsampled_stitched(coarse_points, vertices, int(cfg.interp_s)),
         _upsampled_stitched(coarse_points, metric_joints, int(cfg.interp_s)),
@@ -1290,6 +1675,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
 
     seed_everything(int(cfg.seed))
     guided = bool(cfg.get("use_guidance", False))
+    export_motion = bool(cfg.get("export_motion", False))
     # RDS is scoped to unguided cells: guidance_loss.apply_hsi_guidance_loss pulls
     # joints toward free voxels regardless of need_scene, so the paired
     # "null-scene" rollout is still scene-driven and its divergence from the
@@ -1381,6 +1767,9 @@ def evaluate_model(cfg: DictConfig) -> Path:
     smplx_cache: Dict[str, torch.nn.Module] = {}
     geometries: Dict[str, SceneGeometry] = {}
     records = OrderedDict()
+    motion_records: List[Dict[str, Any]] = []
+    export_lengths: "OrderedDict[str, int]" = OrderedDict()
+    export_fps = float(cfg.fps) / float(cfg.interp_s)
     all_window_seconds: List[float] = []
     all_window_call_counts: List[int] = []
     timing_sequences: List[Mapping[str, float]] = []
@@ -1400,6 +1789,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         # not sharding-only: every cell from here must share one regime.
         seed_everything(int(cfg.seed) + int(canonical_ordinal))
         pre_rng_state = _capture_rng_state()
+        export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
         episode_start = time.perf_counter()
         vertices, joints, sequence_index, window_seconds, window_call_counts = (
             sampled_motion(
@@ -1411,6 +1801,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 smplx_cache,
                 call_counter,
                 need_scene=True,
+                export_sink=export_sink,
             )
         )
         synchronize_cuda(cfg.device)
@@ -1471,6 +1862,29 @@ def evaluate_model(cfg: DictConfig) -> Path:
         if sequence_name in records:
             raise ValueError("duplicate sequence key %s" % sequence_name)
         records[sequence_name] = metric
+        if export_sink is not None:
+            # Re-derive the caption from the dataset independently of the rollout
+            # and refuse a mismatch, so the exported string is demonstrably the
+            # one the model was conditioned on rather than an assumed match.
+            caption_from_cond = export_sink.pop("caption_from_cond")
+            caption = str(dataset.lingo_dataset.text[int(episode["data_idx"])][0])
+            if caption != caption_from_cond:
+                raise RuntimeError(
+                    "caption mismatch for %s: rollout used %r, re-derived %r"
+                    % (sequence_name, caption_from_cond, caption)
+                )
+            export_record = _motion_export_record(**export_sink)
+            motion_records.append(
+                {
+                    "sequence_id": sequence_name,
+                    "condition_id": _motion_condition_id(episode),
+                    "caption": caption,
+                    "fps": export_fps,
+                    "record": export_record,
+                    "extra": _motion_export_extra(scene_name, episode, sequence_index),
+                }
+            )
+            export_lengths[sequence_name] = int(export_record["global_jpos"].shape[0])
         all_window_seconds.extend(window_seconds)
         all_window_call_counts.extend(window_call_counts)
         timing_sequences.append(
@@ -1558,7 +1972,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
             "guided null-scene rollout is confounded; RDS is scoped to unguided cells"
         )
     payload = {
-        "schema_version": 1,
+        "schema_version": METRICS_SCHEMA_VERSION,
         "model_name": model_name,
         "checkpoint": checkpoint_provenance,
         "output_dir": str(output_dir),
@@ -1591,7 +2005,13 @@ def evaluate_model(cfg: DictConfig) -> Path:
         },
         "metrics": records,
     }
-    return _write_payload(output_dir, payload)
+    if export_motion:
+        payload["motion_export"] = _motion_export_block(
+            export_lengths, export_fps, "generated"
+        )
+    return _write_payload(
+        output_dir, payload, motion_records=motion_records if export_motion else None
+    )
 
 
 @hydra.main(

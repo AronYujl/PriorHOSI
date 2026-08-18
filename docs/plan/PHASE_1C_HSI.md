@@ -195,13 +195,40 @@ TeSMo 是「仅穿透顶点的平均 SDF」，Dyn-HSI 是「穿透顶点计数�
 采样体：**SMPL-X 顶点（10475）为主口径**，28 关节为快速诊断；两者不可互换，均已登记。
 帧率 30 fps；地面 y = 0（LINGO 世界系中精确，无需估计）。
 
-**穿透**（三个量同时报告，均需 **GT 参考行**——LINGO Tab.2 没有，我们加）
-1. `pen_ratio` = SDF < −3 cm 的「顶点×帧」比例（TeSMo 阈值）。
+**穿透**（全部同时报告，均需 **GT 参考行**——LINGO Tab.2 没有，我们加。方向全部为 ↓）
+1. `pen_ratio` = SDF < −3 cm 的「顶点×帧」比例（TeSMo 阈值）。无量纲分数。
 2. `pen_depth_mean` = 仅对穿透顶点取 |SDF| 均值，单位 m（TeSMo）。`pen_depth_max` 同理取 max。
+   两者在穿透集为空时回填 `0.0`——这是已封口语义，不得改动，`pen_value` 是其阈值 0 的
+   非回填对应量。
 3. `pen_burst` = `100 × mean_t[(每帧穿透顶点比例)²]`（Dyn-HSI Eq. 9）。平方项是刻意的
    超线性，使一帧灾难性穿透不被长序列稀释——正对自回归 rollout 的突发型失败。
+4. **（2026-08-17 增）** `pene_pct_scene` = LINGO `Pene%_scene` = 逐帧「SDF < 0 的顶点数 ÷
+   采样体顶点数」再对帧取均值。**阈值 0，是 [0,1] 的分数而非百分数**（键名沿用 LINGO 列名
+   以便对照）。GT 参考：全 375 条 **0.05044**，walk 130 条 **0.03358**。
+5. **（2026-08-17 增）** `pen_value` = TeSMo `Pen. Value` = 仅对 SDF < 0 的「顶点×帧」取
+   |SDF| 均值，单位 m。**阈值 0**；集合为空时输出 `NaN` 而非 `0.0`（评测 harness 会丢弃
+   非有限值），使「没有穿透」不被读成「穿透极浅」。GT 参考：**0.03416 / 0.02480**。
+6. **（2026-08-17 增）** `pene_sum_mean_floorexcl` / `pene_sum_max_floorexcl` = DIMOS 逐顶点
+   求和式的**排除地面接触**版本：逐帧对 `y ≥ 地面 + 2 cm` 的顶点求 `Σ_v |min(SDF_v, 0)|`，
+   再对帧取 **mean** / **max**。阈值 0；单位是**「对顶点求和的米」——一个外延量，不是深度**，
+   随采样体分辨率缩放，只能与同采样体的数字对比；`pene_sum_max_floorexcl` 是最差**帧总和**，
+   不是最深顶点（那是 `pen_depth_max`）。GT 参考：全 375 条 **5.973 / 19.376**，
+   walk 130 条 **0.449 / 5.919**；walk 均值为 LINGO 已发表 0.402 的 1.12 倍。
+7. **（2026-08-17 增）** `pene_samples` = SDF < 0 的「顶点×帧」计数，即 `pen_value` 的分母。
+   **是计数而非分数**，与 `pen_samples` / `pen_sample_frames` / `skate_frames` 同属分母类，
+   随采样体分辨率与序列长度缩放（实测单序列 22530–957047），因此**不是可比列**；它存在的
+   目的是让读者看出 `pen_value` 由多少样本支撑。注意它同样进入 `scene_summary.metrics_mean`，
+   那里的场景均值也是外延量，不得当作指标解读。
+8. **（2026-08-17 删）** ~~`pen_frame_ratio`（含至少一个穿透顶点的帧比例，TeSMo `Pen. Ratio`
+   的字面形式）~~——实测已饱和，见下方 2026-08-17 节。
 
-不采用 DIMOS 的逐顶点求和式。**scene 必须作为 paired bootstrap 的分层因子**：实测 GT
+> **2026-08-12 原文（已被上文第 4–8 条取代，保留以便追溯）**：「不采用 DIMOS 的逐顶点求和式。」
+> 该判断的三条理由中有两条仍然成立（随网格分辨率缩放；`Pene_max` 不是最深顶点），已改为在
+> 单位与文档中写明而非弃用；第三条「它是 B 节四量同名问题的最大来源」由**排除地面接触**这一
+> 附加限定解决：实测 GT 上 92.07%（walk）／68.33%（全split）的穿透质量位于地面 +2 cm 以下，
+> 即未排除的求和式在 GT 上主要度量的是脚踩地面。
+
+**scene 必须作为 paired bootstrap 的分层因子**：实测 GT
 的逐帧穿透率在三个场景间为 30.8%–94.7%，聚合值更多由评测集含哪些场景决定，而非由模型决定。
 
 **engagement**（与每一个 penetration 与 FS 数字同表，`HSIPRIOR_DESIGN_PRIORS.md:141-144`）
@@ -218,11 +245,18 @@ contact 更差」；HSI-GPT2 表中所有方法的 non-collision 挤在 99.69–
 没有任何一篇在 penetration 旁报告 human-scene engagement**，故此列是可辩护的增强而非偏离。
 
 **足部**（三者不是彼此的单调变换，同时报告）
-1. `fs_nemf` — LINGO 引用的 NeMF FS：`s = v·(2 − 2^(h/H))`，H = 4 cm（趾）/ 8 cm（踝），
-   位移取 **L1** 且**求和**不取平均，序列先平移使最低足高为 0，单位 cm/frame。
+1. **（2026-08-18 定版）** `fs_nemf` — LINGO 引用的 NeMF FS：`s = v·(2 − 2^(h_eff/H))`，
+   H = 4 cm（趾）/ 8 cm（踝），位移 `v` 取 **L2**（`sqrt(dx²+dz²)`），对**四个足关节取平均**，
+   除以 **T−1** 个转移，×100，单位 cm/frame。**不做任何预平移**，高度是相对精确地面 y = 0 的
+   绝对值；权重中的高度取 `h_eff = max(h, 0)`（见下方 2026-08-18 节 B），而**入带判定仍用原始
+   `h < H`**，故 sub-floor 帧仍算接触帧。`fs_nemf_ankle` / `fs_nemf_toe` 是可加分解（各自也除以
+   4，故等于该组占四关节均值的份额，**不是**该组自身的两关节均值）。
+   > **2026-08-12 原文（已被取代，保留以便追溯）**：「位移取 **L1** 且**求和**不取平均，序列先
+   > 平移使最低足高为 0」，且分母为 T。四处偏离与实测倍数见 2026-08-18 节 A。
 2. `skate_ratio` — GMD/TeSMo：足高 < 5 cm 且单帧滑动 > 2.5 cm 的帧比例。该阈值**不是
    帧率无关的**，30 fps 下须换算为 0.75 m/s 后使用。
-3. 现有 `compute_foot_sliding_for_smpl`，仅为与 HOI 表同口径而保留。
+3. 现有 `compute_foot_sliding_for_smpl`，仅为与 HOI 表同口径而保留。**注意 2026-08-18 之后
+   `fs_nemf` 与它的差别只剩「软权重 vs 硬门限」与关节/阈值口径，L2 与取平均这两点已一致。**
 
 **目标到达**
 1. `last_dist` 与 `min_dist`：对关节取 min、仅水平 (xz)（DIMOS）。两者同时报告——它们在
@@ -1341,3 +1375,1023 @@ guidance 几何，只是打断了派发。
 
 **结论口径**：批粒度缺陷是**训练专有**的（`is_sample=False` 且 batch > 1）；评测两个 sampler
 都不受它影响。仍然**不修**——理由同 §D：修了 C 的目标函数就不再等于产出其 teacher 的那一个。
+
+---
+
+## 2026-08-17：穿透列扩充为可与 LINGO/TeSMo/DIMOS 对照的形式，`pen_frame_ratio` 下线
+
+本节只改**指标定义与报告口径**，不改任何模型、采样器或训练配置；已就地施行于 §C「穿透」
+（第 4–7 条），原文以引用块保留。**本节没有跑任何 model cell**（B/C、guided/unguided 全无），
+只跑了 ground-truth cell。
+
+### A. 为什么改：原有三列无法与文献对照，第四列已饱和
+
+标定探针（`.claude/scratch/dimos_pen_form.py`，全 375 条 GT，验证闸门对已封口值的相对偏差
+≤ 2.2e-16）实测出各已发表形式在本项目 GT 上的取值：
+
+| 量（阈值 0，除注明） | 全 375 均值 | walk 130 均值 |
+|---|---|---|
+| DIMOS 求和式 pen_mean（m，对顶点求和） | 20.452 | 9.161 |
+| DIMOS 求和式 pen_max | 37.962 | 17.525 |
+| **DIMOS 求和式，排除地面，mean** | **5.973** | **0.449** |
+| **DIMOS 求和式，排除地面，max** | **19.376** | **5.919** |
+| **LINGO `Pene%_scene`（分数）** | **0.05044** | **0.03358** |
+| **TeSMo `Pen. Value`（m）** | **0.03416** | **0.02480** |
+| TeSMo `Pen. Ratio` @−3 cm | 0.9960 | 0.9911 |
+
+两条结论：
+
+1. **`pen_frame_ratio` 必须下线。** 它是 TeSMo `Pen. Ratio` 的字面形式，GT 实测 0.9960 /
+   0.9911，已饱和；而 TeSMo 自己发表的是 0.0611 / 0.1076。它既无区分度，也无法充当被保留时
+   所声称的「对照列」。
+2. **排除地面后的 DIMOS 求和式是可用的。** walk 的 0.449 为 LINGO 已发表 0.402 的 1.12 倍——
+   这是本项目第一个与 LINGO 数量级对齐的穿透列。未排除地面的 9.161 是 22.8 倍，即 2026-08-12
+   「不采用 DIMOS 求和式」的判断在**未排除地面**的前提下是对的。
+
+### B. 地面排除带的高度不是刀刃（本节新测，n=375 与 walk 130）
+
+GT 顶点在**每一条**序列上都低于 y = 0（逐序列最低点的范围 −0.163 m 至 −0.034 m），所以
+「地面 + 2 cm」是否把小腿也切掉是一个真问题。实测扫描（`.claude/scratch/floorband_followup.py`）：
+
+| 带高 (m) | 全 375 mean | walk 130 mean | walk / LINGO 0.402 |
+|---|---|---|---|
+| 0.00 | 6.131 | 0.672 | 1.67x |
+| 0.01 | 5.992 | 0.473 | 1.18x |
+| **0.02（定版）** | **5.973** | **0.449** | **1.12x** |
+| 0.03 | 5.971 | 0.447 | 1.11x |
+| 0.05 | 5.970 | 0.446 | 1.11x |
+| 0.10 | 5.966 | 0.444 | 1.10x |
+
+穿透质量的高度分布：全 375 为 y<0 占 67.43%、[0, 2 cm) 占 0.90%、y≥2 cm 占 31.67%；
+walk 130 为 89.11% / 2.96% / 7.93%。**带高在 ≥ 1 cm 后是平的**（walk 在 0.01–0.10 之间只
+变动 ±6%，对照倍数落在 1.10x–1.18x），减量几乎全部来自「排除 y<0」而非带本身。因此 2 cm
+落在平坦区，1.12x 这个对照结论对带高选择稳健；**唯一敏感的一步是 0 → 1 cm**，即必须排除
+sub-floor 质量，单纯取 y ≥ 0 会给出 0.672（1.67x）。
+
+### C. 验收（三个闸门，全部通过）
+
+1. **与标定探针逐序列一致**（n=375，经新 `metrics.py` 代码路径）：`pene_sum_mean_floorexcl`
+   与 `pene_sum_max_floorexcl` 375/375 **逐位相同**；`pene_pct_scene` 最大相对偏差 2.18e-16，
+   `pen_value` 3.68e-16（均为 float64 求和顺序，探针按 256 帧分块累加，新代码整条张量一次归约）。
+2. **保留指标未被扰动**：v1 episode 集重跑 GT，44 个数值指标 × 375 条与已封口
+   `results/lingo_hsi/ground_truth/evaluation/per_sequence_metrics.json` **全部逐位相同**
+   （`pen_ratio` 0.0280519 / `pen_depth_mean` 0.0493719 / `pen_depth_max` 0.0997523），
+   非数值键（含全为 null 的 `goal_orientation_err_rad`）亦全部相同。唯一差异是键集：
+   删除 `pen_frame_ratio`，新增四个键。
+3. `pytest tests/hsi tests/core tests/test_research_governance.py`：**160 passed, 1 skipped**，
+   与基线相同。无测试断言 `pen_frame_ratio`，故无测试需要改。
+
+### D. 显存代价（评测侧，需在 model cell 前留意）
+
+最长 GT 序列（`046-new_loco`，2316 帧 × 10475 顶点）整条 `compute_metric_record` 的实测峰值为
+**4492 MiB**（前置常驻 323 MiB，device reserved 5190 MiB / 24576）。新增的两个 `torch.where`
+中间场在该形状上的微基准为 **+569 MiB 峰值**（保留族 263 MiB → 新增族 832 MiB）与
++2.5 ms/序列。若某个 model cell 因此触顶，逐帧分块计算该求和是**逐位等价**的降峰值改法——
+探针本身就是按 256 帧分块算的，而它与整条张量的结果 375/375 逐位相同。
+
+### E. GT v2 参考行（`pelvis_goal` = rollout 终点）
+
+以 `lingo_episode_dir=$ROOT_DIR/data/lingo_hsi_test_v2/data` 显式覆写跑出，配置默认仍指向 v1
+（用户决定：在 model 重跑之前不改默认值）。输出在 `results/lingo_hsi/ground-truth-v2/`。
+`sequence_count` 375、`scene_count` 26。v1→v2 除目标族外**全部逐位相同**，这正是应当发生的
+（同一段运动、同一批场景，只有目标点变了）。
+
+| 指标 | 单位 | 全 375 | walk 130 |
+|---|---|---|---|
+| `pene_pct_scene` | 分数 ↓ | 0.0504436 | 0.0335772 |
+| `pen_value` | m ↓ | 0.0341575 | 0.0247974 |
+| `pene_sum_mean_floorexcl` | m（对顶点求和）↓ | 5.97327 | 0.449037 |
+| `pene_sum_max_floorexcl` | m（对顶点求和）↓ | 19.3765 | 5.91913 |
+| `pen_ratio` | 分数 ↓ | 0.0280519 | 0.0128566 |
+| `pen_depth_mean` | m ↓ | 0.0493719 | 0.0417524 |
+| `pen_depth_max` | m ↓ | 0.0997523 | 0.0759019 |
+| `fs_nemf` | cm/frame ↓ | 0.567552 | 1.10467 |
+| `last_dist` | m ↓ | 9.19e-11 | 1.93e-10 |
+| `min_dist` | m ↓ | 7.20e-11 | 1.36e-10 |
+| `success_last_10cm` | 比率 ↑ | 1.000 | 1.000 |
+| `success_last_20cm` | 比率 ↑ | 1.000 | 1.000 |
+| `success_min_10cm` / `_20cm` | 比率 ↑ | 1.000 / 1.000 | 1.000 / 1.000 |
+| `goal_planar_err_m` | m ↓ | 9.19e-11 | 1.93e-10 |
+| `goal_height_err_m` | m ↓ | 0.76137 | 0.940565 |
+| `jerk_ratio` | 比值 → | 1.19363 | 1.21004 |
+
+`last_dist` 不是**字面**的 0：368/375 条恰为 0.0，其余 7 条为 O(1e-9) m（最大 7.45e-9 m），
+即 float32 往返精度，不是口径误差。`success_last_20cm` 与 `success_last_10cm` 双双 1.000。
+
+**v1 的目标口径确实是坏的，并且坏在与预期相反的方向上**：v1 GT 的 `time_to_goal_20cm_s`
+均值仅 0.0484 s（约第 1.5 帧），`success_min_20cm` 为 1.000 而 `success_last_20cm` 仅 0.531，
+`last_dist` 0.403 m——即 v1 的 `pelvis_goal` 落在轨迹**起点附近**，GT 在开头就「到达」然后走开。
+v2 修正后 `time_to_goal_20cm_s` 升到 2.52 s，这是目标移到终点的直接推论。`goal_height_err_m`
+（0.761）与 `jerk_ratio`（1.194 / 中位 1.171）两列不受目标点影响，与已登记的 GT 参考值一致。
+
+---
+
+## 2026-08-18：`fs_nemf` 改为忠实于 NeMF 的定义，payload `schema_version` 升到 2
+
+本节只改**指标定义与报告口径**，不改任何模型、采样器或训练配置；已就地施行于 §C「足部」
+第 1 条，原文以引用块保留。**本节没有跑任何 model cell**（B/C、guided/unguided 全无），
+只跑了 ground-truth cell。审计脚本与逐序列产物在 `.claude/scratch/fs_nemf_audit/`、
+`.claude/scratch/fs_faithful_gates.txt`、`.claude/scratch/fs_faithful_falsify.txt`。
+
+### A. 四处偏离与各自的实测倍数
+
+已封口的 `fs_nemf` 相对 NeMF（He et al. 2022，即 LINGO `FS` 列所引）有四处偏离。逐处隔离
+测量（全 375 条 GT，ratio-of-means；标定闸门：独立复现已封口 payload，最大绝对偏差
+0.000e+00）：
+
+| 偏离 | 已封口 | 定版 | GT 全 375 倍数 | 方向 |
+|---|---|---|---|---|
+| 水平位移量 | L1 `\|dx\|+\|dz\|` | **L2 `sqrt(dx²+dz²)`** | 1.263x | 虚高 |
+| 四足关节归约 | 求和 | **取平均** | 4.000x | 虚高 |
+| 分母 | `T` | **`T−1`**（实际求和的转移数） | 0.994x | 虚高 |
+| 高度基准 | 先平移使最低足高为 0 | **不平移，绝对 y = 0** | ÷2.458x | 压低 |
+
+净效应 `1.263 × 4.000 × 0.994 ÷ 2.458 = 2.043`，即已封口值是纯 NeMF 形式的 2.043 倍
+（全 375）／2.633 倍（walk 130）。加上下节的 clamp 后，已封口／定版 = **2.186x**（全）／
+**2.706x**（walk）。
+
+L2 的依据是文本读法与仓库谱系两条，**不是**标定：NeMF 把位移投影到水平面后取「the
+**magnitude** v」，二维向量的 magnitude 就是 L2；`code/eval_metrics.py:compute_foot_sliding_for_smpl`
+也用 L2。
+
+### B. 为什么是 clamp，而不是纯 NeMF 形式
+
+纯 NeMF 在原始 `h` 上取权重，`h → −∞` 时权重趋于 2：**同样的水平位移，穿得更深的脚趾会被
+判为更严重的 foot skate**，即足部列会部分度量穿透——而穿透已有自己的四列。定版把权重中的
+高度 clamp 为 `h_eff = max(h, 0)`，权重上界回到 1，耦合消失。
+
+三条支持：
+
+1. **只能减、不能增**：`h_eff ≥ h` 且权重对高度单调递减。GT 上 0.2777 → 0.2597（全）、
+   0.4195 → 0.4082（walk）。
+2. **在无 sub-floor 足的数据上可证为恒等**：实测 17 条最低足关节高度 ≥ 0 的 GT 序列上，
+   clamped − unclamped **恰为 0.000e+00**；`tests/hsi/test_metrics.py` 用精确相等
+   （`assertEqual`，非 `assertAlmostEqual`）把这条钉住。
+3. **入带判定仍用原始 `h`**，故 sub-floor 帧仍算接触帧、其滑动仍被计入——若改用 `h_eff`
+   判定，穿透中的脚滑动会变成免费的，与意图相反。（`H > 0` 时两者等价，代码仍写出原始形式，
+   使日后任何让它们不等价的改动必须先与该注释争论。）
+
+**代价要写明**：去掉预平移后，悬空 30 cm 的 rollout 在 `fs_nemf` 上得 0。`skate_ratio`
+因绝对 5 cm 门限有同一盲区，**故足部两列都抓不到悬空**；抓它的是 engagement 的
+`contact_count` 与 `goal_height_err_m`，这正是 §C 要求三者同表的原因。
+
+### C. 两条不可丢失的结论
+
+**1. 任何已封口 `fs_nemf` 值都不允许用标量换算成新口径。**
+预平移不是标量：它**重排序列**（Spearman(已封口, 定版) = 0.522 全 / 0.212 walk），逐序列
+倍数跨 **0.164x–7.169x**（中位 2.605x）。而且倍数是数据相关的：GT 的 ratio-of-means 是
+2.186x，但**足从不低于 y = 0 的序列反而拿到更大的倍数**——本次实测这 17 条为 5.006x–7.169x
+（ratio-of-means 5.752x），因为对悬空序列预平移是把序列**下移**、从而**虚高**已封口值。
+（顺带纠正一处易犯的近似：GT 中**没有任何一条**序列的最低足高恰为 0，这 17 条落在
+0.000247–0.009535 m，全 375 条的范围是 −0.1433 至 +0.0095 m，故「无 sub-floor ⇒ 预平移是
+恒等 ⇒ 倍数恰为 5.023x」是错的，5.023x 只是该组的下界附近。剔除已知的 `4·T/(T−1)` 后，这
+17 条的残差倍数中位 1.419、最大 1.782，已超过 L1/L2 各向异性的上界 `sqrt(2) = 1.414`，这本身
+就证明预平移在该组里在做虚高。）
+**结论**：已封口的 model 数字只能靠**从运动重算**来更新，绝不能换算。
+
+**2. 一个必须记录下来的巧合，以免日后有人「发现」它。**
+在 clamp 下，落在 NeMF 已发表 GT 0.512 上的是被**否掉**的 **L1** 读法（0.5141，差 0.4%），
+而选定的 L2 给 0.4082（低 20%）。L2 是按 A 节的文本读法与仓库谱系选的，**不是**按这个标定
+吻合选的。两个不同 mocap 语料之间 0.4% 的吻合，更可能是运气而非信号；单一已发表聚合值
+不能裁定 L1 与 L2。
+
+### D. `schema_version` 1 → 2
+
+2026-08-17 的穿透改动**可以**从键集本身看出来（新增四键、删除 `pen_frame_ratio`）；本次 FS
+改动**改的是三个已存在键的含义、不动键集**，故带着它的 payload 与已封口 payload 在结构上
+无法区分，而 `fs_nemf` 却相差约 2–7 倍。因此 `code/test_infbagel_lingo_hsi.py` 新增
+`METRICS_SCHEMA_VERSION = 2`，两处 payload 共用。
+
+- **schema 1** = 2026-08-12 首次封口的指标集。
+- **schema 2** = 2026-08-17 的穿透键集 **＋** 2026-08-18 的忠实 FS 定义。
+
+**只在 `schema_version` 相同的行之间比较 `fs_nemf`。**
+一处需要留意的既有产物：`results/lingo_hsi/ground-truth-v2` 写于 `pene_samples` 落地之前，
+因此它带着 2026-08-17 的穿透新键但缺 `pene_samples`，且自称 `schema_version` 1。它保持**字节
+不变**，作为可追溯的旧 FS 行；新的可比 GT 行是 `ground-truth-v3`。
+
+### E. 验收（五个闸门，全部通过）
+
+1. **生产路径复现审计**（n=375，经 `code/priors/hsi/metrics.py`）：`fs_nemf`、`fs_nemf_ankle`、
+   `fs_nemf_toe` 对审计的 `nemf_clamped` 375/375 **逐位相同**（最大相对偏差 0.000e+00）；
+   均值 0.259674（全）／0.408211（walk），命中目标 0.2597 / 0.4082。分解可加性
+   `|ankle+toe−total|` 最大 1.11e-16。
+2. **保留指标未被扰动**：v1 episode 集重跑 GT（写入 `.claude/scratch/gt_v1_fs_faithful`），
+   48 个数值键 × 375 条中**只有** `fs_nemf` / `fs_nemf_ankle` / `fs_nemf_toe` 移动，其余
+   45 键逐位相同；键集无增删；`scene_summary` 键集无增删。对**已封口** schema-1 v1 payload
+   的 40 个非 FS 键做同样比较，同样全部逐位相同。唯一 payload 字段变化是
+   `schema_version` 1 → 2。
+3. **独立表达式反证**（26 条跨全部 26 个场景的序列）：用纯 Python 显式双重循环（不用 torch
+   归约、掩码或向量化 sqrt）重算忠实定义，与生产值最大相对偏差 **4.565e-15**（float64 求和
+   顺序）。这一步的目的是切断「生产实现与审计实现是同一个人写的同一种 torch 表达式」这一
+   共因。
+4. `pytest tests/hsi tests/core tests/test_research_governance.py`：**172 passed, 1 skipped**
+   （基线 166 passed / 1 skipped；FS 用例由 4 个扩为 10 个，净增 6，覆盖：L2 非 L1；取平均非求和且除数是实际关节数；T−1 使
+   等速滑动与序列长度无关；clamp 在无 sub-floor 输入上精确恒等；clamp 在 sub-floor 输入上
+   确实生效并给出闭式值；sub-floor 帧仍算接触帧；以及悬空序列现在得 0 且由 engagement 兜住）。
+5. **GT v3 已产出**（下节），`ground-truth-v2` 字节未动。
+
+### F. GT v3 参考行（v2 episode 集 = `pelvis_goal` 取 rollout 终点；`schema_version` 2）
+
+以 `lingo_episode_dir=$ROOT_DIR/data/lingo_hsi_test_v2/data` 显式覆写跑出，配置默认仍指向 v1
+（用户决定：在 model 重跑之前不改默认值）。输出在 `results/lingo_hsi/ground-truth-v3/`。
+`sequence_count` 375、`scene_count` 26。与已封口 `ground-truth-v2` 相比，**只有三个 FS 键不同**
+（另加 v2 缺失的 `pene_samples`），这正是应当发生的。
+
+| 指标 | 单位 | 全 375 | walk 130 |
+|---|---|---|---|
+| `pene_pct_scene` | 分数 ↓ | 0.0504436 | 0.0335772 |
+| `pen_value` | m ↓ | 0.0341575 | 0.0247974 |
+| `pene_sum_mean_floorexcl` | m（对顶点求和）↓ | 5.97327 | 0.449037 |
+| `pene_sum_max_floorexcl` | m（对顶点求和）↓ | 19.3765 | 5.91913 |
+| `pene_samples` | 计数（外延量，非可比列） | 127208 | 112041 |
+| `pen_ratio` | 分数 ↓ | 0.0280519 | 0.0128566 |
+| `pen_depth_mean` | m ↓ | 0.0493719 | 0.0417524 |
+| `pen_depth_max` | m ↓ | 0.0997523 | 0.0759019 |
+| **`fs_nemf`** | **cm/frame ↓** | **0.259674** | **0.408211** |
+| `fs_nemf_ankle` | cm/frame ↓ | 0.0918998 | 0.136807 |
+| `fs_nemf_toe` | cm/frame ↓ | 0.167775 | 0.271404 |
+| `last_dist` | m ↓ | 9.18905e-11 | 1.93429e-10 |
+| `min_dist` | m ↓ | 7.20223e-11 | 1.36116e-10 |
+| `success_last_10cm` / `_20cm` | 比率 ↑ | 1.000 / 1.000 | 1.000 / 1.000 |
+| `success_min_10cm` / `_20cm` | 比率 ↑ | 1.000 / 1.000 | 1.000 / 1.000 |
+| `time_to_goal_20cm_s` | s | 2.51973 | 5.29231 |
+| `goal_planar_err_m` | m ↓ | 9.18905e-11 | 1.93429e-10 |
+| `goal_height_err_m` | m ↓ | 0.76137 | 0.940565 |
+| `jerk_ratio` | 比值 → | 1.19363 | 1.21004 |
+
+对照：`fs_nemf` 的 walk 值 0.408 是 NeMF 已发表 GT 0.512 的 0.80 倍——同一数量级，但如 C.2
+所述不可用作口径裁定。踝 : 趾 = 0.0919 : 0.1678（全），趾部贡献约为踝部的 1.83 倍，与
+「趾的 H 更小、但趾更常处于低位」一致。
+
+---
+
+## 2026-08-18（同日第二次修订）：Interactive 穿透口径定版（A 档＋配对差）、28 关节槽位不一致登记、忠实 FS 的悬空盲区
+
+本节只做报告口径的定版与两处登记，**不改任何模型、采样器、训练配置或指标实现**，也**没有跑
+任何 model cell 或 GT cell**——三项引用的数字全部来自此前已完成的实测。三项互相独立：A 是用户
+已批准的 Interactive 列口径；B 是一处用户决定「只记录、暂不修」的常量不一致；C 是上一节（忠实
+FS）引入的一个盲区与一份**尚未确认、也从未执行**的指标删除清单之间的直接冲突。
+
+### A. Interactive 列的穿透口径：绝对列取 A 档，并列同 episode 的配对差（用户已批准）
+
+**决定**：Interactive 指标组报告 floor-excluded 的绝对对
+`pene_sum_mean_floorexcl` / `pene_sum_max_floorexcl`（地面 + 2 cm 排除，已实现），**并在其旁
+并列一列同一批 episode 上的 model − GT 配对差**，由 `tools/paired_bootstrap.py` 计算
+（逐 sequence 先成对求差再 bootstrap，10,000 重采样、seed 42、按名字配对）。
+
+**为什么绝对列本身不干净——这一条必须进表注。** 本项目的 SDF 把「未被房间壳体包住」的一切
+都判为实心，**包括每一个被扫描表面的下方与背后的体积**：座面之下、床垫上表面之下、沙发垫
+内部都各自围出一块实心区（`code/priors/hsi/scene_field.py:560-596`、`:669`）。这不是缺陷，
+而是 room-shell 极性的直接推论：实测 `subfloor_enclosed_fraction = 0.0` ⇒
+`interior_is_free_space = True` ⇒ `solid = ~inside`，实测 `solid_fraction` 为 padded bbox 的
+**0.326–0.434**。
+
+实测穿透质量的高度归属（GT，全 375 条）：
+
+| 穿透质量所在高度 | 占比 | 它实际度量的是 |
+|---|---|---|
+| < 地面 + 2 cm | **68.33 %** | 脚踩地面 |
+| 地面 + 10–50 cm | **26.28 %** | **身体处于座面／床垫体积内部** |
+
+排除地面把 DIMOS 求和式从 **20.452** 压到 **5.973**（**×0.292**，与上一节 §B「唯一敏感的一步是
+0 → 1 cm」一致），但它**碰不到 +10–50 cm 这一项**。
+
+于是两列分工明确：
+
+1. **绝对列承担可对照性**（walk 130 的 0.449 = LINGO 已发表 0.402 的 1.12x），代价是它
+   **仍然含有家具内部体积**；这句话必须写在表注里，不得让读者把它读成纯粹的「穿墙深度」。
+2. **配对差承担区分度**：家具内部那部分质量主要是「坐在这个物体上」这件事本身的属性，
+   GT 与 model 共有，逐 episode 求差可抵掉其中大部分。
+
+**Tier B（重建物体壳体、单独给家具符号）暂不采用，理由不是算力。** 实测冷构建
+**102.5 s / 37 MB 每场景**，26 个 test 场景合计 **≈45 min / ≈1 GB**——完全付得起。真正的阻塞是
+**符号**：`_resolve_polarity` 是**从 sub-floor slab** 推 inside/outside 的（`:560-596`），把地面
+拿掉就摧毁了这个判别器，`interior_is_free_space` 必须显式传入（`:833-839`）；而单独抽出的
+扫描家具通常是**开口壳体**，符号会退化到 6-ray 多数表决（`:555`）——该 fallback 在今天的口径下
+只有 **1/26** 个场景需要。符号一旦判错是**静默的、且量级很大**（整块体积的内外互换）。
+
+**推翻条件**：出现一个不依赖地面的稳健符号判定；或者拿到逐 episode 的物体实例标注**并带几何**
+（LINGO 的 episode 文本只给动作，不给实例，因此它本身不够）。
+
+### B. 已知不一致（用户决定：只登记，暂不修）：28 关节常量的末两个槽位
+
+**这不是 InfBaGel 与 LINGO 之间的分歧**——那种分歧是正当的、可以各自成立。这是一处
+**常量与 InfBaGel 自己的两份数据资产之间**的不一致：
+
+| 资产 | 末两个槽位实际是 | 证据 |
+|---|---|---|
+| `human_joints_aligned.npy`（即 `[0:84]` 通道所对应的数组） | **ring1**（SMPL-X 34 / 49） | FK 匹配距离 **0.000000 m**；到 middle1 为 0.0231 m |
+| `rest_human_offsets_aligned.npy`（`fk_hand_loss` 的 FK 来源） | **ring1**（`[0..21,34,49]`） | 23 个非根 offset 全部匹配到 **1.5e-7 m**；按 middle1 读则差 **2.8e-2 m** |
+| `code/utils.py:299-300` 的 `SMPLX_JOINTS_24` / `SMPLX_JOINTS_28` | **middle1**（25 / 28 / 40 / 43） | — |
+
+常量的消费者：`code/test_infbagel_lingo_hsi.py`（`joints_ind=SMPLX_JOINTS_28` 调用处，当日为
+`:181`，该文件正被并行改动，行号会漂移）与 `code/test_infbagel_hosi.py:718`——**后者与
+`phase/01b-hoi` 共用**，因此任何修正都是跨分支改动，需要用户批准。
+
+**影响范围，精确地说**：
+
+- **B 与 C 已发表的数字没有一个被偏置。** 该错配在两个臂上完全对称（同一常量同时用于 GT 与
+  model），所以不存在左右偏向。
+- 它到达的是 `metric_joints`，因而到达 `rds`（正在从常规评测中下线）、28 关节穿透诊断
+  （**主口径是 10475 顶点体，不受影响**），以及边缘地影响 `jerk_ratio`（28 关节中 2 个参与
+  平均）与 `min_dist`（对关节取 min，故只在「手是离地面投影 pelvis 目标最近的关节」时才动）。
+- **不影响 `[0:84]` 导出路径**——该路径按构造就是 dataset 顺序，不经过这两个常量。
+
+同时登记一条**已审计为正确**的：`code/models/infbagel.py:374`、`:820` 的
+`hand_idx_28 = [20, 21, 25, 27]` 是**对的**。两份索引在这四个槽位上落到**同一组四个关节**
+（双手腕 + 双 ring1）：FK 预测侧来自 rest offsets（ring1），GT 侧来自
+`human_joints_aligned.npy`（同为 ring1），故 **B 与 C 的 `fk_hand_loss` 未受影响**——尽管这条
+路径确实跑过（两个 HSI 配置均为 `use_object_keypoints: true`，见
+`code/config/config_train_hsi_b_lingo_full.yaml:67` 与 `config_train_hsi_c_lingo_cm.yaml:65`）。
+
+**推翻条件**：一旦 28 关节路径从「诊断」升为**权威报告口径**，就必须把
+`code/utils.py:299-300` 末尾的两个 middle1 槽位（`28` / `43`）改为 ring1（`34` / `49`），
+并与 `phase/01b-hoi` 协调后一起改。
+
+### C. 忠实 FS 的悬空盲区与「拟删除指标清单」的冲突（本节新发现，必须登记）
+
+上一节定版的忠实 FS 去掉了预平移。预平移原先会把每条序列的最低足高强行压到 0，**因而保证
+了每条序列都有入带帧**。去掉之后：**一个全程悬空的 rollout——脚从不进入距地面 H 之内——不产生
+任何入带帧，`fs_nemf ≈ 0`，也就是看起来完美。** 上一节写明的兜底是 `contact_count` 与
+`goal_height_err_m`，而兜底只有在**它们确实与 FS 同表报告**时才成立。
+
+**冲突在这里**：这两个键都出现在一份**已提出但从未确认、也从未执行**的指标删除清单上。该清单
+另外还列了 `contact_count_exterior`、`contact_frame_ratio_saturated_diagnostic`、
+`reachability_violation_ratio`、`pen_burst`、`skate_ratio`、`time_to_goal_*`、
+`goal_orientation_err_rad` 与 RDS。
+
+**因此定下一条硬约束：在没有先放置一个等效的悬空守卫之前，`contact_count` 与
+`goal_height_err_m` 都不得删除。** 注意这条约束与「`skate_ratio` 也在清单上」叠加后更紧：
+上一节已实测 `skate_ratio` 因绝对 5 cm 门限有**同一个**盲区，故**足部两列都抓不到悬空**，
+清单若同时删掉 FS 的兜底与 `skate_ratio`，悬空这一失效模式就完全无人看守。
+
+同时把这条弱点写明，以免日后误以为兜底很强：**`goal_height_err_m` 本身作为守卫是弱的**——
+目标的 y 被置零，所以它其实只是在报告**终点 pelvis 高度**（GT 参考：全 375 为 **0.761 m**、
+walk 130 为 **0.941 m**，见上一节 §F）。它能把「悬空 30 cm 结束」与「站在地上结束」分开，但
+分不开「全程悬空、最后落地」这一类；真正逐帧盯住接触的是 `contact_count`。
+
+---
+
+## 2026-08-18（同日第三次修订）：generated 臂的 SMPL-X 坐标系订正，`schema_version` 升到 3
+
+用户已批准：**训练侧的问题（身体站不起来）先保留，本节只修评测侧。** 本节不追求让身体站直，
+也不为改善输出观感调任何参数——checkpoint 的 root 旋转距真值 124–128°（随机基线 126.5°），
+其共轭不变的 root 抖动为 3.47 °/帧均值 / 32.1 p95（GT 为 0.69 / 1.9），那是**被刻意推迟的
+训练侧问题**，不是本次修复的失败。
+
+### A. 缺陷：被映射的是平移与 FK 输出，而**不是**姿态
+
+修复前 `code/test_infbagel_lingo_hsi.py`（generated 臂）为：
+
+```python
+smpl_translation = yup_to_zup(interpolated_points[:, 0] + translation_offset)
+smpl_pose        = yup_to_zup(local_axis)
+vertices, metric_joints = _run_smplx_chunks(smpl_pose, smpl_translation, ...)
+vertices, metric_joints = zup_to_yup(vertices), zup_to_yup(metric_joints)
+```
+
+记 `M = yup_to_zup` 的矩阵（绕 +x 转 90°，`yup_to_zup(v) = M v`，`zup_to_yup(v) = Mᵀ v`）。
+
+**推导。** SMPL-X 的 FK 为 `p_i = p_parent + R_global_parent · offset_i`，其中 `offset_i` 是
+模板的 rest offset，**不随 `M` 映射**。把平移映射为 `M(pelvis + offset)` 再把输出映射回
+`Mᵀ`，并不是一次往返：
+
+- 根关节 `p_0 = M(pelvis − J_rest0) + J_rest0`，取 `Mᵀ` 后为
+  `pelvis + (zup_to_yup(J_rest0) − J_rest0)`；
+- 其余关节相对 pelvis 的构型变成 `Mᵀ f_i − Mᵀ f_0`，即**整个身体相对自身 pelvis 被绕 +x
+  多转了 90°**。
+
+以参考 betas 的 `J_rest0 = (0.0012, −0.3668, 0.0127)` 代入，根位移恰为
+
+> **`(0, +0.3795, +0.3542)` m**
+
+`code/constants.py:10` 的 `pelvis_shift = [0.001144, -0.366919, 0.012666]` 就是同一个
+`J_rest0`，属于仓库内已提交的独立旁证。
+
+**必须写明的一处订正。** 姿态上的 `yup_to_zup` **不是缺陷，必须保留**。
+`code/datasets/infbagel.py:90-94` 在合成 `global_rot_6d` 之前先对 `human_orient` /
+`human_pose` 施加了 `zup_to_yup`（`code/priors/hsi/data.py:57-59` 训练侧同样如此），因此网络
+发出、`quat_ik_torch` 解回的每个局部旋转都带着 `Mᵀ R M` 的共轭；`yup_to_zup` 正是把它还原成
+`R`——也就是 SMPL-X 模板所在的坐标系。**把姿态也改成 identity 会留下 9.2 cm 的
+pelvis-相对关节误差**（见 §C 的 `full identity` 行）。
+
+### B. 三条相互独立的确认
+
+1. **哪个坐标系是 `human_joints_aligned.npy`？** 对第 0 条序列 161 帧扫遍
+   （姿态 × 平移 × 输出）全部 27 种组合：`none|none|none` 为 **9.14e-04 m**（残差来自 28 槽位
+   中 25/27 两槽的 middle1/ring1 不一致，见同日第二次修订 §B），其余全部 ≥ 0.12 m。
+   即 GT 臂的 identity 路径就是正确路径。
+2. **缺陷签名可预测。** 在 SHIPPED 路径下，pelvis 误差向量实测
+   `(0.0000, 0.3795, 0.3542)`，**逐帧方差为 0**，与 §A 的预测相差 **1.36e-07 m**；同时
+   pelvis-相对构型错 **0.284 m**。两个症状同时出现，正是平移＋输出被映射、模板未被映射。
+3. **落盘的 375 个 NPZ 上复现。** 对 `c_guided_v2` 的全部 375 个 schema-1 NPZ：按修复后的
+   口径（姿态原样、`zup_to_yup(transl)`、输出不变换）重建，FK pelvis 与文件自带的
+   `global_jpos` pelvis 相差 **1.19e-07 m**；按文件自己记录的 `zup_to_yup` 口径重建则差
+   **0.3795 m**——恰为 §A 位移的 y 分量。
+
+### C. 修复与验收闸门
+
+修复：`smpl_translation` 不再变换，FK 输出不再变换，`smpl_pose` 的 `yup_to_zup` 保留。
+
+**闸门（用 GT 旋转 + GT pelvis 灌进 generated 臂自己的解码链，与 `ground_truth_motion` 的 FK
+输出比，20 episode、两臂槽位一致的 26 个关节）**：
+
+| 候选 | mean | median | p99 | max | pelvis max |
+|---|---|---|---|---|---|
+| SHIPPED（修复前） | 3.000e-01 | 1.205e-01 | 1.470e+00 | 1.777e+00 | **3.795e-01** |
+| full identity（姿态也改 identity） | 2.578e-01 | 1.159e-01 | 1.692e+00 | 1.959e+00 | 1.192e-07 |
+| **FIX（只保留姿态变换）** | **6.36e-07** | **0.000e+00** | **2.38e-07** | 2.10e-03 | **1.19e-07** |
+
+中位数为 0 表示修复后多数数值与 GT 臂**逐位相同**。`max` 的 2.1e-03 与 mean 的量级差来自
+一处**既有**缺陷，与本次修改无关：`code/utils.py:43` 的 `quaternion_slerp` 把 LERP 分支的权重
+写反了（`q1 * step + q2 * (1 - step)`），而该分支在 `dot > 1 - 1e-6` 时触发，于是 `step = 0`
+处返回 `q2` 而非 `q1`。258 帧中只有 6 帧（18–20 与 66–68，两个关键帧的邻域）超过 1e-5，
+未共轭的对照组同样如此。**本节不修它**：它同时作用于两个臂，改动会移动 GT 臂已封存的数字。
+
+### D. `schema_version`：metrics 2 → 3，motion export 1 → 2
+
+- `METRICS_SCHEMA_VERSION` **2 → 3**：键集不变，但 generated 臂上**每一个由 FK 派生的指标的
+  数值**都会变（穿透、FS、jerk、boundary jerk、goal 分解、contact）。这正是该字段存在的场景。
+  **GT 臂的 payload 与 schema 2 逐位相同**——那条臂一直走 identity。
+- `MOTION_EXPORT_SCHEMA_VERSION` **1 → 2**：两臂现在都记 `"identity"`。
+- `results/lingo_hsi/c_guided_v2/` 里已有的 **375 个 NPZ 不删、不改写**。它们是 motion-export
+  schema 1 / generated 臂，消费者必须：`global_orient` / `body_pose` **原样使用**（它们已在
+  SMPL-X 模板坐标系中），把 `transl` 换成 `zup_to_yup(transl)`，并**无视文件自带的
+  `smplx_output_transform: zup_to_yup`、对 FK 输出不作变换**。该口径已在全部 375 个文件上验到
+  1.19e-07 m（§B.3）。GT 臂的 schema-1 文件本来就是对的，无需修补。
+
+### E. 上游同一缺陷未修，且是跨分支共享的（必须记）
+
+`code/test_infbagel_hosi.py:713-721` 有**字面等价**的写法：
+
+```python
+root_trans = yup_to_zup(points_all.reshape(-1, 28, 3)[:, 0, :].to(device) + transl)
+pose_pred  = yup_to_zup(transforms.matrix_to_axis_angle(local_rot_mat_all))...
+human_verts, joints = zup_to_yup(human_verts), zup_to_yup(joints)
+```
+
+该文件**与 `phase/01b-hoi` 共享**，本节按约束**未作任何修改**。因此：
+
+> **`phase/01b-hoi` 上每一个模型侧的几何数字都带着同一个缺陷**（pelvis 位移
+> `(0, +0.3795, +0.3542)`，身体相对自身 pelvis 多转 90°），**欠一次跨分支通报**。
+> 按 `AGENTS.md`「Cross-branch communication」，这条通报本身需要用户先批准。
+
+### F. 落盘 payload 的缺陷签名
+
+按 `skate_ratio` 逐个 payload 统计（`results/lingo_hsi/**/per_sequence_metrics.json`，共 60 份）：
+
+- **模型 cell 的 55 份 payload 全部落在 0.0000–0.0014**（B/C、guided/unguided、各分片、
+  各 probe、各 smoke），
+- GT 家族的 4 份（`ground_truth`、`ground-truth-v1/v2/v3`）全部为 **0.1408**，`gt-probe-6`
+  为 0.0299。
+
+模型侧比 GT 低两个数量级，与「脚被转到别处、几乎不进入 5 cm 门限」一致。**这 55 份都必须视为
+带缺陷的历史记录**，不得与修复后的数字同表比较（`schema_version` 已能把它们分开）。注意此处的
+份数是**文件数**（含分片与 probe），其背后只有 2 个不同的 checkpoint。
+
+### G. 本节未做
+
+- **未跑任何 model cell。** C+guided 的重跑由用户单独放行。
+- 未改 `code/test_infbagel_hosi.py`、未改 `code/priors/core/`。
+- 未删除、未改写任何已存在的 payload、NPZ 或 checkpoint。
+
+## 2026-08-18（同日第四次修订）：C+guided 在订正后尺子下的全协议结果
+
+`results/lingo_hsi/c_guided_v3/hsi_c_lingo_cm_epoch089-8527b03ae900/`，
+`schema_version` 3，375/375 episode，seed 42，`lingo_episode_dir=data/lingo_hsi_test_v2/data`，
+`export_motion=true`（375 份 NPZ，39 MB）。对照行 `results/lingo_hsi/ground-truth-v3`。
+配对差为同 episode 逐条相减，95% CI 为 10000 次配对 bootstrap（seed 20260818）。
+完整表在 `.claude/scratch/c_guided_v3_vs_gt_v3.txt`。
+
+### A. 修复本身把模型侧的数改了多少（`c_guided_v2` → `c_guided_v3`）
+
+同一 checkpoint、同一 episode 集、同一 seed，**只差 FK 坐标修复**（375/375 的
+`frame_count`、`window_count`、`skate_denominator_frames` 全等，确认 rollout 未变）。
+
+| 指标 | 修复前 | 修复后 | 倍数 | 方向 |
+|---|---:|---:|---:|---|
+| `pen_ratio` | 0.01482 | 0.06739 | 4.55× | 原来**低报** |
+| `pene_pct_scene` | 0.02552 | 0.09607 | 3.76× | 低报 |
+| `pene_sum_mean_floorexcl` | 14.148 | 79.338 | 5.61× | 低报 |
+| `pen_depth_mean` | 0.05149 | 0.09127 | 1.77× | 低报 |
+| `contact_count` | 546.08 | 1685.32 | 3.09× | 低报 |
+| `reachability_violation_ratio` | 0.02637 | 0.10127 | 3.84× | 低报 |
+| `fs_nemf` | 0.00100 | 0.08592 | 86.3× | 低报 |
+| `last_dist` | 0.27303 | 0.14350 | 0.53× | 原来**高报** |
+| `goal_height_err_m` | 0.91812 | 0.53861 | 0.59× | 高报 |
+| `success_last_20cm` | 0.44000 | 0.82933 | 1.89× | 低报 |
+
+机制一致：被抬起 `+0.3795 m`、沿 z 平移 `+0.3542 m` 的身体**浮出了碰撞体**，于是穿透与接触
+双双低报；同一位移直接加进了 goal 距离，于是 goal 误差高报。**没有一条是「修复让模型变好看」。**
+
+### B. 内建对照：aligned / unaligned 缝隙距离的表现正确
+
+- `transition_distance_aligned` 修复前后最大绝对变化 **2.334e-08**（float 噪声）——**不变**，
+  因为对齐口径把全局旋转除掉了；
+- `transition_distance_unaligned` 最大绝对变化 **3.916e-02**，相对最高 **18.0%**——**该变**。
+
+这一对量是实现自带的对照组，方向完全符合预期，是「修复是对的、指标实现是干净的」的独立证据。
+`boundary_jerk` / `interior_jerk` 只动了 0.7% / 1.8%（秩相关 0.9996 / 0.9968），
+说明**缝隙不连续这条结论不依赖该缺陷**。
+
+### C. C+guided v3 对 GT v3：配对差（* = 95% CI 不含 0）
+
+| 指标 | 全 375 模型 | GT | 配对差 | walk 130 模型 | GT | 配对差 |
+|---|---:|---:|---:|---:|---:|---:|
+| `pene_pct_scene` | 0.09607 | 0.05044 | +0.0456 * | 0.06678 | 0.03358 | +0.0332 * |
+| `pene_sum_mean_floorexcl` | 79.338 | 5.973 | +73.4 * | 53.371 | 0.449 | +52.9 * |
+| `pen_value` | 0.06827 | 0.03416 | +0.0341 * | 0.06489 | 0.02481 | +0.0401 * |
+| `pen_ratio` | 0.06739 | 0.02805 | +0.0393 * | 0.04384 | 0.01286 | +0.0310 * |
+| `pen_depth_mean` | 0.09127 | 0.04937 | +0.0419 * | 0.08823 | 0.04175 | +0.0465 * |
+| `contact_count` | 1685.3 | 787.8 | +897.5 * | 1243.6 | 539.0 | +704.7 * |
+| `reachability_violation_ratio` | 0.10127 | 0.05520 | +0.0461 * | 0.06949 | 0.03931 | +0.0302 * |
+| `fs_nemf` | 0.08592 | 0.25967 | −0.1738 * | 0.07758 | 0.40821 | −0.3306 * |
+| `last_dist` | 0.14350 | 0.00000 | +0.1435 * | 0.19889 | 0.00000 | +0.1989 * |
+| `success_last_10cm` | 0.41333 | 1.00000 | −0.5867 * | 0.34615 | 1.00000 | −0.6538 * |
+| `success_last_20cm` | 0.82933 | 1.00000 | −0.1707 * | 0.70769 | 1.00000 | −0.2923 * |
+| `goal_planar_err_m` | 0.33900 | 0.00000 | +0.3390 * | 0.42367 | 0.00000 | +0.4237 * |
+| `jerk_ratio` | 12.273 | 1.194 | +11.08 * | 12.835 | 1.210 | +11.62 * |
+| `boundary_jerk` | 6831.2 | 84.4 | +6746.8 * | 7479.9 | 97.6 | +7382.3 * |
+| `transition_distance_aligned` | 0.17967 | 0.00641 | +0.1733 * | 0.19112 | 0.00685 | +0.1843 * |
+
+**除 FS 外每一项都显著更差**；interactive 245 上唯一不显著的是 `success_min_10cm`
+（0.99592 对 1.00000，CI 上界触 0）。
+
+### D. 口径决定量级：1.8× 还是 133×
+
+walk 130 上同一套顶点、同一个 SDF：
+
+| 口径 | 模型 | GT | LINGO 公布 | 模型 / LINGO |
+|---|---:|---:|---:|---:|
+| `pene_pct_scene`（顶点比例，LINGO 自己的口径） | 0.0668 | 0.0336 | 0.038 | **1.76×** |
+| `pene_sum_mean_floorexcl`（DIMOS 求和，m） | 53.37 | 0.449 | 0.402 | **133×** |
+
+同一个物理事实，报出来差 75 倍。原因是求和口径 = 顶点比例 × 深度 × 10475，而模型的穿透
+**又广又深**（深度 0.0882 对 GT 0.0418，2.11×），两个因子在求和里相乘。
+
+**这不是尾部效应：** walk 上模型 `pene_sum_mean_floorexcl` 中位数 22.34（GT 中位数恰为
+0.0000），130 条里 **120 条**超过 LINGO 的 0.402，**103 条**超过其 10 倍。
+
+审稿口径建议：**主表用 `pene_pct_scene`**（与 LINGO 公布的 0.038 同口径、同量级，GT 校准到
+0.0336 对 0.038），求和式作为附表并注明是 extensive 量。
+
+### E. FS 行在模型上可能是空的（悬空盲区的实测确认）
+
+- 模型 375 条里 **208 条 `fs_nemf` 恰为 0.0**，GT **0 条**；
+- 模型 `skate_frames` 合计 383，GT 19483（**51 倍差**），分母 `skate_denominator_frames` 两侧全等；
+- `skate_ratio`：修复前 0.0003（与 F 节记录的 55 份 payload 的 0.0000–0.0014 一致）→ 修复后
+  0.0049 → GT 0.1408。修复把它抬了 16 倍，**但仍比 GT 低 29 倍**，且 214/375 仍恰为 0。
+
+即 §C 表里 FS 那个「−0.33 显著更好」**不可作为质量结论引用**。GT 自身也有 74/375 为 0（脚踩实
+且不滑，是合法的 0），所以零值本身不构成证据；区分「脚不在带内」与「脚在带内且不动」需要 FK 足高
+统计，见下条。
+
+> **待补：** 用导出的 375 份 NPZ 在 CPU 上重建 `metric_joints`（`smplx_output_transform:
+> "identity"`），统计 FK 足高分布，与 208 条零值做交叉表。网络自身的 28 槽关节通道
+> （`global_jpos`）已测：足高最小值均值 **−0.1018 m**、97.4% 的踝槽落在 8 cm 带内，
+> 所以零值**不可能**来自这个通道，只能来自 FK 骨架的姿态。
+
+### F. 对已有结论的影响
+
+- **缝隙不连续（`boundary_jerk` ~80× GT）不受影响**：修复前后只动 0.7%，秩相关 0.9996。
+  该结论继续成立。
+- **设计先验 #7 的方法论规则被强化，不是被推翻。** 本节就是它最干净的一次演示：修复前模型的
+  `pen_ratio` 0.0148 **比 GT 的 0.0281 还低**（看起来是穿透赢），而 `contact_count` 被同时
+  低报 3.09×；修复后穿透变成 GT 的 2.40×、接触变成 2.14×。"never claim a penetration win
+  without engagement beside it" 正是能最早抓到这个缺陷的规则。
+- **#7 引用的那个具体数字（D2-AH `contact_percent` 0.3192 对 GT 0.66188）是 HOI 分支证据，
+  不是本节测到的 HSI `contact_count`，本节不据此改写它。** 机制上它可疑：
+  `code/test_infbagel_hosi.py:337-356` 的 `contact_percent` 把**经过同一 FK sandwich 的手部
+  关节**（`joints[:, 24]`/`[:, 26]`）与**在原生坐标系里摆好的物体顶点**比 5 cm 门限，而位移量
+  ‖(0, 0.3795, 0.3542)‖ = **0.519 m**，是门限的 10 倍。这会把 `contact_percent` 系统性压低。
+  GT 臂是否同样受影响取决于该分支的 GT 路径，**本节未读、未改**——按 `AGENTS.md` 需用户先批准
+  跨分支动作。
+
+### G. 本节未做
+
+- 未跑 FID / R-Precision / MM-Dist：需 worker 上 `/home/yujinlun/data/transfer/` 的冻结
+  text-motion evaluator，375 份 NPZ 已按其输入口径导出，属下一步。
+- 未修 `code/utils.py:43` 的 `quaternion_slerp` 权重（会作废 `ground-truth-v1/v2/v3` 三行）。
+- 未改 `code/test_infbagel_hosi.py`、未改 `code/priors/core/`、未发跨分支通报。
+- 未 commit、未 tag、未分配 run id、未跑 `tools/experiment.py start`。
+
+## 2026-08-18（同日第五次修订）：FK 骨架是躺平的——对第四次修订 D、E 两节的更正
+
+第四次修订的 §E 留了一条「待补」：模型侧 208/375 条 `fs_nemf` 为 0，究竟是「脚不在带内」还是
+「脚踩实不动」。已用导出的 375 份 NPZ 在 CPU 上重建 `metric_joints` 测完，答案是前者，而且这条
+测量顺带**推翻了第四次修订 §D 的口径建议**。
+
+### A. 复现保真度先立住
+
+重建用 `pose = concat(global_orient[:,None], body_pose)`、无任何坐标变换
+（`smplx_output_transform: "identity"`）：join 375/375；重算的 `fs_nemf` 对 payload
+最大 |Δ| = **5.0e-7**；208 个零值全部复现，**且是同样的 208 条**；`F` 与 payload
+`frame_count` 全等。所以下面的数就是 payload 里那些指标真正吃到的骨架。
+
+### B. FK 骨架躺平，网络自己的关节通道却大致直立
+
+| 量 | FK 骨架（指标吃的） | `global_jpos`（网络 28 槽通道） |
+|---|---:|---:|
+| pelvis→neck 轴偏离 +y | **95.15°** | **15.58°** |
+| 22 个身体槽的 y 跨度 | 0.5925 m | 1.5260 m |
+| 踝 / 趾 / pelvis / neck 平均高度 (m) | 0.5786 / 0.5794 / 0.5696 / 0.5504 | −0.0225 / −0.0599 / 0.5705 / 1.3425 |
+| 每帧每关节 L2（两者之间） | — | **0.6146 m** |
+| pelvis 高度之差 | — | **+0.0003 m** |
+
+即：**根平移是对的，挂在它下面的身体是横着的**。踝、趾、pelvis、neck 四个高度挤在 0.55–0.58 m
+的同一层，正是躺平的签名。
+
+### C. FS 零值的机制：零残差
+
+2×2 交叉表（全 375）：`fs==0 且 FK 最小足高 > 0.08 m` = **185**，`fs==0 且 ≤0.08` = 23，
+`fs!=0 且 >0.08` = **0**，`fs!=0 且 ≤0.08` = 167。按带分开后分离是完全的：208 条零值里
+**208/208** 的踝最小高度 > 0.08 m，**208/208 在两个带里贡献的 (frame,joint) 槽数恰为 0**
+（唯一一条趾低于 0.04 m 只发生在最后一帧，而 `fs_nemf` 取 `h` 于 `pos[:-1]`，从不采样它）。
+FK 槽落在带内的比例只有 **1.07% / 1.31%**（`global_jpos` 是 97.43% / 97.27%）。
+
+**结论：`fs_nemf` 在这个模型上是空的**，208 条为 0 是因为没有任何一帧进入接触带，与滑不滑无关。
+把同一公式套在 `global_jpos` 上得 **1.6808 cm/frame**（walk 2.0369），0 个零值——对 GT 的
+0.2597 / 0.4082 是约 **5 倍更差**，这才是躺平的 FK 身体一直在掩盖的数。
+
+### D. 躺平不是残留的坐标变换（已排除）
+
+在 6 条序列上把 pose 上那个 `yup_to_zup` 去掉（full identity，即 GT 臂的口径）：
+偏离 +y 变成 **108–142°**（比 as-shipped 的 87–107° **更差**），对 `global_jpos` 的 L2
+从 0.6361–0.6515 涨到 0.6871–0.7879。**两种口径都不直立，as-shipped 是两者中较好的一个**，
+与第三次修订里「去掉它 pelvis 相对配置错 9.2 cm」的测量一致。
+
+同时 GT 臂（identity 口径）的脚**确实**落在 4–8 cm 带内（375/375 条 `fs_nemf` 非零，
+`skate_frames` 合计 19483），所以 **FK 机制本身能产出直立身体**。综合两条：躺平来自
+**模型的旋转通道**，不是路径缺陷。第三次修订的修复继续成立。
+
+> 仍待判定：解码链本身（6D global → `quat_ik_torch` → `interp_jrot` → `yup_to_zup`）是否
+> 无损。已派 GT 旋转的往返测试：把 GT 旋转按 dataset 的方式正向编码进网络表示，再走生成臂的
+> 解码链回来做 FK，与 GT 关节数组比。若往返即已躺平，则问题在链上；若往返精确，则旋转通道是
+> 模型真的没学会。**这个必须在任务 #22（B smoke）之前回答**——链若是坏的，B smoke 什么也说明不了。
+
+### E. 关节通道也不是刚体（任务 #18 的结果）
+
+在 `global_jpos` 上按 SMPL-X 自己的 `parents[:22]` 量骨长：**21/21 根骨的序列内 CV 都超过
+1e-2**，10/21 超过 1e-1；CV 均值 **1.013e-1**，per-(seq,bone) CV 的 p95 0.2795、max 0.6731。
+
+对照组用数据集通道 `data/dataset/human_joints_aligned.npy` 同 28 槽、342 个窗口：
+**刚到浮点噪声，CV 均值 2.43e-7，0/21 超过 1e-3**，平均骨长与 SMPL-X FK 骨架四位小数相符。
+所以生成通道的 CV 是对照组的约 **4e5 倍**。
+
+平均骨长本身也错：8/21 根偏离对照组 >20%——`pelvis→spine1` **3.93×**、
+`pelvis→left_hip` 2.67×、`pelvis→right_hip` 2.46×、collar→shoulder 两侧 0.40×、
+ankle→foot 0.42–0.44×、elbow→wrist 0.84–0.88×。
+
+**所以两个头都坏，但坏法不同**：旋转通道给出躺平的身体，关节通道大致直立但被拉伸成非解剖的形状。
+`global_jpos` 的「直立」因此也不能当可信参照。
+
+### F. 更正第四次修订 §D 的口径建议
+
+第四次修订建议「主表用 `pene_pct_scene`，因为模型 0.0668 对 LINGO 公布 0.038 只有 1.76×，
+和社区同量级」。**这个说法要撤回**：那 0.0668 是**一个躺平身体**与场景的交集，而 LINGO 的
+0.038 描述的是直立行人。两者不可比，1.76× 会让模型听起来接近可用，实际上它的身体是横着的。
+
+保留的部分：**GT 侧的校准结论仍然成立**（`ground-truth-v3` 的 0.0336 对 LINGO 0.038，
+`pene_sum_mean_floorexcl` 0.449 对 0.402 = 1.12×）——尺子对得上，是被测对象不成立。
+`pene_pct_scene` 仍是将来的主表口径，但**在旋转通道修好之前，模型侧的任何几何数都不要与文献并列**，
+只能自比（同 `schema_version`、同口径的版本间比较）。
+
+### G. 本节的方法论教训
+
+第三次修订的验收闸门只检查了「pelvis 相对配置」和「GT 臂逐位不变」，**没有检查 FK 骨架是否直立**。
+一个 O(1) 的量（pelvis→neck 偏离 +y 的角度）就能在重跑之前抓到它。**将来任何改动 FK 或旋转
+表示的修复，闸门必须包含一个绝对姿态量，而不只是相对量与不变性。**
+
+## 2026-08-18（同日第六次修订）：解码链无损，但评测驱动自己把条件旋转掀了 ~100°
+
+第五次修订留的那条「仍待判定」已答：**解码链是无损的，问题在它上游的评测驱动里，而且是我们自己
+引入的**。51 条 GT 序列、26 个场景、11638 粗帧。
+
+### A. 往返测试：链无损（判定结果是 (b) 而不是 (a)）
+
+把原始 axis-angle 按 `datasets/infbagel.py:512-527` **逐字**正向编码进网络的 6D global 表示，
+再走生成臂的解码链回来做 FK：
+
+| 量（interp 3，米） | 值 |
+|---|---:|
+| GT 臂 FK 对关节数组 | 0.007158 |
+| 往返 FK 对关节数组 | 0.007159 |
+| **往返 FK 对 GT 臂 FK** | **2.00e-6**（max 8.19e-4） |
+| 去掉 pose 上的 `yup_to_zup` | 0.650 |
+
+pelvis→neck 偏离 +y：往返 FK **8.571°**、GT 臂 FK **8.571°**、GT 关节数组 **8.591°**；
+identity 解码 **91.48°**。
+
+逐级最大矩阵元误差（float32 eps ≈1.2e-7）：`rotation_6d_to_matrix` **逐位相同**、
+`quat_ik_torch` 4.0e-7、`interp_jrot`（权重修正后）3.0e-7。唯一有损的一级是 `interp_jrot`
+**as shipped** = 2.52e-3，全部来自 `code/utils.py:43` 那个交换了的 lerp 权重：触发率
+**11.27%**，代价 0.003° 均值 / 0.160° 最大，FK 位置 6.7e-5 m 均值。**它造不出 90° 的倾倒**，
+且 interp 3 下两臂共用 `interp_jrot`，在配对比较里抵消。修它把 FK-对-数组从 0.0071586 挪到
+0.0071418 m。
+
+### B. 全 375 条都是躺平的，而且没有任何坐标口径能救
+
+pelvis up 轴偏离竖直（97632 帧）：
+
+| | mean | p5 | p50 | p95 |
+|---|---:|---:|---:|---:|
+| as-shipped 口径 | **90.58°** | 45.47 | 89.51 | 135.98 |
+| network 口径（撤销导出的变换） | 90.58° | 45.47 | 89.51 | 135.98 |
+| 同 375 条的 GT | **10.10°** | 1.35 | 7.17 | 23.78 |
+
+两行相差 2e-4°——**该统计量是共轭不变的，所以 pose 上任何 yup/zup 选择都救不了它**。逐序列均值
+p5 79.0°、p95 101.3°（min 65.4、max 112.9），**375 条无一例外**。单一全局旋转也救不了：
+`R₀ŷ` 的 mean resultant length 0.696（GT 0.914），取最优单方向后残差仍有 43.8° 均值 / 80.7° p95。
+聚集方向距 **+z 仅 1.25°**——正是「多了一次 `zup_to_yup`」的 90°-about-+x 签名。
+
+### C. 上游缺陷：`:1429` 把 y 旋转施加在 y 是水平轴的帧里
+
+`code/test_infbagel_lingo_hsi.py:1414-1429`：
+
+```python
+points_world   = points_world @ desired_rotation.T      # :1418  y-up 关节通道，正确
+global_matrices = desired_rotation @ global_matrices     # :1429  已共轭的旋转通道，错帧
+```
+
+`desired_rotation = R_y(θ)`，`|θ|` 均值 **122.2°**、p95 255°。对交给去噪器的第 0 步条件身体的
+pelvis up 轴：**9.46° → 100.49°**（p50 105.6、p95 172.6）。把同一个 yaw 共轭进通道自己的帧则
+仍是 9.46°。连带 `mat_step[:, :3,:3]`（由该通道的 y-euler 导出，每个窗口既归一化关节历史又给模型
+输出做 un-shift）从训练口径下的 **0.00°** 变成 as-shipped 的 **97.26°**（p95 175.3）。
+
+**归属：`desired_rotation` 只出现在 `code/test_infbagel_lingo_hsi.py`，由我们自己的提交
+`1914cae` 引入**；作者的 `75efccc` 没有，HOI evaluator 没有，**训练路径从不施加它**
+（`train_infbagel.py`、`models/infbagel.py`、`datasets/infbagel.py`、`priors/` 全部零命中）。
+所以这是**我们的缺陷、且只影响 HSI**。
+
+### D. 因此：不能据此判定 checkpoint 坏
+
+模型在第 0 步就被喂了一个约 100° 倾倒的旋转通道，配一个直立的关节通道。**「旋转通道躺平」对这次
+rollout 成立，但归属未定**——模型可能只是忠实复现了被掀倒的条件。
+
+**并且这是两个缺陷不是一个**：`desired_rotation` 绕 SMPL 的 z 轴掀，本该把 up 轴散布在 xy 平面上，
+而实测聚集在 +z。还有一个系统性的 90°-about-x 成分**尚未定位**。
+
+### E. 顺带查出的三条（都已测，都在解码之上游）
+
+1. **数据集的窗口正则化几乎是空操作。** y-up root 的真实 heading 均值 **90.72°**（p95 176°），
+   而 `datasets/infbagel.py:513-516` 只去掉 **4.54°**（p95 9.6°），因为它在 y 是水平轴的帧里
+   取 y-euler。**训练窗口在两个通道里都不是 heading-canonical 的**——直接关系到 Phase 1C 的窗口帧。
+2. **`datasets/infbagel.py` 与冻结的 `code/priors/core/window_codec.py` 对 6D 通道口径不一致。**
+   两边都用 `zup_to_yup` 共轭，但 shift 角不同：scipy `as_euler('zxy')` 是**外旋**，
+   `window_codec.py:141` 的 `matrix_to_euler_angles(root,"ZXY")` 是**内旋**，实测帧错配
+   **5.13° 均值 / 16.08° 最大**。今天无害（`config_train_hsi_{b,c}_*` 走 `InfBaGelDataset` 而非
+   `PriorWindowDataset`，训练与评测共用外旋口径），但**任何经 `core/` 训练的 Phase 1C run 会踩到**。
+3. 两条本文档此前的说法要更正：
+   - 「GT 臂逐位复现关节数组到 0.000000 m」只对**导出**成立（`joints_coarse` 就是那个数组本身）。
+     GT 的 **FK** 对数组是 interp 3 下 **7.16 mm**、interp 1 下 **2.00 mm**（pelvis 平移到
+     2.9e-8 m）。这 ~5 mm 是线性关节插值对 slerp 姿态插值的差。
+   - 第三次修订注释里「去掉 `yup_to_zup` 错 9.2 cm」，在**正确旋转**上实测是 **65.0 cm** 且倾倒到
+     91.5°。结论（该变换必需）成立，数字不成立。**已就地改正该注释**（148 个测试仍全绿）。
+
+### F. 欠用户的两个决定
+
+1. **怎么修 `:1429`。** 两条路：
+   (a) 把 `desired_rotation` 共轭进通道的帧：`Z @ R_y(θ) @ Z.T @ global_matrices`（`Z` =
+   `zup_to_yup` 的矩阵形式）——只改评测，不动训练表示；
+   (b) 去掉 `datasets/infbagel.py:91,94` 与 `priors/hsi/data.py:58-59` 的 `zup_to_yup` 共轭，
+   以及 `:1610` 补偿性的 `yup_to_zup`，让两个通道都活在同一个 y-up 帧里——**这是真正的修法**
+   （顺带修好 §E 的 1 和 2），但它改变训练表示，**因此强制重训**。
+2. **一次 GPU 探针**（无 run id，只写 `.claude/scratch/`）：固定 ~20 条跨场景 episode，跑两次
+   ——as-is 与 `:1429` 共轭后——只比导出的 pelvis up 轴偏离。回到 ~10° ⇒ 权重没问题，纯驱动缺陷；
+   仍在 ~90° ⇒ 旋转通道真的没学会。**必须先于任务 #22（B smoke）**：驱动在喂垃圾时，B smoke
+   分不出任何东西。
+3. `code/utils.py:43` 的 lerp 权重：真实但值 0.017 mm，修它会扰动所有已有 GT 与模型数字。倾向不修。
+
+### G. 本节未做
+
+- 未跑任何 GPU 工作负载；未改 `:1429`；未改 `datasets/infbagel.py`、`priors/hsi/data.py`、
+  `code/priors/core/`、`code/test_infbagel_hosi.py`。
+- 未 commit、未 tag、未分配 run id。唯一的 tracked 改动是第 §E.3 条那处注释订正。
+
+## 2026-08-18（同日第七次修订）：更正第六次修订的归属——`:1429` 不是缺陷，而旋转通道确实没学会
+
+用户已批准「先按 (a) 修 `:1429`，然后跑探针」。**测量表明 (a) 会把事情改坏，因此没有实施**，
+探针的 arm B 不存在，**本轮没有跑任何 GPU 工作负载**。下面每条都独立复核过。
+
+### A. 第六次修订 §C 的归属是错的
+
+`:1429` **复现的就是训练的构图**。`code/datasets/infbagel.py:512-534`：
+
+```python
+init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
+shift_rot_matrix = R.from_euler('zxy', [0, 0, -init_global_orient_euler[2]]).as_matrix()
+global_rot_mat = shift_rot_matrix[None,None] @ global_rot_mat      # :526  旋转通道
+...
+mat[:3, :3] = np.linalg.inv(shift_rot_matrix.T).T                  # :530  = inv(shift)
+joints = joints @ shift_rot_matrix.T                               # :534  关节通道
+```
+
+**同一个 `shift_rot_matrix` 同时左乘旋转通道、右乘转置到关节通道**——评测的 `:1418`/`:1429`
+是同一个操作。而 `:1447-1449` 的 `shift_rotation` 是在 `:1429` **之后**从通道 root 重算的，
+`desired_rotation` 在通道帧里的 zxy-y-euler 恰为 θ，所以 `shift_euler = -θ` **精确抵消它**。
+实测：`fixed_global` 与 `data["global_rot_6d"][:2]` **逐位相等**（对训练通道的测地距离
+**0.0000**，max 6e-4）。
+
+**所以模型收到的条件输入是逐位正确的。** 第六次修订引用的「9.46° → 100.49°」是在抵消**之前**
+量的，不是去噪器实际收到的东西；那个「97.26°」就是 `|θ|` 折到 [0,180]。
+
+而我提的两个候选 `A1 = Z M Zᵀ`、`A2 = Zᵀ M Z` **都不过闸门**：两者都把条件推到离训练分布
+**82.41°**（p95 168.9）。**(a) 会破坏条件输入。** 闸门 1（条件身体直立度）根本没有分辨力：
+as-is 与「完全不施加」到 4 位小数相同（7.62°），因为在共轭通道里左乘 `R_y` 是绕该通道的 z 转，
+而直立度统计对它不变。
+
+### B. 倾倒进的是**输出**，不是输入
+
+`mat[:3,:3] = inv(shift)`，所以 `code/test_infbagel_hosi.py:156`
+（`global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat`）是**合法的 un-shift**。
+但评测在训练之外**额外**施加了 `desired_rotation`（`|θ|` 均值 122.2°，训练从不施加），它对
+条件被抵消、对**输出**没有被抵消。于是导出的旋转通道带着一个 `|θ|` 量级的倾倒。
+
+实证：导出 root 在粗帧 0 与原始 GT 相差一个转轴离原始帧 z 仅 **0.017° 均值**（p50 0.000，
+max 1.133）的旋转，其角度与 `|θ|` 的相关系数 **r = 0.982**；剥掉这一个 `R_z(-φ)` 后，导出的
+**GT 历史帧**回到原始 GT 的 **0.012°** 之内。**所以导出的 GT 历史帧的倾倒是纯人工制品。**
+
+### C. 但权重确实坏——一个与坐标口径无关的证明
+
+窗口内相邻粗帧 root 的相对旋转大小是**共轭不变**的（同窗口所有帧共享同一个 line-156 因子），
+所以它不可能被任何帧约定解释。全 375 条、第一个窗口（`history_frames = 2`）：
+
+| 粗帧步 | 均值 (°) | p50 | p95 |
+|---|---:|---:|---:|
+| 0→1（两帧都是 GT 历史） | 1.74 | 0.95 | 6.19 |
+| **1→2（最后一帧历史 → 第一帧生成）** | **122.68** | **118.86** | **154.64** |
+| 2→3 | 2.63 | 1.42 | 8.57 |
+| 3→4 … 6→7 | 2.76–4.24 | 1.08–1.66 | 8.57–15.04 |
+
+**给它逐位正确的旋转历史，模型第一帧生成就甩开 122.68°，然后又平滑下去。** 这是主 session
+独立复算的（agent 报 122.7）。配套：全 2271 个窗口逐窗取最优 `R_z` 也只能把 90.58° 压到
+**50.35°**（GT 10.11）；只从 GT 条件帧反解 φ（非循环）后，历史帧落在 GT 的 0.012°，而生成帧
+2–15 去到 **121.10°** 直立度、离 GT **125.01°** 测地。
+
+**结论：旋转通道没有被学会。** 这不是驱动缺陷能解释的。
+
+### D. 上游根因：`zup_to_yup` 是多余的，它把窗口正则化打废了
+
+`human_orient.npy` **本来就是 y-up**。实测（前 20 万帧）：
+
+| 量 | 值 |
+|---|---:|
+| 原始 orient `arccos(R[1,1])`（body-y 对 world-y） | 均值 14.21°，p50 **6.59°** |
+| 原始 orient `arccos(R[2,2])` | p50 112.38° |
+| **共轭后**通道 body-y 对 world-y | 90.15° |
+| **共轭后**通道 body-z 对 world-z | **9.96°** ← 通道的竖直变成了 z |
+
+所以 `code/datasets/infbagel.py:91,94`（与 `code/priors/hsi/data.py:58-59`）对**旋转通道**做的
+`zup_to_yup` 是**多余的共轭**，之后通道的竖直是 ±z 而关节通道的竖直是 +y。
+
+**后果是窗口正则化基本失效**：
+
+| `|zxy` 的 y-euler`|` | 均值 | p50 | p95 |
+|---|---:|---:|---:|
+| 共轭后通道（训练实际归零的那个） | 6.77° | 3.64° | 20.30° |
+| 原始 y-up orient（真正的 heading） | **90.46°** | **90.71°** | 175.38° |
+
+`:514-516` 想去掉的是初始 heading，但它在一个 y 是水平轴的帧里取 y-euler，于是**只去掉了
+90.5° 里的 6.8°**。而 `:534` 把同一个小矩阵用到关节上，所以**两个通道都没有被 heading 正则化**。
+
+**假设（有机制、有量、尚未证伪）：** 训练因此从未提供过 heading-canonical 的窗口——每个窗口
+以任意绝对朝向（约 90° 均值、p95 175°）出现。位置通道还有 `mat` 的平移归一化托着，旋转通道
+则要在没有任何 canonical 帧的情况下学绝对朝向。这与「关节通道大致直立、旋转通道完全没学会」
+的观测一致。**这是一个假设，不是测量结论。**
+
+### E. 因此优先级要变
+
+**在训练表示修好之前，打磨 evaluator 没有收益。** 导出侧的倾倒是人工制品、可以修，但修完数字
+不会变好，因为缺陷在 checkpoint 里。`results/lingo_hsi/c_guided_v3` 与 B 各列的 FK 几何数字
+**依然全部作废**，但**重跑不能救它们**。
+
+### F. 欠用户的决定（已更新）
+
+1. **真正的修法**：去掉 `datasets/infbagel.py:91,94` 与 `priors/hsi/data.py:58-59` 多余的
+   `zup_to_yup`，以及评测侧 `:1610` 的补偿性 `yup_to_zup`，让两个通道活在同一个 y-up 帧里。
+   顺带修好窗口正则化。**但它改变训练表示 ⇒ 强制重训**，且 `code/priors/core/window_codec.py`
+   是冻结的跨分支契约，必须与 HOI 分支一起动。**这是用户的决定。**
+2. **跨分支通报现在更紧急**：`code/test_infbagel_hosi.py:156` 与其中的 `get_mat` 是共享的，
+   同一个倾倒**很可能出现在每一个 HOI 模型侧 FK 数字里**（未在 HOI 上验证）。
+3. **补上缺的那个数**：旋转通道的失败是否早于蒸馏。`b_guided_shard8` 与 `c_unguided`
+   **没有 motion export**，所以无法从已有产物回答。需要批一次 B checkpoint 的 export-only pass
+   （B 是 diffusion 阶段模型，`sample_type` 与 checkpoint 路径需用户确认）。
+
+### G. 本节未做
+
+- **未实施 (a)**（测量表明它会破坏条件输入）；未跑任何 GPU；未改任何源文件。
+- 未改 `code/priors/core/`、`code/test_infbagel_hosi.py`、`datasets/infbagel.py`、
+  `priors/hsi/data.py`。未 commit、未 tag、未分配 run id。
+- 未验证窗口 ≥1 的条件一致性（需带插桩的 GPU run）。w≥1 的历史是上一窗口被 line-156 倾倒过的
+  输出，而归零 root 的 y-euler 无法撤销一个 tip，故预期也出分布——**未验证**。
+
+## 2026-08-18（同日第八次修订）：坐标表示修正已落地，六道闸门全过；并更正本文档两个数
+
+用户已明确授权改动冻结的 `code/priors/core/` 与共享的 `code/test_infbagel_hosi.py`。改动已落地，
+证据在 `.claude/scratch/repfix/FINAL_GATES.txt`。**未 commit、未 tag、未训练、未跑 GPU 训练负载。**
+
+### A. 先更正第七次修订的两个数（我错了）
+
+1. **`arccos(R[2,2])` p50 不是 112.38°，是 92.81°。** 我当时只取了 `human_orient.npy` 前 20 万帧；
+   按 37 步长遍历全部 291.6 万帧得 mean 92.52 / **p50 92.81**（n=78805）。92.8° 才是正确读数，
+   含义是「heading 任意」而非「竖直是 z」。第七次修订表里的 `arccos(R[1,1])` p50 6.59 是对的
+   （全量 7.47），结论「资产本来就是 y-up」不变。
+2. **「`zup_to_yup` 是多余的」只对 LINGO 成立，对 OMOMO 不成立。** `data/train`/`data/test` 的
+   `human_orient` **确实是 z-up**（`R_stored = Rx(90)·G_yup`），共轭在那里与被共轭的模板恰好相消。
+   **一刀切删掉会把 HOI 打坏 0.557 m。** 正确做法是按语料在加载时**功能性判定**世界系
+   （FK 必须复现 `human_joints_aligned.npy`），而不是无条件删除。
+
+### B. 第七次修订漏掉的关键资产：`rest_human_offsets_aligned.npy` 本身是被共轭的
+
+它在**两个语料里**都是 `zup_to_yup(y-up 模板)`。主 session 独立核对：资产 left_hip 行
+`[0.05614, -0.02347, 0.09454]` 与 `zup_to_yup(constants.rest_pelvis[1])`
+`[0.05614, -0.02348, 0.09454]` **逐位相符**。
+
+所以「只去掉旋转的共轭、不动模板」会得到 0.887 m，比现状更差。修法必须是
+**root-only 世界系校正 + 把模板反共轭回 y-up**，两者一起。
+
+### C. 训练侧 FK 一直在和一个错位 0.56 m 的骨架比（本轮最重要的发现）
+
+`code/models/infbagel.py` 的 `loss_fk` 用 `quat_fk_torch(local_jrot_mat, rest_human_offsets)`。
+共轭旋转 + 共轭模板 ⇒ FK 输出整体被 `Rx(-90)` 转过，而 GT 关节是 y-up 未转的。主 session
+独立复现（4000 帧，pelvis 相对）：
+
+| 训练 FK 构图 | 对 `human_joints_aligned.npy` 的均值误差 | 最大 |
+|---|---:|---:|
+| **旧**：共轭旋转 + 仓库模板 | **0.557769 m** | 1.415811 m |
+| **新**：y-up 旋转 + 反共轭模板 | **0.000000 m** | 0.000001 m |
+
+（agent 在另一组样本上报 0.565 m → 4.0e-07 m，量级一致。）
+
+**`loss_fk` 是唯一在几何上锚定旋转链的项，而它一直在对着一个平均错位 0.56 m 的骨架算损失。**
+这是「旋转通道从未学会直立」「HOIPrior 迭代多次无效」「infbagel 在 LINGO-only 上复现不出来」
+三件事的同一个机制性解释。与 `HSIPRIOR_DESIGN_PRIORS.md` §4 记录的「几何项被低估约 135×」叠加：
+不只是权重太小，**它测的东西本身是错的**。
+
+**重训预注册必须记录 `loss_fk` 量级的重定标**——它按构造改变，不是调参。
+
+### D. 六道闸门（改前 → 改后）
+
+| 闸门 | 改前 | 改后 |
+|---|---|---|
+| A 通道竖直 vs 关节竖直（400 窗口） | mean 94.78 / p50 98.04° | **8.98 / 6.12**（原始资产本身 9.95/6.14） |
+| A2 `get_mat` yaw vs dataset yaw（新增） | mean 86.56 / p50 85.34° | **0.000 / max 0.017** |
+| B shift 轴 vs ±y | 0.000 | 0.000（两侧精确） |
+| B 被去掉的 \|shift\| | p50 3.56° | **p50 90.50°**（真实 heading p50 92.53） |
+| B shift 后髋方位角 vs 其圆均值 | p50 85.61° | **p50 0.363 / p95 3.60** |
+| C GT→表示→生成臂链 vs 关节数组 | 2.1423 mm @s=1 / 6.6835 @s=3 | **2.1407 / 6.6829**（不更差） |
+| D GT 臂足部仍进接触带（24 episode/24 场景） | — | `fs_nemf` 非零 **24/24**，`skate_ratio` 0.2183 |
+| **E 旧 dataset vs `core/` 旋转测地** | **mean 8.064 / p95 24.99 / max 163.41°** | **mean 3.6e-06 / max 2.3e-05** |
+| E 同上，关节通道 | max 4.627e-01（归一化） | **1.49e-07** |
+| F 测试 | 148 passed | **159 passed**；全仓 **281 passed / 3 skipped**（主 session 复核，需设 `INFBAGEL_PYTHON`） |
+
+FK 帧测试：LINGO `共轭旋转+仓库模板` **0.565 m** → `y-up 旋转+反共轭模板` **4.0e-07 m**；
+OMOMO 两种写法都精确（7.8e-07），即修法对 HOI 是无损的。
+
+闸门 E 改前比第七次修订记录的更糟：不是 5.13°/16.08°，而是 **mean 8.064° / max 163.41°**，
+外加关节通道一处 0.4627 的分歧（第七次修订未提）。**该错配此前没有任何测试覆盖**，本轮补上了。
+
+### E. `ground-truth-v3` 不动（已实测确认）
+
+agent 论证 `test_infbagel_lingo_hsi.py` 的改动 hunk（66-80、96-104、1396、1604-1625）与 GT 臂
+（161-355）互不相交；`GroundTruthSource` 定义在该文件 `:161` 内、直接读 `DATASET_ROOT`，
+**不经过 `code/priors/hsi/data.py`**，所以那个文件的改动不触及 GT 臂。
+
+主 session 实测验证：当前工作树重算 20 条 GT，与 `ground-truth-v3` **在每一个数值键上逐位相同**，
+仅 `schema_version` 4 vs 2。**agent 报告里「重算会偏离 v3（boundary_jerk ≤23%）」这条复现不出来，
+应予否决**；那条把原因归给 `metrics.py` 的未提交改动，但 `ground-truth-v3` 本来就是在那份
+`metrics.py` 下生成的。**结论：GT 参考行完好，不需要重做。**
+
+### F. 作废的产物
+
+- **模型侧全部作废且不可重算**：`b_guided_shard8`、`b_unguided_shard8`、`c_guided{,_v2,_v3}`、
+  `c_unguided`、`latency_*`、`smoke-*`、`rds_gate_smoke`、`shard_bitwise`。那些 checkpoint 拟合的
+  132 维通道已不存在，**只有重训能取代它们**。保留它们作为「修复前」的对照。
+- HOI 分支封存的 D2-* 各行同理：OMOMO 的通道从 `G_yup·Mᵀ` 变为 `G_yup`。
+- 磁盘上的数据资产（`norm.npy`、`human_*.npy`、`transl_aligned.npy`、`Scene*`、split manifest）
+  **未改动**，输入哈希不变。
+
+### G. 欠用户的决定与我的建议
+
+1. **Phase 1C 基线**：agent 提议加一条 `representation='legacy_75efccc'` 通道专门用于评测已发布
+   checkpoint。**我建议不加**：那是为保住一个坏表示而维护的死代码。「修复前」的数字**已经存在**
+   （上面 F 节那些行），GT 参考行完好，所以 before/after 对照现成，只要别删旧行。
+2. **`core/window_codec.py` 的同款改动要落到 `phase/01b-hoi`**（`AGENTS.md`「Final integration is
+   a graft」，冻结测试自己也这么要求）。**本分支未触碰那个分支**；该指令写进交接报告，由新 session 执行。
+3. **`code/datasets/utils.py` 是第五个被改的文件**（新增按语料判定世界系的帮助函数，是 `datasets/`
+   与 `priors/hsi/` 唯一的共同上游）。需用户追认。
+4. **`tools/audit_prior_data.py:67-69` 复制了旧的正则化逻辑**，现在与 dataset 不一致，其归一化审计
+   在更新前无效。属授权范围外，未改。
+5. **`tests/hsi/test_representation_frame.py`（新增 365 行、11 个测试）目前未跟踪**，
+   `tools/experiment.py` 会因此判定工作树脏而拒绝可上报的 run。需要 `git add` 后才能开跑。
+6. 遗留、与本轮无关、但已量化：`interpolate_joints` 用 `linspace(0,T-1,T*scale)` 而 `interp_jrot`
+   按 `1/scale` 步进，interp_s=3 时仅 pelvis 就漂 4.86 mm 均值 / 43.3 mm 最大。
+
+### H. 已知局限
+
+- heading 正则化对水平身体退化：3.30% 的窗口残余方位角 >5°（其躯干倾角中位数 57.5°），
+  1.13% >45°（中位倾角 87.7°，即躺卧）。任何单轴 heading 都有此性质；直立窗口 p50 0.387°。
+- 未验证 LINGO 镜像半区（序号 ≥9725）行为一致；探针与抽样取自非镜像半区。
+- 闸门 C 残余的 2.14 mm **全部**来自 `SMPLX_JOINTS_28` 的槽位 25/27（仓库数组里各 28.018 mm），
+  关节 0–21 精确。属既有问题，与本轮无关。

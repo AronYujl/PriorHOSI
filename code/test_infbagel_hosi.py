@@ -153,6 +153,14 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
     contact_label = points_gene[:, :, 228:232].reshape(cfg.batch_size, cfg.max_window_size, 4)
 
     global_jrot_mat = transforms.rotation_6d_to_matrix(global_rot_6d.reshape(cfg.batch_size, cfg.max_window_size, 22, 6))
+    # Unchanged by the 2026-08-18 frame correction, and correct in either frame:
+    # `mat[:3, :3]` is the window frame's local->world rotation (the inverse of
+    # the heading shift the dataset applied), so this undoes exactly the shift the
+    # channel carries.  It is the same rigid transform whatever world frame the
+    # channel lives in.  `get_mat` is likewise unchanged: it reads only the joint
+    # channel, fits it to the y-up `constants.rest_pelvis`, and takes the same
+    # extrinsic-'zxy' y-euler the dataset does -- so after the correction the two
+    # headings agree to 0.017 deg max (they disagreed by 85 deg p50 before).
     global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat
     global_rot_6d = transforms.matrix_to_rotation_6d(global_jrot_mat).reshape(cfg.batch_size, cfg.max_window_size, 22*6)
 
@@ -710,15 +718,23 @@ def main(cfg: DictConfig) -> None:
             local_rot_q_all = interp_jrot(local_rot_q_all, cfg.interp_s).reshape(-1, 22, 4)
             local_rot_mat_all = transforms.quaternion_to_matrix(local_rot_q_all).reshape(-1, 22, 3, 3)
 
-            root_trans = yup_to_zup(points_all.reshape(-1, 28, 3)[:, 0, :].to(device) + transl)
-            pose_pred = yup_to_zup(transforms.matrix_to_axis_angle(local_rot_mat_all)).reshape(-1, 22, 3).to(device)
+            # No frame transform on this path.  The released code ran SMPL-X in
+            # the z-up world -- yup_to_zup on the translation and the pose, then
+            # zup_to_yup on the vertices and joints -- because OMOMO's rotation
+            # channel carried global rotations of a zup_to_yup-rotated template
+            # and `transl - pelvis` was `-zup_to_yup(J0)` rather than `-J0`.  Both
+            # of those are fixed at the source now (datasets/infbagel.py applies a
+            # world change of basis to the root only, restores the y-up rest
+            # template, and restores the y-up SMPL-X translation), so the decoded
+            # locals and the translation are already what SMPL-X's own y-up
+            # template expects and the sandwich would reintroduce the error.
+            root_trans = (points_all.reshape(-1, 28, 3)[:, 0, :].to(device) + transl)
+            pose_pred = transforms.matrix_to_axis_angle(local_rot_mat_all).reshape(-1, 22, 3).to(device)
 
             if gender not in smplx_model_cache:
                 smplx_model_cache[gender] = create_smplx_model(gender, device, batch_size=1)
             human_verts, joints = run_smplx_model(pose_pred, root_trans, betas[None].repeat(root_trans.shape[0], 1), gender, joints_ind=SMPLX_JOINTS_28, smpl_model=smplx_model_cache[gender])
             human_faces = smplx_model_cache[gender].faces
-
-            human_verts, joints = zup_to_yup(human_verts), zup_to_yup(joints)
 
             rest_verts = obj_rest_verts[obj_name][None].repeat(obj_rot_mat.shape[0], 1, 1)
             transformed_obj_verts = obj_rot_mat.bmm(rest_verts.transpose(1, 2)) + obj_trans[:, :, None]

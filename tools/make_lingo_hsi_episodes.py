@@ -25,6 +25,9 @@ DEFAULT_PER_SCENE_CAP = 20
 MAX_WINDOW_SIZE = 16
 AUTO_REGRE_NUM = 2
 STEP = 3
+GENERATED_STRIDE = (MAX_WINDOW_SIZE - AUTO_REGRE_NUM) * STEP
+HISTORY_SPAN = AUTO_REGRE_NUM * STEP
+WINDOW_SPAN = MAX_WINDOW_SIZE * STEP
 
 
 def create_corrected_scene_labels(
@@ -41,9 +44,38 @@ def create_corrected_scene_labels(
 
 
 def episode_num(sequence_length: int) -> int:
-    generated_stride = (MAX_WINDOW_SIZE - AUTO_REGRE_NUM) * STEP
-    history_span = AUTO_REGRE_NUM * STEP
-    return math.ceil((sequence_length - history_span) / generated_stride)
+    return math.ceil((sequence_length - HISTORY_SPAN) / GENERATED_STRIDE)
+
+
+def rollout_frame_indices(
+    sequence_start: int, sequence_end: int, windows: int,
+) -> np.ndarray:
+    """Raw source frames a ``windows``-window rollout covers, ``[windows, MAX_WINDOW_SIZE]``.
+
+    This mirrors ``GroundTruthSource.episode_indices`` in
+    ``code/test_infbagel_lingo_hsi.py`` frame for frame, because that function --
+    not arithmetic about window counts -- is what decides which source frame the
+    goal metrics are finally scored against.  Each window samples
+    ``MAX_WINDOW_SIZE`` frames at stride ``STEP`` from its own start, window
+    starts advance by ``GENERATED_STRIDE``, and every index is clamped to the
+    last frame of the source sequence.
+
+    The evaluator stitches those windows with
+    ``stitch_windows(..., history_frames=AUTO_REGRE_NUM)``, which keeps window 0
+    whole and drops the leading ``AUTO_REGRE_NUM`` frames of every later window,
+    so the terminal frame of the stitched coarse sequence is this array's last
+    element.  Upsampling preserves that: ``utils.interpolate_joints`` evaluates
+    at ``linspace(0, T - 1, T * scale)`` and ``utils.interp_jrot`` assigns its
+    final ``scale`` samples from coarse frame ``T - 1``, so both put their last
+    output sample exactly on the last coarse frame.  Hence
+    ``rollout_frame_indices(...)[-1, -1]`` is the source frame that
+    ``goal_metrics``'s ``last_dist`` and ``success_last_*`` are measured at.
+    """
+    if windows < 1:
+        raise ValueError("windows must be >= 1, got %d" % windows)
+    offsets = np.arange(MAX_WINDOW_SIZE, dtype=np.int64) * STEP
+    starts = sequence_start + np.arange(windows, dtype=np.int64) * GENERATED_STRIDE
+    return np.minimum(starts[:, None] + offsets[None, :], sequence_end - 1)
 
 
 def load_inputs(
@@ -99,21 +131,66 @@ def build_episodes(
         selected = sorted(candidates[scene], key=lambda item: (-item[0], item[1]))[:per_scene_cap]
         episodes = []
         for length, data_idx in selected:
+            source_sequence_idx = int(sequence_idx[data_idx])
+            source_start = int(sequence_start[source_sequence_idx])
+            source_end = int(sequence_end[source_sequence_idx])
+            # The candidate filter already pinned window_start to the sequence
+            # start; this pins the window span, so a language dict whose windows
+            # stopped being MAX_WINDOW_SIZE frames at stride STEP fails loudly
+            # instead of silently shifting every goal.
+            if int(window_end[data_idx]) - int(window_start[data_idx]) != WINDOW_SPAN:
+                raise ValueError(
+                    "window %d spans %d raw frames, expected %d"
+                    % (
+                        data_idx,
+                        int(window_end[data_idx]) - int(window_start[data_idx]),
+                        WINDOW_SPAN,
+                    )
+                )
+            windows = episode_num(length)
+            rollout = rollout_frame_indices(source_start, source_end, windows)
+            # The goal is where the rollout ENDS, not where its first window
+            # ends.  The previous rule used this window's own end frame, which
+            # made start_location and pelvis_goal the two ends of one 16-coarse-
+            # frame (48 raw frame, 0.53 s) window while the episode rolls out
+            # `windows` of them -- median 4, max 55.  That made the goal
+            # unreachably close instead of unreachably far: 50.1% of episodes had
+            # it within 10 cm of the start pose, it capped the whole
+            # start-to-goal distance at 0.778 m, and because
+            # test_infbagel_hosi.sample_step advances ~0.8 m along `trajectory`
+            # per window, its moving-target lookahead clamped to the path
+            # endpoint on every window of every episode.
+            terminal_frame = int(rollout[-1, -1])
             start_location = joints[int(window_start[data_idx]), 0].copy()
             start_location[1] = 0.0
-            pelvis_goal = joints[int(window_end[data_idx]) - STEP, 0].copy()
+            pelvis_goal = joints[terminal_frame, 0].copy()
             pelvis_goal[1] = 0.0
             episodes.append({
                 "scene_name": scene,
                 "data_idx": data_idx,
                 "start_location": start_location.tolist(),
                 "pelvis_goal": pelvis_goal.tolist(),
+                # object_goal stays a copy of pelvis_goal: these are scene-only
+                # episodes, object_name is None and _scene_condition sets
+                # need_object=False, which zeroes both the object-goal embedding
+                # and the occupancy branch's object-goal term, so the value is
+                # inert.  Keeping it equal to pelvis_goal keeps that inertness
+                # verifiable rather than introducing a second goal convention.
                 "object_goal": pelvis_goal.tolist(),
                 "object_name": None,
                 "penetration_counts": 0,
                 "test_frames": [0, 1, MAX_WINDOW_SIZE - 1],
                 "attempts": 0,
-                "episode_num": episode_num(length),
+                "episode_num": windows,
+                # Provenance for the goal, so a manifest can be audited without
+                # re-deriving the stitching.  Extra keys are inert: the
+                # evaluator's _load_episodes and _scene_condition read by name.
+                "source_sequence_idx": source_sequence_idx,
+                "pelvis_goal_frame": terminal_frame,
+                "pelvis_goal_frame_clamped": bool(
+                    int(rollout[-1, -1])
+                    < source_start + (windows - 1) * GENERATED_STRIDE + (MAX_WINDOW_SIZE - 1) * STEP
+                ),
             })
         episodes_by_scene[scene] = episodes
     return episodes_by_scene
@@ -140,6 +217,15 @@ def write_outputs(
         "selection_rule": (
             "For each scene, select up to the per-scene cap of eligible sequences by descending "
             "sequence length, break ties by ascending window index, and use each sequence's start window."
+        ),
+        "goal_rule": (
+            "pelvis_goal (and its inert object_goal copy) is the ground-truth pelvis, Y zeroed, at "
+            "the terminal frame of the episode's own rollout span: rollout_frame_indices(...)[-1, -1], "
+            "i.e. source frame min(sequence_start + (episode_num - 1) * 42 + 45, sequence_end - 1). "
+            "That is the frame the stitched, upsampled sequence ends on, so it is the frame "
+            "goal_metrics scores last_dist / success_last_* at. Superseded rule, kept here so the "
+            "two episode sets are distinguishable: the start window's own end frame "
+            "(window_end - STEP == sequence_start + 45), one 16-coarse-frame window from the start."
         ),
         "scenes": scene_counts,
     }
