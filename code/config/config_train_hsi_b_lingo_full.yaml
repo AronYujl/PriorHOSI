@@ -12,7 +12,12 @@ defaults:
       - pelvis
   - _self_
 
-exp_name: hsi_b_lingo_full
+# _v2 because the post-fix run must not write over results/hsi_b_lingo_full/,
+# whose 12 checkpoints and metrics.json back registered row
+# p1-hsi-b-lingo-full-s42-20260814 by path and sha256. AGENTS.md:126-127 forbids
+# overwriting an existing result, and those artifacts are the pre-fix "before"
+# side, which is not recomputable.
+exp_name: hsi_b_lingo_full_v2
 seed: 42
 random_seed: 42
 sample_type: diffusion
@@ -34,6 +39,27 @@ precision: bf16_tf32
 # the arms are disjoint by 28x the widest within-arm spread). See registry
 # amendment p1-hsi-b-layout-4x512-s42-20260814. Fallback is 8 x 256 x accum 1,
 # same effective batch, +10.15 h.
+#
+# 2026-08-19: both of those numbers were measured with OMP_NUM_THREADS unset, and
+# so was run p1-hsi-b-lingo-full-s42-20260814 itself -- its launch.sh carries only
+# CUDA_VISIBLE_DEVICES, which is why it sustained 0.7305 s/update. Re-measured
+# with the same three-interleaved-reps protocol, both layouts, capped and
+# uncapped:
+#     8 x 256 capped 0.38674   uncapped 0.92446
+#     4 x 512 capped 0.52189   uncapped 0.71844
+# The uncapped pair reproduces the registered pair, so the amendment was measured
+# in a regime that does not apply to a capped host, and the ranking reverses
+# under the cap. THIS LAYOUT IS UNCHANGED ANYWAY: 8 x 256 is faster (15.71 h vs
+# 21.20 h projected over 146,255 updates) but changing rank count is not
+# optimization-neutral here -- the two layouts differ by 4.60% in global gradient
+# norm at update 1 while the trainer is bitwise deterministic within a layout,
+# caused by models/infbagel.py:1257 overwriting cfg_scale for the whole rank-local
+# batch from sample 0's timestep, plus per-rank seeding seed+rank. Speed does not
+# license that change; 5.5 h does not either.
+#
+# LAUNCH MUST SET OMP_NUM_THREADS=4. It is bitwise identical and worth 1.38x on
+# this layout (29.6 h -> 21.2 h). Unset, 8 ranks spawn 2671 OS threads on 112
+# cores and 4 ranks spawn 1334.
 lr: 0.0002
 warmup_updates: 2000
 device: cuda:0
@@ -67,8 +93,52 @@ use_random_frame_bps: true
 use_object_keypoints: true
 add_object_voxel: true
 
+# loss_w_obj_pts is inert on this branch: under lingo_only every sample takes the
+# no-object branch, so mask_points is empty, loss_object is None at every update
+# (measured over 4000), and this weight multiplies nothing.
 loss_w_obj_pts: 50
-loss_w_fk: 50
+# Was 50, the released value.  Lowered after a matched A/B at 50 vs 3 over 4000
+# updates (identical seed and data order, bit-identical at update 1 on all 8
+# ranks).  50 puts loss_fk at 94.6% of the gradient norm even at update 4000 and
+# on ~90% of coordinates, in a direction essentially orthogonal to the rest of
+# the objective: cos(g_jrot, g_fk) is +0.067 against a 0.00116 random baseline in
+# that 473,088-dim space, so 0.45% of FK's rotation-channel push is aligned and
+# 45.9x of it is not.  loss_jrot cannot resist -- it is L1, so |g_jrot| is
+# exactly constant at 1/sqrt(473088) no matter how far the channel has stalled.
+#
+# The consequence is not subtle.  At 50 the predicted root attitude degrades
+# monotonically, 85.8 deg off world +y at update 250 to 122.48 deg at 4000
+# (cross-rank [121.30, 123.61]); at 3 it snaps to 9.4 deg by update 750 and holds
+# 7.13 deg, against ground truth 7.83.  122.48 deg is within 0.2 deg of the
+# 122.68 deg snap recorded for the previous trained checkpoint -- so with all
+# three representation defects fixed, this weight alone still reproduces the
+# failure the whole repair was about.
+#
+# Why the term cannot see it: loss_fk scores 4 hand and 4 foot joints only, and
+# the kinematic chain can satisfy those from any root attitude by compensating
+# upstream.  Measured -- at update 4000 both arms have the same end-effector
+# error (0.2130 m hand / 0.1690 m foot at 50 vs 0.2126 / 0.1714 at 3) and the
+# same loss_fk (within 1%), while their root attitudes differ by 115 deg.  Paying
+# 50x buys nothing on its own term and costs the rotation channel.
+#
+# 3 is the gradient-parity weight measured at update 4000.  The naive parity
+# figure of 2.86 against the whole base objective is contaminated and was not
+# used: |g_object| is 99.5% of |g_base| there and grows 16x while its output-space
+# norm stays flat, because under lingo_only channels 216:232 carry an exactly
+# constant target and two L1 terms keep a non-decaying gradient against it.  The
+# meaningful parity weights are 1.09 against loss_jrot on 84:216 and 0.33 against
+# jpos+jrot; aligned-signal break-even is 16.1.  At 3, all five base terms, both
+# attitude metrics and the 6-D column norm are better than at 50 and loss_fk is
+# tied -- 50 wins nothing recorded.
+#
+# Caveats: 4000 updates is 2.7% of this run's 146,255 and sits inside the 2,000
+# update warmup, so this fixes direction and magnitude, not the converged value.
+# FK pressure may matter more once the coarse pose is right, a regime neither arm
+# reached; if end-effector precision disappoints at full budget, 16.1 is the next
+# value and that is a new experiment, not a tweak.  C's loss_w_fk of 1 needs no
+# change: consistency_loss has no loss_jrot to be starved, and 1 already sits
+# below B's 1.09 rotation-channel parity.
+loss_w_fk: 3
 auto_regre_num: 2
 
 start_epoch: 0

@@ -15,7 +15,9 @@ defaults:
       - pelvis
   - _self_
 
-exp_name: hsi_c_lingo_cm
+# _v2 for the same reason as B's: results/hsi_c_lingo_cm/ backs registered row
+# p1-hsi-c-lingo-cm-s42-20260816 and must not be overwritten.
+exp_name: hsi_c_lingo_cm_v2
 seed: 42
 random_seed: 42
 sample_type: consistency
@@ -70,7 +72,13 @@ loss_w_fk: 1
 auto_regre_num: 2
 
 start_epoch: 0
-ckpt_path: ${oc.env:ROOT_DIR}/results/hsi_b_lingo_full/checkpoints/hsi_b_lingo_full_epoch222.pth
+# Teacher is the post-fix B, not the pre-fix one. Distilling from the old
+# checkpoint would faithfully preserve its 122 deg rotation channel.
+# loss_w_fk stays 1 here: consistency_loss is one term over all 232 channels
+# against the teacher, so there is no loss_jrot to starve, and 1 already sits
+# below B's measured 1.09 rotation-channel gradient parity. See the A/B recorded
+# in config_train_hsi_b_lingo_full.yaml.
+ckpt_path: ${oc.env:ROOT_DIR}/results/hsi_b_lingo_full_v2/checkpoints/hsi_b_lingo_full_v2_epoch222.pth
 resume_from: ""
 
 hydra:
