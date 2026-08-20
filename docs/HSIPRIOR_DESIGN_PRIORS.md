@@ -1,6 +1,15 @@
 # HSIPrior design priors
 
-Status: active from 2026-08-10, for Phase 1C and any later expert training.
+Status: active from 2026-08-10, updated 2026-08-20 after Phase 1B P12. For Phase 1C
+and any later expert training.
+
+**Read section 9 first.** P12 repaired a coordinate representation defect in the
+released code and re-trained on the repaired representation. Consequence for this
+file: **every model-side geometric number cited below from a sealed D2-* row is void
+and not recomputable** — those checkpoints fitted a 132-D channel that no longer
+exists. The methodology conclusions still hold and are what this file is for; the
+specific centimetre, degree and ratio values are historical. Sections 4, 5 and 7 carry
+inline corrections.
 
 Phase 1B spent roughly one month and about thirty experiments on HOIPrior. Its
 most valuable output is not a checkpoint — it is a set of measured negatives.
@@ -99,6 +108,16 @@ costs an hour and would have saved ten HOI runs.
 
 **What would overturn it.** Nothing. This is a free check.
 
+> **Corrected 2026-08-20 (P12).** The check stands, but the mechanism named above is
+> wrong for `fk_weight` specifically. `fk_weight` is **gradient-norm equalization**
+> (`code/priors/hoi/auxiliary_balancing.py:57-62`, `sqrt(||g_human|| * ||g_object||)`),
+> not loss-magnitude calibration, so the "135x under-priced" figure **cannot be
+> re-derived by measuring `losses["fk"]`** and a loss-magnitude table will not reproduce
+> it. On OMOMO the repaired `losses["fk"]` sits at an exact minimum (1.10e-13), i.e.
+> there is no scale left to calibrate against there at all. Write the one-page table as
+> section 4 says, but state for each weight **which of the two things it is** — a
+> magnitude calibration or a gradient-share control — because the audit differs.
+
 ## 5. Pin the baseline protocol before the first comparison table.
 
 **Evidence.** Every "released minus HOIPrior" number in this repository was for
@@ -112,6 +131,16 @@ and the genuine model difference 0.0458 (34.4%).
 baseline's sampler, step count, guidance state, conditioning inputs and
 evaluation split, and confirm the HSI row matches all of them. Record any
 mismatch as a protocol difference in the table itself, not in a footnote.
+
+> **Strengthened 2026-08-20 (P12).** Add the **representation and the evaluator's
+> window-frame rule** to that list — they are first-order, not bookkeeping. Measured on
+> HOI with the checkpoint and data held fixed: changing only the step-0 window frame
+> rule moves **7 of 14 metrics significantly**, all in the same direction (`mpjpe`
+> -4.42681 cm [-5.03786, -3.82698], `obj_trans_dist` -6.92076, `contact_f1` +0.06789;
+> 438/438 paired, 10,000 replicates). Those effects are **7-14x** the cross-arm deltas
+> the table was built to compare. A run-id tag is not evidence of protocol: both P12
+> evaluation cells carry `-eval-guided-` in their ids from a hardcoded default tag and
+> are in fact **unguided**. Read the resolved config, not the name.
 
 ## 6. Design the causal diagnostic before training, and do not rely on whole-gate ablation.
 
@@ -143,6 +172,14 @@ sliding against how much the model actually contacts the scene. Report the
 engagement quantity in the same table as every penetration and FS number, and
 never claim a penetration win without it.
 
+> **Refined 2026-08-20 (P12).** The constraint stands; the implication "engagement up
+> therefore penetration up" does **not**. P12 + the sealed Arm B inference guidance
+> raised `contact_percent` +4.02% and `contact_recall` +3.95% while hand and body
+> penetration both went **down** (-0.89% / -0.42%), foot sliding -0.75% and
+> `feet_height` -4.28% — 15 of 16 metrics improved, at +2.7% generation time. So always
+> report engagement beside penetration, but do not discount a penetration gain merely
+> because engagement rose; check the pair.
+
 ## 8. Teacher-forced movement is not rollout evidence.
 
 **Evidence.** Phase 1B's first failure mode was exactly this shape: validation
@@ -152,6 +189,79 @@ moved its teacher-forced surrogate while official foot sliding did not improve.
 
 **Constraint on Phase 1C.** Every internal gate that claims a mechanism works
 must be measured on generated history, not on a teacher-forced surrogate.
+
+## 9. The released code's representation was broken, and that voids every geometric number a pre-P12 row carries.
+
+**Added 2026-08-20 after Phase 1B P12 (`c3e675f`, `8742d1a`).** This is the one entry
+that changes how the rest of the file is read.
+
+**Evidence.** The released code put the human **rotation channel** and **joint channel**
+in two worlds 90 deg apart, shipped `rest_human_offsets_aligned.npy` with `zup_to_yup`
+already baked in, and therefore ran a window-heading canonicalization that canonicalized
+nothing (it removed a median 3.56 deg of a heading whose true median was 92.53 deg).
+Three layers; repairing any one alone is worse than repairing none. Fixed in P12 across
+six files plus the frozen `core/window_codec.py` heading read
+(`"ZXY"[..., 2]` -> `"YXZ"[..., 0]`).
+
+**Consequences that bind Phase 1C:**
+
+1. **Sealed D2-* model-side geometric numbers are void and not recomputable.** Cite them
+   only as "pre-repair", never as a target to beat.
+2. **There is no clean model-versus-model comparison across the repair.** Feeding
+   pre-repair weights to the repaired evaluator is an out-of-distribution insult, so the
+   comparison cannot be rescued with an extra cell. P12's own CONTROL cell bounds the
+   evaluator's share but only loosely — it opens 77.83 deg of step-0 frame error where
+   the released train/eval mismatch was 50.12 deg, a 1.55x overshoot, and the bound
+   comes out about an order of magnitude too loose to decompose anything.
+3. **Report a post-repair row as a new baseline**, as a system-level statement ("repaired
+   system scores X where the published system scored Y"), never as a measured model gain.
+
+**Transfer to HSI: this is not an assumption, it is the same code.**
+`code/priors/core/window_codec.py` is byte-identical on both branches
+(sha256 `d545359ba124bce0e115cada5355a48425880107d9893036c5ad7d8d9138a49f`, pinned in
+`tests/core/test_contract_freeze.py`), so the heading fix is already shared and the graft
+premise holds.
+
+**Still open on HOI, and HSI shares the file.** `code/models/infbagel.py` computes
+`mask_fk` at `:838-839` in the diffusion `p_losses` path and then **does not use it** —
+`:840-841` call `F.mse_loss` on the unmasked tensors. The consistency path at `:401-404`
+*does* apply it. So the FK term is the only term supervising `auto_regre_num` history
+frames that `set_fixed_points` overwrites at sampling time, and the two training paths'
+`loss_fk` are not on the same scale (14/16 = 0.875). **P12 did not fix this.** Fix it as
+its own commit, separate from any representation change, or the weight derivation cannot
+be attributed.
+
+**What would overturn it.** Nothing about the defect. The *bound* in consequence 2 would
+tighten only with a model actually trained under the historical convention, which no
+longer exists.
+
+## 10. Contact engagement and distribution realism are dissociated. Guidance fixes one and not the other.
+
+**Added 2026-08-20 (P12 + sealed Arm B guidance, `p1-hoi-p12-guidance-armb-s42-20260820`).**
+
+**Evidence.** On the repaired representation, inference-time guidance is close to free:
+15 of 16 native metrics improved, `contact_percent` +4.02%, `contact_recall` +3.95%,
+`contact_f1` +2.86%, penetration and foot sliding *down*, only `mpjpe` worse by 0.0068 cm,
+at +2.7% generation time. **But the same intervention barely moves the CHOIS-side
+distribution metrics**: FID 2.307 -> 2.011 against a released 0.933, R-Precision@1
+actually 0.154 -> 0.149, MatchingScore 4.077 -> 4.057, Diversity 8.551 -> 8.610 against
+9.149. The frame rule explains only 0.510 of the 1.374 FID gap, so ~0.864 is neither the
+evaluator nor guidance.
+
+**Why this matters for Phase 1C.** Phase 1B spent a month treating contact engagement as
+*the* bottleneck. It is a real one and it has a cheap inference-time lever. But a narrow
+generated distribution and weak motion-to-text correspondence are a **separate** deficit:
+"hands never approach" cannot explain worse R-Precision or lower Diversity, and the
+guidance experiment separates the two by intervening on one and not the other.
+
+**Constraint on Phase 1C.** Report a distribution-level metric (FID or its HSI analogue)
+in the same table as the geometric ones from the first comparison onward, not as an
+afterthought. It needs no encoder training — `tools/run_chois_evaluator.py` reuses a
+pretrained text-motion encoder and consumes exported `[T,24,3]` joints, so the expert's
+own channel dimensionality is irrelevant to it, and it costs about a minute per cell.
+
+**What would overturn it.** A single intervention that moves engagement and FID together
+by comparable relative amounts. None has been observed.
 
 ---
 
