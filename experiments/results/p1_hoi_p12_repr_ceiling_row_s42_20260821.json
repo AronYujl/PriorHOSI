@@ -1,0 +1,235 @@
+{
+  "carried_in_anchors_reproduced": {
+    "analytic_contact_cap": 0.906392694063927,
+    "gt_contact_percent": {
+      "delta": 0.0,
+      "measured": 0.6618830180474017,
+      "sealed": 0.6618830180474017
+    },
+    "gt_feet_height": {
+      "delta": 6.549026321245321e-10,
+      "measured": 0.03432674026414412,
+      "sealed": 0.034326739609241486
+    },
+    "gt_foot_sliding": {
+      "delta": 2.5484045429458035e-08,
+      "measured": 0.2634646156648616,
+      "sealed": 0.26346464114890705
+    },
+    "penetration_covered_sequences": 181,
+    "zero_gt_contact_sequences": 41
+  },
+  "classification": "repr-ceiling-row-established",
+  "date": "2026-08-21",
+  "experiment": "p1-hoi-p12-repr-ceiling-row-s42-20260821",
+  "gate_detail": [
+    {
+      "delta": 2.5484045429458035e-08,
+      "expected": 0.26346464114890705,
+      "gate": "A1_gt_foot_sliding",
+      "measured": 0.2634646156648616,
+      "status": "pass",
+      "tolerance": 1e-07
+    },
+    {
+      "delta": 6.549026321245321e-10,
+      "expected": 0.034326739609241486,
+      "gate": "A2_gt_feet_height",
+      "measured": 0.03432674026414412,
+      "status": "pass",
+      "tolerance": 1e-08
+    },
+    {
+      "delta": 0.0,
+      "expected": 0.6618830180474017,
+      "gate": "A3_gt_contact_percent",
+      "measured": 0.6618830180474017,
+      "status": "pass",
+      "tolerance": 0.0
+    },
+    {
+      "expected": 41,
+      "gate": "A4_zero_gt_contact_sequences",
+      "measured": 41,
+      "status": "pass"
+    },
+    {
+      "expected": 181,
+      "gate": "A5_penetration_covered_sequences",
+      "measured": 181,
+      "status": "pass"
+    },
+    {
+      "expected": 0.906392694063927,
+      "gate": "A4b_analytic_contact_cap",
+      "measured": 0.906392694063927,
+      "note": "the ground-truth floor's own contact_f1 must equal 397/438, not 1.0",
+      "status": "pass"
+    },
+    {
+      "expected": 104.75,
+      "gate": "A6_human_pen_scaling",
+      "hand_pen_loss_omomo_unscaled": 0.0830598575654342,
+      "measured": 104.75,
+      "note": "wiring check, not an independent anchor: it pins that the full-body term carries x10475/100 and the hand term does not",
+      "status": "pass"
+    },
+    {
+      "expected": {
+        "loss_ratio_bounds_vs_p12": [
+          0.01,
+          100.0
+        ],
+        "loss_terms_strictly_positive": true
+      },
+      "failures": [],
+      "gate": "A7_sdf_out_of_box_guard",
+      "measured": {
+        "ceiling_human_pen_ratio": 0.06572831841957504,
+        "ratio_vs_p12": {
+          "hand_pen_loss_omomo": 0.4828780743295983,
+          "hand_pen_ratio": 0.4829828832133005,
+          "human_pen_loss_infbagel": 0.4763808752201989,
+          "human_pen_ratio": 0.4775314282371984
+        }
+      },
+      "note": "a penetration LOSS of exactly zero is the 1.87 m vertex-displacement failure mode and forbids sealing; a zero penetration RATIO with a non-zero loss is a legitimate ground-truth reading",
+      "status": "pass",
+      "warnings": []
+    },
+    {
+      "expected": "all carried-in values within float32 noise",
+      "gate": "E1_agrees_with_2026_08_20_exploration",
+      "measured": "all within tolerance",
+      "note": "a disagreement means one of the two measurements is wrong; neither is sealed and neither is preferred",
+      "status": "pass"
+    }
+  ],
+  "gates": {
+    "A1_gt_foot_sliding": "pass",
+    "A2_gt_feet_height": "pass",
+    "A3_gt_contact_percent": "pass",
+    "A4_zero_gt_contact_sequences": "pass",
+    "A4b_analytic_contact_cap": "pass",
+    "A5_penetration_covered_sequences": "pass",
+    "A6_human_pen_scaling": "pass",
+    "A7_sdf_out_of_box_guard": "pass",
+    "E1_agrees_with_2026_08_20_exploration": "pass"
+  },
+  "git_commit": "c05aca94591628a44f246c2a46d5ba5a88dbe6ee",
+  "new_result_penetration_floor": {
+    "closes": "limitation #4 of docs/phase_summaries/PHASE_1B_P12_REPRESENTATION_FRAME.md",
+    "consequence": "every reading of a penetration number in this branch as a distance from zero was wrong. The model penetrates about 2.07-2.10x the achievable floor, not infinitely more than it. The ground truth penetrates because it is itself a SMPL-X fit scored against object SDFs.",
+    "ground_truth_floor": {
+      "hand_pen_loss_omomo": 0.0830598575654342,
+      "hand_pen_ratio": 0.06414978654839057,
+      "human_pen_loss_infbagel": 1.2996813590107554,
+      "human_pen_ratio": 0.06520214121150707
+    },
+    "headline": "the four penetration terms have a NON-ZERO ground-truth floor, and it is about half the model's value",
+    "p12_model": {
+      "hand_pen_loss_omomo": 0.17201,
+      "hand_pen_ratio": 0.13282,
+      "human_pen_loss_infbagel": 2.72824,
+      "human_pen_ratio": 0.13654
+    },
+    "p12_over_ground_truth": {
+      "hand_pen_loss_omomo": 2.0709,
+      "hand_pen_ratio": 2.0705,
+      "human_pen_loss_infbagel": 2.0992,
+      "human_pen_ratio": 2.0941
+    },
+    "representation_ceiling": {
+      "hand_pen_loss_omomo": 0.08290475756770903,
+      "hand_pen_ratio": 0.06454441940298726,
+      "human_pen_loss_infbagel": 1.2972203806106353,
+      "human_pen_ratio": 0.06572831841957504
+    },
+    "representation_share": "none: the ceiling matches the floor to within 0.3% on all four terms, so the keyframe/interp/FK round-trip contributes essentially nothing to penetration"
+  },
+  "next_action": "Re-read every penetration comparison in the branch against the measured floor rather than zero. The two live leads are unchanged: the frame-0 rigid vertical offset (priced by P13 at 1.142 FID on D2-X and 1.054 on D2-AI) and contact engagement.",
+  "non_claims": [
+    "this row is a promotion of the 2026-08-20 read-only exploration, not an independent rediscovery; only the four penetration terms and the ground-truth penetration floor are new measurements",
+    "gates A6 and A7 are pilot-calibrated rather than blind, and A7 in particular was rekeyed onto the penetration loss terms after a 12-sequence pilot; discount it accordingly",
+    "the lerp weight swap at code/utils.py:43 is deliberately kept inside the ceiling, so the row measures the pipeline as it runs rather than an idealised one",
+    "no model, checkpoint or training decision follows from this row; it is a reference row"
+  ],
+  "preregistration": "docs/plan/PHASE_1B_HOI/07_REPRESENTATION_FRAME.md, 2026-08-21 representation-ceiling section",
+  "provenance": {
+    "git_commit": "c05aca94591628a44f246c2a46d5ba5a88dbe6ee",
+    "git_dirty": false,
+    "numpy": "1.24.4",
+    "omp_num_threads": "4",
+    "python": "3.8.20",
+    "tool": "tools/measure_hoi_repr_ceiling.py",
+    "tool_sha256": "24cc8d07a641c3f05436af14bf84a67184d24b912c9e2c65fd2f85a4efd7d044",
+    "torch": "1.13.1+cu117"
+  },
+  "raw_output": {
+    "path": "results/experiments/p1-hoi-p12-repr-ceiling-row-s42-20260821/metrics.json",
+    "sha256": "3a9716380be48c2fcf930041fd7ffe46dc691e928977428739edf28fb746bd39"
+  },
+  "representation_share_of_the_gap": {
+    "chois_fid": "explicitly out of scope: the round-trip FID is 0.0014 and the ceiling framing does not apply",
+    "contact_precision_recall_f1": "3.0% / 1.5% / 1.6% against the 397/438 analytic cap, not against 1.0",
+    "feet_height": "-0.2%, i.e. none; this is what proves the frame-0 vertical bias is the model's and not the round-trip's",
+    "foot_sliding": "58.1% -- the only metric where the representation dominates",
+    "four_penetration_terms": "under 0.3% each",
+    "mpjpe": "1.4%",
+    "obj_rot_dist": "0.6%",
+    "obj_trans_dist": "0.8%",
+    "trans_dist": "1.2%"
+  },
+  "rows": {
+    "ground_truth_floor": {
+      "contact_acc": 1.0,
+      "contact_f1": 0.906392694063927,
+      "contact_percent": 0.6618830180474017,
+      "contact_precision": 0.906392694063927,
+      "contact_recall": 0.906392694063927,
+      "end_obj_trans_err": 0.0,
+      "feet_height": 0.03432674026414412,
+      "foot_sliding": 0.2634646156648616,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.0830598575654342,
+      "hand_pen_ratio": 0.06414978654839057,
+      "human_pen_loss_infbagel": 1.2996813590107554,
+      "human_pen_loss_raw": 0.012407459274565684,
+      "human_pen_ratio": 0.06520214121150707,
+      "mpjpe": 0.0,
+      "obj_rot_dist": 3.772576402110454e-08,
+      "obj_trans_dist": 0.0,
+      "trans_dist": 0.0,
+      "xy_points_err": 0.0
+    },
+    "representation_ceiling": {
+      "contact_acc": 0.9968833804450242,
+      "contact_f1": 0.9027963392207574,
+      "contact_percent": 0.6607595854171195,
+      "contact_precision": 0.9035295547070061,
+      "contact_recall": 0.9022804362750585,
+      "end_obj_trans_err": 0.0,
+      "feet_height": 0.03426290431047139,
+      "foot_sliding": 0.30888668343082337,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.08290475756770903,
+      "hand_pen_ratio": 0.06454441940298726,
+      "human_pen_loss_infbagel": 1.2972203806106353,
+      "human_pen_loss_raw": 0.0123839654473569,
+      "human_pen_ratio": 0.06572831841957504,
+      "mpjpe": 0.15603576321154833,
+      "obj_rot_dist": 0.0055702434487986605,
+      "obj_trans_dist": 0.11386023834347725,
+      "trans_dist": 0.09827817557379603,
+      "xy_points_err": 0.0
+    }
+  },
+  "runtime_s": {
+    "dataset_build": 4.9,
+    "scoring": 212.5,
+    "total": 220.7
+  },
+  "seed": 42,
+  "subphase": "1B-P12",
+  "type": "read-only CPU probe; no training, no model inference, no checkpoint load, no GPU"
+}

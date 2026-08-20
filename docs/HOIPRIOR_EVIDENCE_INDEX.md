@@ -595,6 +595,33 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       quantity. `embedded_sequence_ids` is valid as a set but not as a row label, so no
       per-sequence attribution of FID is permitted. Recorded 2026-08-21.
 
+22. **The four penetration terms have a non-zero ground-truth floor, and it is about half the
+    model's value, so every reading of a penetration number in this repository as a distance from
+    zero was wrong.** Measured 2026-08-21 by `tools/measure_hoi_repr_ceiling.py` on the official
+    438-sequence protocol (`p1-hoi-p12-repr-ceiling-row-s42-20260821`, classification
+    `repr-ceiling-row-established`, read-only CPU, 220.7 s). Ground-truth floor: `hand_pen_ratio`
+    0.064150, `human_pen_ratio` 0.065202, `hand_pen_loss_omomo` 0.083060,
+    `human_pen_loss_infbagel` 1.299681. P12 therefore penetrates **2.0705x / 2.0941x / 2.0709x /
+    2.0992x** the achievable floor, not infinitely more than zero. The ground truth penetrates
+    because it is itself a SMPL-X fit scored against object SDFs. This closes limitation #4 of the
+    P12 phase summary.
+    - **The representation contributes essentially nothing to penetration**: the ceiling row
+      matches the floor to within 0.3% on all four terms.
+    - The same run establishes the full representation-ceiling row. `foot_sliding` at **58.1%** is
+      the only metric the representation dominates; `feet_height` is **-0.2%**, i.e. none, which is
+      what proves the frame-0 vertical bias belongs to the model rather than to the
+      keyframe/interpolation/FK round-trip; `mpjpe` 1.4%, `trans_dist` 1.2%, `obj_trans_dist` 0.8%,
+      `obj_rot_dist` 0.6%; the three contact metrics 3.0% / 1.5% / 1.6% **against the 397/438
+      analytic cap of conclusion 20, not against 1.0**. CHOIS FID is explicitly out of scope: the
+      round-trip FID is 0.0014, three orders of magnitude below the model gap.
+    - All seven correctness gates pass and every carried-in anchor reproduces (`gt_foot_sliding`
+      delta 2.55e-08, `gt_feet_height` 6.55e-10, `gt_contact_percent` exactly 0.0, 41 zero-contact
+      sequences, 181 penetration-covered), so there is no `repr-ceiling-contradicts-exploration`
+      event and the 2026-08-20 exploration's numbers stand.
+    - **Discount gates A6 and A7**: they are pilot-calibrated, not blind. A 12-sequence pilot showed
+      a zero penetration ratio, so A7 was rekeyed onto the penetration loss terms and a zero ratio
+      became a warning rather than a failure. Recorded in the plan section. Recorded 2026-08-21.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”
