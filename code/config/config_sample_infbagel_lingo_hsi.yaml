@@ -63,6 +63,38 @@ lingo_sequence_limit: null
 # and is the default; >1 splits the canonical episode enumeration by greedy
 # longest-first bin packing over per-episode window counts, and invalidates
 # every timing aggregate because the shards contend for the host.
+# 2026-08-20 diagnostic gate, default OFF so the sealed path is bitwise unchanged.
+# test_infbagel_hosi.sample_step zeroes `pi` inside `if is_loco:` but leaves `end_pi`,
+# so the model receives end_pi - pi = 42*step + 48 while training carries
+# min(pi + 16*3, seq_len) i.e. exactly 48 on 517,484 of 529,132 need_pi windows.
+# Only step 0 is training-legal: 375 of 2271 eval windows (16.5%).
+# true = keep the true pi, restoring end_pi - pi == 48 on every window.
+hsi_progress_fix: false
+
+# 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
+# CURRENT behaviour so every sealed cell stays bitwise reproducible.
+#
+# Training (datasets/infbagel.py:468-477) feeds pelvis_goal = joints[w0+45, 0] with
+# y=0 for both the sit/lie and loco branches -- a per-window target.  The driver
+# instead takes a point `hsi_lookahead_m` ahead along _straight_trajectory(), a
+# straight chord from episode start to episode goal.  Measured distance from the
+# driver's choice to training's target, over all 2271 windows:
+#   walk 1099 windows: 1.0180 m mean (straight chord) vs 0.2124 m (GT pelvis path)
+#   sit/lie 609      : 0.2012 m                       vs 0.1643 m
+# and the GT pelvis advances only 0.478 m (walk) / 0.186 m (sit/lie) over those 45
+# raw frames, against a hardcoded 0.8 m.  On a real wiggly path 0.8 m of ARC length
+# nets ~0.48 m of displacement, so the constant is arc-length-calibrated; the chord
+# makes arc length equal displacement, so it overshoots ~1.7x on walk.
+# Evidence: .claude/scratch/isloco_offline_20260820/{goal_source_error.py,controls.py}
+#
+# hsi_gt_trajectory: true = build the lookahead path from the episode's GROUND-TRUTH
+#   pelvis xz path instead of the chord.  Attribution UPPER BOUND only -- it feeds
+#   privileged information a deployment cannot have.  Never use it for a baseline.
+hsi_gt_trajectory: false
+# hsi_lookahead_m: the lookahead arc length in metres.  0.8 is the released value.
+#   0.48 is the deployable variant: one global constant, no privileged information.
+hsi_lookahead_m: 0.8
+
 shard_index: 0
 shard_count: 1
 

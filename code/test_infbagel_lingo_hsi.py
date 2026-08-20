@@ -1379,6 +1379,31 @@ def _straight_trajectory(start: Sequence[float], goal: Sequence[float]) -> np.nd
     return np.linspace(start_xz, goal_xz, count)
 
 
+def _gt_pelvis_trajectory(source, sequence_index: int) -> np.ndarray:
+    """The episode's ground-truth pelvis xz path, resampled to _straight_trajectory's
+    2 cm spacing so `base_step`'s arc-length arithmetic is unchanged.
+
+    ATTRIBUTION UPPER BOUND ONLY.  A deployment has no ground-truth path, so a cell
+    run with hsi_gt_trajectory=true bounds what the straight-chord approximation
+    costs; it can never be a baseline.  The deployable knob is hsi_lookahead_m.
+    """
+    begin = int(source.sequence_start[sequence_index])
+    finish = int(source.sequence_end[sequence_index])
+    path = np.asarray(source.joints[begin:finish, 0, :], dtype=np.float64)[:, [0, 2]]
+    if path.shape[0] < 2:
+        return np.repeat(path[:1], 2, axis=0)
+    steps = np.linalg.norm(np.diff(path, axis=0), axis=1)
+    arc = np.concatenate([[0.0], np.cumsum(steps)])
+    total = float(arc[-1])
+    if total < 1e-9:
+        return np.repeat(path[:1], 2, axis=0)
+    count = max(2, int(math.ceil(total / 0.02)) + 1)
+    even = np.linspace(0.0, total, count)
+    return np.stack(
+        [np.interp(even, arc, path[:, 0]), np.interp(even, arc, path[:, 1])], axis=1
+    )
+
+
 def sampled_motion(
     cfg: DictConfig,
     dataset,
@@ -1404,7 +1429,10 @@ def sampled_motion(
     cond = _scene_condition(cfg, episode, need_scene=need_scene)
     cond["raw_text"] = dataset.lingo_dataset.text[data_idx][0]
     cond["text_emb"] = data["text_clip_embedding"].to(device).unsqueeze(0)
-    trajectory = _straight_trajectory(episode["start_location"], episode["pelvis_goal"])
+    if bool(cfg.get("hsi_gt_trajectory", False)):
+        trajectory = _gt_pelvis_trajectory(source, sequence_index)
+    else:
+        trajectory = _straight_trajectory(episode["start_location"], episode["pelvis_goal"])
     seq_name_dict = {0: str(data["seq_name"])}
 
     joints_norm = torch.from_numpy(data["joints"]).to(device).reshape(1, WINDOW_FRAMES, -1)

@@ -98,7 +98,7 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
     speed_new = None
     if is_loco:
-        if not is_object:
+        if not is_object and not bool(cfg.get('hsi_progress_fix', False)):
             pi = torch.zeros((cfg.batch_size, ), dtype=torch.long).to(cfg.device)
 
         curr_loc = mat[0, :3, 3].cpu().numpy()
@@ -106,7 +106,11 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
         dist = np.linalg.norm(curr_loc - trajectory, axis=1)
         min_idx = np.argmin(dist)
-        base_step = math.ceil(trajectory.shape[0] / np.sum(np.linalg.norm(trajectory[1:] - trajectory[:-1], axis=1)) * 0.8)
+        # 2026-08-20: the 0.8 m lookahead is an ARC LENGTH, and was never exercised
+        # before episode set v2 (v1 clamped on 0/2271 windows).  Config-gated so the
+        # released value stays the default; see config_sample_infbagel_lingo_hsi.yaml.
+        lookahead_m = float(cfg.get('hsi_lookahead_m', 0.8))
+        base_step = math.ceil(trajectory.shape[0] / np.sum(np.linalg.norm(trajectory[1:] - trajectory[:-1], axis=1)) * lookahead_m)
         pelvis_goal = torch.tensor([trajectory[min(min_idx+base_step, len(trajectory)-1)][0], 0,
                                     trajectory[min(min_idx+base_step, len(trajectory)-1)][1]]).reshape(1, 1, 3).to(cfg.device).float()
 
