@@ -13,7 +13,8 @@ except ImportError:  # Minimal governance checks run before ML dependencies are 
     np = None
 
 from tools import (
-    chois_evaluator, experiment, make_lingo_split, run_chois_evaluator,
+    chois_evaluator, experiment, make_lingo_split, measure_hoi_repr_ceiling,
+    run_chois_evaluator,
 )
 
 
@@ -495,6 +496,123 @@ class ChoisEvaluatorTests(unittest.TestCase):
         short_stream = run_chois_evaluator._shared_resample_indices(16, 200, 42)
         np.testing.assert_array_equal(long_stream[:200], short_stream)
 
+
+class RepresentationCeilingProbeTests(unittest.TestCase):
+    """Governance contract of tools/measure_hoi_repr_ceiling.py.
+
+    The probe produces a permanent reference row that later phases cite, so what
+    is pinned here is the envelope, not the numbers: CPU only, no checkpoint, an
+    output that is never overwritten, an exclusion list copied from the evaluator
+    rather than re-decided, and a classification that cannot seal a partial run.
+    """
+
+    SOURCE = REPO_ROOT / "tools" / "measure_hoi_repr_ceiling.py"
+
+    def test_execution_contract_declares_no_gpu_and_no_checkpoint(self):
+        contract = measure_hoi_repr_ceiling.EXECUTION_CONTRACT
+        self.assertEqual(contract["device"], "cpu")
+        for key in (
+            "requires_gpu", "requires_checkpoint", "requires_model_inference",
+            "requires_training", "writes_inside_run_directory",
+        ):
+            self.assertIs(contract[key], False, key)
+        self.assertIs(contract["read_only_inputs"], True)
+
+    def test_cli_offers_no_device_checkpoint_or_model_option(self):
+        options = {
+            option
+            for action in measure_hoi_repr_ceiling.build_parser()._actions
+            for option in action.option_strings
+        }
+        self.assertIn("--output", options)
+        for forbidden in ("--device", "--gpu", "--checkpoint", "--ckpt-path", "--ckpt"):
+            self.assertNotIn(forbidden, options)
+
+    def test_source_carries_no_gpu_or_checkpoint_dependency(self):
+        source = self.SOURCE.read_text(encoding="utf-8")
+        for forbidden in (
+            "torch.load", "torch.cuda", ".cuda(", "cuda:",
+            "load_trained_hoi_prior", "init_model",
+        ):
+            self.assertNotIn(forbidden, source, forbidden)
+
+    def test_output_path_refuses_to_overwrite(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            existing = Path(temporary) / "reference_row.json"
+            existing.write_text("{}\n", encoding="utf-8")
+            args = measure_hoi_repr_ceiling.build_parser().parse_args(
+                ["--output", str(existing), "--sequences", "1"]
+            )
+            with self.assertRaisesRegex(measure_hoi_repr_ceiling.CeilingError, "refusing to overwrite"):
+                measure_hoi_repr_ceiling.run(args)
+            self.assertEqual(measure_hoi_repr_ceiling.main(["--output", str(existing)]), 2)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "{}\n")
+
+    def test_penetration_exclusion_is_copied_from_the_evaluator(self):
+        evaluator = (REPO_ROOT / "code" / "test_infbagel_hoi.py").read_text(encoding="utf-8")
+        marker = "if obj_name not in ["
+        self.assertIn(marker, evaluator)
+        literal = evaluator[evaluator.index(marker) + len(marker):]
+        literal = literal[:literal.index("]")]
+        excluded = {piece.strip().strip("'\"") for piece in literal.split(",")}
+        self.assertEqual(excluded, set(measure_hoi_repr_ceiling.PENETRATION_EXCLUDED_OBJECTS))
+
+    def test_classification_cannot_seal_a_partial_run(self):
+        passing = [
+            {"gate": gate, "status": "pass"}
+            for gate in (
+                "A1_gt_foot_sliding", "A2_gt_feet_height", "A3_gt_contact_percent",
+                "A4_zero_gt_contact_sequences", "A4b_analytic_contact_cap",
+                "A5_penetration_covered_sequences", "A6_human_pen_scaling",
+                "A7_sdf_out_of_box_guard", "E1_agrees_with_2026_08_20_exploration",
+            )
+        ]
+        classify = measure_hoi_repr_ceiling.classify
+        self.assertEqual(
+            classify(passing, penetration=True, full_protocol=True),
+            "repr-ceiling-row-established",
+        )
+        self.assertEqual(
+            classify(passing, penetration=True, full_protocol=False),
+            "repr-ceiling-subset-smoke",
+        )
+        self.assertEqual(
+            classify(passing, penetration=False, full_protocol=True),
+            "repr-ceiling-penetration-partial",
+        )
+        # A7 warns when a ground-truth penetration ratio is exactly 0.0 while its
+        # loss is non-zero; that is an observation, not a failed gate.
+        warned = [
+            dict(gate, status="warn") if gate["gate"] == "A7_sdf_out_of_box_guard" else gate
+            for gate in passing
+        ]
+        self.assertEqual(
+            classify(warned, penetration=True, full_protocol=True),
+            "repr-ceiling-row-established",
+        )
+        for gate_id, expected in (
+            ("A1_gt_foot_sliding", "repr-ceiling-anchor-fail-stop"),
+            ("A4_zero_gt_contact_sequences", "repr-ceiling-anchor-fail-stop"),
+            ("A5_penetration_covered_sequences", "repr-ceiling-penetration-partial"),
+            ("A7_sdf_out_of_box_guard", "repr-ceiling-penetration-partial"),
+            ("E1_agrees_with_2026_08_20_exploration", "repr-ceiling-contradicts-exploration"),
+        ):
+            failed = [
+                dict(gate, status="fail") if gate["gate"] == gate_id else gate
+                for gate in passing
+            ]
+            self.assertEqual(
+                classify(failed, penetration=True, full_protocol=True), expected, gate_id
+            )
+        self.assertIn(
+            "repr-ceiling-subset-smoke", measure_hoi_repr_ceiling.STOP_CLASSIFICATIONS
+        )
+
+    def test_analytic_contact_cap_is_397_over_438(self):
+        self.assertAlmostEqual(
+            measure_hoi_repr_ceiling.ANALYTIC_CONTACT_CAP, 0.906392694063927, places=15
+        )
+        self.assertEqual(measure_hoi_repr_ceiling.HUMAN_PEN_SCALE, 10475 / 100)
 
 if __name__ == "__main__":
     unittest.main()
