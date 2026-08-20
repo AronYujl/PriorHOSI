@@ -407,3 +407,353 @@ manifest 封为 `aborted` 并明记 `operational_failure: false`。仅供参考�
 且对推理引导的响应变弱。任何下一个提案必须直接瞄准参与度，并说明它为何不会像前十次模型侧
 干预那样被联合训练吸收。
 
+
+#### 2026-08-21 Phase 1B P13 分布级指标列：预算的唯一干净对照（评测-only，用户批准）
+
+动机：**HOIPrior 谱系有一整列指标从未被测量。** `results/experiments/` 下有 **45 个 run 目录**
+持有完整的 438 序列 CHOIS 导出（`chois/{predictions,ground_truth}/*.npz`，键 `global_jpos`，
+形状 `[126,24,3]`），其中 **36 个 prediction tree 互不相同**，而 CHOIS 分布级指标
+（FID / MatchingScore / R-Precision / Diversity）只在其中 **4 个**上被算过：
+D2-X 的 61.44M 点（2026-07-24 D2-AA，见本文件上文 D2-AA 小节）与 P12 的三格（2026-08-20）。
+`AGENTS.md` "Reproducibility and reporting" 禁止遗漏预注册指标；Phase 1B 的 95% 原生 gate
+本身就同时点名 `CHOIS FID/R-Precision`（`01_GATE_AND_EARLY_DIAGNOSIS.md`），但此后 D2-AI 之后
+**没有一个 D2/P 臂报告过 FID**。整条谱系上唯一被测量到的有效杠杆——预算——因此从未在分布层面被检验。
+
+本次只补**一个干净对照**：D2-AI 相对封存 D2-X 的唯一被操纵因子是 processed-window 预算
+（本文件 2026-08-03 小节逐字固定），两格的 evaluation config 已实测逐键相同
+（`dim_model 512 / num_heads 16 / num_layers 8`、`architecture_variant base`、438 序列、
+`windows_per_sample 3`、`seed 42`、无引导原生 500 步、同日 2026-08-04 同树评测；
+两份 `evaluation/aggregate_metrics.json` 在排除路径/`model_name`/吞吐后**没有任何配置键不同**）。
+所以 FID 上的差就是预算的差。
+
+**这不是训练、不是生成、不是新 checkpoint。** 本实验只把**已经落盘的关节导出**重新喂给
+**预训练的外部 text-motion encoder**（`checkpoints/omomo/text_motion_features/model/finest.tar`，
+sha256 `a125bc15ffd9772686737111c7501ecee0a2d8571d9aca348ec1195ddef78775`，不重训）。
+不加载任何我们自己的 checkpoint，不做任何我们自己的模型推理。
+
+设计（三格，一次调用，一份共享 GT embedding，一份共享 resample index）：
+
+| 格 | 角色 | 预算 | 引导 | 绝对导出路径 |
+|---|---|---:|---|---|
+| **A** | PRIMARY 对照，封存 D2-X | 61,440,000 / 30,000 updates | 无 | `/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-d2aj-gonogo-treecontrol-d2x-s42-20260804/chois/predictions` |
+| **B** | PRIMARY 处理，D2-AI | 299,520,000 / 146,250 updates | 无 | `/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-d2ai-native-eval-s42-20260804/chois/predictions` |
+| **C** | 仅参考，D2-AI + Arm B | 299,520,000 | Arm B | `/data/yujinlun/InfBaGel-release/results/experiments/p1-hoi-d2ai-guidance-armb-s42-20260804/chois/predictions` |
+
+- **A 是树对照格，不是新测量。** A 的 prediction tree sha256 实测
+  `03e23d31e995152e77c69a7433c78ab728b140701cbb823eb33a6ebaf96063c1`，与 2026-07-24 D2-AA
+  的 d2x 导出**逐位相同**，故 A 的 FID 已封存为 `1.7754768927164406`，200-replicate paired CI
+  已封存为 `[1.3039275341029923, 2.4942378930141667]`
+  （`/data/yujinlun/InfBaGel-p1b-staging/p1-hoi-d2aa-table5-completion-s42-20260724/candidates/d2x/chois/metrics.json`）。
+  重算 A 的作用是**承重环境对照**，见下文门控 G1。
+- **共享 GT 参考分布。** 三格的 `ground_truth` tree sha256 均实测为
+  `d439a98ea32f5d67964bc98431fe25bdffc24b63e00b42601c5355445d01742c`；45 个完整导出中 **42 个**
+  共享这一个 GT 树，另外 3 个是 P12 的修复后导出（`45bf2efe…` 与 `6f880b31…`）。
+  **因此本次三格共用同一个 FID 参考分布，而 P12 连 GT 分布都不同。**
+- B 的 prediction tree sha256 `0d787ef3e8d720b70a6aae28c1ab3c981ed0cffc3ed57e7df9edff71b9dc23d0`，
+  C 的为 `87b02c5ef3bd9380d30ab974049bca41643723f08b737bc66a5a9cc7eeb1b48e`。
+
+PRIMARY 统计量（在任何结果存在之前逐字固定）：
+
+- **Δ = FID(B) − FID(A)**，配对 bootstrap，**单一预注册比较，无多重性**。
+  - **resample 单位**：`paired_embedded_sequence`，**416** 条（不是 438，见下文非声明）。
+  - **replicates 2000**，**seed 42**，percentile 2.5 / 97.5，linear 插值。
+  - **一份共享 resample index matrix**：每个 replicate 抽一次索引 `I_r`，同一 `I_r` 同时用于
+    GT、A、B、C 的 embedding 行，因此 `FID_B(I_r) − FID_A(I_r)` 是**同序列子集上的配对差**，
+    与 `tools/paired_bootstrap.py` 的 `shared_resample_index_matrix` 约定同构。
+  - **一次调用嵌入一份 GT**：三格必须在同一进程内共用同一个 GT embedding 矩阵，否则两次独立
+    进程的 GT embedding 可能在末位比特上不同，配对性即失效。
+  - 选 2000 而不是封存的 200，理由在见到任何本次数值之前写定：200 个 replicate 的 2.5 分位是第 5 个
+    次序统计量，差值 CI 的尾部分辨率过粗。`RandomState(42)` 的抽样流是**前缀相容**的
+    （已实测：2000 次抽样的前 200 次与 200 次抽样逐位相同），故 200-replicate 的封存 CI 可作为
+    前缀被逐位复现，见 G1。additive 指标仍用封存的 **10,000** replicates（其分块抽样不具前缀性，
+    但两侧都是 10,000，逐位可比）。
+
+预注册停止分类（三支互斥且穷尽，在任何结果存在之前逐字固定）：
+
+1. **Δ 的 CI 下界 > 0** → 分类 **`budget-fid-cost-confirmed-qualify`**。
+   4.875× 预算在**分布层面**是有代价的：原生几何/接触侧 9 项显著改善、0 项退化（本文件
+   2026-08-04 小节）与分布保真度**方向相反**。动作：给证据索引结论 7 加一条限定
+   （"预算的收益不覆盖分布级指标"），并给结论 10 加下文固定的 scope 限定。**不选 checkpoint、
+   不改 D2-AI 作为 HOIPrior v1 的决定**（那是用户 2026-08-10 的选择性决定，不由本实验推翻）。
+2. **Δ 的 CI 跨零** → 分类 **`budget-fid-null-stop`**。
+   分布层面测不到预算代价，指标列在这一对上补齐即止。结论 7、10、11 均不变。
+3. **Δ 的 CI 上界 < 0** → 分类 **`budget-fid-gain-confirmed-extend`**。
+   "更长预算带来分布级过拟合代价"这一假设被**直接证伪**：预算同时改善原生指标与分布保真度。
+   动作：把指标列外推到剩余谱系（作为一次独立的、需另行批准的实验），结论 10 反而被第二个
+   独立指标类加强。
+
+门控（每一条都在见到数值之前写定；任一条失败即按字面失败如实记录，不重新定义判据）：
+
+- **G1 承重环境对照。** A 格重算的 `FID` 必须等于 `1.7754768927164406`；A 格 replicate 序列
+  **前 200 个**的 2.5/97.5 分位必须等于 `[1.3039275341029923, 2.4942378930141667]`。
+  - 一级判据：绝对差 ≤ `1e-9`（视作逐位复现）。
+  - 二级判据：若一级失败但绝对差 ≤ `1e-3`，登记为**跨主机环境漂移**并保留残差数值，实验**继续**
+    ——PRIMARY 只要求 A 与 B 在**同一个环境**内配对，而 G1 是一个额外的跨主机一致性探针。
+    这一放宽写在这里的理由是：封存值是 2026-07-24 在 **worker**
+    （`/home/yujinlun/data/envs/infbagel/bin/python3.8`）上算的，而 CHOIS encoder + `scipy.linalg.sqrtm`
+    路径的跨主机逐位一致性**从未被证明**（证据索引结论 19 只证明了我们自己的原生评测路径，
+    并明写不覆盖其他路径）。
+  - 三级：绝对差 > `1e-3` → 本实验执行环境失效，全部结果作废，**不得沿用**。
+- **G2 配对身份。** 三格 × {predictions, ground_truth} 的
+  `embedded_sequence_ids_sha256` 必须全部等于
+  `6a4ffcfea5736a616d3ad5b582d16ec259002b2ff435212f19f4d4868dc57069`，
+  `dropped_prediction_sequence_ids_sha256` 必须全部等于
+  `b7ddcb96dae95814e44d1df8f4fe1791c2c7930ed3ddfca55c3ea3fcde31bd15`
+  （两者已在本次预注册前独立复算并与 D2-AA、P12 的封存值逐位相同）。
+- **G3 帧数常量。** 三格全部 438 条导出的 `global_jpos.shape[0]` 必须恒为 **126**（已实测）。
+  这一条是承重的：CHOIS 的 `EvaluatorModelWrapper.get_co_embeddings` / `get_motion_embeddings`
+  内部按 `np.argsort(m_lens)[::-1]` 重排返回行（上游注释 "the results does not following the order
+  of inputs"）。`m_lens` 恒定时该置换是 numpy 不稳定排序的确定性产物（numpy 1.24.4 下为
+  `[31,30,1,…,29,0]`），三格相同，故行配对成立；一旦某格帧数不同，该置换变成真实排序，
+  **行配对即失效**。
+- **G4 输入身份。** 三格 prediction tree sha256 等于上表所列；GT tree sha256 等于
+  `d439a98e…`；evaluator 身份为 CHOIS commit `8ec585aa0200fd2a890ffb12897bcf69ae719463`、
+  text-to-motion commit `72df96ec453edea2fbe9603b1d58a955eaf71636`、feature checkpoint
+  `a125bc15…`、annotations `3fec528a…`、mean/std `a55c020c…`。
+- **G5 有限性。** 任一 FID replicate 非有限即失败（adapter 已 fail-closed）。
+- **不设** `position_outside_rate` 一类原生门控：本实验不生成运动。
+
+**报告但不设门**（informational，不进入任何判定）：
+
+- 三格各自的 `Diversity`、`MatchingScore`、`R-Precision@1/2/3` 点估计与已注册 CI；
+- **C 格**：`FID(C)`、Δ(C−B)（**修复前表示内**的引导主效应）、Δ(C−A)。C 与 B 差的是引导、
+  不是预算，故它不能进入 PRIMARY；列它的理由是 P2/P3/P5/P6 从未在分布层面测过引导。
+- 剩余谱系导出**明确标注为 exploratory**：45 个完整导出中 36 个 prediction tree 互异，已算 FID 的
+  4 个之外**还有 32 个**未测；其中 6 个 run 共享同一个 prediction tree
+  （`87b02c5e…`：`p1-hoi-d2ai-guidance-armb` 与 P6 的 b0control/b1/b2/b3/b4 的 08-04 批次），
+  那是 P6 已登记的"四格是 B0 的逐位重跑、0/438 条序列有差异"
+  （`docs/phase_summaries/PHASE_1B_P6_GUIDANCE_SUBTERM.md:31`），**不是本次发现的新缺陷**，
+  但它意味着"42 个待测导出"实际只有 32 个不同的分布。
+  另有 P4 的六个 cadence 导出在**另一棵树**
+  （`/data/yujinlun/InfBaGel-head-baseline/results/experiments/p1-hoi-p4-cadence-curve-w*`），
+  **不在本次范围内**：跨树环境身份需另行论证。
+
+**验证损失问题的固定解读规则**（在见到任何结果之前决定）：
+
+证据索引结论 10 的"留出去噪验证损失与原生指标反相关，不得用来决定预算/早停/checkpoint"是
+**只对原生几何与接触指标类**建立的（P4 的 `contact_f1`，D2-AI 的 18 项 aggregate），
+**从未对任何分布级指标检验过**。P12 实测其留出 `total` 在 21,504,000 触底、到 299,520,000 上升
+**+25.87%**（`results/experiments/p1-hoi-p12-frame-repair-baseline-s42-20260819/metrics.json`），
+证据索引记录 D2-AI 在 27,648,000 触底、上升 **+22.7%**。
+
+- **若落在分类 1（Δ 显著 > 0）**：结论 10 **必须**获得如下 scope 限定，措辞在此固定：
+  「该反相关是在 500 步原生几何/接触指标类上建立的；在分布级 CHOIS FID 上，预算方向与验证损失
+  **同向**而非反相关，故不得再以无限定的形式陈述。」
+- **若落在分类 2 或 3**：结论 10 **不变**；分类 3 额外提供第二个独立指标类的同向证据。
+- **无论落在哪一支，本实验都不授权用验证损失做早停、checkpoint 选择或预算决定。** 理由在此写死：
+  两个格（61.44M、299.52M）**都在验证最优点之后**（D2-X 的 argmin 为 24,576,000，D2-AI 为
+  27,648,000），本设计**没有任何一格落在验证 argmin 上**。所以即使分类 1 成立，它说的是
+  "越过最优点之后继续加预算，分布保真度变差"，**不是**"停在最优点会更好"。后者需要 P4 cadence
+  导出那一列，属另一次实验。
+
+明确的非声明（每一条都写在结果之前）：
+
+1. **本次没有任何一格跨过 2026-08-19 的表示帧修复。** 三格都是修复前表示，且 P12 的三格连
+   `ground_truth` tree 都不同（`45bf2efe…` / `6f880b31…` 对本次的 `d439a98e…`），
+   即**参考分布本身不同**。**任何 P12 的 FID 行（2.3074 / 2.0113 / 2.8174）都不得与本次数字对置**，
+   也不得用来解释本次的 Δ。P12 自己的 `control_minus_primary = 0.510` 同理是跨 GT 分布的差，
+   本节不引用它、不修正它。
+2. **FID 是 416 序列量，不是 438。** 上游 loader 固定 `batch_size=32, drop_last=True`，438 条中
+   416 条进入 embedding，被丢的 22 条是按 `seq_name` 排序后的最后 22 条、全部为
+   `sub17_woodchair_*`，且**在每一格都是同一批**（G2 已把它变成一条硬门控）。任何把 FID 说成
+   "438 序列指标"的表述都是错的。
+3. **本设计只能显示 FID 是否随预算移动，永远不能解释为什么。** 它不分离预算与每窗口重访次数
+   （526.87 epochs），不定位是哪个运动学属性驱动了 embedding 空间的位移。
+4. **`embedded_sequence_ids` 的顺序不等于 embedding 行的顺序**（G3 记录的上游置换）。它作为
+   **集合**是正确的，作为**逐行标签**不是。因此本实验**不得**做任何按序列归因、留一分析或
+   "哪些序列拉高了 FID"的叙述——那需要先修上游置换的标签，属另一次实验。
+5. **released 的 FID `0.9334244584430564` 是协议不可比的参考点**（16 步 CM + 引导 + CFG +
+   scene/object-voxel 条件），只作锚点，不作模型差。
+6. **不选 checkpoint、不改任何既有分类、不替换封存 D2-X 行、不改动 D2-AI 作为 HOIPrior v1 的
+   决定**、不解除任何既有 stop。单 seed 42，只报点估计与已注册的 sequence 级 bootstrap，
+   不声称跨 seed 置信区间。
+7. **机制性解读留空。** 本 FID 实际在什么特征空间上计算（movement encoder → motion encoder 的
+   哪一层、归一化用的是 `t2m_mean_std_jpos.p` 的哪一组统计量）正由另一路分析给出。
+   **本设计的判定规则不依赖那个答案**；答案到达后作为一条独立 amendment 追加到本节之下的
+   「机制性解读」槽位，不改动上文任何门控或分类。
+
+治理边界（严格）：
+
+- **不训练、不生成、不产生 checkpoint、不加载任何我们自己的 checkpoint、不分配训练 run id。**
+  仅对已落盘导出跑外部 encoder。
+- 执行机为**权威机 8 卡 `10.184.17.253`**，encoder 用一张空闲 GPU（`--device cuda`），
+  bootstrap 是 CPU 端 numpy/scipy。`AGENTS.md` 的"HOI 评测不在权威机跑"是为了保护**吞吐记录**；
+  本实验**不做任何吞吐或 FPS 声明**，且封存的 p0 CHOIS 行
+  （`p0-hoi-chois-matched-s42-20260712`）与 2026-08-20 的 P12 CHOIS 行**都是在权威机上跑的**，
+  precedent 一致。**本实验的 wall-clock 不作性能记录，不用于任何 ETA 判据。**
+- 设 `OMP_NUM_THREADS=4`（实测该 sqrtm/协方差路径 1/4/16 线程分别 603/508/482 ms 每 replicate，
+  不设上限在 112 核上会起线程风暴；这只影响 wall-clock，不影响数值）。
+- 输出不可覆盖：adapter 的 `atomic_output` 对已存在路径直接拒绝。已存在的 manifest/result/
+  checkpoint 一律不覆盖、不删除。
+
+预期的源码改动（**这是本节唯一的实现声明**）：
+
+`tools/run_chois_evaluator.py` 现有的不确定性代码**只做 per-run 的配对 GT-vs-prediction bootstrap**
+（`_bootstrap_fid_interval:344-385`：每个 replicate 抽一次索引，同时施加于 GT 与 prediction），
+**没有任何跨模型配对差的路径**，且**不持久化 per-replicate 序列**，故两次独立调用的输出无法事后
+拼出差值分布。因此需要**一个默认关闭的新参数**，而不是新脚本：
+
+- `--compare-predictions <dir>`（可重复给出，默认空）。给出时：GT 只嵌入一次，
+  `--predictions` 与每个 `--compare-predictions` 各嵌入一次，**在同一个 replicate 循环内**用
+  同一 `I_r` 算出每格 FID 与**全部两两配对差**的 2.5/97.5 分位，并记录
+  `resample_index_sha256`、每格 `embedded_sequence_ids_sha256` 与 per-replicate 序列的 sha256。
+- 默认路径（不给该参数）**逐字不变**：点估计公式、RNG 顺序、输出键、`--fid-bootstrap-replicates`
+  与 `--bootstrap-replicates` 的语义全部不动，新增键只在给出新参数时出现。这与 2026-07-24
+  D2-AA 给同一个 adapter 加 opt-in 参数的先例一致（本文件 D2-AA CPU/code implementation
+  contract 小节：「既有 point-estimate 路径保持原公式和 RNG 顺序；新增参数默认均为 disabled」）。
+- **不改** `code/eval_metrics.py`、`code/test_infbagel_hoi.py`、官方 438 协议、
+  `tools/chois_evaluator.py` 的任何既有函数、以及 CHOIS/text-to-motion 两个第三方 checkout。
+- **不改** `code/priors/core/`（冻结契约）。
+- 断言加到 `tests/test_research_governance.py`（该 adapter 的既有测试所在模块）；
+  按 `docs/EXPERIMENT_CONVENTIONS.md` 第 3 条，**不新建以实验 id 命名的测试文件**。
+- 因该 adapter 不在共享 model/diffusion/training/data 路径上，也不改变任何 per-step 计算、通信、
+  数据加载、张量形状或显存剖面，**不需要 full-micro-batch 性能基准**；但因它是 runtime 代码改动，
+  **需要一次真实数据 functional smoke**：用同一批已落盘导出在 `--fid-bootstrap-replicates 4`
+  下跑通并核对默认路径输出与新参数关闭时逐键一致。改动前后各跑一次完整 authority suite。
+
+**没有 Hydra config override fragment**，因为本 adapter 是 argparse CLI、不在 Hydra 路径上；
+`docs/EXPERIMENT_CONVENTIONS.md` 第 1 条的等价物是**把完整解析后的命令归档在输出旁的
+`resolved.json`**，与 D2-AA 的
+`…/p1-hoi-d2aa-table5-completion-s42-20260724/candidates/d2x/chois/resolved.json` 同格式。
+
+允许改动的文件范围：
+
+- `tools/run_chois_evaluator.py`
+- `tests/test_research_governance.py`
+- `docs/plan/PHASE_1B_HOI/04_BUDGET_AND_LONG_ARMS.md`（本节）
+- `experiments/registry.jsonl`（一条 hypothesis、一条 completion）
+- `experiments/results/`（一份紧凑 JSON）
+- `docs/HOIPRIOR_EVIDENCE_INDEX.md`、`docs/phase_summaries/`
+- 输出目录 `results/experiments/p1-hoi-p13-fid-budget-contrast-s42-20260821/`（不进 Git）
+
+成本（实测外推，非声明）：一次调用三格、N=2000 时 bootstrap 约 **16–17 分钟**
+（compare 模式实测 508 ms/replicate @ OMP=4，三格两两差需 3 次 sqrtm，约 26 分钟），
+加 embedding 与 876×3 个文件的 tree sha256 约 2 分钟，**总计约 30 分钟**，单 GPU 只用于 encoder
+前向（秒级）。N=200 时约 4 分钟。
+
+事前预测（写死，无论对错都保留）：**Δ = FID(B) − FID(A) 的 CI 跨零（分类 2）。** 理由：D2-AI 在
+原生几何上 9 项显著改善、0 项退化，但接触参与度偏离 GT 从 +45.2% 扩大到 +140.5%
+（本文件 2026-08-04 小节），两者对 embedding 空间的推力方向相反；且封存 A 的 200-replicate 边际 CI
+已宽达 `[1.304, 2.494]`，配对后即使收窄，0.2 量级的差也很可能仍跨零。**若实测显著为正，
+则本节分类 1 生效，且结论 10 的无限定表述被推翻**——这正是本实验值得做的那一支。
+
+已被既有证据否决的备选：
+
+- **(a) 一次性补齐全部 32 个未测导出。** 32 格 × 一次 sqrtm 循环不贵，但它把一个单因子对照
+  混进 32 重比较，且其中大量格之间同时变了引导、几何权重与预算，**没有一个是单因子**。
+  先做唯一干净的那一对，其结果决定是否值得铺开——与 P4 拒绝 (a) 的同一理由。
+- **(b) 用两次独立调用的两条边际 CI 判"不重叠"。** 两条 CI 共享 GT 与同一个索引流，
+  彼此不独立；不重叠既非充分也非必要条件，且 200 replicate 的尾部太粗。这是把配对信息扔掉。
+- **(c) 把差值计算放进 `tools/paired_bootstrap.py`。** 该工具的数据模型是**按序列名索引的
+  per-sequence 标量**，FID 不是 per-sequence 量，塞进去等于在一个 1,261 行、承载封存
+  shared-index 约定的工具里开一条新代码路径，风险大于在 adapter 里加一个默认关闭的参数。
+- **(d) 让 adapter 只 dump per-replicate 序列、差值在外部算。** 改动更小（~12 行），但差值会由
+  一条无 provenance 的临时算式产生，且 GT 会被嵌入两次（两进程的 GT embedding 末位比特不保证相同，
+  配对性可能失效）。
+- **(e) 把 P12 的三格并进本次对照。** 参考分布不同（GT tree 不同），跨 2026-08-19 修复边界，
+  按上文非声明 1 直接禁止。
+- **(f) 在 4 卡 worker 上跑。** worker 快照按 `AGENTS.md` 只有 OMOMO 数据，
+  `third_party/chois_omomo_evaluator_assets` 与两个第三方 checkout 的身份需重新哈希校验；
+  而权威机上这些资产的哈希已被 p0 与 P12 两次封存。本实验无吞吐声明，故无须占用 worker。
+
+<!-- 机制性解读槽位（待另一路分析到达后作为独立 amendment 追加；不改动上文任何门控或分类） -->
+
+##### 2026-08-21 增补：去竖直偏置的 informational 诊断格（用户批准）
+
+**动机（本次会话实测，非本实验产出）。** CHOIS FID 在这条特征路径上由一次**刚体竖直偏移**支配：
+编码器消费的是归一化后的绝对关节位置（`[T,24,3]` → `[T,72]` → 逐坐标 `(x−mean)/std`），
+而该归一化的竖直轴 std 为 `0.1683 m`，对水平轴的 `0.4317 / 0.4825` 而言最紧，
+故 3 cm 在竖直方向折合 `0.178σ`、在水平方向仅 `0.069σ`（z 方向 std 最小的关节为 `0.0209 m`，
+3 cm 在它上面是 `1.44σ`）。对 P12+Arm B 减去单一三数均值偏置向量使 FID 由 `2.011` 降到 `0.3835`，
+对发布权重用其自身向量则由 `0.9332` 降到 `0.4850`。
+
+**后果，必须在本实验开跑前写下：** 若 FID 由竖直偏置支配，则 `FID(B) − FID(A)` 主要反映
+D2-X 与 D2-AI 的**竖直偏置差**，而 `feet_height` 显示那只有 `0.04981 → 0.05090`，即 **0.11 cm**。
+因此主草案给出的事前预测（"可能出现无信息的 null"）现在有了机制层面的理由。
+**这不改变任何判定规则**，只是把预期信息量如实下调，并促使本增补把该混杂单独测出来。
+
+**增补内容：** 在同一次调用内追加两个 informational 格。
+
+| 格 | 构造 |
+|---|---|
+| **A′** | A 格（D2-X）减去其自身的一个全局固定竖直/均值偏置向量后重算 FID |
+| **B′** | B 格（D2-AI）减去其自身的一个全局固定偏置向量后重算 FID |
+
+**逐条约束（用户 2026-08-21 指定，逐字固定）：**
+
+1. **`Δ = FID(B) − FID(A)` 仍是唯一 PRIMARY。** 三支停止分类
+   （`budget-fid-cost-confirmed-qualify` / `budget-fid-null-stop` / `budget-fid-gain-confirmed-extend`）
+   与门控 G1–G5 **一字不改**。A′/B′ 与 `Δ′ = FID(B′) − FID(A′)` 全部为 **informational**，
+   不进入任何判定、不构成第二个 PRIMARY、不产生多重性修正问题。
+2. **偏置必须在同一批 416 条嵌入序列上计算**——与 PRIMARY 完全同一子集，不是 438 条。
+3. **每个格只减一个全局固定向量。** 该向量为该格全部 416 条序列、全部 126 帧、全部 24 关节
+   对 GT 的均值差，构成一个三数向量，对该格所有序列所有帧所有关节同一地减去。
+4. **禁止逐序列校正。** 已实测逐序列校正显著更弱（P12+ArmB 0.906 对全局 0.383），
+   因为 FID 是分布统计量，抹掉各序列自身偏移会破坏 GT 本身的序列间方差结构。
+   本实验不得实现、不得报告逐序列变体。
+5. **校正后的 FID 不是模型的正式成绩。** A′/B′ 只作为"竖直偏置贡献了多少 FID"的诊断读数。
+   任何表格、摘要或 phase summary 引用 A′/B′ 时必须在同一处注明它是事后减去全局偏置的诊断量。
+   **不得**把 A′/B′ 与发布行的 `0.9334244584430564` 并列比较高下。
+
+**A′/B′ 回答的问题：** 把两个格各自的竖直偏置归零之后，预算是否还在分布层面留下差异。
+`Δ′` 与 `Δ` 的对比即"预算对 FID 的作用中有多少只是经由竖直偏置"。
+
+**报告口径。** 输出 JSON 需同时记录：每格实测的三数偏置向量、其竖直分量、A′/B′ 的 FID
+点估计，以及 `Δ′` 的点估计与 CI（复用 PRIMARY 的同一条共享 resample index，
+使 `Δ` 与 `Δ′` 在同一重采样下可比）。偏置向量本身也要落进 JSON，因为它是可独立复核的量。
+
+**成本。** 每个 informational 格多一次编码器前向（秒级）加一次 bootstrap 循环；不新增 GT 嵌入。
+
+**非声明（追加到主草案的非声明列表）。**
+
+- A′/B′ 不表示"模型经过校正后更好"。它们表示 FID 对一个特定的、可独立测量的缺陷敏感。
+- A′/B′ 不授权在导出路径或评测路径上加任何偏置校正。事后减偏置是**诊断，不是修复**；
+  修复必须在训练侧找成因，那是另一个需单独批准的实验。
+- A′/B′ 的偏置向量跨 A、B 两格不同，因此 `Δ′` 不是"同一校正下的预算效应"，
+  而是"各自最优刚体校正之后的剩余预算效应"。这个区别必须随 `Δ′` 一起报告。
+
+##### 2026-08-21 预注册完整性披露：本节的 PRIMARY 点估计在提交之前已被看到
+
+必须写在这里，因为它削弱本预注册的证据力，而读者无法从别处看出来。
+
+**发生了什么。** 本节上文自己要求「一次真实数据 functional smoke……用同一批已落盘导出在
+`--fid-bootstrap-replicates 4` 下跑通」。那次 smoke 已在 Stage C 实现阶段执行，**用的正是
+A/B/C 三个真实格**，因此产出了：
+
+| 量 | smoke 实测（N=4） |
+|---|--:|
+| FID(A)，封存 D2-X | 1.7754769073836485 |
+| FID(B)，D2-AI | 1.4641165319284255 |
+| FID(C)，D2-AI + Arm B | 1.1278846941538632 |
+| **Δ = FID(B) − FID(A)** | **−0.311360375455223** |
+| Δ 的 4-replicate 区间 | [−0.4748328090834761, −0.14987326254437966] |
+| Δ′ = FID(B′) − FID(A′) | −0.22319218234221694 |
+
+**FID 点估计与 replicate 数无关**，故上表的 Δ 就是 N=2000 下将要报告的同一个 PRIMARY 点估计，
+它不会再变。**决策统计量（N=2000 的 CI）尚未产生**——4 个 replicate 的区间不是预注册的那个统计量，
+它的尾部分辨率正是上文拒绝 N=200 的理由所排除的。但 4 个 replicate 全部落在零以下，已使
+分类 3（`budget-fid-gain-confirmed-extend`）成为大概率结果，即**上文那条事前预测（分类 2，
+CI 跨零）很可能是错的**。该预测按原样保留，不修改、不重新表述。
+
+**G1 的结果也已经知道。** A 格重算得 `1.7754769073836485`，与封存值 `1.7754768927164406`
+相差 **1.4667e-08**：**一级判据（≤1e-9）失败，二级判据（≤1e-3）通过**，故 G1 将按上文字面
+记为跨主机环境漂移并继续。这是上文在见到任何数值之前就写好的分支，不是事后放宽——但读者应当
+知道，写下那个二级判据时我尚未知道它会被用上。
+
+**这个瑕疵的准确边界。** 真正要求「规则先于数字」的那条性质是成立的：本节正文与登记行的草稿
+文件 mtime 为 `2026-08-21 00:14:42`，A′/B′ 增补为 `00:48:11`，而第一份 smoke 输出为
+`00:51:52`、偏置诊断输出为 `01:08:25`（`--compare-predictions` 的实现落盘于 `00:49:10`）。
+三支分类、G1–G5、事前预测与非声明列表在那之后**一字未改**。失效的是**提交时刻**：本次提交
+发生在 smoke 之后，因此上述先后顺序的唯一凭据是 git-ignored scratch 目录里的文件 mtime，
+而 mtime 是我能改的。**所以这条先后性是声明，不是证明**，读者应当按「未经时间戳保护的预注册」
+来折算它的证据力。
+
+**本该怎么做。** functional smoke 应当跑在**别的**输入上——任意两个非 A/B 的封存导出，或打乱的
+序列名——它同样能验证代码路径与默认路径逐键一致性，却不会产出 PRIMARY。这是设计错误而非执行
+错误：上文写「用同一批已落盘导出」时没有排除 A/B/C 本身。今后凡预注册里含 runtime 代码改动的
+functional smoke，都必须指定**非 PRIMARY 输入**。
+
+**判定不因此改变。** 用户 2026-08-21 明确选择「照常提交并跑，显式披露瑕疵」。三支分类与
+G1–G5 按上文字面执行；本次运行的作用是把 N=2000 的 CI、A′/B′ 与全部 informational 量补齐，
+并把 Δ 的点估计固定在一份有 provenance 的封存结果里。**任何引用本实验结论的地方必须同时引用
+本披露节**，包括证据索引与 phase summary。
