@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 try:
     import numpy as np
@@ -389,6 +390,110 @@ class ChoisEvaluatorTests(unittest.TestCase):
             module.write_text("changed\n", encoding="utf-8")
             with self.assertRaises(run_chois_evaluator.AdapterError):
                 run_chois_evaluator.verify_text_to_motion(root, config)
+
+    def test_default_path_schema_is_stable_and_has_no_comparison_block(self):
+        parser = run_chois_evaluator.build_parser()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "metrics.json"
+            parsed = parser.parse_args([
+                "--chois-root", str(root / "chois"),
+                "--text-to-motion-root", str(root / "text-to-motion"),
+                "--predictions", str(root / "predictions"),
+                "--ground-truth", str(root / "ground-truth"),
+                "--data-root", str(root / "data"),
+                "--glove-root", str(root / "glove"),
+                "--checkpoints-dir", str(root / "checkpoints"),
+                "--checkpoint", str(root / "checkpoints" / "omomo" / "text_motion_features" / "model" / "finest.tar"),
+                "--device", "cpu",
+                "--output", str(output),
+            ])
+            self.assertEqual(parsed.compare_predictions, [])
+            self.assertFalse(parsed.emit_offset_corrected_fid)
+            info = {"seq": {"frames": 126}}
+            embeddings = np.asarray([[1.0, 2.0], [2.0, 3.0]], dtype=np.float32)
+            fake_truth = {"motion_embeddings": embeddings, "sequence_ids": ["seq"]}
+            fake_prediction = {
+                "motion_embeddings": embeddings + 1.0,
+                "sequence_ids": ["seq"],
+                "matching_score": 1.0,
+                "r_precision": [0.1, 0.2, 0.3],
+            }
+            fake_dataset = SimpleNamespace(sequence_ids=["seq"])
+
+            def activation_statistics(value):
+                return np.mean(value, axis=0), np.eye(value.shape[1])
+
+            metrics = {
+                "activation_statistics": activation_statistics,
+                "frechet": lambda *unused: 1.25,
+                "diversity": lambda *unused: 2.5,
+            }
+            with mock.patch.object(run_chois_evaluator.chois_evaluator, "load_config", return_value={}), \
+                    mock.patch.object(run_chois_evaluator.chois_evaluator, "verify_upstream", return_value={}), \
+                    mock.patch.object(run_chois_evaluator, "verify_text_to_motion", return_value={}), \
+                    mock.patch.object(run_chois_evaluator.chois_evaluator, "require_assets", return_value={}), \
+                    mock.patch.object(run_chois_evaluator.chois_evaluator, "read_npz_directory", side_effect=[(info, "prediction-tree"), (info, "truth-tree")]), \
+                    mock.patch.object(run_chois_evaluator, "_load_components", return_value=(object(), object(), metrics)), \
+                    mock.patch.object(run_chois_evaluator, "PathConfiguredCHOISEvaluationDataset", return_value=fake_dataset), \
+                    mock.patch.object(run_chois_evaluator, "_loader", return_value=object()), \
+                    mock.patch.object(run_chois_evaluator, "_embeddings", side_effect=[fake_truth, fake_prediction]), \
+                    mock.patch.object(run_chois_evaluator.chois_evaluator, "atomic_output") as atomic_output:
+                result = run_chois_evaluator.evaluate(parsed)
+
+            self.assertEqual(
+                set(result),
+                {
+                    "schema_version", "created_at", "adapter", "upstream",
+                    "text_to_motion_dependency", "assets", "inputs",
+                    "embedding_protocol", "runtime", "metrics", "uncertainty",
+                },
+            )
+            self.assertNotIn("comparison", result)
+            self.assertNotIn("offset_corrected_fid", result)
+            self.assertNotIn("paired_differences", json.dumps(result, sort_keys=True))
+            atomic_output.assert_called_once()
+
+    def test_offset_diagnostic_has_no_per_sequence_variant(self):
+        parser = run_chois_evaluator.build_parser()
+        option_names = {
+            option
+            for action in parser._actions
+            for option in action.option_strings
+        }
+        self.assertIn("--emit-offset-corrected-fid", option_names)
+        self.assertNotIn("--emit-offset-corrected-fid-per-sequence", option_names)
+        self.assertNotIn("--offset-corrected-fid-per-sequence", option_names)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            required = [
+                "--chois-root", str(root / "chois"),
+                "--text-to-motion-root", str(root / "text-to-motion"),
+                "--predictions", str(root / "predictions"),
+                "--ground-truth", str(root / "ground-truth"),
+                "--data-root", str(root / "data"),
+                "--glove-root", str(root / "glove"),
+                "--checkpoints-dir", str(root / "checkpoints"),
+                "--checkpoint", str(root / "checkpoints" / "omomo" / "text_motion_features" / "model" / "finest.tar"),
+                "--output", str(root / "metrics.json"),
+            ]
+            with self.assertRaises(SystemExit):
+                parser.parse_args(required + ["--emit-offset-corrected-fid-per-sequence"])
+
+    def test_g3_frame_count_guard_fails_closed(self):
+        with self.assertRaisesRegex(run_chois_evaluator.AdapterError, "G3 frame-count gate"):
+            run_chois_evaluator._require_aligned_frames(
+                {
+                    "ground_truth": {"a": 126, "b": 126},
+                    "predictions": {"a": 126, "b": 125},
+                },
+                expected_frames=126,
+            )
+
+    def test_shared_resample_prefix_is_bitwise_reproducible(self):
+        long_stream = run_chois_evaluator._shared_resample_indices(16, 2000, 42)
+        short_stream = run_chois_evaluator._shared_resample_indices(16, 200, 42)
+        np.testing.assert_array_equal(long_stream[:200], short_stream)
 
 
 if __name__ == "__main__":
