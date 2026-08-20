@@ -502,6 +502,54 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       `experiments/results/p1_hoi_p8_w3_eval_replication_s42_20260816.json`.
     - This closure authorizes no new mechanism and no new direction. The next entry point is unchanged.
 
+20. **`contact_precision`, `contact_recall` and `contact_f1` carry a hard analytic cap of
+    0.906392694063927 on the 438-sequence protocol, so the ground-truth reference row's 1.000 is
+    wrong for those three, and every "gap to 1.0" reading of those columns anywhere in this
+    repository was overstated by about 10 percentage points.** 41 of the 438 official test sequences
+    contain no ground-truth hand-object contact frame at all, and `code/eval_metrics.py:311-323`
+    returns `contact_precision = 0` when `TP + FP == 0`, `contact_recall = 0` when `TP + FN == 0`,
+    and `contact_f1 = 0` when both are zero — **including for a ground-truth self-comparison**,
+    where `FP = FN = 0` and `TP = gt_contact_cnt = 0`. `code/test_infbagel_hoi.py:340` aggregates by
+    per-sequence mean, so those 41 enter every model's three contact columns as exact zeros and the
+    attainable maximum is 397/438 = **0.906392694063927**. No training or inference intervention can
+    move them; the number is a property of the metric definition, not of any model.
+    - **`contact_acc` = 1.0 is correct and is NOT corrected.** A zero-contact sequence gives
+      `TP = FP = FN = 0` and `TN = 126`, so its accuracy is genuinely 1.0. `contact_percent` for the
+      ground-truth row is likewise correct: it equals `gt_contact_percent` = 0.6618830180474017.
+      Only three of the four contact columns are affected.
+    - **The 41 are not threshold-marginal, so this is a protocol property and not a tolerance
+      choice.** The nearest of them has a minimum hand-object distance of **0.07432 m**, i.e. 2.43 cm
+      *past* the 0.05 m contact threshold; the farthest is **0.62411 m**; and only **1** of all 438
+      sequences sits within 1 cm of the threshold. Re-deriving the channel from the dataset plus the
+      rest object meshes with the evaluator's own rule (hand joints 22/23, 0.05 m, the 126-frame
+      span) reproduces the count bitwise and returns mean `gt_contact_percent`
+      0.6618830180474017 — delta 0.0 against the value that is bitwise identical across 47 sealed
+      438-sequence runs. An independent cross-model bound agrees and is tighter than a four-model
+      one (≤ 44): intersecting the all-three-exactly-zero sets of all 47 sealed 438-sequence runs
+      (24 distinct sets) gives **42**, a superset of the 41 by exactly one sequence,
+      `sub17_woodchair_029` — which has a single GT contact frame in 126 at minimum distance
+      0.04549 m, i.e. it is the one threshold-marginal sequence in the protocol, and no model in
+      the branch's history has ever hit that frame.
+    - **Restricted to the 397 sequences where the metric is defined**, a ground-truth round-trip
+      reference scores precision **0.9968411711880822**, recall **0.9954630506006943**, f1
+      **0.9960322331956971**. The residual is FK round-trip noise, not a modelling gap, so the
+      defined-subset floor is the one to quote when a true ceiling is needed.
+    - **A coverage fact of the same protocol, measured in the same pass.** The four penetration
+      terms are computed on only **181 of 438** sequences, because `code/test_infbagel_hoi.py:276`
+      hard-codes exclusion of woodchair, whitechair, largebox, largetable, plasticbox and trashcan.
+      **32 of the 41 zero-contact sequences are also penetration-excluded**, so those 32 carry no
+      interaction reading of any kind — neither contact nor penetration — while still occupying the
+      438 denominator; only 9 zero-contact sequences retain a penetration reading.
+    - `experiments/results/p1_hoi_p12_frame_repair_baseline_s42_20260820.json` is **left
+      byte-identical** and still carries the wrong 1.000. Its sha256
+      `08bae281fa15576d7f5bdc14eb1eaa865b8498f3b5eb5b4013170c16d4c02fab` is pinned by the P12
+      completion row and by `docs/phase_summaries/PHASE_1B_P12_REPRESENTATION_FRAME.md:6` and `:240`,
+      and sealed compact results are append-only — the same treatment the 2026-08-20 sampling-caliber
+      amendment gave the same file (`config.not_rewritten`). This entry plus the dated appended
+      sections of that phase summary and of `docs/plan/PHASE_1B_HOI/07_REPRESENTATION_FRAME.md` are
+      the correction of record; `/data/yujinlun/report/baseline.md` is outside the repository and was
+      corrected in place. Recorded 2026-08-21.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”
