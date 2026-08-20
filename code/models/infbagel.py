@@ -344,8 +344,12 @@ class Sampler:
             
             x_prev[mask] = x_start[mask].to(x_prev.dtype)
 
-            # Get target LCM prediction on x_prev, w, c, t_n
-            target_pred_x0 = self.target_model(x_prev, occ, timesteps, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos)
+            # Pass w so the target is w-dependent; otherwise its target is w-invariant and
+            # drives the newly trainable cfg embedding back toward zero. Without cfg_scale,
+            # the forward else branch applies a random 10% scene ablation with no
+            # self.training guard; passing w selects the per-row cfg_scale == -1 mask path,
+            # matching student. Do not pass is_sample: target training uses that same path.
+            target_pred_x0 = self.target_model(x_prev, occ, timesteps, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, cfg_scale=w)
             
             sqrt_one_minus_alphas_cumprod_t = extract(
                     self.sqrt_one_minus_alphas_cumprod, timesteps, x_prev.shape

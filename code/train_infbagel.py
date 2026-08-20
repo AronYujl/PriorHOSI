@@ -339,6 +339,7 @@ def train_ddp(rank, world_size, cfg):
     if is_consistency:
         teacher_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         teacher_model.requires_grad_(False)
+        teacher_model.eval()
 
         student_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         student_model.requires_grad_(False)
@@ -346,9 +347,12 @@ def train_ddp(rank, world_size, cfg):
         student_model.module.embedding_output.requires_grad_(True)
         student_model.module.transformer.requires_grad_(True)
         student_model.module.out.requires_grad_(True)
+        # This sibling module is outside the four blocks above; without it, w conditioning cannot learn.
+        student_model.module.cfg_scale_embedding.requires_grad_(True)
 
         target_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         target_model.requires_grad_(False)
+        target_model.eval()
 
         model = student_model
         optimizer = Adam(student_model.parameters(), lr=cfg.lr)

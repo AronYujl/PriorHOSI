@@ -15,9 +15,29 @@ defaults:
       - pelvis
   - _self_
 
-# _v2 for the same reason as B's: results/hsi_c_lingo_cm/ backs registered row
-# p1-hsi-c-lingo-cm-s42-20260816 and must not be overwritten.
-exp_name: hsi_c_lingo_cm_v2
+# _v3: results/hsi_c_lingo_cm_v2/ backs registered row
+# p1-hsi-c-lingo-cm-v2-s42-20260819 and its epoch089 checkpoint backs the
+# registered baseline p1-hsi-c-v2-eval-epoch089-guided-progressfix-s42-20260821,
+# so neither may be overwritten. (v1 likewise backs p1-hsi-c-lingo-cm-s42-20260816.)
+#
+# v3 re-distills because `cfg_scale_embedding` was never trainable anywhere in the
+# B->C lineage, so C has no continuous-w capability -- only the w=-1 sentinel works
+# and `w: 1` below is decorative. Measured from B's checkpoint bytes: after 222
+# epochs the weight RMS is 1.002e-04, exactly its nn.init.normal_(std=1e-4), and the
+# bias L2 is exactly 0.0. Three coupled fixes, none sufficient alone:
+#   train_infbagel.py  -- unfreeze student_model.module.cfg_scale_embedding; it is a
+#                         SIBLING of the four unfrozen blocks, so requires_grad_(False)
+#                         over the whole model was never revoked for it.
+#   models/infbagel.py -- pass cfg_scale=w to the target; without it the regression
+#                         target is w-invariant and pushes the newly trainable
+#                         embedding back to zero. It also moves the target off the
+#                         `else:` branch's random 10% scene ablation onto the same
+#                         per-row cfg_scale == -1 mask the student uses.
+#   train_infbagel.py  -- teacher and target .eval(); init_model ends in .train(), so
+#                         the distillation target carried live dropout.
+# Preflight: .claude/scratch/cv3_smoke_20260821/smoke_report.txt (A/B/C/D all PASS,
+# with pre-fix controls of grad=None and a bitwise-zero w response).
+exp_name: hsi_c_lingo_cm_v3
 seed: 42
 random_seed: 42
 sample_type: consistency
