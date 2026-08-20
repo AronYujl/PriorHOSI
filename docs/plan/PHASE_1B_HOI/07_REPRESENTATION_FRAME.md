@@ -279,3 +279,58 @@ CONTROL 因此**直接调用评测器**，命令与 `hoi_chain.evaluate_command`
 
 上文 `:102` 引 `datasets/infbagel.py:439-457`，该处代码现在在 `:564-574`。
 本次插入使其再下移 20 行；此前已过时。append-only 记录，不原地更正。
+
+---
+
+## 结果订正：门控 (iii) 里的 GT `foot_sliding` 是 0.26346，不是 0.31654（2026-08-20）
+
+追加节，不原地改上文门控行。**若与上文冲突，以本节为准。**
+
+上文门控 (iii) 的括注写"已知 GT FS 在插值修复后为 0.31654"。**这是一处归类错误，是我写的。**
+
+`foot_sliding` **不经过** `interpolate_joints`。代码链：GT 走 `test_infbagel_hoi.py` 的
+`data_dict['joints_gt'] = self.joints[start:end]`（原生 48 帧）加未 `[::step]` 的
+`global_rot_6d_gt`，直接 FK 成 `points_fk_all_gt_48`；`interpolate_joints` 只作用于**模型**的
+16 帧输出。**真值行与插值修复正交。**
+
+0.31654 的真实来处是早期评测审计里三个**并列**的数：
+`shipped 0.35632 / desync-corrected 0.31654 / un-interpolated GT 0.24808`，
+我把中间那个标成了 "GT FS" 并写进门控。
+
+数值反证：预测 root 在插值三元组内的二阶差为 **2.4e-07 m**（float32 噪声，证明它就是 1/scale
+线性插值），GT root 同一量为 **7.8e-03 m**（证明未插值）。
+
+### 438 协议实测的真值参照行（封存）
+
+| | GT 地板 | P12 模型行 | |
+|---|--:|--:|--:|
+| `foot_sliding` | **0.26346464114890705**（p50 0.24276 / p95 0.56484） | 0.34159 | **1.30×** |
+| `feet_height` | **0.034326739609241486** | 0.06110 | +2.68 cm |
+| `gt_contact_percent` | **0.6618830180474017** | 同值 | 跨 47 个 438 序列 run 逐位相同 |
+
+探针正确性：同一脚本对 predictions 复算得 `0.3415924303475854` / `0.06109542399644852`，
+与 `aggregate_metrics.json` **逐位相同**。
+
+12 个指标解析已定（GT 自比恒为 0 的六项、接触四项恒为 1.0、`contact_percent` 恒等于
+`gt_contact_percent`）；**4 个穿透指标未测**——需 SMPL-X 顶点与物体 rest SDF，导出 npz 只有
+`global_jpos`。HOI 侧**没有**现成的真值评测通路：`save_chois_eval_npz` 只导出关节给 CHOIS 的
+FID/R-Precision 评测器，不参与那 18 个原生指标。
+
+**门控后果与误标所暗示的相反**：GT 地板 0.26346 **低于** released 行的 0.33336，
+故 `foot_sliding` **不降级**，仍是门控指标。
+
+### 两处执行偏离，如实记录
+
+1. 门控 (iii) 写的是 GT 参照行须**先**产出；实际是 PRIMARY 评测先跑（chain 自动执行），
+   GT 行随后建立。无科学后果：GT 行对 step-0 帧规则可证明不变（两 cell 间 7.57e-07 m），
+   且它是对未变数据资产的纯 CPU 复算。
+2. 若把真值行做成"config 开关在模型输出层替换 GT"，会**必然重现 0.31654 那个错数**，
+   因为 `compute_metrics` 会对被替换的 16 帧再跑一遍插值。故本行由只读探针在 post-FK 层复算。
+
+### 三条必须随行的口径限制
+
+1. 两行不在同一平滑度基线上（模型 126 帧是 3 帧线性/slerp 段，GT 原生 30 Hz）。弦长插值只会
+   **低估**滑动，故不是偏袒 GT；但不能靠"给 GT 也插值"消除，那会污染真值。
+2. `feet_height` 是 DBSCAN 从运动自身估的地板高度、非绝对地面，2.68 cm 是垂直偏置的诊断量。
+3. `compute_foot_sliding_for_smpl` 原地修改输入且缺权重钳制（低于地板权重可达 2.0），
+   故 FS 列部分在测穿透；对两行同向。

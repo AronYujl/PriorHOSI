@@ -4,7 +4,13 @@ Status: compact research handoff through D2-AG0, P1 protocol decomposition,
 P2 inference guidance, the D2-AH negative preflight, the P3 relation-field
 lineage under guidance, the P4 budget-metric curve, the D2-AI/D2-AJ
 long-budget arms, the P8-P9c hand-object geometry weight sweep, the P10
-geometry-term repair and the P11 root-gradient detach, 2026-08-15.
+geometry-term repair, the P11 root-gradient detach and the P12 representation-frame
+repair, 2026-08-20.
+
+**Every model-side geometric number from the sealed D2-* rows is void and not
+recomputable** after P12: the released code split the rotation and joint channels
+into two worlds 90 deg apart, so the channel those checkpoints fitted no longer
+exists. Methodology conclusions still hold; data assets and input hashes are unchanged.
 
 Use this file as the first research-context entry point. It summarizes conclusions;
 the named phase summaries and compact JSON files remain authoritative for exact
@@ -230,6 +236,22 @@ is therefore a cross-protocol quantity that overstates the model deficit.
   `[+0.0218, +0.0604]`) and its penetration gaps sit at `+11.5%` / `+11.1%`, just
   outside the band D2-AG cleared. No checkpoint was selected and both remain sealed
   negatives.
+
+- **P12 (2026-08-20) repaired the coordinate representation frame and re-established the
+  D2-AI baseline on it; classification `eval-consistency-null`.** Gate (ii) failed on
+  `end_obj_trans_err` (`+0.12419` `[-0.02538, +0.28236]`, not significant), which is the
+  preregistered trigger for that label -- but the label's rationale is contradicted by
+  measurement: the step-0 window frame rule alone moves **7 of 14 metrics significantly,
+  all favouring the repaired rule, none favouring the historical one** (`mpjpe` `-4.42681`
+  `[-5.03786, -3.82698]`, `obj_trans_dist` `-6.92076`, `trans_dist` `-2.94284`,
+  `contact_f1` `+0.06789`). The PRIMARY row is a **new baseline, not an improvement over
+  D2-AI**: the frame factor's effects are 7-14x the observed PRIMARY-minus-D2AI deltas, so
+  that comparison is confounded beyond decomposition. The 438-sequence ground-truth
+  reference row is sealed with the correction that GT `foot_sliding` is **0.26346**, not the
+  0.31654 written into P12's own gate (`foot_sliding` never passes through
+  `interpolate_joints`), and because 0.26346 is below the released row's 0.33336 the metric
+  is **not** demoted. `docs/phase_summaries/PHASE_1B_P12_REPRESENTATION_FRAME.md`,
+  `experiments/results/p1_hoi_p12_frame_repair_baseline_s42_20260820.json`.
 
 ## 3. Strongest current conclusions
 

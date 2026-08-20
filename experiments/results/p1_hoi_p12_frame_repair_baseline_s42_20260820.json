@@ -1,0 +1,542 @@
+{
+  "aggregate_metrics": {
+    "control_historical_frame": {
+      "contact_acc": 0.712654924983692,
+      "contact_f1": 0.6077590044682054,
+      "contact_percent": 0.43897224034210336,
+      "contact_precision": 0.7932490921878032,
+      "contact_recall": 0.5528790526684749,
+      "end_obj_trans_err": 2.6635654270648956,
+      "feet_height": 0.056506771594285965,
+      "foot_sliding": 0.3480301777006492,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.19079475742420307,
+      "hand_pen_ratio": 0.12781724333763123,
+      "human_pen_loss_infbagel": 3.14898735589312,
+      "human_pen_ratio": 0.1439972072839737,
+      "mpjpe": 15.710704028606415,
+      "obj_rot_dist": 1.3145511400639862,
+      "obj_trans_dist": 21.026083283491666,
+      "trans_dist": 10.880640149116516,
+      "xy_points_err": 4.962943121790886
+    },
+    "ground_truth_reference": {
+      "analytically_fixed": {
+        "contact_acc": 1.0,
+        "contact_f1": 1.0,
+        "contact_percent": 0.6618830180474017,
+        "contact_precision": 1.0,
+        "contact_recall": 1.0,
+        "end_obj_trans_err": 0.0,
+        "gt_contact_percent": 0.6618830180474017,
+        "mpjpe": 0.0,
+        "obj_rot_dist": 0.0,
+        "obj_trans_dist": 0.0,
+        "trans_dist": 0.0,
+        "xy_points_err": 0.0
+      },
+      "caveats": [
+        "the model's 126 frames are 3-frame linear/slerp segments against GT's native 30 Hz; chord-length interpolation underestimates sliding so this is not a GT bias, but the rows are not on one smoothness baseline, and interpolating GT would contaminate the reference",
+        "feet_height is a DBSCAN floor estimated from the motion itself, not absolute ground; the 2.68 cm difference is a vertical-bias diagnostic, not an error",
+        "compute_foot_sliding_for_smpl mutates its input and lacks weight clamping (weights reach 2.0 below the floor), so the FS column partly measures penetration, in the same direction for both rows"
+      ],
+      "correction": "GT foot_sliding is 0.26346, NOT the 0.31654 written into this subphase's gate. foot_sliding never passes through interpolate_joints: GT uses data_dict['joints_gt'] at native 48 frames. 0.31654 was the middle of three side-by-side audit numbers (shipped 0.35632 / desync-corrected 0.31654 / un-interpolated GT 0.24808) and was mislabelled. Numeric proof: prediction root second-difference within an interpolated triple is 2.4e-07 m, GT root is 7.8e-03 m.",
+      "gate_consequence": "GT floor 0.26346 is below the released row's 0.33336, so foot_sliding is NOT demoted; it stays a gating metric. The model row is 1.30x the GT floor.",
+      "measured": {
+        "feet_height": 0.034326739609241486,
+        "foot_sliding": 0.26346464114890705,
+        "foot_sliding_p50": 0.24276,
+        "foot_sliding_p95": 0.56484
+      },
+      "note": "measured for the two metrics that need a floor; 12 of 18 are analytically fixed; the 4 penetration terms are unmeasured",
+      "probe_correctness": "the same probe reproduces the PRIMARY row bit-for-bit (0.3415924303475854 / 0.06109542399644852)",
+      "unmeasured": [
+        "hand_pen_loss_omomo",
+        "hand_pen_ratio",
+        "human_pen_loss_infbagel",
+        "human_pen_ratio"
+      ],
+      "unmeasured_reason": "needs SMPL-X vertices (pose+betas+gender+transl) plus the object rest SDF; the exported npz carries only global_jpos"
+    },
+    "primary_guided_r1": {
+      "contact_acc": 0.764097267521925,
+      "contact_f1": 0.6756450525888936,
+      "contact_percent": 0.5004167572660724,
+      "contact_precision": 0.8094435634283036,
+      "contact_recall": 0.6331361791324714,
+      "end_obj_trans_err": 2.7861077338457108,
+      "feet_height": 0.06109542399644852,
+      "foot_sliding": 0.3415924303475854,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.17200657678281353,
+      "hand_pen_ratio": 0.13281594216823578,
+      "human_pen_loss_infbagel": 2.7282401061006745,
+      "human_pen_ratio": 0.13654302060604095,
+      "mpjpe": 11.283903568983078,
+      "obj_rot_dist": 0.9675316715448345,
+      "obj_trans_dist": 14.10531980489649,
+      "trans_dist": 7.937801629304886,
+      "xy_points_err": 3.61873060464859
+    }
+  },
+  "classification": "eval-consistency-null",
+  "classification_basis": "Gate (ii) failed on end_obj_trans_err, so the preregistered classification is eval-consistency-null by the letter of the gate. The label's attached rationale -- 'step-0 frame consistency contributes nothing substantive to the metrics' -- is CONTRADICTED by the measurement: the frame rule moved 7 of 14 metrics significantly, including mpjpe by 4.43 cm and obj_trans_dist by 6.92. The classification is recorded unchanged because gates are not rewritten after the results are seen; the contradiction is recorded beside it.",
+  "conclusion_on_the_m9_confound": "ESTABLISHED: the step-0 frame rule is a first-order factor -- 7 of 14 metrics significant, all favouring the repaired rule, none favouring the historical one. This confirms the preregistered 'evaluation consistency' half of the expected benefit directly. NOT ESTABLISHED: any decomposition of the PRIMARY-minus-D2AI delta. The frame factor's effects are 7-14x those deltas, so the PRIMARY row must stand as a new baseline and must not be read as an improvement over D2-AI. The 4 penetration terms and foot_sliding show no detectable frame effect, but their confidence intervals contain the observed deltas, so the control can neither confirm nor exclude the frame rule for them; the +13% penetration regression remains unexplained.",
+  "control_cell": {
+    "eval_run_id": "p1-hoi-p12-frame-repair-baseline-eval-guided-control-s42-20260820",
+    "frame_error_deg": {
+      "control_vs_primary_A_minus_P": {
+        "max": 179.81,
+        "mean": 77.83,
+        "p50": 51.89,
+        "p95": 175.6
+      },
+      "rejected_codec_flip_C_minus_P": {
+        "mean": 0.41,
+        "p50": 0.128
+      },
+      "released_train_eval_mismatch_A_minus_B": {
+        "mean": 50.12,
+        "p50": 38.98
+      }
+    },
+    "git_commit": "ebae4bb8432a7aeb7c25395352ffeb4826d069e3",
+    "interpretive_limit": "CONTROL is an out-of-distribution insult -- a model trained under the repaired rule fed a historical frame at 77.83 deg -- whereas D2-AI was self-consistently historical at 50.12 deg (trained under B, evaluated under A). So CONTROL bounds the evaluator's share but does NOT decompose the D2-AI delta: the frame factor's effects are 7-14x the observed PRIMARY-minus-D2AI deltas, i.e. the bound is loose by about an order of magnitude.",
+    "launched_directly": "tools/hoi_chain.py's stage_completed() keys on the stage name not the eval run id, so a second --stages evaluate silently skips; the command is byte-for-byte hoi_chain.evaluate_command plus the one override",
+    "mechanism": "same checkpoint, same data, only the step-0 window frame; +dataset.step0_frame_rule=historical_conjugated",
+    "overshoot_factor": 1.55
+  },
+  "experiment": "p1-hoi-p12-frame-repair-baseline-s42-20260819",
+  "gate_verdicts": {
+    "i_run_and_health": {
+      "caveat": "the gate's wording ('checkpoint passes the four health quantities') cannot be literally satisfied because one quantity has no discriminating power on the exported arrays; nothing failed, so the evaluation budget spend was justified",
+      "health": "three of the four quantities pass against the HOI GT row; the fourth (joint-channel bone rigidity) is UNMEASURABLE on the current export and is recorded as unmeasured, not passed",
+      "passed": true,
+      "training": "146,250 optimizer updates, 299,520,000 windows exactly, loss_finite true, 98 checkpoints"
+    },
+    "ii_primary_eval_consistency": {
+      "contact_f1": {
+        "ci": [
+          0.044230358680440826,
+          0.0916934574053628
+        ],
+        "delta": 0.06788604812068816,
+        "significant": true,
+        "verdict": "PASS"
+      },
+      "end_obj_trans_err": {
+        "ci": [
+          -0.025377780380112087,
+          0.2823639007180202
+        ],
+        "delta": 0.12418606552133381,
+        "significant": false,
+        "verdict": "FAIL — not significant and the point estimate favours CONTROL"
+      },
+      "note": "the gate was evaluated literally as written before the results were seen; it was not reinterpreted afterwards",
+      "passed": false,
+      "required": "PRIMARY significantly better than CONTROL on BOTH trans_dist and end_obj_trans_err, and contact_f1 not significantly worse",
+      "trans_dist": {
+        "ci": [
+          -3.3100203203449885,
+          -2.5939894936761934
+        ],
+        "delta": -2.942838315260873,
+        "significant": true,
+        "verdict": "PASS"
+      }
+    },
+    "iii_ground_truth_floor": {
+      "consequence": "GT floor is below the released row, so foot_sliding is NOT demoted and stays a gating metric",
+      "deviations": [
+        "the gate says the GT row must be produced FIRST; it was produced after the PRIMARY evaluation, which the chain ran automatically. No scientific consequence: the GT row is provably invariant to the step-0 frame rule (7.57e-07 m between cells) and is a pure CPU recomputation from unchanged data assets.",
+        "the gate's parenthetical '(GT FS is 0.31654 after the interpolation fix)' was a mislabel; the measured value is 0.26346 and foot_sliding never passes through interpolate_joints"
+      ],
+      "gt_foot_sliding": 0.26346464114890705,
+      "passed": true,
+      "released_row_threshold": 0.33336
+    },
+    "iv_baseline_delivered": {
+      "passed": true,
+      "row": "p1-hoi-p12-frame-repair-baseline-eval-guided-r1-s42-20260820, 438/438 sequences, all 18 preregistered metrics"
+    }
+  },
+  "git_commit": "25931627a7a5668598e3120f57762546306c13a7",
+  "health_checks": {
+    "check_i_root_rot_increment": {
+      "gt_p50": 3.7231,
+      "gt_r": 0.8791,
+      "gt_step0_denominator": 4.235,
+      "pred": {
+        "max": 17.2801,
+        "mean": 5.5576,
+        "n": 438,
+        "p25": 3.1425,
+        "p5": 1.8493,
+        "p50": 4.7452,
+        "p75": 7.3554,
+        "p95": 11.5159
+      },
+      "r_self_normalized": 1.6108,
+      "r_vs_gt_denominator": 1.3822,
+      "verdict": "healthy"
+    },
+    "check_ii_pelvis_up": {
+      "gt_frac_gt_45": 0.0,
+      "gt_mean": 8.7329,
+      "gt_p50": 6.6981,
+      "pred": {
+        "frac_gt_45": 0.0,
+        "frac_gt_60": 0.0,
+        "max": 43.9693,
+        "mean": 9.7815,
+        "n": 18396,
+        "p25": 5.1121,
+        "p5": 2.0924,
+        "p50": 7.6945,
+        "p75": 12.0122,
+        "p95": 25.5785
+      },
+      "verdict": "healthy"
+    },
+    "check_iii_bone_rigidity": {
+      "needed_array": "points_orig_seg (code/test_infbagel_hoi.py:137-138) is never written to disk",
+      "reason": "export is human_jnts_48, FK from the rotation channel with rest offsets, so bone length is rigid by construction; pred and gt both read 0",
+      "verdict": "UNMEASURABLE-NOT-PASSED"
+    },
+    "check_iv_fk_uprightness": {
+      "gt_frac_gt_45": 0.2792,
+      "gt_frac_gt_60": 0.1825,
+      "gt_frac_gt_80": 0.0217,
+      "gt_p50": 11.26,
+      "pred": {
+        "frac_gt_45": 0.3136,
+        "frac_gt_60": 0.22168,
+        "frac_gt_80": 0.05507,
+        "max": 105.5746,
+        "mean": 27.8087,
+        "n": 18396,
+        "p25": 3.8767,
+        "p5": 1.3923,
+        "p50": 10.1474,
+        "p75": 55.9729,
+        "p95": 80.8881
+      },
+      "residual_concern": "pred frac_gt_80 0.0551 is 2.53x GT 0.0217 and max overshoots GT by 11.5 deg",
+      "verdict": "healthy"
+    },
+    "outlier": {
+      "cluster": "of 12 samples >20 deg, 10 are plasticbox, 10 are window step 1, 10 are late-window (coarse >=11), 4 distinct sequences; GT never exceeds 30 deg",
+      "count_over_90_deg": 1,
+      "decomposition": "157.888 deg total geodesic but only 18.456 deg of pelvis up-axis travel: a yaw flip about the near-vertical pelvis axis, not a topple",
+      "located": "sub16_plasticbox_010 window step 1 coarse step 12->13, GT same slot 11.792 deg",
+      "max_deg": 157.888,
+      "of_samples": 17082,
+      "status": "unexplained"
+    },
+    "pipeline_validation": {
+      "evidence": "denominator 3.4330 vs direct 3.433; pooled max 27.1346 vs 27.13; pelvis-up 8.7329/6.6981/22.4934/43.9058",
+      "gt_rotation_recovery_max_deg": 0.0001,
+      "gt_via_export_reproduces_direct_read": true,
+      "procrustes_residual_m_max": 0.0
+    },
+    "seam_continuity": {
+      "gt_p50": 3.2066,
+      "gt_p95": 11.177,
+      "note": "model seam is better than GT; no seam discontinuity on HOI",
+      "pred_p50": 3.1337,
+      "pred_p95": 9.162
+    }
+  },
+  "invariance_checks_passed": {
+    "gt_contact_percent": 0.6618830180474017,
+    "gt_contact_percent_bit_identical_to_d2ai": true,
+    "normalization_audit": {
+      "generated_values": 4877568,
+      "nonfinite_values": 0,
+      "object_outside_count": 0,
+      "object_outside_rate": 0.0,
+      "position_outside_count": 0,
+      "position_outside_rate": 0.0
+    }
+  },
+  "next_entry_point": "Per the preregistration's own consequence for eval-consistency-null: the sampling-efficiency hypothesis remains untested and the next entry point is a TRAINING-side control, not an evaluation-side one. The unexplained end_obj_trans_err behaviour under CONTROL is the preregistered diagnostic entry point.",
+  "paired_bootstrap_primary_vs_control": {
+    "delta_convention": "primary_repaired_frame minus control_historical_frame",
+    "matches_expected": true,
+    "metrics": {
+      "contact_f1": {
+        "ci_high": 0.0916934574053628,
+        "ci_low": 0.044230358680440826,
+        "direction": "b_greater",
+        "mean_a": 0.6077590044682054,
+        "mean_b": 0.6756450525888936,
+        "mean_delta": 0.06788604812068816,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "contact_precision": {
+        "ci_high": 0.034918950871963145,
+        "ci_low": -0.0019445050337306528,
+        "direction": "inconclusive",
+        "mean_a": 0.7932490921878032,
+        "mean_b": 0.8094435634283036,
+        "mean_delta": 0.016194471240500517,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "contact_recall": {
+        "ci_high": 0.10729360280111037,
+        "ci_low": 0.05379804221651226,
+        "direction": "b_greater",
+        "mean_a": 0.5528790526684749,
+        "mean_b": 0.6331361791324714,
+        "mean_delta": 0.0802571264639966,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "end_obj_trans_err": {
+        "ci_high": 0.2823639007180202,
+        "ci_low": -0.025377780380112087,
+        "direction": "inconclusive",
+        "mean_a": 2.674152390534424,
+        "mean_b": 2.7983384560557574,
+        "mean_delta": 0.12418606552133381,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "foot_sliding": {
+        "ci_high": 0.01185273694384957,
+        "ci_low": -0.02466783491459495,
+        "direction": "inconclusive",
+        "mean_a": 0.3480301777006492,
+        "mean_b": 0.3415924303475854,
+        "mean_delta": -0.006437747353063822,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "hand_pen_loss_omomo": {
+        "ci_high": 0.030786565248497513,
+        "ci_low": -0.07436023070604524,
+        "direction": "inconclusive",
+        "mean_a": 0.19079475742420307,
+        "mean_b": 0.17200657678281353,
+        "mean_delta": -0.018788180641389537,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 257,
+        "n_pairs_used": 181,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "hand_pen_ratio": {
+        "ci_high": 0.03151062084778536,
+        "ci_low": -0.020539177704513783,
+        "direction": "inconclusive",
+        "mean_a": 0.1278172478141541,
+        "mean_b": 0.13281593357537003,
+        "mean_delta": 0.004998685761215937,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 257,
+        "n_pairs_used": 181,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "human_pen_loss_infbagel": {
+        "ci_high": 0.3618168899852706,
+        "ci_low": -1.313066771945722,
+        "direction": "inconclusive",
+        "mean_a": 3.148987355893119,
+        "mean_b": 2.7282401061006745,
+        "mean_delta": -0.4207472497924453,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 257,
+        "n_pairs_used": 181,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "human_pen_ratio": {
+        "ci_high": 0.0159730867944606,
+        "ci_low": -0.030901547593986254,
+        "direction": "inconclusive",
+        "mean_a": 0.1439972004971534,
+        "mean_b": 0.13654302315817354,
+        "mean_delta": -0.0074541773389798505,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 257,
+        "n_pairs_used": 181,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "mpjpe": {
+        "ci_high": -3.826978844590485,
+        "ci_low": -5.037858851134914,
+        "direction": "b_lower",
+        "mean_a": 15.71071064822614,
+        "mean_b": 11.283903321480913,
+        "mean_delta": -4.426807326745225,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "obj_rot_dist": {
+        "ci_high": -0.28592435672782823,
+        "ci_low": -0.4101666180434084,
+        "direction": "b_lower",
+        "mean_a": 1.3145511400639864,
+        "mean_b": 0.967531671544836,
+        "mean_delta": -0.3470194685191502,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "obj_trans_dist": {
+        "ci_high": -5.8221782708629535,
+        "ci_low": -8.018316641524716,
+        "direction": "b_lower",
+        "mean_a": 21.026083283491662,
+        "mean_b": 14.105319804896487,
+        "mean_delta": -6.920763478595174,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "pelvis_goal_error_cm": {
+        "ci_high": -1.1183122709339282,
+        "ci_low": -1.5734878722147712,
+        "direction": "b_lower",
+        "mean_a": 4.962943528340832,
+        "mean_b": 3.6187307015018852,
+        "mean_delta": -1.3442128268389466,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "trans_dist": {
+        "ci_high": -2.5939894936761934,
+        "ci_low": -3.3100203203449885,
+        "direction": "b_lower",
+        "mean_a": 10.88063976850752,
+        "mean_b": 7.937801453246646,
+        "mean_delta": -2.942838315260873,
+        "n_pairs": 438,
+        "n_pairs_dropped_nonfinite": 0,
+        "n_pairs_used": 438,
+        "nan_replicates": 0,
+        "significant": true
+      }
+    },
+    "of_which_favour_control": 0,
+    "of_which_favour_primary": 7,
+    "paired": true,
+    "paired_count": 438,
+    "replicates": 10000,
+    "resample_unit": "sequence",
+    "seed": 42,
+    "significant_count": 7,
+    "tool": "tools/paired_bootstrap.py"
+  },
+  "pending": [
+    "check_iii export change so joint-channel bone rigidity becomes measurable (optional, needs approval)",
+    "the 4 penetration GT values (optional, ~15 lines plus a 438-sequence re-run, needs approval)",
+    "plasticbox yaw-flip cluster (unexplained)"
+  ],
+  "reference_only_not_comparable": {
+    "d2ai_armb": {
+      "contact_acc": 0.7624483583387693,
+      "contact_f1": 0.6757017455384731,
+      "contact_percent": 0.5089874610422556,
+      "contact_precision": 0.8157902377461403,
+      "contact_recall": 0.6381884461336481,
+      "end_obj_trans_err": 3.8964875042438507,
+      "feet_height": 0.0461253859102726,
+      "foot_sliding": 0.3417699453795713,
+      "gt_contact_percent": 0.6618830180474017,
+      "hand_pen_loss_omomo": 0.16676087110068818,
+      "hand_pen_ratio": 0.1166798323392868,
+      "human_pen_loss_infbagel": 2.6351923926954903,
+      "human_pen_ratio": 0.12097694724798203,
+      "mpjpe": 11.769875138998032,
+      "obj_rot_dist": 0.9921641296570304,
+      "obj_trans_dist": 14.817250683293814,
+      "trans_dist": 7.528897374868393,
+      "xy_points_err": 3.4647416323423386
+    },
+    "note": "D2-AI Arm B is recorded for magnitude only. It is NOT a valid comparison: the two rows differ in BOTH the representation and the evaluator's step-0 heading rule (the M9 confound named in the preregistration). Attribution requires the CONTROL cell."
+  },
+  "schema_version": 1,
+  "subphase": "1B-P12",
+  "terminal_checkpoint": {
+    "path_basename": "p1-hoi-p12-frame-repair-baseline-s42-20260819_windows299520000.pth",
+    "processed_windows": 299520000,
+    "sha256": "722d83ee7755b051e2095ccd01d4094bacce99589e679f89379f54661fb43704",
+    "weight_variant": "online"
+  },
+  "training": {
+    "effective_batch_size": 2048,
+    "epochs_equivalent": 526.8731331994104,
+    "gradient_clipping_enabled": false,
+    "learning_rate": 0.0001,
+    "loss_finite": true,
+    "optimizer_updates": 146250,
+    "parameter_count": 29673448,
+    "primary_weight_variant": "online",
+    "processed_windows": 299520000,
+    "throughput_windows_per_second": 3266.5366046859613,
+    "wall_seconds": 91693.44668304897
+  },
+  "training_loss_run_mean": {
+    "contact": 0.0027240615857527274,
+    "contact_accuracy": 0.9930564547988084,
+    "fk": 0.00495260633933139,
+    "joint_position": 0.0004897809166749407,
+    "joint_rotation": 0.0030211662295420703,
+    "object_goal": 0.00021357599375412364,
+    "object_rotation": 0.002308181304137101,
+    "object_surface": 0.0024860064173952584,
+    "object_translation": 0.0005686690938780154,
+    "reconstruction": 0.009111859133071862,
+    "total": 0.012306614524549526,
+    "velocity": 0.0002670973895865323
+  },
+  "validation_spike_scan": {
+    "all_finite": true,
+    "largest_correlated_event": {
+      "also_max_for": [
+        "fk",
+        "joint_position",
+        "velocity"
+      ],
+      "as_pct_of_level": 2.7,
+      "at_processed_windows": 132096000,
+      "joint_rotation_delta": 0.0002174
+    },
+    "late_run_rise_is_expected": "total 0.05062 at 153.6M -> 0.05231 at 299.52M (+3.3%) is the known anticorrelation signature, not over-training",
+    "records": 98,
+    "resolution_limit": "a B-type event (~15,000 updates recovery) would span ~10 points and be visible; a C-type excursion (~85 updates) is invisible here. fk_weight 0.357 is nearer C's 1 than B's 50, so the likely mode is the one this resolution misses.",
+    "resolution_updates_per_point": 1500,
+    "verdict": "no spike detected at 1500-update resolution"
+  }
+}
