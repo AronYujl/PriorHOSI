@@ -1,0 +1,206 @@
+{
+  "cells": {
+    "A_sealed_d2x_61440000_unguided": {
+      "FID": 1.7754769073836485,
+      "FID_ci": [
+        1.313837561581785,
+        2.598921637399416
+      ],
+      "additive": {
+        "Diversity": 8.781010627746582,
+        "MatchingScore": 3.879791938341581,
+        "R-Precision@1": 0.15144230769230768,
+        "R-Precision@2": 0.28365384615384615,
+        "R-Precision@3": 0.4206730769230769
+      },
+      "prediction_tree_sha256": "03e23d31e995152e77c69a7433c78ab728b140701cbb823eb33a6ebaf96063c1"
+    },
+    "B_d2ai_299520000_unguided": {
+      "FID": 1.4641165319284255,
+      "FID_ci": [
+        1.1376242347237073,
+        2.0969544185863254
+      ],
+      "additive": {
+        "Diversity": 9.298736572265625,
+        "MatchingScore": 3.9164468141702504,
+        "R-Precision@1": 0.16346153846153846,
+        "R-Precision@2": 0.2932692307692308,
+        "R-Precision@3": 0.41586538461538464
+      },
+      "prediction_tree_sha256": "0d787ef3e8d720b70a6aae28c1ab3c981ed0cffc3ed57e7df9edff71b9dc23d0"
+    },
+    "C_d2ai_plus_armb_guidance": {
+      "FID": 1.1278846941538632,
+      "FID_ci": [
+        0.8734578170745297,
+        1.6794956214923582
+      ],
+      "additive": {
+        "Diversity": 9.250638008117676,
+        "MatchingScore": 3.909229351924016,
+        "R-Precision@1": 0.16346153846153846,
+        "R-Precision@2": 0.28846153846153844,
+        "R-Precision@3": 0.4206730769230769
+      },
+      "prediction_tree_sha256": "87b02c5ef3bd9380d30ab974049bca41643723f08b737bc66a5a9cc7eeb1b48e",
+      "role": "informational only; differs from B by guidance, not budget"
+    }
+  },
+  "classification": "budget-fid-null-stop",
+  "classification_basis": "the 2000-replicate paired CI of delta = FID(B) - FID(A) crosses zero, which is preregistered branch 2 of three; conclusions 7, 10 and 11 are therefore unchanged and no scope qualification is added to conclusion 10",
+  "date": "2026-08-21",
+  "experiment": "p1-hoi-p13-fid-budget-contrast-s42-20260821",
+  "gate_verdicts": {
+    "G1_tree_control": {
+      "prefix_residuals": [
+        1.234876e-07,
+        3.33347e-07
+      ],
+      "recomputed_FID_A": 1.7754769073836485,
+      "recomputed_prefix_200_ci": [
+        1.3039276575906253,
+        2.494238226361205
+      ],
+      "recorded_as": "cross-host environment drift. The sealed values were computed on the worker on 2026-07-24 and bitwise cross-host identity of the CHOIS encoder plus the scipy.linalg.sqrtm path was never proven. The experiment continues exactly as the preregistration specified before any number existed; the PRIMARY only requires A and B to be paired inside one environment.",
+      "residual": 1.466721e-08,
+      "sealed_200_replicate_ci": [
+        1.3039275341029923,
+        2.4942378930141667
+      ],
+      "sealed_FID_A": 1.7754768927164406,
+      "tier_1_bitwise_1e-9": false,
+      "tier_2_1e-3": true,
+      "verdict": "tier 2"
+    },
+    "G2_embedding_caliber": {
+      "dropped": 22,
+      "dropped_prediction_sequence_ids_sha256": "b7ddcb96dae95814e44d1df8f4fe1791c2c7930ed3ddfca55c3ea3fcde31bd15",
+      "embedded": 416,
+      "embedded_sequence_ids_sha256": "6a4ffcfea5736a616d3ad5b582d16ec259002b2ff435212f19f4d4868dc57069",
+      "identical_across_all_four_sets": true,
+      "verdict": "pass"
+    },
+    "G3_frame_constant": {
+      "distinct_frame_counts": [
+        126
+      ],
+      "frame_count": 126,
+      "note": "one uniform permutation across all 13 batches, the deterministic numpy-unstable-argsort artefact the preregistration predicted; row pairing therefore holds",
+      "row_permutation_sha256": "3fa734bb6bb0df78fed77b25df1d2c664817088b88c4c1698d64486f915beb55",
+      "sequence_count": 438,
+      "uniform_across_batches": true,
+      "verdict": "pass"
+    },
+    "G4_input_identity": {
+      "chois_commit": "8ec585aa0200fd2a890ffb12897bcf69ae719463",
+      "feature_checkpoint_sha256": "a125bc15ffd9772686737111c7501ecee0a2d8571d9aca348ec1195ddef78775",
+      "ground_truth_tree_sha256": "d439a98ea32f5d67964bc98431fe25bdffc24b63e00b42601c5355445d01742c",
+      "text_to_motion_commit": "72df96ec453edea2fbe9603b1d58a955eaf71636",
+      "verdict": "pass"
+    },
+    "G5_finiteness": {
+      "every_float_finite": true,
+      "verdict": "pass"
+    }
+  },
+  "git_commit": null,
+  "informational_not_gated": {
+    "C_minus_A": {
+      "bootstrap_95_ci": [
+        -1.1434670920331111,
+        -0.28370323172328404
+      ],
+      "point_estimate": -0.6475922132297853,
+      "reading": "excludes zero, and is the exact sum of the null budget term and the significant guidance term; the guidance term is what carries it"
+    },
+    "guidance_main_effect_C_minus_B": {
+      "bootstrap_95_ci": [
+        -0.475027451452414,
+        -0.23535534016384824
+      ],
+      "point_estimate": -0.33623183777456234,
+      "reading": "excludes zero: inference guidance significantly improves distribution realism inside the pre-repair representation. First distribution-level measurement of guidance in this branch; P2/P3/P5/P6 never made one. Not a budget effect."
+    },
+    "offset_corrected": {
+      "A_prime": {
+        "FID": 0.6331509216057327,
+        "FID_ci": [
+          0.5720455520995664,
+          0.9514070689765789
+        ],
+        "global_mean_bias_vector": [
+          -0.0033462867194847487,
+          -0.0076783252988973354,
+          0.02791952971631857
+        ],
+        "vertical_component_m": 0.02791952971631857
+      },
+      "B_prime": {
+        "FID": 0.4099587392635158,
+        "FID_ci": [
+          0.3743202647558956,
+          0.7013880014718132
+        ],
+        "global_mean_bias_vector": [
+          -0.0003545095144413146,
+          -0.002458162206652545,
+          0.023048475403559525
+        ],
+        "vertical_component_m": 0.023048475403559525
+      },
+      "delta_prime": {
+        "bootstrap_95_ci": [
+          -0.3619676348460736,
+          -0.10533148343638427
+        ],
+        "point_estimate": -0.22319218234221694,
+        "shared_index_with_primary": true
+      },
+      "informational_only": true,
+      "official_model_score": false,
+      "reading": "Removing one global fixed vector per cell drops FID 1.7755 -> 0.6332 (A) and 1.4641 -> 0.4100 (B), so a single rigid offset is worth 1.142 and 1.054 FID respectively, and it is 2.79 cm / 2.30 cm vertical. After that removal the residual budget difference is -0.223 with a CI excluding zero, while the raw PRIMARY is null. The honest statement is that the rigid offset dominates the raw metric and inflates the estimator's spread enough to mask a real remainder -- NOT that the budget is significant, because each cell subtracts its own vector and this is not an official model score."
+    }
+  },
+  "next_action": "Metric column closed for this one clean pair; the null forbids extending the column as a budget claim. The two live leads sit outside this experiment: the frame-0 rigid vertical offset, which this run prices at 1.142 FID on A and 1.054 on B, and contact engagement.",
+  "non_claims": [
+    "no cell crosses the 2026-08-19 representation repair, and P12's FID rows (2.3074 / 2.0113 / 2.8174) use different ground-truth trees, so no P12 row may be set against these numbers",
+    "FID here is a 416-sequence quantity, not 438",
+    "this design can show whether FID moves with budget; it can never say why. It does not separate budget from per-window revisit count (526.87 epochs) and does not localise which kinematic property moves the embedding",
+    "embedded_sequence_ids is correct as a set but not as a row label, so no per-sequence attribution, leave-one-out or which-sequences-drive-FID narrative is permitted",
+    "the released 0.9334244584430564 is a protocol-incomparable anchor (16-step CM, guidance, CFG, scene/object-voxel conditioning), not a model difference",
+    "no checkpoint is selected, no existing classification changed, no sealed D2-X row replaced, no existing stop lifted; single seed 42",
+    "validation loss authorises nothing here: both cells sit past their validation argmin (D2-X 24,576,000; D2-AI 27,648,000), so no cell lands on the argmin and no early-stopping claim follows"
+  ],
+  "preregistration": "docs/plan/PHASE_1B_HOI/04_BUDGET_AND_LONG_ARMS.md, 2026-08-21 P13 amendment; preregistration row p1-hoi-p13-fid-budget-contrast-preregister-s42-20260821",
+  "preregistration_integrity": {
+    "citation_rule": "every citation of this result must also cite the 2026-08-21 preregistration-integrity disclosure section of the amendment",
+    "disclosed_before_the_run": "the Stage C functional smoke used the three real cells, so the PRIMARY point estimate -0.311360375455223 was known before the preregistration was committed; FID point estimates do not depend on replicate count",
+    "ex_ante_prediction_was_correct": true,
+    "my_post_smoke_revision_was_wrong": "the disclosure stated that all four smoke replicates fell below zero and that classification 3 was therefore the likely outcome. It was not. The 4-replicate interval [-0.4748328090834761, -0.14987326254437966] was about 3.7x narrower than the 2000-replicate interval and pointed at the wrong branch, which is direct evidence for the preregistration's stated reason for rejecting a small replicate count.",
+    "what_the_run_added": "the decision statistic. The 2000-replicate CI [-0.7797988496788815, 0.0582610292915923] crosses zero."
+  },
+  "primary": {
+    "bootstrap_95_ci": [
+      -0.7797988496788815,
+      0.0582610292915923
+    ],
+    "formula": "delta = FID(D2-AI) - FID(sealed D2-X)",
+    "n": 416,
+    "point_estimate": -0.311360375455223,
+    "replicates": 2000,
+    "resample_index_sha256": "071950a9bc034aa88fcf302b288e23cf029864713222a5ec76f9be6bc08e16f3",
+    "seed": 42,
+    "shared_resample_index_matrix": true,
+    "single_process_single_ground_truth_embedding": true,
+    "unit": "paired_embedded_sequence",
+    "verdict": "null: the interval contains zero, so a 4.875x budget increase produces no detectable distribution-level cost and no detectable distribution-level gain on the raw metric"
+  },
+  "raw_adapter_output": {
+    "path": "results/experiments/p1-hoi-p13-fid-budget-contrast-s42-20260821/metrics.json",
+    "sha256": "3696c3aaa4f7c58d275b676120a64569691764590e0563a5abd1c0ac4dfef059"
+  },
+  "seed": 42,
+  "subphase": "1B-P13",
+  "type": "evaluation only; no training, no generation, no checkpoint of ours loaded; already-exported joints re-fed to the pretrained external CHOIS text-motion encoder"
+}

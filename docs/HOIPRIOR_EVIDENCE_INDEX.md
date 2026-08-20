@@ -550,6 +550,51 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       the correction of record; `/data/yujinlun/report/baseline.md` is outside the repository and was
       corrected in place. Recorded 2026-08-21.
 
+21. **The one clean budget contrast on the distribution-level metric column is a null: a 4.875x
+    processed-window increase moves CHOIS FID by -0.311 with a 2000-replicate paired CI of
+    [-0.780, +0.058], which contains zero.** D2-AI at 299,520,000 windows against sealed D2-X at
+    61,440,000 is the lineage's only single-factor budget pair whose evaluation configs are
+    key-for-key identical, and both cells share one ground-truth tree
+    (`d439a98ea32f5d67...`, shared by 42 of the 45 complete exports). Classification
+    `budget-fid-null-stop`. **Conclusions 7, 10 and 11 are unchanged**, and by the preregistered
+    interpretation rule conclusion 10 receives no scope qualification: the
+    validation-loss-anticorrelation finding stays stated for the 500-step native geometric and
+    contact metric class only, untested at the distribution level.
+    - **The preregistration's own ex-ante prediction was right and my post-smoke revision was
+      wrong.** The Stage C functional smoke used the three real cells, so the point estimate was
+      known before the preregistration was committed (disclosed in the amendment). From four
+      replicates all falling below zero I wrote that classification 3 was the likely outcome.
+      The 4-replicate interval was about 3.7x narrower than the 2000-replicate one and pointed at
+      the wrong branch. Every citation of this result must also cite that disclosure section.
+    - **Guidance, not budget, is what moves the distribution.** The informational cell C
+      (D2-AI + the sealed P2 Arm B guidance) gives Delta(C-B) = -0.336 with CI [-0.475, -0.236],
+      excluding zero -- the first distribution-level measurement of inference guidance in this
+      branch, which P2/P3/P5/P6 never made. Delta(C-A) = -0.648, CI [-1.143, -0.284], is exactly
+      the sum of the null budget term and the significant guidance term. C's interval is far
+      narrower than the PRIMARY's because C and B share a checkpoint and differ only in guidance,
+      so their embeddings co-vary across resamples; A and B are different checkpoints.
+    - **One rigid vector is worth more than the entire budget effect.** The informational
+      offset-corrected cells drop FID from 1.7755 to 0.6332 on A and from 1.4641 to 0.4100 on B by
+      subtracting a single global three-number mean bias vector per cell, whose vertical components
+      are 2.79 cm and 2.30 cm. That is 1.142 and 1.054 FID for one rigid offset, against a budget
+      effect of 0.311 that does not separate from zero. After the removal the residual difference is
+      -0.223 with CI [-0.362, -0.105], excluding zero: the rigid offset both dominates the raw
+      metric and inflates the estimator's spread enough to mask a real remainder. A' and B' are
+      diagnostics, never official scores, and never comparable to the released 0.9334244584430564.
+    - **G1 landed on its tier 2 branch.** Recomputing sealed cell A gives 1.7754769074 against the
+      sealed 1.7754768927, residual 1.47e-08, and the 200-replicate prefix percentiles differ by
+      1.23e-07 / 3.33e-07 -- so bitwise cross-host reproduction fails while the 1e-3 tolerance
+      passes, recorded as cross-host environment drift exactly as written before any number
+      existed. Conclusion 19's bitwise-reproducibility result covers our own native evaluation
+      path and explicitly not this one; that limitation is now measured rather than assumed.
+    - G2 (416 embedded / 22 dropped, identical id hashes across all four sets), G3 (126 frames
+      throughout, one uniform upstream row permutation), G4 (all four tree hashes plus both
+      third-party commits and the feature checkpoint) and G5 (every float finite) all pass.
+    - Scope: no cell crosses the 2026-08-19 representation repair, and P12's FID rows use different
+      ground-truth trees, so no P12 row may be set against these numbers. FID is a 416-sequence
+      quantity. `embedded_sequence_ids` is valid as a set but not as a row label, so no
+      per-sequence attribution of FID is permitted. Recorded 2026-08-21.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”
