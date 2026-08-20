@@ -188,3 +188,94 @@ FK 对 `human_joints_aligned.npy` 的误差修复前 **2.80e-07 m** / 修复后 
   需要同时翻回 step-0 帧、插值基准与三明治三个开关，那等于维护死代码。
 - **不为了让检查通过而改测试或 validator。** 唯一的测试改动是冻结哈希重钉，
   那是冻结契约自身规定的授权变更程序。
+
+---
+
+## 实现追记：CONTROL 对照 cell（2026-08-20，用户批准）
+
+追加节，不改上文。上文 `### 已知局限` 第 5 条与 `### 不做什么` 末条仍然成立：本节的开关
+**只翻 step-0 帧一个开关**，不翻插值基准与三明治，所以它不是"legacy 表示代码路径"，
+而是一个评测侧的诊断 cell。
+
+### 机制
+
+`InfBaGelDataset` 新增构造参数 `step0_frame_rule`，取值 `repaired`（默认）|
+`historical_conjugated`，经 `+dataset.step0_frame_rule=…` 传入，与 `asset_world_up` 同路径。
+**故意不写进 `config/dataset/omomo_test.yaml`**：那会在每个 PRIMARY 的 resolved config 里
+多出一行；已实测 PRIMARY 的 resolved config 逐字节不变。
+
+CONTROL 下**只有 `init_global_orient_euler` 的来源变了**：历史 root 由修复后的 root 代数重建为
+`M C^T R_rep M^T`（OMOMO 上化简为 `R_rep M^T`），再取 scipy 外旋 `'zxy'[2]`。
+`shift_euler`、`shift_rot_matrix`、`mat`、`joints @ S.T` 四处**是发布版原文，未改一字**。
+所以两个 cell 是**同一份数据集的两个函数**，差别只在窗口帧，别无其他。
+
+### 关键发现：CONTROL 打开的帧误差是它要复现的缺陷的 1.55 倍
+
+438 个 step-0 窗口实测（deg）：
+
+| 量 | 含义 | mean | p50 | p95 | max | >5° |
+|---|---|--:|--:|--:|--:|--:|
+| `\|C−P\|` | 只翻 codec 约定（已否决路线） | **0.410** | 0.128 | 1.79 | 4.62 | 0.0% |
+| `\|A−B\|` | **发布版真实的训练/评测错配** | **50.12** | 38.98 | 145.14 | 179.89 | 90.9% |
+| `\|A−P\|` | **本 CONTROL 实际打开的** | **77.83** | 51.89 | 175.60 | 179.81 | 91.6% |
+
+（P = `C R_stored` 的外旋 `'zxy'[2]`；A = `M R_stored M^T` 的同一读法；B = 同输入的
+pytorch3d 内旋 `"ZXY"[…,2]`；C = `C R_stored` 的内旋读法。）
+
+`|A−B|` 复现上文 `:102` 记录的 50.12° 到 4 位有效数字（50.122），这是"A 确为发布版评测规则"
+的最强可得识别，并已写成测试断言。已否决的 codec-flip 路线实测 0.410°，确认是 no-op，
+CONTROL 是它的 **190 倍**。
+
+**这改变 gate (ii) 的读法，必须在解释结果前声明。** 50.12° 是**同一输入上的两种约定**，
+而 CONTROL 是**同一约定作用在两种输入上**，量的结构不同，所以过冲到 1.55 倍。
+后果：在 77.83° 平均帧误差、52% 窗口过 45° 之下，PRIMARY 打赢 CONTROL 接近必然，
+`eval-consistency-null` 从"有信息量"变成"会很意外"。
+
+**它仍然可用，但只作上界。** D2-AI 的条件是"评测用 A、模型训练用 B"（错配 50.12°），
+CONTROL 是"评测用 A、模型训练用修正规则"（错配 77.83°）——结构同类、错配更大，
+故 CONTROL 给出评测器贡献份额的**上界**，`77.83 ≥ 50.12` 正是上界成立的理由。
+**忠实的 `A` vs `B` 用本 checkpoint 做不出来**：它要求模型在 `B` 下训练，而 P12 训练在修正规则下。
+这不是 `core/` 改动能解决的问题。
+
+### 安全性证据（默认路径逐位不变）
+
+两条互相独立的测量：
+
+1. 编辑前在干净 HEAD `2593162` 上导出全部 **1314 个窗口**的 14 个数组
+   （`mat, global_rot_6d, global_rot_6d_gt, joints, joints_gt, pelvis_goal, scene_goal,
+   object_goal, object_trans, object_rot_mat, obj_rot_mat_ref, rest_human_offsets, transl,
+   starts`），编辑后不带覆盖、以及显式 `=repaired` 各导一次：**14/14 逐字节相同，
+   `maxabsdiff` 恰为 0.000e+00**。
+2. 针对"可能导错了键"这一残余风险：还原 HEAD 的两个源文件，把 `__getitem__` 的**全部 35 个键**
+   在 64 个窗口上逐键 SHA256，再换回：**35/35 哈希相同，0 键有别**。
+
+`code/datasets/utils.py` 是**纯追加**（`current[:221]` 与 HEAD 逐字节相同，追加 46 行），
+这一性质是承重的：训练用的 `code/priors/hoi/data.py:16` 从 `datasets.utils` import。
+`code/train_hoi_prior.py` 不 import `datasets.infbagel`，已写成测试断言。
+8 处对抗式源码回退（默认翻转、丢 `C^T`、CONTROL 换成 codec-flip、丢 shift 符号、
+改用内旋 `'ZXY'`、删分支、`mat` 与通道脱同步、euler 索引取 0）**全部被测试捕获**。
+其中"删分支"是被 (b) 的 repaired 半边捕获，**不是**被逐位测试捕获——逐位测试比较两个实例，
+删分支会让两者一起移动。该局限已写进测试 docstring 并指明绝对锚点。
+
+**GT 参照行可证明不动**：`joints_gt`、`object_rot_mat`、`obj_rot_mat_ref`、
+`rest_human_offsets`、`transl` 在两个 cell 间逐字节相同，绝对全局关节一致到 **7.57e-07 m**，
+且各自复现 `human_joints_aligned.npy` 到 3.97e-07 / 4.06e-07 m。
+
+测试：`pytest tests` **340 passed**（HEAD 为 334，新增 6）；
+`INFBAGEL_WORKER_EXPERT=hoi` **337 passed / 3 skipped**；零失败。
+评测侧开销：1314 窗口含构造 9.39 s（repaired）vs 9.11 s（historical），无可测差异。
+
+### 启动路线：绕开 hoi_chain 的阶段守卫
+
+`tools/hoi_chain.py` 的 `stage_completed` 按**阶段名**取状态文件
+（`results/experiments/<train_run_id>/chain/evaluate.json`），**不按 eval run id**，
+所以第二次 `--stages evaluate` 会打印 "evaluate already completed; not rerunning" 而静默跳过。
+CONTROL 因此**直接调用评测器**，命令与 `hoi_chain.evaluate_command` 构造的逐字节相同，
+只多一个 `+dataset.step0_frame_rule=historical_conjugated` 覆盖。
+不改 `tools/hoi_chain.py`——把状态文件改按 eval run id 取键是可行的修法，但那会动到
+所有历史臂共用的编排代码，超出本次范围。
+
+### 行号锚点订正
+
+上文 `:102` 引 `datasets/infbagel.py:439-457`，该处代码现在在 `:564-574`。
+本次插入使其再下移 20 行；此前已过时。append-only 记录，不原地更正。

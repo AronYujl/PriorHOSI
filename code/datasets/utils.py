@@ -219,3 +219,49 @@ def apply_world_correction_to_axis_angle(axis_angle, correction, chunk=1 << 18):
         matrices = Rotation.from_rotvec(np.array(axis_angle[begin:end])).as_matrix()
         out[begin:end] = Rotation.from_matrix(correction[None] @ matrices).as_rotvec()
     return out
+
+
+# ---------------------------------------------------------------------------
+# Step-0 window frame rule (EVALUATION ONLY)
+# ---------------------------------------------------------------------------
+
+STEP0_FRAME_RULE_CHOICES = ('repaired', 'historical_conjugated')
+HISTORICAL_STEP0_FRAME_RULE = 'historical_conjugated'
+
+
+def historical_conjugated_root_matrix(root_axis_angle, asset_world_up):
+    """The root orientation the released code handed the window heading rule.
+
+    ``datasets/infbagel.py`` canonicalizes each window's heading from the
+    outermost EXTRINSIC y Euler angle of the first frame's root orientation, and
+    that arithmetic is the released code's, unchanged.  What the 2026-08-18
+    correction changed is its *input*: the released code conjugated the root,
+    ``M R_stored M^T`` with ``M = zup_to_yup``, so the angle it read was a
+    rotation about a horizontal axis; the repaired code left-multiplies the world
+    correction only, ``C R_stored`` with ``C = world_up_correction(...)``.
+
+    Given the REPAIRED root this reconstructs the released one exactly.  With
+    ``R_rep = C R_stored`` and ``C`` orthogonal, ``R_stored = C^T R_rep``, hence
+
+        R_hist = M R_stored M^T = M C^T R_rep M^T
+
+    which is ``R_rep M^T`` on OMOMO (``C == M``) and ``M R_rep M^T`` on LINGO
+    (``C == I``).  Deriving it from the repaired array rather than re-reading
+    ``human_orient.npy`` is what makes the two step-0 frame rules two functions
+    of one identical repaired dataset, which is the whole point of the P12
+    CONTROL cell: it moves the evaluator's step-0 frame and nothing else.
+
+    This function exists to REPRODUCE A KNOWN DEFECT for one controlled
+    evaluation cell.  It must never be selected for training or for a primary
+    result; see the 2026-08-19 section of
+    ``docs/plan/PHASE_1B_HOI/07_REPRESENTATION_FRAME.md``.
+
+    ``root_axis_angle`` is ``[..., 3]``; the return is ``[..., 3, 3]``.
+    """
+    from scipy.spatial.transform import Rotation
+
+    conjugation = _ZUP_TO_YUP_MATRIX
+    correction = world_up_correction(asset_world_up)
+    repaired = Rotation.from_rotvec(
+        np.asarray(root_axis_angle, dtype=np.float64)).as_matrix()
+    return conjugation @ correction.T @ repaired @ conjugation.T

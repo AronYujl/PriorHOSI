@@ -9,7 +9,10 @@ import random
 from datasets.utils import (get_occupancy_from_npy, zup_to_yup, yup_to_zup,
                             get_smpl_parents, resolve_asset_world_up,
                             rest_offsets_to_yup, world_up_correction,
-                            apply_world_correction_to_axis_angle)
+                            apply_world_correction_to_axis_angle,
+                            historical_conjugated_root_matrix,
+                            HISTORICAL_STEP0_FRAME_RULE,
+                            STEP0_FRAME_RULE_CHOICES)
 
 from bps_torch.bps import bps_torch
 import pytorch3d.transforms as transforms
@@ -25,6 +28,7 @@ class InfBaGelDataset(Dataset):
                  start_type='stand',
                  test_scene_name=None,
                  asset_world_up='auto',
+                 step0_frame_rule='repaired',
                  **kwargs):
 
         self.folder = folder
@@ -40,6 +44,22 @@ class InfBaGelDataset(Dataset):
         self.start_type = start_type
         self.test_scene_name = test_scene_name
         self.max_window_size = max_window_size
+
+        # Step-0 window frame rule.  EVALUATION ONLY, and 'repaired' -- the
+        # convention HOIPrior is trained in -- is the only rule any primary
+        # result may use.  'historical_conjugated' reproduces the released
+        # step-0 window frame on the repaired data for the P12 CONTROL
+        # evaluation cell; see historical_conjugated_root_matrix in
+        # datasets/utils.py, the branch in __getitem__ below, and the 2026-08-19
+        # section of docs/plan/PHASE_1B_HOI/07_REPRESENTATION_FRAME.md.  It
+        # changes only the VALUE of shift_rot_matrix; every use of that matrix
+        # is byte-identical between the two rules, so the two cells differ in
+        # the window frame and in nothing else.
+        if step0_frame_rule not in STEP0_FRAME_RULE_CHOICES:
+            raise ValueError(
+                "step0_frame_rule must be one of %s, got %r"
+                % (STEP0_FRAME_RULE_CHOICES, step0_frame_rule))
+        self.step0_frame_rule = step0_frame_rule
 
         self.rest_object_geo_folder = os.path.join(folder, 'rest_object_geo')
         # Loaded verbatim.  The world-frame normalization happens once, below,
@@ -541,7 +561,17 @@ class InfBaGelDataset(Dataset):
         # heading.  priors/core/window_codec.py uses 'YXZ'[..., 0] instead, which
         # is the same quantity as the line below; see that file and gate E in
         # tests/hsi/test_representation_frame.py.
-        init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
+        #
+        # The heading readout, the shift and the shift matrix below are the
+        # released code's arithmetic, unchanged.  Under the P12 CONTROL rule the
+        # SAME angle is read off the released code's conjugated root instead of
+        # the repaired one, so only the VALUE of shift_rot_matrix moves and every
+        # consumer of it below is untouched.
+        if self.step0_frame_rule == HISTORICAL_STEP0_FRAME_RULE:
+            init_global_orient_euler = R.from_matrix(historical_conjugated_root_matrix(
+                init_global_orient, self.asset_world_up)).as_euler('zxy')
+        else:
+            init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
         shift_euler = np.array([0, 0, -init_global_orient_euler[2]])
         shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix()
 

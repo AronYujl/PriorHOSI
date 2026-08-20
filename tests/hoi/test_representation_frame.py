@@ -36,7 +36,9 @@ files (``data/dataset``); everything else runs on the HOI worker, as
 """
 
 import contextlib
+import inspect
 import os
+import pickle
 import sys
 import textwrap
 import types
@@ -56,9 +58,10 @@ import pytorch3d.transforms as transforms  # noqa: E402
 from scipy.spatial.transform import Rotation  # noqa: E402
 
 from constants import rest_pelvis  # noqa: E402
-from datasets.utils import (get_smpl_parents, rest_offsets_to_yup,  # noqa: E402
-                           resolve_asset_world_up, world_up_correction,
-                           yup_to_zup, zup_to_yup)
+from datasets.utils import (STEP0_FRAME_RULE_CHOICES,  # noqa: E402
+                           get_smpl_parents, historical_conjugated_root_matrix,
+                           rest_offsets_to_yup, resolve_asset_world_up,
+                           world_up_correction, yup_to_zup, zup_to_yup)
 from priors.core.window_codec import rotation_geodesic  # noqa: E402
 from utils import create_smplx_model, run_smplx_model  # noqa: E402
 
@@ -88,6 +91,15 @@ PELVIS_ABSOLUTE_TOLERANCE_M = 1e-3
 # The counterfactual sandwich displaces vertices by 0.54-0.92 m mean over the
 # sampled windows (1.87 m on generated motion in the graft measurement).
 SANDWICH_DISPLACEMENT_M = 0.2
+
+# Step-0 window shift angle, degrees, against a by-hand reference built from the
+# raw ``human_orient.npy``.  Measured 2026-08-19 over all 1314 evaluator
+# windows: 2.36e-06 deg max for both rules, which is the float32 quantisation of
+# the returned ``mat`` and nothing else.  1e-4 keeps a 42x margin over correct
+# code while sitting 4e+03x inside the rejected codec-convention-flip route
+# (0.41 deg mean at the 438 step-0 windows) and 7.8e+05x inside the CONTROL
+# perturbation itself (77.83 deg mean).
+STEP0_SHIFT_YAW_TOLERANCE_DEG = 1e-4
 
 
 @contextlib.contextmanager
@@ -165,6 +177,90 @@ def _evaluator_windows(count=WINDOWS):
     dataset = _legacy_dataset()
     total = len(dataset.start_ind)
     return [int(i) for i in np.unique(np.linspace(0, total - 1, count).round().astype(np.int64))]
+
+
+@lru_cache(maxsize=1)
+def _control_dataset():
+    """``data/test`` under the P12 CONTROL step-0 window frame rule.
+
+    Composed through the real hydra eval config with the exact override the
+    CONTROL evaluation cell will pass, so this exercises the configuration path
+    (``InfBaGelDataset(**cfg.dataset)`` at ``test_infbagel_hoi.py:579``) and not
+    merely the constructor keyword.  ``step0_frame_rule`` is absent from
+    ``config/dataset/omomo_test.yaml`` for the same reason ``asset_world_up``
+    is: leaving it out keeps the PRIMARY cell's resolved config byte-identical
+    to every earlier evaluation, so the switch cannot show up in a run that did
+    not ask for it.
+    """
+    from hydra import compose, initialize_config_dir
+    from datasets.infbagel import InfBaGelDataset
+
+    np.random.seed(42)
+    torch.manual_seed(42)
+    with initialize_config_dir(config_dir=str(REPO / "code/config"), version_base=None):
+        cfg = compose(config_name="config_eval_hoi_prior",
+                      overrides=["device=cpu", "exp_name=tests_representation_frame",
+                                 "+dataset.step0_frame_rule=historical_conjugated"])
+    with _in_code_dir():
+        return InfBaGelDataset(**cfg.dataset)
+
+
+@lru_cache(maxsize=1)
+def _step0_window_indices():
+    """The 438 dataset indices the evaluator seeds a rollout from.
+
+    ``test_infbagel_hoi.py:502-503`` builds ``[0] + list(seq_id.pkl.values())``
+    and iterates ``seg_id_dict[seg_id]`` over ``range(len - 1)``, so the step-0
+    windows are the first 438 entries.  The other two windows of each sequence
+    take their frame from ``get_mat`` on generated motion, so this rule reaches
+    exactly these 438 -- which is why every distribution below is quoted on them
+    and not on all 1314.
+    """
+    with open(OMOMO_TEST / "seq_id.pkl", "rb") as handle:
+        ids = [0] + list(pickle.load(handle).values())
+    return tuple(int(index) for index in ids[:len(ids) - 1])
+
+
+@lru_cache(maxsize=1)
+def _raw_root_orientations():
+    """``human_orient.npy`` as shipped, the reference nothing under test writes."""
+    return np.load(OMOMO_TEST / "human_orient.npy", mmap_mode="r")
+
+
+def _shift_yaw_from_mat(mat):
+    """The window shift's y angle in degrees, read back out of ``mat``.
+
+    ``__getitem__`` sets ``mat[:3, :3] = inv(S.T).T``, which for the orthogonal
+    ``S = shift_rot_matrix`` is ``S.T``; ``S`` is ``Ry(a)``, so
+    ``a = atan2(S[0, 2], S[0, 0])``.  Reading the SIGNED angle rather than a
+    geodesic is load bearing: the shift reaches 179.94 deg on this corpus, where
+    ``arccos`` of a float32 trace is ill-conditioned and inflates the same
+    2.4e-06 deg disagreement to 1.6e-02 deg.
+    """
+    shift = np.asarray(mat, dtype=np.float64).reshape(4, 4)[:3, :3].T
+    return float(np.degrees(np.arctan2(shift[0, 2], shift[0, 0])))
+
+
+def _wrapped_degrees(value):
+    """Signed angle difference folded into (-180, 180]."""
+    return (np.asarray(value, dtype=np.float64) + 180.0) % 360.0 - 180.0
+
+
+def _reference_shift_yaw(start, rule):
+    """The shift angle for one window start, built by hand from the raw asset.
+
+    Independent of the code under test at every step: it re-reads
+    ``human_orient.npy``, applies the released ``zup_to_yup`` conjugation (or the
+    repaired left multiplication) itself, and takes scipy's EXTRINSIC ``'zxy'``
+    index 2 -- the outermost, i.e. world-y, factor.
+    """
+    raw = np.asarray(_raw_root_orientations()[int(start)], dtype=np.float64)
+    if rule == "historical_conjugated":
+        # exactly the released operation, zup_to_yup on the axis-angle
+        root = Rotation.from_rotvec(zup_to_yup(raw.copy()[None])[0]).as_matrix()
+    else:
+        root = world_up_correction("z") @ Rotation.from_rotvec(raw).as_matrix()
+    return -float(np.degrees(Rotation.from_matrix(root).as_euler("zxy")[2]))
 
 
 class AbsolutePlacementTests(unittest.TestCase):
@@ -758,6 +854,318 @@ class InterpolationGridTests(unittest.TestCase):
         self.assertGreater(root_shift, 5e-3)
         self.assertLess(float(relative), 1e-5)
         self.assertGreater(root_shift / max(float(relative), 1e-12), 1e3)
+
+
+# ---------------------------------------------------------------------------
+# P12 CONTROL: the step-0 window frame rule
+# ---------------------------------------------------------------------------
+
+WINDOW_ARRAY_KEYS = (
+    "mat", "global_rot_6d", "global_rot_6d_gt", "joints", "joints_gt",
+    "pelvis_goal", "scene_goal", "object_goal", "object_trans",
+    "object_rot_mat", "obj_rot_mat_ref", "rest_human_offsets", "transl",
+)
+
+
+@contextlib.contextmanager
+def _with_step0_rule(dataset, rule):
+    """Flip one dataset's step-0 rule for the duration of a block.
+
+    The rule is read in ``__getitem__``, never in ``__init__``, so flipping the
+    attribute on an already built instance is the whole switch -- and proving
+    that is half of what the first test below asserts.  Restored on exit because
+    the instance is ``lru_cache``d and shared with every other test class here.
+    """
+    previous = dataset.step0_frame_rule
+    dataset.step0_frame_rule = rule
+    try:
+        yield dataset
+    finally:
+        dataset.step0_frame_rule = previous
+
+
+def _window_arrays(item):
+    return {key: np.ascontiguousarray(np.asarray(item[key])) for key in WINDOW_ARRAY_KEYS}
+
+
+class Step0FrameRuleTests(unittest.TestCase):
+    """One checkpoint, two step-0 window frame rules: the P12 CONTROL cell.
+
+    P12 changed the representation *and* the evaluator's step-0 orientation rule
+    together, so no PRIMARY-minus-anything difference is attributable.  The
+    CONTROL cell moves only the evaluator half: same checkpoint, same repaired
+    data, and the window normalization frame built from the released rule
+    instead.  ``historical_conjugated_root_matrix`` reconstructs the released
+    input exactly -- ``M C^T R_rep M^T`` -- so the two cells are two functions of
+    one identical dataset rather than two datasets.
+
+    What that buys and what it does not:
+
+    * ``|A - P|``, the mismatch CONTROL opens against the trained convention, is
+      77.83 deg mean / 51.89 deg p50 at the 438 step-0 windows.  It is a real
+      perturbation, not a no-op.
+    * It is NOT the 50.12 deg the released code actually suffered.  That number
+      is ``|A - B|``: the released EVALUATION rule against the released TRAINING
+      rule (pytorch3d intrinsic ``"ZXY"[..., 2]``, the innermost y angle), two
+      different conventions on the same conjugated input.  CONTROL instead pairs
+      one convention with two different inputs.  Reproducing 50.12 deg would
+      need the pre-fix codec convention as well, and that lives in the frozen
+      ``priors/core/``.
+    * ``|C - P|``, flipping the codec convention alone, is 0.41 deg mean / 0.13
+      p50 -- the measured no-op, and the reason that route was rejected.
+
+    Every assertion is anchored on ``human_orient.npy`` read raw, on the released
+    joint array, or on source text; never on what the branch under test emits.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.repaired = _legacy_dataset()
+        cls.control = _control_dataset()
+        cls.windows = _evaluator_windows()
+        cls.reference = np.load(OMOMO_TEST / "human_joints_aligned.npy", mmap_mode="r")
+
+    def test_the_default_rule_is_repaired_and_selects_the_released_arithmetic(self):
+        """Switch off means byte-for-byte unchanged, and off is the default.
+
+        Three independent statements, because a silently flipped default is the
+        one failure of this change that would corrupt a PRIMARY result rather
+        than merely fail:
+
+        1. the constructor default is pinned to ``'repaired'``, and the dataset
+           the real eval config builds reports it;
+        2. the released three statements still appear once each in
+           ``datasets/infbagel.py``, so neither was rewritten or duplicated into
+           the CONTROL branch;
+        3. the CONTROL instance, with its rule flipped back to ``'repaired'``,
+           returns windows bitwise identical to the default instance's -- which
+           also proves ``__init__`` consumed the rule for nothing but validation,
+           since the two instances were built independently.
+
+        Measured outside the suite over all 1314 evaluator windows and all 14
+        returned arrays: the default path is bitwise identical to the pre-switch
+        tree, ``maxabsdiff`` exactly 0.
+
+        Point 3 is deliberately a RELATIVE check -- two instances agreeing -- and
+        therefore cannot see a branch that applies the CONTROL rule
+        unconditionally, since both instances would then move together.  The
+        absolute anchor for the default path is the repaired-rule half of
+        ``test_the_control_rule_is_the_released_conjugated_readout``, which
+        compares it against the raw asset; deleting the ``if`` fails there.
+        """
+        from datasets.infbagel import InfBaGelDataset
+
+        # ``Dataset`` is ``Generic``, so ``signature(cls)`` reports ``(*args,
+        # **kwds)``; the class's own ``__init__`` is where the default lives.
+        signature = inspect.signature(InfBaGelDataset.__init__)
+        self.assertEqual(signature.parameters["step0_frame_rule"].default, "repaired")
+        self.assertEqual(STEP0_FRAME_RULE_CHOICES, ("repaired", "historical_conjugated"))
+        self.assertEqual(self.repaired.step0_frame_rule, "repaired")
+        self.assertEqual(self.control.step0_frame_rule, "historical_conjugated")
+
+        text = (REPO / "code/datasets/infbagel.py").read_text()
+        for statement in (
+            "init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')",
+            "shift_euler = np.array([0, 0, -init_global_orient_euler[2]])",
+            "shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix()",
+        ):
+            self.assertEqual(text.count(statement), 1, statement)
+
+        with _with_step0_rule(self.control, "repaired") as reverted:
+            for index in self.windows:
+                with self.subTest(window=index):
+                    expected = _window_arrays(self.repaired[index])
+                    actual = _window_arrays(reverted[index])
+                    for key, value in expected.items():
+                        self.assertEqual(value.dtype, actual[key].dtype, key)
+                        self.assertEqual(value.shape, actual[key].shape, key)
+                        self.assertEqual(value.tobytes(), actual[key].tobytes(), key)
+
+    def test_the_control_rule_is_the_released_conjugated_readout(self):
+        """CONTROL's shift equals a by-hand reference off the raw asset.
+
+        The reference re-reads ``human_orient.npy``, applies the released
+        ``zup_to_yup`` to the axis-angle itself, and takes scipy's extrinsic
+        ``'zxy'`` index 2.  It shares no line of code with the branch under test,
+        so this cannot pass by asserting what the branch emits.  Measured over
+        all 1314 windows: 2.36e-06 deg max for CONTROL and 2.36e-06 deg for the
+        repaired rule, both of which are the float32 quantisation of ``mat``.
+
+        The same comparison against the *other* rule's reference is 179.93 deg
+        apart at worst, so the two references are not interchangeable and the
+        agreement above is not vacuous.
+        """
+        conjugation = np.array([[1., 0., 0.], [0., 0., 1.], [0., -1., 0.]])
+        worst = {"repaired": 0.0, "historical_conjugated": 0.0}
+        worst_crossed = 0.0
+        for index in self.windows:
+            start = int(self.repaired.start_ind[index])
+            for rule, dataset in (("repaired", self.repaired),
+                                  ("historical_conjugated", self.control)):
+                measured = _shift_yaw_from_mat(dataset[index]["mat"])
+                worst[rule] = max(worst[rule], abs(float(_wrapped_degrees(
+                    measured - _reference_shift_yaw(start, rule)))))
+                other = "repaired" if rule == "historical_conjugated" else "historical_conjugated"
+                worst_crossed = max(worst_crossed, abs(float(_wrapped_degrees(
+                    measured - _reference_shift_yaw(start, other)))))
+
+            # the reconstruction itself, against the raw asset conjugated by hand
+            raw = np.asarray(_raw_root_orientations()[start], dtype=np.float64)
+            released = Rotation.from_rotvec(zup_to_yup(raw.copy()[None])[0]).as_matrix()
+            rebuilt = historical_conjugated_root_matrix(
+                np.asarray(self.repaired.global_orient[start], dtype=np.float64), "z")
+            self.assertLess(float(np.abs(rebuilt - released).max()), 1e-12)
+            self.assertLess(float(np.abs(
+                conjugation @ Rotation.from_rotvec(raw).as_matrix() @ conjugation.T
+                - released).max()), 1e-12)
+
+        self.assertLess(worst["repaired"], STEP0_SHIFT_YAW_TOLERANCE_DEG)
+        self.assertLess(worst["historical_conjugated"], STEP0_SHIFT_YAW_TOLERANCE_DEG)
+        self.assertGreater(worst_crossed, 90.0)
+
+    def test_both_rules_stay_exact_inverses_so_the_ground_truth_row_cannot_move(self):
+        """``mat`` must undo whichever shift built the window, for both rules.
+
+        This is the property that makes CONTROL a clean single-factor cell.  The
+        evaluator's ground-truth reference row is
+        ``transform_points(denormalize(joints), mat)`` and
+        ``mat[:3, :3] @ rotation_6d_to_matrix(global_rot_6d_gt)``
+        (``test_infbagel_hoi.py:784`` and ``:809``), both of which are
+        frame-invariant only if the round trip is exact.  Measured: the two rules
+        agree on absolute global joint position to 7.6e-07 m and each reproduces
+        ``human_joints_aligned.npy`` to 4.1e-07 m, so the GT row is the same row
+        in both cells and only the model's conditioning frame moves.
+
+        The frame-independent channels are asserted bitwise, not approximately:
+        ``object_rot_mat`` is reference-relative and ``joints_gt`` is the raw
+        global array, so a rule that touched either would be re-framing the
+        target as well as the input.
+        """
+        invariant = ("joints_gt", "object_rot_mat", "obj_rot_mat_ref",
+                     "rest_human_offsets", "transl")
+        worst_position = worst_reference = worst_rotation = 0.0
+        worst_inverse = 0.0
+        for index in self.windows:
+            repaired_item, control_item = self.repaired[index], self.control[index]
+            start = int(self.repaired.start_ind[index])
+            reference = np.asarray(self.reference[start:start + 48:3], dtype=np.float64)
+            globals_ = []
+            for item in (repaired_item, control_item):
+                mat = np.asarray(item["mat"], dtype=np.float64).reshape(4, 4)
+                shift = mat[:3, :3].T
+                worst_inverse = max(worst_inverse, float(np.abs(
+                    shift @ mat[:3, :3] - np.eye(3)).max()))
+                joints = np.asarray(self.repaired.denormalize(
+                    np.asarray(item["joints"], dtype=np.float32).reshape(-1, 28, 3)),
+                    dtype=np.float64)
+                globals_.append(joints @ mat[:3, :3].T + mat[:3, 3])
+                worst_reference = max(worst_reference, float(np.abs(
+                    globals_[-1][:, :22] - reference[:, :22]).max()))
+                # the GT FK expression, mat[:3,:3] @ the 48-frame rotation channel
+                gt = transforms.rotation_6d_to_matrix(torch.from_numpy(
+                    np.array(item["global_rot_6d_gt"], dtype=np.float32)))
+                globals_.append(np.asarray(
+                    mat[None, None, :3, :3] @ gt.double().numpy(), dtype=np.float64))
+            worst_position = max(worst_position, float(np.abs(globals_[0] - globals_[2]).max()))
+            worst_rotation = max(worst_rotation, float(np.abs(globals_[1] - globals_[3]).max()))
+            for key in invariant:
+                left = np.ascontiguousarray(np.asarray(repaired_item[key]))
+                right = np.ascontiguousarray(np.asarray(control_item[key]))
+                self.assertEqual(left.tobytes(), right.tobytes(), key)
+        self.assertLess(worst_inverse, 1e-6)
+        self.assertLess(worst_position, 1e-5)
+        self.assertLess(worst_rotation, 1e-5)
+        self.assertLess(worst_reference, 1e-4)
+
+    def test_the_two_rules_differ_by_tens_of_degrees_at_the_438_step0_windows(self):
+        """Is CONTROL worth an evaluation pass?  The distribution says yes.
+
+        Four heading rules, all built here from the raw asset so the comparison
+        does not depend on the branch under test, at the 438 window starts the
+        evaluator actually seeds a rollout from:
+
+        ==  ==================================================  ==============
+        P   scipy extrinsic ``'zxy'[2]`` of ``C R_stored``       trained/repaired
+        A   scipy extrinsic ``'zxy'[2]`` of ``M R_stored M^T``   released eval
+        B   pytorch3d ``"ZXY"[..., 2]`` of ``M R_stored M^T``    released train
+        C   pytorch3d ``"ZXY"[..., 2]`` of ``C R_stored``        codec flip only
+        ==  ==================================================  ==============
+
+        Measured 2026-08-19, mean / p50 / p95 / max in degrees:
+
+        * ``|A - P|`` = 77.83 / 51.89 / 175.60 / 179.81 -- what CONTROL costs
+          the model.  93.2 percent of windows move more than 5 deg.
+        * ``|A - B|`` = 50.12 / 38.98 / 145.14 / 179.89 -- the mismatch the
+          released code really had, and the reason this test asserts it: it
+          reproduces the independently recorded 50.12 deg, which identifies A as
+          the released EVALUATION rule and not something adjacent to it.
+        * ``|C - P|`` = 0.41 / 0.13 / 1.79 / 4.62 -- the rejected route.  A
+          CONTROL built this way would be a no-op and would credit the model with
+          the whole difference.
+        """
+        starts = np.asarray(_step0_window_indices(), dtype=np.int64)
+        starts = np.asarray([int(self.repaired.start_ind[i]) for i in starts], dtype=np.int64)
+        raw = np.asarray(_raw_root_orientations()[starts], dtype=np.float64)
+        stored = Rotation.from_rotvec(raw).as_matrix()
+        conjugated = Rotation.from_rotvec(zup_to_yup(raw.copy())).as_matrix()
+        repaired = world_up_correction("z")[None] @ stored
+
+        def extrinsic(matrices):
+            return np.degrees(Rotation.from_matrix(matrices).as_euler("zxy")[:, 2])
+
+        def intrinsic(matrices):
+            return np.degrees(transforms.matrix_to_euler_angles(
+                torch.from_numpy(matrices), "ZXY")[..., 2].numpy())
+
+        angles = {"P": extrinsic(repaired), "A": extrinsic(conjugated),
+                  "B": intrinsic(conjugated), "C": intrinsic(repaired)}
+        self.assertEqual(len(starts), 438)
+
+        control = np.abs(_wrapped_degrees(angles["A"] - angles["P"]))
+        historical = np.abs(_wrapped_degrees(angles["A"] - angles["B"]))
+        codec_only = np.abs(_wrapped_degrees(angles["C"] - angles["P"]))
+
+        # CONTROL is a real perturbation
+        self.assertGreater(float(control.mean()), 45.0)
+        self.assertGreater(float(np.percentile(control, 50)), 20.0)
+        self.assertGreater(float((control > 5.0).mean()), 0.8)
+        # ...and it is the released evaluation rule, identified by reproducing
+        # the recorded 50.12 deg released train/eval mismatch
+        self.assertGreater(float(historical.mean()), 45.0)
+        self.assertLess(float(historical.mean()), 55.0)
+        # ...and it is not the rejected codec-convention flip, which is a no-op
+        self.assertLess(float(codec_only.mean()), 2.0)
+        self.assertGreater(float(control.mean()) / max(float(codec_only.mean()), 1e-9), 20.0)
+
+    def test_an_unrecognised_step0_frame_rule_raises_before_any_io(self):
+        """A typo must be a hard failure, and must not cost a dataset load.
+
+        The validation sits above the first ``np.load``, so a bad value raises
+        without touching ``folder`` -- which is what lets this test run in
+        milliseconds against a path that does not exist.
+        """
+        from datasets.infbagel import InfBaGelDataset
+
+        for bad in ("historical", "Repaired", "", None, 0, "legacy"):
+            with self.subTest(rule=bad):
+                with self.assertRaises(ValueError):
+                    InfBaGelDataset("/nonexistent/p12-control", "cpu", None, 1, 3,
+                                    [32, 32, 32], step0_frame_rule=bad)
+
+    def test_the_step0_rule_cannot_reach_the_hoi_training_path(self):
+        """HOIPrior trains through ``priors/hoi/data.py``, never through here.
+
+        Asserted rather than described, because the whole premise of an
+        evaluation-only switch is that no training run can pick it up.
+        ``train_hoi_prior.py`` imports ``PriorWindowDataset`` and never
+        ``datasets.infbagel``, and neither the HOI training dataset nor the
+        frozen codec mentions the rule.
+        """
+        trainer = (REPO / "code/train_hoi_prior.py").read_text()
+        self.assertNotIn("datasets.infbagel", trainer)
+        self.assertIn("from priors.hoi.data import PriorWindowDataset", trainer)
+        for path in ("code/priors/hoi/data.py", "code/priors/core/window_codec.py"):
+            self.assertNotIn("step0_frame_rule", (REPO / path).read_text(), path)
 
 
 if __name__ == "__main__":
