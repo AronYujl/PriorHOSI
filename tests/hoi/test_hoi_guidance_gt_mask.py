@@ -184,5 +184,206 @@ class GroundTruthAuditTest(unittest.TestCase):
         self.assertNotAlmostEqual(0.66188, 0.62794, places=2)
 
 
+# --- 2026-08-21 corrected-mask amendment -------------------------------------
+# The sealed 2026-08-05 cell U fed _gt_contact_window a 16-frame WINDOW instead
+# of the sequence-length track its stride-14 arithmetic assumes.  The slicer was
+# never the defect; the source was.  These tests pin the defect signature, the
+# corrected source, the gate that keeps the fix off the default path, and the
+# two preregistered engagement constants.
+CORRECTED_ENGAGED_FRAMES = 13902
+CORRECTED_TOTAL_FRAMES = 21024
+CORRECTED_ENGAGEMENT_FRACTION = 0.6612442922374430
+SEALED_DEGENERATE_ENGAGED_FRAMES = 16591
+SEALED_DEGENERATE_ENGAGEMENT_FRACTION = 0.7891457382039574
+
+
+class CorrectedGroundTruthTrackTests(unittest.TestCase):
+    """The cell-U mask must come from a sequence-length track."""
+
+    def test_window_length_track_is_the_defect_signature(self):
+        # What the sealed run actually fed the sampler.  Kept as a test so the
+        # defect can never be reintroduced silently by "simplifying" the source.
+        track = _index_encoding_labels(WINDOW_FRAMES)
+        step0 = _window_slice(track, 0)
+        self.assertEqual(len(set(step0[:, 0].tolist())), WINDOW_FRAMES)
+        step1 = _window_slice(track, 1)
+        self.assertEqual(len(set(step1[:, 0].tolist())), 2)
+        self.assertEqual([int(step1[0, 0]), int(step1[1, 0])], [14, 15])
+        step2 = _window_slice(track, 2)
+        self.assertEqual(len(set(step2[:, 0].tolist())), 1)
+        self.assertEqual(int(step2[0, 0]), WINDOW_FRAMES - 1)
+
+    def test_sequence_length_track_recovers_global_frames(self):
+        frames = (MAX_LEN - 1) * STRIDE + WINDOW_FRAMES
+        track = _index_encoding_labels(frames)
+        for step in range(MAX_LEN):
+            window = _window_slice(track, step)
+            self.assertEqual(int(window[0, 0]), step * STRIDE)
+            self.assertEqual(len(set(window[:, 0].tolist())), WINDOW_FRAMES)
+
+    def test_accessor_equals_the_per_window_reads_it_replaces(self):
+        # The unit form of the real-data equivalence measured over the official
+        # protocol: the accessor sliced at stride 14 equals each window's own
+        # contact_label on all 438 x 3 windows.
+        import numpy as np
+        from datasets.infbagel import InfBaGelDataset
+
+        raw_frames, step = 3 * WINDOW_FRAMES * 3, 3
+        annotation = np.zeros((raw_frames, 4), dtype=np.float32)
+        annotation[:, 1] = np.arange(raw_frames, dtype=np.float32)
+        base_raw = 1000
+
+        class _Fake:
+            load_language = True
+            load_object_goal = True
+            max_window_size = WINDOW_FRAMES
+            need_object = {i: True for i in range(MAX_LEN)}
+            ori_sequence_idx = {i: 0 for i in range(MAX_LEN)}
+            scene_name = {0: 'seq'}
+            ori_sequence_start_idx = {0: base_raw}
+            contact_label = {'seq': annotation}
+            start_ind = {i: base_raw + i * STRIDE * step for i in range(MAX_LEN)}
+
+        fake = _Fake()
+        fake.step = step
+        accessor = InfBaGelDataset.sequence_contact_label(fake, 0)
+        self.assertGreater(accessor.shape[0], (MAX_LEN - 1) * STRIDE + WINDOW_FRAMES - 1)
+        for window in range(MAX_LEN):
+            start = fake.start_ind[window] - base_raw
+            per_window = annotation[start:start + WINDOW_FRAMES * step:step]
+            sliced = _window_slice(torch.from_numpy(accessor), window)
+            self.assertTrue(
+                torch.equal(sliced, torch.from_numpy(per_window)),
+                "window %d: accessor slice must equal the per-window read" % window,
+            )
+
+    def test_accessor_is_not_a_getitem_key(self):
+        # A new __getitem__ key would hand the default collate a variable-length
+        # entry on every path that batches this dataset.  A method cannot.
+        source = (ROOT / "code" / "datasets" / "infbagel.py").read_text()
+        getitem = source.split("    def __getitem__(self, idx):", 1)[1]
+        getitem = getitem.split("\n    def ", 1)[0]
+        self.assertNotIn("sequence_contact_label", getitem)
+        self.assertIn("    def sequence_contact_label(self, idx):", source)
+
+    def test_cell_u_feed_is_gated_and_uses_the_sequence_accessor(self):
+        source = (ROOT / "code" / "test_infbagel_hoi.py").read_text()
+        self.assertIn(
+            "if _hoi_guidance_uses_ground_truth(cfg):\n"
+            "            gt_contact_label_batch.append(torch.from_numpy(\n"
+            "                synhsi_dataset.sequence_contact_label(seg_id_dict[seg_id])",
+            source,
+            "the cell-U feed must be gated and must read the sequence-length track",
+        )
+        self.assertNotIn("gt_contact_label_batch.append(contact_label)", source)
+
+    def test_teacher_forcing_accumulator_stays_independent(self):
+        # Two fixes, one file, no overlap: this one repairs the SOURCE of the
+        # guidance mask; the teacher-forcing one BYPASSES the source with its own
+        # per-window accumulator.  Neither may absorb the other.
+        source = (ROOT / "code" / "test_infbagel_hoi.py").read_text()
+        self.assertIn("contact_all_gt = torch.zeros(0, cfg.max_window_size, 4)", source)
+        feed = source.split("if _hoi_guidance_uses_ground_truth(cfg):", 1)[1][:400]
+        self.assertNotIn("contact_all_gt", feed)
+
+    def test_corrected_engagement_constants_are_preregistered(self):
+        # Fixed BEFORE the corrected run, computed CPU-only from the annotation
+        # files with no model and no GPU
+        # (.claude/scratch/cellu_fix/verify_mask_arithmetic.py).  The corrected
+        # run must reproduce these exactly or its mask is still wrong.
+        self.assertEqual(CORRECTED_TOTAL_FRAMES, 438 * MAX_LEN * WINDOW_FRAMES)
+        self.assertAlmostEqual(
+            CORRECTED_ENGAGED_FRAMES / CORRECTED_TOTAL_FRAMES,
+            CORRECTED_ENGAGEMENT_FRACTION, places=15,
+        )
+        self.assertAlmostEqual(
+            SEALED_DEGENERATE_ENGAGED_FRAMES / CORRECTED_TOTAL_FRAMES,
+            SEALED_DEGENERATE_ENGAGEMENT_FRACTION, places=15,
+        )
+        self.assertGreater(
+            SEALED_DEGENERATE_ENGAGED_FRAMES, CORRECTED_ENGAGED_FRAMES,
+            "the degenerate mask over-engaged; the sealed ceiling is biased, "
+            "not merely noisy",
+        )
+
+    def test_population_matched_statistic_is_close_to_the_geometric_one(self):
+        """Why the preregistered engagement gate was dropped for a bad reason.
+
+        ``cells/U/probe_validity/preregistered_gate_was_wrong`` justified dropping
+        the "engagement must equal gt_contact_percent 0.66188" gate by noting the
+        annotation channel measures 0.62794 -- but that 0.62794 is every frame of
+        all 482 annotation files, a different population from the probe's 438
+        sequences x first 3 windows.  On the probe's own population the corrected
+        annotation statistic is 0.66124, which the dropped gate would have passed
+        and the degenerate 0.78915 would have failed by 0.128.  Empirical, not
+        analytic: the restored gate is therefore stated with a tolerance, and the
+        binding gate remains the exact 13902/21024.
+        """
+        self.assertAlmostEqual(CORRECTED_ENGAGEMENT_FRACTION, 0.66188, places=2)
+        self.assertGreater(abs(SEALED_DEGENERATE_ENGAGEMENT_FRACTION - 0.66188), 0.1)
+
+
+class AuditRecordsWhichMaskTests(unittest.TestCase):
+    """Gate G6 of the corrected cell-U preregistration.
+
+    A sealed run's ``normalization_audit`` reported the guidance decomposition but
+    never which contact mask produced it, so nothing in the artifact separated a
+    NON-DEPLOYABLE ground-truth-mask probe from a deployable predicted-mask cell.
+    That is how the degenerate cell-U mask survived to be cited: the number was
+    readable, its provenance was not.  Both keys are reported even when they are
+    at their defaults, because "the field is absent" and "the field is predicted"
+    must not look the same to a reader.
+    """
+
+    def test_a_ground_truth_probe_says_so_in_its_audit(self):
+        audit = GuidanceAudit(
+            GuidanceSettings(
+                enabled=True,
+                contact_mask_source=MASK_SOURCE_GROUND_TRUTH,
+                contact_mask_threshold=0.5,
+            )
+        )
+        report = audit.as_dict()
+        self.assertEqual(
+            report["guidance_contact_mask_source"], MASK_SOURCE_GROUND_TRUTH
+        )
+        self.assertEqual(report["guidance_contact_mask_threshold"], 0.5)
+
+    def test_a_deployable_cell_says_predicted_rather_than_nothing(self):
+        report = GuidanceAudit(GuidanceSettings(enabled=True)).as_dict()
+        self.assertEqual(
+            report["guidance_contact_mask_source"], MASK_SOURCE_PREDICTED
+        )
+        self.assertIsInstance(report["guidance_contact_mask_threshold"], float)
+
+    def test_an_unbound_audit_reports_null_not_a_default(self):
+        """No settings means unknown, which must not read as ``predicted``."""
+        report = GuidanceAudit().as_dict()
+        self.assertIsNone(report["guidance_contact_mask_source"])
+        self.assertIsNone(report["guidance_contact_mask_threshold"])
+
+    def test_the_keys_survive_a_populated_audit(self):
+        """The populated branch takes a different code path to the empty one."""
+        audit = GuidanceAudit(
+            GuidanceSettings(
+                enabled=True, contact_mask_source=MASK_SOURCE_GROUND_TRUTH
+            )
+        )
+        gradient = torch.randn(
+            2, 16, 232, generator=torch.Generator().manual_seed(19)
+        )
+        audit.record(
+            gradient,
+            gradient * 0.1,
+            torch.tensor(1.0),
+            torch.tensor(0.5),
+        )
+        report = audit.as_dict()
+        self.assertEqual(report["guidance_applied_steps"], 1)
+        self.assertEqual(
+            report["guidance_contact_mask_source"], MASK_SOURCE_GROUND_TRUTH
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

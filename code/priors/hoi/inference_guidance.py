@@ -828,6 +828,18 @@ class GuidanceAudit:
             "guidance_consistency_normalization": (
                 None if settings is None else settings.consistency_normalization
             ),
+            # WHICH contact mask the recorded steps actually used.  Until
+            # 2026-08-22 a sealed run's audit did not say, so a non-deployable
+            # ground-truth-mask probe could not be told from a deployable cell by
+            # reading its artifact -- the governance gap disclosed alongside the
+            # cell-U void, and gate G6 of the corrected cell-U preregistration.
+            "guidance_contact_mask_source": (
+                None if settings is None else settings.contact_mask_source
+            ),
+            "guidance_contact_mask_threshold": (
+                None if settings is None
+                else float(settings.contact_mask_threshold)
+            ),
         }
         if self._loss_sum is None or not self.applied_steps:
             value.update({

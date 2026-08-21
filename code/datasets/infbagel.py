@@ -673,6 +673,50 @@ class InfBaGelDataset(Dataset):
         
         return info
 
+    def sequence_contact_label(self, idx):
+        """Whole-sequence contact annotation at the model frame rate.
+
+        ``__getitem__`` returns ``contact_label`` already sliced to ONE window
+        (:626-629).  That is correct for the per-window conditioning it feeds and
+        wrong for any consumer that indexes a rollout by GLOBAL frame: the P6
+        cell-U ground-truth mask probe slices at stride
+        ``max_window_size - auto_regre_num`` (14 at the shipped 16/2 settings),
+        so on a 16-frame track its step-2 start index 28 exceeds the available
+        frames and the slicer silently returns window 0's LAST frame repeated 16
+        times.  This accessor returns the sequence-length track that arithmetic
+        already assumes, aligned so element 0 is frame 0 of window ``idx``.
+
+        Deliberately NOT a new ``__getitem__`` key.  Per-sequence lengths differ,
+        so a new key would hand the default collate a variable-length entry on
+        every training and evaluation path that batches this dataset.  As a
+        method it costs nothing unless called, which is what keeps the default
+        path bit-identical.
+
+        The non-object branch returns window-length zeros, mirroring
+        ``__getitem__``.  That is exact rather than degenerate: repeating a zero
+        row yields zeros, so the slicer's short-track branch cannot corrupt a
+        window that has no annotation to begin with.
+        """
+        if not (getattr(self, 'load_language', False) and getattr(self, 'load_object_goal', False)):
+            raise ValueError(
+                "sequence_contact_label requires load_language and "
+                "load_object_goal; without both, the contact annotation and the "
+                "per-window index that aligns it are not loaded"
+            )
+        origin_sequence_idx = self.ori_sequence_idx[idx]
+        if not bool(self.need_object[idx]):
+            return np.zeros((self.max_window_size, 4), dtype=np.float32)
+        track = self.contact_label[self.scene_name[origin_sequence_idx]]
+        offset = int(self.start_ind[idx]) - int(self.ori_sequence_start_idx[origin_sequence_idx])
+        if offset < 0 or offset >= len(track):
+            raise ValueError(
+                "sequence_contact_label: window %d starts at annotation offset "
+                "%d of a %d-frame track; the per-window index and the annotation "
+                "file disagree and the cell-U probe would be void"
+                % (idx, offset, len(track))
+            )
+        return track[offset::self.step].astype(np.float32)
+
     def get_pene_occ_count(self, points, scene_flag):
         occ = (self.scene_occ[scene_flag]).to(dtype=torch.int8).clone().to(dtype=torch.int8)
 

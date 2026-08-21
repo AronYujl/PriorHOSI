@@ -644,7 +644,10 @@ def test(cfg: DictConfig) -> None:
     first_object_trans_batch = []
     # Per-sequence ground-truth contact at the model frame rate, for the
     # preregistered P6 cell-U upper-bound probe only.  Lengths differ per
-    # sequence, so this stays a list and is sliced per rollout window.
+    # sequence, so this stays a list and is sliced per rollout window.  Filled
+    # ONLY when the sampler is configured with contact_mask_source=ground_truth;
+    # on every other configuration it stays empty and neither of its two read
+    # sites (the timing warmup and the per-step slice) is reached.
     gt_contact_label_batch = []
     # World-frame human rotations at the keyframe grid, retained for the
     # non-deployable teacher-forcing history diagnostic below.
@@ -763,12 +766,33 @@ def test(cfg: DictConfig) -> None:
         object_points_batch.append(object_points)
         first_object_points_batch.append(first_object_points)
         first_object_trans_batch.append(first_object_trans)
-        # Preregistered P6 cell U (docs/EXPERIMENT_PLAN.md, "2026-08-04 ... P6").
-        # NON-DEPLOYABLE upper-bound probe: ground-truth contact does not exist
-        # at inference time.  Kept per sequence at the model frame rate and
-        # sliced per rollout window below, never used unless the sampler is
-        # explicitly configured with contact_mask_source=ground_truth.
-        gt_contact_label_batch.append(contact_label)
+        # Preregistered P6 cell U (docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md,
+        # "2026-08-04 ... P6", as amended by its 2026-08-21 corrected-mask
+        # section).  NON-DEPLOYABLE upper-bound probe: ground-truth contact does
+        # not exist at inference time.  Sliced per rollout window below, never
+        # used unless the sampler is explicitly configured with
+        # contact_mask_source=ground_truth.
+        #
+        # This MUST be the whole-sequence track, NOT data_dict['contact_label'].
+        # The latter is one 16-frame WINDOW (code/datasets/infbagel.py:626-629)
+        # while _gt_contact_window slices at stride
+        # max_window_size - auto_regre_num = 14, so a 16-frame track degenerates:
+        # step 1 returns frames 14,15 then frame 15 repeated 14 times, and step 2
+        # returns frame 15 repeated 16 times.  The sealed 2026-08-05 cell U ran on
+        # exactly that, which inflated its recorded engagement fraction to
+        # 0.7891457382039574 where the corrected track measures
+        # 0.6612442922374430 (13902 of 21024 engaged frames; both reproduced
+        # CPU-only by .claude/scratch/cellu_fix/verify_mask_arithmetic.py).
+        #
+        # Independent of the teacher-forcing contact channel: that path does not
+        # use this pair at all, it reads its own per-window accumulator
+        # contact_all_gt.  This fix repairs the SOURCE for the guidance mask; that
+        # one BYPASSES the source for a 2-frame history.  Neither touches
+        # _gt_contact_window, whose stride arithmetic is correct as written.
+        if _hoi_guidance_uses_ground_truth(cfg):
+            gt_contact_label_batch.append(torch.from_numpy(
+                synhsi_dataset.sequence_contact_label(seg_id_dict[seg_id])
+            ).to(device))
 
         pelvis_goal_batch_temp = []
         pi_batch_temp = []
