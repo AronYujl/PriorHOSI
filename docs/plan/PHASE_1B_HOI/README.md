@@ -1,7 +1,7 @@
 # Phase 1B HOIPrior 计划索引
 
 本目录是 `docs/EXPERIMENT_PLAN.md` 于 2026-08-10 拆分后的 Phase 1B 分册。
-六个编号文件是**预注册与逐次 amendment 的原文逐字节副本**，按主题而非时间归并；
+八个编号文件是**预注册与逐次 amendment 的原文逐字节副本**，按主题而非时间归并；
 它们记录"当时决定了什么"，不是结论摘要。
 
 导航：[总览](../OVERVIEW.md) · [计划入口](../../EXPERIMENT_PLAN.md)
@@ -16,7 +16,7 @@
 4. 新的 dated amendment 追加到本目录中对应主题的文件，并同步在 `experiments/registry.jsonl`
    追加一条 hypothesis（`AGENTS.md` "Experiment lifecycle"）。
 
-## 七个分册
+## 八个分册
 
 | 文件 | 内容 | 原 `EXPERIMENT_PLAN.md` 行范围 | 复制行数 |
 |---|---|---|---:|
@@ -27,6 +27,7 @@
 | [`05_INFERENCE_GUIDANCE.md`](05_INFERENCE_GUIDANCE.md) | 基线协议分解与推理期接触引导：P1 released 协议归因、P2 引导协议对齐（Arm A/B）、P3 关系场 × 引导 2×3、P5 接触 mask 剂量-响应与 GT 上界、P6 手部子项重加权 | 7435-7677、7934-8270、8883-9107 | 805 |
 | [`06_GEOMETRY_TERM.md`](06_GEOMETRY_TERM.md) | 训练侧手-物几何项：D2-AH 度量几何权重恢复（前置诊断判负）、P8/P9/P9b/P9c 权重八点剂量扫描、P10 接触铰链 × 物体 detach 的 2×2 公式修复、P11 几何项根平移梯度 detach | 7678-7933、9108-9519，及后续 dated amendments | 668（原文） |
 | [`07_REPRESENTATION_FRAME.md`](07_REPRESENTATION_FRAME.md) | 表示帧缺陷修复与基线重建：发布代码把旋转通道与关节通道置于相差 90° 的两个世界系、`window_codec` 的 heading 取了内旋最内层 y；P12 六文件一次修复并在修复后的表示上重建 D2-AI 基线。含在 OMOMO 上对交接文档三条结论的实测反驳。**已结案 2026-08-20，分类 `eval-consistency-null`**（门控 (ii) 在 `end_obj_trans_err` 上判负；但帧规则本身移动 7/14 个指标显著，标签理由被测量否证）。见 `docs/phase_summaries/PHASE_1B_P12_REPRESENTATION_FRAME.md` | 新建 | — |
+| [`08_ROLLOUT_DYNAMICS.md`](08_ROLLOUT_DYNAMICS.md) | 自回归 rollout 动力学；P14 教师强制诊断（窗口 2、3 的历史来源），含 G4 编码路径等价性前置测量与 P6 cell-U 退化接触掩码的发现 | 新建 | — |
 
 Phase 1B 之外：[`../PHASE_0.md`](../PHASE_0.md)、[`../PHASE_1A_DATA.md`](../PHASE_1A_DATA.md)、
 [`../PHASE_1C_HSI.md`](../PHASE_1C_HSI.md)、[`../PHASE_1D_GATE.md`](../PHASE_1D_GATE.md)。
