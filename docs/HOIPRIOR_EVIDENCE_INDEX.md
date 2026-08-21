@@ -622,6 +622,44 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       a zero penetration ratio, so A7 was rekeyed onto the penetration loss terms and a zero ratio
       became a warning rather than a failure. Recorded in the plan section. Recorded 2026-08-21.
 
+23. **The per-window loss of subject height is INTRINSIC to how the model consumes an
+    absolute-height history, not exposure bias — so scheduled sampling and rollout fine-tuning are
+    predicted not to fix it.** The 3-window rollout's cross-sequence slope of model pelvis height on
+    ground truth decays 1.025 (first generated frame) -> 0.899 (w1) -> 0.505 (w2) -> 0.186 (w3),
+    faster than geometric. P14 replaced all five history channels for windows 2 and 3 with that
+    window's world-frame ground truth, holding checkpoint, 438 sequences, seed, noise and guidance
+    fixed (`p1-hoi-p14-teacher-forcing-s42-20260821`, classification `tf-partial`,
+    `experiments/results/p1_hoi_p14_teacher_forcing_s42_20260821.json`). A complete ground-truth
+    history recovers only rho = 0.515 / 0.320 (cell G, windows 2 / 3) and 0.506 / 0.314 (cell N) of
+    the gap to the ground-truth-conditioned window w1, all four paired-bootstrap 95% CIs excluding
+    zero. Decisively, the secondary discriminator lambda -- where b_TF sits between the model's own
+    response-to-its-own-history slope and w1's slope -- is **0.018 to 0.045**, i.e. b_TF lands
+    essentially ON the own-history anchor (measured 0.7082 / 0.7077 against an anchor of 0.7041).
+    **The model's response slope to an in-distribution ground-truth history is indistinguishable
+    from its response slope to its own degraded output.** Teacher forcing removes the compounding and
+    leaves the per-window contraction untouched.
+    - **The authorized conclusion form is only** whether a COMPLETE ground-truth history restores
+      height keeping. It does not. It may NOT be attributed to the root-y channel: all five channels
+      were substituted, and the vertical-only arm that could have isolated it was withdrawn after a
+      drift injection showed it converts horizontal pelvis drift into object-translation error at
+      full magnitude. This does not reopen the D0 root-y repricing abort.
+    - **Load-bearing for HOSI.** The LLM state machine chains many more than 3 windows over the same
+      `[B,16,232]` contract, and tracking is already at b=0.19 by window 3 -- inside the released
+      protocol's own horizon. Because the defect is not history quality, a longer chain does not
+      improve by feeding cleaner conditioning.
+    - Ex-ante integrity: all four frozen point predictions hit (b_TF(w2) in [0.70,0.75], b_TF(w3) in
+      [0.40,0.52]) and so did the verdict prediction. Revision 7 disclosed before the run that pure
+      contraction predicts rho(w2)=0.497; measured 0.515.
+    - A prerequisite measurement, G4, established that the step-0 (dataset) and step-N
+      (`window_codec.encode`) conditioning paths are equivalent over the full protocol -- 876
+      comparisons, every channel block <= 5.96e-07 against a 4.768e-07 float32 reference, with the
+      joints vertical channel and the frame origin bit-identical -- so a non-recovery implicates the
+      model rather than the frame construction. It does NOT cover `obj_bps_data`,
+      `object_goal_batch`, `pelvis_goal_batch` or `object_points_batch`.
+    - The teacher-forced arms' 18 protocol metrics are **not model scores** and must never enter
+      `baseline.md`, this index's headline table, or any model comparison: windows 2 and 3 are
+      anchored at the ground-truth location by construction. Recorded 2026-08-21.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”
