@@ -1,0 +1,373 @@
+{
+  "aborted_preregistered_configuration": {
+    "classification": "cellu-checkpoint-representation-mismatch",
+    "d2ai_predicted_mask_collapse_vs_its_own_sealed_row": {
+      "contact_f1": [
+        0.6757017455384731,
+        0.09763103262451335
+      ],
+      "contact_percent": [
+        0.5089874610422556,
+        0.09949626730448648
+      ],
+      "feet_height": [
+        0.0461253859102726,
+        0.6992273926734924
+      ],
+      "gt_contact_percent": [
+        0.6618830180474017,
+        0.6618830180474017
+      ],
+      "mpjpe": [
+        11.769875138998032,
+        59.43310260772705
+      ],
+      "per_sequence_sequences_differing_of_438": 438
+    },
+    "mask_gate_still_passed_there": {
+      "engaged": 13902,
+      "note": "the mask repair itself is checkpoint-independent and reproduced 13902/21024 on this pair too",
+      "total": 21024
+    },
+    "not_an_enumerated_stop": "this failure mode was not among the preregistered stop classifications; it is recorded as a new one rather than mapped onto an existing label",
+    "raw_and_not_interpretable": {
+      "b0_contact_f1": 0.09763103262451335,
+      "corrected_contact_f1": 0.10118519084560218,
+      "why_not_interpretable": "both arms are a pre-repair checkpoint driven through repaired code; the model is not producing valid motion, so a difference between two guidance settings bounds nothing"
+    },
+    "runs": {
+      "b0_rerun": "p1-hoi-p6-cellu-b0-rerun-s42-20260822",
+      "corrected_mask": "p1-hoi-p6-cellu-corrected-mask-s42-20260822"
+    }
+  },
+  "all_metrics_bootstrap": {
+    "contact_f1": {
+      "b0": 0.694961458551978,
+      "ci95": [
+        -0.0014264991369390676,
+        0.0006173475183752433
+      ],
+      "corrected": 0.6945609350664287,
+      "delta": -0.0004005234855490835,
+      "significant": false
+    },
+    "contact_precision": {
+      "b0": 0.8105610314159433,
+      "ci95": [
+        -0.006821899747193032,
+        0.0009201340932658077
+      ],
+      "corrected": 0.8086993541623106,
+      "delta": -0.00186167725363259,
+      "significant": false
+    },
+    "contact_recall": {
+      "b0": 0.6581682759877252,
+      "ci95": [
+        -0.002172657657450063,
+        0.00042841735304278717
+      ],
+      "corrected": 0.6573140491935798,
+      "delta": -0.0008542267941453858,
+      "significant": false
+    },
+    "end_obj_trans_err": {
+      "b0": 2.761051102505349,
+      "ci95": [
+        0.008106566779240501,
+        0.02474002684508559
+      ],
+      "corrected": 2.7772874458804875,
+      "delta": 0.016236343375138063,
+      "significant": true
+    },
+    "foot_sliding": {
+      "b0": 0.339040919707478,
+      "ci95": [
+        -0.000486706094406549,
+        0.007488634436987745
+      ],
+      "corrected": 0.34191169539247157,
+      "delta": 0.0028707756849934373,
+      "significant": false
+    },
+    "hand_pen_loss_omomo": {
+      "b0": 0.16920817721462145,
+      "ci95": [
+        -0.00041095490820614863,
+        4.0826891557129866e-05
+      ],
+      "corrected": 0.16904306084612897,
+      "delta": -0.0001651163684924727,
+      "significant": false
+    },
+    "hand_pen_ratio": {
+      "b0": 0.13163203441471025,
+      "ci95": [
+        -0.0018873983797667014,
+        0.0
+      ],
+      "corrected": 0.13093046449865756,
+      "delta": -0.0007015699160527129,
+      "significant": false
+    },
+    "human_pen_loss_infbagel": {
+      "b0": 2.685733198815606,
+      "ci95": [
+        -0.006515849067999838,
+        0.0005269611819165961
+      ],
+      "corrected": 2.6830549134146953,
+      "delta": -0.002678285400910796,
+      "significant": false
+    },
+    "human_pen_ratio": {
+      "b0": 0.13597299762131923,
+      "ci95": [
+        -0.0019731712889505338,
+        -4.409172882636388e-05
+      ],
+      "corrected": 0.13518373149020071,
+      "delta": -0.0007892661311185163,
+      "significant": true
+    },
+    "mpjpe": {
+      "b0": 11.290707961405248,
+      "ci95": [
+        -0.018953621902048044,
+        -0.001231542146301162
+      ],
+      "corrected": 11.280127720201396,
+      "delta": -0.01058024120385244,
+      "significant": true
+    },
+    "obj_rot_dist": {
+      "b0": 0.9662469975873649,
+      "ci95": [
+        -0.0012138888636669877,
+        0.0008777271441423113
+      ],
+      "corrected": 0.9660805978755789,
+      "delta": -0.00016639971178601963,
+      "significant": false
+    },
+    "obj_trans_dist": {
+      "b0": 14.086064877688784,
+      "ci95": [
+        -0.01735460906107085,
+        0.0024210756504021314
+      ],
+      "corrected": 14.078978303309873,
+      "delta": -0.0070865743789126365,
+      "significant": false
+    },
+    "pelvis_goal_error_cm": {
+      "b0": 3.615998254013014,
+      "ci95": [
+        -0.004508912961475007,
+        0.004641715807682881
+      ],
+      "corrected": 3.615921595852533,
+      "delta": -7.665816048100659e-05,
+      "significant": false
+    },
+    "trans_dist": {
+      "b0": 7.8041068609957005,
+      "ci95": [
+        -0.01267518896022684,
+        -0.0018352335935552099
+      ],
+      "corrected": 7.796941197064777,
+      "delta": -0.007165663930923427,
+      "significant": true
+    }
+  },
+  "arms": {
+    "B0_predicted_mask": {
+      "contact_mask_source": "predicted",
+      "contact_mask_threshold": 0.95,
+      "generation_seconds": 65.54959130473435,
+      "per_sequence_sha256": "d55f6b74bc02e7d798350e3b3a3b6d821cda13b0ad7292a2ffa6c49ce49b582d",
+      "run_id": "p1-hoi-p6-cellu-b0-p12-rerun-s42-20260822"
+    },
+    "corrected_cell_U": {
+      "contact_mask_source": "ground_truth",
+      "contact_mask_threshold": 0.95,
+      "generation_seconds": 62.97816408611834,
+      "per_sequence_sha256": "69c97116e180ef9eaba5064856944b517624f4df12aadef06ad465c0d4c0cb8b",
+      "run_id": "p1-hoi-p6-cellu-corrected-mask-p12-s42-20260822"
+    },
+    "shared": {
+      "checkpoint": "p1-hoi-p12-frame-repair-baseline-s42-20260819_windows299520000.pth",
+      "checkpoint_sha256": "722d83ee7755b051e2095ccd01d4094bacce99589e679f89379f54661fb43704",
+      "checkpoint_weight_variant": "online",
+      "guidance": "enabled; arm b; guidance_scale=1000.0; last_steps=10; clamp=1.0; clamp_target=update",
+      "host": "authority host, GPUs 0 and 1 in parallel; GPUs 4-7 held HSIPrior training",
+      "seed": 42,
+      "sequence_count": 438,
+      "windows_per_sequence": 3
+    }
+  },
+  "classification": "cellu-null",
+  "classification_basis": "PRIMARY delta_contact_f1 CI contains zero, so the preregistered cellu-null branch applies. The interval is tight rather than underpowered: |delta| is bounded to 0.0014 contact_f1 units, 2.0x smaller than the voided point estimate -0.0028307 and 100x smaller than the 0.1413 absolute engagement gap the probe exists to bound.",
+  "contact_family": {
+    "contact_f1": {
+      "b0": 0.694961458551978,
+      "ci95": [
+        -0.0014264991369390676,
+        0.0006173475183752433
+      ],
+      "corrected": 0.6945609350664287,
+      "delta": -0.0004005234855490835,
+      "significant": false
+    },
+    "contact_precision": {
+      "b0": 0.8105610314159433,
+      "ci95": [
+        -0.006821899747193032,
+        0.0009201340932658077
+      ],
+      "corrected": 0.8086993541623106,
+      "delta": -0.00186167725363259,
+      "significant": false
+    },
+    "contact_recall": {
+      "b0": 0.6581682759877252,
+      "ci95": [
+        -0.002172657657450063,
+        0.00042841735304278717
+      ],
+      "corrected": 0.6573140491935798,
+      "delta": -0.0008542267941453858,
+      "significant": false
+    }
+  },
+  "date": "2026-08-22",
+  "deployable": false,
+  "experiment": "p1-hoi-p6-cellu-corrected-mask-s42-20260822",
+  "gate_verdicts": {
+    "G1_mask_engagement_reproduces": {
+      "engaged": 13902,
+      "fraction": 0.661244292237443,
+      "target_fraction": 0.661244292237443,
+      "total": 21024,
+      "verdict": "PASS",
+      "windows": 3
+    },
+    "G2_predicted_path_bitwise": {
+      "note": "the preregistered target was the PRE-repair 2026-08-04 B0 hash, which is unsatisfiable by construction; the substituted target is a sealed artifact of the same code era and the same checkpoint, so the gate keeps its meaning. User-named requirement: the normal predicted-mask path is provably unchanged by the patch.",
+      "rerun_per_sequence_sha256": "d55f6b74bc02e7d798350e3b3a3b6d821cda13b0ad7292a2ffa6c49ce49b582d",
+      "sealed_per_sequence_sha256": "d55f6b74bc02e7d798350e3b3a3b6d821cda13b0ad7292a2ffa6c49ce49b582d",
+      "sealed_post_repair_baseline": "p1-hoi-p12-guidance-armb-s42-20260820",
+      "verdict": "PASS bitwise"
+    },
+    "G3_degeneracy_removed": {
+      "degenerate_distinct_rows_per_step": {
+        "step0": 1.703,
+        "step1": 1.078,
+        "step2": 1.0
+      },
+      "engaged_frames_per_step": {
+        "step0": {
+          "corrected": 5363,
+          "degenerate": 5363
+        },
+        "step1": {
+          "corrected": 5742,
+          "degenerate": 5612
+        },
+        "step2": {
+          "corrected": 2797,
+          "degenerate": 5616
+        }
+      },
+      "measured": "the corrected mask equals a direct per-window read on ALL 1314 windows, 0 mismatches, which implies distinctness wherever the annotation has it",
+      "note": "at step 2 the degenerate mask had exactly ONE distinct row for every sequence and claimed 2.01x the engaged frames the annotation actually has",
+      "preregistered": "more than one distinct frame at every rollout step",
+      "verdict": "PASS on a stronger criterion"
+    },
+    "G4_independent_of_teacher_forcing_fix": {
+      "evidence": "_teacher_forcing_history reads neither gt_contact_label_batch nor sequence_contact_label; sequence_contact_label has exactly one call site and it sits inside _hoi_guidance_uses_ground_truth; both gt_contact_label_batch read sites are inside the same gate",
+      "verdict": "PASS"
+    },
+    "G5_protocol_shape": {
+      "checkpoint_identical_across_arms": true,
+      "generated_frames": 55188,
+      "not_the_sealed_cell_u_checkpoint": "deliberate; see preregistration_deviation",
+      "seed": 42,
+      "sequences": 438,
+      "verdict": "PASS with a disclosed checkpoint substitution",
+      "windows": 3
+    },
+    "G6_audit_records_the_mask": {
+      "b0": [
+        "predicted",
+        0.95
+      ],
+      "corrected": [
+        "ground_truth",
+        0.95
+      ],
+      "note": "GuidanceAudit.as_dict() previously emitted neither key, so no sealed run could say which mask produced it. User-named requirement.",
+      "verdict": "PASS"
+    }
+  },
+  "git_commit": "ffd862398215addc451be1c4ed9d6fadbd12bfcc",
+  "headline": "On the current post-repair model, replacing the model predicted contact mask with a PERFECT ground-truth engagement mask changes contact_f1 by -0.000401 with 95% CI [-0.001426, +0.000617], a precise null. The engagement gap closes by -0.69%. The sealed cell-U finding of significant HARM was an artifact of its degenerate over-broad mask; the corrected reading is no effect, tightly bounded.",
+  "next_action": "Record cellu-null. The inference-time contact-mask direction is closed for practical purposes on the current model, by a tight null rather than by the voided harm finding, so no further inference-time mask work is warranted. W3 geometry-term training is no longer blocked by this dependency. The engagement gap remains attributable to something other than mask selection, which is now supported by a precise null instead of by a confounded harm.",
+  "non_claims": [
+    "Not a model score. Ground-truth contact does not exist at inference; both arms of this contrast are non-deployable probes and their 18 protocol metrics must never enter baseline.md, the evidence-index headline table, or any model comparison.",
+    "Does NOT re-establish the sealed cell-U number or restore comparability with it. Cell U lives entirely pre-repair and cannot be re-measured in its own configuration.",
+    "Does not reopen the P5/P6 predicted-mask sub-term sweep, verified unaffected: all 9 sibling arms use contact_mask_source=predicted and both read points sit inside the ground-truth gate.",
+    "Does not bound what a better TRAINED contact head would buy; it bounds only the inference-time mask selection at the shipped guidance dose (last 10 of 500 steps, clamp 1.0). P5 already showed that dose-response is flat.",
+    "Overwrites no sealed result. The voided cell-U values are preserved byte for byte and this outcome is an independent row.",
+    "Says nothing about P14 height contraction; the two are orthogonal."
+  ],
+  "preregistration": "docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md, section \"preregistration (2026-08-22): corrected cell U\"; registry row p1-hoi-p6-cellu-corrected-mask-preregister-s42-20260822",
+  "preregistration_deviation": {
+    "consequences": [
+      "The preregistered gate G2 (bitwise reproduction of the sealed 2026-08-04 B0 per_sequence hash) is unsatisfiable by construction and was replaced by the equivalent gate against the SEALED POST-REPAIR baseline, which passed bitwise.",
+      "The preregistered comparability with the sealed cell-U number is permanently unavailable: cell U lives entirely pre-repair. Only the practical question (does a perfect engagement mask help the CURRENT model) is answerable, and that is what is answered here.",
+      "The preregistered gate G5 clause \"same checkpoint as the sealed cell U\" is not met, deliberately, and is superseded by \"same checkpoint in both arms of this contrast\"."
+    ],
+    "gpu_cost_of_the_deviation": "two extra rollouts, ~3.1 min wall clock; the aborted pre-patch control failed before any GPU work (FileNotFoundError on a copied code tree) and consumed none. Total ~6.3 min against the 12 min ceiling.",
+    "rule_already_on_record": "docs/HOIPRIOR_EVIDENCE_INDEX.md:593 states the scope rule \"no cell crosses the 2026-08-19 representation repair\". The preregistration violated a rule that was already written down; that is a specification error, not a discovery.",
+    "what": "The preregistration pinned the sealed cell-U checkpoint (D2-AI, a190e56c...a224) for comparability with the sealed 2026-08-05 result. That configuration was executed FIRST and is not able to answer the question, so the measurement was repeated on the post-repair P12 checkpoint (722d83ee...3704) and only the P12 pair carries the verdict.",
+    "why": "The D2-AI checkpoint was trained BEFORE the 2026-08-19 representation repair. Under repaired code its own predicted-mask baseline collapses: contact_f1 0.675702 -> 0.097631 (0.14x), mpjpe 11.7699 -> 59.4331 cm (5.05x), feet_height 0.046125 -> 0.699227 (15.16x), while gt_contact_percent is unchanged at 0.661883 (ratio exactly 1.000), which places the change on the model side and not in the data path. A contrast measured in that regime cannot bound anything about guidance on a working model."
+  },
+  "primary": {
+    "b0": 0.694961458551978,
+    "ci95": [
+      -0.0014264991369390676,
+      0.0006173475183752433
+    ],
+    "corrected": 0.6945609350664287,
+    "delta": -0.0004005234855490835,
+    "protocol": "tools/paired_bootstrap.py defaults: 438 sequences paired BY NAME, 10000 replicates, seed 42, 2.5/97.5 percentiles, one shared resample index matrix",
+    "protocol_deviation": "the preregistration said 2000 replicates, copied in error from the P14 tracking probe. The tracked tool fixes 10000 by the 2026-08-09 P10 protocol, and the sealed cell-U interval was produced under that same protocol, so 10000 is used and the deviation is toward the established standard rather than away from it.",
+    "significant": false,
+    "statistic": "delta_contact_f1 = corrected cell U - B0, per sequence, paired bootstrap",
+    "verdict": "cellu-null"
+  },
+  "schema_version": 1,
+  "secondary_no_authority": {
+    "engagement_gap_closure": {
+      "authority": "point estimate only; contact_percent is aggregate-only and has no bootstrap CI",
+      "b0_contact_percent": 0.5205479452054794,
+      "corrected_contact_percent": 0.5195694716242661,
+      "denominator": 0.14133507284192226,
+      "formula": "(contact_percent(corrected) - contact_percent(B0)) / (gt_contact_percent - contact_percent(B0))",
+      "fraction_closed": -0.006923076923076721,
+      "gt_contact_percent": 0.6618830180474017
+    }
+  },
+  "seed": 42,
+  "subphase": "1B-P6",
+  "type": "inference-only ground-truth-contact-mask upper-bound probe, re-measured on a corrected mask; no training, no checkpoint change, no evaluator metric change",
+  "what_this_establishes": [
+    "A PERFECT inference-time contact engagement mask buys nothing measurable on the current model: delta_contact_f1 -0.000401 [-0.001426, +0.000617], engagement gap closure -0.69%.",
+    "The sealed cell-U verdict of significant HARM does not survive the mask repair. Its sign was an artifact of an over-broad mask applying contact guidance on frames ground truth says are not in contact.",
+    "The practical content of the old abort is therefore restored on valid evidence but with the sign corrected from harm to a precise null, and it now applies to the post-repair model rather than to the pre-repair one it was measured on.",
+    "Four metrics move significantly and all four are trivial in size: end_obj_trans_err +0.0162 cm on a 2.761 cm baseline (0.6%, worse), mpjpe -0.0106 cm (better), trans_dist -0.0072 cm (better), human_pen_ratio -0.00079 (better). None is a contact metric."
+  ]
+}

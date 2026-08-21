@@ -1209,5 +1209,14 @@
   "governance_gap": "normalization_audit.inference_guidance records contact_mask_source and contact_mask_threshold as None, so a sealed run's audit does not say which mask it used",
   "correction_plan": ".claude/scratch/cellu_fix/ holds DISCLOSURE.md, CORRECTED_PREREG.md, cellu_fix.patch and GPU_ESTIMATE.md, pending the user's review before any re-measurement. Old results are not overwritten.",
   "discovered_by": "P14 gate G4 (docs/plan/PHASE_1B_HOI/08_ROLLOUT_DYNAMICS.md, revision 2)"
+ },
+ "cell_u_corrected_remeasurement_20260822": {
+  "classification": "cellu-null",
+  "corrected_result": "experiments/results/p1_hoi_p6_cellu_corrected_mask_s42_20260822.json",
+  "corrected_run_id": "p1-hoi-p6-cellu-corrected-mask-s42-20260822",
+  "measured_on": "the POST-repair P12 checkpoint 722d83ee...3704, NOT this row checkpoint. The D2-AI checkpoint predates the 2026-08-19 representation repair and its own predicted-mask baseline collapses under repaired code (contact_f1 0.675702 -> 0.097631, mpjpe 11.7699 -> 59.4331 cm), so cell U cannot be re-measured in its own configuration and comparability with the numbers in this row is permanently unavailable.",
+  "outcome": "On the corrected sequence-length mask the effect is a precise null: delta_contact_f1 -0.000401, 95% CI [-0.001426, +0.000617], engagement gap closure -0.69%. The VOID finding of significant HARM was an artifact of the over-broad degenerate mask. The practical content of the abort survives, with the sign corrected from harm to null.",
+  "recorded": "2026-08-22",
+  "this_row_is_unchanged": true
  }
 }

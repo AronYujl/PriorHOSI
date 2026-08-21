@@ -706,6 +706,53 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       closing: the audit records `contact_mask_source` as `None`, so a sealed run does not say which
       mask it used. Recorded 2026-08-21.
 
+25. **A PERFECT inference-time contact engagement mask buys nothing on the current model, and the
+    voided cell-U "significant harm" was the degenerate mask's own signature.** Re-measured
+    2026-08-22 on the corrected sequence-length mask (`p1-hoi-p6-cellu-corrected-mask-s42-20260822`,
+    classification `cellu-null`,
+    `experiments/results/p1_hoi_p6_cellu_corrected_mask_s42_20260822.json`): replacing the author's
+    predicted-contact gate with ground-truth engagement changes `contact_f1` by **-0.000401, 95% CI
+    [-0.001426, +0.000617]** (438 sequences paired by name, 10,000 replicates, seed 42, one shared
+    resample-index matrix), and closes **-0.69%** of the engagement gap (denominator 0.14134). This
+    is a **tight** null, not an underpowered one: the effect is bounded to 0.0014 `contact_f1` units,
+    2.0x smaller than the voided point estimate -0.0028307 and 100x smaller than the 0.1413 absolute
+    engagement gap the probe exists to bound. `contact_precision` and `contact_recall` are null too.
+    - **The degeneracy signature, measured.** In the sealed mask the mean number of DISTINCT frames
+      per window was 1.703 at step 0, 1.078 at step 1 and exactly **1.000** at step 2 -- one repeated
+      row for every sequence -- and it claimed **5616** engaged frames at step 2 where the annotation
+      has **2797**, a 2.01x inflation. The corrected mask equals a direct per-window read on all
+      **1314** windows with zero mismatches.
+    - **So the abort's practical content is restored on valid evidence, with its sign corrected from
+      harm to null.** Inference-time mask selection is not the lever, which is consistent with P5's
+      flat dose-response. What is NOT re-established is the sealed number itself.
+    - **The preregistration was mis-specified, and running it is what found that.** It pinned the
+      pre-repair D2-AI checkpoint for comparability with the sealed cell U. Under repaired code that
+      checkpoint's own predicted-mask baseline collapses: `contact_f1` 0.675702 -> **0.097631**,
+      `mpjpe` 11.7699 -> **59.4331** cm, `feet_height` 0.046125 -> **0.699227**, all 438 sequences
+      differing, while `gt_contact_percent` is unchanged at 0.661883 (ratio exactly 1.000), which
+      places the change on the model side and not in the data path. Conclusion 23's scope rule at
+      this file's line 593 -- "no cell crosses the 2026-08-19 representation repair" -- already
+      forbade that pairing. Recorded as a new stop, `cellu-checkpoint-representation-mismatch`, which
+      was not among the preregistered stops. **Cell U can therefore never be re-measured in its own
+      configuration**; only the practical question about the current model is answerable, and the
+      verdict above is that question's answer, taken on the post-repair P12 checkpoint with both arms
+      sharing it.
+    - **Gates.** All six pass. G2, the user-named scoping gate, passes **bitwise** against the sealed
+      post-repair baseline `p1-hoi-p12-guidance-armb-s42-20260820`
+      (`d55f6b74bc02e7d798350e3b3a3b6d821cda13b0ad7292a2ffa6c49ce49b582d`), so the repaired source
+      provably cannot reach the deployable predicted-mask path. G1 reproduces 13902/21024 =
+      0.661244292237443. G6 is the closed governance gap: `GuidanceAudit.as_dict()` emitted neither
+      `contact_mask_source` nor `contact_mask_threshold` -- it did not emit them as `None`, as the
+      2026-08-21 note said -- and now emits both, with an unbound audit reporting null rather than the
+      `predicted` default.
+    - Four metrics move significantly and every one is trivial: `end_obj_trans_err` +0.0162 cm on a
+      2.761 cm baseline (0.6%, worse), `mpjpe` -0.0106 cm, `trans_dist` -0.0072 cm and
+      `human_pen_ratio` -0.00079 (all better). None is a contact metric.
+    - **W3's dependency is released**: the geometry-term training run was held only on this bound.
+      Both arms remain NON-DEPLOYABLE probes whose 18 protocol metrics must never enter
+      `baseline.md`, this index's headline table, or any model comparison. 4 rollouts including the
+      2 aborted ones, 6.3 min against a 12 min ceiling. Recorded 2026-08-22.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”

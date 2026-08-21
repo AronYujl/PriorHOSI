@@ -946,3 +946,24 @@ G6 的治理缺口需精确表述：`GuidanceAudit.as_dict()` **根本不发出*
 2 个 rollout，GPU 0、1（4–7 被 HSIPrior 训练占用）；封存 cell-U run 实测
 `end_to_end_seconds` 188.76，故并行约 **3.2 min**，预算上限 **≤12 min、最多 2 GPU**。
 CPU 侧配对 bootstrap 秒级。无训练、不产出 checkpoint。
+
+
+### 结果（2026-08-22）：`cellu-null`，且预注册的 checkpoint 选择本身是错的
+
+判定 **`cellu-null`**：Δ`contact_f1` = −0.000401，95% CI [−0.001426, +0.000617]，
+参与度缺口关闭 −0.69%。紧凑结果
+`experiments/results/p1_hoi_p6_cellu_corrected_mask_s42_20260822.json`，
+phase summary 追记见 `docs/phase_summaries/PHASE_1B_P6_GUIDANCE_SUBTERM.md`，
+证据索引结论 25。六个闸门全过，G2 逐位。
+
+**两处偏离预注册，均已在紧凑结果里逐条记录：**
+
+1. **checkpoint**。上文钉的 D2-AI checkpoint 在修复后的代码下崩溃
+   （`contact_f1` 0.675702 → 0.097631、`mpjpe` 11.7699 → 59.4331 cm、438 条全不同，
+   而 `gt_contact_percent` 比值恰为 1.000），因此该配置无法回答问题。改用修复后的 P12
+   checkpoint，两臂同用。新增停机分类 `cellu-checkpoint-representation-mismatch`（未在上文枚举）。
+   **上文 G2 与 G5 中「与封存 cell U 同 checkpoint」的要求作废**：G2 换成对封存的**修复后**
+   基线逐位比对（通过），G5 改为「两臂同 checkpoint」。
+2. **bootstrap 复制次数**。上文写 2000，是从 P14 的跟踪探针误抄。`tools/paired_bootstrap.py`
+   按 2026-08-09 P10 协议固定 **10 000**，封存 cell-U 区间也是在该协议下产生的，
+   故采用 10 000——偏离方向是回到既定标准，而不是离开它。
