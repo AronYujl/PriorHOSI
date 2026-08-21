@@ -1188,5 +1188,26 @@
    "evidence": "only the consistency term detaches the object (guidance_loss.py:42-47 detaches pred_seq_com_pos and pred_obj_rot_mat); the contact hinge at guidance_loss.py:38 consumes NON-detached obj_verts. Measured on a synthetic batch: object translation gradient L2 2.677682, rotation L2 5.252323.",
    "consequence": "guidance already moves the object, but toward the HAND rather than the task goal. This explains why end_obj_trans_err WORSENS under stronger contact guidance (3.83750 unguided -> 3.89649 B0 -> 3.91086 B2) while the full trajectory obj_trans_dist IMPROVES (14.81981 -> 14.81725 -> 14.80752)."
   }
- ]
+ ],
+ "cell_u_outcome_defect_disclosure_20260821": {
+  "recorded": "2026-08-21",
+  "verdict": "the three cell_u_outcome claims are VOID; their values above are preserved unchanged",
+  "defect": "gt_contact_label_batch holds ONE 16-frame window (code/datasets/infbagel.py:626-629), but _gt_contact_window (code/test_infbagel_hoi.py:371-393) indexes it as a whole sequence at stride 14. At step 2, start=28 exceeds the 16 available frames and the short-sequence branch returns window 0's LAST frame repeated 16 times. cell U consumes the full 16-frame mask, so its window 2 was 2/16 frames correct and its window 3 was 0/16.",
+  "magnitude": {
+   "sealed_engagement_fraction": 0.7891457382039574,
+   "correct_engagement_fraction": 0.661244292237443,
+   "sealed_counts": "16591/21024",
+   "correct_counts": "13902/21024",
+   "relative_inflation": 0.1935,
+   "note": "this is the very quantity the probe exists to bound"
+  },
+  "cross_check": "482 annotation files give full-frame engagement 52470/83559 = 0.62794, matching the code/priors/hoi/diffusion.py docstring; the corrected computation agrees exactly with per-window self-read across all 1314 windows",
+  "why_void_rather_than_merely_weakened": "the degenerate mask is OVER-BROAD, and an over-broad contact mask applies contact guidance on frames ground truth says are not in contact, which is a sufficient mechanism for damaging precision. The sealed finding was that the GT mask made contact_f1 significantly WORSE. Had the finding been that the mask helped, over-broadness would only have understated the help and the finding would survive a fortiori. Because the finding is 'it hurt', and over-broadness is a mechanism that hurts, the two are confounded and cannot be separated. The probe never implemented a perfect engagement decision on 2 of its 3 windows, so it never measured what it claims to bound.",
+  "what_this_reopens": "the inference-time contact-mask direction is NOT closed on this evidence, and the attribution of the residual ~82.66% engagement gap to a TRAINING-side geometry property is unsupported",
+  "unaffected_verified_not_asserted": "the predicted-mask P5/P6 sub-term sweep is unaffected: all 9 sibling arms use contact_mask_source=predicted, and both gt_contact_label_batch read points sit inside the _hoi_guidance_uses_ground_truth gate at code/test_infbagel_hoi.py:395",
+  "still_correct": "deployable: false is unaffected and remains correct",
+  "governance_gap": "normalization_audit.inference_guidance records contact_mask_source and contact_mask_threshold as None, so a sealed run's audit does not say which mask it used",
+  "correction_plan": ".claude/scratch/cellu_fix/ holds DISCLOSURE.md, CORRECTED_PREREG.md, cellu_fix.patch and GPU_ESTIMATE.md, pending the user's review before any re-measurement. Old results are not overwritten.",
+  "discovered_by": "P14 gate G4 (docs/plan/PHASE_1B_HOI/08_ROLLOUT_DYNAMICS.md, revision 2)"
+ }
 }

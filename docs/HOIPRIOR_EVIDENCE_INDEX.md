@@ -660,6 +660,37 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       `baseline.md`, this index's headline table, or any model comparison: windows 2 and 3 are
       anchored at the ground-truth location by construction. Recorded 2026-08-21.
 
+24. **The P6 cell-U ground-truth-contact-mask upper bound is VOID: its mask was degenerate in 2 of
+    its 3 windows, so the inference-time mask direction is NOT closed on that evidence.**
+    `gt_contact_label_batch` holds ONE 16-frame window (`code/datasets/infbagel.py:626-629`), while
+    `_gt_contact_window` (`code/test_infbagel_hoi.py:371-393`) indexes it as a whole sequence at
+    stride 14; at step 2 `start=28` exceeds the 16 available frames and the short-sequence branch
+    returns window 0's LAST frame repeated 16 times. cell U consumes the full 16-frame mask, so its
+    window 2 was 2/16 frames correct and its window 3 was 0/16. The sealed bound rests on an
+    engagement fraction of **0.7891457382039574** (16591/21024) where the correct figure is
+    **0.6612442922374430** (13902/21024) -- a **+19.35% relative inflation of the very quantity the
+    probe exists to bound**. Cross-checked against 482 annotation files (52470/83559 = 0.62794,
+    matching the `code/priors/hoi/diffusion.py` docstring) and against per-window self-read across
+    all 1314 windows.
+    - **Void, not merely weakened.** The degenerate mask is OVER-BROAD, and an over-broad contact
+      mask applies contact guidance on frames ground truth says are not in contact -- a sufficient
+      mechanism for damaging precision. cell U's sealed finding was that the GT mask made
+      `contact_f1` significantly WORSE (-0.0028307, engagement -0.19% of the gap). Had it found the
+      mask helped, over-broadness would only understate the help and the finding would survive a
+      fortiori; because it found harm, and over-broadness causes harm, the two are confounded. The
+      probe never implemented a perfect engagement decision on 2 of its 3 windows.
+    - **What reopens**: the inference-time contact-mask direction, and the attribution of the
+      residual ~82.66% engagement gap to a TRAINING-side geometry property. Both need re-measuring.
+    - **Unaffected, verified not asserted**: the predicted-mask P5/P6 sub-term sweep. All 9 sibling
+      arms use `contact_mask_source=predicted`, and both `gt_contact_label_batch` read points sit
+      inside the `_hoi_guidance_uses_ground_truth` gate (`code/test_infbagel_hoi.py:395`).
+      `deployable: false` remains correct.
+    - Sealed values are preserved unchanged; the disclosure is appended as a sibling key in both the
+      compact result and registry row 264. Found by P14's gate G4. P14's teacher-forcing path uses a
+      separate per-window accumulator and does not touch the cell-U path. A governance gap worth
+      closing: the audit records `contact_mask_source` as `None`, so a sealed run does not say which
+      mask it used. Recorded 2026-08-21.
+
 ## 4. Open research question for the next review
 
 The preregistered next entry returns to P10's “objective has attractors but no repulsor”
