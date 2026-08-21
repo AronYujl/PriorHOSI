@@ -848,3 +848,101 @@ P14 的教师强制通路改用独立的逐窗口累加器 `contact_all_gt` **�
 
 更正方案（预注册、patch、GPU 估计、拟 run id）在 `.claude/scratch/cellu_fix/`，
 **待用户审查后才重测，旧结果不覆盖**。
+
+
+---
+
+## 预注册（2026-08-22）：corrected cell U——在修正掩码上重测 GT 接触参与度上界
+
+追加节，不改上文，**不覆盖任何封存结果**。用户批准 2026-08-22：
+「同意按独立修正流程重跑 P6 cell-U：保留旧结果并标记 VOID，使用新 run id，
+确认正常 predicted-mask 路径不变，并在结果中记录接触掩码来源。修正版完成前不启动 W3。」
+
+run id：`p1-hoi-p6-cellu-corrected-mask-s42-20260822` · 子阶段 `1B-P6`（延续，不新开）
+seed 42 · 类型：**推理期探针，不可部署，不是模型成绩**
+
+### 复用的封存出处（逐一核对过）
+
+| 项 | 值 |
+|---|---|
+| checkpoint | `p1-hoi-d2ai-full-budget-s42-20260803_windows299520000.pth` |
+| checkpoint sha256 | `a190e56c249161c0b52f0aebb097d0d5b95cb0c3810abb664000fc3c2fdda224`（本机实测一致） |
+| weight variant | `online` |
+| 引导配置（两臂共用） | `arm=b`、`guidance_scale=1000.0`、`last_steps=10`、`clamp=1.0`、`clamp_target=update`、`contact_mask_threshold=0.95` |
+| B0 封存 run dir | `p1-hoi-d2ai-guidance-armb-s42-20260804` |
+| B0 封存 `per_sequence_metrics.json` sha256 | `ca999d2d0196684adb6603aad89ac08dfd44058936d8daf61b829154aab1b2cf` |
+| B0 封存 `contact_f1` / `contact_percent` | `0.6757017455384731` / `0.5089874610422556` |
+| 封存（退化）cell U 的 Δcontact_f1 | **−0.0028307，CI [−0.0066513, −0.0000785]**，显著更差 |
+
+### 修正后的掩码是什么
+
+`code/datasets/infbagel.py` 新增 `sequence_contact_label(idx)`，返回**整条序列**的接触轨道；
+`code/test_infbagel_hoi.py:771` 的来源从 `data_dict['contact_label']`（**一个 16 帧窗口**）
+换成该轨道。**`_gt_contact_window` 不动**——它的 stride-14 算术在整序列输入下已实测正确
+（438 序列 × 2 次步进，raw 索引差恒为 42 = 14×3）。新来源只在
+`_hoi_guidance_uses_ground_truth(cfg)` 为真时被填充，因此 predicted 路径连列表都不再构造。
+
+**与 P14 已落地的 `contact_all_gt` 的关系**：方向相反，互不读取。`contact_all_gt`（`c4c934f`）
+是教师强制**绕过**该来源、只取每个窗口自己的前 2 帧；本次**修复**该来源，供 GT-mask 引导
+消费完整 16 帧。闸门 G4 验证互不影响。
+
+### PRIMARY（先于结果固定）
+
+**Δcontact_f1 = corrected cell U − B0**，438 序列配对 bootstrap，2000 次复制，seed 42，
+共享重抽样索引矩阵，2.5/97.5 百分位线性插值。
+
+| 判定 | 条件 | 含义 |
+|---|---|---|
+| **`cellu-helps`** | Δcontact_f1 **> 0** 且 CI 不含 0 | 完美参与度判断**有帮助**；推理期掩码方向**未关闭**，旧 abort 被推翻 |
+| **`cellu-hurts-confirmed`** | Δcontact_f1 **< 0** 且 CI 不含 0 | 即使掩码正确也变差；旧 abort **在有效证据上重新成立** |
+| **`cellu-null`** | CI **含** 0 | 无可检出效应；方向**既未开也未关**，且「剩余 ~82.66% 属训练侧」的归因**保持无支撑** |
+
+**为什么 PRIMARY 用 `contact_f1` 而不用 `contact_percent`。** 后者是四个**只有聚合值、
+没有逐序列值**的指标之一（另三个是 `contact_acc`、`gt_contact_percent`、`feet_height`），
+**因此没有 bootstrap CI**，不能承担带显著性的裁决。旧记录的「−0.19% of the gap closed」
+正是一个无 CI 的点估计，这一点当时没有写明。
+
+### SECONDARY（点估计，无 CI，无裁决权）
+
+参与度缺口关闭比例 = (contact_percent(corrected) − 0.5089874610422556) / (0.66188 − 0.5089874610422556)，
+分母 **0.15289**。封存退化值为 −0.19%。报出即可，不作判定。
+
+### 闸门
+
+| 闸门 | 要求 | 失败后果 |
+|---|---|---|
+| **G1** | corrected cell U 的掩码参与度分数复现 **0.6612442922374430**（13902/21024），容差 1e-12 | 掩码没修好，停 |
+| **G2**（scoping，**用户点名要求**） | **B0 重跑逐位复现 `ca999d2d…b2cf`**。补丁改的来源只在 GT 闸内被读，故 predicted 路径必须逐位不变 | 补丁泄漏到 predicted 路径 → corrected 读数作废，且 P5/P6 主扫描也要重新审 |
+| **G3** | corrected 掩码在**每个** rollout step 上的相异帧数 > 1，且 step 2 的前两帧不等于窗口 0 末帧 | 退化未消除，停 |
+| **G4** | 掩码来源与 P14 的 `contact_all_gt` 互不读取（源码扫描 + 测试） | 两个修复互相污染，停 |
+| **G5** | 438 序列、3 窗口、`is_timing_subset=false`，与封存 cell U 同 checkpoint 同 seed | 不可比，停 |
+| **G6**（**硬性**，用户点名要求「在结果中记录接触掩码来源」） | 两个 run 的 `normalization_audit.inference_guidance` 都必须报出 `guidance_contact_mask_source`（corrected = `ground_truth`，B0 = `predicted`）与 `guidance_contact_mask_threshold` | 无法从工件判断用了哪种掩码——**停**，不再按「可放行」处理 |
+
+G6 的治理缺口需精确表述：`GuidanceAudit.as_dict()` **根本不发出**这两个键（不是发出 `None`），
+所以 2026-08-22 之前的任何封存 run 都无法自证掩码来源。本次实现补上了这两个键，
+并对「未绑定 settings 时报 `None` 而不是默认值 `predicted`」加了测试——
+「字段缺失」与「字段是 predicted」不能对读者长成一个样。
+
+### 事前预测
+
+**预测 `cellu-null`，或一个小幅 `cellu-helps`。** 退化掩码过宽、会在真值无接触的帧上施加接触
+引导，那是损害 precision 的机制；去掉过宽应当至少让「显著更差」消失。是否转正取决于模型的
+接触头能否被掩码撬动，而 P5 的剂量-响应扫描是平的，说明杠杆有限。**因此不预测大幅改善。**
+若结果是 `cellu-hurts-confirmed`，则旧 abort 在有效证据上恢复，是一个比原来更强的结论。
+
+### 本节不建立什么
+
+1. **不是模型成绩。** GT 接触在推理时不存在；corrected cell U 与旧 cell U 同为不可部署探针，
+   其 18 项指标不得进入 `baseline.md`、证据索引头表或任何模型对比表。
+2. **不重开 P5/P6 的 predicted-mask 扫描**——已验证不受该缺陷影响。
+3. **不改 `_gt_contact_window`**、不改 438 分母、不改 `code/priors/core/`、不改 `recipe/d2ai.yaml`。
+4. **不覆盖任何封存结果**；旧 cell-U 值逐字节保留，本次结果作为独立行封存。
+5. 即便判 `cellu-helps`，也**不**意味着存在可部署方案——它只界定「若参与度判断完美」的上界。
+6. 对 P14 的身高收缩结论零信息，两者正交。
+
+### 依赖与成本
+
+**W3 几何项训练在本次重测完成前不启动**（用户裁决 2026-08-21，2026-08-22 重申）。
+2 个 rollout，GPU 0、1（4–7 被 HSIPrior 训练占用）；封存 cell-U run 实测
+`end_to_end_seconds` 188.76，故并行约 **3.2 min**，预算上限 **≤12 min、最多 2 GPU**。
+CPU 侧配对 bootstrap 秒级。无训练、不产出 checkpoint。
