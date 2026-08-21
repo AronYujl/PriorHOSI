@@ -10,6 +10,7 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 import datetime
 import json
+import math
 import random
 import time
 from pathlib import Path
@@ -67,6 +68,7 @@ RESUME_GEOMETRY_FIELDS = (
     'steps_per_epoch',
     'warmup_updates',
     'lr',
+    'grad_clip_max_norm',
     'seed',
     'sample_type',
     'precision',
@@ -133,6 +135,48 @@ def build_lr_scheduler(optimizer, base_lr, warmup_updates, completed_updates):
         lr_lambda=lambda update: 1.0 if warmup_updates == 0 else min((update + 1) / warmup_updates, 1.0),
         last_epoch=int(completed_updates) - 1,
     )
+
+
+# Per-update diagnostics for the unfrozen cfg_scale_embedding.  Ordered, and the
+# order is the on-disk field order, because the flush stacks one tensor per field
+# per update into a single device-to-host copy.
+CFG_DIAGNOSTIC_FIELDS = (
+    'grad_norm_preclip',
+    'grad_norm_trunk',
+    'grad_norm_cfg',
+    'clip_coefficient',
+    'loss',
+    'cfg_weight_rms',
+    'cfg_bias_rms',
+    'cfg_param_norm',
+    'cfg_param_delta_rel',
+    'cfg_student_target_dist',
+    'cfg_student_target_rel',
+)
+
+
+def flush_cfg_diagnostics(buffer, path, rank):
+    """One device-to-host copy for the whole buffer, same contract as
+    `flush_grad_norms`: nothing in the update loop may call `.item()`.
+
+    `grad_norm_*` and `clip_coefficient` are measured BEFORE `optimizer.step()`;
+    every `cfg_*` parameter statistic is measured AFTER it.  A non-finite
+    gradient anywhere makes `grad_norm_preclip` non-finite, so that field is
+    itself the non-finite detector and no extra pass over the gradients is
+    needed.
+    """
+    width = len(CFG_DIAGNOSTIC_FIELDS)
+    values = torch.stack([value for entry in buffer for value in entry[2]]).double().cpu().tolist()
+    with open(path, 'a', encoding='utf-8') as handle:
+        for position, entry in enumerate(buffer):
+            record = {
+                'rank': rank,
+                'update': entry[0],
+                'lr': entry[1],
+            }
+            record.update(zip(CFG_DIAGNOSTIC_FIELDS, values[position * width:(position + 1) * width]))
+            handle.write(json.dumps(record) + '\n')
+    buffer.clear()
 
 
 def detach_to_cpu(value):
@@ -210,6 +254,10 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'steps_per_epoch': int(steps_per_epoch),
         'warmup_updates': int(warmup_updates),
         'lr': float(cfg.lr),
+        'grad_clip_max_norm': (
+            None if cfg.get('grad_clip_max_norm', None) is None
+            else float(cfg.get('grad_clip_max_norm'))
+        ),
         'seed': int(cfg.seed),
         'sample_type': str(cfg.sample_type),
         'precision': str(cfg.get('precision', 'fp32')),
@@ -336,10 +384,23 @@ def train_ddp(rank, world_size, cfg):
     #   consistency -> consistency-model distillation via trainer.consistency_loss
     is_consistency = cfg.sample_type == 'consistency'
 
+    # Absent, this defaults to no clipping at all, which is what every run before it did.
+    grad_clip_max_norm = cfg.get('grad_clip_max_norm', None)
+    grad_clip_max_norm = None if grad_clip_max_norm is None else float(grad_clip_max_norm)
+    if grad_clip_max_norm is not None and not math.isfinite(grad_clip_max_norm):
+        raise ValueError(
+            'grad_clip_max_norm must be finite; an infinite max_norm turns every gradient '
+            'into NaN (see the clipping comment in the update loop)'
+        )
+
     if is_consistency:
         teacher_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
+        # NOT .eval().  init_model leaves teacher and target in train() mode, and that
+        # dropout is load-bearing: with update_ema(rate=0.95) the target is nearly the
+        # student itself, so the consistency condition is near-degenerate and the noise
+        # is what breaks the degeneracy.  Calling .eval() here collapsed the student
+        # inside 656 updates -- measured, see the ablation in the commit message.
         teacher_model.requires_grad_(False)
-        teacher_model.eval()
 
         student_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         student_model.requires_grad_(False)
@@ -352,7 +413,6 @@ def train_ddp(rank, world_size, cfg):
 
         target_model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         target_model.requires_grad_(False)
-        target_model.eval()
 
         model = student_model
         optimizer = Adam(student_model.parameters(), lr=cfg.lr)
@@ -385,6 +445,25 @@ def train_ddp(rank, world_size, cfg):
         grad_norm_dir = os.path.join(cfg.exp_dir, 'grad_norms')
         os.makedirs(grad_norm_dir, exist_ok=True)
         grad_norm_path = os.path.join(grad_norm_dir, f'grad_norms_rank{rank}.jsonl')
+
+    log_cfg_diagnostics = is_consistency and bool(cfg.get('log_cfg_embedding_diagnostics', False))
+    cfg_diagnostic_buffer = []
+    if log_cfg_diagnostics:
+        cfg_diagnostic_dir = os.path.join(cfg.exp_dir, 'cfg_diagnostics')
+        os.makedirs(cfg_diagnostic_dir, exist_ok=True)
+        cfg_diagnostic_path = os.path.join(cfg_diagnostic_dir, f'cfg_diagnostics_rank{rank}.jsonl')
+        # Plain lists for the gradient-norm decomposition only.  The optimizer has a
+        # single parameter group; these never touch it.
+        cfg_embedding_parameters = list(student_model.module.cfg_scale_embedding.parameters())
+        cfg_embedding_parameter_ids = {id(parameter) for parameter in cfg_embedding_parameters}
+        trunk_parameters = [
+            parameter for parameter in student_model.parameters()
+            if id(parameter) not in cfg_embedding_parameter_ids
+        ]
+        cfg_embedding_named = dict(student_model.module.cfg_scale_embedding.named_parameters())
+        cfg_weight_parameter = cfg_embedding_named['proj.weight']
+        cfg_bias_parameter = cfg_embedding_named['proj.bias']
+        target_cfg_embedding_parameters = list(target_model.module.cfg_scale_embedding.parameters())
 
     # bf16 has fp32-like exponent range and does not use GradScaler.  Keeping
     # this explicitly None also preserves the resume contract: a checkpoint
@@ -538,7 +617,7 @@ def train_ddp(rank, world_size, cfg):
             (loss / int(cfg.gradient_accumulation_steps)).backward()
 
             if is_accumulation_boundary:
-                if log_grad_norm:
+                if log_grad_norm or grad_clip_max_norm is not None or log_cfg_diagnostics:
                     # Do not use clip_grad_norm_ with max_norm=inf.  Torch 1.13.1
                     # computes max_norm / (total_norm + 1e-6), clamps that value
                     # to at most 1.0, and multiplies every gradient in place.  A
@@ -565,12 +644,87 @@ def train_ddp(rank, world_size, cfg):
                     # which would wait for backward before the CPU could launch
                     # the optimizer step, next H2D copy, and next forward pass,
                     # removing overlap that the C-budget timing depends on.
+                if log_cfg_diagnostics:
+                    # PRE-clip, and it has to stay above the clip block: the clip
+                    # multiplies every gradient in place, so computing these after it
+                    # would silently report coefficient-scaled norms under a name that
+                    # says otherwise.  Same inlining rule as the total-norm
+                    # comprehension above -- no local name may keep the gradient set
+                    # alive past zero_grad(set_to_none=True).
+                    trunk_grad_norm = torch.norm(torch.stack([
+                        torch.norm(parameter.grad.detach(), 2.0)
+                        for parameter in trunk_parameters
+                        if parameter.grad is not None
+                    ]), 2.0)
+                    cfg_grad_norm = torch.norm(torch.stack([
+                        torch.norm(parameter.grad.detach(), 2.0)
+                        for parameter in cfg_embedding_parameters
+                        if parameter.grad is not None
+                    ]), 2.0)
+                clip_coefficient = None
+                if grad_clip_max_norm is not None:
+                    # Reproduces clip_grad_norm_ exactly -- max_norm /
+                    # (total_norm + 1e-6), clamped to at most 1.0, multiplied in
+                    # place -- but reuses the norm computed just above, so the
+                    # coefficient recorded is the one that acted and there is no
+                    # second norm pass.  The scalar stays on the device for the
+                    # same reason total_norm does.
+                    clip_coefficient = torch.clamp(grad_clip_max_norm / (total_norm + 1e-6), max=1.0)
+                    for parameter in model.parameters():
+                        if parameter.grad is not None:
+                            parameter.grad.detach().mul_(clip_coefficient)
+                if log_grad_norm:
+                    # The recorded norm is the PRE-clip one: it is the quantity
+                    # whose distribution decides whether a clip threshold is a
+                    # no-op or is load-bearing, and it stays comparable with runs
+                    # that had no clipping at all.
                     grad_norm_buffer.append((
                         optimizer_updates + 1, time.time(), time.perf_counter(), total_norm
                     ))
                     if len(grad_norm_buffer) == 128:
                         flush_grad_norms(grad_norm_buffer, grad_norm_path, rank)
+                if log_cfg_diagnostics:
+                    cfg_parameters_before_step = [
+                        parameter.detach().clone() for parameter in cfg_embedding_parameters
+                    ]
                 optimizer.step()
+                if log_cfg_diagnostics:
+                    cfg_parameter_norm = torch.norm(torch.stack([
+                        torch.norm(parameter.detach(), 2.0) for parameter in cfg_embedding_parameters
+                    ]), 2.0)
+                    cfg_parameter_delta = torch.norm(torch.stack([
+                        torch.norm(parameter.detach() - previous, 2.0)
+                        for parameter, previous in zip(cfg_embedding_parameters, cfg_parameters_before_step)
+                    ]), 2.0)
+                    del cfg_parameters_before_step
+                    # The EMA target trails the student by update_ema(rate=0.95);
+                    # this distance is how far the regression target is from the
+                    # weights currently producing it, for this module alone.
+                    cfg_student_target_distance = torch.norm(torch.stack([
+                        torch.norm(student_parameter.detach() - target_parameter.detach(), 2.0)
+                        for student_parameter, target_parameter
+                        in zip(cfg_embedding_parameters, target_cfg_embedding_parameters)
+                    ]), 2.0)
+                    cfg_diagnostic_buffer.append((
+                        optimizer_updates + 1,
+                        float(optimizer.param_groups[0]['lr']),
+                        [
+                            total_norm.float(),
+                            trunk_grad_norm.float(),
+                            cfg_grad_norm.float(),
+                            (torch.ones_like(total_norm) if clip_coefficient is None
+                             else clip_coefficient).float(),
+                            loss.detach().float(),
+                            cfg_weight_parameter.detach().pow(2).mean().sqrt().float(),
+                            cfg_bias_parameter.detach().pow(2).mean().sqrt().float(),
+                            cfg_parameter_norm.float(),
+                            (cfg_parameter_delta / (cfg_parameter_norm + 1e-12)).float(),
+                            cfg_student_target_distance.float(),
+                            (cfg_student_target_distance / (cfg_parameter_norm + 1e-12)).float(),
+                        ],
+                    ))
+                    if len(cfg_diagnostic_buffer) == 128:
+                        flush_cfg_diagnostics(cfg_diagnostic_buffer, cfg_diagnostic_path, rank)
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_updates += 1
                 lr_scheduler.step()
@@ -628,6 +782,8 @@ def train_ddp(rank, world_size, cfg):
     # training peak-memory measurement.
     if grad_norm_buffer:
         flush_grad_norms(grad_norm_buffer, grad_norm_path, rank)
+    if cfg_diagnostic_buffer:
+        flush_cfg_diagnostics(cfg_diagnostic_buffer, cfg_diagnostic_path, rank)
 
     if rank == 0 and cfg.benchmark_metrics_path is not None:
         metrics_path = Path(str(cfg.benchmark_metrics_path))

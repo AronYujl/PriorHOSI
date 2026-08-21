@@ -15,29 +15,49 @@ defaults:
       - pelvis
   - _self_
 
-# _v3: results/hsi_c_lingo_cm_v2/ backs registered row
-# p1-hsi-c-lingo-cm-v2-s42-20260819 and its epoch089 checkpoint backs the
-# registered baseline p1-hsi-c-v2-eval-epoch089-guided-progressfix-s42-20260821,
-# so neither may be overwritten. (v1 likewise backs p1-hsi-c-lingo-cm-s42-20260816.)
+# _v4: three earlier directories are protected. results/hsi_c_lingo_cm_v2/ backs
+# registered row p1-hsi-c-lingo-cm-v2-s42-20260819 and its epoch089 checkpoint backs
+# the registered baseline p1-hsi-c-v2-eval-epoch089-guided-progressfix-s42-20260821;
+# results/hsi_c_lingo_cm/ backs p1-hsi-c-lingo-cm-s42-20260816; results/hsi_c_lingo_cm_v3/
+# backs the aborted manifest p1-hsi-c-lingo-cm-v3-s42-20260821. None may be overwritten.
 #
-# v3 re-distills because `cfg_scale_embedding` was never trainable anywhere in the
-# B->C lineage, so C has no continuous-w capability -- only the w=-1 sentinel works
-# and `w: 1` below is decorative. Measured from B's checkpoint bytes: after 222
-# epochs the weight RMS is 1.002e-04, exactly its nn.init.normal_(std=1e-4), and the
-# bias L2 is exactly 0.0. Three coupled fixes, none sufficient alone:
-#   train_infbagel.py  -- unfreeze student_model.module.cfg_scale_embedding; it is a
-#                         SIBLING of the four unfrozen blocks, so requires_grad_(False)
-#                         over the whole model was never revoked for it.
-#   models/infbagel.py -- pass cfg_scale=w to the target; without it the regression
-#                         target is w-invariant and pushes the newly trainable
-#                         embedding back to zero. It also moves the target off the
-#                         `else:` branch's random 10% scene ablation onto the same
-#                         per-row cfg_scale == -1 mask the student uses.
-#   train_infbagel.py  -- teacher and target .eval(); init_model ends in .train(), so
-#                         the distillation target carried live dropout.
-# Preflight: .claude/scratch/cv3_smoke_20260821/smoke_report.txt (A/B/C/D all PASS,
-# with pre-fix controls of grad=None and a bitwise-zero w response).
-exp_name: hsi_c_lingo_cm_v3
+# C is re-distilled because `cfg_scale_embedding` was never trainable anywhere in the
+# B->C lineage, so C has no continuous-w capability. Measured from B's checkpoint
+# bytes: after 222 epochs the weight RMS is 1.002e-04, exactly its
+# nn.init.normal_(std=1e-4), and the bias L2 is exactly 0.0. Training draws w per row
+# in sample_cfg_scale_mixed -- 10 pct at exactly -1.0, 90 pct uniform on [0, w_max=2.0)
+# -- so only the w=-1 sentinel path ever worked and the distilled range is [0, 2].
+#
+# v3 shipped three coupled changes and collapsed by update 656. Two 1312-update
+# single-revert arms attributed the collapse to the third one alone:
+#   KEPT       train_infbagel.py  -- unfreeze student_model.module.cfg_scale_embedding.
+#              It is a SIBLING of the four unfrozen blocks, so requires_grad_(False)
+#              over the whole model was never revoked for it.
+#   KEPT       models/infbagel.py -- pass cfg_scale=w to the target. Without it the
+#              regression target is w-invariant and drives the newly trainable
+#              embedding back to zero; it also moves the target off the `else:`
+#              branch's random 10 pct scene ablation onto the same per-row
+#              cfg_scale == -1 mask the student uses. Reverting only this still
+#              collapsed: 0.434 vs-GT error at update 1312 against v2's 0.058.
+#   RETRACTED  train_infbagel.py  -- teacher and target .eval(). This was the entire
+#              collapse. update_ema(rate=0.95) has a ~13.5-update half-life, so the
+#              target is nearly the student itself, the consistency condition is
+#              near-degenerate, and the target's dropout is what breaks the
+#              degeneracy. There is no BatchNorm anywhere in code/models/, so .eval()
+#              changed nothing else. Reverting only this recovered fully, with fixes 1
+#              and 2 still active: loss within 1 pct of v2 at every block and fidelity
+#              0.7 pct better than v2 at update 656.
+#
+# One Adam parameter group at lr 2e-4 with the original warmup: the cfg-embedding
+# learning rate is exonerated. A 200x sweep {1e-6, 4e-6, 1e-5} against the 2e-4 arm
+# agreed within 0.4 pct on vs-GT error at update 656 and all four sat at 2.86x v2, so
+# the lr was never the variable; and the revert-fix-3 arm ran the embedding at the
+# full 2e-4, reached 16.1x its init RMS, and kept a flat loss.
+#
+# Preflight: .claude/scratch/cv3_smoke_20260821/smoke_report.txt (A/B/C/D all PASS).
+# Attribution and the 3000-update v4 precheck: docs/plan/PHASE_1C_HSI.md, 2026-08-21
+# section.
+exp_name: hsi_c_lingo_cm_v4
 seed: 42
 random_seed: 42
 sample_type: consistency
@@ -56,6 +76,19 @@ gradient_accumulation_steps: 1
 precision: bf16_tf32
 lr: 0.0002
 warmup_updates: 2000
+# Insurance, not a tuned threshold, and measured inert on both trajectories: v2's
+# pre-clip global norm never exceeded 0.89946 across all 234,712 records of its full
+# run, and the v4 precheck peaked at 0.53411 with the clip engaging on 0 of 3000
+# updates. It exists to bound a divergence event that cannot be predicted, which is
+# how v3 burned 2688 updates. The logged norm stays PRE-clip so it remains comparable
+# with v2 and with every unclipped run before it.
+grad_clip_max_norm: 1.0
+# Per-update cfg_scale_embedding instrument: pre-clip trunk/cfg gradient split, clip
+# coefficient, weight/bias RMS, relative step size, and student-to-EMA-target
+# distance. Costs +3.4 pct per update (0.65570 vs 0.63072 s measured at u2751-3000),
+# i.e. 10.28 h -> 10.69 h, and it is the only channel that can see the two open risks
+# in this recipe: cfg RMS growth and drift away from the teacher.
+log_cfg_embedding_diagnostics: true
 device: cuda:0
 use_tensorboard: true
 save_checkpoints: true
