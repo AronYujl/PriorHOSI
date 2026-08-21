@@ -622,22 +622,34 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       a zero penetration ratio, so A7 was rekeyed onto the penetration loss terms and a zero ratio
       became a warning rather than a failure. Recorded in the plan section. Recorded 2026-08-21.
 
-23. **The per-window loss of subject height is INTRINSIC to how the model consumes an
-    absolute-height history, not exposure bias — so scheduled sampling and rollout fine-tuning are
-    predicted not to fix it.** The 3-window rollout's cross-sequence slope of model pelvis height on
+23. **Teacher forcing PARTIALLY restores height tracking -- about half of window 2's deficit and a
+    third of window 3's -- and the per-window contraction it leaves behind is the larger share and
+    the main problem.** The 3-window rollout's cross-sequence slope of model pelvis height on
     ground truth decays 1.025 (first generated frame) -> 0.899 (w1) -> 0.505 (w2) -> 0.186 (w3),
     faster than geometric. P14 replaced all five history channels for windows 2 and 3 with that
     window's world-frame ground truth, holding checkpoint, 438 sequences, seed, noise and guidance
     fixed (`p1-hoi-p14-teacher-forcing-s42-20260821`, classification `tf-partial`,
     `experiments/results/p1_hoi_p14_teacher_forcing_s42_20260821.json`). A complete ground-truth
-    history recovers only rho = 0.515 / 0.320 (cell G, windows 2 / 3) and 0.506 / 0.314 (cell N) of
-    the gap to the ground-truth-conditioned window w1, all four paired-bootstrap 95% CIs excluding
-    zero. Decisively, the secondary discriminator lambda -- where b_TF sits between the model's own
-    response-to-its-own-history slope and w1's slope -- is **0.018 to 0.045**, i.e. b_TF lands
-    essentially ON the own-history anchor (measured 0.7082 / 0.7077 against an anchor of 0.7041).
-    **The model's response slope to an in-distribution ground-truth history is indistinguishable
-    from its response slope to its own degraded output.** Teacher forcing removes the compounding and
-    leaves the per-window contraction untouched.
+    history recovers rho = 0.515 / 0.320 (cell G, windows 2 / 3) and 0.506 / 0.314 (cell N) of the
+    gap to the ground-truth-conditioned window w1 -- **+0.199 to +0.229 slope units, all four
+    paired-bootstrap 95% CIs excluding zero**. So compounding of a degraded history is a real,
+    measured contributor and rho is its size. The residual is the larger share: **0.485 of the
+    window-2 gap and 0.680 of the window-3 gap survive a perfect history.**
+    - **What the secondary discriminator adds.** lambda -- where b_TF sits between the model's own
+      response-to-its-own-history slope and w1's slope -- is **0.018 to 0.045**, i.e. b_TF lands
+      essentially ON the own-history anchor (0.7082 / 0.7077 against an anchor of 0.7041). The
+      model's response slope is nearly the same whether the history level is ground truth or its own
+      drifted output, so a clean history does not repair the per-window contraction. lambda **bounds
+      the exposure-bias mechanism's share; it does not establish that the mechanism is absent**, and
+      per the preregistration it cannot overturn the PRIMARY `tf-partial` classification.
+    - **The remedy reading is a bound, not an exclusion.** Scheduled sampling or rollout fine-tuning
+      may capture the rho fraction, but on this evidence their ceiling is the teacher-forced slope
+      itself -- b = 0.708 / 0.414 against b_ref = 0.899 -- so they cannot be the whole remedy and
+      must not be the only next training direction.
+    - **Two facts that need no E-versus-M partition.** Window 1 already contracts 1.025 -> 0.899
+      over its own 42 frames from a ground-truth start with nothing accumulated; and b_TF(w3) = 0.414
+      is far below b_TF(w2) = 0.708 although **both** windows consumed a complete ground-truth
+      history, so part of the depth dependence is not history quality at all.
     - **The authorized conclusion form is only** whether a COMPLETE ground-truth history restores
       height keeping. It does not. It may NOT be attributed to the root-y channel: all five channels
       were substituted, and the vertical-only arm that could have isolated it was withdrawn after a
@@ -645,8 +657,8 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       full magnitude. This does not reopen the D0 root-y repricing abort.
     - **Load-bearing for HOSI.** The LLM state machine chains many more than 3 windows over the same
       `[B,16,232]` contract, and tracking is already at b=0.19 by window 3 -- inside the released
-      protocol's own horizon. Because the defect is not history quality, a longer chain does not
-      improve by feeding cleaner conditioning.
+      protocol's own horizon. A complete ground-truth history raises that to 0.41, not to 0.90, so a
+      longer chain needs the contraction itself addressed, not just cleaner conditioning.
     - Ex-ante integrity: all four frozen point predictions hit (b_TF(w2) in [0.70,0.75], b_TF(w3) in
       [0.40,0.52]) and so did the verdict prediction. Revision 7 disclosed before the run that pure
       contraction predicts rho(w2)=0.497; measured 0.515.
@@ -658,7 +670,10 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       `object_goal_batch`, `pelvis_goal_batch` or `object_points_batch`.
     - The teacher-forced arms' 18 protocol metrics are **not model scores** and must never enter
       `baseline.md`, this index's headline table, or any model comparison: windows 2 and 3 are
-      anchored at the ground-truth location by construction. Recorded 2026-08-21.
+      anchored at the ground-truth location by construction. Recorded 2026-08-21; **interpretation
+      amended 2026-08-22 on the user's ruling** -- the original headline recorded exposure bias as
+      ruled out, which overstated a secondary discriminator. No measured value changed; the sealed
+      compact result and registry row 288 carry the amendment as an appended sibling key.
 
 24. **The P6 cell-U ground-truth-contact-mask upper bound is VOID: its mask was degenerate in 2 of
     its 3 windows, so the inference-time mask direction is NOT closed on that evidence.**

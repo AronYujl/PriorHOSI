@@ -1,4 +1,21 @@
 {
+  "amended_interpretation_20260822": {
+    "authorized_framing": "A complete in-distribution ground-truth history recovers rho = 0.515/0.320 (cell G, windows 2/3) and 0.506/0.314 (cell N) of the gap to the ground-truth-conditioned window 1, i.e. +0.199 to +0.229 slope units with all four paired-bootstrap 95 percent CIs excluding zero. Compounding of a degraded history is therefore a real, measured contributor and rho is its size. The residual is the larger share: 0.485 of the window-2 gap and 0.680 of the window-3 gap survive a perfect history, and that residual per-window contraction is the main problem.",
+    "corroborating_facts_independent_of_the_E_versus_M_partition": [
+      "window 1 already contracts from b = 1.025 at the first generated frame to b = 0.899 over its own 42 frames, from a ground-truth start with nothing accumulated",
+      "b_TF(w3) = 0.414 is far below b_TF(w2) = 0.708 although BOTH windows consumed a complete ground-truth history, so part of the depth dependence is not history quality at all"
+    ],
+    "remedy_reading_is_a_bound_not_an_exclusion": "Scheduled sampling or rollout fine-tuning may capture the rho fraction, but on this evidence their ceiling is the teacher-forced slope itself (b = 0.708/0.414 against b_ref = 0.899), so they cannot be the whole remedy and must not be the only next training direction. The earlier wording 'predicted NOT to fix the contraction' is replaced by this bound.",
+    "ruling": "User ruling 2026-08-22: record P14 as teacher forcing PARTIALLY improving height tracking while the residual per-window height contraction remains the main problem. Do NOT record it as exposure bias being absent.",
+    "superseded_wording": "The phrases 'intrinsic to the conditioning mechanism, not exposure bias', 'Exposure bias is ruled OUT as the dominant mechanism' and 'does NOT restore height-keeping ability ... leaves the per-window contraction untouched' overstate the result. lambda is a secondary discriminator; it bounds the exposure-bias mechanism's share and cannot establish that the mechanism is absent.",
+    "supersedes_in_this_record": [
+      "headline",
+      "next_action",
+      "non_claims[4]"
+    ],
+    "unchanged": "No measured value in this record is altered and the PRIMARY classification stays tf-partial. Reframed reading surfaces: docs/HOIPRIOR_EVIDENCE_INDEX.md conclusion 23 and docs/phase_summaries/PHASE_1B_P14_ROLLOUT_TEACHER_FORCING.md.",
+    "what_lambda_establishes": "lambda 0.018-0.045 establishes that the model's response slope is nearly the same whether the history level is ground truth or its own drifted output, so a clean history does not repair the per-window contraction. It does NOT establish that the exposure-bias mechanism contributes nothing; the measured rho is that contribution's size."
+  },
   "bootstrap": {
     "method": "paired shared resample index matrix",
     "n": 438,
