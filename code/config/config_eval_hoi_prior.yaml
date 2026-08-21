@@ -36,6 +36,10 @@ hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hoi_expected_sequences: 438
 hoi_sequence_limit: null
 hoi_timing_warmup: true
+# Non-deployable teacher-forcing history diagnostic.  Bare `off` is parsed as
+# YAML false and normalized by code/test_infbagel_hoi.py.
+teacher_forcing_history: off
+hoi_diagnostic_not_a_model_score: false
 
 save_chois_eval_npz: true
 chois_eval_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/chois/predictions

@@ -265,12 +265,16 @@ class PinnedPerSequenceHashTests(unittest.TestCase):
     """Provenance is host-dependent; the per-sequence file's hash is pinned."""
 
     def _per_sequence_payload(self):
-        block = EVALUATOR_SOURCE.split("with open(per_sequence_path, 'x') as handle:", 1)[1]
-        return block.split("evaluation_result = {", 1)[0]
+        block = EVALUATOR_SOURCE.split("per_sequence_payload = {", 1)[1]
+        return block.split("with open(per_sequence_path, 'x') as handle:", 1)[0]
 
-    def test_the_per_sequence_payload_keys_are_exactly_the_original_four(self):
-        payload = self._per_sequence_payload()
-        keys = [line.strip() for line in payload.splitlines() if line.strip().startswith("'")]
+    def test_the_default_per_sequence_payload_carries_no_diagnostic_key(self):
+        # The default (deployable) payload must emit EXACTLY the four keys every
+        # sealed HOI eval emits, so per_sequence_metrics.json stays byte-for-byte
+        # reproducible (docs/HOIPRIOR_EVIDENCE_INDEX.md:462).  The teacher-forcing
+        # marker is added only in the non-off branch, checked below.
+        default_block = self._per_sequence_payload().split("if teacher_forcing_history != 'off':", 1)[0]
+        keys = [line.strip() for line in default_block.splitlines() if line.strip().startswith("'")]
         self.assertEqual(
             keys,
             [
@@ -280,6 +284,13 @@ class PinnedPerSequenceHashTests(unittest.TestCase):
                 "'metrics': per_sequence_metrics,",
             ],
         )
+
+    def test_the_diagnostic_marker_is_gated_on_the_non_off_branch(self):
+        payload = self._per_sequence_payload()
+        guarded = payload.split("if teacher_forcing_history != 'off':", 1)
+        self.assertEqual(len(guarded), 2, "the diagnostic stamp must sit behind an off guard")
+        self.assertNotIn("'teacher_forcing_history'", guarded[0])
+        self.assertIn("'teacher_forcing_history': teacher_forcing_history,", guarded[1])
 
     def test_the_per_sequence_file_stays_at_schema_version_one(self):
         self.assertIn("'schema_version': 1,", self._per_sequence_payload())

@@ -646,8 +646,26 @@ def test(cfg: DictConfig) -> None:
     # preregistered P6 cell-U upper-bound probe only.  Lengths differ per
     # sequence, so this stays a list and is sliced per rollout window.
     gt_contact_label_batch = []
+    # World-frame human rotations at the keyframe grid, retained for the
+    # non-deployable teacher-forcing history diagnostic below.
+    global_rot_6d_all_gt = torch.zeros(0, cfg.max_window_size, 22*6).to(device)
+    # PER-WINDOW ground-truth contact, one row per (sequence, window), for the
+    # teacher-forcing diagnostic ONLY.  This deliberately does NOT reuse
+    # gt_contact_label_batch + _gt_contact_window: that pair assumes the stored
+    # track spans the whole sequence, but data_dict['contact_label'] is a single
+    # 16-frame WINDOW (code/datasets/infbagel.py:628-629), so at step 2 the
+    # stride-14 start index 28 exceeds the 16 frames available and the slicer
+    # falls into its short-sequence branch, returning window 0's LAST frame
+    # repeated 16 times instead of global frames 28-29.  Measured on the full
+    # protocol: that flips the contact bits in 128 of 438 sequences at step 2
+    # (.claude/scratch/tf_prereg/g4_repaired_all438_v2.json).  Reading each
+    # window's own contact channel here is exact by construction, and leaves
+    # gt_contact_label_batch untouched so the sealed P6 cell-U path stays
+    # bit-identical.
+    contact_all_gt = torch.zeros(0, cfg.max_window_size, 4).to(device)
 
     max_len = 3
+    teacher_forcing_history = _normalize_teacher_forcing_history(cfg)
 
     seq_name_dict = {}
     seg_id_true = 0
@@ -794,6 +812,34 @@ def test(cfg: DictConfig) -> None:
             object_rot_mat_global = (object_rot_mat.reshape(1, cfg.max_window_size, 3, 3) @ obj_rot_mat_ref).reshape(1, cfg.max_window_size, 9)
             object_rot_mat_all_gt = torch.cat([object_rot_mat_all_gt, object_rot_mat_global], dim=0)
 
+            if teacher_forcing_history != 'off':
+                contact_all_gt = torch.cat([
+                    contact_all_gt,
+                    torch.as_tensor(
+                        data_dict['contact_label'], dtype=contact_all_gt.dtype, device=device,
+                    ).reshape(1, cfg.max_window_size, 4),
+                ], dim=0)
+                # Gated so the default path gains no tensor op and no memory:
+                # nothing reads this accumulator unless the diagnostic is on.
+                # The lift mirrors the model path's own world-frame conversion
+                # at the end of the rollout body, and is cross-checked by the
+                # adjacent-window overlap guard in _teacher_forcing_history --
+                # consecutive windows reach the same world rotations through
+                # different per-window ``mat`` frames, so agreeing there is
+                # evidence this lift is the right one.
+                global_rot_6d_window = data_dict['global_rot_6d'].to(device).reshape(
+                    1, cfg.max_window_size, 22, 6,
+                )
+                global_jrot_mat_gt_world = mat[:, None, None, :3, :3] @ transforms.rotation_6d_to_matrix(
+                    global_rot_6d_window
+                )
+                global_rot_6d_all_gt = torch.cat([
+                    global_rot_6d_all_gt,
+                    transforms.matrix_to_rotation_6d(global_jrot_mat_gt_world).reshape(
+                        1, cfg.max_window_size, 22*6,
+                    ),
+                ], dim=0)
+
             points_all_gt_48 = torch.cat([points_all_gt_48, joints_gt[:, 6:, :]], dim=0)
             object_trans_all_gt_48 = torch.cat([object_trans_all_gt_48, object_trans_gt[:, 6:, :]], dim=0)
             object_rot_mat_all_gt_48 = torch.cat([object_rot_mat_all_gt_48, object_rot_mat_gt[:, 6:, :]], dim=0)
@@ -903,6 +949,25 @@ def test(cfg: DictConfig) -> None:
                 object_rot_mat_global.reshape(batch_size, cfg.max_window_size, 3, 3)
             )[:, -cfg.auto_regre_num:]
             history_contact = contact_label[:, -cfg.auto_regre_num:]
+            if teacher_forcing_history != 'off':
+                history_joints, history_human_rotation, history_object_translation, \
+                    history_object_rotation, history_contact = _teacher_forcing_history(
+                        teacher_forcing_history,
+                        step,
+                        history_joints,
+                        history_human_rotation,
+                        history_object_translation,
+                        history_object_rotation,
+                        history_contact,
+                        points_all_gt,
+                        global_rot_6d_all_gt,
+                        object_trans_all_gt,
+                        object_rot_mat_all_gt,
+                        contact_all_gt,
+                        torch.arange(batch_size, device=device),
+                        max_len,
+                        cfg,
+                    )
             fixed_points_batch, current_frame = window_codec.encode(
                 history_joints, history_human_rotation,
                 global_object_translation=history_object_translation,
@@ -976,13 +1041,30 @@ def test(cfg: DictConfig) -> None:
     per_sequence_path = os.path.abspath(str(cfg.get(
         'per_sequence_metrics_path', os.path.join(output_dir, 'per_sequence_metrics.json')
     )))
-    with open(per_sequence_path, 'x') as handle:
-        json.dump({
+    per_sequence_payload = {
+        'schema_version': 1,
+        'seed': int(cfg.seed),
+        'sequence_count': len(per_sequence_metrics),
+        'metrics': per_sequence_metrics,
+    }
+    if teacher_forcing_history != 'off':
+        # Stamped ONLY when the non-deployable diagnostic is on, and inserted
+        # before 'sequence_count' so the key order stays stable for readers.
+        # Stamping it unconditionally would add a fifth top-level key to every
+        # future eval and break the byte-for-byte reproducibility invariant this
+        # file carries (docs/HOIPRIOR_EVIDENCE_INDEX.md:462 -- three guided
+        # Arm-B evals on two hosts reproduce it exactly).  Absence of the key
+        # therefore means 'off', which is the default and the only deployable
+        # setting.
+        per_sequence_payload = {
             'schema_version': 1,
             'seed': int(cfg.seed),
+            'teacher_forcing_history': teacher_forcing_history,
             'sequence_count': len(per_sequence_metrics),
             'metrics': per_sequence_metrics,
-        }, handle, indent=2, default=convert_to_serializable)
+        }
+    with open(per_sequence_path, 'x') as handle:
+        json.dump(per_sequence_payload, handle, indent=2, default=convert_to_serializable)
 
     evaluation_result = {
         'schema_version': 2,
@@ -1024,6 +1106,16 @@ def test(cfg: DictConfig) -> None:
         },
         'execution_provenance': _execution_provenance(device),
     }
+    if teacher_forcing_history != 'off':
+        # Same rule as per_sequence_metrics.json above: the non-deployable
+        # diagnostic announces itself, and the default path emits the exact key
+        # set every sealed HOI eval emits.  Placed first so a reader sees it
+        # before any metric.
+        evaluation_result = {
+            'schema_version': 2,
+            'teacher_forcing_history': teacher_forcing_history,
+            **{k: v for k, v in evaluation_result.items() if k != 'schema_version'},
+        }
     metrics_path = os.path.join(output_dir, 'aggregate_metrics.json')
     with open(metrics_path, 'x') as handle:
         json.dump(evaluation_result, handle, indent=2, default=convert_to_serializable)
@@ -1054,10 +1146,201 @@ def test(cfg: DictConfig) -> None:
 # ../data/test/seq_id.pkl"; inserting anything above line 502 would silently
 # falsify that record.  Mid-file imports match this module's existing style
 # (lines 70-76).  ``tests/hoi/test_hoi_evaluation_provenance.py`` pins the
-# anchor.
+# anchor.  The teacher-forcing normalization and pure history substitution
+# helpers also stay in this post-``test()`` region for the same append-only
+# line-anchor reason; Python resolves their globals when ``test()`` runs.
 import platform
 import socket
 import subprocess
+
+
+def _normalize_teacher_forcing_history(cfg):
+    """Validate the non-deployable history diagnostic and its opt-in guard.
+
+    YAML 1.1 parses a bare ``off`` as ``False``.  Treat that value, ``None``
+    and the literal string ``off`` as the same default, while rejecting every
+    other unknown mode instead of silently disabling the diagnostic.
+    """
+    raw_mode = cfg.get('teacher_forcing_history', 'off')
+    if raw_mode is False or raw_mode is None:
+        mode = 'off'
+    elif isinstance(raw_mode, str):
+        mode = raw_mode.lower()
+    else:
+        mode = repr(raw_mode)
+    if mode not in {'off', 'full', 'vertical'}:
+        raise ValueError(
+            "teacher_forcing_history must be one of off/full/vertical; "
+            f"got {raw_mode!r}"
+        )
+    if mode != 'off' and not bool(cfg.get('hoi_diagnostic_not_a_model_score', False)):
+        raise ValueError(
+            f"teacher_forcing_history={mode!r} uses ground truth and is not a model score; "
+            "set hoi_diagnostic_not_a_model_score: true to enable this non-deployable probe"
+        )
+    return mode
+
+
+def _teacher_forcing_row_indices(sequence_indices, step, max_len):
+    """Return the accumulated ``seq * max_len + step`` rows for a step."""
+    if int(step) < 0 or int(step) >= int(max_len):
+        raise ValueError(f"teacher-forcing step {step} is outside max_len={max_len}")
+    return sequence_indices * int(max_len) + int(step)
+
+
+def _validate_teacher_forcing_tensor(name, replacement, model_tensor):
+    if replacement.shape != model_tensor.shape or replacement.dtype != model_tensor.dtype:
+        raise ValueError(
+            f"teacher-forcing {name} shape/dtype mismatch: GT {tuple(replacement.shape)}/"
+            f"{replacement.dtype} versus model {tuple(model_tensor.shape)}/{model_tensor.dtype}"
+        )
+
+
+def _validate_teacher_forcing_gt_overlap(
+    points_all_gt,
+    object_trans_all_gt,
+    global_rot_6d_all_gt,
+    rows,
+    step,
+    auto_regre_num,
+):
+    """Fail closed if adjacent accumulated GT windows do not overlap.
+
+    ``.claude/scratch/tf_prereg/check_overlap_invariant.py`` measured worst
+    real-data disagreement of 4.768e-7 m (joints), 3.576e-7 m (object
+    translation), and 1.788e-7 for human-rotation 6-D values.  The 1e-5
+    absolute tolerance is therefore about 20x the measured float32 round-off.
+    """
+    if int(step) < 1:
+        raise ValueError("teacher-forcing GT overlap validation requires step >= 1")
+    previous_rows = rows - 1
+    for name, accumulated in (
+        ('joints', points_all_gt),
+        ('object translation', object_trans_all_gt),
+        ('human rotation 6d', global_rot_6d_all_gt),
+    ):
+        current = accumulated.index_select(0, rows)[:, :auto_regre_num]
+        previous = accumulated.index_select(0, previous_rows)[:, -auto_regre_num:]
+        max_deviation = float(torch.max(torch.abs(current - previous)).item())
+        if not torch.allclose(current, previous, atol=1e-5, rtol=0.0):
+            raise ValueError(
+                f"teacher-forcing GT overlap failed for {name}: row {rows.detach().cpu().tolist()}, "
+                f"step {step}, max deviation {max_deviation:.9g}"
+            )
+
+
+def _teacher_forcing_history(
+    mode,
+    step,
+    history_joints,
+    history_human_rotation,
+    history_object_translation,
+    history_object_rotation,
+    history_contact,
+    points_all_gt,
+    global_rot_6d_all_gt,
+    object_trans_all_gt,
+    object_rot_mat_all_gt,
+    contact_all_gt,
+    sequence_indices,
+    max_len,
+    cfg,
+):
+    """Substitute the first history frames with accumulated world-frame GT.
+
+    This pure tensor helper intentionally returns the caller's exact model
+    tensors for ``off`` and for step zero.  The evaluator only calls it from
+    the non-off branch at ``step != 0``; keeping the no-op cases explicit makes
+    the default path identity-testable without a GPU.
+    """
+    if mode not in {'off', 'full', 'vertical'}:
+        raise ValueError(f"invalid teacher-forcing mode {mode!r}")
+    if mode == 'off':
+        return (
+            history_joints,
+            history_human_rotation,
+            history_object_translation,
+            history_object_rotation,
+            history_contact,
+        )
+    if int(step) == 0:
+        raise ValueError(
+            "teacher-forcing history must never be applied at step 0: "
+            "step 0 history is already dataset ground truth"
+        )
+
+    auto_regre_num = int(cfg.auto_regre_num)
+    batch_size = int(history_joints.shape[0])
+    if sequence_indices.ndim != 1 or int(sequence_indices.shape[0]) != batch_size:
+        raise ValueError("teacher-forcing sequence_indices must have one row per model batch item")
+    rows = _teacher_forcing_row_indices(sequence_indices, step, max_len).to(
+        device=points_all_gt.device, dtype=torch.long,
+    )
+    independent_rows = torch.stack([
+        points_all_gt[int(sequence) * int(max_len) + int(step)]
+        for sequence in sequence_indices.detach().cpu().tolist()
+    ])
+    vectorized_rows = points_all_gt.index_select(0, rows)
+    if not torch.equal(independent_rows, vectorized_rows):
+        raise ValueError(
+            f"teacher-forcing vectorized GT gather disagrees with independent row gather "
+            f"for rows {rows.detach().cpu().tolist()} at step {step}"
+        )
+    if points_all_gt.ndim != 3 or points_all_gt.shape[2] != 28 * 3:
+        raise ValueError(f"teacher-forcing points_all_gt has unexpected shape {tuple(points_all_gt.shape)}")
+    if global_rot_6d_all_gt.ndim != 3 or global_rot_6d_all_gt.shape[2] != 22 * 6:
+        raise ValueError(
+            f"teacher-forcing global_rot_6d_all_gt has unexpected shape {tuple(global_rot_6d_all_gt.shape)}"
+        )
+    _validate_teacher_forcing_gt_overlap(
+        points_all_gt,
+        object_trans_all_gt,
+        global_rot_6d_all_gt,
+        rows,
+        step,
+        auto_regre_num,
+    )
+    gt_joints = vectorized_rows.reshape(batch_size, -1, 28, 3)
+    gt_joints = gt_joints[:, :auto_regre_num]
+    if gt_joints.shape != history_joints.shape:
+        raise ValueError(
+            f"teacher-forcing joints row {rows.tolist()} does not provide the model history shape "
+            f"{tuple(history_joints.shape)}"
+        )
+    if mode == 'vertical':
+        substituted_joints = history_joints.clone()
+        substituted_joints[..., 1] = gt_joints[..., 1]
+    else:
+        substituted_joints = gt_joints
+
+    gt_human_rotation = transforms.rotation_6d_to_matrix(
+        global_rot_6d_all_gt.index_select(0, rows).reshape(batch_size, -1, 22, 6)
+    )[:, :auto_regre_num]
+    gt_object_translation = object_trans_all_gt.index_select(0, rows)[:, :auto_regre_num]
+    gt_object_rotation = project_to_so3(
+        object_rot_mat_all_gt.index_select(0, rows).reshape(batch_size, -1, 3, 3)
+    )[:, :auto_regre_num]
+    if contact_all_gt.ndim != 3 or contact_all_gt.shape[1:] != (int(cfg.max_window_size), 4):
+        raise ValueError(
+            f"teacher-forcing contact_all_gt has unexpected shape {tuple(contact_all_gt.shape)}"
+        )
+    gt_contact = contact_all_gt.index_select(0, rows)[:, :auto_regre_num]
+
+    for name, replacement, model_tensor in (
+        ('joints', substituted_joints, history_joints),
+        ('human rotation', gt_human_rotation, history_human_rotation),
+        ('object translation', gt_object_translation, history_object_translation),
+        ('object rotation', gt_object_rotation, history_object_rotation),
+        ('contact', gt_contact, history_contact),
+    ):
+        _validate_teacher_forcing_tensor(name, replacement, model_tensor)
+    return (
+        substituted_joints,
+        gt_human_rotation,
+        gt_object_translation,
+        gt_object_rotation,
+        gt_contact,
+    )
 
 
 def _safe(callback):

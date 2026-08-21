@@ -1,6 +1,8 @@
 import hashlib
+import importlib.util
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,11 +16,26 @@ except ImportError:  # Minimal governance checks run before ML dependencies are 
 
 from tools import (
     chois_evaluator, experiment, make_lingo_split, measure_hoi_repr_ceiling,
+    measure_hoi_vertical_tracking as hoi_vertical_tracking_probe,
     run_chois_evaluator,
 )
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+
+def _load_hoi_evaluator_for_governance():
+    code_dir = REPO_ROOT / "code"
+    if str(code_dir) not in sys.path:
+        sys.path.insert(0, str(code_dir))
+    spec = importlib.util.spec_from_file_location(
+        "hoi_teacher_forcing_governance_evaluator", code_dir / "test_infbagel_hoi.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 class SplitTests(unittest.TestCase):
@@ -613,6 +630,140 @@ class RepresentationCeilingProbeTests(unittest.TestCase):
             measure_hoi_repr_ceiling.ANALYTIC_CONTACT_CAP, 0.906392694063927, places=15
         )
         self.assertEqual(measure_hoi_repr_ceiling.HUMAN_PEN_SCALE, 10475 / 100)
+
+
+class HOIVerticalTrackingProbeTests(unittest.TestCase):
+    def test_output_path_refuses_to_overwrite(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "tracking.json"
+            output.write_text("{}\n", encoding="utf-8")
+            args = hoi_vertical_tracking_probe.build_parser().parse_args(
+                ["--predictions", temporary, "--ground-truth", temporary, "--output", str(output)]
+            )
+            with self.assertRaisesRegex(
+                hoi_vertical_tracking_probe.TrackingError, "refusing to overwrite"
+            ):
+                hoi_vertical_tracking_probe.run(args)
+
+    def test_span_boundaries_are_the_preregistered_keyframe_boundaries(self):
+        self.assertEqual(
+            hoi_vertical_tracking_probe.SPAN_DEFINITIONS,
+            {
+                "frame0": (0, 1), "w1": (0, 42), "w2": (42, 84), "w3": (84, 126),
+                "f0": (0, 1), "f42": (42, 43), "f84": (84, 85),
+            },
+        )
+        self.assertEqual(hoi_vertical_tracking_probe.SPAN_ALIASES, {"f0": "frame0"})
+
+    def test_source_carries_no_gpu_or_checkpoint_dependency(self):
+        source = Path(hoi_vertical_tracking_probe.__file__).read_text(encoding="utf-8")
+        for forbidden in (
+            "torch.load", "torch.cuda", ".cuda(", "cuda:",
+            "load_trained_hoi_prior", "init_model",
+        ):
+            self.assertNotIn(forbidden, source, forbidden)
+
+
+class HOITeacherForcingGovernanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.evaluator = _load_hoi_evaluator_for_governance()
+
+    def test_non_off_mode_requires_the_non_model_score_guard(self):
+        with self.assertRaisesRegex(ValueError, "not a model score"):
+            self.evaluator._normalize_teacher_forcing_history({"teacher_forcing_history": "full"})
+        self.assertEqual(
+            self.evaluator._normalize_teacher_forcing_history({
+                "teacher_forcing_history": "full",
+                "hoi_diagnostic_not_a_model_score": True,
+            }),
+            "full",
+        )
+
+    def test_yaml_off_values_normalize_to_off_and_unknown_values_fail(self):
+        for value in (False, None, "off", "OFF"):
+            self.assertEqual(
+                self.evaluator._normalize_teacher_forcing_history({"teacher_forcing_history": value}),
+                "off",
+            )
+        with self.assertRaisesRegex(ValueError, "one of off/full/vertical"):
+            self.evaluator._normalize_teacher_forcing_history({"teacher_forcing_history": "partial"})
+
+    def test_off_mode_returns_every_model_history_tensor_by_identity(self):
+        torch = self.evaluator.torch
+        tensors = (
+            torch.zeros(1, 2, 28, 3),
+            torch.zeros(1, 2, 22, 3, 3),
+            torch.zeros(1, 2, 3),
+            torch.zeros(1, 2, 3, 3),
+            torch.zeros(1, 2, 4),
+        )
+        returned = self.evaluator._teacher_forcing_history(
+            "off", 0, *tensors, None, None, None, None, [], torch.tensor([0]), 3,
+            SimpleNamespace(auto_regre_num=2),
+        )
+        self.assertTrue(all(actual is expected for actual, expected in zip(returned, tensors)))
+
+    def test_non_off_step_zero_raises(self):
+        torch = self.evaluator.torch
+        tensors = (
+            torch.zeros(1, 2, 28, 3),
+            torch.zeros(1, 2, 22, 3, 3),
+            torch.zeros(1, 2, 3),
+            torch.zeros(1, 2, 3, 3),
+            torch.zeros(1, 2, 4),
+        )
+        with self.assertRaisesRegex(ValueError, "step 0.*already dataset ground truth"):
+            self.evaluator._teacher_forcing_history(
+                "full", 0, *tensors, None, None, None, None, [], torch.tensor([0]), 3,
+                SimpleNamespace(auto_regre_num=2),
+            )
+
+    def test_row_arithmetic_uses_window_stride_not_window_size(self):
+        torch = self.evaluator.torch
+        helper = self.evaluator._teacher_forcing_row_indices
+        for sequence, step, expected in (
+            (0, 0, 0), (0, 1, 1), (0, 2, 2),
+            (1, 0, 3), (1, 1, 4), (1, 2, 5),
+            (2, 0, 6), (2, 1, 7), (2, 2, 8),
+        ):
+            self.assertEqual(int(helper(torch.tensor([sequence]), step, 3)[0]), expected)
+        self.assertEqual(16 - 2, 14, "documented contact-window stride is 14")
+        contacts = torch.arange(48).reshape(48, 1)
+        cfg = SimpleNamespace(max_window_size=16, auto_regre_num=2)
+        for step, expected_start in ((0, 0), (1, 14), (2, 28)):
+            window = self.evaluator._gt_contact_window(contacts, step, cfg)
+            self.assertEqual(int(window[0, 0]), expected_start)
+
+    def test_gt_contact_window_is_degenerate_on_a_single_window_track(self):
+        # Regression pin for the measured defect that forced the teacher-forcing
+        # contact channel onto its own per-window accumulator.
+        # gt_contact_label_batch holds ONE 16-frame window
+        # (code/datasets/infbagel.py:628-629), not the sequence, so the stride-14
+        # slicer degenerates: at step 2 the start index 28 exceeds 16 frames and
+        # every one of the 16 returned frames becomes window 0's LAST frame.
+        # Measured over the full protocol this flips the contact bits in 128 of
+        # 438 sequences at step 2
+        # (.claude/scratch/tf_prereg/g4_repaired_all438_v2.json).
+        torch = self.evaluator.torch
+        cfg = SimpleNamespace(max_window_size=16, auto_regre_num=2)
+        window_only = torch.arange(16, dtype=torch.float32)[:, None].repeat(1, 4)
+        step0 = self.evaluator._gt_contact_window(window_only, 0, cfg)
+        self.assertEqual(len(set(step0[:, 0].tolist())), 16, "step 0 is exact")
+        step2 = self.evaluator._gt_contact_window(window_only, 2, cfg)
+        self.assertEqual(
+            len(set(step2[:, 0].tolist())), 1,
+            "step 2 collapses to a single repeated frame on a window-length track",
+        )
+        self.assertEqual(int(step2[0, 0]), 15, "and that frame is window 0's last, not frame 28")
+
+    def test_teacher_forcing_contact_comes_from_the_per_window_accumulator(self):
+        # The substitution must read contact_all_gt, never the cell-U pair.
+        source = (REPO_ROOT / "code" / "test_infbagel_hoi.py").read_text()
+        body = source.split("def _teacher_forcing_history(", 1)[1]
+        body = body.split("\ndef ", 1)[0]
+        self.assertIn("contact_all_gt.index_select(0, rows)", body)
+        self.assertNotIn("_gt_contact_window", body)
 
 if __name__ == "__main__":
     unittest.main()
