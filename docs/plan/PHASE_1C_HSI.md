@@ -3088,3 +3088,188 @@ interactive 的 `jerk_ratio` B→C 是 **ns**。所以 **interactive 在两个�
 
 按用户指示：本次只跑 guided；**未**自动启动 unguided，**未**改动 B/C，**未**加 continuous-w
 loss，**未**重训。continuous w 路线继续暂缓，等用户就本归因结果决定下一步。
+
+## 2026-08-23：seam 离线归因（无 GPU 正式运行），以及一处对本文档 §H 的订正
+
+用户接受 §H/§I 的归因并设为常规约束：**seam 主要缺口在 B 的 guided diffusion pipeline；
+C 的蒸馏实际改善平滑度，故不得修改或重训 C，也不得再用 C-only 结果推断 B；continuous-w 继续暂缓。**
+本节是随后要求的离线分析，全部基于已有的 375×(B v2, C v2) motion export 与三方 sealed metrics，
+**未启动任何训练或正式 GPU 运行**。完整读数：`.claude/scratch/seam_attrib_20260822/FULL_REPORT.txt`。
+
+### A. 地基：export 能逐位重建 sealed jerk
+
+`boundary_jerk` / `interior_jerk` 从 export 的 FK 输入重建，与 sealed 值最大相对误差 **1.7e-6**
+（6 个 episode，float32 FK 噪声量级）。因此下面每一个量都算在 sealed 指标所用的同一批关节上。
+GT **没有** motion export（0/375），所以 GT 只能通过其 sealed per-sequence 指标参与，不能参与通道分解 ——
+这是本节的一个硬边界。
+
+### B. Q1 通道分解：root 平移是主导，且 B 在每个关节上都均匀更差
+
+`jerk = mean_over_joints ||third_difference(p)||`，本身即逐关节均值，故 root/非 root 与逐关节
+分解是**精确**的重新划分，不是模型。平移/旋转用反事实分离（冻结另一路），且实测两者与
+`root` / `local frame` 恒等（max|diff| ≤ 4e-3），说明三阶差分下平移与旋转在此近似可加。
+
+| 通道 | B v2 boundary | C v2 boundary | B/C | interior B/C |
+|---|---:|---:|---:|---:|
+| 总计 | 222.50 | 159.02 | 1.40× | 1.35× |
+| **root / 平移** | 142.18 | 89.35 | **1.59×** | **1.49×** |
+| 旋转 / 姿态（去 root） | 125.65 | 101.70 | 1.24× | 1.24× |
+
+**boundary 超出量的 69% 来自 root 平移**（52.83 / 76.77），interior 为 58%。
+
+逐关节：最差 6 个关节占比 B **28.7%** / C **28.7%**，上肢占比 33.1% / 33.6%，下肢 32.0% / 31.0%。
+**分布几乎完全相同 —— B 不是在某些关节上更差，而是整体被抬高。** 最差关节是 foot/ankle
+（R_foot 314 vs 230），但这是 FK 链末端的放大效应，不是独立缺陷。
+
+### C. Q2 定位：**这不是接缝缺陷**（本节订正 §H 的框架）
+
+| | boundary/GT | interior/GT | 比值之比 | 95% CI |
+|---|---:|---:|---:|---|
+| B v2 | 2.635 | 1.312 | 2.009 | [1.874, 2.148] |
+| C v2 | 1.883 | 0.974 | 1.934 | [1.797, 2.084] |
+| **B vs C** | 1.399× | 1.347× | **1.040** | **[0.970, 1.112]** |
+
+两件必须分开的事：
+
+1. **相对 GT，两个模型都有真实的接缝效应**（比值之比 ≈2.0，CI 排除 1）。
+2. **但 B 相对 C 的超出量对接缝位置是均匀的**（1.040，CI **含 1**）。按 offset 看，B/C 在
+   offset ±6 处同样是 1.24–1.31×，与 boundary 的 1.35–1.55× 没有量级差别。
+
+**所以 §H 把 B 的缺口称作"seam 缺口"是错的框架。** B 相对 C 多出来的抖动是**全程均匀抬高**，
+不是缝处特有。`jerk_ratio`（自归一，无法被全局平滑刷分）B 2.295 vs C 2.177 —— 只差 5%，
+而绝对水平差 40%，正是这个结论的另一面。
+
+分层：`sit` (n=105) boundary B/C **1.73×**、root B/C **1.93×**；`lie` (n=12) 绝对值最高
+（846 vs 730）；`walk` 1.32×。按 contact_count 三分：low 1.18× / mid 1.31× / high **1.59×**，
+接触越多差距越大。按窗口序号无单调增长趋势（seam 0..3 为 1.43/1.57/1.18/1.31×）。
+
+### D. Q3 配对异常：重尾，且机制是**物理上不可能的 root 加速度尖峰**
+
+B 更差的 episode 占 **287/375 = 76.5%**（中位比 1.214×），所以效应是普遍的；但**总超出量高度集中**：
+前 5 个 episode（1.3%）占 20.2%，前 20 个（5.3%）占 **56.8%**，前 94 个占 97.9%。
+
+最差 12 个几乎全是 **sit / lie 下坐下躺**，root B/C 高达 **15.2×**。最差四分位 vs 其余：
+`frac sit/lie` **2.56×**、`B root_speed_max` **2.31×**、`pen_ratio` 2.04×，而
+**`GT boundary_jerk` 只有 1.03×** —— 这些**不是** GT 眼中困难的 episode
+（spearman(excess, GT) = **0.055**）。是 B 自己在这些动作上坏掉。
+
+**机制，逐帧实测的 root 加速度：**
+
+| | B v2 | C v2 | B/C |
+|---|---:|---:|---:|
+| per-episode max &#124;acc&#124; 均值 (m/s²) | **19.68** | 11.71 | 1.68× |
+| 超过 2g 的帧数/episode | 1.355 | 0.384 | 3.53× |
+| 有任一帧超过 5g 的 episode | **31/375** | 10/375 | 3.1× |
+
+个例：`010:000344` (sit down on office chair) B 的 root 加速度峰值 **84.9 m/s² ≈ 8.6g**；
+`010:000426`（caption 为 `walk`）峰值 **180.6 m/s² ≈ 18g**，且 pelvis 高度下降 **0.662 m**
+（C 为 0.082 m）——**B 在一个纯行走片段里把骨盆甩穿了地板**。walk 130 中 pelvis 低于 0.6 m 的
+episode：B **13** 个，C **1** 个。`spearman(excess, B acc_max) = +0.464`，是所有候选里最强的。
+
+**订正本 session 早先的一句判断**：我先看 4 个手挑 episode 后说尖峰"不在接缝上"，这是错的。
+全量上 B 的 max-root-jerk stencil 有 **58.1%** 落在任一接缝 ±2 帧内（C 48.3%），而**随机基线只有 9.0%**，
+CI 排除基线。**接缝确实是触发点**，两个 arm 都是；B 与 C 的差别主要在尖峰**幅度**
+（acc_max 1.68×、超 2g 帧数 3.53×），而不在**位置**（+9.9 pp，CI [+3.5,+16.3]）。
+
+### E. Q4：C 的改善**不是**单纯时间平滑，代价几乎为零
+
+低通滤波的签名是「jerk 降 → 速度同比降 → 幅度缩 → HF 功率大幅降」。实测不符：
+
+| 量 | B v2 | C v2 | B/C |
+|---|---:|---:|---:|
+| boundary jerk | 222.50 | 159.02 | **1.399×** |
+| interior jerk | 92.38 | 68.59 | **1.347×** |
+| 平均关节速度 (m/s) | 0.2499 | 0.2258 | 1.107× |
+| 平均 root 速度 | 0.2057 | 0.1833 | 1.122× |
+| bounding-box 体积 (m³) | 2.036 | 1.963 | **1.037×** |
+| HF 功率占比（> Nyquist/2） | 0.0045 | 0.0038 | 1.179× |
+
+**jerk 降 35–40%，而速度只降 11%、幅度只降 3.7%、HF 功率只降 18%。** 低通会让这四个数字同量级下降。
+C 是在**不损失运动幅度**的前提下去掉了三阶尖峰 —— 与 D 节一致：它压掉的是那些不可能的加速度脉冲。
+
+**代价**：sealed 指标里 B 优于 C 的只有 **`goal_height_err_m`（0.982×，SIG）** 一项，量级 1.8%。
+`skate_ratio` 0.978× 与 `pene_pct_scene` 0.982× 名义上 B 略好但 **ns**。其余全部 C 更好或无差异。
+**没有发现 C 为平滑付出的实质代价。**
+
+### F. Q5：guided-only 证据**不能**区分"B 模型/采样器问题"与"guidance 交互问题"
+
+**根本原因是一处此前未记录的曝光不对称**（取自 sealed timing，非代码推断）：
+
+| cell | sampler_steps_per_window | denoiser calls |
+|---|---:|---:|
+| B v2 guided | **500** | 1000 |
+| C v2 guided | **16** | 16 |
+
+`code/models/infbagel.py:1018`(B) 与 `:758`(C) 用的是**同一条规则**
+`gradient = autograd.grad(-loss, x_start) * guidance_scale; x_prev = x_prev + gradient`，
+**没有 1/steps 归一化，也没有逐步衰减**（C 路径上的 `(1-alpha_cumprod)` 因子是注释掉的）。
+于是 guidance 项**每个采样步加一次**：**B 加 500 次，C 加 16 次，相差 31.2×。**
+
+**因此 B 与 C 在本次测量中同时差两件事，且在 375 个 episode 上完全共线：**
+(i) 模型/采样器（500 步 ancestral vs 16 步 consistency）；(ii) guidance 剂量（31.2×）。
+guided-only 数据里没有任何一格能让其中一个变、另一个不变，故**无法分离**。
+
+三条约束使"guidance 剂量"成为领先假设：guidance 写的正是
+`x_start[:, :, :84]`（28×3 位置通道，slot 0 即 root），而缺口 69% 在 root 平移上；缺口对接缝位置均匀，
+像逐步过程而非缝处一次性事故；且 31× 剂量**没有**换来穿模优势（`pen_ratio` 0.91× GT，
+`pene_pct_scene` 1.04×）。
+
+**但一个免费的反证削弱了它。** 在**修复前**的树内，B guided vs B unguided（同 checkpoint
+`931a6f1fff41`、同 seed、同表征，唯一差别是 `use_guidance`）：
+
+| | unguided | guided | g/u | |
+|---|---:|---:|---:|---|
+| `boundary_jerk` | 7463.39 | 7104.46 | **0.952×** | SIG |
+| `interior_jerk` | 579.04 | 608.12 | 1.050× | SIG |
+| `jerk_ratio` | 12.838 | 11.693 | 0.911× | SIG |
+
+**在那个表征下，guidance 让 boundary jerk 变好，不是变坏。** 幅度不可迁移（修复前 FK 身体躺平、
+208/375 的 `fs_nemf` 恰为 0），但**符号**是 guided-only 数据给不出的信息，它指向采样器而非 guidance。
+两个假设仍然共存，必须用实验分开。
+
+### G. 若需要 post-repair unguided 对照：最小 matched 矩阵（**未启动，等批准**）
+
+| cell | 状态 | GPU | 墙钟 |
+|---|---|---:|---:|
+| B v2 + guided | 已完成 2026-08-22 | 8 | 5.30 h |
+| C v2 + guided | 已完成 2026-08-21 | 1 | 1.35 h |
+| **B v2 + unguided** | 需要 | 8 | ~2.9 h |
+| **C v2 + unguided** | 需要 | 8 | ~0.4 h |
+
+新增成本 **约 3.3 h 的 8 卡墙钟**，两个 run，一个晚上。估算依据：B unguided 修复前实测 2.68 h ×
+(5.30/4.99 的修复后漂移) = 2.85 h；C unguided 由 1.35 h 串行 guided 去掉 guidance autograd 再 8 分片。
+两者都 8 分片，故 timing 按设计为 null，均非 latency run。
+
+这个 2×2 精确地买到：**模型主效应**（固定 guidance → 500 步采样器本身是否是 jerk 来源）、
+**guidance 主效应**（固定模型 → 31× 剂量是否注入 root 尖峰）、**交互**（guidance 是否专门伤害 B）。
+另外 unguided cell 才能算 RDS（guidance 开启时被 gate 掉），这是检验 B 是否真的在用场景的唯一途径。
+
+### H. 建议的**单一**最小 B-side 修复，以及验证门槛（等批准，未实施）
+
+**修复：在 B 的 guided 采样路径上给 guidance 增量加一个范数上限（per-step trust region）。**
+`code/models/infbagel.py:1018` 之后，把 `gradient` 按其 L2 范数裁剪到一个阈值 `tau` 再加到
+`x_prev`，即 `gradient *= min(1, tau / (||gradient|| + eps))`。这是**一行量级**的改动，
+config 开关，默认关闭，不触碰 C、不触碰 `code/priors/core/`、不需要重训任何模型。
+
+**为什么是这一个而不是别的：** 诊断指向的是「幅度」而非「位置」或「关节」—— root 平移占超出量 69%，
+31/375 个 episode 出现 >5g 的物理不可能加速度，`spearman(excess, acc_max)=+0.464` 是最强预测因子，
+而逐关节分布与 C 完全相同（28.7% vs 28.7%）。裁剪增量正是针对「个别步注入过大位移」这一机制，
+且它**同时**解释了 76.5% 普遍偏差（每步都略大）与 5.3% 重尾（少数步极大）。
+它也无需先解开 §F 的共线性：无论过大的增量来自 guidance 还是来自 500 步链，上限都作用在两者之和上。
+
+**验证门槛（预注册，通过才考虑保留）：**
+1. **必要**：`frames_over_5g` 的 episode 数从 **31/375** 降到 **≤10/375**（即 C 的水平），
+   且 walk 130 里 pelvis 低于 0.6 m 的 episode 从 **13** 降到 **≤3**。
+2. **必要**：`boundary_jerk` 相对 GT 从 **2.635×** 降到 **≤2.0×**，配对 bootstrap CI 排除 0。
+3. **不得倒退**：`pen_ratio`、`pene_pct_scene`、`contact_count`、`success_min_10cm`、
+   `goal_planar_err_m` 五项相对当前 B v2 guided 均不得显著变差；`min_dist` 不得显著增大
+   （否则是用"远离一切表面"换平滑）。
+4. **反作弊**：`mean_speed` 与 bounding-box 体积相对当前 B 的下降不得超过 **5%**，
+   `jerk_ratio` 必须同时下降 —— 否则该修复只是全局低通，与 §E 判定 C **不是**低通的标准同一把尺。
+5. **成本**：单次验证 = 一个 B v2 guided 8-shard run ≈ 5.3 h / 8 GPU。建议先在
+   §D 认定的最差 20 个 episode（占超出量 56.8%）上做 ~0.3 h 的 smoke，通过再上全量。
+
+`tau` 的取值本身未预注册最优值；建议用同一批 20 个 episode 扫 3 个值（如 C 的 p99 增量范数的
+1×/2×/4×），选满足门槛 1–4 的最小干预档，并把扫描结果与选择理由一并登记。
+
+**未做**：本节没有启动任何训练或正式 GPU 运行，没有修改 B 或 C 的任何源文件，没有加 continuous-w loss。
