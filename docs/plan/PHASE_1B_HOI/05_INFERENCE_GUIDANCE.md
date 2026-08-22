@@ -979,3 +979,11 @@ phase summary 追记见 `docs/phase_summaries/PHASE_1B_P6_GUIDANCE_SUBTERM.md`�
 
 **现行的新阻塞（理由与已解除的那个不同，不是它的延续）：**
 在**高度目标 Stage A 审查完成之前，W3 几何项训练不启动。**
+
+> **2026-08-22 当日解除。** 该审查已完成并**中止**
+> （`height-target-producer-accuracy-negative-stop`：终点骨盆高度在推理期没有任何
+> 生产者达到要求的 3 cm，且每个可得生产者在 w2 上都超过 5 cm）。按用户裁决，
+> 高度目标因规划器精度不足中止后**回到 W3 排序**。本条阻塞解除。
+> **但这不构成对 W3 的批准**：它仍需自己的提案与用户对一个具体实验的明确批准，
+> 且 corrected cell-U 的 null 依然不是它的正面证据。见
+> `docs/phase_summaries/PHASE_1B_HEIGHT_TARGET_PRECHECK.md`。

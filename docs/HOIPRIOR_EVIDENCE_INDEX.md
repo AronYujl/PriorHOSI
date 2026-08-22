@@ -775,7 +775,12 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       removes the blocker without supplying any argument for the run: `cellu-null` bounds an
       *inference-time* engagement mask on the *current* model and says nothing about whether a
       *training-side* geometry term helps. **A new hold, with a different reason, is now in force: W3
-      does not start until the height-target Stage A review completes.**
+      does not start until the height-target Stage A review completes.** That review completed on
+      2026-08-22 and **aborted** (`height-target-producer-accuracy-negative-stop`: no inference-time
+      producer for the terminal pelvis height reaches the required 3 cm, and every deployable one
+      exceeds 5 cm at window 2), so the hold is **discharged** and W3 returns to the queue --
+      still needing its own proposal and explicit approval. See
+      `docs/phase_summaries/PHASE_1B_HEIGHT_TARGET_PRECHECK.md`.
       Both arms remain NON-DEPLOYABLE probes whose 18 protocol metrics must never enter
       `baseline.md`, this index's headline table, or any model comparison. 4 rollouts including the
       2 aborted ones, 6.3 min against a 12 min ceiling. Recorded 2026-08-22.
@@ -824,6 +829,15 @@ other new mechanism.
   of 0.906812 m (a composite; the directly measured model pelvis mean is 0.910926 m, i.e. 0.68 mm
   from the training mean), classification `root-height-pricing-prediagnosis-negative-stop`.
   Written 2026-08-22 because only forward references existed; every number reproduced from disk.
+- 2026-08-22 height-target route pre-check, **retrospective record, NOT a preregistered
+  experiment**: `docs/phase_summaries/PHASE_1B_HEIGHT_TARGET_PRECHECK.md`. No run id, no registry
+  row, no GPU, no checkpoint forward pass. Thresholds (<=3 cm required, >5 cm aborts) were set by
+  the user before any measurement existed. Two findings: the released model's smaller vertical
+  bias is its **training pool**, not height or shape conditioning (its pelvis-goal input is
+  architecturally 2-D and its tracking slope is 0.90x ours); and **no inference-time producer for
+  the terminal pelvis height is even informative** -- the best available ones (4.80, 4.83 cm) are
+  worse than emitting a constant (4.31 cm) and all exceed 5 cm at window 2. Classification
+  `height-target-producer-accuracy-negative-stop`.
 - 2026-08-15 P11 root-gradient detach:
   `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md` and
   `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json`; full paired bootstrap at

@@ -369,6 +369,12 @@
     "ruling": "User ruling 2026-08-22: the corrected P6 re-measurement has RELEASED W3's prerequisite block, but this null is NOT positive evidence for W3. W3 stays on hold until the height-target Stage A review completes.",
     "why_the_null_is_not_positive_evidence": "cellu-null bounds one thing only: an inference-time contact-engagement mask, even a perfect one, does not move contact_f1 on the current model. It says nothing about whether a training-side geometry term does. The prerequisite existed because W3's reading needed a valid engagement upper bound; supplying that bound removes the blocker and supplies no argument for the run."
   },
+  "w3_hold_resolution_20260822": {
+    "consequence_for_w3": "Per the user's ruling of 2026-08-22 -- if the height target aborts for insufficient planner accuracy, return to W3 ordering -- W3 is back in the queue. The hold recorded in w3_dependency_status_20260822 is discharged. This does NOT authorize W3: it still needs its own proposal and the user's explicit approval of one concrete experiment, and the corrected cell-U null remains not-positive-evidence for it.",
+    "no_measured_value_changes": true,
+    "outcome": "The height-target Stage A review completed the same day and ABORTED on the user's ex-ante threshold: no inference-time producer for the terminal pelvis height reaches the required 3 cm, and every deployable producer exceeds 5 cm at window 2 (6.13-7.06 cm against a 5.25 cm zero-benefit point). Classification height-target-producer-accuracy-negative-stop, recorded in docs/phase_summaries/PHASE_1B_HEIGHT_TARGET_PRECHECK.md.",
+    "resolves": "w3_dependency_status_20260822"
+  },
   "what_this_establishes": [
     "A PERFECT inference-time contact engagement mask buys nothing measurable on the current model: delta_contact_f1 -0.000401 [-0.001426, +0.000617], engagement gap closure -0.69%.",
     "The sealed cell-U verdict of significant HARM does not survive the mask repair. Its sign was an artifact of an over-broad mask applying contact guidance on frames ground truth says are not in contact.",

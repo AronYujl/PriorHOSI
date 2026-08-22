@@ -446,6 +446,11 @@ P6 cell-U 的退化接触掩码（修订 2）作为**独立治理更正**处理�
 > 「W3 geometry-term training stays on hold until the corrected P6 cell-U re-measurement lands」，
 > 其条件已被满足，并被本条取代；新条件记录在
 > `p1_hoi_p6_cellu_corrected_mask_s42_20260822.json` 的 `w3_dependency_status_20260822`。
+>
+> **2026-08-22 当日再更新：新条件也已解除。** 高度目标 Stage A 审查完成并**中止**
+> （`height-target-producer-accuracy-negative-stop`），故按用户裁决 W3 回到排序。
+> 解除记录在同一文件的 `w3_hold_resolution_20260822`；理由见
+> `docs/phase_summaries/PHASE_1B_HEIGHT_TARGET_PRECHECK.md`。**W3 仍未获批准。**
 
 ### 修订 7：新增 λ 判别式，并披露 ρ 带在 w2 上的一个缺陷（2026-08-21，提交前）
 
