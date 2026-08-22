@@ -837,7 +837,17 @@ other new mechanism.
   architecturally 2-D and its tracking slope is 0.90x ours); and **no inference-time producer for
   the terminal pelvis height is even informative** -- the best available ones (4.80, 4.83 cm) are
   worse than emitting a constant (4.31 cm) and all exceed 5 cm at window 2. Classification
-  `height-target-producer-accuracy-negative-stop`.
+  `height-target-producer-accuracy-negative-stop`. **User ruling 2026-08-22: the exact
+  terminal-height direction is retained as a currently-undeployable ORACLE UPPER BOUND, not
+  discarded and not reopenable at will.** Its content is the measured worth of an accurate
+  target -- dR2 +0.199/+0.360/+0.745, ceiling R2(terminal, window mean) = 0.7199, a 1.4469-bit
+  coarse channel, permuted control ~0 -- and its single reopen condition is a real
+  inference-time planner reaching **<=3 cm on held-out data** under the same protocol
+  (1,314 held-out windows, coefficients fit only on the 568,486 training windows). Non-linear
+  producers (GBT/MLP) are explicitly **not** to be tried as a way around that condition, and
+  the released-checkpoint post-repair GPU control is explicitly **not** requested, so the
+  residual absolute-bias/intercept confound in check 1 stays open and accepted; the check-1
+  conclusion rests on five architectural findings plus a slope comparison, not on that bias.
 - 2026-08-15 P11 root-gradient detach:
   `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md` and
   `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json`; full paired bootstrap at
