@@ -427,7 +427,9 @@ G4 不覆盖它（它不在 `[1,2,232]` 张量内，且需要物体网格才能�
 证伪并撤回——它会把水平漂移转成物体平移误差，做不到隔离。
 
 同理禁止的还有：把 RECOVERED 读成「重定价 root-y 就能修」。D0 已判该重定价为 abort，
-本节不提供任何重新打开它的证据。
+本节不提供任何重新打开它的证据。该 abort 的理由见追溯性证据记录
+`docs/phase_summaries/PHASE_1B_D0_ROOT_HEIGHT_PRICING_PREDIAGNOSIS.md`
+（**不是预注册实验**：无 run id、无 registry 行、纯 CPU 只读，2026-08-22 补写并逐项复算）。
 
 ### 修订 6：W3 训练在 corrected P6 完成前不启动（2026-08-21，用户裁决）
 
@@ -435,6 +437,15 @@ P6 cell-U 的退化接触掩码（修订 2）作为**独立治理更正**处理�
 另写 corrected cell-U 预注册与 diff、经用户审查后重测、**不覆盖旧结果**。
 在 corrected P6 完成之前，**W3 几何项重测训练不启动**——W3 的读法依赖接触参与度的上界，
 而那个上界当前是在 2/3 个窗口退化的掩码上测出来的。
+
+> **2026-08-22 更新（用户裁决）：本条阻塞已解除，但 W3 仍不启动。**
+> corrected P6 已于 2026-08-22 完成（`cellu-null`），故本条的条件已满足。
+> 但**该 null 不构成 W3 的正面证据**：它界定的是当前模型上推理期掩码的上界，
+> 对训练侧几何项零信息。现行的**新**阻塞是：在**高度目标 Stage A 审查完成前不启动 W3**。
+> P14 紧凑结果 `p1_hoi_p14_teacher_forcing_s42_20260821.json` 的 `next_action` 里那句
+> 「W3 geometry-term training stays on hold until the corrected P6 cell-U re-measurement lands」，
+> 其条件已被满足，并被本条取代；新条件记录在
+> `p1_hoi_p6_cellu_corrected_mask_s42_20260822.json` 的 `w3_dependency_status_20260822`。
 
 ### 修订 7：新增 λ 判别式，并披露 ρ 带在 w2 上的一个缺陷（2026-08-21，提交前）
 

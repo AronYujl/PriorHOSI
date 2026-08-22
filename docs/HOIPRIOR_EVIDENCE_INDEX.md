@@ -650,11 +650,33 @@ is therefore a cross-protocol quantity that overstates the model deficit.
       over its own 42 frames from a ground-truth start with nothing accumulated; and b_TF(w3) = 0.414
       is far below b_TF(w2) = 0.708 although **both** windows consumed a complete ground-truth
       history, so part of the depth dependence is not history quality at all.
+    - **Post-hoc mechanism analysis appended 2026-08-22 (not preregistered, not a gate, changes no
+      classification).** Under the conditional-mean assumption -- that squared-error training drives
+      the output toward E[y|x] -- the slope of model output regressed on ground truth is constrained
+      by the explainable variance of the conditioning in use, so a slope below 1 is not by itself a
+      defect. Against a history-only explainable-variance reference (R^2 of a window's mean pelvis
+      height given its complete ground-truth 2-keyframe history: 0.5889 at w1, 0.7537 at w2, 0.7154
+      at w3) **window 2 under teacher forcing already sits close to that reference (0.7082, ratio
+      0.940) while the large anomaly is concentrated in window 3 (0.4141, ratio 0.579) and in the
+      normal rollout (ratios 0.676 at w2 and 0.261 at w3)**. This must NOT be written as "the
+      tracking slope IS the R^2 of the conditioning": the model is not verified to be a
+      conditional-mean predictor, and window 1's normal-arm slope of 0.9017 is **1.53x** its
+      history-only reference of 0.5889, because the model also conditions on `text_embedding`,
+      `object_bps`, `goals` and `progress`. The reference is therefore a comparand, not a ceiling.
+      One consequence with no effect on the verdict: rho is normalized by b_ref = b(w1) = 0.899
+      while the three spans' references differ, so that denominator is not an equal-information
+      yardstick, and window 2's residual is smaller relative to what its history can explain than
+      the raw gap to 0.899 suggests. rho, the CIs and `tf-partial` are unchanged. Reference values
+      come from an unregistered read-only CPU probe (`.claude/scratch/heightprop/q5c.out`, no run
+      id, no checkpoint, no GPU) -- the same evidence class as D0, a pointer for proposal work and
+      not a sealed result.
     - **The authorized conclusion form is only** whether a COMPLETE ground-truth history restores
       height keeping. It does not. It may NOT be attributed to the root-y channel: all five channels
       were substituted, and the vertical-only arm that could have isolated it was withdrawn after a
       drift injection showed it converts horizontal pelvis drift into object-translation error at
-      full magnitude. This does not reopen the D0 root-y repricing abort.
+      full magnitude. This does not reopen the D0 root-y repricing abort, whose reason is now on
+      disk as a retrospective evidence record (**not a preregistered experiment**, no run id, no
+      registry row): `docs/phase_summaries/PHASE_1B_D0_ROOT_HEIGHT_PRICING_PREDIAGNOSIS.md`.
     - **Load-bearing for HOSI.** The LLM state machine chains many more than 3 windows over the same
       `[B,16,232]` contract, and tracking is already at b=0.19 by window 3 -- inside the released
       protocol's own horizon. A complete ground-truth history raises that to 0.41, not to 0.90, so a
@@ -748,7 +770,12 @@ is therefore a cross-protocol quantity that overstates the model deficit.
     - Four metrics move significantly and every one is trivial: `end_obj_trans_err` +0.0162 cm on a
       2.761 cm baseline (0.6%, worse), `mpjpe` -0.0106 cm, `trans_dist` -0.0072 cm and
       `human_pen_ratio` -0.00079 (all better). None is a contact metric.
-    - **W3's dependency is released**: the geometry-term training run was held only on this bound.
+    - **W3's prerequisite is released, and this null is NOT positive evidence for W3** (user ruling
+      2026-08-22). The geometry-term training run was held only on this bound, and supplying the bound
+      removes the blocker without supplying any argument for the run: `cellu-null` bounds an
+      *inference-time* engagement mask on the *current* model and says nothing about whether a
+      *training-side* geometry term helps. **A new hold, with a different reason, is now in force: W3
+      does not start until the height-target Stage A review completes.**
       Both arms remain NON-DEPLOYABLE probes whose 18 protocol metrics must never enter
       `baseline.md`, this index's headline table, or any model comparison. 4 rollouts including the
       2 aborted ones, 6.3 min against a 12 min ceiling. Recorded 2026-08-22.
@@ -789,6 +816,14 @@ other new mechanism.
   dated closure section of `docs/plan/PHASE_1B_HOI/05_INFERENCE_GUIDANCE.md`. Preregistered
   cost failure; guidance stays default-off, no checkpoint was selected, and the D2-AG and
   D2-AE negative classifications stand.
+- 2026-08-21 D0 root-height pricing pre-diagnosis, **retrospective record, NOT a preregistered
+  experiment**: `docs/phase_summaries/PHASE_1B_D0_ROOT_HEIGHT_PRICING_PREDIAGNOSIS.md`. No run
+  id, no registry row, no manifest, no GPU, no checkpoint load -- a pure-CPU read-only probe
+  whose abort bands were frozen in an unapproved, never-executed Stage A proposal. Training-side
+  ground-truth pelvis height 0.910245 m against a test-side 0.872962 m and a model landing point
+  of 0.906812 m (a composite; the directly measured model pelvis mean is 0.910926 m, i.e. 0.68 mm
+  from the training mean), classification `root-height-pricing-prediagnosis-negative-stop`.
+  Written 2026-08-22 because only forward references existed; every number reproduced from disk.
 - 2026-08-15 P11 root-gradient detach:
   `docs/phase_summaries/PHASE_1B_P11_ROOT_DETACH.md` and
   `experiments/results/p1_hoi_p11_root_detach_s42_20260815.json`; full paired bootstrap at
