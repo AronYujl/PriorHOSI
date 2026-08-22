@@ -397,6 +397,36 @@
     "This says nothing about the frame-0 +2.75/+2.87 cm offset: window 1 is never teacher-forced.",
     "This says nothing about the CHOIS-side deficit."
   ],
+  "posthoc_conditional_bound_analysis_20260822": {
+    "authorized_framing": "Under the conditional-mean assumption -- that squared-error training drives the model output toward E[y|x] -- the slope obtained by regressing that output on ground truth is constrained by the explainable-variance ceiling of the conditioning the predictor actually uses, so a slope below 1 is not by itself evidence of a defect. Measured against a history-only explainable-variance reference, window 2 under teacher forcing already sits close to that reference, and the large anomaly is concentrated in window 3 and in the normal rollout.",
+    "consequence_that_changes_no_classification": "This record normalizes rho by b_ref = b(w1) = 0.899, while the history-only reference differs across the spans being compared (0.5889 at w1 against 0.7537 at w2 and 0.7154 at w3), so that denominator is not an equal-information yardstick across spans. rho, the confidence intervals and tf-partial are unchanged. What this adds is that at window 2 the residual per-window contraction is smaller relative to what that span's history can explain than the raw gap to 0.899 suggests, and that the deficit is concentrated in window 3 and in the normal rollout.",
+    "history_only_explainable_variance_reference": {
+      "definition": "R^2 of a window's mean pelvis height given its own COMPLETE ground-truth 2-keyframe history level, computed on the same 438 sequences and the same span boundaries as this record's statistics block. Ground-truth-only quantity: no model output enters it.",
+      "provenance": "Unregistered read-only CPU probe, .claude/scratch/heightprop/q5c.out, 2026-08-22. No run id, no checkpoint load, no GPU, no registry row. Same evidence class as the D0 pre-diagnosis recorded in docs/phase_summaries/PHASE_1B_D0_ROOT_HEIGHT_PRICING_PREDIAGNOSIS.md, and it carries that class's weight: a pointer for proposal work, not a sealed experimental result.",
+      "ratio_of_measured_slope_to_this_reference": {
+        "w1_normal_cell_N": 1.5311,
+        "w2_normal_cell_N": 0.6756,
+        "w2_teacher_forced_cell_G": 0.9397,
+        "w3_normal_cell_N": 0.2606,
+        "w3_teacher_forced_cell_G": 0.5788
+      },
+      "values": {
+        "frame0": 0.9619,
+        "w1": 0.5889,
+        "w2": 0.7537,
+        "w3": 0.7154
+      }
+    },
+    "not_authorized_readings": [
+      "That the tracking slope IS the R^2 of the conditioning. That must not be written unconditionally: it holds only under the conditional-mean assumption, and window 1 contradicts it at 1.53x the history-only reference.",
+      "That the history-only reference is an upper bound on this model. It is not; the model has conditioning beyond the history.",
+      "That tf-partial, the PRIMARY readout, or the amended_interpretation_20260822 framing changes. Teacher forcing partially improves height tracking and the residual per-window contraction remains the main problem; that reading stands.",
+      "That window 2 is therefore solved. The teacher-forced arm is non-deployable by construction: it consumed a ground-truth history that does not exist at inference.",
+      "That any measured value in this record changes. None does."
+    ],
+    "status": "POST-HOC MECHANISM ANALYSIS, appended 2026-08-22 on user ruling. It is NOT part of the preregistration, NOT a gate, and NOT a re-measurement of this experiment. The PRIMARY readout, the classification tf-partial, every entry of statistics, and every gate verdict are untouched.",
+    "why_this_is_an_assumption_and_not_an_identity": "The model is not verified to be a conditional-mean predictor, and one measured value shows the history-only reference is NOT a hard ceiling on it: at window 1 the normal-arm slope is 0.9017 against a history-only reference of 0.5889, i.e. 1.53x the reference. The model conditions on text_embedding, object_bps, goals and progress in addition to the 2-frame history, so its attainable slope is not capped by a history-only figure. This record therefore does NOT assert that the tracking slope IS the R^2 of the conditioning. It asserts only the bounded comparison in authorized_framing, under the stated assumption."
+  },
   "preregistration": "docs/plan/PHASE_1B_HOI/08_ROLLOUT_DYNAMICS.md",
   "preregistration_integrity": {
     "ex_ante_point_predictions": {
