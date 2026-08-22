@@ -2900,3 +2900,191 @@ w=4 停在 +0.003。ddim index 20 同结论（+0.159 / −0.151 / −0.028）。
 `p1-hsi-c-v2-eval-epoch089-guided-progressfix-s42-20260821` 评测——但因为它与 v2 在单步保真上差
 1.6% 以内且 w 状态相同，那次评测要以「gate 读数」立项，不能当作 w 假设的检验。Phase 1C 的 gate
 阈值仍由用户定。
+
+## 2026-08-22：修复后 B（完整 diffusion teacher）首次评测，以及 08-16 两行 B 数字的作废
+
+### A. 为什么必须先评 B v2 —— 一个此前未被点明的证据缺口
+
+用户提出的问题是：「目前并没有对完整 diffusion 进行评估，如果完整 diffusion 本身就没训练好，
+那对蒸馏的修复是不是没有意义？」这个问题的前提需要订正一半，而订正之后结论反而更强。
+
+**已评过 B，但评的是修复前的 B。** 在册的两行是
+`p1-hsi-b-eval-epoch222-shard8-s42-20260816`（guided，4.99 h）与
+`p1-hsi-b-eval-epoch222-unguided-shard8-s42-20260816`（unguided，2.68 h），二者都在
+commit `101ac84` 上评 `hsi_b_lingo_full_epoch222`。表征修复是 `3ded4eb` + `a4c979c`
+（2026-08-18），**晚于**这两次评测。按 `hsi-evaluator-fk-frame-defect` 的结论，修复前的
+model-side 几何数字全部无效。因此准确的表述是：
+
+> **修复后的完整 diffusion（`hsi_b_lingo_full_v2_epoch222`，08-19 训练完成）从未被评测过；
+> 而 08-16 那两行 B 的几何数字属于表征修复前结果，不得用于当前任何决策。**
+
+**「B 可能本来就没训好」这一担心已被间接排除。** C v2 是从 B v2 蒸馏而来
+（`config_train_hsi_c_lingo_cm.yaml:134`，teacher sha256 `5daaf813…`），而 C v2 + guided 的
+修复后 gate 读数是四项显著优于 GT（`pen_ratio` 0.77×、`interior_jerk` 0.89×、`skate_ratio`
+0.79×、`transition_distance_aligned` 0.84×）、四项与 GT 无显著差异，walk 130 上
+`success_last_10cm`/`success_min_10cm` 均为 1.0000 CI [0,0]。**一个没训好的 teacher 蒸不出
+一个在穿模、接触与到达目标上全面达到或超过 GT 的 student。** 地基是好的。
+
+### B. 但「保证蒸馏无误 → 只评 student → 反推 teacher」这条捷径在剩下的那个问题上不成立
+
+这是本节要记的主要反对意见，因为它正是用户设想的省时路径。前提「蒸馏是保真的」已被实测否证：
+
+- 蒸馏对 `boundary_jerk` 的主效应是 **−965（student 更好）**，对 `fs_nemf` 是 **+0.178（更差）**；
+- guidance × 蒸馏交互显著：guidance 把 B 的 `boundary_jerk` 改善 359，把 C 的只改善 13（不显著）。
+
+而当前 gate 读数里**唯二显著劣于 GT 的就是 `boundary_jerk` 1.60× 与 `jerk_ratio` 1.70×**，
+恰好落在蒸馏有已测非零主效应、且方向是**让 student 好看**的那两项上。若该方向在修复后仍成立，
+B v2 的 seam 可能比 C 更差，从 C 的 1.60× 读不出 B 是多少。
+
+更关键的一层：**唯一能授权「C→B 反推」的那份证据（2×2 factorial）本身算于修复前，而修复把
+seam 结论推翻了约 50×**（`boundary_jerk` 6831 → 134.9）。用来省时间的推理链，其授权凭据与它
+想替代的测量，属于同一批作废数据。
+
+### C. 成本前提也已过期
+
+`hsi-eval-sharding-and-seeding` 落地后（40 h → 5 h），实测 8-shard guided B 是 **4.99 h**、
+unguided 2.68 h。这不是需要靠推理绕开的开销。
+
+### D. 协议对齐 —— 与 C v2 gate 逐项同口径，只翻 `sample_type`
+
+对照 `p1-hsi-c-v2-eval-epoch089-guided-progressfix-s42-20260821`：
+
+| flag | C v2 gate | 08-16 B（修复前） | B v2（本次） |
+|---|---|---|---|
+| ckpt | c_lingo_cm_v2 ep089 | b_lingo_full ep222（修复前） | **b_lingo_full_v2 ep222**，sha `5daaf813…` |
+| sample_type | consistency | diffusion | **diffusion** |
+| use_guidance / seed | true / 42 | true / 42 | **true / 42** |
+| shard_count | 1（串行） | 8 | **8** |
+| `hsi_progress_fix` | **true** | 不存在（=false） | **true** |
+| `hsi_gt_trajectory` / `hsi_lookahead_m` | false / 0.8 | false / 0.8 | **false / 0.8** |
+| `export_motion` | true | false | **true** |
+| timing | valid（串行） | null | **null（自动）** |
+
+两处必须说明的差异：
+
+1. **`hsi_progress_fix=true` 是本次与 08-16 B 之间最要紧的一处**。该 gate 是让身体真正执行
+   sit/lie 姿态转换的开关（最终 pelvis 高度 0.7810 → 0.5205，GT 0.4792），并把 C 的
+   `boundary_jerk` 从 134.9 推到 159.0。不开就是拿「站着的 B」比「坐下的 C」。
+2. **`export_motion=true` 已验证对数值中性**：`export_sink` 在全部采样完成之后写入
+   （`test_infbagel_lingo_hsi.py:1663`），只存 handle 不做 D2H 拷贝，`keep_text` 仅保留一个
+   pickle 列表，不消耗 RNG。它的用途是取 caption 做 walk / interactive 分层。
+
+**timing 为 null 由代码保证，而非由 launcher 自律**：`shard_count>1` 走
+`_invalidate_timing`（`:1974`），置空全部墙钟聚合并写入 `timing_valid=false` 与原因串；
+guided cell 的 RDS 同样自动跳过。
+
+### E. 分片逐位中性 —— 实测，且三个负对照确实失败
+
+`seed_everything(cfg.seed + canonical_ordinal)`（`:1818`）无条件生效且以 **canonical
+ordinal** 为键，故单个 episode 的 RNG 流与 `shard_count` 无关。在既有
+`results/lingo_hsi/shard_bitwise` 工件上复核：
+
+| 比较 | 相同值 | 不同值 |
+|---|---:|---:|
+| 500 步 串行 vs 2-shard | 141 | **0** |
+| 500 步 串行 vs seed-43（负对照） | 72 | 75 |
+| 100 步 串行 vs 2-shard | 235 | **0** |
+| 100 步 串行 vs seed-43（负对照） | 119 | 126 |
+| 100 步 串行 vs 改 reseed 前的 2-shard（负对照） | 138 | 97 |
+
+三个负对照都按应有的方式失败，所以这不是一次空洞 PASS。**因此 8-shard 的 B v2 与串行的
+C v2 gate 可以直接配对比较。**
+
+### F. 启动前的 smoke，以及一个不能当结论读的早期信号
+
+以 `shard_count=375` 取最短 episode（`99-pick_up:009601`，2 窗口）跑通全流程：exit 0，
+`schema_version 4`、`sample_type diffusion`、`guided true`、checkpoint sha `5daaf813…`、
+`timing_valid false` 带 contention 原因、RDS `available false`。日志第二个窗口打印
+`pi: tensor([42])`，证实 `hsi_progress_fix` 生效（未修时该值被置零）。
+
+同一 episode 上的三方对照（**n=1，不是证据，仅记录为待验证方向**）：
+
+| | B v2 | C v2 |
+|---|---:|---:|
+| `boundary_jerk` | 100.51 | 169.09 |
+| `jerk_ratio` | 1.394 | 2.508 |
+| `fs_nemf` | 0.672 | 0.393 |
+| `skate_ratio` | 0.169 | 0.270 |
+
+**该方向在 375 个 episode 上被推翻，见 §H。** 这一段原样保留，作为「n=1 不是证据」的一个具体
+例证：全量上 B v2 的 `boundary_jerk` 是 222.50（2.64× GT），**高于** C 的 159.02（1.88×），
+方向与本段完全相反。反向的 `fs_nemf` 是唯一在全量上符号一致的一项。
+
+### G. 本次 run 与作废声明
+
+`p1-hsi-b-v2-eval-epoch222-guided-shard8-s42-20260822`，起于 `ed763b2`（worktree 干净），
+GPU 0–7（启动前实测八张各 18 MiB、零 compute process、无他人占用），窗口均衡
+[285 283 283 285 285 284 284 282]，输出 `results/lingo_hsi/b_v2_guided_shard8`。
+**不覆盖也不复用 08-16 的目录**：`b_guided_shard8` / `b_unguided_shard8` 原样保留。
+
+**作废声明（本节即为登记处，registry 为 append-only，不改旧行）**：
+`p1-hsi-b-eval-epoch222-shard8-s42-20260816` 与
+`p1-hsi-b-eval-epoch222-unguided-shard8-s42-20260816` 的一切 model-side 几何数字属于
+**表征修复前**结果，**不得用于当前决策，也不得与本次或任何修复后行放在同一张表里比较**。
+两行的 provenance、成本与协议结论（分片规则、timing 口径、RDS 门控）仍然有效并继续被引用。
+本节 §D 的成本数字即取自该 guided 行，这一用法是允许的：它是墙钟，不是几何。
+
+按用户指示，本次只跑 guided；**不自动启动 unguided**、不改 B/C、不加 continuous-w loss、
+不重训。continuous w 路线继续暂缓，等本次归因结果再决定。
+
+### H. 结果：seam 缺口不是从 diffusion 继承的，而蒸馏在改善它
+
+`p1-hsi-b-v2-eval-epoch222-guided-shard8-s42-20260822` 完成：8/8 shard `fail=0`，
+merge exit 0，墙钟 **5 h 18 m**（13:25:40–18:43:54 本地），对照 4.99 h 的先例。
+20 条 merge 锚全部通过，其中两条值得单独点出：`excluded_as_warmup` 为 **5**（不是 40，
+说明 canonical-ordinal warmup 规则生效），以及 episode key 集合与 C gate **完全相同**，
+所以配对是同一批 375 个 episode。
+
+配对逐序列 bootstrap，10,000 次重采样（重采样 **episode**，故同一次 replicate 内所有指标看到
+同一批 episode），seed 42。**归因判据在任何 B v2 聚合值产生之前就已写定**
+（`.claude/scratch/bv2_eval_20260822/attribution_rule.md`，当时进度约 70/284 窗口/shard）。
+
+| | GT | **B v2** | B/GT | C v2 | C/GT | B→C delta | 95% CI | |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| `boundary_jerk` | 84.44 | **222.50** | **2.64×** | 159.02 | 1.88× | **−63.55** | [−82.50, −46.37] | SIG |
+| `jerk_ratio` | 1.194 | 2.295 | 1.92× | 2.177 | 1.82× | −0.118 | [−0.211, −0.026] | SIG |
+| `interior_jerk` | 70.43 | 92.38 | **1.31× SIG worse** | 68.59 | **0.97× ns** | −23.83 | [−29.60, −18.63] | SIG |
+| `fs_nemf` | 0.2597 | 0.3159 | 1.22× | 0.2915 | 1.12× | −0.0244 | [−0.0382, −0.0111] | SIG |
+| `transition_distance_aligned` | 0.0064 | 0.0080 | 1.25× SIG | 0.0067 | 1.04× ns | −0.0013 | [−0.0019, −0.0009] | SIG |
+| `goal_planar_err_m` | 0 | 0.0851 m | — | 0.0610 m | — | −0.0240 | [−0.0307, −0.0169] | SIG |
+
+按预注册判据，落在第五行：**delta CI 不含 0 且 delta < 0 → 归因于 diffusion，且蒸馏在改善它。**
+08-17 factorial 记录的 `boundary_jerk` −965 方向**在表征修复后依然成立**。
+
+**比 seam 更锐利的一项是 `interior_jerk`**：B v2 高出 GT 22.01，CI [15.84, 28.60] SIG（1.31×），
+而 C v2 是 0.97× 且与 GT **无显著差异**。所以蒸馏不只是压低了接缝处的抖动，它把窗口**内部**的
+平滑度从「显著差于 GT」拉到了 GT 平价。旋转不变的对照 `transition_distance_aligned` 同向：
+B 在 interactive 上 1.44× SIG 差于 GT，C 是 1.17×，**说明 B 的缺口部分是位置性的，不只是三阶抖动** ——
+这一点与 C 的情形不同（C 那边残差确实以 jitter 为主）。
+
+`fs_nemf` 本次**非空洞**：B、C、GT 三者各有 **0/375** 个恰好为 0 的 episode（修复前是 208/375），
+所以 1.22× / 1.12× 是可读的数字，而不是 FK 身体躺平导致脚从未进入 ankle/toe 带的产物。
+
+**场景交互与到达目标：蒸馏基本中性。** `pen_ratio`、`pen_depth_mean`、`pene_pct_scene`、
+`pene_sum_mean_floorexcl`、`contact_count`、`skate_ratio`、`success_last_10cm`、
+`success_min_10cm` 的 B→C delta 全部 **ns**，且 `success_min_10cm` 两者都恰好 1.0000。
+反过来 B 在 `goal_planar_err_m`（0.0851 vs 0.0610 m）与 `last_dist`（0.0337 vs 0.0284 m）上
+**显著差于 C**。
+
+**分层（walk 130 / interactive 245，判别式 `caption == "walk"`）：方向一致，量级不一致。**
+
+| 分层 | B/GT | C/GT | 蒸馏消除了 B 超出 GT 部分的 |
+|---|---:|---:|---:|
+| walk 130 | 1.70× | 1.29× | **59%** |
+| interactive 245 | **3.26×** | 2.28× | 43% |
+
+interactive 的 `jerk_ratio` B→C 是 **ns**。所以 **interactive 在两个模型上都仍是缺口所在，
+而 B 在那里是更差的一方**（3.26× vs 2.28×）。
+
+### I. 这回答了用户的问题，但把前提反转了
+
+用户设想的捷径是「先确保蒸馏无误，再评 student 反推 teacher，以省下评 B 的时间」。本次测量
+证否了它的前提：**蒸馏对 seam 不透明** —— 它消除 B 的 `boundary_jerk` 超出量的 46%，并把
+`interior_jerk` 从显著差于 GT 抬到平价。因此任何只读 C 的做法都会**系统性地美化 teacher**。
+
+推论是：**剩下的 seam 工作在 diffusion 侧，不在 CM 侧。** B v2 的 2.64×（interactive 3.26×）
+才是更大的那个缺陷，而 C 在每一个 jerk 指标上都优于 B。这不构成「可以不做蒸馏」的理由 ——
+恰恰相反，蒸馏目前在替 diffusion 兜住平滑度。
+
+按用户指示：本次只跑 guided；**未**自动启动 unguided，**未**改动 B/C，**未**加 continuous-w
+loss，**未**重训。continuous w 路线继续暂缓，等用户就本归因结果决定下一步。
