@@ -240,6 +240,99 @@ class GeometryTermForwardScaleProbeTests(unittest.TestCase):
             self.assertEqual(first_output.read_bytes(), second_output.read_bytes())
 
 
+class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
+    def _run(self, directory):
+        values, batch, cfg = _probe_fixture()
+        output = Path(directory) / "palm-decomposition.json"
+        result = diagnostics.geometry_term_palm_decomposition_probe(
+            [batch],
+            values["parents_24"],
+            values["position_minimum"],
+            values["position_maximum"],
+            values["object_minimum"],
+            values["object_maximum"],
+            cfg,
+            output_path=output,
+            window_count=2,
+        )
+        return result, output
+
+    def test_reaggregates_real_loss_and_partitions_active_frames(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, output = self._run(directory)
+            counts = result["frame_counts"]
+            self.assertEqual(
+                counts["left_only"]
+                + counts["right_only"]
+                + counts["both"]
+                + counts["neither"],
+                counts["active"],
+            )
+            self.assertEqual(
+                counts["left_only"] + counts["right_only"] + counts["both"],
+                counts["engaged"],
+            )
+            self.assertLessEqual(
+                abs(result["reaggregation"]["relative_error"]),
+                result["reaggregation"]["tolerance"],
+            )
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), result)
+
+    def test_contacting_assignment_follows_label_when_contacting_palm_is_farther(self):
+        values, batch, cfg = _probe_fixture()
+        frames = diagnostics.REPRESENTATION.history_frames + 1
+        fk = torch.zeros(2, frames, 24, 3)
+        surface = torch.zeros(2, frames, 1, 3)
+        contact = torch.zeros(2, frames, 4)
+        # Left palm is 3 m from the surface, right/free palm is only 1 m away.
+        fk[:, -1, 22, 0] = 3.0
+        fk[:, -1, 23, 0] = 1.0
+        contact[:, -1, 0] = 1.0
+
+        def adversarial_geometry_losses(*_args, **_kwargs):
+            scalar = loss_module.masked_hand_object_distance_loss(
+                fk, surface, contact
+            )
+            return {"hand_object_contact_geometry": scalar}
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                diagnostics, "_geometry_losses", side_effect=adversarial_geometry_losses
+            ):
+                result = diagnostics.geometry_term_palm_decomposition_probe(
+                    [batch],
+                    values["parents_24"],
+                    values["position_minimum"],
+                    values["position_maximum"],
+                    values["object_minimum"],
+                    values["object_maximum"],
+                    cfg,
+                    output_path=Path(directory) / "adversarial.json",
+                    window_count=2,
+                )
+        self.assertEqual(result["frame_counts"]["left_only"], 2)
+        self.assertEqual(result["contacting"]["mean_distance_m"], 3.0)
+        self.assertEqual(result["free"]["mean_distance_m"], 1.0)
+        self.assertGreater(
+            result["contacting"]["mean_distance_m"],
+            result["free"]["mean_distance_m"],
+        )
+
+    def test_capture_wrapper_hard_raises_on_zero_or_two_invocations(self):
+        with self.assertRaisesRegex(AssertionError, "exactly one.*observed 0"):
+            with diagnostics._captured_geometry_loss_call():
+                pass
+
+        frames = diagnostics.REPRESENTATION.history_frames + 1
+        fk = torch.zeros(1, frames, 24, 3)
+        surface = torch.zeros(1, frames, 1, 3)
+        contact = torch.zeros(1, frames, 4)
+        with self.assertRaisesRegex(AssertionError, "exactly one.*observed 2"):
+            with diagnostics._captured_geometry_loss_call():
+                loss_module.masked_hand_object_distance_loss(fk, surface, contact)
+                loss_module.masked_hand_object_distance_loss(fk, surface, contact)
+
+
 class GeometryWeightDerivationProbeTests(unittest.TestCase):
     def _run(self, directory, weight, output_name="weight.json"):
         values, batch, cfg = _probe_fixture()

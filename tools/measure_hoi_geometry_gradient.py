@@ -73,6 +73,14 @@ def build_parser() -> argparse.ArgumentParser:
     forward.add_argument("--batch-size", type=int, default=16)
     forward.add_argument("--config-name", default="config_train_hoi_prior_p12")
 
+    decomposition = subparsers.add_parser(
+        "palm-decomposition", help="decompose the GT floor by semantic palm role on CPU"
+    )
+    decomposition.add_argument("--output", type=Path, required=True)
+    decomposition.add_argument("--window-count", type=int, default=256)
+    decomposition.add_argument("--batch-size", type=int, default=16)
+    decomposition.add_argument("--config-name", default="config_train_hoi_prior_p12")
+
     derivation = subparsers.add_parser(
         "weight-derivation", help="measure raw component gradients at fixed timesteps"
     )
@@ -172,10 +180,12 @@ def run(args: argparse.Namespace) -> Any:
     import torch
     from priors.hoi.diagnostics import (
         geometry_term_forward_scale_probe,
+        geometry_term_palm_decomposition_probe,
         geometry_weight_derivation_probe,
     )
 
-    outputs = [args.output] if args.command == "forward-scale" else list(args.output)
+    cpu_commands = ("forward-scale", "palm-decomposition")
+    outputs = [args.output] if args.command in cpu_commands else list(args.output)
     for output in outputs:
         if output.resolve().exists():
             raise GeometryGradientError(
@@ -193,6 +203,21 @@ def run(args: argparse.Namespace) -> Any:
     if args.command == "forward-scale":
         temporary = _scratch_output(outputs[0])
         result = geometry_term_forward_scale_probe(
+            loader,
+            parents,
+            minimum,
+            maximum,
+            object_minimum,
+            object_maximum,
+            cfg,
+            output_path=temporary,
+            window_count=args.window_count,
+        )
+        return _finalize(result, temporary, outputs[0].resolve())
+
+    if args.command == "palm-decomposition":
+        temporary = _scratch_output(outputs[0])
+        result = geometry_term_palm_decomposition_probe(
             loader,
             parents,
             minimum,
@@ -241,7 +266,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except (GeometryGradientError, OSError, ValueError, KeyError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    outputs = [args.output] if args.command == "forward-scale" else args.output
+    outputs = (
+        [args.output]
+        if args.command in ("forward-scale", "palm-decomposition")
+        else args.output
+    )
     print(json.dumps({"outputs": [str(path.resolve()) for path in outputs]}, indent=2))
     return 0
 

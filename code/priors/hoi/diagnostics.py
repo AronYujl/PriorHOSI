@@ -22,9 +22,11 @@ import numpy as np
 import torch
 
 from ..core.representation import REPRESENTATION
+from . import losses as hoi_loss_module
 from .losses import (
     P8_CONTACT_HAND_CHANNELS,
     P8_CONTACT_THRESHOLD,
+    P8_PALM_JOINTS,
     hoi_training_losses,
 )
 
@@ -479,6 +481,350 @@ def geometry_term_forward_scale_probe(
                 0.0 <= coverage["engaged_frame_fraction"] <= 1.0
                 and 0.0 <= coverage["engaged_window_fraction"] <= 1.0
             ),
+        },
+    }
+    _write_probe_json(output_path, result)
+    return result
+
+
+@contextlib.contextmanager
+def _captured_geometry_loss_call():
+    """Capture the exact tensors routed through the real geometry loss once."""
+    real_loss = hoi_loss_module.masked_hand_object_distance_loss
+    capture = SimpleNamespace(invocations=0, records=[])
+
+    def recording_loss(*args, **kwargs):
+        capture.invocations += 1
+        if len(args) < 3:
+            raise AssertionError(
+                "geometry palm-decomposition capture requires three positional inputs"
+            )
+        result = real_loss(*args, **kwargs)
+        capture.records.append((args[0], args[1], args[2], result))
+        return result
+
+    hoi_loss_module.masked_hand_object_distance_loss = recording_loss
+    try:
+        yield capture
+    finally:
+        hoi_loss_module.masked_hand_object_distance_loss = real_loss
+        if capture.invocations != 1:
+            raise AssertionError(
+                "geometry palm-decomposition probe expected exactly one geometry-loss "
+                f"invocation per forward, observed {capture.invocations}"
+            )
+
+
+def _palm_role_metrics(values: torch.Tensor) -> Dict[str, object]:
+    """Return float64 pooled metrics for one collection of palm-frames."""
+    values = values.double()
+    count = int(values.numel())
+    if count == 0:
+        return {
+            "count": 0,
+            "mean_distance_m": None,
+            "mean_squared_m2": None,
+            "rms_m": None,
+        }
+    mean_distance = float(values.sum().item() / count)
+    mean_squared = float(values.square().sum().item() / count)
+    return {
+        "count": count,
+        "mean_distance_m": mean_distance,
+        "mean_squared_m2": mean_squared,
+        "rms_m": math.sqrt(mean_squared),
+    }
+
+
+def _decompose_palm_geometry_batch(
+    fk: torch.Tensor,
+    predicted_surface: torch.Tensor,
+    contact_ground_truth: torch.Tensor,
+) -> Dict[str, object]:
+    """Split one real-loss input batch by semantic palm-contact identity."""
+    if P8_PALM_JOINTS != (22, 23) or P8_CONTACT_HAND_CHANNELS != slice(0, 2):
+        raise AssertionError(
+            "P8 palm/contact alignment changed: expected left/right joints 22/23 "
+            "aligned with contact channels 0/1"
+        )
+    for name, tensor in (
+        ("geometry_fk", fk),
+        ("predicted_surface", predicted_surface),
+        ("contact_ground_truth", contact_ground_truth),
+    ):
+        if tensor.device.type != "cpu":
+            raise ValueError(
+                f"geometry palm-decomposition probe is CPU-only; {name} is on "
+                f"{tensor.device}"
+            )
+
+    active = slice(REPRESENTATION.history_frames, None)
+    palms = fk[:, active][:, :, P8_PALM_JOINTS, :]
+    surface = predicted_surface[:, active]
+    batch, frames = palms.shape[:2]
+    nearest = torch.cdist(
+        palms.reshape(batch * frames, len(P8_PALM_JOINTS), 3),
+        surface.reshape(batch * frames, -1, 3),
+    ).min(dim=-1)[0].reshape(batch, frames, len(P8_PALM_JOINTS))
+    per_hand_contact = (
+        contact_ground_truth[:, active, P8_CONTACT_HAND_CHANNELS]
+        > P8_CONTACT_THRESHOLD
+    )
+    left = per_hand_contact[..., 0]
+    right = per_hand_contact[..., 1]
+    masks = {
+        "left_only": left & ~right,
+        "right_only": right & ~left,
+        "both": left & right,
+        "neither": ~left & ~right,
+    }
+    engaged = left | right
+
+    role_values = {
+        "contacting": torch.cat(
+            (
+                nearest[..., 0][masks["left_only"]],
+                nearest[..., 1][masks["right_only"]],
+                nearest[masks["both"]].reshape(-1),
+            )
+        ),
+        "free": torch.cat(
+            (
+                nearest[..., 1][masks["left_only"]],
+                nearest[..., 0][masks["right_only"]],
+            )
+        ),
+    }
+    category_values = {
+        "left_only": {
+            "contacting": nearest[..., 0][masks["left_only"]],
+            "free": nearest[..., 1][masks["left_only"]],
+        },
+        "right_only": {
+            "contacting": nearest[..., 1][masks["right_only"]],
+            "free": nearest[..., 0][masks["right_only"]],
+        },
+        "both": {
+            "contacting": nearest[masks["both"]].reshape(-1),
+            "free": nearest.new_empty((0,)),
+        },
+    }
+    frame_counts = {name: int(mask.sum().item()) for name, mask in masks.items()}
+    frame_counts["engaged"] = int(engaged.sum().item())
+    frame_counts["active"] = int(engaged.numel())
+    return {
+        "frame_counts": frame_counts,
+        "role_values": role_values,
+        "category_values": category_values,
+    }
+
+
+def geometry_term_palm_decomposition_probe(
+    training_loader: Iterable[Mapping[str, torch.Tensor]],
+    parents: torch.Tensor,
+    position_minimum: torch.Tensor,
+    position_maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
+    cfg,
+    *,
+    output_path: Path,
+    window_count: int = 256,
+) -> Dict[str, object]:
+    """Decompose the R0 geometry floor by semantic contacting/free palm roles."""
+    if window_count <= 0:
+        raise ValueError("geometry palm-decomposition probe window_count must be positive")
+    if float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0:
+        raise ValueError("geometry palm-decomposition probe requires the R0 zero hinge")
+    if P8_PALM_JOINTS != (22, 23) or P8_CONTACT_HAND_CHANNELS != slice(0, 2):
+        raise AssertionError(
+            "P8 palm/contact alignment changed: expected left/right joints 22/23 "
+            "aligned with contact channels 0/1"
+        )
+
+    category_names = ("left_only", "right_only", "both", "neither")
+    role_names = ("contacting", "free")
+    frame_counts = {name: 0 for name in category_names}
+    pooled = {role: [] for role in role_names}
+    by_category_values = {
+        category: {role: [] for role in role_names}
+        for category in ("left_only", "right_only", "both")
+    }
+    contribution_sums = {role: 0.0 for role in role_names}
+    category_contribution_sums = {
+        category: {role: 0.0 for role in role_names}
+        for category in ("left_only", "right_only", "both")
+    }
+    reference_sum = 0.0
+    consumed = 0
+    batches = 0
+
+    for raw_batch in training_loader:
+        if consumed >= window_count:
+            break
+        take = min(window_count - consumed, int(raw_batch["x"].shape[0]))
+        batch = _slice_batch(raw_batch, take)
+        if batch["x"].device.type != "cpu":
+            raise ValueError("geometry palm-decomposition probe is CPU-only")
+        with _captured_geometry_loss_call() as capture:
+            losses = _geometry_losses(
+                batch["x"],
+                batch,
+                parents,
+                position_minimum,
+                position_maximum,
+                object_minimum,
+                object_maximum,
+                cfg,
+                weight=1.0,
+                detach_object=bool(
+                    cfg.get("hand_object_contact_detach_object", False)
+                ),
+                detach_root=bool(cfg.get("hand_object_contact_detach_root", False)),
+            )
+        if len(capture.records) != 1:
+            raise AssertionError(
+                "geometry palm-decomposition capture did not retain exactly one record"
+            )
+        fk, predicted_surface, contact_ground_truth, captured_scalar = capture.records[0]
+        if losses.get("hand_object_contact_geometry") is not captured_scalar:
+            raise AssertionError(
+                "training losses did not return the captured geometry-loss scalar"
+            )
+        decomposed = _decompose_palm_geometry_batch(
+            fk, predicted_surface, contact_ground_truth
+        )
+        counts = decomposed["frame_counts"]
+        for category in category_names:
+            frame_counts[category] += counts[category]
+        batch_engaged = counts["engaged"]
+        denominator = float(2 * max(batch_engaged, 1))
+        for role in role_names:
+            values = decomposed["role_values"][role]
+            pooled[role].append(values)
+            contribution_sums[role] += (
+                float(values.double().square().sum().item()) / denominator * take
+            )
+        for category in ("left_only", "right_only", "both"):
+            for role in role_names:
+                values = decomposed["category_values"][category][role]
+                by_category_values[category][role].append(values)
+                category_contribution_sums[category][role] += (
+                    float(values.double().square().sum().item()) / denominator * take
+                )
+        reference_sum += float(captured_scalar.item()) * take
+        consumed += take
+        batches += 1
+
+    if consumed != window_count:
+        raise ValueError(
+            f"training loader ended after {consumed} windows; {window_count} required"
+        )
+    frame_counts["engaged"] = (
+        frame_counts["left_only"] + frame_counts["right_only"] + frame_counts["both"]
+    )
+    frame_counts["active"] = frame_counts["engaged"] + frame_counts["neither"]
+    partition_ok = sum(frame_counts[name] for name in category_names) == frame_counts[
+        "active"
+    ]
+    engaged_ok = frame_counts["engaged"] == (
+        frame_counts["left_only"] + frame_counts["right_only"] + frame_counts["both"]
+    )
+    if not partition_ok or not engaged_ok:
+        raise AssertionError("palm contact categories do not reproduce the loss mask")
+    if window_count == 256:
+        if frame_counts["engaged"] != 3353 or frame_counts["active"] != 3584:
+            raise AssertionError(
+                "R0 palm-decomposition frame counts changed: expected 3353 engaged "
+                f"and 3584 active, observed {frame_counts['engaged']} engaged and "
+                f"{frame_counts['active']} active"
+            )
+
+    pooled_metrics = {
+        role: _palm_role_metrics(torch.cat(pooled[role])) for role in role_names
+    }
+    by_category = {
+        category: {
+            role: _palm_role_metrics(torch.cat(by_category_values[category][role]))
+            for role in role_names
+        }
+        for category in ("left_only", "right_only", "both")
+    }
+    contributions = {
+        role: contribution_sums[role] / consumed for role in role_names
+    }
+    reconstructed_floor = sum(contributions.values())
+    reference_floor = reference_sum / consumed
+    absolute_error = abs(reconstructed_floor - reference_floor)
+    relative_error = (
+        (reconstructed_floor - reference_floor) / reference_floor
+        if reference_floor != 0.0
+        else reconstructed_floor
+    )
+    tolerance = 1e-6
+    if abs(relative_error) > tolerance:
+        raise AssertionError(
+            "geometry palm-decomposition failed to reproduce the real loss: "
+            f"relative error {relative_error} exceeds {tolerance}"
+        )
+    shares = {
+        role: contributions[role] / reconstructed_floor
+        if reconstructed_floor != 0.0
+        else 0.0
+        for role in role_names
+    }
+    category_contributions = {}
+    for category in ("left_only", "right_only", "both"):
+        contact_value = category_contribution_sums[category]["contacting"] / consumed
+        free_value = category_contribution_sums[category]["free"] / consumed
+        category_contributions[category] = {
+            "contacting_contribution": contact_value,
+            "free_contribution": free_value,
+            "contacting_share": (
+                contact_value / reconstructed_floor if reconstructed_floor else 0.0
+            ),
+            "free_share": free_value / reconstructed_floor if reconstructed_floor else 0.0,
+        }
+
+    result: Dict[str, object] = {
+        "probe": "geometry_term_palm_decomposition_probe",
+        "seed": 42,
+        "window_count": consumed,
+        "batch_count": batches,
+        "git_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[3],
+            text=True,
+        ).strip(),
+        "palm_contact_alignment": {
+            "palm_0": {"joint": 22, "side": "left", "contact_channel": 0},
+            "palm_1": {"joint": 23, "side": "right", "contact_channel": 1},
+            "index_aligned": True,
+        },
+        "frame_counts": frame_counts,
+        "contacting": pooled_metrics["contacting"],
+        "free": pooled_metrics["free"],
+        "by_category": by_category,
+        "contributions": {
+            "contacting_contribution": contributions["contacting"],
+            "free_contribution": contributions["free"],
+            "contacting_share": shares["contacting"],
+            "free_share": shares["free"],
+            "by_category": category_contributions,
+        },
+        "reaggregation": {
+            "reference_floor": reference_floor,
+            "reconstructed_floor": reconstructed_floor,
+            "absolute_error": absolute_error,
+            "relative_error": relative_error,
+            "tolerance": tolerance,
+        },
+        "self_check": {
+            "capture_invocations_exactly_one": True,
+            "category_counts_partition_active_frames": partition_ok,
+            "engaged_matches_loss_mask": engaged_ok,
+            "reaggregation_within_tolerance": True,
+            "accumulation_dtype": "float64",
         },
     }
     _write_probe_json(output_path, result)
