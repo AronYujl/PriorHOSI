@@ -1,18 +1,32 @@
-"""Registered causal probes for the HOI expert."""
+"""Registered causal probes for the HOI expert.
+
+Geometry-weight records intentionally contain raw per-checkpoint, per-timestep
+measurements only.  Cross-record geometric means, derived weights, calibration
+bands and no-go verdicts belong to the later reduction step, not this module.
+"""
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import inspect
 import json
+import math
 import random
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, Iterable, Mapping, Optional
 
 import numpy as np
 import torch
 
-from .losses import hoi_training_losses
+from ..core.representation import REPRESENTATION
+from .losses import (
+    P8_CONTACT_HAND_CHANNELS,
+    P8_CONTACT_THRESHOLD,
+    hoi_training_losses,
+)
 
 
 _CHANNEL_GROUPS = {
@@ -43,7 +57,7 @@ def _slice_batch(batch: Mapping[str, object], count: int) -> Dict[str, object]:
     }
 
 
-def _detached_geometry_losses(
+def _geometry_losses(
     prediction: torch.Tensor,
     batch: Mapping[str, torch.Tensor],
     parents: torch.Tensor,
@@ -52,7 +66,12 @@ def _detached_geometry_losses(
     object_minimum: torch.Tensor,
     object_maximum: torch.Tensor,
     cfg,
+    *,
+    weight: float,
+    detach_object: bool,
+    detach_root: bool,
 ) -> Dict[str, torch.Tensor]:
+    """Evaluate the configured geometry loss with explicit probe controls."""
     return hoi_training_losses(
         prediction,
         batch["x"],
@@ -71,12 +90,10 @@ def _detached_geometry_losses(
         object_surface_weight=float(cfg.object_surface_weight),
         velocity_weight=float(cfg.velocity_weight),
         goal_weight=float(cfg.goal_weight),
-        hand_object_contact_weight=float(cfg.hand_object_contact_weight),
+        hand_object_contact_weight=float(weight),
         hand_object_contact_hinge=float(cfg.get("hand_object_contact_hinge", 0.0)),
-        hand_object_contact_detach_object=bool(
-            cfg.get("hand_object_contact_detach_object", False)
-        ),
-        hand_object_contact_detach_root=True,
+        hand_object_contact_detach_object=bool(detach_object),
+        hand_object_contact_detach_root=bool(detach_root),
         fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
         routed_foot_residual_multiplier=float(
             cfg.get("routed_foot_residual_multiplier", 1.0)
@@ -192,7 +209,7 @@ def root_gradient_share_probe(
                     losses["total"], prediction, retain_graph=True,
                 )
 
-                detached_losses = _detached_geometry_losses(
+                detached_losses = _geometry_losses(
                     prediction,
                     batch,
                     parents,
@@ -201,6 +218,11 @@ def root_gradient_share_probe(
                     object_minimum,
                     object_maximum,
                     cfg,
+                    weight=float(cfg.hand_object_contact_weight),
+                    detach_object=bool(
+                        cfg.get("hand_object_contact_detach_object", False)
+                    ),
+                    detach_root=True,
                 )
                 g_geom_detached, = torch.autograd.grad(
                     weight * detached_losses["hand_object_contact_geometry"],
@@ -273,4 +295,545 @@ def root_gradient_share_probe(
     output_path.write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    return result
+
+
+def _write_probe_json(output_path: Path, result: Mapping[str, object]) -> None:
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def geometry_term_forward_scale_probe(
+    training_loader: Iterable[Mapping[str, torch.Tensor]],
+    parents: torch.Tensor,
+    position_minimum: torch.Tensor,
+    position_maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
+    cfg,
+    *,
+    output_path: Path,
+    window_count: int = 256,
+) -> Dict[str, object]:
+    """Measure the unit-weight geometry term at and around its GT target."""
+    if window_count <= 0:
+        raise ValueError("geometry forward-scale probe window_count must be positive")
+
+    sigma_items = (("0.02", 0.02), ("0.05", 0.05), ("0.10", 0.10))
+    floor_sum = 0.0
+    perturbed_sums = {key: 0.0 for key, _ in sigma_items}
+    consumed = 0
+    batches = 0
+    total_active_frames = 0
+    total_engaged_frames = 0
+    engaged_windows = 0
+    python_state = random.getstate()
+    numpy_state = np.random.get_state()
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(42)
+    loss_key_present = True
+
+    try:
+        random.seed(42)
+        np.random.seed(42)
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(42)
+            for raw_batch in training_loader:
+                if consumed >= window_count:
+                    break
+                take = min(window_count - consumed, int(raw_batch["x"].shape[0]))
+                batch = _slice_batch(raw_batch, take)
+                target = batch["x"]
+                floor_losses = _geometry_losses(
+                    target,
+                    batch,
+                    parents,
+                    position_minimum,
+                    position_maximum,
+                    object_minimum,
+                    object_maximum,
+                    cfg,
+                    weight=1.0,
+                    detach_object=bool(
+                        cfg.get("hand_object_contact_detach_object", False)
+                    ),
+                    detach_root=bool(
+                        cfg.get("hand_object_contact_detach_root", False)
+                    ),
+                )
+                loss_key_present = loss_key_present and (
+                    "hand_object_contact_geometry" in floor_losses
+                )
+                if not loss_key_present:
+                    raise AssertionError(
+                        "unit-weight geometry call omitted hand_object_contact_geometry"
+                    )
+                floor_sum += float(
+                    floor_losses["hand_object_contact_geometry"].item()
+                ) * take
+
+                for key, sigma in sigma_items:
+                    epsilon = torch.randn(
+                        target.shape,
+                        dtype=target.dtype,
+                        device=target.device,
+                        generator=generator,
+                    )
+                    perturbed_losses = _geometry_losses(
+                        target + sigma * epsilon,
+                        batch,
+                        parents,
+                        position_minimum,
+                        position_maximum,
+                        object_minimum,
+                        object_maximum,
+                        cfg,
+                        weight=1.0,
+                        detach_object=bool(
+                            cfg.get("hand_object_contact_detach_object", False)
+                        ),
+                        detach_root=bool(
+                            cfg.get("hand_object_contact_detach_root", False)
+                        ),
+                    )
+                    if "hand_object_contact_geometry" not in perturbed_losses:
+                        raise AssertionError(
+                            "unit-weight geometry call omitted hand_object_contact_geometry"
+                        )
+                    perturbed_sums[key] += float(
+                        perturbed_losses["hand_object_contact_geometry"].item()
+                    ) * take
+
+                active = target[:, REPRESENTATION.history_frames:, 228:232]
+                engaged = (
+                    active[..., P8_CONTACT_HAND_CHANNELS] > P8_CONTACT_THRESHOLD
+                ).any(dim=-1)
+                total_active_frames += int(engaged.numel())
+                total_engaged_frames += int(engaged.sum().item())
+                engaged_windows += int(engaged.any(dim=-1).sum().item())
+                consumed += take
+                batches += 1
+    finally:
+        random.setstate(python_state)
+        np.random.set_state(numpy_state)
+
+    if consumed != window_count:
+        raise ValueError(
+            f"training loader ended after {consumed} windows; {window_count} required"
+        )
+    floor = floor_sum / consumed
+    perturbed = {key: value / consumed for key, value in perturbed_sums.items()}
+    if not math.isfinite(floor):
+        raise ValueError("geometry forward-scale floor is non-finite")
+    if not all(math.isfinite(value) for value in perturbed.values()):
+        raise ValueError("geometry forward-scale perturbation is non-finite")
+    sensitivity = {
+        key: (perturbed[key] - floor) / (sigma * sigma)
+        for key, sigma in sigma_items
+    }
+    floor_ratio = {
+        key: floor / perturbed[key] if perturbed[key] != 0.0 else 0.0
+        for key, _ in sigma_items
+    }
+    active_frames_per_window = total_active_frames // consumed
+    coverage = {
+        "engaged_frame_fraction": total_engaged_frames / total_active_frames,
+        "engaged_window_fraction": engaged_windows / consumed,
+        "mean_engaged_frames_per_engaged_window": (
+            total_engaged_frames / engaged_windows if engaged_windows else 0.0
+        ),
+        "active_frames_per_window": active_frames_per_window,
+        "total_active_frames": total_active_frames,
+        "total_engaged_frames": total_engaged_frames,
+        "total_windows": consumed,
+    }
+    monotone = all(
+        perturbed[left] <= perturbed[right]
+        for left, right in (("0.02", "0.05"), ("0.05", "0.10"))
+    )
+    result: Dict[str, object] = {
+        "probe": "geometry_term_forward_scale_probe",
+        "seed": 42,
+        "window_count": consumed,
+        "batch_count": batches,
+        "git_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[3],
+            text=True,
+        ).strip(),
+        "term_weight_used": 1.0,
+        "floor": floor,
+        "sigmas": [sigma for _, sigma in sigma_items],
+        "perturbed": perturbed,
+        "sensitivity": sensitivity,
+        "floor_ratio": floor_ratio,
+        "coverage": coverage,
+        "self_check": {
+            "loss_key_present": True,
+            "floor_is_finite": True,
+            "perturbed_monotone_in_sigma": monotone,
+            "coverage_in_unit_interval": (
+                0.0 <= coverage["engaged_frame_fraction"] <= 1.0
+                and 0.0 <= coverage["engaged_window_fraction"] <= 1.0
+            ),
+        },
+    }
+    _write_probe_json(output_path, result)
+    return result
+
+
+_GEOMETRY_GRADIENT_COMPONENTS = (
+    "joint_position",
+    "joint_rotation",
+    "fk",
+    "object_translation",
+    "object_rotation",
+    "object_surface",
+    "hand_object_contact_geometry",
+    "total",
+)
+
+
+def _require_plain_forward_path(cfg) -> None:
+    from train_hoi_prior import (
+        _is_d2ab,
+        _is_d2ad,
+        _is_d2ag,
+        _is_d2z,
+        _is_sparse_relation,
+    )
+
+    for predicate_name, predicate in (
+        ("_is_d2ag", _is_d2ag),
+        ("_is_d2ad", _is_d2ad),
+        ("_is_sparse_relation", _is_sparse_relation),
+        ("_is_d2z", _is_d2z),
+        ("_is_d2ab", _is_d2ab),
+    ):
+        if predicate(cfg):
+            raise ValueError(
+                "geometry weight-derivation probe requires the plain "
+                f"_forward_losses path; {predicate_name}(cfg) is true"
+            )
+
+
+@contextlib.contextmanager
+def _pinned_timestep(timestep):
+    """Force train_hoi_prior._forward_losses to use one fixed timestep.
+
+    The replacement still calls the real torch.randint first and discards its
+    result, so the generator is advanced EXACTLY as the unpatched trainer path
+    advances it and the subsequent noise draw is bit-identical.
+    """
+    import train_hoi_prior
+
+    real_randint = train_hoi_prior.torch.randint
+    pin = SimpleNamespace(substitutions=0)
+
+    def pinned_randint(*args, **kwargs):
+        drawn = real_randint(*args, **kwargs)
+        high = kwargs.get("high", args[1] if len(args) > 1 else None)
+        size = kwargs.get("size", args[2] if len(args) > 2 else None)
+        caller = inspect.currentframe().f_back
+        batch_size = None
+        if (
+            caller is not None
+            and caller.f_globals.get("__name__") == "train_hoi_prior"
+            and caller.f_code.co_name == "_forward_losses"
+        ):
+            batch_size = int(caller.f_locals["clean"].shape[0])
+        if (
+            high == REPRESENTATION.diffusion_steps
+            and size == (batch_size,)
+            and tuple(drawn.shape) == (batch_size,)
+        ):
+            pin.substitutions += 1
+            return torch.full_like(drawn, int(timestep))
+        return drawn
+
+    train_hoi_prior.torch.randint = pinned_randint
+    try:
+        yield pin
+    finally:
+        train_hoi_prior.torch.randint = real_randint
+
+
+def geometry_weight_derivation_probe(
+    model: torch.nn.Module,
+    diffusion: torch.nn.Module,
+    training_loader: Iterable[Mapping[str, torch.Tensor]],
+    parents: torch.Tensor,
+    position_minimum: torch.Tensor,
+    position_maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
+    cfg,
+    *,
+    checkpoint_path: Path,
+    output_path: Path,
+    window_count: int = 64,
+    timesteps: tuple[int, ...] = (250, 499),
+    device: Optional[torch.device] = None,
+) -> Dict[str, object]:
+    """Measure raw component gradients for later geometry-weight reduction."""
+    # This import direction is deliberate: the trainer never imports this
+    # diagnostics module, so the probe cannot enter the training hot path.
+    from train_hoi_prior import _forward_losses, _move_batch
+
+    checkpoint_path = Path(checkpoint_path)
+    output_path = Path(output_path)
+    if window_count <= 0:
+        raise ValueError("geometry weight-derivation window_count must be positive")
+    if not timesteps:
+        raise ValueError("geometry weight-derivation timesteps must not be empty")
+    if not checkpoint_path.is_file():
+        raise ValueError(f"probe checkpoint does not exist: {checkpoint_path}")
+    _require_plain_forward_path(cfg)
+    if (
+        float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0
+        or bool(cfg.get("hand_object_contact_detach_object", False))
+        or bool(cfg.get("hand_object_contact_detach_root", False))
+    ):
+        raise ValueError(
+            "geometry weight-derivation probe requires zero hinge and attached gradients"
+        )
+
+    configured_weight = float(cfg.get("hand_object_contact_weight", 0.0))
+    geometry_from_separate_call = configured_weight == 0.0
+    if device is None:
+        try:
+            device = next(model.parameters()).device
+        except StopIteration:
+            device = torch.device("cpu")
+    device = torch.device(device)
+    generator = torch.Generator(device=device)
+    generator.manual_seed(42)
+    component_names = _GEOMETRY_GRADIENT_COMPONENTS
+    component_squared = {
+        str(timestep): {name: 0.0 for name in component_names}
+        for timestep in timesteps
+    }
+    target_squared = {
+        str(timestep): {"geometry": 0.0, "nongeometry": 0.0, "dot": 0.0}
+        for timestep in timesteps
+    }
+    root_squared = {str(timestep): 0.0 for timestep in timesteps}
+    previous_training = model.training
+    python_state = random.getstate()
+    numpy_state = np.random.get_state()
+    cuda_devices = [] if device.type != "cuda" else [device.index or 0]
+    batch_count: Optional[int] = None
+
+    try:
+        random.seed(42)
+        np.random.seed(42)
+        with torch.random.fork_rng(devices=cuda_devices):
+            torch.manual_seed(42)
+            if device.type == "cuda":
+                torch.cuda.manual_seed(42)
+            model.train()
+            for timestep in timesteps:
+                consumed = 0
+                batches = 0
+                key = str(timestep)
+                for raw_batch in training_loader:
+                    if consumed >= window_count:
+                        break
+                    take = min(window_count - consumed, int(raw_batch["x"].shape[0]))
+                    batch = _move_batch(_slice_batch(raw_batch, take), device)
+                    captured = []
+                    hook = model.register_forward_hook(
+                        lambda _module, _arguments, output: captured.append(output)
+                    )
+                    try:
+                        with _pinned_timestep(timestep) as pin:
+                            losses = _forward_losses(
+                                model,
+                                diffusion,
+                                batch,
+                                parents,
+                                position_minimum,
+                                position_maximum,
+                                object_minimum,
+                                object_maximum,
+                                cfg,
+                                generator=generator,
+                            )
+                    finally:
+                        hook.remove()
+                    if pin.substitutions != 1:
+                        raise AssertionError(
+                            "geometry weight probe expected exactly one pinned "
+                            "timestep substitution per forward, observed "
+                            f"{pin.substitutions}"
+                        )
+                    if len(captured) != 1:
+                        raise AssertionError(
+                            "geometry weight probe expected one training forward, "
+                            f"observed {len(captured)}"
+                        )
+                    prediction = captured[0]
+                    if geometry_from_separate_call:
+                        geometry_losses = _geometry_losses(
+                            prediction,
+                            batch,
+                            parents,
+                            position_minimum,
+                            position_maximum,
+                            object_minimum,
+                            object_maximum,
+                            cfg,
+                            weight=1.0,
+                            detach_object=bool(
+                                cfg.get("hand_object_contact_detach_object", False)
+                            ),
+                            detach_root=bool(
+                                cfg.get("hand_object_contact_detach_root", False)
+                            ),
+                        )
+                        geometry_loss = geometry_losses[
+                            "hand_object_contact_geometry"
+                        ]
+                    else:
+                        geometry_loss = losses["hand_object_contact_geometry"]
+
+                    component_losses = {
+                        name: losses[name]
+                        for name in component_names
+                        if name != "hand_object_contact_geometry"
+                    }
+                    component_losses["hand_object_contact_geometry"] = geometry_loss
+                    gradients = {}
+                    for name in component_names:
+                        gradient, = torch.autograd.grad(
+                            component_losses[name], prediction, retain_graph=True
+                        )
+                        gradients[name] = gradient
+                        component_squared[key][name] += float(
+                            gradient.double().square().sum().item()
+                        )
+
+                    geometry_gradient = gradients["hand_object_contact_geometry"]
+                    if int(torch.count_nonzero(geometry_gradient[..., 3:84])) != 0:
+                        raise AssertionError(
+                            "geometry gradient on joint-position channels 3:84 is not exactly zero"
+                        )
+                    nongeometry_gradient = (
+                        gradients["total"] - configured_weight * geometry_gradient
+                    )
+                    geometry_target = geometry_gradient[..., 84:228].double()
+                    nongeometry_target = nongeometry_gradient[..., 84:228].double()
+                    target_squared[key]["geometry"] += float(
+                        geometry_target.square().sum().item()
+                    )
+                    target_squared[key]["nongeometry"] += float(
+                        nongeometry_target.square().sum().item()
+                    )
+                    target_squared[key]["dot"] += float(
+                        (geometry_target * nongeometry_target).sum().item()
+                    )
+                    root_squared[key] += float(
+                        geometry_gradient[..., 0:3].double().square().sum().item()
+                    )
+                    consumed += take
+                    batches += 1
+                if consumed != window_count:
+                    raise ValueError(
+                        f"training loader ended after {consumed} windows; "
+                        f"{window_count} required"
+                    )
+                if batch_count is None:
+                    batch_count = batches
+                elif batch_count != batches:
+                    raise AssertionError("training loader batch count changed across timesteps")
+    finally:
+        model.train(previous_training)
+        random.setstate(python_state)
+        np.random.set_state(numpy_state)
+
+    gradient_l2 = {
+        key: {name: value ** 0.5 for name, value in values.items()}
+        for key, values in component_squared.items()
+    }
+    human_side_l2 = {
+        key: sum(
+            component_squared[key][name]
+            for name in ("joint_position", "joint_rotation", "fk")
+        ) ** 0.5
+        for key in component_squared
+    }
+    object_side_l2 = {
+        key: sum(
+            component_squared[key][name]
+            for name in ("object_translation", "object_rotation", "object_surface")
+        ) ** 0.5
+        for key in component_squared
+    }
+    target_channel = {}
+    for key, values in target_squared.items():
+        geometry_l2 = values["geometry"] ** 0.5
+        nongeometry_l2 = values["nongeometry"] ** 0.5
+        denominator = geometry_l2 * nongeometry_l2
+        target_channel[key] = {
+            "geometry_l2": geometry_l2,
+            "nongeometry_l2": nongeometry_l2,
+            "cosine_similarity": values["dot"] / denominator if denominator else 0.0,
+        }
+    root_channel_geometry_l2 = {
+        key: value ** 0.5 for key, value in root_squared.items()
+    }
+    p0_calibration = {
+        key: {
+            "fk_over_object_surface": (
+                gradient_l2[key]["fk"] / gradient_l2[key]["object_surface"]
+                if gradient_l2[key]["object_surface"] else 0.0
+            )
+        }
+        for key in gradient_l2
+    }
+    finite_values = []
+    for values in gradient_l2.values():
+        finite_values.extend(values.values())
+    finite_values.extend(human_side_l2.values())
+    finite_values.extend(object_side_l2.values())
+    finite_values.extend(root_channel_geometry_l2.values())
+    for values in target_channel.values():
+        finite_values.extend(values.values())
+    for values in p0_calibration.values():
+        finite_values.extend(values.values())
+    if not all(math.isfinite(value) for value in finite_values):
+        raise ValueError("geometry weight-derivation probe produced a non-finite value")
+
+    result: Dict[str, object] = {
+        "probe": "geometry_weight_derivation_probe",
+        "seed": 42,
+        "window_count": window_count,
+        "batch_count": int(batch_count or 0),
+        "checkpoint_path": str(checkpoint_path.resolve()),
+        "checkpoint_sha256": _sha256(checkpoint_path),
+        "git_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parents[3],
+            text=True,
+        ).strip(),
+        "configured_hand_object_contact_weight": configured_weight,
+        "geometry_from_separate_call": geometry_from_separate_call,
+        "timesteps": [int(timestep) for timestep in timesteps],
+        "timestep_seam": "pinned_real_forward_losses",
+        "gradient_l2": gradient_l2,
+        "human_side_l2": human_side_l2,
+        "object_side_l2": object_side_l2,
+        "target_channel": target_channel,
+        "root_channel_geometry_l2": root_channel_geometry_l2,
+        "p0_calibration": p0_calibration,
+        "self_check": {
+            "plain_forward_path_verified": True,
+            "geometry_gradient_on_joint_positions_exactly_zero": True,
+            "all_values_finite": True,
+        },
+    }
+    _write_probe_json(output_path, result)
     return result

@@ -1,6 +1,7 @@
 """HOIPrior objective and registered-gradient-probe contracts."""
 
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -201,6 +202,242 @@ class RootGradientShareProbeTests(unittest.TestCase):
             with mock.patch.object(diagnostics.torch, "equal", return_value=False):
                 with self.assertRaisesRegex(AssertionError, "rotation gradient"):
                     self._run(directory)
+
+
+class GeometryTermForwardScaleProbeTests(unittest.TestCase):
+    def _run(self, directory, name):
+        values, batch, cfg = _probe_fixture()
+        output = Path(directory) / name
+        result = diagnostics.geometry_term_forward_scale_probe(
+            [batch],
+            values["parents_24"],
+            values["position_minimum"],
+            values["position_maximum"],
+            values["object_minimum"],
+            values["object_maximum"],
+            cfg,
+            output_path=output,
+            window_count=2,
+        )
+        return result, output
+
+    def test_reports_finite_floor_coverage_and_sensitivity_and_writes_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, output = self._run(directory, "forward.json")
+            self.assertTrue(math.isfinite(result["floor"]))
+            self.assertGreaterEqual(result["coverage"]["engaged_frame_fraction"], 0.0)
+            self.assertLessEqual(result["coverage"]["engaged_frame_fraction"], 1.0)
+            self.assertGreaterEqual(result["coverage"]["engaged_window_fraction"], 0.0)
+            self.assertLessEqual(result["coverage"]["engaged_window_fraction"], 1.0)
+            self.assertEqual(set(result["sensitivity"]), {"0.02", "0.05", "0.10"})
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), result)
+
+    def test_is_bit_identical_for_the_same_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, first_output = self._run(directory, "first.json")
+            second, second_output = self._run(directory, "second.json")
+            self.assertEqual(first, second)
+            self.assertEqual(first_output.read_bytes(), second_output.read_bytes())
+
+
+class GeometryWeightDerivationProbeTests(unittest.TestCase):
+    def _run(self, directory, weight, output_name="weight.json"):
+        values, batch, cfg = _probe_fixture()
+        cfg.hand_object_contact_weight = weight
+        checkpoint = Path(directory) / "checkpoint.pth"
+        if not checkpoint.exists():
+            checkpoint.write_bytes(b"synthetic-checkpoint")
+        output = Path(directory) / output_name
+        result = diagnostics.geometry_weight_derivation_probe(
+            _SyntheticModel(),
+            GaussianDiffusion(500),
+            [batch],
+            values["parents_24"],
+            values["position_minimum"],
+            values["position_maximum"],
+            values["object_minimum"],
+            values["object_maximum"],
+            cfg,
+            checkpoint_path=checkpoint,
+            output_path=output,
+            window_count=2,
+            timesteps=(250, 499),
+        )
+        return result
+
+    def test_zero_and_weight_three_report_all_documented_keys(self):
+        expected = {
+            "probe", "seed", "window_count", "batch_count", "checkpoint_path",
+            "checkpoint_sha256", "git_commit",
+            "configured_hand_object_contact_weight", "geometry_from_separate_call",
+            "timesteps", "timestep_seam", "gradient_l2", "human_side_l2",
+            "object_side_l2", "target_channel", "root_channel_geometry_l2",
+            "p0_calibration", "self_check",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            zero = self._run(directory, 0.0, "zero.json")
+            weighted = self._run(directory, 3.0, "three.json")
+            self.assertEqual(set(zero), expected)
+            self.assertEqual(set(weighted), expected)
+            self.assertTrue(zero["geometry_from_separate_call"])
+            self.assertFalse(weighted["geometry_from_separate_call"])
+            self.assertEqual(zero["configured_hand_object_contact_weight"], 0.0)
+            self.assertEqual(weighted["configured_hand_object_contact_weight"], 3.0)
+            for result in (zero, weighted):
+                self.assertEqual(result["timestep_seam"], "pinned_real_forward_losses")
+                self.assertTrue(result["self_check"]["all_values_finite"])
+                self.assertTrue(
+                    result["self_check"][
+                        "geometry_gradient_on_joint_positions_exactly_zero"
+                    ]
+                )
+                self.assertEqual(set(result["gradient_l2"]), {"250", "499"})
+
+    def test_pinned_timestep_bitwise_reproduces_plain_forward_losses_batch_two(self):
+        import train_hoi_prior
+
+        values, batch, cfg = _probe_fixture()
+        model = _SyntheticModel()
+        diffusion = GaussianDiffusion(500)
+        device = batch["x"].device
+        # This seed makes both independently drawn batch timesteps equal, so a
+        # scalar pin can reproduce the unpatched two-window trainer call.
+        seed = 1597
+
+        reference_generator = torch.Generator(device=device)
+        reference_generator.manual_seed(seed)
+        real_randint = train_hoi_prior.torch.randint
+        recorded_timesteps = []
+
+        def recording_randint(*args, **kwargs):
+            drawn = real_randint(*args, **kwargs)
+            recorded_timesteps.append(drawn.clone())
+            return drawn
+
+        with mock.patch.object(
+            train_hoi_prior.torch, "randint", side_effect=recording_randint
+        ):
+            reference = train_hoi_prior._forward_losses(
+                model,
+                diffusion,
+                batch,
+                values["parents_24"],
+                values["position_minimum"],
+                values["position_maximum"],
+                values["object_minimum"],
+                values["object_maximum"],
+                cfg,
+                generator=reference_generator,
+            )
+        self.assertEqual(len(recorded_timesteps), 1)
+        self.assertEqual(recorded_timesteps[0].shape, (2,))
+        self.assertTrue(
+            torch.equal(recorded_timesteps[0], recorded_timesteps[0][0].expand(2))
+        )
+
+        reproduced_generator = torch.Generator(device=device)
+        reproduced_generator.manual_seed(seed)
+        with diagnostics._pinned_timestep(int(recorded_timesteps[0][0])) as pin:
+            reproduced = train_hoi_prior._forward_losses(
+                model,
+                diffusion,
+                batch,
+                values["parents_24"],
+                values["position_minimum"],
+                values["position_maximum"],
+                values["object_minimum"],
+                values["object_maximum"],
+                cfg,
+                generator=reproduced_generator,
+            )
+        self.assertEqual(pin.substitutions, 1)
+
+        self.assertEqual(set(reproduced), set(reference))
+        discrepancies = {}
+        for key in reproduced:
+            if not torch.equal(reproduced[key], reference[key]):
+                delta = (reproduced[key] - reference[key]).abs()
+                discrepancies[key] = {
+                    "mismatched_elements": int(
+                        torch.count_nonzero(reproduced[key] != reference[key])
+                    ),
+                    "max_abs_difference": float(delta.max()),
+                }
+        self.assertFalse(discrepancies, discrepancies)
+
+    def test_probe_hard_raises_unless_one_timestep_is_substituted(self):
+        for substitutions in (0, 2):
+            with self.subTest(substitutions=substitutions):
+                with tempfile.TemporaryDirectory() as directory:
+                    context = mock.MagicMock()
+                    context.__enter__.return_value = mock.Mock(
+                        substitutions=substitutions
+                    )
+                    with mock.patch.object(
+                        diagnostics, "_pinned_timestep", return_value=context
+                    ):
+                        with self.assertRaisesRegex(
+                            AssertionError,
+                            f"exactly one.*observed {substitutions}",
+                        ):
+                            self._run(directory, 3.0)
+
+    def test_probe_component_keys_track_trainer_loss_keys(self):
+        from train_hoi_prior import _loss_keys
+
+        _values, _batch, cfg = _probe_fixture()
+        deliberately_excluded = {
+            "reconstruction",
+            "contact",
+            "velocity",
+            "object_goal",
+            "contact_accuracy",
+        }
+        self.assertEqual(
+            set(diagnostics._GEOMETRY_GRADIENT_COMPONENTS),
+            set(_loss_keys(cfg)) - deliberately_excluded,
+        )
+
+    def test_probe_rejects_specialized_forward_paths(self):
+        values, batch, cfg = _probe_fixture()
+        cases = (
+            ("d2ag_selfcond_relation_source", "_is_d2ag"),
+            ("d2ad_local_frame_interaction_adapter", "_is_d2ad"),
+            ("d2ae_sparse_relation_field", "_is_sparse_relation"),
+            ("d2z_immutable_gt_near_ground_gating", "_is_d2z"),
+            ("d2ab_predicted_support_no_slip", "_is_d2ab"),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "checkpoint.pth"
+            checkpoint.write_bytes(b"synthetic-checkpoint")
+            for config_key, predicate_name in cases:
+                with self.subTest(predicate=predicate_name):
+                    branch_cfg = OmegaConf.create(OmegaConf.to_container(cfg))
+                    branch_cfg[config_key] = True
+                    with self.assertRaisesRegex(ValueError, predicate_name):
+                        diagnostics.geometry_weight_derivation_probe(
+                            _SyntheticModel(),
+                            GaussianDiffusion(500),
+                            [batch],
+                            values["parents_24"],
+                            values["position_minimum"],
+                            values["position_maximum"],
+                            values["object_minimum"],
+                            values["object_maximum"],
+                            branch_cfg,
+                            checkpoint_path=checkpoint,
+                            output_path=Path(directory) / "unused.json",
+                            window_count=2,
+                            timesteps=(250,),
+                        )
+
+    def test_corrupted_joint_position_geometry_gradient_raises(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(
+                diagnostics.torch, "count_nonzero", return_value=torch.tensor(1)
+            ):
+                with self.assertRaisesRegex(AssertionError, "channels 3:84"):
+                    self._run(directory, 0.0)
 
 
 if __name__ == "__main__":
