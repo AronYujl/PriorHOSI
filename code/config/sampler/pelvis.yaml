@@ -13,3 +13,6 @@ pelvis:
   scene_type: ${scene_type}
   temp_voxel_num: ${temp_voxel_num}
   is_mix: false
+  # oc.select with a null default: this sampler group is shared with configs
+  # that never define the top-level key, and those must still resolve.
+  hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}

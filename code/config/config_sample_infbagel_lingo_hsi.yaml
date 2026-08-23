@@ -71,6 +71,22 @@ lingo_sequence_limit: null
 # true = keep the true pi, restoring end_pi - pi == 48 on every window.
 hsi_progress_fix: false
 
+# hsi_guidance_norm_cap: per-step trust region on the guidance increment, applied on
+# the DIFFUSION path only (Sampler.p_sample); the consistency path is untouched.
+# null = off, and the arithmetic emitted is byte-identical to the released path -- no
+# norm is computed and no extra tensor op runs.  A float caps the increment's PER-SAMPLE
+# L2 norm: gradient *= min(1, cap / (||gradient|| + 1e-12)).
+# It exists because the matched 2x2 of 2026-08-23 attributed 100% of the physically
+# impossible root accelerations to guidance -- 132 frames over 5g in B v2 guided and 41
+# in C v2 guided against 0 in both unguided cells -- and 80.2% of the summed effect
+# magnitude on boundary_jerk to guidance-involving terms, with the interaction (64.401)
+# the largest single term.  The released sampler adds the increment unnormalised once
+# per sampler step, 499 times per window against the consistency path's 16.
+# Units are those of the normalised 232-channel x_start, so a threshold is only
+# meaningful relative to a measured increment distribution; see
+# docs/plan/PHASE_1C_HSI.md 2026-08-23 SS-H.
+hsi_guidance_norm_cap: null
+
 # 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
 # CURRENT behaviour so every sealed cell stays bitwise reproducible.
 #

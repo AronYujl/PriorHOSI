@@ -20,6 +20,19 @@ def update_ema(target_params, source_params, rate=0.99):
     for targ, src in zip(target_params, source_params):
         targ.detach().mul_(rate).add_(src, alpha=1 - rate)
 
+def cap_guidance_increment(gradient, cap):
+    """Clip a guidance increment to an L2 norm of ``cap``, one norm PER SAMPLE.
+
+    ``gradient *= min(1, cap / (||gradient|| + eps))``, reduced over every non-batch
+    dimension so the branch cannot key on sample 0 and make the result depend on how a
+    batch was laid out.  A sample already under ``cap`` is multiplied by exactly 1.0 and
+    therefore comes back bitwise unchanged.  ``cap=None`` is the identity.
+    """
+    if cap is None:
+        return gradient
+    norm = gradient.flatten(1).norm(dim=1).view(-1, *([1] * (gradient.ndim - 1)))
+    return gradient * torch.clamp(float(cap) / (norm + 1e-12), max=1.0)
+
 class Sampler:
     def __init__(self, device, mask_ind, emb_f, batch_size, channel, auto_regre_num, timesteps, ddim_timesteps, cm_timesteps, **kwargs):
         self.device = device
@@ -37,6 +50,10 @@ class Sampler:
         self.cm_timesteps = cm_timesteps
         self.w = kwargs.get('w', 0)
         self.is_mix = kwargs.get('is_mix', False)
+        # None = off, and p_sample then emits exactly the released arithmetic.
+        # See config_sample_infbagel_lingo_hsi.yaml: hsi_guidance_norm_cap.
+        cap = kwargs.get('hsi_guidance_norm_cap', None)
+        self.hsi_guidance_norm_cap = None if cap is None else float(cap)
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
@@ -1016,6 +1033,14 @@ class Sampler:
                     loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
+                # Per-step trust region on the guidance increment, per sample so the
+                # branch cannot key on sample 0 and break layout neutrality.  Off by
+                # default; the released path adds the increment unnormalised 499 times
+                # per window, which the 2026-08-23 2x2 tied to 100% of the >5g root
+                # accelerations.  Diffusion path only -- cm_sample is untouched.
+                cap = self.hsi_guidance_norm_cap
+                if cap is not None:
+                    gradient = cap_guidance_increment(gradient, cap)
                 x_prev = x_prev + gradient
 
             return x_prev, occ, model_output
