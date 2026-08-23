@@ -515,25 +515,42 @@ def _captured_geometry_loss_call():
             )
 
 
-def _palm_role_metrics(values: torch.Tensor) -> Dict[str, object]:
-    """Return float64 pooled metrics for one collection of palm-frames."""
-    values = values.double()
-    count = int(values.numel())
-    if count == 0:
+class _PalmRoleAccumulator:
+    """Float64 streaming moments for palm distances, with exact integer count."""
+
+    def __init__(self) -> None:
+        self.count = 0
+        self.sum = 0.0
+        self.sumsq = 0.0
+
+    def update(self, values: torch.Tensor) -> float:
+        values = values.double()
+        batch_sumsq = float(values.square().sum().item())
+        self.count += int(values.numel())
+        self.sum += float(values.sum().item())
+        self.sumsq += batch_sumsq
+        return batch_sumsq
+
+    def merge(self, other: "_PalmRoleAccumulator") -> None:
+        self.count += other.count
+        self.sum += other.sum
+        self.sumsq += other.sumsq
+
+    def metrics(self) -> Dict[str, object]:
+        if self.count == 0:
+            return {
+                "count": 0,
+                "mean_distance_m": None,
+                "mean_squared_m2": None,
+                "rms_m": None,
+            }
+        mean_squared = float(self.sumsq / self.count)
         return {
-            "count": 0,
-            "mean_distance_m": None,
-            "mean_squared_m2": None,
-            "rms_m": None,
+            "count": self.count,
+            "mean_distance_m": float(self.sum / self.count),
+            "mean_squared_m2": mean_squared,
+            "rms_m": math.sqrt(mean_squared),
         }
-    mean_distance = float(values.sum().item() / count)
-    mean_squared = float(values.square().sum().item() / count)
-    return {
-        "count": count,
-        "mean_distance_m": mean_distance,
-        "mean_squared_m2": mean_squared,
-        "rms_m": math.sqrt(mean_squared),
-    }
 
 
 def _decompose_palm_geometry_batch(
@@ -609,6 +626,24 @@ def _decompose_palm_geometry_batch(
             "free": nearest.new_empty((0,)),
         },
     }
+    nearest_palm_vs_label = {}
+    for category, contacting_index, free_index in (
+        ("left_only", 0, 1),
+        ("right_only", 1, 0),
+    ):
+        contacting = nearest[..., contacting_index][masks[category]]
+        free = nearest[..., free_index][masks[category]]
+        agree = contacting < free
+        tie = contacting == free
+        disagree = contacting > free
+        nearest_palm_vs_label[category] = {
+            "single_contact_frames": int(contacting.numel()),
+            "agree": int(agree.sum().item()),
+            "disagree": int(disagree.sum().item()),
+            "tie": int(tie.sum().item()),
+            "disagree_contacting": contacting[disagree],
+            "disagree_free": free[disagree],
+        }
     frame_counts = {name: int(mask.sum().item()) for name, mask in masks.items()}
     frame_counts["engaged"] = int(engaged.sum().item())
     frame_counts["active"] = int(engaged.numel())
@@ -616,6 +651,7 @@ def _decompose_palm_geometry_batch(
         "frame_counts": frame_counts,
         "role_values": role_values,
         "category_values": category_values,
+        "nearest_palm_vs_label": nearest_palm_vs_label,
     }
 
 
@@ -645,10 +681,26 @@ def geometry_term_palm_decomposition_probe(
     category_names = ("left_only", "right_only", "both", "neither")
     role_names = ("contacting", "free")
     frame_counts = {name: 0 for name in category_names}
-    pooled = {role: [] for role in role_names}
+    pooled = {role: _PalmRoleAccumulator() for role in role_names}
     by_category_values = {
-        category: {role: [] for role in role_names}
+        category: {role: _PalmRoleAccumulator() for role in role_names}
         for category in ("left_only", "right_only", "both")
+    }
+    nearest_palm_vs_label_counts = {
+        category: {
+            "single_contact_frames": 0,
+            "agree": 0,
+            "disagree": 0,
+            "tie": 0,
+        }
+        for category in ("left_only", "right_only")
+    }
+    disagree_distances = {
+        category: {
+            "contacting": _PalmRoleAccumulator(),
+            "free": _PalmRoleAccumulator(),
+        }
+        for category in ("left_only", "right_only")
     }
     contribution_sums = {role: 0.0 for role in role_names}
     category_contribution_sums = {
@@ -701,17 +753,25 @@ def geometry_term_palm_decomposition_probe(
         denominator = float(2 * max(batch_engaged, 1))
         for role in role_names:
             values = decomposed["role_values"][role]
-            pooled[role].append(values)
-            contribution_sums[role] += (
-                float(values.double().square().sum().item()) / denominator * take
-            )
+            batch_sumsq = pooled[role].update(values)
+            contribution_sums[role] += batch_sumsq / denominator * take
         for category in ("left_only", "right_only", "both"):
             for role in role_names:
                 values = decomposed["category_values"][category][role]
-                by_category_values[category][role].append(values)
+                batch_sumsq = by_category_values[category][role].update(values)
                 category_contribution_sums[category][role] += (
-                    float(values.double().square().sum().item()) / denominator * take
+                    batch_sumsq / denominator * take
                 )
+        for category in ("left_only", "right_only"):
+            batch_nearest = decomposed["nearest_palm_vs_label"][category]
+            for name in ("single_contact_frames", "agree", "disagree", "tie"):
+                nearest_palm_vs_label_counts[category][name] += batch_nearest[name]
+            disagree_distances[category]["contacting"].update(
+                batch_nearest["disagree_contacting"]
+            )
+            disagree_distances[category]["free"].update(
+                batch_nearest["disagree_free"]
+            )
         reference_sum += float(captured_scalar.item()) * take
         consumed += take
         batches += 1
@@ -733,22 +793,121 @@ def geometry_term_palm_decomposition_probe(
     if not partition_ok or not engaged_ok:
         raise AssertionError("palm contact categories do not reproduce the loss mask")
     if window_count == 256:
-        if frame_counts["engaged"] != 3353 or frame_counts["active"] != 3584:
+        expected_counts = {
+            "active": 3584,
+            "engaged": 3353,
+            "left_only": 1129,
+            "right_only": 2224,
+            "both": 0,
+            "neither": 231,
+        }
+        mismatches = {
+            name: {"expected": expected, "observed": frame_counts[name]}
+            for name, expected in expected_counts.items()
+            if frame_counts[name] != expected
+        }
+        if mismatches:
             raise AssertionError(
-                "R0 palm-decomposition frame counts changed: expected 3353 engaged "
-                f"and 3584 active, observed {frame_counts['engaged']} engaged and "
-                f"{frame_counts['active']} active"
+                "R0 palm-decomposition frame counts changed; mismatches: "
+                f"{mismatches}"
             )
 
     pooled_metrics = {
-        role: _palm_role_metrics(torch.cat(pooled[role])) for role in role_names
+        role: pooled[role].metrics() for role in role_names
     }
     by_category = {
         category: {
-            role: _palm_role_metrics(torch.cat(by_category_values[category][role]))
+            role: by_category_values[category][role].metrics()
             for role in role_names
         }
         for category in ("left_only", "right_only", "both")
+    }
+    nearest_palm_vs_label = {}
+    nearest_partition_ok = True
+    for category in ("left_only", "right_only"):
+        counts = nearest_palm_vs_label_counts[category]
+        category_partition_ok = (
+            counts["agree"] + counts["disagree"] + counts["tie"]
+            == counts["single_contact_frames"]
+        )
+        if counts["single_contact_frames"] != frame_counts[category]:
+            raise AssertionError(
+                "nearest-palm-vs-label single-contact count does not match "
+                f"{category} frame count: {counts['single_contact_frames']} vs "
+                f"{frame_counts[category]}"
+            )
+        nearest_partition_ok = nearest_partition_ok and category_partition_ok
+        if not category_partition_ok:
+            raise AssertionError(
+                "nearest-palm-vs-label categories do not partition "
+                f"{category} single-contact frames: {counts}"
+            )
+        denominator = counts["single_contact_frames"]
+        nearest_palm_vs_label[category] = {
+            "single_contact_frames": denominator,
+            "proportion_denominator": denominator,
+            "proportion_denominator_name": "single_contact_frames",
+            "agree": {
+                "count": counts["agree"],
+                "fraction": counts["agree"] / denominator if denominator else None,
+            },
+            "disagree": {
+                "count": counts["disagree"],
+                "fraction": counts["disagree"] / denominator if denominator else None,
+            },
+            "tie": {
+                "count": counts["tie"],
+                "fraction": counts["tie"] / denominator if denominator else None,
+            },
+            "disagree_subset": {
+                "contacting": disagree_distances[category]["contacting"].metrics(),
+                "free": disagree_distances[category]["free"].metrics(),
+            },
+        }
+    total_counts = {
+        name: sum(nearest_palm_vs_label_counts[category][name]
+                  for category in ("left_only", "right_only"))
+        for name in ("single_contact_frames", "agree", "disagree", "tie")
+    }
+    total_partition_ok = (
+        total_counts["agree"] + total_counts["disagree"] + total_counts["tie"]
+        == total_counts["single_contact_frames"]
+    )
+    nearest_partition_ok = nearest_partition_ok and total_partition_ok
+    if not total_partition_ok:
+        raise AssertionError(
+            "nearest-palm-vs-label categories do not partition total "
+            f"single-contact frames: {total_counts}"
+        )
+    total_disagree_distances = {
+        role: _PalmRoleAccumulator() for role in role_names
+    }
+    for role in role_names:
+        for category in ("left_only", "right_only"):
+            total_disagree_distances[role].merge(disagree_distances[category][role])
+    total_denominator = total_counts["single_contact_frames"]
+    nearest_palm_vs_label["total"] = {
+        "single_contact_frames": total_denominator,
+        "proportion_denominator": total_denominator,
+        "proportion_denominator_name": "single_contact_frames",
+        "agree": {
+            "count": total_counts["agree"],
+            "fraction": total_counts["agree"] / total_denominator
+            if total_denominator else None,
+        },
+        "disagree": {
+            "count": total_counts["disagree"],
+            "fraction": total_counts["disagree"] / total_denominator
+            if total_denominator else None,
+        },
+        "tie": {
+            "count": total_counts["tie"],
+            "fraction": total_counts["tie"] / total_denominator
+            if total_denominator else None,
+        },
+        "disagree_subset": {
+            role: total_disagree_distances[role].metrics() for role in role_names
+        },
     }
     contributions = {
         role: contribution_sums[role] / consumed for role in role_names
@@ -805,6 +964,7 @@ def geometry_term_palm_decomposition_probe(
         "contacting": pooled_metrics["contacting"],
         "free": pooled_metrics["free"],
         "by_category": by_category,
+        "nearest_palm_vs_label": nearest_palm_vs_label,
         "contributions": {
             "contacting_contribution": contributions["contacting"],
             "free_contribution": contributions["free"],
@@ -823,6 +983,9 @@ def geometry_term_palm_decomposition_probe(
             "capture_invocations_exactly_one": True,
             "category_counts_partition_active_frames": partition_ok,
             "engaged_matches_loss_mask": engaged_ok,
+            "nearest_palm_vs_label_partitions_single_contact_frames": (
+                nearest_partition_ok
+            ),
             "reaggregation_within_tolerance": True,
             "accumulation_dtype": "float64",
         },

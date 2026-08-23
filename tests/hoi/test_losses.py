@@ -241,11 +241,11 @@ class GeometryTermForwardScaleProbeTests(unittest.TestCase):
 
 
 class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
-    def _run(self, directory):
+    def _run(self, directory, name="palm-decomposition.json", batches=None):
         values, batch, cfg = _probe_fixture()
-        output = Path(directory) / "palm-decomposition.json"
+        output = Path(directory) / name
         result = diagnostics.geometry_term_palm_decomposition_probe(
-            [batch],
+            batches if batches is not None else [batch],
             values["parents_24"],
             values["position_minimum"],
             values["position_maximum"],
@@ -256,6 +256,63 @@ class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
             window_count=2,
         )
         return result, output
+
+    def _run_label_fixture(self, directory, contacting_distance, free_distance):
+        values, batch, cfg = _probe_fixture()
+        frames = diagnostics.REPRESENTATION.history_frames + 1
+        fk = torch.zeros(2, frames, 24, 3)
+        surface = torch.zeros(2, frames, 1, 3)
+        contact = torch.zeros(2, frames, 4)
+        fk[:, -1, 22, 0] = contacting_distance
+        fk[:, -1, 23, 0] = free_distance
+        contact[:, -1, 0] = 1.0
+
+        def adversarial_geometry_losses(*_args, **_kwargs):
+            scalar = loss_module.masked_hand_object_distance_loss(
+                fk, surface, contact
+            )
+            return {"hand_object_contact_geometry": scalar}
+
+        with mock.patch.object(
+            diagnostics, "_geometry_losses", side_effect=adversarial_geometry_losses
+        ):
+            return diagnostics.geometry_term_palm_decomposition_probe(
+                [batch],
+                values["parents_24"],
+                values["position_minimum"],
+                values["position_maximum"],
+                values["object_minimum"],
+                values["object_maximum"],
+                cfg,
+                output_path=Path(directory) / "label-fixture.json",
+                window_count=2,
+            )
+
+    @staticmethod
+    def _split_batch(batch):
+        batch_size = int(batch["x"].shape[0])
+        return [
+            {
+                key: (
+                    value[index:index + 1]
+                    if torch.is_tensor(value)
+                    and value.ndim
+                    and value.shape[0] == batch_size
+                    else value
+                )
+                for key, value in batch.items()
+            }
+            for index in range(batch_size)
+        ]
+
+    def assert_moments_almost_equal(self, first, second):
+        self.assertEqual(first["count"], second["count"])
+        for name in ("mean_distance_m", "mean_squared_m2", "rms_m"):
+            if first[name] is None or second[name] is None:
+                self.assertIsNone(first[name])
+                self.assertIsNone(second[name])
+            else:
+                self.assertAlmostEqual(first[name], second[name], delta=1e-6)
 
     def test_reaggregates_real_loss_and_partitions_active_frames(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -279,43 +336,101 @@ class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
             self.assertEqual(json.loads(output.read_text(encoding="utf-8")), result)
 
     def test_contacting_assignment_follows_label_when_contacting_palm_is_farther(self):
-        values, batch, cfg = _probe_fixture()
-        frames = diagnostics.REPRESENTATION.history_frames + 1
-        fk = torch.zeros(2, frames, 24, 3)
-        surface = torch.zeros(2, frames, 1, 3)
-        contact = torch.zeros(2, frames, 4)
-        # Left palm is 3 m from the surface, right/free palm is only 1 m away.
-        fk[:, -1, 22, 0] = 3.0
-        fk[:, -1, 23, 0] = 1.0
-        contact[:, -1, 0] = 1.0
-
-        def adversarial_geometry_losses(*_args, **_kwargs):
-            scalar = loss_module.masked_hand_object_distance_loss(
-                fk, surface, contact
-            )
-            return {"hand_object_contact_geometry": scalar}
-
         with tempfile.TemporaryDirectory() as directory:
-            with mock.patch.object(
-                diagnostics, "_geometry_losses", side_effect=adversarial_geometry_losses
-            ):
-                result = diagnostics.geometry_term_palm_decomposition_probe(
-                    [batch],
-                    values["parents_24"],
-                    values["position_minimum"],
-                    values["position_maximum"],
-                    values["object_minimum"],
-                    values["object_maximum"],
-                    cfg,
-                    output_path=Path(directory) / "adversarial.json",
-                    window_count=2,
-                )
+            result = self._run_label_fixture(directory, 3.0, 1.0)
         self.assertEqual(result["frame_counts"]["left_only"], 2)
         self.assertEqual(result["contacting"]["mean_distance_m"], 3.0)
         self.assertEqual(result["free"]["mean_distance_m"], 1.0)
         self.assertGreater(
             result["contacting"]["mean_distance_m"],
             result["free"]["mean_distance_m"],
+        )
+        nearest = result["nearest_palm_vs_label"]
+        self.assertEqual(nearest["total"]["disagree"]["count"], 2)
+        self.assertEqual(nearest["total"]["agree"]["count"], 0)
+        self.assertEqual(nearest["total"]["tie"]["count"], 0)
+        self.assertEqual(nearest["left_only"]["disagree"]["count"], 2)
+        self.assertEqual(
+            nearest["total"]["disagree_subset"]["contacting"][
+                "mean_distance_m"
+            ],
+            3.0,
+        )
+        self.assertEqual(
+            nearest["total"]["disagree_subset"]["free"]["mean_distance_m"],
+            1.0,
+        )
+
+    def test_tie_is_not_folded_into_agreement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run_label_fixture(directory, 2.0, 2.0)
+        total = result["nearest_palm_vs_label"]["total"]
+        self.assertEqual(total["tie"]["count"], 2)
+        self.assertEqual(total["agree"]["count"], 0)
+        self.assertEqual(total["disagree"]["count"], 0)
+
+    def test_labelled_contacting_palm_strictly_nearer_is_agreement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run_label_fixture(directory, 1.0, 3.0)
+        total = result["nearest_palm_vs_label"]["total"]
+        self.assertEqual(total["agree"]["count"], 2)
+        self.assertEqual(total["disagree"]["count"], 0)
+        self.assertEqual(total["tie"]["count"], 0)
+
+    def test_streaming_probe_is_bit_identical_for_the_same_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, first_output = self._run(directory, "first.json")
+            second, second_output = self._run(directory, "second.json")
+            self.assertEqual(first, second)
+            self.assertEqual(first_output.read_bytes(), second_output.read_bytes())
+
+    def test_streaming_moments_are_equivalent_across_batching(self):
+        values, batch, _cfg = _probe_fixture()
+        del values, _cfg
+        with tempfile.TemporaryDirectory() as directory:
+            whole, _ = self._run(directory, "whole.json", [batch])
+            split, _ = self._run(
+                directory, "split.json", self._split_batch(batch)
+            )
+        self.assertEqual(whole["frame_counts"], split["frame_counts"])
+        for role in ("contacting", "free"):
+            self.assert_moments_almost_equal(whole[role], split[role])
+        for category in ("left_only", "right_only", "both"):
+            for role in ("contacting", "free"):
+                self.assert_moments_almost_equal(
+                    whole["by_category"][category][role],
+                    split["by_category"][category][role],
+                )
+        for category in ("left_only", "right_only", "total"):
+            whole_nearest = whole["nearest_palm_vs_label"][category]
+            split_nearest = split["nearest_palm_vs_label"][category]
+            for name in ("single_contact_frames", "proportion_denominator"):
+                self.assertEqual(whole_nearest[name], split_nearest[name])
+            for name in ("agree", "disagree", "tie"):
+                self.assertEqual(
+                    whole_nearest[name]["count"], split_nearest[name]["count"]
+                )
+            for role in ("contacting", "free"):
+                self.assert_moments_almost_equal(
+                    whole_nearest["disagree_subset"][role],
+                    split_nearest["disagree_subset"][role],
+                )
+
+    def test_nearest_palm_vs_label_categories_partition_single_contact_frames(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self._run(directory)
+        for category in ("left_only", "right_only", "total"):
+            nearest = result["nearest_palm_vs_label"][category]
+            self.assertEqual(
+                nearest["agree"]["count"]
+                + nearest["disagree"]["count"]
+                + nearest["tie"]["count"],
+                nearest["single_contact_frames"],
+            )
+        self.assertTrue(
+            result["self_check"][
+                "nearest_palm_vs_label_partitions_single_contact_frames"
+            ]
         )
 
     def test_capture_wrapper_hard_raises_on_zero_or_two_invocations(self):
