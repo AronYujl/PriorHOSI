@@ -37,6 +37,28 @@ P8_CONTACT_HAND_CHANNELS = slice(0, 2)
 P8_CONTACT_THRESHOLD = 0.5
 
 
+def _reduce_per_hand_per_frame(
+    nearest: torch.Tensor, per_hand_contact: torch.Tensor
+) -> torch.Tensor:
+    """Average contacting palms per frame, then average engaged frames."""
+    mask = per_hand_contact.to(nearest)
+    contacting_per_frame = mask.sum(dim=-1)
+    per_frame = (
+        (mask * nearest.square()).sum(dim=-1)
+        / contacting_per_frame.clamp_min(1.0)
+    )
+    weight = (contacting_per_frame > 0).to(per_frame)
+    return (per_frame * weight).sum() / weight.sum().clamp_min(1.0)
+
+
+def _reduce_per_hand_global(
+    nearest: torch.Tensor, per_hand_contact: torch.Tensor
+) -> torch.Tensor:
+    """Average squared distance over all contacting palm entries."""
+    mask = per_hand_contact.to(nearest)
+    return (mask * nearest.square()).sum() / mask.sum().clamp_min(1.0)
+
+
 def masked_hand_object_distance_loss(
     fk: torch.Tensor,
     object_surface: torch.Tensor,
@@ -44,6 +66,7 @@ def masked_hand_object_distance_loss(
     *,
     hinge: float = 0.0,
     detach_object: bool = False,
+    hand_object_contact_mask_mode: str = "sealed",
 ) -> torch.Tensor:
     """Palm-to-object-surface squared distance, on ground-truth contact frames.
 
@@ -82,12 +105,23 @@ def masked_hand_object_distance_loss(
     returns a new view and never mutates the caller's tensor or its graph, so
     object supervision through that term is unaffected.  Never use the in-place
     ``detach_()`` here.
+
+    ``hand_object_contact_mask_mode`` selects the sealed frame mask or one of
+    the two per-hand reducers.  Per-hand modes are valid only with zero hinge.
     """
     hinge = float(hinge)
     if not math.isfinite(hinge) or hinge < 0.0:
         raise ValueError(
             f"P8 geometry hinge must be a finite non-negative distance in metres, got {hinge}"
         )
+    mask_modes = {"sealed", "per_hand_global", "per_hand_per_frame"}
+    if hand_object_contact_mask_mode not in mask_modes:
+        raise ValueError(
+            "unknown hand-object contact mask mode: "
+            f"{hand_object_contact_mask_mode!r}"
+        )
+    if hand_object_contact_mask_mode != "sealed" and hinge != 0.0:
+        raise ValueError("per-hand contact mask modes require zero hinge")
     if fk.ndim != 4 or fk.shape[2] < max(P8_PALM_JOINTS) + 1:
         raise ValueError(
             f"P8 geometry expects [B,T,>=24,3] FK joints, got {tuple(fk.shape)}"
@@ -109,14 +143,19 @@ def masked_hand_object_distance_loss(
     frames = palms.shape[1]
     if surface.shape[1] != frames:
         raise ValueError("P8 geometry object surface and FK differ in frame count")
-    engaged = (
+    per_hand_contact = (
         contact_ground_truth[:, active, P8_CONTACT_HAND_CHANNELS] > P8_CONTACT_THRESHOLD
-    ).any(dim=-1)
+    )
+    engaged = per_hand_contact.any(dim=-1)
     distances = torch.cdist(
         palms.reshape(batch * frames, len(P8_PALM_JOINTS), 3),
         surface.reshape(batch * frames, -1, 3),
     )
     nearest = distances.min(dim=-1)[0].reshape(batch, frames, len(P8_PALM_JOINTS))
+    if hand_object_contact_mask_mode == "per_hand_global":
+        return _reduce_per_hand_global(nearest, per_hand_contact)
+    if hand_object_contact_mask_mode == "per_hand_per_frame":
+        return _reduce_per_hand_per_frame(nearest, per_hand_contact)
     if hinge > 0.0:
         per_frame = (nearest - hinge).clamp_min(0.0).square().mean(dim=-1)
     else:
@@ -236,6 +275,7 @@ def hoi_training_losses(
     hand_object_contact_hinge: float = 0.0,
     hand_object_contact_detach_object: bool = False,
     hand_object_contact_detach_root: bool = False,
+    hand_object_contact_mask_mode: str = "sealed",
     fk_foot_temporal_routing: bool = False,
     routed_foot_residual_multiplier: float = 1.0,
 ) -> Dict[str, torch.Tensor]:
@@ -351,6 +391,7 @@ def hoi_training_losses(
             # the callee and therefore cannot weaken that supervision.
             hinge=float(hand_object_contact_hinge),
             detach_object=bool(hand_object_contact_detach_object),
+            hand_object_contact_mask_mode=hand_object_contact_mask_mode,
         )
     reconstruction = sum(losses[name] for name in (
         "joint_position", "joint_rotation", "object_translation", "object_rotation", "contact",

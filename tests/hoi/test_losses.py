@@ -19,6 +19,87 @@ from priors.hoi.diffusion import GaussianDiffusion
 from priors.hoi.losses import hoi_training_losses
 
 
+def _mask_loss_fixture(left, right, contacts):
+    active_frames = len(left)
+    frames = loss_module.REPRESENTATION.history_frames + active_frames
+    fk = torch.zeros(1, frames, 24, 3)
+    surface = torch.zeros(1, frames, 1, 3)
+    labels = torch.zeros(1, frames, 4)
+    fk[0, -active_frames:, 22, 0] = torch.tensor(left)
+    fk[0, -active_frames:, 23, 0] = torch.tensor(right)
+    labels[0, -active_frames:, :2] = torch.tensor(contacts)
+    return fk, surface, labels
+
+
+class HandObjectMaskModeTests(unittest.TestCase):
+    def _loss(self, left, right, contacts, mode):
+        return loss_module.masked_hand_object_distance_loss(
+            *_mask_loss_fixture(left, right, contacts),
+            hand_object_contact_mask_mode=mode,
+        )
+
+    def test_left_only_frame_charges_only_left_palm(self):
+        for mode in ("per_hand_global", "per_hand_per_frame"):
+            self.assertEqual(float(self._loss([2.0], [9.0], [[1, 0]], mode)), 4.0)
+
+    def test_right_only_frame_charges_only_right_palm(self):
+        for mode in ("per_hand_global", "per_hand_per_frame"):
+            self.assertEqual(float(self._loss([9.0], [3.0], [[0, 1]], mode)), 9.0)
+
+    def test_both_frame_averages_two_contacting_palms(self):
+        for mode in ("per_hand_global", "per_hand_per_frame"):
+            self.assertEqual(float(self._loss([2.0], [4.0], [[1, 1]], mode)), 10.0)
+
+    def test_no_contact_frame_is_excluded(self):
+        for mode in ("per_hand_global", "per_hand_per_frame"):
+            value = self._loss([2.0, 100.0], [9.0, 100.0], [[1, 0], [0, 0]], mode)
+            self.assertEqual(float(value), 4.0)
+
+    def test_candidate_a_exact_global_formula(self):
+        value = self._loss([1.0, 3.0], [2.0, 4.0], [[1, 0], [1, 1]], "per_hand_global")
+        self.assertAlmostEqual(
+            float(value), (1.0 + 9.0 + 16.0) / 3.0, delta=1e-6
+        )
+
+    def test_candidate_b_exact_per_frame_formula(self):
+        value = self._loss([1.0, 3.0], [2.0, 4.0], [[1, 0], [1, 1]], "per_hand_per_frame")
+        self.assertEqual(float(value), (1.0 + (9.0 + 16.0) / 2.0) / 2.0)
+
+    def test_default_sealed_path_is_bitwise_unchanged(self):
+        fk, surface, labels = _mask_loss_fixture(
+            [1.0, 3.0], [2.0, 4.0], [[1, 0], [0, 0]]
+        )
+        default = loss_module.masked_hand_object_distance_loss(fk, surface, labels)
+        explicit = loss_module.masked_hand_object_distance_loss(
+            fk, surface, labels, hand_object_contact_mask_mode="sealed"
+        )
+        nearest = torch.tensor([[[1.0, 2.0], [3.0, 4.0]]])
+        engaged = torch.tensor([[True, False]])
+        per_frame = nearest.square().mean(dim=-1)
+        weight = engaged.to(per_frame)
+        pre_change = (per_frame * weight).sum() / weight.sum().clamp_min(1.0)
+        self.assertTrue(torch.equal(default, explicit))
+        self.assertTrue(torch.equal(default, pre_change))
+
+    def test_empty_denominator_returns_finite_zero(self):
+        for mode in ("per_hand_global", "per_hand_per_frame"):
+            value = self._loss([1.0], [2.0], [[0, 0]], mode)
+            self.assertTrue(torch.isfinite(value))
+            self.assertEqual(float(value), 0.0)
+
+    def test_invalid_modes_fail_closed(self):
+        inputs = _mask_loss_fixture([1.0], [2.0], [[1, 0]])
+        with self.assertRaisesRegex(ValueError, "unknown.*mask mode"):
+            loss_module.masked_hand_object_distance_loss(
+                *inputs, hand_object_contact_mask_mode="mystery"
+            )
+        with self.assertRaisesRegex(ValueError, "require zero hinge"):
+            loss_module.masked_hand_object_distance_loss(
+                *inputs, hinge=0.02,
+                hand_object_contact_mask_mode="per_hand_global",
+            )
+
+
 def _synthetic_inputs(batch_size=2):
     torch.manual_seed(42)
     prediction = (torch.randn(batch_size, 16, 232) * 0.15).requires_grad_()

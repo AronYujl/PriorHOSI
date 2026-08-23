@@ -81,6 +81,14 @@ def build_parser() -> argparse.ArgumentParser:
     decomposition.add_argument("--batch-size", type=int, default=16)
     decomposition.add_argument("--config-name", default="config_train_hoi_prior_p12")
 
+    mask_fix = subparsers.add_parser(
+        "mask-fix-floor", help="compare geometry contact-mask reducers on CPU"
+    )
+    mask_fix.add_argument("--output", type=Path, required=True)
+    mask_fix.add_argument("--window-count", type=int, default=256)
+    mask_fix.add_argument("--batch-size", type=int, default=16)
+    mask_fix.add_argument("--config-name", default="config_train_hoi_prior_p12")
+
     derivation = subparsers.add_parser(
         "weight-derivation", help="measure raw component gradients at fixed timesteps"
     )
@@ -181,10 +189,11 @@ def run(args: argparse.Namespace) -> Any:
     from priors.hoi.diagnostics import (
         geometry_term_forward_scale_probe,
         geometry_term_palm_decomposition_probe,
+        geometry_mask_fix_floor_probe,
         geometry_weight_derivation_probe,
     )
 
-    cpu_commands = ("forward-scale", "palm-decomposition")
+    cpu_commands = ("forward-scale", "palm-decomposition", "mask-fix-floor")
     outputs = [args.output] if args.command in cpu_commands else list(args.output)
     for output in outputs:
         if output.resolve().exists():
@@ -230,6 +239,15 @@ def run(args: argparse.Namespace) -> Any:
         )
         return _finalize(result, temporary, outputs[0].resolve())
 
+    if args.command == "mask-fix-floor":
+        temporary = _scratch_output(outputs[0])
+        result = geometry_mask_fix_floor_probe(
+            loader, parents, minimum, maximum, object_minimum, object_maximum, cfg,
+            output_path=temporary, window_count=args.window_count,
+            batch_size=args.batch_size,
+        )
+        return _finalize(result, temporary, outputs[0].resolve())
+
     records = []
     for checkpoint_path, output in zip(args.checkpoint, outputs):
         model, diffusion, device = _load_model(
@@ -268,7 +286,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 2
     outputs = (
         [args.output]
-        if args.command in ("forward-scale", "palm-decomposition")
+        if args.command in ("forward-scale", "palm-decomposition", "mask-fix-floor")
         else args.output
     )
     print(json.dumps({"outputs": [str(path.resolve()) for path in outputs]}, indent=2))

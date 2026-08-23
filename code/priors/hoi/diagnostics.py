@@ -27,6 +27,8 @@ from .losses import (
     P8_CONTACT_HAND_CHANNELS,
     P8_CONTACT_THRESHOLD,
     P8_PALM_JOINTS,
+    _reduce_per_hand_global,
+    _reduce_per_hand_per_frame,
     hoi_training_losses,
 )
 
@@ -482,6 +484,279 @@ def geometry_term_forward_scale_probe(
                 and 0.0 <= coverage["engaged_window_fraction"] <= 1.0
             ),
         },
+    }
+    _write_probe_json(output_path, result)
+    return result
+
+
+def geometry_mask_fix_floor_probe(
+    training_loader: Iterable[Mapping[str, torch.Tensor]],
+    parents: torch.Tensor,
+    position_minimum: torch.Tensor,
+    position_maximum: torch.Tensor,
+    object_minimum: torch.Tensor,
+    object_maximum: torch.Tensor,
+    cfg,
+    *,
+    output_path: Path,
+    window_count: int = 256,
+    batch_size=None,
+) -> Dict[str, object]:
+    """Compare the sealed geometry floor with both per-hand mask reducers."""
+    if window_count <= 0:
+        raise ValueError("geometry mask-fix floor probe window_count must be positive")
+    if float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0:
+        raise ValueError("geometry mask-fix floor probe requires zero hinge")
+    if P8_PALM_JOINTS != (22, 23) or P8_CONTACT_HAND_CHANNELS != slice(0, 2):
+        raise AssertionError(
+            "P8 palm/contact alignment changed: expected left/right joints 22/23 "
+            "aligned with contact channels 0/1"
+        )
+    for name, tensor in (
+        ("parents", parents),
+        ("position_minimum", position_minimum),
+        ("position_maximum", position_maximum),
+        ("object_minimum", object_minimum),
+        ("object_maximum", object_maximum),
+    ):
+        if tensor.device.type != "cpu":
+            raise ValueError(f"geometry mask-fix floor probe is CPU-only; {name} is on {tensor.device}")
+
+    sigma_items = (("0.02", 0.02), ("0.05", 0.05), ("0.10", 0.10))
+    variant_names = ("sealed", "per_hand_global", "per_hand_per_frame")
+    condition_sums = {
+        name: {"floor": 0.0, **{key: 0.0 for key, _ in sigma_items}}
+        for name in variant_names
+    }
+    consumed = batches = 0
+    total_active_frames = total_engaged_frames = engaged_windows = 0
+    total_contacting_entries = total_both_contact_frames = 0
+    observed_batch_size = batch_size
+    python_state = random.getstate()
+    numpy_state = np.random.get_state()
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(42)
+
+    def measure_condition(prediction, batch, take, condition):
+        with _captured_geometry_loss_call() as capture:
+            losses = _geometry_losses(
+                prediction, batch, parents, position_minimum, position_maximum,
+                object_minimum, object_maximum, cfg, weight=1.0,
+                detach_object=bool(cfg.get("hand_object_contact_detach_object", False)),
+                detach_root=bool(cfg.get("hand_object_contact_detach_root", False)),
+            )
+        fk, surface, labels, authoritative = capture.records[0]
+        if losses.get("hand_object_contact_geometry") is not authoritative:
+            raise AssertionError("training losses did not return the captured geometry-loss scalar")
+        for name, tensor in (("geometry_fk", fk), ("predicted_surface", surface), ("contact_ground_truth", labels)):
+            if tensor.device.type != "cpu":
+                raise ValueError(
+                    f"geometry mask-fix floor probe is CPU-only; {name} is on {tensor.device}"
+                )
+        active = slice(REPRESENTATION.history_frames, None)
+        palms = fk[:, active][:, :, P8_PALM_JOINTS, :]
+        predicted_surface = surface[:, active]
+        batch_count, frames = palms.shape[:2]
+        nearest = torch.cdist(
+            palms.reshape(batch_count * frames, 2, 3),
+            predicted_surface.reshape(batch_count * frames, -1, 3),
+        ).min(dim=-1)[0].reshape(batch_count, frames, 2)
+        per_hand = labels[:, active, P8_CONTACT_HAND_CHANNELS] > P8_CONTACT_THRESHOLD
+        engaged = per_hand.any(dim=-1)
+        per_frame = nearest.square().mean(dim=-1)
+        weight = engaged.to(per_frame)
+        recomputed = (per_frame * weight).sum() / weight.sum().clamp_min(1.0)
+        authoritative_value = float(authoritative.double().item())
+        recomputed_value = float(recomputed.double().item())
+        if not math.isclose(
+            recomputed_value, authoritative_value, rel_tol=1e-6, abs_tol=1e-12
+        ):
+            raise AssertionError(
+                "sealed geometry mismatch: recomputed "
+                f"{recomputed_value}, authoritative {authoritative_value}"
+            )
+        scalars = {
+            "sealed": authoritative,
+            "per_hand_global": _reduce_per_hand_global(nearest, per_hand),
+            "per_hand_per_frame": _reduce_per_hand_per_frame(nearest, per_hand),
+        }
+        for name, scalar in scalars.items():
+            condition_sums[name][condition] += float(scalar.double().item()) * take
+        return per_hand
+
+    try:
+        random.seed(42)
+        np.random.seed(42)
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(42)
+            for raw_batch in training_loader:
+                if consumed >= window_count:
+                    break
+                for name, tensor in raw_batch.items():
+                    if torch.is_tensor(tensor) and tensor.device.type != "cpu":
+                        raise ValueError(
+                            f"geometry mask-fix floor probe is CPU-only; batch {name} is on {tensor.device}"
+                        )
+                raw_size = int(raw_batch["x"].shape[0])
+                take = min(window_count - consumed, raw_size)
+                if observed_batch_size is None:
+                    observed_batch_size = raw_size
+                batch = _slice_batch(raw_batch, take)
+                target = batch["x"]
+                per_hand = measure_condition(target, batch, take, "floor")
+                for key, sigma in sigma_items:
+                    epsilon = torch.randn(
+                        target.shape, dtype=target.dtype, device=target.device,
+                        generator=generator,
+                    )
+                    measure_condition(target + sigma * epsilon, batch, take, key)
+                engaged = per_hand.any(dim=-1)
+                total_active_frames += int(engaged.numel())
+                total_engaged_frames += int(engaged.sum().item())
+                engaged_windows += int(engaged.any(dim=-1).sum().item())
+                total_contacting_entries += int(per_hand.sum().item())
+                total_both_contact_frames += int(per_hand.all(dim=-1).sum().item())
+                consumed += take
+                batches += 1
+    finally:
+        random.setstate(python_state)
+        np.random.set_state(numpy_state)
+
+    if consumed != window_count:
+        raise ValueError(
+            f"training loader ended after {consumed} windows; {window_count} required"
+        )
+    variants = {}
+    for name in variant_names:
+        floor = condition_sums[name]["floor"] / consumed
+        perturbed = {key: condition_sums[name][key] / consumed for key, _ in sigma_items}
+        variants[name] = {
+            "floor": floor,
+            "perturbed": perturbed,
+            "floor_ratio": {
+                key: floor / perturbed[key] if perturbed[key] != 0.0 else 0.0
+                for key, _ in sigma_items
+            },
+            "sensitivity": {
+                key: (perturbed[key] - floor) / (sigma * sigma)
+                for key, sigma in sigma_items
+            },
+            "denominator_name": (
+                "contacting_hand_entries" if name == "per_hand_global" else "engaged_frames"
+            ),
+            "denominator_total": (
+                total_contacting_entries if name == "per_hand_global" else total_engaged_frames
+            ),
+        }
+
+    coverage = {
+        "engaged_frame_fraction": total_engaged_frames / total_active_frames,
+        "engaged_window_fraction": engaged_windows / consumed,
+        "mean_engaged_frames_per_engaged_window": (
+            total_engaged_frames / engaged_windows if engaged_windows else 0.0
+        ),
+        "contacting_entry_fraction": total_contacting_entries / (2 * total_active_frames),
+        "both_frame_fraction_of_engaged": (
+            total_both_contact_frames / total_engaged_frames if total_engaged_frames else 0.0
+        ),
+        "active_frames_per_window": total_active_frames // consumed,
+        "total_active_frames": total_active_frames,
+        "total_engaged_frames": total_engaged_frames,
+        "total_engaged_windows": engaged_windows,
+        "total_contacting_hand_entries": total_contacting_entries,
+        "total_both_contact_frames": total_both_contact_frames,
+        "total_windows": consumed,
+    }
+    violations = []
+    monotone_by_variant = {}
+    for name, variant in variants.items():
+        monotone = True
+        for left, right in (("0.02", "0.05"), ("0.05", "0.10")):
+            if variant["perturbed"][left] > variant["perturbed"][right]:
+                monotone = False
+                violations.append({
+                    "variant": name, "left_sigma": left, "right_sigma": right,
+                    "left_value": variant["perturbed"][left],
+                    "right_value": variant["perturbed"][right],
+                })
+        monotone_by_variant[name] = monotone
+
+    sealed_floor = variants["sealed"]["floor"]
+    references = {256: 0.21783776953816414, 568486: 0.06627798145844942}
+    reference = references.get(window_count)
+    relative_error = (
+        abs(sealed_floor - reference) / abs(reference) if reference is not None else None
+    )
+    sealed_floor_matches_anchor = (
+        math.isclose(sealed_floor, reference, rel_tol=1e-6, abs_tol=1e-12)
+        if reference is not None
+        else None
+    )
+    if reference is not None and not sealed_floor_matches_anchor:
+        raise AssertionError(
+            f"sealed floor anchor mismatch: observed {sealed_floor}, reference {reference}"
+        )
+    denominator_check = (
+        variants["sealed"]["denominator_name"] == "engaged_frames"
+        and variants["per_hand_per_frame"]["denominator_name"] == "engaged_frames"
+        and variants["per_hand_global"]["denominator_name"] == "contacting_hand_entries"
+    )
+    default_is_sealed = (
+        inspect.signature(hoi_loss_module.masked_hand_object_distance_loss)
+        .parameters["hand_object_contact_mask_mode"].default == "sealed"
+    )
+    numeric_values = [
+        value for variant in variants.values()
+        for value in (
+            variant["floor"], *variant["perturbed"].values(),
+            *variant["floor_ratio"].values(), *variant["sensitivity"].values(),
+        )
+    ] + [value for value in coverage.values() if isinstance(value, float)]
+    all_finite = all(math.isfinite(value) for value in numeric_values)
+    self_check = {
+        "all_values_finite": all_finite,
+        "variant_denominators_as_specified": denominator_check,
+        "default_mode_is_sealed": default_is_sealed,
+        "accumulation_dtype": "float64",
+    }
+    if not all_finite or not denominator_check or not default_is_sealed:
+        raise AssertionError(f"geometry mask-fix floor self-check failed: {self_check}")
+    floor_a = variants["per_hand_global"]["floor"]
+    floor_b = variants["per_hand_per_frame"]["floor"]
+    result: Dict[str, object] = {
+        "probe": "geometry_mask_fix_floor_probe",
+        "seed": 42,
+        "window_count": consumed,
+        "batch_count": batches,
+        "batch_size": observed_batch_size,
+        "git_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[3], text=True
+        ).strip(),
+        "sigmas": [sigma for _, sigma in sigma_items],
+        "variants": variants,
+        "coverage": coverage,
+        "ratios": {
+            "A_over_B_per_batch": floor_a / floor_b if floor_b else None,
+            "A_over_B_global_estimate_from_M1": 1.0015483487511598,
+            "sealed_over_B_per_batch": sealed_floor / floor_b if floor_b else None,
+        },
+        "diagnostics_report_only": {
+            "perturbed_monotone_in_sigma": monotone_by_variant,
+            "perturbed_monotonicity_violations": violations,
+        },
+        "invariance": {
+            # Named for what this probe actually compares: the sealed floor against a
+            # pinned anchor, within ``tolerance``.  It is ``null`` when no anchor exists
+            # for this window count.  The probe does NOT verify a bitwise property; that
+            # is proven by ``tests/hoi/test_losses.py`` (``torch.equal`` on the sealed
+            # path) and by the sealed numbers reproducing the sealed R0 artifact exactly.
+            "sealed_floor_matches_anchor": sealed_floor_matches_anchor,
+            "sealed_floor_observed": sealed_floor,
+            "sealed_floor_reference": reference,
+            "sealed_floor_relative_error": relative_error,
+            "tolerance": 1e-6,
+        },
+        "self_check": self_check,
     }
     _write_probe_json(output_path, result)
     return result
