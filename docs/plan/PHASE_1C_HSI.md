@@ -3603,3 +3603,111 @@ decay **−756.33 [−881.42, −637.46] SIG**；`interior_jerk`、`jerk_ratio` 
 **未做**：按用户指令"两个都失败即立即停止"，没有追加任何缩放系数或调参，没有启动 375
 全量实验，没有修改或重训 C，没有加 continuous-w loss。norm-cap 保留在树上且默认关闭。
 两条子条款是否放宽、以及是否用 `dose1` 上全量，等用户决定。
+
+## 2026-08-23（同日第五次）：dose1 全量运行的门槛 —— 启动前冻结，不再依结果调整
+
+用户接受 §四 的机制结论，选择 `dose1` = 1/23.8，不推进 `decay`，并同意把本轮两条失败子条款
+判定为 n=20 smoke 阶段的**错误标定**而不是事后宣布通过。本节在 dose1 的 375-episode 运行
+**启动之前**写定全部门槛、方向与比较对象，此后不再修改。所有数值取自已封存的
+`p1-hsi-b-v2-eval-epoch222-guided-shard8-s42-20260822`、
+`p1-hsi-b-v2-eval-epoch222-unguided-shard8-s42-20260823`、`c_guided_v5_baseline`、
+`ground-truth-v3`，计算脚本 `.claude/scratch/normcap_20260823/baseline355.py` 与
+`amp_envelope.json`。
+
+### A. 集合划分：最差 20 已被用于选型，故不是 confirmatory
+
+| 集合 | n | 角色 |
+|---|---:|---|
+| **holdout355** | 355 | **主要 confirmatory**，全部门槛在此判定 |
+| full375 | 375 | 次要，§H 原文门槛在此逐字判定 |
+| worst20 | 20 | 仅作故障修复诊断，**不参与通过判定**（曾用于选型） |
+
+holdout 的 walk 子集 126 个（全集 130 减去 worst20 里的 4 个）。
+
+### B. holdout355 上的封存基线
+
+| 指标 | B+guided | B+unguided | C+guided | GT | Bg/GT | Cg/GT |
+|---|---:|---:|---:|---:|---:|---:|
+| `boundary_jerk` | 184.064 | 126.050 | 155.101 | 84.217 | 2.186 | 1.842 |
+| `interior_jerk` | 82.389 | 63.331 | 67.304 | 70.163 | 1.174 | 0.959 |
+| `jerk_ratio` | 2.2105 | 2.0144 | 2.1668 | 1.1941 | 1.851 | 1.815 |
+| `pen_ratio` | 0.02286 | 0.03241 | 0.02285 | 0.02653 | **0.861** | 0.861 |
+| `pene_pct_scene` | 0.04938 | 0.05716 | 0.05032 | 0.04855 | 1.017 | 1.037 |
+| `min_dist` | 0.00480 | 0.00306 | 0.00393 | 0.0 | — | — |
+| `contact_count` | 847.476 | 885.091 | 828.690 | 757.564 | 1.119 | 1.094 |
+| `goal_planar_err_m` | 0.08209 | 0.05065 | 0.05993 | 0.0 | — | — |
+| `success_last_10cm` | 0.98310 | 0.99155 | 0.98310 | 1.0 | — | — |
+| 有 >5g 帧的 episode | **15/355** | 0/355 | 8/355 | — | — | — |
+| >5g 帧总数 | 47 | 0 | 38 | — | — | — |
+| >2g 帧总数 | 243 | 7 | 119 | — | — | — |
+| walk `h_min`<0.6 | **10/126** | 0/126 | 1/126 | — | — | — |
+
+**注意 holdout 上 B+guided 的 `pen_ratio` 是 0.861× GT，即穿模比真值还少。**所以往
+unguided（0.03241 = 1.222× GT）方向移动在这个集合上是实打实的退化，比 worst20 上更受约束。
+
+### C. 冻结的门槛
+
+**G1 impossible acceleration（必要）**
+- holdout：有 >5g 帧的 episode **15 → ≤8**（C 在同一集合上的水平，§H 原文"降到 C 的水平"）；
+  >5g 帧总数 **47 → ≤38**（同上）；walk `h_min`<0.6 **10/126 → ≤2**（§H 的 13→≤3 即 ≤23%，
+  作用于 10 得 ≤2；C 为 1，B+unguided 为 0）。
+- full375：§H 逐字，episode **31 → ≤10**，walk **13/130 → ≤3**。
+
+**G2 boundary jerk（必要）**
+- G2a：`boundary_jerk` **≤2.0× GT**（§H 逐字）—— holdout ≤168.43，full375 ≤168.88。
+- G2b：holdout 的 `boundary_jerk` **≤155.101**，即不得差于 C+guided。B+guided 是 184.064，
+  所以这是一条实质门槛，不是自动通过项。
+- G2c：对 B+guided 的配对 bootstrap（10,000 次，seed 42，重采样 episode）delta 显著为负，
+  holdout 与 full375 都要满足。
+
+**G3 场景交互不得退化（必要，按用户本轮修订）**
+判据回到 §H 的显著性/非劣规则，**删除本轮新加的"点估计不得比 B+guided 离 GT 更远"**。
+对 B+guided 的配对 bootstrap，下列各项不得**显著变差**：
+- `pen_ratio`、`pene_pct_scene`：不得显著**升高**；且点估计不得超过 B+unguided
+  （holdout 0.03241 / 0.05716）—— 若让出的穿模与直接关掉 guidance 一样多，这个开关就没有意义。
+- `min_dist`：不得显著**升高**（变大 = 离表面更远 = 用"躲开一切"换平滑）。
+- `contact_count`：不得显著**升高**。方向在此写定：contact 与穿模同向，且四个 cell 里 GT
+  最低（757.56 对 B+guided 的 847.48），故"变差"= 变高。两侧 CI 一并报告。
+- `success_min_10cm`、`success_last_10cm`：不得显著**降低**。
+- `goal_planar_err_m`：不得显著**升高**。
+
+**G4 不得是全局低通（必要，按用户本轮修订）**
+不再要求达到 0.95 × C+guided 的固定值。该标定是错的：C+guided 与 B+unguided 这两个正当参照
+在 `pelvis_path_horiz` 上相差 8%（1.2949 对 1.1924，即 0.921× C），而我只给了 5% 带宽，
+于是 B+unguided 自己也过不了那道门槛。改为**以两个参照张成的包络为准**：
+- G4a 包络下限 = **0.95 × min(B+unguided, C+guided)**，同一集合上计算，无上限
+  （幅度更大不构成作弊）：
+
+  | 幅度指标 | holdout355 下限 | full375 下限 |
+  |---|---:|---:|
+  | `mean_speed` | 0.2118 | 0.2142 |
+  | bbox 体积 (m³) | 1.8631 | 1.8645 |
+  | bbox xz 面积 (m²) | 1.1547 | 1.1557 |
+  | pelvis 水平路径 (m) | 1.1345 | 1.1345 |
+
+- G4b 反低通判据（保留）：`boundary_jerk` 的相对下降比 (arm/B+guided) 必须**严格小于**
+  上述四项幅度的相对下降比 —— jerk 必须比幅度降得明显更快。
+- G4c 保留：`jerk_ratio` 必须相对 B+guided 下降。
+
+**G5 guidance 必须仍然在买到场景合规（必要，用户本轮明确要求）**
+holdout 上 `pen_ratio` 与 `pene_pct_scene` 必须**显著优于 B+unguided**（配对 bootstrap CI
+在改善方向上排除 0）。这一条是 §四 里区分 dose1 与 decay 的判据，现在提升为正式门槛：
+若不满足，正确结论是 `use_guidance=false`，而不是这个开关。
+
+**总判定**：以 **holdout355 上 G1–G5 全部通过**为通过。full375 按 §H 原文并列报告，
+worst20 仅作故障修复诊断。若未通过则停止汇报，不追加比例调参。
+
+### D. 修订的诚实记账
+
+按修订后的 G4a，§四 的两档在 worst20 上的幅度下限会变成 `mean_speed` 0.2565、
+pelvis 水平路径 1.1328，于是 `dose1`（0.2646 / 1.2244）与 `decay`（0.2566 / 1.1835）
+都会通过。这里如实记下这一点，是为了说明修订确实改变了历史判定，而不是假装它只影响未来；
+但 §四 的记录保持原样，那一轮按当时冻结的门槛就是 FAIL。
+
+### E. 运行配置
+
+与 `p1-hsi-b-v2-eval-epoch222-guided-shard8-s42-20260822` 完全一致 —— 同一 checkpoint
+（`hsi_b_lingo_full_v2_epoch222.pth`，sha `5daaf813`）、seed 42、同一 episode 集合与 8 分片
+切分、`hsi_progress_fix=true`、`export_motion=true`、同一评估器 —— 仅增加一个覆盖：
+`hsi_guidance_dose_scale=0.042016806722689076`。timing 按设计为 null（分片运行自动作废）。
+不运行 `decay`，不追加比例调参，不修改 C，不训练模型。
