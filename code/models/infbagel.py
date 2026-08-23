@@ -54,6 +54,13 @@ class Sampler:
         # See config_sample_infbagel_lingo_hsi.yaml: hsi_guidance_norm_cap.
         cap = kwargs.get('hsi_guidance_norm_cap', None)
         self.hsi_guidance_norm_cap = None if cap is None else float(cap)
+        # Two independent dose knobs on the same diffusion-path increment, both off by
+        # default.  The 2026-08-23 norm-cap smoke showed the per-step MAGNITUDE is not
+        # the defect -- B's increments are smaller than C's at every percentile to p99 --
+        # so what is left to attack is how many of them accumulate per window.
+        dose = kwargs.get('hsi_guidance_dose_scale', None)
+        self.hsi_guidance_dose_scale = None if dose is None else float(dose)
+        self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
@@ -1041,6 +1048,17 @@ class Sampler:
                 cap = self.hsi_guidance_norm_cap
                 if cap is not None:
                     gradient = cap_guidance_increment(gradient, cap)
+                # Order: trust region on the raw increment, then the schedule decay,
+                # then the constant dose scale.  Each is independent and off by default.
+                if self.hsi_guidance_alpha_decay:
+                    # The factor the released author wrote and commented out on the
+                    # consistency path.  alpha_cumprod -> 1 as t -> 0, so this SUPPRESSES
+                    # guidance on the late low-noise refinement steps and keeps it on the
+                    # early high-noise ones.  Measured effect on total per-window
+                    # displacement over the frozen worst-20: 0.596x.
+                    gradient = gradient * (1.0 - extract(self.alpha_cumprod, t, x.shape))
+                if self.hsi_guidance_dose_scale is not None:
+                    gradient = gradient * self.hsi_guidance_dose_scale
                 x_prev = x_prev + gradient
 
             return x_prev, occ, model_output

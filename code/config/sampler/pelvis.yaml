@@ -16,3 +16,5 @@ pelvis:
   # oc.select with a null default: this sampler group is shared with configs
   # that never define the top-level key, and those must still resolve.
   hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}
+  hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
+  hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}

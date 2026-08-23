@@ -87,6 +87,26 @@ hsi_progress_fix: false
 # docs/plan/PHASE_1C_HSI.md 2026-08-23 SS-H.
 hsi_guidance_norm_cap: null
 
+# The two DOSE knobs, both off by default and both diffusion-path only.  They exist
+# because the 2026-08-23 norm-cap smoke measured the per-step increment distributions and
+# found the magnitude hypothesis false: B's increments are SMALLER than C's at every
+# percentile up to p99 (p50 0.688x, mean 0.717x), and larger only at the extreme max.
+# What differs is the count -- guidance fires on every step but the last, so 499 times per
+# window on the diffusion path against 15 on the consistency path, giving 23.8x the total
+# per-window displacement (499 x 46.54 = 23,225 against 15 x 64.94 = 974).
+#
+# hsi_guidance_dose_scale: a constant multiplier on the increment.  null = off.  1/23.8 =
+# 0.04202 makes B's per-window total displacement equal C's, measured 975.8 vs C's 974.1.
+#
+# hsi_guidance_alpha_decay: multiply the increment by (1 - alpha_cumprod_t), the factor
+# written and then commented out at the consistency-path guidance site.  alpha_cumprod
+# rises to 1 as t falls to 0, so this SUPPRESSES guidance on the late low-noise refinement
+# steps and keeps it on the early high-noise ones.  It is not equivalent to a constant
+# scale: measured on the frozen worst-20 it takes the per-window total to 0.596x, i.e.
+# 14.21x C rather than 23.84x, so it is a partial dose reduction with a schedule shape.
+hsi_guidance_dose_scale: null
+hsi_guidance_alpha_decay: false
+
 # 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
 # CURRENT behaviour so every sealed cell stays bitwise reproducible.
 #
