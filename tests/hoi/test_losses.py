@@ -626,15 +626,19 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
             batches.append(batch)
         return batches
 
-    def _run(self, directory, mask_mode=None):
+    def _run(self, directory, mask_mode=None, *, measurement_mode="paired_joint",
+             shards=(0, 1, 2, 3), timesteps=None, global_rng_trunk=False,
+             variant_scale=1.2):
         import train_hoi_prior
 
         values, _batch, cfg = _probe_fixture()
+        shards = tuple(shards)
+        timesteps = diagnostics.DERIVATION_TIMESTEPS if timesteps is None else tuple(timesteps)
         cfg.hand_object_contact_weight = 0.0
         checkpoint = Path(directory) / "checkpoint.pth"
         checkpoint.write_bytes(b"synthetic-checkpoint")
         output = Path(directory) / "weight.json"
-        loaders = {shard: self._batches(values, shard) for shard in range(4)}
+        loaders = {shard: self._batches(values, shard) for shard in shards}
         rc1 = []
         for offset in range(0, 256, 32):
             left = loaders[0][offset // 16]
@@ -654,7 +658,10 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
             def forward(self, noisy, timesteps, text_embedding, object_bps, goals, progress):
                 del timesteps, text_embedding, object_bps, goals, progress
                 self.forward_calls += 1
-                return noisy * 0.0 + self.bias
+                prediction = noisy * 0.0 + self.bias
+                if global_rng_trunk:
+                    prediction = prediction * (1.0 + 0.5 * torch.rand(noisy.shape[0], 1, 1))
+                return prediction
 
         model = ConstantModel()
         geometry_ids = []
@@ -682,7 +689,7 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
             mode = kwargs["mask_mode"]
             geometry_ids.append((mode, id(prediction)))
             active = prediction[:, 2:]
-            scale = 1.0 if mode == "sealed" else 1.2
+            scale = 1.0 if mode == "sealed" else variant_scale
             return {"hand_object_contact_geometry": scale * (
                 active[..., 0:3].square().mean()
                 + active[..., 84:216].square().mean()
@@ -701,7 +708,8 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
                 values["position_minimum"], values["position_maximum"],
                 values["object_minimum"], values["object_maximum"], cfg,
                 checkpoint_path=checkpoint, output_path=output, manifest=self._manifest(),
-                rc1_loader=rc1, mask_mode=mask_mode,
+                rc1_loader=rc1, mask_mode=mask_mode, measurement_mode=measurement_mode,
+                shard_ids=shards, timesteps=timesteps,
             )
         self._forward_calls = model.forward_calls
         self._geometry_ids = geometry_ids
@@ -748,6 +756,53 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
         second = {(s, t): diagnostics._per_cell_seed(s, t) for s, t in reversed(cells)}
         self.assertEqual(first, second)
         self.assertEqual(len(set(first.values())), 20)
+
+    def test_cell_numerics_are_independent_of_execution_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paired = self._run(directory, global_rng_trunk=True)
+        with tempfile.TemporaryDirectory() as directory:
+            alone = self._run(
+                directory, mask_mode="sealed", measurement_mode="single_mode_l3",
+                shards=(0,), timesteps=(250,), global_rng_trunk=True,
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            reordered = self._run(
+                directory, mask_mode="sealed", measurement_mode="single_mode_l3",
+                shards=(0,), timesteps=(499, 250, 0), global_rng_trunk=True,
+            )
+        paired_nongeometry = paired["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"]
+        alone_nongeometry = alone["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"]
+        reordered_nongeometry = reordered["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"]
+        self.assertEqual(paired_nongeometry, alone_nongeometry)
+        self.assertEqual(paired_nongeometry, reordered_nongeometry)
+        paired_geometry = paired["modes"]["sealed"]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        alone_geometry = alone["modes"]["sealed"]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        reordered_geometry = reordered["modes"]["sealed"]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        self.assertEqual(paired_geometry, alone_geometry)
+        self.assertEqual(paired_geometry, reordered_geometry)
+        full_nongeometry = paired["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]
+        self.assertNotEqual(full_nongeometry["250"]["total"], full_nongeometry["0"]["total"])
+        self.assertNotEqual(full_nongeometry["250"]["total"], full_nongeometry["499"]["total"])
+        self.assertEqual(len(set(paired["pairing"]["cell_global_seed"]["0"].values())), 5)
+
+    def test_per_cell_global_seed_is_distinct_and_order_independent(self):
+        cells = [(shard, timestep) for shard in range(4) for timestep in diagnostics.DERIVATION_TIMESTEPS]
+        first = {(s, t): diagnostics._per_cell_global_seed(s, t) for s, t in cells}
+        second = {(s, t): diagnostics._per_cell_global_seed(s, t) for s, t in reversed(cells)}
+        noise = {diagnostics._per_cell_seed(s, t) for s, t in cells}
+        self.assertEqual(first, second)
+        self.assertEqual(len(set(first.values())), 20)
+        self.assertTrue(set(first.values()).isdisjoint(noise))
+
+    def test_g8_compares_one_mask_mode_against_itself(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(directory, variant_scale=6.0)
+        for mode in ("sealed", "per_hand_per_frame"):
+            with self.subTest(mode=mode):
+                self.assertIs(result["modes"][mode]["gates"]["G8_parameter_space_crosscheck"], True)
+                self.assertLess(
+                    result["report_only"]["RC2_parameter_space"]["ratio_to_output_space"][mode], 3.0
+                )
 
     def test_support_assertions_and_reference_fields_are_recorded(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -908,6 +963,45 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
 
 
 class GeometryGradientToolContractTests(unittest.TestCase):
+    def test_l3_verdict_accepts_single_timestep_arms_and_rejects_a_wrong_cell(self):
+        def artifact(timesteps=(250,), global_seed=17):
+            return {
+                "timesteps": list(timesteps),
+                "pairing": {
+                    "input_sha256": {"0": {"250": "input"}},
+                    "cell_seed": {"0": {"250": 13}},
+                    "cell_global_seed": {"0": {"250": global_seed}},
+                },
+                "shared": {"per_shard": {"0": {
+                    "gradient_l2_nongeometry": {"250": {"total": 1.0}},
+                }}},
+                "modes": {
+                    mode: {"per_shard": {"0": {"geometry_by_channel": {
+                        "250": {"combined": 2.0},
+                    }}}}
+                    for mode in ("sealed", "per_hand_per_frame")
+                },
+            }
+
+        paired = artifact((0, 125, 250, 375, 499))
+        passed, crosscheck = measure_geometry_tool._l3_verdict(
+            [artifact(), artifact()], paired
+        )
+        self.assertTrue(passed)
+        self.assertTrue(crosscheck["cell_timestep_equal"])
+
+        passed, crosscheck = measure_geometry_tool._l3_verdict(
+            [artifact((0,)), artifact()], paired
+        )
+        self.assertFalse(passed)
+        self.assertFalse(crosscheck["cell_timestep_equal"])
+
+        passed, crosscheck = measure_geometry_tool._l3_verdict(
+            [artifact(), artifact(global_seed=18)], paired
+        )
+        self.assertFalse(passed)
+        self.assertFalse(crosscheck["cell_global_seed_equal"])
+
     def test_manifest_global_indices_map_to_subset_positions_in_manifest_order(self):
         positions = measure_geometry_tool._manifest_subset_positions([10, 20, 30, 40], [10, 30], 0)
         self.assertEqual(positions, [0, 2])

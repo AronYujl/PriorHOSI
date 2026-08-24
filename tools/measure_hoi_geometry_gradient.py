@@ -273,6 +273,39 @@ def _finalize(result: Dict[str, Any], temporary: Path, output: Path) -> Dict[str
         raise GeometryGradientError(f"refusing to overwrite output hash sidecar: {sidecar}")
     sidecar.write_text(f"{_sha256(output)}  {output.name}\n", encoding="utf-8")
     return result
+def _l3_verdict(l3_results: Sequence[Dict[str, Any]], paired: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+    """Compare two single-mode L3 arms against the paired cell (shard 0, t=250)."""
+    paired_cell = paired["pairing"]["input_sha256"]["0"]["250"]
+    paired_seed = paired["pairing"]["cell_seed"]["0"]["250"]
+    input_equal = (l3_results[0]["pairing"]["input_sha256"]["0"]["250"]
+        == l3_results[1]["pairing"]["input_sha256"]["0"]["250"] == paired_cell)
+    seed_equal = (
+        l3_results[0]["pairing"]["cell_seed"]["0"]["250"]
+        == l3_results[1]["pairing"]["cell_seed"]["0"]["250"] == paired_seed)
+    cell_timestep_equal = bool(
+        l3_results[0]["timesteps"] == l3_results[1]["timesteps"] == [250]
+        and 250 in paired["timesteps"])
+    cell_global_seed_equal = (
+        l3_results[0]["pairing"]["cell_global_seed"]["0"]["250"]
+        == l3_results[1]["pairing"]["cell_global_seed"]["0"]["250"]
+        == paired["pairing"]["cell_global_seed"]["0"]["250"])
+    shared_values = [l3["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"] for l3 in l3_results]
+    nongeometry_equal = (
+        shared_values[0] == shared_values[1] == paired["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"])
+    geometry_equal = {mode: all(
+        l3["modes"][mode]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        == paired["modes"][mode]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        for l3 in l3_results if mode in l3["modes"]) for mode in ("sealed", "per_hand_per_frame")}
+    passed = (input_equal and seed_equal and cell_timestep_equal
+        and cell_global_seed_equal and nongeometry_equal
+        and all(geometry_equal.values()))
+    crosscheck = {"performed": True, "cell": {"shard": 0, "timestep": 250},
+        "artifacts": [], "input_sha256_equal": input_equal,
+        "cell_seed_equal": seed_equal, "cell_timestep_equal": cell_timestep_equal,
+        "cell_global_seed_equal": cell_global_seed_equal,
+        "nongeometry_norms_bitwise_equal": nongeometry_equal,
+        "geometry_matches_paired_joint": geometry_equal}
+    return passed, crosscheck
 def _run_l3(args, checkpoint_path: Path, paired: Dict[str, Any]) -> None:
     scratch = ROOT / ".claude" / "scratch" / "maskfix_stagea"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -290,26 +323,8 @@ def _run_l3(args, checkpoint_path: Path, paired: Dict[str, Any]) -> None:
             subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
         artifacts.append(artifact)
     l3_results = [json.loads(path.read_text(encoding="utf-8")) for path in artifacts]
-    paired_cell = paired["pairing"]["input_sha256"]["0"]["250"]
-    paired_seed = paired["pairing"]["cell_seed"]["0"]["250"]
-    input_equal = (l3_results[0]["pairing"]["input_sha256"]["0"]["250"]
-        == l3_results[1]["pairing"]["input_sha256"]["0"]["250"] == paired_cell)
-    seed_equal = (
-        l3_results[0]["pairing"]["cell_seed"]["0"]["250"]
-        == l3_results[1]["pairing"]["cell_seed"]["0"]["250"] == paired_seed)
-    timesteps_equal = l3_results[0]["timesteps"] == l3_results[1]["timesteps"] == paired["timesteps"]
-    shared_values = [l3["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"] for l3 in l3_results]
-    nongeometry_equal = (
-        shared_values[0] == shared_values[1] == paired["shared"]["per_shard"]["0"]["gradient_l2_nongeometry"]["250"])
-    geometry_equal = {mode: all(
-        l3["modes"][mode]["per_shard"]["0"]["geometry_by_channel"]["250"]
-        == paired["modes"][mode]["per_shard"]["0"]["geometry_by_channel"]["250"]
-        for l3 in l3_results if mode in l3["modes"]) for mode in ("sealed", "per_hand_per_frame")}
-    passed = input_equal and seed_equal and timesteps_equal and nongeometry_equal and all(geometry_equal.values())
-    crosscheck = {"performed": True, "cell": {"shard": 0, "timestep": 250},
-        "artifacts": [str(path.resolve()) for path in artifacts], "input_sha256_equal": input_equal,
-        "cell_seed_equal": seed_equal, "nongeometry_norms_bitwise_equal": nongeometry_equal,
-        "geometry_matches_paired_joint": geometry_equal}
+    passed, crosscheck = _l3_verdict(l3_results, paired)
+    crosscheck["artifacts"] = [str(path.resolve()) for path in artifacts]
     paired["pairing"]["L3_independent_invocation_crosscheck"].update(crosscheck)
     paired["gates_shared"]["G9_pairing"] = passed
     if passed:

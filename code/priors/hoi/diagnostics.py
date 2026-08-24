@@ -1367,6 +1367,17 @@ def _pinned_timestep(timestep):
 def _per_cell_seed(shard_id: int, timestep: int) -> int:
     return int.from_bytes(hashlib.sha256(f"42:{int(shard_id)}:{int(timestep)}".encode()).digest()[:8], "big"
     ) % (2 ** 63)
+def _per_cell_global_seed(shard_id: int, timestep: int) -> int:
+    """Seed for the *global* torch RNG, which the model's trunk dropout draws from.
+
+    The per-cell ``generator`` only covers the diffusion timestep and the noise
+    draw in ``train_hoi_prior._forward_losses``. Dropout (``dropout=0.1``,
+    ``priors/hoi/models.py``) consumes the global stream instead, so without
+    pinning that stream per cell a cell's gradients depend on how many cells ran
+    before it. The distinct hash suffix keeps the two streams independent.
+    """
+    digest = hashlib.sha256(f"42:{int(shard_id)}:{int(timestep)}:global".encode()).digest()
+    return int.from_bytes(digest[:8], "big") % (2 ** 63)
 def _paired_identity_guard(prediction_sealed, prediction_variant, total_sealed, total_variant) -> bool:
     if prediction_sealed is not prediction_variant:
         raise AssertionError("paired geometry modes did not use the same prediction object")
@@ -1604,6 +1615,7 @@ def geometry_weight_derivation_probe(
     shard_cells: Dict[int, Dict[int, Dict[str, object]]] = {shard: {} for shard in shard_ids}
     input_sha256: Dict[str, Dict[str, str]] = {str(shard): {} for shard in shard_ids}
     cell_seed: Dict[str, Dict[str, int]] = {str(shard): {} for shard in shard_ids}
+    cell_global_seed: Dict[str, Dict[str, int]] = {str(shard): {} for shard in shard_ids}
     previous_training = model.training
     python_state = random.getstate()
     numpy_state = np.random.get_state()
@@ -1652,6 +1664,7 @@ def geometry_weight_derivation_probe(
         input_digest = hashlib.sha256()
         seed = _per_cell_seed(shard, timestep)
         generator.manual_seed(seed)
+        torch.manual_seed(_per_cell_global_seed(shard, timestep))
         consumed = batches = 0
         captured = []
         def capture_input(_module, args):
@@ -1805,6 +1818,7 @@ def geometry_weight_derivation_probe(
                     shard_cells[shard][timestep] = accumulator
                     input_sha256[str(shard)][str(timestep)] = digest
                     cell_seed[str(shard)][str(timestep)] = seed
+                    cell_global_seed[str(shard)][str(timestep)] = _per_cell_global_seed(shard, timestep)
     finally:
         model.train(previous_training)
         random.setstate(python_state)
@@ -1989,14 +2003,9 @@ def geometry_weight_derivation_probe(
             "side_balance_verdict": gate_values["side_balance_verdict"]})
         rc2_ok = None
         if measurement_mode == "paired_joint" and 0 in shard_ids and 250 in timesteps:
-            rc2_values = {}
-            for rc_mode in measured_modes:
-                rc = shard_cells[0][250]["rc2"][rc_mode]
-                parameter_w = math.sqrt(rc["H"] * rc["O"]) ** 0.5 / math.sqrt(rc["G"])
-                output_w = w_by_cell["0"]["250"]["combined"]
-                ratio, _ = _rc2_ratio(parameter_w, output_w)
-                rc2_values[rc_mode] = (parameter_w, ratio)
-            rc2_ok = all(value[1] < 3.0 for value in rc2_values.values())
+            rc = shard_cells[0][250]["rc2"][mode]
+            parameter_w = math.sqrt(rc["H"] * rc["O"]) ** 0.5 / math.sqrt(rc["G"])
+            _ratio, rc2_ok = _rc2_ratio(parameter_w, w_by_cell["0"]["250"]["combined"])
         gates[mode] = {"G2_finite_positive": True,
             "G4_ng3": gate_values["G4_ng3"],
             "G5_csd": gate_values["G5_csd"],
@@ -2142,6 +2151,7 @@ def geometry_weight_derivation_probe(
         },
         "pairing": {
             "input_sha256": input_sha256, "cell_seed": cell_seed,
+            "cell_global_seed": cell_global_seed,
             "timesteps": list(timesteps), "L1_share_manifest": True,
             "L1_share_noise": True, "L1_share_timesteps": True,
             "L1_note": "tautological under the single-forward design; kept as a refactor guard",
