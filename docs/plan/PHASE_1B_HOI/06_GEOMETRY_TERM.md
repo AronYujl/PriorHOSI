@@ -886,3 +886,169 @@ bootstrap；若门失败，正式训练不启动并按预注册规则结案。
 > `code/test_infbagel_hoi.py:563-572` 仅将其作为 optional assertion，同时无论是否提供都
 > 记录真实 hash。其余 24 项中只有 `hoi_output_dir` 与 `per_sequence_metrics_path` 改指向
 > worker 上 r1 evaluation id 下的输出路径，并明确保留 `checkpoint_weight_variant=online`。
+
+## 预注册（2026-08-25）：P15 修正后几何项的梯度均衡剂量
+
+用户批准（2026-08-25）：接受 `40361f8` 的 G9/G8 测量正确性修复与 20-cell 重跑结论；
+G7 按人工审查处理，本轮不引入 human/object 分侧权重、也不暂停几何项；授权用综合折中值
+开展**一个**探索性 full-budget 实验，但**不**把该值声明为最终生产权重；shard 0 异常只记录，
+不继续扩展调查；预算上选一条 full-budget 新臂，复用 post-repair P12 作同预算 control，
+**不**创建 reduced-budget control；启动前完成最小预注册、唯一 run id、配置解析与 provenance
+检查，不增加训练源代码。
+
+- 训练 run id：`p1-hoi-p15-geom-perhand-equalized-s42-20260825`（不由本预注册行分配；
+  用户 2026-08-25 已确认，改由 `tools/experiment.py start` 正式分配）
+- 对照：`p1-hoi-p12-frame-repair-baseline-s42-20260819`，**按引用复用，不重跑**
+- 配置片段：`code/config/config_train_hoi_prior_p15_perhand_eq.yaml`
+  （sha256 `4cdd865c033070c6a99b545e4990e30511b0bcfef329f88586d0b0912adc22f8`）
+
+**被操纵因子（作为一个整体的 treatment package）。**
+`hand_object_contact_weight` 由缺省 `0.0` 改为 `0.016016425`，同时
+`hand_object_contact_mask_mode` 由 `sealed` 改为 `per_hand_per_frame`，
+`hand_object_contact_hinge` 固定 `0.0`。其余全部锁在封存 recipe：`recipe/d2ai.yaml`
+冻结未改，seed 42，299,520,000 windows，effective batch 2048，4×RTX 3090，Adam 无
+schedule／无 clipping／无 AMP，`fk_weight` `0.3569973401779424`，`object_surface_weight`
+`0.4772322188400037`，validation 与 checkpoint cadence 均 3,072,000 windows。已实测：
+P15 与 P12 的完全解析配置在 `recipe/d2ai.yaml` 的全部 **25** 个 key 上逐项相同（该文件自述十一条 D2-AI 血统封存臂在这 25 个 key 上一致），科学差异只有上面两个 key。另外三个 identity key（`run_id`／`exp_name`／`subphase`）与四个由 `run_id` 派生的路径 key（`output_dir`／`metrics_path`／`checkpoint_dir`／`state_path`）按定义不同，两侧均无未解析插值。
+
+**零训练源码改动。** 两个 key 已经从 cfg 流入 `hoi_training_losses`
+（`code/train_hoi_prior.py:5264-5271`）；权重非零时 `_loss_keys`
+（`code/train_hoi_prior.py:98-110`）自动把 `hand_object_contact_geometry` 追加进被记录的
+loss key，因此该项在它自己的正式运行里是可观测的（满足 `docs/EXPERIMENT_CONVENTIONS.md` §7）。
+允许文件范围只有两个：上述 config 片段，以及 `tests/hoi/test_hoi_training_recipe.py` 的
+`LINEAGE_ARMS` 注册项——后者依 P11 修正案的先例，是新 arm 落在该测试文件机械保证之内的前提。
+
+### 权重来源与 G7 人工接受（用户 2026-08-25 决定）
+
+**持久化推导工件。** B1b-ii 的完整权重推导 JSON 已**原样**（逐字节复制，不改写任何字段）
+提升为可引用的紧凑结果：
+
+- `experiments/results/p1_hoi_p15_geometry_weight_derivation_s42_20260825.json`，
+  sha256 `bb1b9a13ef5ccfc157b127f3d930174d399c1d26de6f5060a7d6c4ac07200c8d`，102,836 bytes
+- 来源：20-cell `paired_joint` 推导，256 windows／16 batches／seed 42／timesteps
+  `[0, 125, 250, 375, 499]`，在 P12 终态 checkpoint 上测得（checkpoint sha256
+  `722d83ee7755b051e2095ccd01d4094bacce99589e679f89379f54661fb43704`），probe sha256
+  `6b5038f5b9a1e1fb819d39af7780eedbbe806f695acd9f46328f48f66fffe1e7`，spec sha256
+  `3e7c2e3730435a12a49cfd12b5ff91b5512925b0ecd74a9078b78e6eb737412a`；测量时
+  `git_commit = 40361f82e3b5356b4989c0ceb47ef7e010fa8420`，`git_dirty = false`
+- 依 `docs/EXPERIMENT_CONVENTIONS.md` §1／§5，本次只提升这一份支撑权重、gate 与 provenance
+  的权威 JSON。临时 report、shard 组成分析与一次性脚本都不提交，仍留在 git-ignored 的
+  `.claude/scratch/` 下；此前预注册引用的 scratch 路径不具持久性，现由上述路径与 sha256 取代。
+
+**工具没有认证任何生产权重，且这一事实在工件里原样保留。** 推动本臂的是人工决定，不是工具输出：
+
+| 工件字段 | 值（未改写） |
+|---|---|
+| `candidate.produced` | `false` |
+| `candidate.blocked_by` | `["G7_side_ratio"]` |
+| `candidate.training_authorized` | `false` |
+| `candidate.hand_object_contact_weight` | `null` |
+| `candidate.parameter_space_unverified_cells` | `19` |
+| `modes.per_hand_per_frame.gates.G7_side_ratio` | `false` |
+| `modes.per_hand_per_frame.gates.all_passed` | `false` |
+
+P15 使用的数值因此不取自 `candidate`（它是 `null`），而是读
+`modes.per_hand_per_frame.aggregate.w_geom_star` = `0.016016424563763863`，按用户指定取
+`0.016016425`（相对差 `2.7e-08`）。
+
+**明确记录（用户 2026-08-25 要求）：** `0.016016425` 是**用户对 G7 review band 的人工接受**
+之后、用于探索性 P15 的**用户审查剂量**（user-reviewed exploratory dose），**不是工具自动
+认证的生产权重**。授权链是"用户 2026-08-25 的决定"，不是"`candidate.produced == true`"。
+这一点不随本臂结果改变：即使本臂为 positive，也不因此把该值升格为生产权重；要产生生产权重，
+需要 G7 自身通过，或另一次明确的人工决定，两者都须各自预注册。参见下方解释边界 2。
+
+### 启动授权与提交结构（用户 2026-08-25 决定）
+
+用户在收到 run id、配置 diff、判定规则、GPU 预计占用与 worker 可用性报告后批准提交并启动，
+并指定：
+
+- 两个逻辑提交：**preregistration commit**（本 plan 段、registry 行、上述持久化推导工件）与
+  **implementation commit**（P15 config 片段、`LINEAGE_ARMS` 注册项）
+- 提交后跑完整 authority suite、`git diff --check` 与配置解析检查；全过且工作区干净则
+  **不再等待二次确认**，用 `tools/experiment.py start` 正式分配唯一 run id
+- 执行主机 **node01**（与 P12 同一 4×RTX 3090 环境，作更干净的对照），导出
+  `INFBAGEL_WORKER_EXPERT=hoi`、`ROOT_DIR`、`INFBAGEL_PYTHON`
+- 第一次 validation 严格执行下方 R1–R5；失败则停止并保留 run id／manifest／日志／失败状态，
+  **不改代码绕过、不复用 run id**；通过则同一个 run 跑到全预算，后续 validation 仍监控
+  非有限值与进程健康
+- 监控只在训练失败、结束及异常时报告，不逐 checkpoint 汇报
+
+注意 `tools/experiment.py start` 是相对 P12 的**追加**步骤：P12 与其余 14 条 P8/P9/P10 行都没有
+manifest（见 `docs/EXPERIMENT_CONVENTIONS.md` §2 的 2026-08-11 更正）。manifest 写在 git-ignored
+的 `results/experiments/<run id>/`，只记录 provenance，不改训练协议，因此不影响可比性。
+
+### 四条解释边界（与结论同等约束力）
+
+1. **这是 treatment package，不是 mask ablation。** `losses.py:379` 只在权重非零时计算几何项，
+   所以 P12 在零权重下 mask mode 是惰性的、对其目标函数无贡献。P15−P12 的对比是
+   "几何项缺席 vs 以某一对（剂量, reducer）在场"，**不能**把结果归因于 mask reducer 本身，
+   也不能归因于剂量本身。要单独识别 reducer，需要第三条同剂量、`sealed` 的臂；本预注册不授权。
+2. **`0.016016425` 是 G7 人工接受后的探索性梯度均衡剂量，不主张九位精度。** RC1 的 batch-size
+   不变性检查给出 `0.6141`（`per_hand_per_frame`）与 `0.4675`（`sealed`）而非 ~1.0，且仍与
+   batch **数量**（8 vs 16）共线，因此该推导未被证明对测量 batch 不变。记录九位数字只为本臂的
+   精确可复现，不是精度声明。另外三条限定：G7 侧比 `0.2506` 是单标量无法平衡的结构性折中；
+   shard 0 的几何梯度是其他 shard 的 1.60×，把 20-cell 几何均值拉低；权重只在**一个**
+   checkpoint 上推导。
+3. **旧 W3 的 `weight=3` 不可移植，也不是本剂量的对照。** W3 出自 P8/P9/P9c 八点经验扫描
+   （50 → 3），判据是把几何项的**损失量级**对齐 `object_surface`（8.47 vs 9.02）；P15 的判据在
+   另一个空间：把几何项的**梯度范数**对齐非几何 human/object 侧范数的几何均值。两者量纲与目的
+   都不同，50 与 0.016 之间约 3000× 的差距是判据变更，不是矛盾也不是对旧值的更正。更进一步：
+   P8–P11 的每一个剂量都是在**有缺陷的 reducer** 上测的——那里自由（非接触）手贡献了几何
+   floor 的 97.13%，修正后 floor 下降 27×——所以旧扫描的剂量即便在它自己的判据内也不转移。
+4. **判为 null 只否定该剂量，不否定整个几何项方向。** 若本臂 null，结论严格限定为"几何项在
+   **本**剂量、**本** reducer、**本**预算、**本** checkpoint 推导下没有移动预注册指标"，
+   **不**关闭几何项方向，**不**证明任何剂量都无效，也**不**追溯确认或否证 P10/P11 的阴性结案。
+   一个剂量是剂量-响应曲线上的一个点，而本臂并不测量这条曲线。
+
+### 安全 tripwire：第一次 validation
+
+**性质：只做安全用途。** 不作质量门、不作 checkpoint 选择、不作预算决定——留出去噪验证损失在
+本 expert 上与原生 rollout 指标反相关（证据索引结论 10）。
+
+**先修正可比性。** `code/priors/hoi/losses.py:398-411` 只在权重非零时把
+`hand_object_contact_weight * hand_object_contact_geometry` 加进 `total`。P12 权重为 0，
+因此 P15 的原始 `total` 含有 P12 从未有过的成分，两者的原始 `total` **不可直接比较**。由于该项
+被单独记录，可比量可以重建：
+
+```
+total_p12_equivalent := total - 0.016016425 * hand_object_contact_geometry
+```
+
+该公式已在 P12 自己的全部 98 个 validation 点上验证：由分项重算 `total`
+（`reconstruction + 0.3569973401779424*fk + 0.4772322188400037*object_surface + 0.1*velocity
++ 1.0*object_goal`）与记录值的最大绝对残差 `7.586e-10`、最大相对残差 `1.600e-08`，以零为中心，
+因此 `total` 没有未被记录的成分，该修正在浮点累加精度内是精确的。另注：P12 的 validation 条目
+有 15 个键且不含 `hand_object_contact_geometry`，P15 将有 16 个——比较不得假定键集相同，
+这正是 R2 要检查的。
+
+**P12 同阶段参考值**（`processed_windows = 3072000`，其 98 个 validation 点中的第 1 个）：
+`total = 0.12664846108100392`，`reconstruction = 0.09336890936219788`，
+`contact_accuracy = 0.9489920892156078`。轨迹事实：**第一个点就是整条 run 的全局最大值**，
+97 个步进中最大的一次**上升**只有 `1.037974×`（p90 为 `1.016760×`），第二个点已降到第一个点的
+`0.5972×`。
+
+**停止规则（全部可机械执行，在 `processed_windows == 3072000` 处判定）：**
+
+- **R1 非有限值**：`total`、`reconstruction`、`fk`、`object_surface`、
+  `hand_object_contact_geometry` 任一为 NaN/Inf，或记录的 `finite` 不为真 → 停止。
+- **R2 缺项**：第一个 validation 条目不含 `hand_object_contact_geometry` 键 → 停止
+  （被配置的目标函数不是被执行的目标函数）。
+- **R3 水平**：`total_p12_equivalent > 1.25 × 0.12664846108100392 = 0.1583105763512549`
+  → 停止。阈值由 P12 自身轨迹导出：其第一个点是全局最大值，而 97 步中最大上升为 `1.0380×`，
+  故 `1.25×` 对 control 曾出现过的最大变动仍留有 `1.20×` 余量。
+- **R4 几何项退化**：第一个点的 `hand_object_contact_geometry` 恰为 `0.0` → 停止
+  （mask 未命中任何帧，treatment 实际未施加）。
+- **R5 进程**：trainer 非零退出、某个 rank 死亡，或到 control 抵达该点用时的 `1.5×` 仍未写出
+  第一个 validation 点 → 停止。
+
+**继续规则：** R1–R5 全过则**在同一个 run id 内继续跑到 299,520,000 windows 全预算**；不另开短
+训练臂，不选中间 checkpoint，后续 validation 点不再作为质量信号重新判定。
+
+**停止后：** 保留 run id 与全部工件，按相应 stop 分类结案并报告；run id 永不复用、结果永不覆盖。
+
+### 停止分类
+
+`geometry-equalized-positive` / `geometry-equalized-negative` / `geometry-equalized-null`
+（判据见 registry 行 `primary.decision_rule`），以及 tripwire 触发时的
+`contract-failure-stop` 或 `divergence-stop`。原生评测沿用封存 D2 协议的 438 序列、3 窗口、
+500 步无引导路径，不新增指标、不改分母。
