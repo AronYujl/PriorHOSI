@@ -1,0 +1,40 @@
+# P15: the sealed D2-AI recipe with the corrected hand-object geometry term
+# enabled at its gradient-norm-equalized dose.
+#
+# Manipulated factor is the geometry-term TREATMENT PACKAGE, not a mask ablation.
+# The control is P12 (`p1-hoi-p12-frame-repair-baseline-s42-20260819`), which ran
+# the identical recipe, budget, seed and source frame with the term OFF
+# (`hand_object_contact_weight` at its 0.0 default).  Because a zero weight makes
+# `hand_object_contact_mask_mode` inert -- losses.py:379 only computes the term
+# when the weight is non-zero -- the mask mode is NOT separately identified
+# against P12.  This arm moves the term from absent to present at one specific
+# (dose, reducer) pair; attributing the outcome to the reducer alone would need a
+# third arm at the same dose with `sealed`.
+#
+# The dose is the B1b-ii output-space derivation on P12's terminal checkpoint
+# (artifact sha256 bb1b9a13ef5ccfc157b127f3d930174d399c1d26de6f5060a7d6c4ac07200c8d,
+# commit 40361f8): at this weight the geometry term's gradient norm equals the
+# geometric mean of the non-geometry human and object gradient norms.  It is an
+# exploratory dose accepted under a G7 human review, not a production weight.
+# It is NOT comparable to W3's `hand_object_contact_weight: 3.0`, which was an
+# empirical loss-magnitude sweep over the pre-mask-fix reducer.
+#
+# Every training hyperparameter and the whole budget come from recipe/d2ai.yaml,
+# which is frozen and untouched.
+
+defaults:
+  - config_train_hoi_prior
+  - recipe: d2ai
+  - _self_
+
+run_id: "p1-hoi-p15-geom-perhand-equalized-s42-20260825"
+exp_name: "p1-hoi-p15-geom-perhand-equalized-s42-20260825"
+subphase: "1B-P15"
+seed: 42
+
+# Manipulated factor: the corrected geometry term at its equalized dose.
+hand_object_contact_weight: 0.016016425
+hand_object_contact_mask_mode: per_hand_per_frame
+# Restated from the base default: train_hoi_prior.py:3117 requires a zero hinge
+# for every per-hand mask mode, so this arm pins it explicitly.
+hand_object_contact_hinge: 0.0

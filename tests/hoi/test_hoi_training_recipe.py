@@ -76,6 +76,11 @@ LINEAGE_ARMS = {
         "hand_object_contact_weight": 3.0,
         "hand_object_contact_detach_root": True,
     },
+    "p15_perhand_eq": {
+        "hand_object_contact_weight": 0.016016425,
+        "hand_object_contact_mask_mode": "per_hand_per_frame",
+        "hand_object_contact_hinge": 0.0,
+    },
 }
 
 
