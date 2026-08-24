@@ -4953,3 +4953,306 @@ scale 实验**、**没有修改 walk `h_min` 门槛**、**没有修改或重训 
 
 探针不是 registry run，没有分配 run id，没有调用 `tools/experiment.py start`，
 没有烧任何 holdout（§B 的 0 不一致就是这一点的证明）。下一步交用户决定。
+
+## 2026-08-24（同日第六次）：阶段收口 —— guidance-control 路线正式关闭，共同 16 帧 rollout 边界地板独立立项
+
+本节的数字不是从本文档既有散文转抄的。主 session 于本日直接从封存产物重测，
+并把结果与引用陷阱固化在 `.claude/scratch/r3_20260824/MEASURED_FACTS.md`；归因计划固化在
+`.claude/scratch/r3_20260824/PLAN_DESIGN.md`。下面的表格与标量均以这两份记录为准。
+
+**阶段判定分成两件事：guidance-induced spike 已关闭；共同的 16 帧 rollout
+边界地板仍未解决，但它不再归入 guidance-control 路线。**
+
+### A. 匹配分析集，以及八格的完整基表
+
+所有跨格均值都在**同一批 episode**上计算：375 个共有 episode 减去各格
+`excluded_as_warmup` 的并集 5 个，得 **n=370**。GT 自己的 metrics 文件标记的排除数是
+0；如果不做匹配，就会拿 370 去比 375。这一步不是格式整理，而是跨格判定成立的前提。
+
+| cell | artifact dir | `boundary_jerk` | `pen_ratio` | `pene_pct_scene` | `fs_nemf` | `goal_planar_err_m` | `min_dist` | `contact_count` |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| GT v3 | `ground-truth-v3` | 84.50508 | 0.02796 | 0.05050 | 0.26102 | 0.00000 | 0.00000 | 789.89801 |
+| B unguided | `b_v2_unguided_shard8` | 127.92255 | 0.03545 | 0.06095 | 0.32479 | 0.05187 | 0.00305 | 946.21615 |
+| B guided | `b_v2_guided_shard8` | 222.75034 | 0.02569 | 0.05247 | 0.31717 | 0.08473 | 0.00484 | 895.87580 |
+| B guided dose1 (`s=1/23.8`) | `b_v2_guided_dose1_shard8` | 131.17277 | 0.03174 | 0.05928 | 0.32222 | 0.05521 | 0.00345 | 937.59211 |
+| B guided `s=0.45` | `b_v2_guided_dose045_shard8` | 178.32869 | 0.02536 | 0.05362 | 0.32333 | 0.08874 | 0.00485 | 907.05669 |
+| C unguided | `c_v2_unguided` | 128.96413 | 0.03389 | 0.06024 | 0.30289 | 0.05402 | 0.00384 | 930.18216 |
+| C guided v4（progressfix OFF） | `c_guided_v4` | 135.43425 | 0.02183 | 0.04957 | 0.26061 | 0.04693 | 0.00444 | 816.12541 |
+| C guided v5（progressfix ON） | `c_guided_v5_baseline` | 159.43782 | 0.02529 | 0.05332 | 0.29298 | 0.06069 | 0.00396 | 879.33961 |
+
+`boundary_jerk` 相对 GT 依次为 1.514 / 2.636 / 1.552 / 2.110 / 1.526 / 1.603 / 1.887；
+`pen_ratio` 相对 GT 依次为 1.268 / 0.919 / 1.135 / 0.907 / 1.212 / 0.781 / 0.904；
+`fs_nemf` 相对 GT 依次为 1.244 / 1.215 / 1.234 / 1.239 / 1.160 / 0.998 / 1.122。
+
+### B. guidance-control 证据链：从原路径到探针的每一个出口都已走完
+
+异常尖峰的硬计数来自 `windows.json`，口径是 full375：
+
+| cell | episodes | windows | `>5g` frames | `>5g` windows | `>5g` episodes |
+|---|---:|---:|---:|---:|---:|
+| B guided | 375 | 2271 | 132 | 67 (2.95%) | 31 (8.3%) |
+| B guided dose1 | 375 | 2271 | **0** | **0** | **0** |
+| B unguided | 375 | 2271 | **0** | **0** | **0** |
+| C guided v5 | 375 | 2271 | 41 | 21 (0.92%) | 10 (2.7%) |
+| GT | 375 | 2271 | **0** | **0** | **0** |
+| **C unguided** | 375 | 2271 | **0** | **0** (0.00%) | **0** (0.0%) |
+| C guided v4（progressfix OFF） | 375 | 2271 | 44 | 25 (1.10%) | 12 (3.2%) |
+| B guided s=0.45 | 375 | 2271 | 42 | 19 (0.84%) | 11 (2.9%) |
+
+**表中后三行是本节新测的，并且要说明它们为什么原先不在。**`windows.json` 只覆盖
+Bg / d1 / Bu / Cg(v5) / GT 五格，**C unguided 从未被测过 `>5g`**；本节的初稿曾在没有测量的
+情况下断言它是 0。该断言现已被实测取代，而不是被沿用。
+
+测法与它为什么是零 GPU：`>5g` 判据作用在**骨盆**加速度上，而 SMPL-X 的骨盆关节等于
+`transl` 加一个与姿态无关的静止位姿偏移，常量在二阶差分中消掉，所以 |accel| 可以只用
+`transl` 以 numpy 算出——不需要 FK、不需要 torch、不需要 GPU。窗口边界与
+`dt = 1/(fps*interp_scale) = 1/30` 逐字复用 `windows.py`。
+
+**先验证后使用**：该捷径在 `windows.json` 覆盖的全部四格上逐项精确复现——Bg 132/67/31、
+d1 0/0/0、Bu 0/0/0、Cg 41/21/10，帧数、窗口数、episode 数与 `nw=2271` 全部一致。只有在
+复现精确之后，新的三格才被报告。证据在 `.claude/scratch/r3_20260824/cu_over5g.out`。
+
+于是尖峰列现在是**完整实测**而非部分假定：B guided 132、C guided v5 41、C guided v4 44、
+s=0.45 42，而 **B unguided、C unguided、dose1、GT 全部恰好为 0**。两个 unguided 格与 GT
+都不含任何 `>5g` 帧；凡是含有 `>5g` 帧的格，guidance 都是开着的。
+
+norm-cap 那一轮的三档 tau **全部失败**。这不是结果出来后才补的解释：只读步增量分布
+已经表明，B 的问题在于增量被重复施加形成的总剂量，norm cap 却只截单步幅度；最高档
+在运行前就能证明为逐位惰性，非平凡档随后也全部未过门。**失败原因在跑之前就可测。**
+
+dose1 把 B 的 guidance 引致 `boundary_jerk` 超出量移除了 **96.6%**，并移除了
+**100%** 的 `>5g` 帧（132 → 0）；但它在已冻结门槛上因穿模保留率失败。`s=0.45`
+保住了穿模收益，但 jerk 与 released 路径统计上不可区分。两个固定剂量点分别失败在
+冻结门槛的两侧，不再追加固定 scale。
+
+最后的 in-loop 只读探针（commit `a574618`）覆盖 60 episode / 364 windows，在 released
+B guided 上依冻结规则判定：
+
+| 条款 | `T*=250` 实测 | 对照／bar | 判定 |
+|---|---|---|---|
+| P1 | 0.737 @ FTR 0.279 | null 0.605 @ 0.107 | **FAIL** |
+| P2 | 0.625 [0.375,0.875] | null 0.188 | **PASS** |
+| P3 | 5/8 | null 0/8（结构性） | **PASS** |
+| P4 | FTR 0.279；重加权后总体 `f=0.2926` | 0.20；`f` bar 0.226 | **FAIL** |
+| P5 | P2 与 P4 同时成立的最大 `T*=450` | 报告项 | — |
+
+全窗精确率为 0.235，首峰精确率为 0.099。60 个 episode 的惰性比对覆盖 1320 个
+motion arrays 与 3540 个 metric leaves，不一致数都是 0。**探针不是没有主信号；它按
+预注册规则因误触发率失败，总判定为 FAIL。**
+
+### C. 从此保留的 baseline/default 与引用口径
+
+| 对象 | 保留口径 |
+|---|---|
+| guidance defaults | `hsi_guidance_dose_scale: null`；`hsi_guidance_norm_cap: null`；`hsi_guidance_alpha_decay: false` |
+| B 侧参考 | `b_v2_unguided_shard8` 与 `b_v2_guided_shard8` |
+| C 侧 gate | `c_guided_v5_baseline`（progressfix ON） |
+| C 侧 fix-OFF 对照 | `c_guided_v4`，**只作对照，不作 gate** |
+| GT 参考 | **只用** `ground-truth-v3` |
+
+**三个 guidance 开关保持默认关闭。**
+
+### D. 从当前决策中退役的八条结论
+
+1. **修复前的 model-side geometry 全部作废，且不可重算。**表示修复是 `3ded4eb` +
+   `a4c979c`（`2026-08-18`）。修复前的 `b_guided_shard8`、`b_unguided_shard8`、
+   `c_guided{,_v2,_v3}`、`c_unguided`、`latency_*`、`smoke-*`、`rds_gate_smoke`、
+   `shard_bitwise` 中的模型侧几何数字都无效。那些 checkpoint 拟合的 132-dim 通道已不存在，
+   只有重训能替代；数据资产未被修改，输入 hash 不变。
+2. **显著引用陷阱：`results/lingo_hsi/c_unguided` 与
+   `results/lingo_hsi/c_v2_unguided` 同时在磁盘上。**前者是修复前退役行，后者才是有效的
+   修复后行。本节表格全部使用 `c_v2_unguided`；误引 `c_unguided` 会无声地生成作废数字。
+3. **`2026-08-16` 的两条 B registry 行对当前决策作废。**
+   `p1-hsi-b-eval-epoch222-shard8-s42-20260816`（guided，4.99 h）与
+   `...-unguided-shard8-s42-20260816`（unguided，2.68 h）都在 `101ac84` 上评估，早于表示修复。
+4. **修复前的蒸馏 `2×2` factorial 与它的 seam 结论作废。**修复后
+   `boundary_jerk` 由 6831 变为 134.9，推翻幅度约 `50×`；旧主效应
+   `boundary_jerk -965`（student better）与 `fs_nemf +0.178`（worse）都不得再引用。
+   **`fs_nemf +0.178` 在修复后符号翻转。**匹配 `n=370` 上，unguided 为
+   `0.32479 → 0.30289`（C better by `0.0219`），guided 为 `0.31717 → 0.29298`
+   （C better by `0.0242`）；即修复后蒸馏使 `fs_nemf` 改善 `0.022–0.024`。
+   **这些只是均值，未做显著性检验。**对应的 project memory 已据此更正。不得把这个退役
+   factorial 与有效的修复后 `2026-08-23` guidance-vs-sampler `2×2` 混为一件事。
+5. **显著引用陷阱：C+guided 的 `1.60×` 是 progressfix-OFF 行，不是 gate 行。**
+   `c_guided_v4` 本日实测为 `1.603×`；progressfix ON 的 gate 行是
+   `c_guided_v5_baseline`，本日实测为 **`1.887×`**。不得把 `1.60×` 引为 gate reading。
+6. **被取代的标量不得再引。**seam/spike correlation 是 **0.9705**，不是 0.943；
+   探针的 per-window overhead 不得引为一个正数；`2026-08-24` 的
+   “`s=0.45` 上 penetration delta essentially zero”结论作废，但“affine projection 不能翻转显著性
+   判定”的方法学部分仍成立。
+7. **三个旧 GT 标量是 artifact。**其中包括 `min_dist ~1 mm`、`fs_nemf 0.568`
+   与另一项旧标量；`ground-truth-v3` 是唯一有效的 GT 参考行。它的 `quaternion_slerp`
+   weight bug 按设计仍未修；修它会使 `ground-truth-v1/v2/v3` 全部作废。
+8. **一项旧的插值问题仍然开放，且与本次收口直接相关。**`interpolate_joints` 使用
+   `linspace(0,T-1,T*scale)`，`interp_jrot` 却按 `1/scale` 步进；在 `interp_scale=3` 时，
+   pelvis 单独就漂移 4.86 mm mean / 43.3 mm max。它直接位于 fine-rate `boundary_jerk`
+   上游，是下面零 GPU 计划的首要嫌疑项。
+
+### E. 已关闭的问题：guidance-induced spike
+
+B guided 的 132 个 `>5g` 帧与 C guided 的 41 个 `>5g` 帧，在各自 unguided、GT
+和 dose1 上都消失。B 的 guidance-induced `boundary_jerk` 超出量是 **`+1.122× GT`**
+（相对自身 floor 为 `+74.1%`），C 是 **`+0.361× GT`**（相对自身 floor 为
+`+23.6%`）。这是 guidance 额外叠加的组件，不是下一节的共同地板。
+
+dose1 消除了 B 的 96.6% guidance 引致 `boundary_jerk` 超出量和 100% `>5g`
+帧，但在冻结门槛上因穿模保留率失败；`s=0.45` 保住穿模，但 jerk 与 released
+路径不可区分；norm-cap 三档全败；in-loop 探针按预注册规则判 FAIL。本文档同日第四次
+§M 的冻结原文是：**「FAIL：按用户指令停止 guidance 控制路线。」**
+
+**现在执行该规则：guidance-control 路线正式关闭。**不因探针的 P2/P3 通过而改写总判定，
+也不从已失败的固定剂量、norm-cap 或探针中再抽出一个新 guidance 方案。
+
+### F. 仍未解决的问题：共同的 16 帧 rollout 边界地板
+
+这是本节最重要的新实测发现。`boundary_jerk_samples` 每 episode 为 15.2，
+`interior_jerk_samples` 每 episode 为 242.5，所有 cell 完全相同，因为 seam 相同。
+
+| cell | `boundary_jerk` | `interior_jerk` | `jerk_ratio` | boundary ×GT | interior ×GT | ratio ×GT |
+|---|---:|---:|---:|---:|---:|---:|
+| GT v3 | 84.505 | 70.440 | 1.1943 | 1.000 | 1.000 | 1.000 |
+| B unguided | 127.923 | 63.956 | 2.0205 | 1.514 | **0.908** | 1.692 |
+| B guided | 222.750 | 92.807 | 2.2829 | 2.636 | 1.318 | 1.912 |
+| B g dose1 | 131.173 | 64.754 | 2.0565 | 1.552 | 0.919 | 1.722 |
+| B g `s=0.45` | 178.329 | 78.422 | 2.2478 | 2.110 | 1.113 | 1.882 |
+| C unguided | 128.964 | 63.088 | 2.0435 | 1.526 | **0.896** | 1.711 |
+| C guided v4 | 135.434 | 63.070 | 2.0252 | 1.603 | 0.895 | 1.696 |
+| C guided v5 | 159.438 | 68.834 | 2.1715 | 1.887 | 0.977 | 1.818 |
+
+**两个 unguided cell 的内部 jerk 比 GT 还低**：B 为 `0.908×`，C 为 `0.896×`；
+它们只在 seam 上高，分别为 `1.514×` 与 `1.526×`，两者只差 **0.8%**。因此这不是整体
+平滑度不足，而是定位在窗口边界的缺陷；它与专家身份、蒸馏与 guidance 都无关。
+这个共同 floor 占 B guided 相对 GT 全部 `boundary_jerk` 超出量的 **31.4%**。
+
+同时必须记下一个限制：GT 本身的 `jerk_ratio` 是 **1.1943**。GT 是连续运动，却也在
+seam 索引处被抬高。这为“模型超出量中有多少是真实 rollout 缺陷”设了上界，也是下面 C1
+必须第一个做的原因。
+
+`boundary_jerk` 的精确定义是三阶差分
+`(p[3:] - 3p[2:-1] + 3p[1:-2] - p[:-3]) / dt^3`，对 xyz 取 L2，再对关节取均值，
+得到 `[T-3]` stencils。stencil `t0` 跨 `[t0,t0+3]`，seam `s` 是 `s-1` 与 `s`
+之间的切口；边界 stencil 满足 `seam-3 <= t0 <= seam-1`，每个 seam 有 3 个。该指标要求
+`StitchedSequence`，并在 coarse-to-fine 插值之后的 **FINE rate** 上计算。
+
+### G. 为什么新归因可以真正做到零 GPU、且不需要 torch
+
+模型 cell 的 motion npz 已经包含运动学结果，不需要再把姿态送回模型：
+
+| 字段 | 已验证的 schema | 用途 |
+|---|---|---|
+| `global_jpos` | `float32 [44,28,3]` | coarse 10 Hz joints，**已做 FK** |
+| `transl` | `float32 [132,3]` | fine 30 Hz 原始 SMPL-X 平移参数 |
+| `global_orient` | `float32 [132,3]` | fine 30 Hz 原始 SMPL-X 全局方向参数 |
+| `body_pose` | `[132,21,3]` | fine 30 Hz SMPL-X 姿态参数 |
+| stitch 结构 | `seams [16,30]`，`window_lengths [16,14,14]` | `history_frames=2`，`interp_scale=3`，`fps=10.0` |
+
+这一 schema 共 22 个 key；表中形状以 `045:004307` 为已验证例。在 B unguided、C unguided、
+C guided 与 B guided 之间，`betas` 逐位相同（`max|diff|=0`），窗口结构也相同。
+
+GT 没有 motion export：`results/lingo_hsi/ground-truth-v3/` 恰好只有一个
+`evaluation/per_sequence_metrics.json`。但 GT 轨迹不需要 GPU 重建：
+
+| raw array | dtype | shape |
+|---|---|---|
+| `data/dataset/transl_aligned.npy` | `float64` | `(2915752,3)` |
+| `data/dataset/human_joints_aligned.npy` | `float64` | `(2915752,28,3)` |
+| `data/dataset/human_orient.npy` | `float64` | `(2915752,3)` |
+| `data/dataset/start_idx.npy` / `end_idx.npy` | `int32` | `(19450,)` |
+
+`human_joints_aligned.npy` 已是与 `global_jpos` 相同的 28 关节布局，GT arm **不需要
+SMPL-X forward pass**。episode 到 raw index 的重建也只是整数 numpy：`WINDOW_FRAMES=16`、
+`HISTORY_FRAMES=2`、`DATA_STEP=3`、`WINDOW_STRIDE_RAW=(16-2)*3=42`，即
+`raw = start + window_index*42 + arange(16)*3`，并 clamp 到 `end-1`。
+
+**这里主动订正我先前的说法。**既有离线 harness
+`.claude/scratch/walkaudit_20260824/common.py` 设的是 `DEVICE=cuda:0`，并经
+`ev.ground_truth_motion(...)` 取 GT，因此当时的 walk 审计是“没有新采样运行”，
+不是字面意义的零 GPU。新计划不继承这一点；直接 mmap `human_joints_aligned.npy`，
+使整个归因真正做到零 GPU 且 torch-free。
+
+### H. 零 GPU 归因计划：C1–C5，按最早杀死无效工作的顺序
+
+**C1 —— 地板是否由插值造成。这项第一个做。**`boundary_jerk` 在 fine rate、
+coarse-to-fine 插值之后计算；已知 `interpolate_joints` 与 `interp_jrot` 的取点不一致，
+在 `interp_scale=3` 时 pelvis 漂移 4.86 mm mean / 43.3 mm max。GT 的 `jerk_ratio=1.1943`
+说明连续运动也会在 seam 索引处被该路径抬高。在 GT、B unguided、C unguided 和 C guided 上，
+用 10 Hz coarse `global_jpos` 重算同一 metric stencil，移除插值。**deliverable：报告去掉插值后
+仍然存活的 boundary excess 比例。**如果大部分不存活，目标就是 evaluator/exporter 缺陷，
+而不是 rollout 缺陷。
+
+**C2 —— root translation 与 local pose 拆分。**在同一 stencil 上按三种口径重算：
+root-only（`global_jpos[:,0,:]`，并独立用 `transl`）、root-relative joints
+（`global_jpos - global_jpos[:,0:1,:]`）和 full。每个 cell 都报 boundary 与 interior jerk。
+**deliverable：每个 cell 的 floor root/pose 拆分。**
+
+**C3 —— seam-offset profile。**对每个 stencil，用中心 `t0+1.5` 到最近 seam
+`s-0.5` 的 signed distance 分箱，分 cell、coarse/fine 绘图或列表，同 offset 的 GT 作 null。
+**deliverable：判断超出是精确集中在 offset 0，还是宽范围抬高。**后者意味着 `boundary_jerk`
+被误命名，当前 3-stencil 窗只是抽到了更宽的缺陷。
+
+**C4 —— history-frame coverage 与 state reset。**后一窗重生成 2 个 history frames，
+`set_fixed_points` 用已提交值覆写它们。离线先验证每个 seam 上，后一窗声明的历史 coarse frames
+与前一窗已提交 frames 相等；如果不等，就是 stitch 缺陷。然后测量每个 seam 后**第一个新生成帧**
+的 position / velocity / acceleration 相对 interior 分布是否异常，以及随后帧的衰减。
+**deliverable：reset transient 的 per-offset decay curve，以及回到 interior 分布内所需的帧数。**
+
+**C5 —— velocity / acceleration continuity，GT 作 index-matched null。**GT 没有窗口结构，
+所以在相同帧索引 `16,30,44,...` 上评估 GT，可以隔离这些索引本身是否特殊。每个 cell 与 GT 都报
+seam-crossing 相对 interior 的 `|dv|` 与 `|da|` 分布，coarse/fine 并列，CI 按 episode 重采样。
+**deliverable：分开 velocity excess 与 acceleration excess，判定三阶差分是被真实位置不连续的
+velocity step 驱动，还是被曲率不匹配的 acceleration step 驱动。**
+
+### I. 横切要求，以及计划自己的停止门
+
+- **首要自检门：**逐字复制 `code/priors/hsi/metrics.py:955-1015` 的 evaluator stencil，
+  从 export 在 fine rate 重算 `boundary_jerk`，必须逐 episode 匹配封存
+  `per_sequence_metrics.json` 值。**任何 episode 不匹配，立即停止并报告；在此之前不信任任何拆分。**
+- 分析集固定为匹配 `n=370`，即 375 个共有 episode 减去 5 个 `excluded_as_warmup` 并集，
+  与本节收口表格完全相同。
+- C unguided 只用 `c_v2_unguided`，不得读退役的 `c_unguided`；C guided 用
+  `c_guided_v5_baseline`（progressfix ON）作主行，`c_guided_v4` 只报 fix-OFF 对照。
+- 所有 CI 都重采样 **episode**，不重采样 window 或 stencil。
+- 所有 intermediate 只写入 `.claude/scratch/`；每个报告数字都必须有保存的 artifact 支撑，
+  不能由散文承担 provenance。
+
+### J. 预计成本与边界
+
+整个计划是对磁盘现有数据的 pure-numpy 扫描。每 episode 负载是
+`global_jpos [<=~800,28,3]` 与 `transl [<=~2400,3]`；GT 是从两个 mmap array 中 gather，
+375 个 episode 合计约 `~100k` raw frames。计划成本为：
+
+| 范围 | GPU | CPU／内存 | 预计墙钟 |
+|---|---:|---|---:|
+| 4 cells + GT × 370 episodes，C1–C5 含重建门 | **0 GPU-hour** | single CPU process，well under 1 GB resident（mmap） | **~10–20 min** |
+
+成本足够低，不需要 staging 或 sharding。**但它产出的是 attribution，不是 fix。**
+明确范围外包括：新 sampling、training、controller、guidance-knob change、walk-gate change、
+C modification 与 continuous-w work；任何 fix 都是归因之后的另一个决策。
+
+### K. 本节没有做的事
+
+- **未实施状态相关控制器**；也未用本轮 60 样本调整 `T*`、特征、分类器或误报门槛。
+- 未追加任何固定 scale，未回改任何既有实验结论，也未用新分解复活已失败方案。
+- `hsi_guidance_dose_scale: null`、`hsi_guidance_norm_cap: null`、
+  `hsi_guidance_alpha_decay: false`；**三个 guidance 开关保持默认关闭。**
+- 未修改或重训 C；continuous-w 继续暂缓。
+- 未删除或放宽 walk `h_min<0.6` 绝对门槛，限值仍为 2。
+- **「绝对上限 `<=2` 是否适合作为 baseline 迭代门槛」登记为独立待决事项。**
+  它与 rollout continuity 归因和已关闭的 guidance-control 路线分开；**不得用它复活任何
+  已经失败的 guidance 方案。**
+
+**本节只提交分析计划与预计成本，未启动任何新 GPU 实验，也未执行 C1–C5。**
+等用户决定是否开启独立的 rollout continuity 研究线。
+
+### L. 归因问题的范围补记
+
+新计划只读磁盘上已有的 B unguided、C unguided、C guided 与 GT，不引入新采样。
+既有 `walkaudit_20260824/common.py` 只复用 cell globs 与 `window_bounds` / `seam_frames`
+helpers，不复用它的 GT arm。
+
+C2 不重复旧问题：`2026-08-23` 的 seam 归因已测得 B-vs-C **guided** 超出量有 69%
+来自 root translation；C2 要回答的是不同问题，即**共同 unguided floor 究竟由 root 还是
+local pose 承载**。旧结果不能替代该 deliverable。
+
+**本节仍然只提交分析计划与预计成本，未启动任何新 GPU 实验，也未执行 C1–C5。**
+等用户决定是否开启独立的 rollout continuity 研究线。
