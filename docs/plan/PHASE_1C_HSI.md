@@ -6050,3 +6050,214 @@ reblend），重算整套指标。理由：瞬变恰好 2 帧宽且窗口体已�
 - `accel_profile_fk.py` / `accel_profile_fk.json`
 - `MEASURED_FACTS_H3_AUDIT.md`（本节全部数字的唯一出处）
 - `DECISION_RECORD.md`（主 session 的判断记录与对照表）
+
+## 2026-08-25（第二次：step-0 oracle 执行结果与 pilot 判断）
+
+### A. 授权范围与本轮边界
+
+用户批准执行零 GPU 的 step-0 oracle，仍不批准训练、finetune、采样或 GPU 评估。执行前
+已按要求**先冻结定义**（`.claude/scratch/oracle_20260825/FROZEN_ORACLE_DEFINITION.md`，
+9 节；其 §10 的 pilot 判据在任何结果产生之前追加登记）。全部脚本设
+`CUDA_VISIBLE_DEVICES=''`。所有被修改的 motion 只写入 `.claude/scratch/oracle_20260825/`，
+未覆盖任何封存产物、未登记为正式实验输出、未分配 run id。未触碰模型、C、guidance
+默认值、walk 门槛、evaluator 源码、continuous-w、`code/priors/core/`。evaluator 的 clamp
+与 slerp 缺陷仍只登记。
+
+两类干预严格分开报告，且 **GT oracle 从未被称为可用修复**。
+
+### B. 可行性与自检门
+
+penetration 的主口径是 **SMPL-X 10475 顶点**，故护栏需要 CPU 重算顶点。冻结前已验证：
+单 episode CPU 端到端 **1.69 s**，复现封存 `pen_ratio` 0.030906、`pen_depth_mean`
+0.041674、`pene_pct_scene` 0.057432（封存 0.057431）。
+
+**自检门 PASS**（n=12，容差 1e-4 相对）：`boundary_jerk` 最大相对 1.524e-05、
+`interior_jerk` 4.874e-06、`jerk_ratio` 1.475e-05、`pen_ratio` 3.875e-05、
+`pene_pct_scene` 7.696e-06、`contact_count` 2.180e-16、`fs_nemf` 4.341e-06、
+`skate_ratio` 1.960e-16、`goal_planar_err_m` 5.584e-07、`min_dist` 7.057e-05。
+**0 项超差**，`frame_count` 精确。1.524e-05 与 C1 独立测得的 1.554e-05 同级。
+
+### C. 类别 1（GT oracle）：构造失效，**测不到上界**
+
+v1 §3 的构造是"在受影响帧上代入 GT 参数"。结果：
+
+| 量 | BEFORE | AFTER | 配对差 |
+|---|---:|---:|---:|
+| `\|a\|`first/int（10 Hz, fk） | 2.8684 | **61.3081** | +58.4397 SIG |
+| `boundary_jerk`（30 Hz） | 127.9226 | **16941.99** | +16814.07 SIG |
+| `jerk_ratio`（30 Hz） | 2.0205 | **16.3700** | +14.3495 SIG |
+| `fs_nemf` | 0.32479 | 1.59393 | +1.26914 变差 |
+| 最坏逐帧关节位移 | — | **411.97 cm** | 均值-max 107.90 cm |
+
+因为 rollout 已偏离 GT，代入 GT **绝对**位姿等于把身体瞬移最多 **4.1 m**。G-E 正确
+FLAG。**这是 v1 §3 的设计错误，如实登记**：它测的是瞬移，不是可达平滑度，不能作为上界。
+
+预先登记的 §3 警告成立：GT oracle 的 penetration 列**全部变好**
+（`pene_pct_scene` −0.00124），正如事先量化的混淆所预测（GT 在该列比 B 干净 1.207×），
+而 `fs_nemf` 暴涨 4.9×。即其护栏列是"GT 是更好的动作"与"瞬移毁掉脚部接触"的混合，
+**按定义事先声明的那样不可用于护栏预测**。
+
+### D. 类别 2（可部署 reblend），fine 率：把封存指标弄**坏**了
+
+| 量 | BEFORE | AFTER | 配对差 |
+|---|---:|---:|---:|
+| `\|a\|`first/int（10 Hz, fk） | 2.8684 | 2.4038 | −0.4646 SIG |
+| `boundary_jerk`（30 Hz） | 127.9226 | **148.3538** | **+20.4313 SIG（变差）** |
+| `interior_jerk`（30 Hz） | 63.9562 | 64.2022 | +0.2460 SIG |
+| `jerk_ratio`（30 Hz） | 2.0205 | **2.3082** | **+0.2877 SIG（变差）** |
+| `pene_pct_scene` | 0.06095 | 0.06099 | +0.00004 SIG |
+| `fs_nemf` | 0.32479 | 0.33029 | +0.00550 变差 |
+| `contact_count` | 946.216 | 946.417 | +0.201 变好 |
+| `skate_ratio` | 0.13022 | 0.12914 | −0.00108 变好 |
+| `goal_planar_err_m` / `last_dist` | 0.05187 / 0.02367 | 不变 | ns |
+| 最坏逐帧关节位移 | — | 9.72 cm | 均值-max 3.75 cm |
+
+门：G-A FAIL、G-B FAIL、G-C PASS、G-D PASS（370/370）、G-E PASS。
+
+**机制诊断。** 封存 `boundary_jerk` 是 30 Hz 插值序列上的三阶差，而该序列的微结构
+**按构造是 period-3** 的（单 episode `transl` 相位分层实测平均 `|三阶差|`
+7.247e-04 / 9.036e-04 / 1.013e-03，相位间差 40%）。fine 率上的局部平滑替换不复现这个
+微结构，于是跨越"已改/未改"边界的 stencil 反而变大。这是已登记的
+fk30-插值混淆作用在**干预**上而非作用在**读数**上。
+
+**v1 门算术更正：** `reduce_oracle.py` 打印的 "closed 36.9%" 误用了审计的 **nat10**
+基线 3.156 去比 **fk10** 通道的实测 2.8684（后者与审计自身的 fk10 值 2.868 一致）。
+正确闭合率为 (2.8684−2.4038)/(2.8684−1.119) = **26.6%**。FAIL 判定不变。
+
+### E. 现有导出无法支撑忠实的 coarse 率事后修复
+
+`code/utils.py:interpolate_joints` 用 `interp1d` 在
+`np.linspace(0, in_len−1, in_len*scale)` 上升采样，步长 **0.330233**，不是 1/3。
+单 episode 实测（T_fine 216, k 3, n_coarse 72）：只有 fine 帧 **0 与 215** 精确落在节点上
+（2/216）；最近-fine-索引到节点最大偏 **0.163 帧**；由最近索引节点重建 fine 数组代价
+**2.057e-03 m**。
+
+即 `fine[::k]` 是漂移重采样而非生成网格，且**导出从未包含 coarse 的 SMPL-X 参数**，
+只有其插值结果。因此参数级的 coarse 率修复在现有导出上不可重构，这也是 coarse 路线
+**无法给出 penetration**（顶点 ← 参数）的原因。
+
+对已提交工作的影响：审计的头条数字全部在 `nat10` = `global_jpos` = 真 coarse 网格上，
+不受影响；审计的 `fk10` 列带此重采样假象，但它仅作对照，且 0.163 帧的重采样无法制造
+2.9× 的两帧瞬变，该对照的结论成立。
+
+### F. v2：真 coarse 网格上的修复 —— 瞬变**确实可移除**
+
+在 `global_jpos`（真 10 Hz 生成网格）上做两侧 Hermite，仅用模型自身输出，无 GT：
+
+| 量 | BEFORE | AFTER | 配对差 |
+|---|---:|---:|---:|
+| `\|a\|` first / interior | 3.3890 [3.2404,3.5453] | **1.4202** [1.3695,1.4729] | −1.9688 SIG |
+| `\|a\|` first | 0.02890 | 0.01240 | −0.01650 SIG |
+| `\|a\|` interior | 0.00950 | 0.00950 | **+0.000000（不变）** |
+| `boundary_jerk` 10 Hz | 34.0737 | **12.1563** | −21.9174 SIG |
+| `interior_jerk` 10 Hz | 9.1493 | 9.0965 | −0.0528 SIG |
+| `jerk_ratio` 10 Hz | 3.9019 | **1.3794** | −2.5226 SIG |
+| foot-slide 比例（10 Hz 代理） | 0.7769 | 0.7855 | +0.0086 SIG（变差） |
+
+动作改变量：关节均值 **0.139 cm**、p95 **1.001 cm**、max **6.739 cm**
+[6.367,7.135]、**最坏 episode 25.622 cm**；触及 10.65% 的 coarse 帧；跳过 0/1874 seam。
+
+门：**G-A PASS**（1.4202 ≤ 1.800，闭合到 GT 1.119 的 **86.7%**）；
+**G-B 未评估**（penetration 需顶点 ← coarse 参数，见 E 节）；**G-C PASS**（interior `|a|`
+不变）；**G-D PASS**（几何按构造不变）；**G-E FLAG** —— 最坏逐帧位移 **25.62 cm**，
+而瞬变幅度仅约 2.4 cm。
+
+修复后 10 Hz `jerk_ratio` 1.3794 略高于 GT 的 coarse 1.2204，也高于排除 clamp 的 1.1324。
+
+### G. 上界的正确陈述（替换失效的 GT oracle）
+
+GT oracle 未能给出上界（C 节）。可用的上界陈述改为**构造性**的：解析天花板是 GT 平价，
+即 10 Hz `jerk_ratio` 3.9019 → 1.2204；v2 在关节通道上实际移除了 coarse 超出量的
+**94.1%**（2.6815 → 0.1590）。也就是说**天花板在关节通道上基本可达**，且这是构造证明
+而非代入 GT。这比原计划的 GT oracle 更强，但它只覆盖关节通道，不覆盖 penetration。
+
+**投影（标注为投影，非测量）：** C1 的配对视图给出插值稀释比——B 对 GT 的超出量在
+fine 30 Hz 是 **+0.826**，在 coarse 10 Hz 是 **+2.6815**，比值 **3.25**。若同样移除
+94.1%，fine 超出量 0.826 → 0.049，封存 `jerk_ratio` 投影为 **2.0205 → ~1.24**
+（GT 1.1943）。该投影假设稀释比与干预无关，而 D 节证明对 fine 率干预**不成立**，
+故它只适用于 coarse 率干预（如 B-match）。
+
+### H. B-match pilot 是否仍值得运行
+
+按 §10 **事先登记**的三情形判据裁决，并如实说明一处证据替换：规则的情形 3 原文要求
+"GT oracle 显示有大量可移除 jerk"，而 GT oracle 失效；该证据由 F 节的构造性结果替代
+（94.1% 可移除），这正是 GT oracle 本应提供的内容。
+
+- **情形 1（可部署方案全门通过 ⇒ 不跑 pilot）：不成立。** fine 率臂 G-A/G-B FAIL；
+  coarse 率臂 G-A PASS 但 G-E FLAG、G-B 未评估。
+- **情形 2（可部署方案 G-B 或 G-C 失败 ⇒ 不跑 pilot）：不能据此成立。** fine 率臂确实
+  G-B FAIL，但那是 `pene_pct_scene` +0.00004、相对 **+0.07%** 的变化被 n=370 的近确定性
+  配对检验判为显著（见 J 节的门设计缺陷）；以此杀掉候选是错误的。coarse 率臂的 G-B
+  **未评估**。
+- **情形 3（可移除量大，但可部署路线偏偏在 G-E 位移上失败 ⇒ pilot 成立）：这是实际落点。**
+  86.7% 的连续性差距可闭合，而代价是最坏 **25.62 cm** 位移，远超 2.4 cm 的瞬变幅度。
+  按事先登记的表述，这正是"接缝需要在生成时做对、而非事后修补"的图样。
+
+**结论：B-match pilot 仍然值得运行**，理由是事后修补要么破坏封存指标口径（fine 率），
+要么以远超缺陷幅度的位移换取改善（coarse 率），而 B-match 天然是 coarse 率干预，
+不受 D 节的微结构问题影响。
+
+**但必须同时记录未解决的风险**，且按 §10 的升级条款交由用户决定：coarse 路线的
+**penetration 未被评估**，所以杀死 guidance-dose 路线的那类护栏代价对本路线仍是未检验的。
+Stage 2 的存在正是为此。
+
+### I. T0 / T1 / Stage 1 / Stage 2 成本重算
+
+锚点（实测，非估计）：B 全量 223 epoch / 146,255 updates / **29.6 h 墙钟** /
+0.7305 s/update / **4 GPU** × 512 × accum 1 ⇒ 655.9 updates/epoch，**118.4 GPU-hour**；
+HSI 硬件池 **8 GPU**（`training_resource_protocol.json`）；全量 eval **8 shards** ~5 h。
+
+| 臂 | 规模 | 墙钟 | GPU-hour |
+|---|---|---:|---:|
+| T0 / T1 各自（20 epoch finetune） | 13,117 updates | 2.66 h（4 GPU） | 10.6 |
+| Stage 1（frozen-60，两臂） | 60 episode ×2 | 1.62 h | 13.0 |
+| Stage 2（全量 370，两臂） | 370 ×2 | 10.0 h | 80.0 |
+
+**用户的 6.94 h 顺序读数经重算完全正确**：2.66 + 2.66 + 1.62 = **6.94 h 墙钟，
+34.3 GPU-hour**。
+
+**T0 与 T1 可以并行**：HSI 拥有 8 GPU，每臂用 4，两臂同时装得下（一个 run 允许只用其
+expert 池的子集）。并行后 max(2.66, 2.66) + 1.62 = **4.28 h 墙钟**，而
+**GPU-hour 不变，仍是 34.3** —— 并行买的是墙钟，不是算力。
+
+并行的保留意见：两臂共享主机内存与 dataloader 带宽，4.28 h 是下界。该代码库对 layout
+敏感（4×512 实测 0.71223 s/update 对 8×256 的 0.96221），两个并发 4-GPU 作业不保证维持
+0.7305 s/update，并行变体建议预算 **4.3–5.5 h** 墙钟。Stage 1 的评估无法与它所评分的
+训练重叠。
+
+| 路径 | 顺序墙钟 | 并行墙钟 | GPU-hour |
+|---|---:|---:|---:|
+| kill path（Stage 1 失败即停） | 6.94 h | **4.28 h** | **34.3** |
+| 全路径（Stage 1 + 2） | 16.94 h | **14.28 h** | **114.3** |
+
+**必须直说的一点：** 全路径 **114.3 GPU-hour** 对 B 全量重训的 **118.4** —— 相差 4%。
+分级 pilot 在全路径上**并不省算力**；它买到的是（a）Stage 1 失败时 **34.3 GPU-hour**
+的止损点（重训的 29%），以及（b）墙钟 14.3 h 对 29.6 h。全路径成本的 **70%（80/114.3）
+是护栏评估而非训练**，而这由 penetration 需要 n≈266 的功效要求决定，不是可选项。
+
+### J. 门设计缺陷（登记，不追溯改判）
+
+D 节中 `pene_pct_scene` 变化 +0.00004、基数 0.06095，**相对 +0.07%**，而配对 CI
+[+0.00002,+0.00005] 排除 0，于是 G-B FAIL。在 n=370 且配对差近确定性的条件下，
+"CI 不得在变差方向排除 0" 会把任何系统性变化判为失败，无论其多么微小。**G-B 在被用于
+杀死候选之前需要配一个实际显著性下限**。此缺陷登记在案，不用于追溯推翻 D 节判定。
+
+### K. 未做的事
+
+- 未运行任何 GPU 工作负载；未训练、未 finetune、未采样、未做 GPU 评估。
+- **未启动 pilot**，且不会自动启动；H 节的结论是建议，等用户决定。
+- coarse 路线的 penetration / contact **未评估**（E 节的结构性原因），未以任何近似替代。
+- 探索性 span sweep **未运行**；分层 SELECT 185 / CONFIRM 185（walk 各 65，seed 42，
+  `split.json`）已就绪但未使用，因 headline 的 span 是先验冻结、不含选择，故全量 370
+  用于确认以保住 penetration 功效。
+- v1 §3 的 GT oracle 构造错误、v1 fine 率干预的微结构失败、G-B 的门设计缺陷、
+  `interpolate_joints` 的节点漂移，均如实登记而非修补掩盖。
+- 未修改 C、walk 门槛、continuous-w、evaluator、`code/priors/core/`。
+
+### L. 产物清单
+
+`.claude/scratch/oracle_20260825/`：`FROZEN_ORACLE_DEFINITION.md`（含事先登记的 §10 判据）、
+`MEASURED_FACTS_ORACLE.md`（本节全部数字的唯一出处）、`PILOT_COST_RECOMPUTE.md`、
+`oracle.py`、`selfcheck.py` / `selfcheck.json`、`run_oracle.py` / `oracle_rows.json`、
+`reduce_oracle.py` / `reduce.out` / `oracle_summary.json`、`coarse_repair.py` /
+`coarse_repair.json`、`split.json`。
