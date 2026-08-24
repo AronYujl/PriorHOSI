@@ -245,6 +245,62 @@ def _probe_fixture():
     return values, batch, cfg
 
 
+class TrainerMaskModeThreadingTests(unittest.TestCase):
+    @staticmethod
+    def _forward(cfg, values, batch):
+        import train_hoi_prior
+
+        generator = torch.Generator(device=batch["x"].device)
+        generator.manual_seed(42)
+        return train_hoi_prior._forward_losses(
+            _SyntheticModel(), GaussianDiffusion(500), batch,
+            values["parents_24"], values["position_minimum"],
+            values["position_maximum"], values["object_minimum"],
+            values["object_maximum"], cfg, generator=generator,
+        )
+
+    def test_per_hand_per_frame_reaches_and_invokes_the_real_reducer(self):
+        values, batch, cfg = _probe_fixture()
+        cfg.hand_object_contact_mask_mode = "per_hand_per_frame"
+        real_reducer = loss_module._reduce_per_hand_per_frame
+        with mock.patch.object(
+            loss_module, "_reduce_per_hand_per_frame", wraps=real_reducer
+        ) as recorder:
+            result = self._forward(cfg, values, batch)
+        self.assertIn("hand_object_contact_geometry", result)
+        recorder.assert_called_once()
+
+    def test_absent_mode_reaches_sealed_branch_without_per_hand_reducers(self):
+        values, batch, cfg = _probe_fixture()
+        real_masked_loss = loss_module.masked_hand_object_distance_loss
+        with mock.patch.object(
+            loss_module, "masked_hand_object_distance_loss", wraps=real_masked_loss
+        ) as masked, mock.patch.object(
+            loss_module, "_reduce_per_hand_global", wraps=loss_module._reduce_per_hand_global
+        ) as global_reducer, mock.patch.object(
+            loss_module, "_reduce_per_hand_per_frame",
+            wraps=loss_module._reduce_per_hand_per_frame,
+        ) as frame_reducer:
+            self._forward(cfg, values, batch)
+        self.assertEqual(
+            masked.call_args.kwargs["hand_object_contact_mask_mode"], "sealed"
+        )
+        global_reducer.assert_not_called()
+        frame_reducer.assert_not_called()
+
+
+class GeometryLossModeContractTests(unittest.TestCase):
+    def test_geometry_losses_requires_an_explicit_mask_mode(self):
+        values, batch, cfg = _probe_fixture()
+        with self.assertRaisesRegex(TypeError, "mask_mode"):
+            diagnostics._geometry_losses(
+                values["prediction"], batch, values["parents_24"],
+                values["position_minimum"], values["position_maximum"],
+                values["object_minimum"], values["object_maximum"], cfg,
+                weight=1.0, detach_object=False, detach_root=False,
+            )
+
+
 class RootGradientShareProbeTests(unittest.TestCase):
     def _run(self, directory):
         values, batch, cfg = _probe_fixture()
@@ -530,9 +586,14 @@ class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
 
 
 class GeometryWeightDerivationProbeTests(unittest.TestCase):
-    def _run(self, directory, weight, output_name="weight.json"):
+    def _run(self, directory, weight, output_name="weight.json", mask_mode=None,
+             run_id=None):
         values, batch, cfg = _probe_fixture()
         cfg.hand_object_contact_weight = weight
+        if mask_mode is not None:
+            cfg.hand_object_contact_mask_mode = mask_mode
+        if run_id is not None:
+            cfg.run_id = run_id
         checkpoint = Path(directory) / "checkpoint.pth"
         if not checkpoint.exists():
             checkpoint.write_bytes(b"synthetic-checkpoint")
@@ -558,7 +619,8 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
         expected = {
             "probe", "seed", "window_count", "batch_count", "checkpoint_path",
             "checkpoint_sha256", "git_commit",
-            "configured_hand_object_contact_weight", "geometry_from_separate_call",
+            "configured_hand_object_contact_weight", "hand_object_contact_mask_mode",
+            "geometry_from_separate_call",
             "timesteps", "timestep_seam", "gradient_l2", "human_side_l2",
             "object_side_l2", "target_channel", "root_channel_geometry_l2",
             "p0_calibration", "self_check",
@@ -573,6 +635,7 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
             self.assertEqual(zero["configured_hand_object_contact_weight"], 0.0)
             self.assertEqual(weighted["configured_hand_object_contact_weight"], 3.0)
             for result in (zero, weighted):
+                self.assertEqual(result["hand_object_contact_mask_mode"], "sealed")
                 self.assertEqual(result["timestep_seam"], "pinned_real_forward_losses")
                 self.assertTrue(result["self_check"]["all_values_finite"])
                 self.assertTrue(
@@ -581,6 +644,45 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
                     ]
                 )
                 self.assertEqual(set(result["gradient_l2"]), {"250", "499"})
+
+    def test_probe_records_the_resolved_per_hand_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(
+                directory, 0.0, mask_mode="per_hand_per_frame"
+            )
+        self.assertEqual(
+            result["hand_object_contact_mask_mode"], "per_hand_per_frame"
+        )
+
+    def test_probe_runs_a_per_hand_mode_at_zero_weight_when_reportable(self):
+        """The trainer's reportable-run gate must never reach the probe.
+
+        ``config_train_hoi_prior_p12.yaml`` sets a ``run_id`` and is the default
+        ``--config-name`` of the derivation subcommand, so the probe's cfg is
+        reportable; it stays safe only because ``diagnostics.py`` imports no
+        ``_validate_*`` from the trainer.  The cfg the trainer refuses is the
+        one the probe must still run, or no per-hand weight can be derived.
+        """
+        import train_hoi_prior
+
+        run_id = "unit-test-run-id-not-allocated"
+        refused = OmegaConf.create({
+            "hand_object_contact_mask_mode": "per_hand_per_frame",
+            "hand_object_contact_weight": 0.0,
+            "run_id": run_id,
+        })
+        with self.assertRaisesRegex(ValueError, "never computed"):
+            train_hoi_prior._validate_hand_object_contact_mask_mode(refused)
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(
+                directory, 0.0, mask_mode="per_hand_per_frame", run_id=run_id
+            )
+        self.assertEqual(
+            result["hand_object_contact_mask_mode"], "per_hand_per_frame"
+        )
+        self.assertEqual(result["configured_hand_object_contact_weight"], 0.0)
+        self.assertTrue(result["geometry_from_separate_call"])
+        self.assertTrue(result["self_check"]["all_values_finite"])
 
     def test_pinned_timestep_bitwise_reproduces_plain_forward_losses_batch_two(self):
         import train_hoi_prior

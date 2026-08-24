@@ -87,6 +87,10 @@ def _resolve(config_name, overrides=()):
 
 
 class RecipeFileTests(unittest.TestCase):
+    def test_base_config_declares_the_sealed_contact_mask_mode(self):
+        resolved = _resolve("config_train_hoi_prior")
+        self.assertEqual(resolved["hand_object_contact_mask_mode"], "sealed")
+
     def test_the_recipe_is_a_global_package(self):
         """Without `@package _global_` the keys land under a `recipe:` node."""
         text = (CONFIG_DIR / "recipe" / "d2ai.yaml").read_text(encoding="utf-8")

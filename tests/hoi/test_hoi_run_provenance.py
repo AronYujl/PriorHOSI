@@ -13,6 +13,7 @@ Covers the two defects closed on 2026-08-11:
   recorded as ``5d39ac3``.  The commit is now resolved once, at run start.
 """
 
+import inspect
 import os
 import subprocess
 import sys
@@ -20,10 +21,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from hydra import compose, initialize_config_dir
+from hydra.core.global_hydra import GlobalHydra
 from omegaconf import OmegaConf
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
+# config_train_hoi_prior.yaml declares repo_root: ${oc.env:ROOT_DIR}.
+os.environ.setdefault("ROOT_DIR", str(REPO))
 
 import train_hoi_prior as trainer
 
@@ -65,6 +70,144 @@ class ReportableRunTests(unittest.TestCase):
                 OmegaConf.create({"run_id": "p1-hoi-p11-probe-s42-20260812"})
             )
         )
+
+
+class ContactMaskResumeContractTests(unittest.TestCase):
+    @staticmethod
+    def _mode_cfg(mode=None, **values):
+        if mode is not None:
+            values["hand_object_contact_mask_mode"] = mode
+        return OmegaConf.create(values)
+
+    def test_old_contract_resumes_with_implicit_sealed_mode(self):
+        stored = {"existing_field": 17}
+        self.assertEqual(
+            trainer._reconciled_resume_contract(stored, self._mode_cfg()),
+            {"existing_field": 17, "hand_object_contact_mask_mode": "sealed"},
+        )
+
+    def test_old_contract_rejects_current_per_hand_per_frame_mode(self):
+        with self.assertRaisesRegex(ValueError, "contact mask mode mismatch"):
+            trainer._reconciled_resume_contract(
+                {"existing_field": 17}, self._mode_cfg("per_hand_per_frame")
+            )
+
+    def test_explicit_stored_and_current_mode_mismatch_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "contact mask mode mismatch"):
+            trainer._reconciled_resume_contract(
+                {"hand_object_contact_mask_mode": "per_hand_global"},
+                self._mode_cfg("per_hand_per_frame"),
+            )
+
+    def test_unknown_stored_mode_is_rejected_distinctly(self):
+        with self.assertRaisesRegex(ValueError, "unknown contact mask mode"):
+            trainer._reconciled_resume_contract(
+                {"hand_object_contact_mask_mode": "unknown"}, self._mode_cfg()
+            )
+
+    def test_backfill_does_not_mutate_the_callers_stored_contract(self):
+        stored = {"existing_field": 17}
+        reconciled = trainer._reconciled_resume_contract(stored, self._mode_cfg())
+        self.assertNotIn("hand_object_contact_mask_mode", stored)
+        self.assertIsNot(reconciled, stored)
+
+
+class ContactMaskStartupValidationTests(unittest.TestCase):
+    def test_unknown_mode_is_rejected_even_when_geometry_weight_is_zero(self):
+        cfg = self._cfg("unknown", weight=0.0)
+        with self.assertRaisesRegex(ValueError, "unknown hand-object contact mask mode"):
+            trainer._validate_hand_object_contact_mask_mode(cfg)
+
+    def test_per_hand_mode_with_nonzero_hinge_is_rejected_at_startup(self):
+        cfg = self._cfg("per_hand_per_frame", weight=0.0, hinge=0.02)
+        with self.assertRaisesRegex(ValueError, "require zero hinge"):
+            trainer._validate_hand_object_contact_mask_mode(cfg)
+
+    def test_reportable_per_hand_mode_at_zero_weight_is_rejected(self):
+        cfg = self._cfg("per_hand_per_frame", weight=0.0, run_id=self.RUN_ID)
+        with self.assertRaisesRegex(ValueError, "never computed"):
+            trainer._validate_hand_object_contact_mask_mode(cfg)
+
+    def test_reportable_per_hand_mode_with_positive_weight_is_allowed(self):
+        cfg = self._cfg("per_hand_per_frame", weight=3.0, run_id=self.RUN_ID)
+        self.assertIsNone(trainer._validate_hand_object_contact_mask_mode(cfg))
+
+    def test_unreportable_per_hand_mode_at_zero_weight_is_allowed(self):
+        """The gradient probe's own shape: derive the weight before spending it."""
+        cfg = self._cfg("per_hand_per_frame", weight=0.0, run_id=None)
+        self.assertIsNone(trainer._validate_hand_object_contact_mask_mode(cfg))
+
+    def test_reportable_sealed_mode_at_zero_weight_is_allowed(self):
+        cfg = self._cfg("sealed", weight=0.0, run_id=self.RUN_ID)
+        self.assertIsNone(trainer._validate_hand_object_contact_mask_mode(cfg))
+
+    RUN_ID = "unit-test-run-id-not-allocated"
+
+    @staticmethod
+    def _cfg(mode, *, weight, hinge=0.0, run_id=None):
+        return OmegaConf.create({
+            "hand_object_contact_mask_mode": mode,
+            "hand_object_contact_weight": weight,
+            "hand_object_contact_hinge": hinge,
+            "run_id": run_id,
+        })
+
+
+class ContactMaskContractRecordTests(unittest.TestCase):
+    """The resolved mode reaches both recorded contracts, on a real config.
+
+    ``_reconciled_resume_contract`` backfills the key onto a stored contract, so
+    dropping it from ``_resume_contract`` would break every resume -- the
+    reconciled dict would carry a key the freshly built contract lacks -- while
+    the backfill tests above still passed.  ``loss_routing`` is written to
+    metrics.json only at completion, so an unrecorded mode would first surface
+    in a finished run's provenance.
+    """
+
+    CASES = (
+        ((), "sealed"),
+        (("hand_object_contact_mask_mode=per_hand_per_frame",), "per_hand_per_frame"),
+    )
+
+    @staticmethod
+    def _composed(overrides):
+        GlobalHydra.instance().clear()
+        with initialize_config_dir(
+            config_dir=str(REPO / "code" / "config"), version_base=None
+        ):
+            return compose(
+                config_name="config_train_hoi_prior_p12", overrides=list(overrides)
+            )
+
+    def test_resume_contract_records_the_resolved_mode(self):
+        for overrides, expected in self.CASES:
+            with self.subTest(expected=expected):
+                contract = trainer._resume_contract(self._composed(overrides))
+                self.assertIn("hand_object_contact_mask_mode", contract)
+                self.assertEqual(contract["hand_object_contact_mask_mode"], expected)
+
+    def test_loss_routing_contract_records_the_resolved_mode(self):
+        for overrides, expected in self.CASES:
+            with self.subTest(expected=expected):
+                contract = trainer._loss_routing_contract(self._composed(overrides))
+                self.assertEqual(contract["hand_object_contact_mask_mode"], expected)
+
+
+class ContactMaskStartupWiringTests(unittest.TestCase):
+    """The validator is reached at run start, not merely defined.
+
+    The two tests above call it directly, so a validator nobody invoked would
+    still pass them.  Both entry points need it: ``main`` gates the launch and
+    ``_worker`` gates every spawned rank, which never re-enters ``main``.
+    """
+
+    def test_both_startup_paths_call_the_validator(self):
+        for function in (trainer._worker, trainer.main):
+            with self.subTest(function=function.__name__):
+                self.assertIn(
+                    "_validate_hand_object_contact_mask_mode(cfg)",
+                    inspect.getsource(function),
+                )
 
 
 class CleanWorktreeGateTests(unittest.TestCase):

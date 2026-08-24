@@ -2747,6 +2747,9 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
         # recorded objective still describes those runs exactly, while a resume
         # can never silently swap a hinged/detached objective for the flat one.
         "hand_object_contact_hinge": float(cfg.get("hand_object_contact_hinge", 0.0)),
+        "hand_object_contact_mask_mode": str(
+            cfg.get("hand_object_contact_mask_mode", "sealed")
+        ),
         "hand_object_contact_detach_object": bool(
             cfg.get("hand_object_contact_detach_object", False)
         ),
@@ -2874,6 +2877,26 @@ def _resume_contract(cfg: DictConfig) -> Dict[str, object]:
             else str(cfg.d2ag_performance_waiver_sha256)
         )
     return contract
+
+
+def _reconciled_resume_contract(stored, cfg: DictConfig):
+    """Backfill the sealed mask mode without mutating a loaded checkpoint."""
+    if not isinstance(stored, Mapping):
+        return stored
+    reconciled = dict(stored)
+    key = "hand_object_contact_mask_mode"
+    stored_mode = str(reconciled.get(key, "sealed"))
+    valid_modes = {"sealed", "per_hand_global", "per_hand_per_frame"}
+    if stored_mode not in valid_modes:
+        raise ValueError(f"resume checkpoint has unknown contact mask mode: {stored_mode!r}")
+    current_mode = str(cfg.get(key, "sealed"))
+    if stored_mode != current_mode:
+        raise ValueError(
+            "resume checkpoint contact mask mode mismatch: "
+            f"{stored_mode!r} != {current_mode!r}"
+        )
+    reconciled.setdefault(key, "sealed")
+    return reconciled
 
 
 def _lr_lambda(update: int, total_updates: int, warmup_updates: int, minimum_ratio: float) -> float:
@@ -3087,6 +3110,25 @@ def _validate_fk_foot_temporal_routing_mode(cfg: DictConfig) -> None:
         )
 
 
+def _validate_hand_object_contact_mask_mode(cfg: DictConfig) -> None:
+    mode = str(cfg.get("hand_object_contact_mask_mode", "sealed"))
+    if mode not in {"sealed", "per_hand_global", "per_hand_per_frame"}:
+        raise ValueError(f"unknown hand-object contact mask mode: {mode!r}")
+    if mode != "sealed" and float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0:
+        raise ValueError("per-hand contact mask modes require zero hinge")
+    # A reportable run records the mode in its resume and loss-routing contracts,
+    # so a per-hand mode with no geometry weight would publish a per-hand
+    # objective that was never computed.  Only the trainer gates this: the
+    # gradient probe needs exactly that combination to derive the weight, and
+    # diagnostics.py imports no validator from here.
+    weight = float(cfg.get("hand_object_contact_weight", 0.0))
+    if _reportable_run(cfg) and mode != "sealed" and weight <= 0.0:
+        raise ValueError(
+            f"reportable run would record contact mask mode {mode!r} while the "
+            f"geometry term is never computed: hand_object_contact_weight={weight}"
+        )
+
+
 def _locked_loss_weights(cfg: DictConfig) -> Dict[str, float]:
     if (
         _is_d2u(cfg) or _is_d2v(cfg) or _is_d2x(cfg)
@@ -3131,6 +3173,9 @@ def _optimization_contract(cfg: DictConfig) -> Dict[str, object]:
 
 def _loss_routing_contract(cfg: DictConfig) -> Dict[str, object]:
     contract: Dict[str, object] = {
+        "hand_object_contact_mask_mode": str(
+            cfg.get("hand_object_contact_mask_mode", "sealed")
+        ),
         "fk_foot_temporal_routing": bool(cfg.get("fk_foot_temporal_routing", False)),
         "foot_joint_indices": [7, 8, 10, 11],
         "routed_components": ["x", "z"],
@@ -5220,6 +5265,9 @@ def _forward_losses(
         # Preregistered P10 repair of that term: a 2 cm hinge and/or a
         # hand-only gradient.  Defaults reproduce the sealed weight-3 objective.
         hand_object_contact_hinge=float(cfg.get("hand_object_contact_hinge", 0.0)),
+        hand_object_contact_mask_mode=str(
+            cfg.get("hand_object_contact_mask_mode", "sealed")
+        ),
         hand_object_contact_detach_object=bool(
             cfg.get("hand_object_contact_detach_object", False)
         ),
@@ -5719,7 +5767,9 @@ def _load_resume(
     resume_provenance = _resume_commit_provenance(
         cfg, checkpoint_commit, current_commit, repo,
     )
-    if checkpoint.get("resume_contract") != _resume_contract(cfg):
+    if _reconciled_resume_contract(
+        checkpoint.get("resume_contract"), cfg
+    ) != _resume_contract(cfg):
         raise ValueError("resume checkpoint training contract mismatch")
     for key, expected in (
         ("run_id", str(cfg.run_id)),
@@ -5769,6 +5819,7 @@ def _load_resume(
 def _worker(rank: int, cfg: DictConfig) -> None:
     world_size = int(cfg.num_gpus)
     _validate_fk_foot_temporal_routing_mode(cfg)
+    _validate_hand_object_contact_mask_mode(cfg)
     _validate_d2t_contract(cfg, world_size)
     _validate_d2u_contract(cfg, world_size)
     _validate_d2v_contract(cfg, world_size)
@@ -6625,6 +6676,7 @@ def main(cfg: DictConfig) -> None:
         flush=True,
     )
     _validate_fk_foot_temporal_routing_mode(cfg)
+    _validate_hand_object_contact_mask_mode(cfg)
     _validate_d2t_contract(cfg, int(cfg.num_gpus))
     _validate_d2u_contract(cfg, int(cfg.num_gpus))
     _validate_d2v_contract(cfg, int(cfg.num_gpus))

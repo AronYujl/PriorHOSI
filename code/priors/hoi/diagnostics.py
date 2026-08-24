@@ -72,6 +72,7 @@ def _geometry_losses(
     cfg,
     *,
     weight: float,
+    mask_mode: str,
     detach_object: bool,
     detach_root: bool,
 ) -> Dict[str, torch.Tensor]:
@@ -96,6 +97,7 @@ def _geometry_losses(
         goal_weight=float(cfg.goal_weight),
         hand_object_contact_weight=float(weight),
         hand_object_contact_hinge=float(cfg.get("hand_object_contact_hinge", 0.0)),
+        hand_object_contact_mask_mode=str(mask_mode),
         hand_object_contact_detach_object=bool(detach_object),
         hand_object_contact_detach_root=bool(detach_root),
         fk_foot_temporal_routing=bool(cfg.get("fk_foot_temporal_routing", False)),
@@ -141,6 +143,7 @@ def root_gradient_share_probe(
     if (
         float(cfg.get("hand_object_contact_weight", 0.0)) != 3.0
         or float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0
+        or str(cfg.get("hand_object_contact_mask_mode", "sealed")) != "sealed"
         or bool(cfg.get("hand_object_contact_detach_object", False))
         or bool(cfg.get("hand_object_contact_detach_root", False))
     ):
@@ -223,6 +226,7 @@ def root_gradient_share_probe(
                     object_maximum,
                     cfg,
                     weight=float(cfg.hand_object_contact_weight),
+                    mask_mode="sealed",
                     detach_object=bool(
                         cfg.get("hand_object_contact_detach_object", False)
                     ),
@@ -361,6 +365,7 @@ def geometry_term_forward_scale_probe(
                     object_maximum,
                     cfg,
                     weight=1.0,
+                    mask_mode="sealed",
                     detach_object=bool(
                         cfg.get("hand_object_contact_detach_object", False)
                     ),
@@ -396,6 +401,7 @@ def geometry_term_forward_scale_probe(
                         object_maximum,
                         cfg,
                         weight=1.0,
+                        mask_mode="sealed",
                         detach_object=bool(
                             cfg.get("hand_object_contact_detach_object", False)
                         ),
@@ -542,6 +548,7 @@ def geometry_mask_fix_floor_probe(
             losses = _geometry_losses(
                 prediction, batch, parents, position_minimum, position_maximum,
                 object_minimum, object_maximum, cfg, weight=1.0,
+                mask_mode="sealed",
                 detach_object=bool(cfg.get("hand_object_contact_detach_object", False)),
                 detach_root=bool(cfg.get("hand_object_contact_detach_root", False)),
             )
@@ -1004,6 +1011,7 @@ def geometry_term_palm_decomposition_probe(
                 object_maximum,
                 cfg,
                 weight=1.0,
+                mask_mode="sealed",
                 detach_object=bool(
                     cfg.get("hand_object_contact_detach_object", False)
                 ),
@@ -1376,8 +1384,10 @@ def geometry_weight_derivation_probe(
     if not checkpoint_path.is_file():
         raise ValueError(f"probe checkpoint does not exist: {checkpoint_path}")
     _require_plain_forward_path(cfg)
+    mask_mode = str(cfg.get("hand_object_contact_mask_mode", "sealed"))
     if (
         float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0
+        or mask_mode not in {"sealed", "per_hand_global", "per_hand_per_frame"}
         or bool(cfg.get("hand_object_contact_detach_object", False))
         or bool(cfg.get("hand_object_contact_detach_root", False))
     ):
@@ -1471,6 +1481,7 @@ def geometry_weight_derivation_probe(
                             object_maximum,
                             cfg,
                             weight=1.0,
+                            mask_mode=mask_mode,
                             detach_object=bool(
                                 cfg.get("hand_object_contact_detach_object", False)
                             ),
@@ -1604,6 +1615,7 @@ def geometry_weight_derivation_probe(
             text=True,
         ).strip(),
         "configured_hand_object_contact_weight": configured_weight,
+        "hand_object_contact_mask_mode": mask_mode,
         "geometry_from_separate_call": geometry_from_separate_call,
         "timesteps": [int(timestep) for timestep in timesteps],
         "timestep_seam": "pinned_real_forward_losses",

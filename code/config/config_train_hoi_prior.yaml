@@ -51,10 +51,12 @@ goal_weight: 1.0
 # Preregistered P8 hand-object relative geometry term and its P10 repair flags.
 # ``hand_object_contact_weight`` is deliberately not declared here: it stays 0.0
 # for every configuration sealed before P8 and the trainer reads it with a 0.0
-# default, so only the arm configs that use the term set it.  The two P10 flags
-# are declared so that a resolved job config always states the objective shape.
+# default, so only the arm configs that use the term set it.  The P10/P11 flags
+# and mask mode are declared so a resolved job config states the objective shape.
 # hinge is in metres; 0.0 keeps the literal sealed squared-distance expression.
 hand_object_contact_hinge: 0.0
+# ``sealed`` preserves the reducer used by every existing geometry arm.
+hand_object_contact_mask_mode: sealed
 hand_object_contact_detach_object: false
 # P11 removes only the contact-geometry gradient through root translation.
 hand_object_contact_detach_root: false
