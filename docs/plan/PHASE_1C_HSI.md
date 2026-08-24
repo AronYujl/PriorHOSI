@@ -5544,3 +5544,233 @@ C2–C5 remain unexecuted。
 - F2 的 paired rate-change 实测：`rate_delta.out`。
 - H 的冻结帧 census 与排除结果：`frozen.py`、`frozen.json`。
 - 本节所有 block 的唯一数字事实记录：`MEASURED_FACTS_C1.md`。
+
+---
+
+## 2026-08-24（同日第八次）
+
+### A. 授权范围与本轮结论提要
+
+本轮执行预注册的 C2–C5，范围仅为 attribution；未实现任何 fix。全程 zero GPU、zero torch、
+pure numpy，使用与 C1 相同的 matched n=370。每个 CI 均按 episode 重采样 10000 reps、seed 42。
+
+本轮把未解决的 seam floor 拆成 root translation/local pose、seam offset、history coverage/reset
+decay 与 derivative order 四个归因问题；结论均以实际生成的 10 Hz 视图为准。共同结论是：
+unguided floor 同时由 root translation 与 local pose 承载，超出集中在 seam 的 {-1,0,+1} 三个
+stencil，window restart 的主要缺口是 acceleration/curvature continuity，而不是单纯的速度或
+插值造成的宽泛 interior elevation。
+
+### B. 通道与视图口径
+
+`global_jpos`（native joint head）不是 FK-derived：它在同一 knot 与 FK(exported fine params)
+相差 4.3–7.4 cm，native-pelvis-minus-transl offset 还存在非恒定的约 4.4 mm 漂移
+（`root_channels.json`）。因此在 MODEL cell 上，native joint head 与 pose/transl head 是两个
+独立的 network outputs；GT 上两个 channel 一致（C1：0.34%）。
+
+| model view | GT partner |
+|---|---|
+| `fk30` | `raw30`（true 30 Hz gather） |
+| `fk10` | `fk10`（FK of un-interpolated coarse pose） |
+| `nat10` | `nat10`（dataset joint gather） |
+
+GT interpolated fine view **FORBIDDEN**：它在设备外不可复现，不承载本轮结论；只能引用 sealed
+GT fine scalars。
+
+`fk30` 对 profile/ordering 工作是 interpolation-contaminated：model 的 `fk30` 是 10 Hz
+generation 经 `interp_scale=3` 推到 30 Hz，interior 带有 period-3 的 piecewise-linear
+interpolation kink 与 phase structure；同一 profile 在 phase 0 读到 30.58、phase 1 读到
+205.47（`c3.out`）。其 GT partner `raw30` 是 genuine un-interpolated motion，因此 phase-flat。
+cross-rate ordering 与 root/pose split 必须从 10 Hz views 读取；`fk30` 只作 phase-stratified
+或 scalar 报告，不能作 like-for-like profile。
+
+### C. C2 root translation 与 local pose 拆分
+
+在同一 stencil 上分解为 full、`root_only = joints[:,0:1,:]`（并独立使用 transl channel）以及
+`local pose = joints - joints[:,0:1,:]` over 27 non-zero slots。
+
+FK-channel identity 已确认：由 `joints[:,0]` 得到的 root_only 与由 transl 得到的 root_only，
+在全部 370 个 episode 上相差仅 6.26e-16 m（`joint0 = J_rest[0]+transl`；third difference
+会消掉 constant）。nat10 的两个 root source 则确实不同。
+
+paired excess over GT partner（`jerk_ratio_cell - jerk_ratio_GT`，CI over episodes）：
+
+| view | cell | full | root_only | local pose (27) |
+|---|---|---:|---:|---:|
+| fk10 (clean) | B unguided | +1.9691 [1.841,2.104] | +1.2822 [1.162,1.404] | **+2.0539 [1.913,2.202]** |
+| fk10 (clean) | C unguided | +1.4457 | +1.2237 | +1.3160 |
+| fk10 (clean) | C guided v5 | +1.5917 | +1.3921 | +1.5214 |
+| fk30 (CONFOUNDED) | B unguided | +0.8662 | +1.2311 | +0.6836 |
+| fk30 (CONFOUNDED) | C unguided | +0.8891 | +1.2911 | +0.6235 |
+| fk30 (CONFOUNDED) | C guided v5 | +1.0171 | +1.4204 | +0.7406 |
+
+jerk_ratio by decomposition, fk10（`anchor_c2_fk10.json` / `c2c5.json` agree）：
+
+| cell | full | root_only | local pose |
+|---|---:|---:|---:|
+| B unguided | 3.1893 | 2.5050 | 3.2884 |
+| GT v3 | 1.2202 | 1.2228 | 1.2345 |
+
+native 10 Hz 中，从 `global_jpos[:,0]` 取 root 与从 transl 取 root 的 two-head 对照
+（`root_channels.json`）：
+
+| cell | native-pelvis ratio | transl ratio | non-const drift |
+|---|---:|---:|---:|
+| B unguided | 3.745 [3.561,3.938] | 2.505 [2.392,2.622] | 4.4 mm |
+| GT v3 | 1.223 | 1.223 | 0.000 mm |
+
+**DELIVERABLE (C2)：common unguided floor 由 BOTH root translation 与 local pose 承载，而非
+root alone。** 在模型实际生成的 interpolation-free 10 Hz rate 上，B 的 local pose excess
++2.0539 至少与 root 的 +1.2822 一样大；fk30 中 ordering 反转，但该 view 被 interpolation
+confounded，不用于 verdict。两部分都明显高于 GT 的 flat ~1.22。这个结论**不复现**旧的
+2026-08-23 “69% root translation”结果：旧结果是 guided-only 的 B-minus-C contrast，本轮
+回答的是 unguided floor 自身的 composition，问题不同。
+
+native joint head 在 seam 上比 transl head 有更尖的 spike（3.745 vs 2.505），所以两个 model
+head 的最大分歧正好出现在 seam。
+
+### D. C3 seam-offset profile
+
+`offset = t0 - s + 2`；boundary stencils 为 {-1,0,+1}，其中 0 是 centred on seam 的
+stencil。profile 在 10 Hz 以 bounded far band（3<=|off|<=6）归一化；unbounded tail 含有
+GT 的 clamped frozen frames，会使 denominator 被压低。nat10 full-body normalized profile：
+
+| off | -3 | -2 | -1 | 0 | +1 | +2 | +3 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| B unguided | 1.22 | 1.27 | **3.94** | **6.22** | **3.06** | 1.15 | 0.98 |
+| GT noFz | 0.98 | 0.97 | 1.005 | 1.006 | 1.014 | 1.05 | 1.05 |
+
+peak 在 offset 0：B 为 6.22x，C unguided 为 5.55x，C guided v5 为 5.83x（均为 nat10 band）。
+在 {-1,0,+1} 的 concentration 为总 positive excess 的：
+
+| cell | nat10 | fk10 |
+|---|---:|---:|
+| B unguided | 92.3% | 90.0% |
+| C unguided | 94.3% | 90.2% |
+| C guided v5 | 91.3% | 88.6% |
+
+GT 的 total excess 为 0.026（noFz），约为 models 的 1/240。half-width（回到 <=1.10x band）
+在 30 Hz 上 B/Cu 为 5，缩到 10 Hz 后正好是 {-1,0,+1} triple；GT half-width 为 0。
+fk30 phase-stratified 读数显示，在单一 interpolation phase 内 model 仍只在 {-1,0,+1}
+spike；phase 1 的 offsets -3/0/3 为 2.73/2.22/1.15，GT 为 1.08/1.03/1.10。因此
+30 Hz seam excess 是真实的，period-3 oscillation 是叠加其上的 interpolation effect。
+
+**DELIVERABLE (C3)：excess exact concentrated at {-1,0,+1}，约 90–94%，不是 broad
+elevation。** `boundary_jerk` 命名正确；3-stencil window 没有在采样更宽的 defect。这也
+解决了 C1 留下的 mechanism split：seam discontinuity 是 genuinely local event，peak 在
+offset 0，并非 interpolation 抬高了 broad interior denominator；GT 在全部 offsets 上保持
+flat（0.97–1.05），不存在可把 model spike 归因于的 broad denominator effect。
+
+### E. C4 history coverage 与 reset decay
+
+Part 1 structural：1110/1110 个 `(episode,cell)` 在 `seams_ok`、`len_ok`、`fine_ok`、
+`gt_seams_ok` 上 PASS。每条 record 的 `history_frames = 2`；windows/episode 为 2..55。
+
+**LIMIT（不是 PASS）：** `stitch()` 在 export 前丢弃 regenerated history frames，因此
+“later window's declared history == previous window's committed frames” 在 offline 不可测量；
+本项不能宣称通过。
+
+**ASYMMETRY：** `history_frames=2` 让 new window 以 2 个 past coarse frames 为条件，但
+offset -1 的 boundary stencil（`t0=s-3`）会跨 seam 回看 3 frames。
+
+Part 2 reset transient：nat10，按 interior band `4<=|foff|<=10` 归一化（`foff=0` 是 first
+new frame）：
+
+| foff | -2 | -1 | 0 | +1 | +2 | decay |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| speed B | 1.07 | 1.28 | 0.88 | 0.83 | 0.81 | 0 |
+| accel B | 1.08 | **3.45** | **2.76** | 1.08 | 0.90 | 1 |
+| accel GT noFz | 1.25 | 1.26 | 1.28 | 1.30 | 1.31 | (flat) |
+
+**DELIVERABLE (C4)：reset transient 宽度为 2 frames（foff -1 与 0，即 last committed frame
+和 first newly generated frame），是 ACCELERATION transient 而非 speed transient。** speed
+仍接近 interior（1.28x），而 acceleration spike 到 3.45x；到 foff +1 已回到 interior
+band 内。GT 在相同 indices 16,30,44,... 上 flat（无 window structure），decay N/A。
+
+### F. C5 速度与加速度连续性
+
+代数 identity 已 VERIFIED：
+`max|third_diff(t0) - (a[t0+2]-a[t0+1])| = 2.220e-15 m`。因此该 metric IS the
+acceleration step。
+
+| view | cell | order1 speed | order2 vel-step | order3 metric (accel step) |
+|---|---|---:|---:|---:|
+| nat10 | B unguided | 1.75 [1.65,1.86] | 3.81 [3.60,4.04] | **4.84 [4.63,5.07]** |
+| nat10 | C unguided | 1.84 | 3.63 | 3.84 |
+| nat10 | C guided v5 | 2.07 | 3.94 | 4.07 |
+| fk10 | B unguided | 1.58 | 3.05 | 3.95 |
+| any | GT v3 | 1.13 | 1.14 | 1.14 |
+
+**DELIVERABLE (C5)：excess 随 derivative order MONOTONICALLY 增长（1.75 -> 3.81 ->
+4.84），所以 third difference 由 ACCELERATION/curvature step 驱动，而不是 position/velocity
+discontinuity。** position 跨 seam 几乎连续（order1 仅 1.75x），velocity 有中等程度的 step，
+acceleration step 最大。new window 在接近正确位置和 speed 处 restart，却没有延续 departing
+window 的 curvature。GT 在相同 frame indices 16,30,44,... 的每个 order 都 flat（约 1.14x），
+说明这些 indices 本身并不特殊。
+
+诚实记录：较早的 audit anchor 曾从 confounded `fk30` view 把 ordering 读反；`fk30` 的
+order3 会落到 2.47，因为 interpolation flatten 了 knots 之间的 metric。本轮已纠正，verdict
+取 interpolation-free 的 10 Hz views。
+
+### G. GT 口径与 clamp 敏感性
+
+每一个 GT comparison 都同时报告 all 与 nofrozen，即同时包含和排除 clamped duplicate GT
+frames。这里 frozen 是 clamped duplicate GT frames，占 GT coarse frames 的 6.78%；model
+cell 中为 0。frozen correction 将 GT ratios 移动 <=0.03，且不改变任何 verdict，只会进一步
+tighten GT 已经 flat 的 null。
+
+横向看，C guided v5 在每个 stage 都略高于两个 unguided cells，但呈现相同的 shape
+（concentration、decay、order monotonicity），符合 guidance 在已有 unguided floor 上增加
+magnitude；这不是新的 guidance finding，guidance route 仍保持关闭。
+
+### H. 最可能原因排序、候选修复方向与预计验证成本
+
+1. **window restart 处的 curvature（acceleration）discontinuity，由 root 与 local pose
+   共同承载。** Evidence：C5 order-monotonic `1.75->3.81->4.84`；C4 accel transient
+   `3.45x` 而 speed 为 `1.28x`；C3 在 {-1,0,+1} 集中约 `92%`。Candidate fix：给
+   autoregressive history 增加 acceleration/curvature constraint（`>=3 history frames`，或
+   seam 处显式的 `2nd-order continuity term`），因为 2 个 position frames 能 pin position
+   与 velocity，却不能 pin curvature。Estimated verification cost：retrain/finetune B，使用
+   `history_frames>=3` 或 seam-continuity loss，再对相同 n=370 re-score；one training run +
+   one 5 h sharded eval，GPU。
+2. **native joint head 与 transl head 在 seam 处分歧最大。** Evidence：C2 nat10 为
+   `3.745 vs 2.505`，有 `4.4 mm` drift。Candidate fix：在 seam 对 `global_jpos` 与
+   FK(transl,pose) 加 consistency loss，或从 metric path 移除 native head。Estimated
+   verification cost：只使用 FK joints 的 zero-GPU re-score 已经 available；training-side tie
+   为 one run。
+3. **interpolation 在真实 seam 之上增加 period-3 kink。** 这是 exporter/eval-representation
+   issue，不是 rollout defect，且与 floor 分离。Candidate fix：在 10 Hz score，或把
+   piecewise-linear joint interpolation 换成 C2 interpolant。Estimated verification cost：
+   zero-GPU。
+
+### I. 本节没有做的事
+
+- 未实现 fix；C2–C5 仅作 attribution。
+- 三个 guidance switches 仍为 default-off；C 未修改或 retrained；continuous-w 仍 deferred；
+  walk `h_min` gate unchanged。
+- 两个 evaluator defects（clamped GT tail、slerp/LERP branch）按用户指示保持
+  recorded-not-fixed，以免扰动 existing GT convention。
+- `c_guided_v4` 本轮未作为一个 cell 运行。
+
+### J. 产物清单
+
+本轮产物均位于 `.claude/scratch/c25_20260824/`：
+
+- `MEASURED_FACTS_C25.md`
+- `c25.py`
+- `c2c5.json`
+- `c3.json`
+- `c3.out`
+- `c4.json`
+- `c4.out`
+- `collect.py`
+- `collected.json`
+- `concentration.json`
+- `concentration.py`
+- `order_table.json`
+- `order_table.out`
+- `order_table.py`
+- `reduce_c2c5.py`
+- `reduce_c3.py`
+- `reduce_c4.py`
+- `root_channels.json`
+- `root_channels.py`
