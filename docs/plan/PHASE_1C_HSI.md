@@ -5774,3 +5774,279 @@ magnitude；这不是新的 guidance finding，guidance route 仍保持关闭。
 - `reduce_c4.py`
 - `root_channels.json`
 - `root_channels.py`
+
+## 2026-08-25（零GPU 修复可行性审计与 pilot 计划）
+
+### A. 授权范围与本轮边界
+
+用户批准的是**零 GPU 的修复可行性审计**，不含训练、finetune 或全量 GPU 评估。本轮
+实际执行：纯 numpy + `c1_20260824/fk_numpy.py` 的 torch-free FK，匹配 **n=370**
+（`r3_20260824/cells_matched.json`），零采样、零训练、零 GPU。未修改模型、C、guidance
+默认值、walk 门槛、evaluator、continuous-w，未触碰 `code/priors/core/`。evaluator 的
+clamp 与 slerp 缺陷继续只登记不修改。所有 GT 比较同时给出包含与排除 clamp 重复帧
+（frozen）两套结果。判据一律读 **10 Hz**（模型自身生成率），`fk30` 视图受插值污染。
+
+本轮只交付审计与计划，**不启动任何东西**。
+
+### B. history_frames 的全部作用点
+
+穷尽 grep：33 个文件 114 处。同一个量存在**三处平行定义**，互不派生：
+
+| 位置 | 值 | 层 |
+|---|---|---|
+| `code/priors/core/contracts.py:19` `DatasetContract.history_frames` | 2 | **冻结契约** |
+| `code/priors/core/representation.py:28` `RepresentationSchema.history_frames` | 2 | **冻结契约** |
+| `tests/core/test_expert_contract.py:50` | 断言 == 2 | **冻结契约** |
+| `code/test_infbagel_lingo_hsi.py:36` `HISTORY_FRAMES` | 2 | eval harness |
+| 11 个 `code/config/*.yaml` 的 `auto_regre_num` | 2 | 训练 + 采样 |
+
+随 `history_frames` 移动的派生量：
+
+- `WINDOW_STRIDE_RAW = (WINDOW_FRAMES - HISTORY_FRAMES) * DATA_STEP`（`:36`），h=2 时 42
+- `expected_windows = ceil((end - start - HISTORY_FRAMES*DATA_STEP)/WINDOW_STRIDE_RAW)`（`:205`）
+- `pi = step * (WINDOW_FRAMES - HISTORY_FRAMES) * DATA_STEP`（`:1561`）——进度条件
+- `sequence_length = episode_num * WINDOW_STRIDE_RAW + HISTORY_FRAMES * DATA_STEP`（`:1567`）
+- `mat_step = get_mat(cfg, points, -HISTORY_FRAMES)`（`:1524`）与
+  `initial = points[..., -HISTORY_FRAMES, 0]`（`:1541`）——窗口局部原点与 yaw 锚点是
+  `-HISTORY_FRAMES` 帧。自洽（窗口第 0 帧永远是锚点），但换了源帧。
+- `stitch_windows(..., history_frames=h)`：窗口 0 整存，窗口 1.. 贡献 `w[h:]`
+  （`code/priors/hsi/metrics.py:253`）——决定输出长度与 **seam 索引**
+
+训练侧（生产路径）：`train_infbagel.py:571`
+`get_mask(x_start, -1, p=1., fixed_frame=cfg.auto_regre_num)`，**p=1.0** 恒定；随后
+`p_losses`/`consistency_loss` 执行 `x_noisy[mask] = x_start[mask]`，故前 `auto_regre_num`
+帧在每一步都是干净 GT，五个基础 loss 及 `loss_fk`/`mask_points` 全部排除它们
+（`infbagel.py:431,448,875`）。
+
+**生产/审计路径分离（已验证）**：B 的 trainer 是 `config/sampler/pelvis.yaml` 指向的
+`models.infbagel.Sampler`。而硬编码读取 `REPRESENTATION.history_frames` 的
+`code/priors/core/ddpm.py`（`:75,:125,:135`）属于 smoke/audit 路径
+（`train_prior_smoke.py`、`config_prior_audit.yaml`），**不在 B 的训练路径上**。
+
+### C. B checkpoint 能否仅在推理侧用 history_frames=3
+
+两个必须分开的答案。
+
+**架构上可以。** `hsi_b_lingo_full_v2_epoch222.pth` 共 218 个张量：含维度 16 的
+**0 个**；含维度 2 的 **1 个**，即 `embedding_pelvis_goal.embedding_input.0.weight
+(512,2)`（pelvis 目标的 XZ 输入，与历史无关）；所有位置编码是长度 5000 的正弦缓冲
+（`scene_embedding.pos_embedding (1,17,512)` 是场景体素 token，不是运动窗口）。历史是
+带内的——模型调用为 `student_model(x_noisy, occ, t, ...)`，**不传 mask**，仅凭噪声水平
+推断哪些帧是条件。故钉 3 帧历史**不需要权重手术、不需要改形状**。
+
+RNG：`p_sample_loop` 每窗口抽 1 次 `torch.randn(shape)`，`p_sample` 内每个时间步抽 1 次
+`torch.randn_like(x)`，形状恒为 `[B,16,232]`，**每窗口与 h 无关**；重置按 episode
+（`seed_everything(seed + canonical_ordinal)`，`:1818`），故 h=3 的第 *w* 个窗口与 h=2 的
+第 *w* 个窗口**拿到相同噪声**，差异只来自窗口总数与条件内容。
+
+**口径上不安全。** stride 42→39 的后果（`geom_h3.py`）：
+
+| h | stride | 窗口数 | T(coarse) | stencils | boundary | interior | GT frozen |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 42 | 6.065 | 86.908 | 83.908 | 15.195 | 68.714 | 5.889 |
+| 3 | 39 | 6.370 | 85.814 | 82.814 | 16.111 | 66.703 | 4.816 |
+| 4 | 36 | 6.803 | 85.632 | 82.632 | 17.408 | 65.224 | 4.668 |
+
+h=2 → h=3 逐 episode：拼接长度在 **368/370** 上改变（均值 −1.095 coarse 帧）；seam 集合
+仅 **2/370** 相同；boundary stencil 占比 **16.8% → 17.9%**（stride 变短 ⇒ 每 episode
+seam 更多）；源跨度守住，240.146 → 240.119 raw 帧，**334/370 完全相同**。
+
+即"同 episode"成立，但 evaluator 的 boundary/interior 划分不成立。且
+`c25.iter_episodes` 断言 model seams == GT seams，`recon.episode_indices` 按 h=2 构造 GT
+臂，故 **GT 参考行也必须按 h=3 重建**。
+
+### D. 候选 A（history_frames ≥ 3）被否决
+
+这是本轮的头条结论，两条**互相独立**的证据，都在零 GPU 下取得。
+
+**D-1 多给的那一帧不携带可用信息。** 受审机制是：h=2 钉住位置与一个速度差，但不钉任何
+加速度；新窗口要匹配的 `a[s-2] = p[s-1]-2p[s-2]+p[s-3]` 需要 `p[s-3]`，只有 h≥3 提供。
+`p[s-3]` 是否携带信息是**数据的性质**，可在 GT 上无模型测量（`headroom.py`）：
+
+| view | stencil | E2 (h=2 信息) | E3 (h=3 信息) | E4 (h=4) | E3/E2 | E4/E3 |
+|---|---|---:|---:|---:|---:|---:|
+| nat10 | all | 0.01008 | 0.01035 | 0.01554 | 1.0257 [1.0118,1.0400] | 1.4980 |
+| nat10 | nofrozen | 0.01092 | 0.01102 | 0.01633 | **1.0063 [0.9923,1.0209]** | 1.4764 |
+| fk10 | all | 0.01011 | 0.01038 | 0.01559 | 1.0266 [1.0127,1.0409] | 1.4980 |
+| fk10 | nofrozen | 0.01095 | 0.01106 | 0.01639 | **1.0071 [0.9932,1.0218]** | 1.4764 |
+
+`E2 = |p[k+1] - (2p[k]-p[k-1])|`（匀速，h=2 信息集）；
+`E3 = |p[k+1] - (3p[k]-3p[k-1]+p[k-2])|`（匀加速，加入 h=3 所给）。
+**E3/E2 在每个 cell 都 ≥ 1，且排除 frozen 的 CI 含 1。** 第三帧历史不降低单步续推误差，
+第四帧则差 48%。
+
+加速度自相关（`seam_accel.py`）：
+
+| 序列 | rho | sigma_a | rho² |
+|---|---:|---:|---:|
+| GT 10 Hz（模型实际粒度） | 0.3386 | 0.01126 | 11.5% |
+| GT 10 Hz，排除 frozen | 0.3414 | 0.01155 | 11.7% |
+| GT 30 Hz（连续运动） | **−0.2868** | 0.00311 | 8.2% |
+| GT 30 Hz，排除 frozen | **−0.2910** | 0.00320 | 8.5% |
+
+在模型自身粒度上仅约 **11.7%** 的加速度方差可由前一个加速度线性回收，而 30 Hz 上相关性
+**为负**——**不存在某个采样率让这多出来的一帧变得有信息量**。"≥3 历史帧"的直觉是在平滑
+连续运动上校准的，本数据在 0.1 s 间隔上不具备该平滑性。
+
+同一机制的量级检验：若纯属信息损失，模型从正确边缘分布独立抽取接缝加速度，
+`Var(j) = 2σ²` 对 GT 的 `2σ²(1-ρ)`，即**约 1.23× GT**；实测 `boundary_jerk` 是
+**2.86× GT**（C1：Bu coarse 34.0737 对 GT coarse 11.9233）。信息损失差了 2.3 倍。
+
+**D-2 缺陷不是猜错而是过冲，且 h=3 只会把它挪后一帧。** 见 E 节：超出量是窗口内瞬变，
+window 0 在**精确 GT 条件**下同样出现（C4），故为生成物而非继承物。h=3 改变的是"哪一帧
+算第一个生成帧"，不改变"前几个生成帧会过冲"，代价是一次重训。
+
+**预期反驳及答复。** "E3/E2 测在内部帧上，接缝处未必成立。" 不成立：E 节 profile 显示
+d ≤ −2（正含 h=3 会补上的 `p[s-3]` 邻域）位于 0.99–1.00× interior，即 h=3 新增的那一帧
+本身就处在加速度正常区，对尖峰不具信息量——与 E3/E2≈1 是同一事实的两次独立印证。
+
+**登记：** "≥3 历史帧"这一候选出自本项目 2026-08-24 C2–C5 章节自身的 "Candidate fix"
+一行，现由测量**撤回**。A 的翻案条件：在模型自身 10 Hz 生成率（非 30 Hz 插值视图）上
+测得 E3/E2 显著小于 1。
+
+### E. 缺陷的真实形态
+
+`|a|` 在新窗口首个受控索引处、对其自身 interior 水平之比（10 Hz，nat 通道，
+`seam_accel.py`）：
+
+| cell | \|a\| first | \|a\| last | \|a\| interior | first/int | step seam/step int |
+|---|---:|---:|---:|---:|---:|
+| B unguided | 0.02889 | 0.00904 | 0.00979 | **3.156 [3.04,3.27]** | 2.503 [2.45,2.56] |
+| C unguided | 0.02742 | 0.00852 | 0.00929 | **3.039 [2.94,3.14]** | 2.214 [2.17,2.26] |
+| GT v3 | 0.01173 | 0.01160 | 0.00978 | 1.229 [1.20,1.26] | 1.189 [1.16,1.23] |
+| GT 排除 frozen | 0.01173 | 0.01160 | 0.01066 | **1.119 [1.09,1.15]** | 1.113 [1.08,1.15] |
+
+上一窗口的尾端是**正常的**（B 的 `|a| last / interior` = 0.92）。纯信息损失预测
+first/int ≈ 1.0，实测 3.16：模型不是挑了个**错的**加速度，而是挑了个**过大的**。
+
+`|a[s+d]|` / interior 的逐 seam 偏移 profile（`accel_profile.py`、`accel_profile_fk.py`）：
+
+| cell | d=−4 | d=−3 | d=−2 | **d=−1** | **d=0** | d=+1 | d=+2 | d=+3 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| B unguided, nat10 | 0.977 | 1.005 | 0.992 | **3.389** | **2.670** | 0.981 | 0.828 | 0.822 |
+| C unguided, nat10 | 0.928 | 0.933 | 0.978 | **3.170** | **2.728** | 0.770 | 0.788 | 0.774 |
+| B unguided, **fk10** | 0.946 | 0.977 | 0.947 | **2.868** | **2.064** | 1.045 | 0.826 | 0.814 |
+| C unguided, **fk10** | 0.962 | 0.985 | 1.003 | **2.695** | **1.841** | 1.008 | 0.813 | 0.818 |
+| GT v3, nat10 | 1.524 | 1.533 | 1.557 | 1.577 | 1.579 | 1.585 | 1.578 | 1.520 |
+| GT 排除 frozen | 1.288 | 1.294 | 1.318 | 1.335 | 1.339 | 1.355 | 1.361 | 1.345 |
+
+三条各自承重的读法：
+
+1. **恰好 2 个加速度宽**（d=−1、d=0），到 d=+1 已回到 interior。GT 在同样偏移上是平的
+   ——它没有窗口结构。
+2. **属于新窗口内部，不是拼接产物。** 在 seam s 展开索引：
+   `a[s-1] = w1[2] - 2·w1[1] + w1[0]`、`a[s] = w1[3] - 2·w1[2] + w1[1]`，两者完全在
+   窗口 1 之内。并由上一轮 C4 的 window-0 reset 探针独立复现（foff −1/0/+1 处加速度
+   3.45× / 2.76× / 1.08×，`c25_20260824/c4.out`），而 window 0 的条件帧是**精确 GT**
+   ——故既非误差累积，也非自身输出的再规范化。
+3. **是真实运动，不是关节头假象。** FK 通道是与 `global_jpos` 完全独立的量（记录在案：
+   后者离 FK 4–7 cm 且在接缝处分歧最大），它承载同样的 2 帧形状，幅度为 85%
+   （2.868 对 3.389）。头间分歧衰减了该现象但不产生它。
+
+推得幅度：d=−1 处超出量为 (3.389 − 0.98) × 0.00979 m ≈ **2.4 cm** 的首生成帧位置误差。
+（此行为推算，标注为推算。）
+
+**LIMIT：** 逐 episode 的 "d=0 超出量 / d=−1 超出量" 配对比值在分母趋零时数值不稳定，
+B/fk10 给出 −1.686 [−6.189, 0.618]。因此只读聚合 profile。B/nat10 的 0.730
+[0.695,0.771] 与"孤立单帧误差"（预测 2.0）不符，而与"新窗口整体相对自身条件帧存在常量
+偏移"（预测 (+δ, −δ, 0, 0…) 签名）相符。
+
+### F. 候选 B 的代数事实
+
+`p_losses` 中 `predicted_noise` 实为 x_start 预测（`loss_jpos = mse(x_start[...],
+predicted_noise[...])`）。历史帧是 GT 常量，故接缝二阶残差
+
+    â[1] − a*[1] = (p̂[2] − 2p[1] + p[0]) − (p[2] − 2p[1] + p[0]) = p̂[2] − p[2]
+
+**恒等于首个生成帧的位置残差**。所以"匹配 GT 接缝加速度"这个 loss 在代数上就是把既有
+`loss_jpos` 在前两个生成帧上**加权**，不引入任何新信号。两个变体必须分开：
+
+- **B-match**（匹配 GT 加速度）≡ 逐帧加权。无偏，但上限只是"14 帧中的 2 帧能变准多少"。
+- **B-smooth**（惩罚加速度幅度）≢ 加权；它把运动偏向匀速。**测量上反对采用**：窗口体
+  已经比 GT 更平滑（profile d=+2..+5 为自身 interior 的 0.77–0.83；C1 的 interior 为
+  0.918× GT，coarse 10 Hz：9.1493/9.9646），再往平滑推是反方向。
+
+挂载点（若推进）：`code/models/infbagel.py` 的 `p_losses`
+（`loss = loss_jpos + loss_jrot + ...` 一带的 loss 组装，经
+`dict(loss=..., loss_object=..., loss_fk=...)` 返回），加上 `train_infbagel.py` loss 组装
+处的一个权重。纯窗口内；不改数据管线，不改几何、契约或评测口径。
+
+### G. 候选 A 与 B 的对照
+
+| 维度 | A：history_frames ≥ 3 | B-match：接缝帧加权 | B-smooth：惩罚加速度 |
+|---|---|---|---|
+| 所需代码修改 | 3 处冻结契约 + 11 个 config + stride/pi/seq_len/锚点 + GT 臂重建 | `p_losses` 约 6 行 + `train_infbagel.py` 一个权重 | 同左 |
+| 是否必须重训 | 必须，全量 29.6 h 或 finetune | finetune（约 2.7 h / 20 epoch） | finetune |
+| 是否改变评测口径 | **是**：368/370 seam 不同，boundary 占比 16.8→17.9%，GT 需重建 | 否 | 否 |
+| 是否触及冻结契约 | **是**（contracts.py、representation.py、契约测试） | 否 | 否 |
+| 主要风险 | 一无所获（E3/E2≈1）且把瞬变挪后一帧 | 上限受限：仅在 2/14 帧变准时才有效 | 过平滑；已被测量反对 |
+| 预计 GPU 成本 | 全量重训 + 全量 GT 重建评估 | 2.7 h 训练 + 分级评估 | 同左 |
+
+成本锚点：B 全量训练 223 epoch / 146,255 updates / **29.6 h** wall clock / 4 GPU；分片
+评估约 **5 h**。
+
+### H. 推荐：先做零 GPU 的 oracle（step 0）
+
+在任何 GPU 开销之前，在**现有导出**上对每窗口前 2 个生成帧做事后重混（post-hoc
+reblend），重算整套指标。理由：瞬变恰好 2 帧宽且窗口体已过平滑，故 2 帧混合定位精准；
+它同时给出**任何**接缝干预在 `boundary_jerk` 上的上界，并直接为护栏指标定价。若增益很小
+或护栏退化，则 **A 与 B 同时以零 GPU 成本被否决**。
+
+诚实前提：事后平滑器降低 `boundary_jerk` 有一部分是**构造性的**，故其正当角色是
+**oracle / 上界**，不是被主张的修复；事后处理算不算修复是用户的决定（有些流程禁止改动
+封存输出）。成本：仅 CPU。
+
+**本轮已设计但未执行。**
+
+### I. 最小 GPU pilot 设计（本轮不启动）
+
+全部臂：B unguided，相同 episode，相同逐 episode seed。
+
+- **Arm C0 惰性复现**：现有 `b_v2_unguided_shard8` 导出**本身**就是 h=2 对照——候选 B
+  只改训练侧，eval harness 不动，故 C0 的 GPU 成本为 **0**。通过判据：逐 episode
+  `boundary_jerk` 复现封存值，容差取已建立的 float32-GPU 量级（C1 在 Bu 上实测最大相对
+  误差 1.554e-05）。
+- **Arm T0 预算对照**：自 epoch222 起 finetune 约 20 epoch，**loss 不变**（约 2.7 h，按
+  29.6 h / 223 epoch 折算）。必需，否则加权效应与多训的 20 epoch 混淆。
+- **Arm T1 加权臂**：同样 20 epoch，加上逐帧加权（约 2.7 h）。
+
+分级：
+
+- **Stage 1（只看 jerk）**：在封存的分层 60 上评估 T0 与 T1。jerk 效应量很大，n=60 足以
+  分辨；约 1.6 h。若 T1 相对 T0 不动，**停止**——候选 B 以约 6 h 总代价被否决。
+- **Stage 2（护栏，仅在 Stage 1 通过后）**：两臂全量 n=370，约 10 h。因为 penetration
+  需要 n≈266，在 60 上无法分辨。
+
+### J. 冻结门槛（四条全部必需）
+
+- **G-A 主判据（jerk）**：10 Hz 下 `|a| first / |a| interior` 须从 3.156 向 GT 的 1.119
+  下降，闭合差距 ≥70%（即 ≤1.60），且 95% CI 排除 3.156。
+- **G-B 护栏（不得变坏）**：penetration 须对 T0 非劣——配对 CI 不得在变差方向排除 0。
+  这正是 guidance-dose 路线已经踩过的坑（dose 1/23.8 消除了全部 >5g 帧，却让
+  penetration 显著变差；s=0.45 是退守点）。
+- **G-C 护栏（反过平滑）**：interior `|a|` 不得进一步下降。模型已处于 0.918× GT interior（coarse 10 Hz），再降即说明 jerk 增益是用过平滑买来的。**只看 jerk 的门槛看不见这一条**，
+  故单列。
+- **G-D 口径**：T1 的 `seams`、`window_lengths`、`history_frames`、`frame_count` 须与 T0
+  逐位相同，且 episode 集合同为 n=370。候选 B 不改几何，故任何偏离都意味着干预泄漏进了
+  harness。
+
+### K. 未做的事
+
+- 未运行任何 GPU 工作负载；未启动训练或 finetune；未采样。
+- H 节的 step-0 oracle **已设计但未执行**。
+- evaluator 的 clamp 与 slerp 缺陷仍为只登记；guidance 保持关闭；未触碰 C、walk 门槛、
+  continuous-w；未修改 `code/priors/core/`。
+- 候选 A 建议**放弃**而非推迟，翻案条件见 D 节末。
+- 本轮未测量事后重混的实际增益与护栏代价——那正是 step 0 的内容。
+
+### L. 产物清单
+
+`.claude/scratch/h3_audit_20260825/`：
+
+- `geom_h3.py` / `geom_h3.json`
+- `headroom.py` / `headroom.json`
+- `seam_accel.py` / `seam_accel.json`
+- `accel_profile.py` / `accel_profile.json`
+- `accel_profile_fk.py` / `accel_profile_fk.json`
+- `MEASURED_FACTS_H3_AUDIT.md`（本节全部数字的唯一出处）
+- `DECISION_RECORD.md`（主 session 的判断记录与对照表）
