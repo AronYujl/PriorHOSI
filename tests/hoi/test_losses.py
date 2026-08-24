@@ -17,6 +17,7 @@ sys.path.insert(0, str(REPO / "code"))
 from priors.hoi import diagnostics, losses as loss_module
 from priors.hoi.diffusion import GaussianDiffusion
 from priors.hoi.losses import hoi_training_losses
+from tools import measure_hoi_geometry_gradient as measure_geometry_tool
 
 
 def _mask_loss_fixture(left, right, contacts):
@@ -586,103 +587,197 @@ class GeometryTermPalmDecompositionProbeTests(unittest.TestCase):
 
 
 class GeometryWeightDerivationProbeTests(unittest.TestCase):
-    def _run(self, directory, weight, output_name="weight.json", mask_mode=None,
-             run_id=None):
-        values, batch, cfg = _probe_fixture()
-        cfg.hand_object_contact_weight = weight
-        if mask_mode is not None:
-            cfg.hand_object_contact_mask_mode = mask_mode
-        if run_id is not None:
-            cfg.run_id = run_id
-        checkpoint = Path(directory) / "checkpoint.pth"
-        if not checkpoint.exists():
-            checkpoint.write_bytes(b"synthetic-checkpoint")
-        output = Path(directory) / output_name
-        result = diagnostics.geometry_weight_derivation_probe(
-            _SyntheticModel(),
-            GaussianDiffusion(500),
-            [batch],
-            values["parents_24"],
-            values["position_minimum"],
-            values["position_maximum"],
-            values["object_minimum"],
-            values["object_maximum"],
-            cfg,
-            checkpoint_path=checkpoint,
-            output_path=output,
-            window_count=2,
-            timesteps=(250, 499),
-        )
-        return result
-
-    def test_zero_and_weight_three_report_all_documented_keys(self):
-        expected = {
-            "probe", "seed", "window_count", "batch_count", "checkpoint_path",
-            "checkpoint_sha256", "git_commit",
-            "configured_hand_object_contact_weight", "hand_object_contact_mask_mode",
-            "geometry_from_separate_call",
-            "timesteps", "timestep_seam", "gradient_l2", "human_side_l2",
-            "object_side_l2", "target_channel", "root_channel_geometry_l2",
-            "p0_calibration", "self_check",
+    def _manifest(self):
+        return {
+            "sampling": {"windows_per_shard": 256},
+            "dataset_config_fingerprint": {},
+            "provenance": {
+                "tool_sha256": diagnostics.DERIVATION_MANIFEST_TOOL_SHA256
+            },
+            "coverage": {"accepted": True,
+                         "both_frame_fraction_of_engaged": 0.5,
+                         "corpus_reference": 0.5},
+            "allocation_quantization_check": {"accepted": True,
+                                              "engaged_window_fraction": 0.8},
+            "shards": [
+                {"shard_id": shard, "window_indices": list(
+                    range(shard * 256, (shard + 1) * 256)), "coverage": {
+                    "accepted": True, "both_frame_fraction_of_engaged": 0.5},
+                 "allocation_quantization_check": {"accepted": True}}
+                for shard in range(4)
+            ],
         }
-        with tempfile.TemporaryDirectory() as directory:
-            zero = self._run(directory, 0.0, "zero.json")
-            weighted = self._run(directory, 3.0, "three.json")
-            self.assertEqual(set(zero), expected)
-            self.assertEqual(set(weighted), expected)
-            self.assertTrue(zero["geometry_from_separate_call"])
-            self.assertFalse(weighted["geometry_from_separate_call"])
-            self.assertEqual(zero["configured_hand_object_contact_weight"], 0.0)
-            self.assertEqual(weighted["configured_hand_object_contact_weight"], 3.0)
-            for result in (zero, weighted):
-                self.assertEqual(result["hand_object_contact_mask_mode"], "sealed")
-                self.assertEqual(result["timestep_seam"], "pinned_real_forward_losses")
-                self.assertTrue(result["self_check"]["all_values_finite"])
-                self.assertTrue(
-                    result["self_check"][
-                        "geometry_gradient_on_joint_positions_exactly_zero"
-                    ]
-                )
-                self.assertEqual(set(result["gradient_l2"]), {"250", "499"})
 
-    def test_probe_records_the_resolved_per_hand_mode(self):
-        with tempfile.TemporaryDirectory() as directory:
-            result = self._run(
-                directory, 0.0, mask_mode="per_hand_per_frame"
+    @staticmethod
+    def _batches(values, shard, batch_size=16):
+        base = _probe_fixture()[1]
+        batches = []
+        for offset in range(0, 256, batch_size):
+            batch = {}
+            for key, value in base.items():
+                if torch.is_tensor(value) and value.ndim and value.shape[0] == 2:
+                    repeats = batch_size // 2
+                    batch[key] = value.repeat((repeats,) + (1,) * (value.ndim - 1))
+                else:
+                    batch[key] = value
+            batch["window_index"] = torch.arange(
+                shard * 256 + offset, shard * 256 + offset + batch_size, dtype=torch.long
             )
-        self.assertEqual(
-            result["hand_object_contact_mask_mode"], "per_hand_per_frame"
-        )
+            batches.append(batch)
+        return batches
 
-    def test_probe_runs_a_per_hand_mode_at_zero_weight_when_reportable(self):
-        """The trainer's reportable-run gate must never reach the probe.
-
-        ``config_train_hoi_prior_p12.yaml`` sets a ``run_id`` and is the default
-        ``--config-name`` of the derivation subcommand, so the probe's cfg is
-        reportable; it stays safe only because ``diagnostics.py`` imports no
-        ``_validate_*`` from the trainer.  The cfg the trainer refuses is the
-        one the probe must still run, or no per-hand weight can be derived.
-        """
+    def _run(self, directory, mask_mode=None):
         import train_hoi_prior
 
-        run_id = "unit-test-run-id-not-allocated"
-        refused = OmegaConf.create({
-            "hand_object_contact_mask_mode": "per_hand_per_frame",
-            "hand_object_contact_weight": 0.0,
-            "run_id": run_id,
-        })
-        with self.assertRaisesRegex(ValueError, "never computed"):
-            train_hoi_prior._validate_hand_object_contact_mask_mode(refused)
-        with tempfile.TemporaryDirectory() as directory:
-            result = self._run(
-                directory, 0.0, mask_mode="per_hand_per_frame", run_id=run_id
+        values, _batch, cfg = _probe_fixture()
+        cfg.hand_object_contact_weight = 0.0
+        checkpoint = Path(directory) / "checkpoint.pth"
+        checkpoint.write_bytes(b"synthetic-checkpoint")
+        output = Path(directory) / "weight.json"
+        loaders = {shard: self._batches(values, shard) for shard in range(4)}
+        rc1 = []
+        for offset in range(0, 256, 32):
+            left = loaders[0][offset // 16]
+            right = loaders[0][offset // 16 + 1]
+            rc1.append({
+                key: torch.cat((left[key], right[key])) if torch.is_tensor(left[key]) and left[key].ndim
+                and left[key].shape[0] == 16 else left[key]
+                for key in left
+            })
+
+        class ConstantModel(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.bias = torch.nn.Parameter(torch.tensor(0.01))
+                self.forward_calls = 0
+
+            def forward(self, noisy, timesteps, text_embedding, object_bps, goals, progress):
+                del timesteps, text_embedding, object_bps, goals, progress
+                self.forward_calls += 1
+                return noisy * 0.0 + self.bias
+
+        model = ConstantModel()
+        geometry_ids = []
+
+        def fake_forward(model, diffusion, batch, parents, minimum, maximum, object_minimum,
+                         object_maximum, cfg, *, generator=None, **kwargs):
+            del diffusion, parents, minimum, maximum, object_minimum, object_maximum, cfg, kwargs
+            timestep = torch.randint(0, 500, (batch["x"].shape[0],), generator=generator)
+            noisy = torch.randn(batch["x"].shape, generator=generator)
+            prediction = model(noisy, timestep, batch["text_embedding"], batch["object_bps"],
+                               batch["goals"], batch["progress"])
+            def term(start, end):
+                return prediction[..., start:end].square().mean()
+            return {
+                "joint_position": term(0, 84), "joint_rotation": term(84, 216),
+                "fk": term(0, 3), "object_translation": term(216, 219),
+                "object_rotation": term(219, 228), "object_surface": term(216, 228),
+                "contact": term(228, 232), "velocity": term(0, 3),
+                "object_goal": term(216, 219),
+                "total": sum(term(start, end) for start, end in (
+                    (0, 84), (84, 216), (216, 219), (219, 228), (228, 232))),
+            }
+
+        def fake_geometry(prediction, *args, **kwargs):
+            mode = kwargs["mask_mode"]
+            geometry_ids.append((mode, id(prediction)))
+            active = prediction[:, 2:]
+            scale = 1.0 if mode == "sealed" else 1.2
+            return {"hand_object_contact_geometry": scale * (
+                active[..., 0:3].square().mean()
+                + active[..., 84:216].square().mean()
+                + active[..., 216:228].square().mean()
+            )}
+
+        pin = mock.MagicMock()
+        pin.__enter__.return_value = mock.Mock(substitutions=1)
+        with mock.patch.object(diagnostics, "_validate_derivation_manifest"), \
+             mock.patch.object(diagnostics, "_geometry_losses", side_effect=fake_geometry), \
+             mock.patch.object(diagnostics, "_pinned_timestep", return_value=pin), \
+             mock.patch.object(train_hoi_prior, "_forward_losses", side_effect=fake_forward), \
+             mock.patch.object(train_hoi_prior, "_move_batch", side_effect=lambda batch, device: batch):
+            result = diagnostics.geometry_weight_derivation_probe(
+                model, GaussianDiffusion(500), loaders, values["parents_24"],
+                values["position_minimum"], values["position_maximum"],
+                values["object_minimum"], values["object_maximum"], cfg,
+                checkpoint_path=checkpoint, output_path=output, manifest=self._manifest(),
+                rc1_loader=rc1, mask_mode=mask_mode,
             )
-        self.assertEqual(
-            result["hand_object_contact_mask_mode"], "per_hand_per_frame"
-        )
-        self.assertEqual(result["configured_hand_object_contact_weight"], 0.0)
-        self.assertTrue(result["geometry_from_separate_call"])
-        self.assertTrue(result["self_check"]["all_values_finite"])
+        self._forward_calls = model.forward_calls
+        self._geometry_ids = geometry_ids
+        return result
+
+    def test_zero_report_has_exact_new_top_level_schema_and_shared_modes(self):
+        expected = {
+            "probe", "seed", "window_count", "batch_count", "timesteps", "timestep_seam",
+            "measurement_mode", "measured_mask_modes", "hand_object_contact_mask_mode",
+            "cfg_mask_mode_selects_measurement", "configured_hand_object_contact_weight",
+            "geometry_from_separate_call", "spec_sha256", "probe_sha256", "checkpoint_path",
+            "checkpoint_sha256", "sampling", "pairing", "shared", "modes", "gates_shared",
+            "candidate", "report_only", "timing", "self_check", "provenance",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(directory)
+        self.assertEqual(set(result), expected)
+        self.assertEqual(result["measurement_mode"], "paired_joint")
+        self.assertEqual(result["measured_mask_modes"], ["sealed", "per_hand_per_frame"])
+        self.assertEqual(set(result["shared"]), {"per_shard"})
+        self.assertEqual(set(result["modes"]), {"sealed", "per_hand_per_frame"})
+        self.assertEqual(result["candidate"]["source"], diagnostics.DERIVATION_CANDIDATE_SOURCE)
+        self.assertFalse(result["candidate"]["produced"])
+
+    def test_paired_joint_uses_one_forward_and_one_prediction_for_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(directory)
+        self.assertEqual(self._forward_calls, 4 * 5 * 16 + 8)
+        self.assertTrue(result["pairing"]["L2_prediction_is_identical_object"])
+        for offset in range(0, len(self._geometry_ids), 2):
+            self.assertEqual(self._geometry_ids[offset][1], self._geometry_ids[offset + 1][1])
+
+    def test_nonzero_paired_weight_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "E_PAIRED_REQUIRES_ZERO_WEIGHT"):
+            diagnostics._require_paired_zero_weight("paired_joint", 3.0)
+
+    def test_candidate_has_only_variant_source_and_l3_cannot_produce(self):
+        self.assertEqual(diagnostics.DERIVATION_CANDIDATE_SOURCE, "modes.per_hand_per_frame.aggregate.w_geom_star")
+        self.assertFalse(diagnostics._candidate_is_allowed("single_mode_l3", {"G1": True}, True, False, []))
+
+    def test_per_cell_seed_is_order_independent(self):
+        cells = [(shard, timestep) for shard in range(4) for timestep in diagnostics.DERIVATION_TIMESTEPS]
+        first = {(s, t): diagnostics._per_cell_seed(s, t) for s, t in cells}
+        second = {(s, t): diagnostics._per_cell_seed(s, t) for s, t in reversed(cells)}
+        self.assertEqual(first, second)
+        self.assertEqual(len(set(first.values())), 20)
+
+    def test_support_assertions_and_reference_fields_are_recorded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(directory)
+        self.assertTrue(all(result["self_check"][key] for key in (
+            "geometry_gradient_on_joint_positions_3_84_exactly_zero",
+            "geometry_gradient_on_contact_228_232_exactly_zero",
+            "geometry_gradient_on_history_frames_exactly_zero",
+            "geometry_pythagoras_holds", "reference_norm_tensor_sum_equals_quadrature")))
+        cell = result["modes"]["per_hand_per_frame"]["per_shard"]["0"]["geometry_by_channel"]["250"]
+        self.assertIn("G_human", cell)
+        self.assertLessEqual(cell["pythagoras_relative_error"], 1e-12)
+
+    def test_side_gate_cannot_be_masked_by_combined(self):
+        values = {shard: {timestep: {"human": 1.0 + shard * 100.0,
+            "object": 1.0, "combined": 1.0}
+            for timestep in diagnostics.DERIVATION_TIMESTEPS}
+            for shard in range(4)}
+        with self.assertRaisesRegex(ValueError, "E_DERIVATION_SIDE_DISPERSION_MASKED"):
+            diagnostics._side_dispersion_gates(values, range(4), diagnostics.DERIVATION_TIMESTEPS, 1.0)
+
+    def test_rc2_three_x_stop_and_unverified_scope_are_locked(self):
+        self.assertEqual(diagnostics._rc2_ratio(3.0, 1.0), (3.0, False))
+        self.assertEqual(diagnostics._rc2_ratio(2.99, 1.0), (2.99, True))
+        self.assertFalse(diagnostics._candidate_is_allowed(
+            "paired_joint", {"G1_manifest": True, "G3_support_assertions": True,
+            "G9_pairing": True, "G10_provenance": True}, True, False, [3.0]))
+        with tempfile.TemporaryDirectory() as directory:
+            result = self._run(directory)
+        self.assertEqual(result["candidate"]["parameter_space_unverified_cells"], 19)
 
     def test_pinned_timestep_bitwise_reproduces_plain_forward_losses_batch_two(self):
         import train_hoi_prior
@@ -756,23 +851,6 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
                 }
         self.assertFalse(discrepancies, discrepancies)
 
-    def test_probe_hard_raises_unless_one_timestep_is_substituted(self):
-        for substitutions in (0, 2):
-            with self.subTest(substitutions=substitutions):
-                with tempfile.TemporaryDirectory() as directory:
-                    context = mock.MagicMock()
-                    context.__enter__.return_value = mock.Mock(
-                        substitutions=substitutions
-                    )
-                    with mock.patch.object(
-                        diagnostics, "_pinned_timestep", return_value=context
-                    ):
-                        with self.assertRaisesRegex(
-                            AssertionError,
-                            f"exactly one.*observed {substitutions}",
-                        ):
-                            self._run(directory, 3.0)
-
     def test_probe_component_keys_track_trainer_loss_keys(self):
         from train_hoi_prior import _loss_keys
 
@@ -818,17 +896,57 @@ class GeometryWeightDerivationProbeTests(unittest.TestCase):
                             branch_cfg,
                             checkpoint_path=checkpoint,
                             output_path=Path(directory) / "unused.json",
-                            window_count=2,
-                            timesteps=(250,),
+                            window_count=256,
+                            timesteps=diagnostics.DERIVATION_TIMESTEPS,
                         )
 
     def test_corrupted_joint_position_geometry_gradient_raises(self):
         with tempfile.TemporaryDirectory() as directory:
-            with mock.patch.object(
-                diagnostics.torch, "count_nonzero", return_value=torch.tensor(1)
-            ):
-                with self.assertRaisesRegex(AssertionError, "channels 3:84"):
-                    self._run(directory, 0.0)
+            with mock.patch.object(diagnostics.torch, "count_nonzero", return_value=torch.tensor(1)):
+                with self.assertRaisesRegex(ValueError, "E_DERIVATION_SUPPORT_ASSERTION"):
+                    self._run(directory)
+
+
+class GeometryGradientToolContractTests(unittest.TestCase):
+    def test_manifest_global_indices_map_to_subset_positions_in_manifest_order(self):
+        positions = measure_geometry_tool._manifest_subset_positions([10, 20, 30, 40], [10, 30], 0)
+        self.assertEqual(positions, [0, 2])
+        with self.assertRaisesRegex(RuntimeError, "E_MANIFEST_INDEX_NOT_IN_DATASET"):
+            measure_geometry_tool._manifest_subset_positions([10, 20], [10, 30], 0)
+
+    def test_cli_preflight_locks_checkpoint_path_and_all_four_hashes(self):
+        root = measure_geometry_tool.ROOT
+        checkpoint = (root / measure_geometry_tool.CHECKPOINT_RELATIVE).resolve()
+        args = measure_geometry_tool.build_parser().parse_args([
+            "weight-derivation", "--checkpoint", str(checkpoint),
+            "--output", str(Path("/tmp/b1b-ii-output.json")),
+        ])
+        expected = {
+            checkpoint: measure_geometry_tool.EXPECTED_CHECKPOINT_SHA256,
+            (root / measure_geometry_tool.MANIFEST_DEFAULT).resolve(): measure_geometry_tool.EXPECTED_MANIFEST_SHA256,
+            (root / measure_geometry_tool.SPLIT_RELATIVE).resolve(): measure_geometry_tool.EXPECTED_SPLIT_SHA256,
+            (root / measure_geometry_tool.NORM_RELATIVE).resolve(): measure_geometry_tool.EXPECTED_NORM_SHA256,
+        }
+        with mock.patch.object(
+            measure_geometry_tool, "_sha256", side_effect=lambda path: expected[path.resolve()]
+        ):
+            measure_geometry_tool._validate_fixed_inputs(args)
+        self.assertIn("p1-hoi-p12-frame-repair-baseline-s42-20260819_windows299520000.pth", str(checkpoint))
+        with self.assertRaisesRegex(ValueError, "E_MANIFEST_TOOL_SHA_MISMATCH"):
+            diagnostics._validate_derivation_manifest({"provenance": {"tool_sha256": "bad"}}, None)
+
+    def test_finalize_writes_output_hash_as_a_sidecar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            temporary = directory / "temporary.json"
+            output = directory / "output.json"
+            temporary.write_text("temporary\n", encoding="utf-8")
+            with mock.patch.object(measure_geometry_tool, "provenance",
+                                   return_value={"git_dirty": False}):
+                measure_geometry_tool._finalize({"value": 1}, temporary, output)
+            sidecar = output.with_name("output.json.sha256")
+            self.assertTrue(sidecar.is_file())
+            self.assertEqual(sidecar.read_text(encoding="utf-8").split()[0], measure_geometry_tool._sha256(output))
 
 
 if __name__ == "__main__":

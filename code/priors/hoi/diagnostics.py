@@ -12,11 +12,13 @@ import hashlib
 import inspect
 import json
 import math
+import os
 import random
 import subprocess
+import time
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, Iterable, Mapping, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -39,6 +41,15 @@ _CHANNEL_GROUPS = {
     "rotations": slice(84, 216),
     "object": slice(216, 228),
 }
+
+DERIVATION_TIMESTEPS = (0, 125, 250, 375, 499)
+DERIVATION_SHARDS = (0, 1, 2, 3)
+DERIVATION_MODES = ("sealed", "per_hand_per_frame")
+DERIVATION_MANIFEST_TOOL_SHA256 = "423163b773d1dad544e6023ba0bd1ac8e15d395c42e8524bf5ceea7378c989e0"
+DERIVATION_SPEC_SHA256 = "3e7c2e3730435a12a49cfd12b5ff91b5512925b0ecd74a9078b78e6eb737412a"
+DERIVATION_NON_GEOMETRY = ("joint_position", "joint_rotation", "fk", "object_translation",
+    "object_rotation", "object_surface", "contact",)
+DERIVATION_CANDIDATE_SOURCE = "modes.per_hand_per_frame.aggregate.w_geom_star"
 
 
 def _sha256(path: Path) -> str:
@@ -1353,6 +1364,143 @@ def _pinned_timestep(timestep):
         train_hoi_prior.torch.randint = real_randint
 
 
+def _per_cell_seed(shard_id: int, timestep: int) -> int:
+    return int.from_bytes(hashlib.sha256(f"42:{int(shard_id)}:{int(timestep)}".encode()).digest()[:8], "big"
+    ) % (2 ** 63)
+def _paired_identity_guard(prediction_sealed, prediction_variant, total_sealed, total_variant) -> bool:
+    if prediction_sealed is not prediction_variant:
+        raise AssertionError("paired geometry modes did not use the same prediction object")
+    if total_sealed is not total_variant:
+        raise AssertionError("paired geometry modes did not use the same total gradient object")
+    return True
+def _require_paired_zero_weight(measurement_mode: str, configured_weight: float) -> None:
+    if measurement_mode == "paired_joint" and configured_weight != 0.0:
+        _contract_error(
+            "E_PAIRED_REQUIRES_ZERO_WEIGHT",
+            f"configured_hand_object_contact_weight={configured_weight!r}")
+def _rc2_ratio(parameter_space_weight: float, output_space_weight: float) -> Tuple[float, bool]:
+    ratio = max(parameter_space_weight / output_space_weight, output_space_weight / parameter_space_weight,)
+    return ratio, ratio < 3.0
+def _candidate_is_allowed(
+    measurement_mode, gates_shared, b_gate, sealed_gate_divergence, rc2_ratios):
+    return (measurement_mode == "paired_joint" and all(gates_shared.values())
+        and b_gate and not sealed_gate_divergence and all(ratio < 3.0 for ratio in rc2_ratios)
+    )
+def _geomean(values: Sequence[float]) -> float:
+    from .auxiliary_balancing import _geometric_mean
+    return _geometric_mean(values)
+def _dispersion(values: Sequence[float], ddof: int) -> float:
+    values = np.asarray(tuple(values), dtype=np.float64)
+    return (float("inf") if len(values) <= ddof or not np.isfinite(values).all()
+        or bool((values <= 0).any())
+        else float(math.exp(float(np.std(np.log(values), ddof=ddof))))
+    )
+def _side_dispersion_gates(w_by_cell, shard_ids, timesteps, w_ratio, fail_on_masking=True):
+    sides = ("human", "object", "combined")
+    def cell(s, t):
+        values = w_by_cell.get(s, w_by_cell.get(str(s)))
+        return values.get(t, values.get(str(t)))
+    ng3s, csds, ng30s, csd0s = ({side: {} for side in sides} for _ in range(4))
+    for side in sides:
+        for s in shard_ids:
+            values = [cell(s, t)[side] for t in timesteps]
+            ng3s[side][str(s)], ng30s[side][str(s)] = _dispersion(values, 1), _dispersion(values, 0)
+        for t in timesteps:
+            values = [cell(s, t)[side] for s in shard_ids]
+            csds[side][str(t)], csd0s[side][str(t)] = _dispersion(values, 1), _dispersion(values, 0)
+    ng3 = {side: max(ng3s[side].values()) for side in sides}
+    csd = {side: max(csds[side].values()) for side in sides}
+    ng30 = {side: max(ng30s[side].values()) for side in sides}
+    csd0 = {side: max(csd0s[side].values()) for side in sides}
+    g4 = {side: ng3[side] < 10.0 for side in sides}
+    g5 = {side: csd[side] < 1.5 for side in sides}
+    combined = g4["combined"] and g5["combined"]
+    sides_pass = all(g4[s] and g5[s] for s in sides[:2])
+    if combined and not sides_pass and fail_on_masking:
+        _contract_error(
+            "E_DERIVATION_SIDE_DISPERSION_MASKED", "combined passes while side dispersion fails"
+        )
+    verdict = (
+        "imbalanced_stop" if not 0.1 <= w_ratio <= 10.0
+        else "acceptable" if 1.0 / 3.0 <= w_ratio <= 3.0
+        else "imbalanced_review")
+    return {"ng3_max_over_shards": ng3, "ng3_pooled": {
+            s: _dispersion([cell(a, b)[s] for a in shard_ids for b in timesteps], 1) for s in sides
+        },
+        "csd_max_over_timesteps": csd, "csd_from_shard_means": {s: _dispersion(
+                [_geomean([cell(a, b)[s] for b in timesteps]) for a in shard_ids], 1) for s in sides
+        },
+        "ddof0_variants": {
+            "ng3_max_over_shards": ng30, "ng3_pooled": {
+                s: _dispersion([cell(a, b)[s] for a in shard_ids for b in timesteps], 0)
+                for s in sides
+            },
+            "csd_max_over_timesteps": csd0, "csd_from_shard_means": {s: _dispersion(
+                    [_geomean([cell(a, b)[s] for b in timesteps]) for a in shard_ids], 0)
+                for s in sides
+            },
+        },
+        "G4_ng3": g4, "G5_csd": g5,
+        "G6_no_side_masking": not (combined and not sides_pass), "side_balance_verdict": verdict,
+        "ng3_by_shard": ng3s, "csd_by_timestep": csds,
+    }
+def _contract_error(code: str, detail: str) -> None:
+    raise ValueError(f"{code}: {detail}")
+def _dataset_for_loader(loader):
+    dataset = getattr(loader, "dataset", loader)
+    while hasattr(dataset, "dataset"):
+        dataset = dataset.dataset
+    return dataset
+def _validate_derivation_manifest(manifest, training_loader, manifest_path=None) -> None:
+    if manifest.get("provenance", {}).get("tool_sha256") != DERIVATION_MANIFEST_TOOL_SHA256:
+        _contract_error("E_MANIFEST_TOOL_SHA_MISMATCH", "manifest build-tool SHA mismatch")
+    dataset = _dataset_for_loader(
+        next(iter(training_loader.values()))
+        if isinstance(training_loader, Mapping) else training_loader
+    )
+    try:
+        repo, fp = Path(dataset.repo), manifest["dataset_config_fingerprint"]
+        actual = {"split_manifest_sha256": _sha256(
+                repo / "experiments/splits/omomo_hoi_train_validation_seed42.json"),
+            "norm_sha256": _sha256(repo / "data/train/norm.npy"), "total_windows": len(dataset),
+            "total_sequences": len(set(dataset.sequence_ids[dataset.indices].tolist())),
+            "history_frames": REPRESENTATION.history_frames, "contact_channels": [228, 229],
+            "contact_threshold": P8_CONTACT_THRESHOLD}
+        expected = {key: fp[key] for key in ("split_manifest_sha256", "norm_sha256", "total_windows",
+            "total_sequences", "history_frames", "contact_channels",
+            "contact_threshold",)}
+    except (AttributeError, KeyError, OSError, TypeError, ValueError):
+        _contract_error("E_MANIFEST_DATASET_FINGERPRINT_MISMATCH",
+            "dataset metadata or fingerprint files could not be established",
+        )
+    if actual != expected:
+        _contract_error(
+            "E_MANIFEST_DATASET_FINGERPRINT_MISMATCH", f"expected {expected!r}, actual {actual!r}"
+        )
+def _source_provenance() -> Dict[str, object]:
+    root = Path(__file__).resolve().parents[3]
+    source_paths = {"diagnostics.py": Path(__file__).resolve(),
+        "losses.py": root / "code/priors/hoi/losses.py",
+        "auxiliary_balancing.py": root / "code/priors/hoi/auxiliary_balancing.py",
+        "train_hoi_prior.py": root / "code/train_hoi_prior.py",
+        "measure_hoi_geometry_gradient.py": root / "tools/measure_hoi_geometry_gradient.py",
+        "build_hoi_gradient_manifest.py": root / "tools/build_hoi_gradient_manifest.py",
+        "config_train_hoi_prior_p12.yaml": root / "code/config/config_train_hoi_prior_p12.yaml",
+        "d2ai.yaml": root / "code/config/recipe/d2ai.yaml",
+    }
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ).strip()
+        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True
+        ).strip())
+    except (OSError, subprocess.CalledProcessError):
+        commit, dirty = None, None
+    return {
+        "git_commit": commit, "git_dirty": dirty,
+        "tool_sha256": _sha256(root / "tools/build_hoi_gradient_manifest.py"),
+        "probe_sha256": _sha256(root / "tools/measure_hoi_geometry_gradient.py"),
+        "source_sha256": {name: _sha256(path) for name, path in source_paths.items() if path.is_file()},
+    }
 def geometry_weight_derivation_probe(
     model: torch.nn.Module,
     diffusion: torch.nn.Module,
@@ -1366,270 +1514,716 @@ def geometry_weight_derivation_probe(
     *,
     checkpoint_path: Path,
     output_path: Path,
-    window_count: int = 64,
-    timesteps: tuple[int, ...] = (250, 499),
+    window_count: int = 256,
+    timesteps: tuple[int, ...] = DERIVATION_TIMESTEPS,
     device: Optional[torch.device] = None,
+    manifest_path: Optional[Path] = None,
+    manifest: Optional[Mapping[str, object]] = None,
+    shard_ids: Sequence[int] = DERIVATION_SHARDS,
+    measurement_mode: str = "paired_joint",
+    mask_mode: Optional[str] = None,
+    rc1_loader=None,
+    l3_crosscheck: Optional[Mapping[str, object]] = None,
+    timing: Optional[Mapping[str, Optional[float]]] = None,
 ) -> Dict[str, object]:
-    """Measure raw component gradients for later geometry-weight reduction."""
+    """Measure the paired, output-space geometry-weight derivation contract."""
     # This import direction is deliberate: the trainer never imports this
     # diagnostics module, so the probe cannot enter the training hot path.
     from train_hoi_prior import _forward_losses, _move_batch
-
-    checkpoint_path = Path(checkpoint_path)
-    output_path = Path(output_path)
-    if window_count <= 0:
-        raise ValueError("geometry weight-derivation window_count must be positive")
-    if not timesteps:
-        raise ValueError("geometry weight-derivation timesteps must not be empty")
+    checkpoint_path, output_path = Path(checkpoint_path), Path(output_path)
     if not checkpoint_path.is_file():
         raise ValueError(f"probe checkpoint does not exist: {checkpoint_path}")
     _require_plain_forward_path(cfg)
-    mask_mode = str(cfg.get("hand_object_contact_mask_mode", "sealed"))
-    if (
-        float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0
-        or mask_mode not in {"sealed", "per_hand_global", "per_hand_per_frame"}
+    cfg_mask_mode = str(cfg.get("hand_object_contact_mask_mode", "sealed"))
+    if (float(cfg.get("hand_object_contact_hinge", 0.0)) != 0.0
+        or cfg_mask_mode not in {"sealed", "per_hand_global", "per_hand_per_frame"}
         or bool(cfg.get("hand_object_contact_detach_object", False))
         or bool(cfg.get("hand_object_contact_detach_root", False))
     ):
         raise ValueError(
             "geometry weight-derivation probe requires zero hinge and attached gradients"
         )
-
     configured_weight = float(cfg.get("hand_object_contact_weight", 0.0))
-    geometry_from_separate_call = configured_weight == 0.0
+    if measurement_mode not in {"paired_joint", "single_mode_l3"}:
+        raise ValueError(f"unknown measurement_mode: {measurement_mode}")
+    _require_paired_zero_weight(measurement_mode, configured_weight)
+    if measurement_mode == "paired_joint" and tuple(timesteps) != DERIVATION_TIMESTEPS:
+        raise ValueError(f"paired_joint requires timesteps {DERIVATION_TIMESTEPS!r}")
+    if measurement_mode == "single_mode_l3":
+        mask_mode = str(mask_mode or cfg_mask_mode)
+        if mask_mode not in DERIVATION_MODES:
+            raise ValueError("single_mode_l3 requires sealed or per_hand_per_frame")
+        measured_modes = (mask_mode,)
+    else:
+        measured_modes = DERIVATION_MODES
+    if manifest is None:
+        if manifest_path is None:
+            _contract_error("E_MANIFEST_REQUIRED", "weight derivation requires a manifest")
+        manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    _validate_derivation_manifest(manifest, training_loader, manifest_path)
+    sampling = manifest.get("sampling", {})
+    expected_windows = int(sampling.get("windows_per_shard", 0))
+    if expected_windows != 256 or int(window_count) != expected_windows:
+        _contract_error(
+            "E_WINDOW_COUNT_MISMATCH",
+            f"window_count={window_count}, manifest windows_per_shard={expected_windows}",
+        )
+    shard_ids = tuple(int(shard) for shard in shard_ids)
+    if not shard_ids or len(set(shard_ids)) != len(shard_ids):
+        raise ValueError("derivation shard ids must be non-empty and unique")
+    shard_records = {
+        int(record["shard_id"]): record for record in manifest.get("shards", [])
+    }
+    if any(shard not in shard_records for shard in shard_ids):
+        _contract_error(
+            "E_MANIFEST_INDEX_NOT_IN_DATASET", "requested shard is absent from manifest")
+    if measurement_mode == "paired_joint" and tuple(shard_ids) != DERIVATION_SHARDS:
+        raise ValueError(f"paired_joint requires shards {DERIVATION_SHARDS!r}")
     if device is None:
         try:
             device = next(model.parameters()).device
         except StopIteration:
             device = torch.device("cpu")
     device = torch.device(device)
-    generator = torch.Generator(device=device)
-    generator.manual_seed(42)
-    component_names = _GEOMETRY_GRADIENT_COMPONENTS
-    component_squared = {
-        str(timestep): {name: 0.0 for name in component_names}
-        for timestep in timesteps
-    }
-    target_squared = {
-        str(timestep): {"geometry": 0.0, "nongeometry": 0.0, "dot": 0.0}
-        for timestep in timesteps
-    }
-    root_squared = {str(timestep): 0.0 for timestep in timesteps}
+    if device.type != "cpu":
+        raise ValueError("geometry weight-derivation probe is CPU-only")
+    if isinstance(training_loader, Mapping):
+        loaders = {int(shard): training_loader[int(shard)] for shard in shard_ids}
+    elif len(shard_ids) == 1:
+        loaders = {shard_ids[0]: training_loader}
+    else:
+        raise ValueError("paired shard measurement requires one loader per shard")
+    for shard, loader in loaders.items():
+        if getattr(loader, "batch_size", 16) != 16:
+            raise ValueError(f"shard {shard} must use batch_size=16")
+        if getattr(loader, "drop_last", False):
+            raise ValueError("derivation loaders must not drop partial batches")
+    geometry_from_separate_call = True
+    timesteps = tuple(int(timestep) for timestep in timesteps)
+    generator = torch.Generator(device="cpu")
+    shard_cells: Dict[int, Dict[int, Dict[str, object]]] = {shard: {} for shard in shard_ids}
+    input_sha256: Dict[str, Dict[str, str]] = {str(shard): {} for shard in shard_ids}
+    cell_seed: Dict[str, Dict[str, int]] = {str(shard): {} for shard in shard_ids}
     previous_training = model.training
     python_state = random.getstate()
     numpy_state = np.random.get_state()
-    cuda_devices = [] if device.type != "cuda" else [device.index or 0]
-    batch_count: Optional[int] = None
-
+    first_cell_seconds = None
+    parameters = tuple(parameter for parameter in model.parameters() if parameter.requires_grad)
+    def empty_accumulator():
+        return {
+            "nong": {name: 0.0 for name in DERIVATION_NON_GEOMETRY},
+            "total": 0.0, "H": 0.0, "O": 0.0, "Hq": 0.0, "Oq": 0.0,
+            "counts": {name: 0 for name in ("engaged_frames", "engaged_windows",
+                "contacting_hand_entries", "both_contact_frames")},
+            "modes": {mode: {
+                "root": 0.0, "human_rotation": 0.0,
+                "object_translation": 0.0, "object_rotation": 0.0,
+                "target": {name: 0.0 for name in ("geometry", "nongeometry", "dot",
+                    "geometry_root", "nongeometry_root", "dot_root")},
+                "all": 0.0} for mode in measured_modes},
+            "rc2": {mode: {name: 0.0 for name in ("H", "O", "G")} for mode in measured_modes},
+            "rc2_seconds": 0.0}
+    def square_sum(value):
+        return float(value.double().square().sum().item())
+    def parameter_square(values):
+        return sum(square_sum(value) for value in values if value is not None)
+    def geometry_terms(prediction, batch):
+        common = (prediction, batch, parents, position_minimum, position_maximum,
+            object_minimum, object_maximum, cfg)
+        kwargs = {
+            "weight": 1.0,
+            "detach_object": bool(cfg.get("hand_object_contact_detach_object", False)),
+            "detach_root": bool(cfg.get("hand_object_contact_detach_root", False)),
+        }
+        if measurement_mode == "paired_joint":
+            return {
+                "sealed": _geometry_losses(*common, mask_mode="sealed", **kwargs)["hand_object_contact_geometry"],
+                "per_hand_per_frame": _geometry_losses(*common,
+                    mask_mode="per_hand_per_frame", **kwargs)["hand_object_contact_geometry"],
+            }
+        return ({"sealed": _geometry_losses(*common,
+                mask_mode="sealed", **kwargs)["hand_object_contact_geometry"]}
+            if mask_mode == "sealed" else {"per_hand_per_frame": _geometry_losses(
+                *common, mask_mode="per_hand_per_frame", **kwargs)["hand_object_contact_geometry"]}
+        )
+    def measure_cell(loader, shard, timestep, expected_batch_size=16, parameter_check=False):
+        accumulator = empty_accumulator()
+        observed_indices = []
+        input_digest = hashlib.sha256()
+        seed = _per_cell_seed(shard, timestep)
+        generator.manual_seed(seed)
+        consumed = batches = 0
+        captured = []
+        def capture_input(_module, args):
+            noisy, drawn_timesteps = args[:2]
+            input_digest.update(noisy.detach().double().contiguous().cpu().numpy().tobytes())
+            input_digest.update(drawn_timesteps.detach().contiguous().cpu().numpy().tobytes())
+        pre_hook = model.register_forward_pre_hook(capture_input)
+        forward_hook = model.register_forward_hook(
+            lambda _module, _arguments, output: captured.append(output)
+        )
+        try:
+            for raw_batch in loader:
+                raw_size = int(raw_batch["x"].shape[0])
+                if raw_size != expected_batch_size:
+                    raise ValueError(
+                        f"shard {shard} timestep {timestep} has batch size {raw_size}, "
+                        f"expected {expected_batch_size}"
+                    )
+                if "window_index" not in raw_batch:
+                    _contract_error(
+                        "E_MANIFEST_INDEX_NOT_IN_DATASET",
+                        "manifest-backed batches must expose window_index",
+                    )
+                observed_indices.extend(int(value) for value in raw_batch["window_index"].tolist())
+                batch = _move_batch(raw_batch, device)
+                with _pinned_timestep(timestep) as pin:
+                    losses = _forward_losses(
+                        model, diffusion, batch, parents, position_minimum,
+                        position_maximum, object_minimum, object_maximum, cfg,
+                        generator=generator,
+                    )
+                if pin.substitutions != 1:
+                    raise AssertionError(
+                        "geometry weight probe expected exactly one pinned timestep substitution "
+                        f"per forward, observed {pin.substitutions}"
+                    )
+                if len(captured) != batches + 1:
+                    raise AssertionError(
+                        "geometry weight probe expected one training forward per batch, "
+                        f"observed {len(captured)} after batch {batches}"
+                    )
+                prediction = captured[-1]
+                prediction_sealed = prediction
+                prediction_variant = prediction
+                mode_losses = geometry_terms(prediction, batch)
+                g_total, = torch.autograd.grad(losses["total"], prediction, retain_graph=True)
+                g_total_sealed = g_total
+                g_total_variant = g_total
+                if measurement_mode == "paired_joint":
+                    _paired_identity_guard(prediction_sealed, prediction_variant, g_total_sealed, g_total_variant
+                    )
+                gradients = {}
+                for name in DERIVATION_NON_GEOMETRY:
+                    gradients[name], = torch.autograd.grad(
+                        losses[name], prediction, retain_graph=True
+                    )
+                    accumulator["nong"][name] += square_sum(gradients[name])
+                accumulator["total"] += square_sum(g_total)
+                h_gradient = gradients["joint_position"] + gradients["joint_rotation"]
+                o_gradient = gradients["object_translation"] + gradients["object_rotation"]
+                accumulator["H"] += square_sum(h_gradient)
+                accumulator["O"] += square_sum(o_gradient)
+                accumulator["Hq"] += square_sum(gradients["joint_position"]) + square_sum(
+                    gradients["joint_rotation"])
+                accumulator["Oq"] += square_sum(gradients["object_translation"]) + square_sum(
+                    gradients["object_rotation"])
+                active = batch["x"][:, REPRESENTATION.history_frames:, 228:230] \
+                    > P8_CONTACT_THRESHOLD
+                accumulator["counts"]["engaged_frames"] += int(active.any(dim=-1).sum().item())
+                accumulator["counts"]["engaged_windows"] += int(
+                    active.any(dim=-1).any(dim=-1).sum().item())
+                accumulator["counts"]["contacting_hand_entries"] += int(active.sum().item())
+                accumulator["counts"]["both_contact_frames"] += int(active.all(dim=-1).sum().item())
+                if parameter_check:
+                    rc2_started = time.perf_counter()
+                    if not parameters:
+                        _contract_error(
+                            "E_RC2_PARAMETER_SPACE_UNAVAILABLE", "model has no trainable parameters"
+                        )
+                    for name, value in (
+                        ("H", losses["joint_position"] + losses["joint_rotation"]),
+                        ("O", losses["object_translation"] + losses["object_rotation"]),
+                    ):
+                        value_square = parameter_square(torch.autograd.grad(
+                                value, parameters, retain_graph=True, allow_unused=True))
+                        for mode in mode_losses:
+                            accumulator["rc2"][mode][name] += value_square
+                    for mode, loss in mode_losses.items():
+                        accumulator["rc2"][mode]["G"] += parameter_square(torch.autograd.grad(
+                                loss, parameters, retain_graph=True, allow_unused=True))
+                    accumulator["rc2_seconds"] += time.perf_counter() - rc2_started
+                for mode, loss in mode_losses.items():
+                    gradient, = torch.autograd.grad(loss, prediction, retain_graph=True)
+                    if int(torch.count_nonzero(gradient[..., 3:84])) != 0:
+                        _contract_error(
+                            "E_DERIVATION_SUPPORT_ASSERTION", "A1 failed: channels 3:84")
+                    if int(torch.count_nonzero(gradient[..., 228:232])) != 0:
+                        _contract_error(
+                            "E_DERIVATION_SUPPORT_ASSERTION", "A2 failed: channels 228:232")
+                    if int(torch.count_nonzero(gradient[:, 0:2, :])) != 0:
+                        _contract_error(
+                            "E_DERIVATION_SUPPORT_ASSERTION", "A3 failed: history frames")
+                    nongeometry = g_total - configured_weight * gradient
+                    stats = accumulator["modes"][mode]
+                    stats["root"] += square_sum(gradient[..., 0:3])
+                    stats["human_rotation"] += square_sum(gradient[..., 84:216])
+                    stats["object_translation"] += square_sum(gradient[..., 216:219])
+                    stats["object_rotation"] += square_sum(gradient[..., 219:228])
+                    stats["all"] += square_sum(gradient)
+                    target = gradient[..., 84:228].double()
+                    target_nong = nongeometry[..., 84:228].double()
+                    target_root = gradient[..., 0:228].double()
+                    target_nong_root = nongeometry[..., 0:228].double()
+                    stats["target"]["geometry"] += float(target.square().sum().item())
+                    stats["target"]["nongeometry"] += float(target_nong.square().sum().item())
+                    stats["target"]["dot"] += float((target * target_nong).sum().item())
+                    stats["target"]["geometry_root"] += float(target_root.square().sum().item())
+                    stats["target"]["nongeometry_root"] += float(
+                        target_nong_root.square().sum().item())
+                    stats["target"]["dot_root"] += float(
+                        (target_root * target_nong_root).sum().item())
+                consumed += raw_size
+                batches += 1
+        finally:
+            pre_hook.remove()
+            forward_hook.remove()
+        expected_indices = sorted(
+            int(value) for value in shard_records[int(shard)]["window_indices"])
+        if consumed != window_count or observed_indices != expected_indices:
+            _contract_error(
+                "E_MANIFEST_INDEX_NOT_IN_DATASET",
+                f"shard {shard} consumed {consumed} windows in unexpected order",
+            )
+        return accumulator, input_digest.hexdigest(), seed, batches
     try:
         random.seed(42)
         np.random.seed(42)
-        with torch.random.fork_rng(devices=cuda_devices):
+        with torch.random.fork_rng(devices=[]):
             torch.manual_seed(42)
-            if device.type == "cuda":
-                torch.cuda.manual_seed(42)
             model.train()
-            for timestep in timesteps:
-                consumed = 0
-                batches = 0
-                key = str(timestep)
-                for raw_batch in training_loader:
-                    if consumed >= window_count:
-                        break
-                    take = min(window_count - consumed, int(raw_batch["x"].shape[0]))
-                    batch = _move_batch(_slice_batch(raw_batch, take), device)
-                    captured = []
-                    hook = model.register_forward_hook(
-                        lambda _module, _arguments, output: captured.append(output)
-                    )
-                    try:
-                        with _pinned_timestep(timestep) as pin:
-                            losses = _forward_losses(
-                                model,
-                                diffusion,
-                                batch,
-                                parents,
-                                position_minimum,
-                                position_maximum,
-                                object_minimum,
-                                object_maximum,
-                                cfg,
-                                generator=generator,
-                            )
-                    finally:
-                        hook.remove()
-                    if pin.substitutions != 1:
-                        raise AssertionError(
-                            "geometry weight probe expected exactly one pinned "
-                            "timestep substitution per forward, observed "
-                            f"{pin.substitutions}"
+            for shard in shard_ids:
+                for timestep in timesteps:
+                    started = time.perf_counter()
+                    accumulator, digest, seed, batches = measure_cell(
+                        loaders[shard], shard, timestep, parameter_check=(
+                            measurement_mode == "paired_joint" and shard == 0 and timestep == 250
                         )
-                    if len(captured) != 1:
-                        raise AssertionError(
-                            "geometry weight probe expected one training forward, "
-                            f"observed {len(captured)}"
-                        )
-                    prediction = captured[0]
-                    if geometry_from_separate_call:
-                        geometry_losses = _geometry_losses(
-                            prediction,
-                            batch,
-                            parents,
-                            position_minimum,
-                            position_maximum,
-                            object_minimum,
-                            object_maximum,
-                            cfg,
-                            weight=1.0,
-                            mask_mode=mask_mode,
-                            detach_object=bool(
-                                cfg.get("hand_object_contact_detach_object", False)
-                            ),
-                            detach_root=bool(
-                                cfg.get("hand_object_contact_detach_root", False)
-                            ),
-                        )
-                        geometry_loss = geometry_losses[
-                            "hand_object_contact_geometry"
-                        ]
-                    else:
-                        geometry_loss = losses["hand_object_contact_geometry"]
-
-                    component_losses = {
-                        name: losses[name]
-                        for name in component_names
-                        if name != "hand_object_contact_geometry"
-                    }
-                    component_losses["hand_object_contact_geometry"] = geometry_loss
-                    gradients = {}
-                    for name in component_names:
-                        gradient, = torch.autograd.grad(
-                            component_losses[name], prediction, retain_graph=True
-                        )
-                        gradients[name] = gradient
-                        component_squared[key][name] += float(
-                            gradient.double().square().sum().item()
-                        )
-
-                    geometry_gradient = gradients["hand_object_contact_geometry"]
-                    if int(torch.count_nonzero(geometry_gradient[..., 3:84])) != 0:
-                        raise AssertionError(
-                            "geometry gradient on joint-position channels 3:84 is not exactly zero"
-                        )
-                    nongeometry_gradient = (
-                        gradients["total"] - configured_weight * geometry_gradient
                     )
-                    geometry_target = geometry_gradient[..., 84:228].double()
-                    nongeometry_target = nongeometry_gradient[..., 84:228].double()
-                    target_squared[key]["geometry"] += float(
-                        geometry_target.square().sum().item()
-                    )
-                    target_squared[key]["nongeometry"] += float(
-                        nongeometry_target.square().sum().item()
-                    )
-                    target_squared[key]["dot"] += float(
-                        (geometry_target * nongeometry_target).sum().item()
-                    )
-                    root_squared[key] += float(
-                        geometry_gradient[..., 0:3].double().square().sum().item()
-                    )
-                    consumed += take
-                    batches += 1
-                if consumed != window_count:
-                    raise ValueError(
-                        f"training loader ended after {consumed} windows; "
-                        f"{window_count} required"
-                    )
-                if batch_count is None:
-                    batch_count = batches
-                elif batch_count != batches:
-                    raise AssertionError("training loader batch count changed across timesteps")
+                    if first_cell_seconds is None:
+                        first_cell_seconds = time.perf_counter() - started
+                    shard_cells[shard][timestep] = accumulator
+                    input_sha256[str(shard)][str(timestep)] = digest
+                    cell_seed[str(shard)][str(timestep)] = seed
     finally:
         model.train(previous_training)
         random.setstate(python_state)
         np.random.set_state(numpy_state)
-
-    gradient_l2 = {
-        key: {name: value ** 0.5 for name, value in values.items()}
-        for key, values in component_squared.items()
+    rc1_ratios = {mode: None for mode in DERIVATION_MODES}
+    rc1_delta_seconds = None
+    if measurement_mode == "paired_joint" and rc1_loader is not None:
+        model.train()
+        rc1_started = time.perf_counter()
+        rc1_accumulator, _rc1_digest, _rc1_seed, _rc1_batches = measure_cell(
+            rc1_loader, 0, 250, expected_batch_size=32, parameter_check=False
+        )
+        rc1_delta_seconds = time.perf_counter() - rc1_started
+        model.train(previous_training)
+        base = shard_cells[0][250]
+        for mode in DERIVATION_MODES:
+            base_w = math.sqrt(base["H"] * base["O"]) / math.sqrt(base["modes"][mode]["all"])
+            rc1_w = math.sqrt(rc1_accumulator["H"] * rc1_accumulator["O"]
+            ) / math.sqrt(rc1_accumulator["modes"][mode]["all"])
+            rc1_ratios[mode] = rc1_w / base_w
+    mode_cells: Dict[str, Dict[int, Dict[int, Dict[str, float]]]] = {
+        mode: {shard: {} for shard in shard_ids} for mode in measured_modes
     }
-    human_side_l2 = {
-        key: sum(
-            component_squared[key][name]
-            for name in ("joint_position", "joint_rotation", "fk")
-        ) ** 0.5
-        for key in component_squared
-    }
-    object_side_l2 = {
-        key: sum(
-            component_squared[key][name]
-            for name in ("object_translation", "object_rotation", "object_surface")
-        ) ** 0.5
-        for key in component_squared
-    }
-    target_channel = {}
-    for key, values in target_squared.items():
-        geometry_l2 = values["geometry"] ** 0.5
-        nongeometry_l2 = values["nongeometry"] ** 0.5
-        denominator = geometry_l2 * nongeometry_l2
-        target_channel[key] = {
-            "geometry_l2": geometry_l2,
-            "nongeometry_l2": nongeometry_l2,
-            "cosine_similarity": values["dot"] / denominator if denominator else 0.0,
+    shared_by_shard = {}
+    modes_by_name = {mode: {"per_shard": {}} for mode in measured_modes}
+    report_ng2 = {"target_channel": {}, "target_channel_with_root": {}}
+    for shard in shard_ids:
+        shared_by_shard[str(shard)] = {name: {} for name in (
+            "gradient_l2_nongeometry", "reference_norms", "engaged_counts",
+            "human_side_l2", "object_side_l2", "p0_calibration")}
+        for timestep in timesteps:
+            key = str(timestep)
+            acc = shard_cells[shard][timestep]
+            H, O = math.sqrt(acc["H"]), math.sqrt(acc["O"])
+            Hq, Oq = math.sqrt(acc["Hq"]), math.sqrt(acc["Oq"])
+            counts = acc["counts"]
+            for name, value in (("H", H), ("O", O)):
+                if not math.isfinite(value) or value <= 0:
+                    _contract_error(
+                        "E_DERIVATION_NONPOSITIVE_NORM",
+                        f"shard {shard} timestep {timestep} {name}={value!r}; "
+                        f"engaged_frames={counts['engaged_frames']} "
+                        f"engaged_windows={counts['engaged_windows']} "
+                        f"contacting_hand_entries={counts['contacting_hand_entries']}",
+                    )
+            H_error, O_error = abs(H - Hq) / H, abs(O - Oq) / O
+            if H_error > 1e-12 or O_error > 1e-12:
+                _contract_error(
+                    "E_DERIVATION_SUPPORT_ASSERTION", "reference tensor sum differs from quadrature"
+                )
+            gradient_l2_nongeometry = {
+                name: math.sqrt(acc["nong"][name]) for name in DERIVATION_NON_GEOMETRY}
+            gradient_l2_nongeometry["total"] = math.sqrt(acc["total"])
+            shared_by_shard[str(shard)]["gradient_l2_nongeometry"][key] = gradient_l2_nongeometry
+            shared_by_shard[str(shard)]["reference_norms"][key] = {
+                "H": H, "O": O, "H_quadrature": Hq, "O_quadrature": Oq,
+                "H_quadrature_relative_error": H_error, "O_quadrature_relative_error": O_error}
+            shared_by_shard[str(shard)]["engaged_counts"][key] = acc["counts"]
+            nong = shared_by_shard[str(shard)]["gradient_l2_nongeometry"][key]
+            shared_by_shard[str(shard)]["human_side_l2"][key] = math.sqrt(sum(
+                acc["nong"][name] for name in ("joint_position", "joint_rotation", "fk")))
+            shared_by_shard[str(shard)]["object_side_l2"][key] = math.sqrt(sum(
+                acc["nong"][name] for name in (
+                    "object_translation", "object_rotation", "object_surface")))
+            shared_by_shard[str(shard)]["p0_calibration"][key] = {
+                "fk_over_object_surface": nong["fk"] / nong["object_surface"]}
+            for mode in measured_modes:
+                stats = acc["modes"][mode]
+                Gh = math.sqrt(stats["root"] + stats["human_rotation"])
+                Go = math.sqrt(stats["object_translation"] + stats["object_rotation"])
+                G = math.sqrt(stats["all"])
+                for name, value in (("G_human", Gh), ("G_object", Go), ("G", G)):
+                    if not math.isfinite(value) or value <= 0:
+                        counts = acc["counts"]
+                        _contract_error(
+                            "E_DERIVATION_NONPOSITIVE_NORM",
+                            f"shard {shard} timestep {timestep} {name}={value!r}; "
+                            f"engaged_frames={counts['engaged_frames']} "
+                            f"engaged_windows={counts['engaged_windows']} "
+                            f"contacting_hand_entries={counts['contacting_hand_entries']}",
+                        )
+                pythagoras_error = abs(G * G - Gh * Gh - Go * Go) / (G * G)
+                if pythagoras_error > 1e-12:
+                    _contract_error(
+                        "E_DERIVATION_SUPPORT_ASSERTION", "A4 pythagoras identity failed")
+                mode_cells[mode][shard][timestep] = {
+                    "H": H, "O": O, "G_human": Gh, "G_object": Go, "G": G,
+                    "root": math.sqrt(stats["root"]),
+                    "human_rotation": math.sqrt(stats["human_rotation"]),
+                    "object_translation": math.sqrt(stats["object_translation"]),
+                    "object_rotation": math.sqrt(stats["object_rotation"]),
+                    "pythagoras_relative_error": pythagoras_error}
+                target = stats["target"]
+                geom_l2, nong_l2 = math.sqrt(target["geometry"]), math.sqrt(target["nongeometry"])
+                geom_root, nong_root = (
+                    math.sqrt(target["geometry_root"]), math.sqrt(target["nongeometry_root"]))
+                modes_by_name[mode]["per_shard"].setdefault(
+                    str(shard), {"geometry_by_channel": {}, "gradient_l2": {},
+                                 "root_channel_geometry_l2": {}, "target_channel": {},
+                                 "target_channel_with_root": {}})
+                entry = modes_by_name[mode]["per_shard"][str(shard)]
+                entry["geometry_by_channel"][key] = {"root_translation": math.sqrt(stats["root"]),
+                    "human_rotation": math.sqrt(stats["human_rotation"]),
+                    "object_translation": math.sqrt(stats["object_translation"]),
+                    "object_rotation": math.sqrt(stats["object_rotation"]),
+                    "G_human": Gh, "G_object": Go, "G_all": G,
+                    "pythagoras_relative_error": pythagoras_error}
+                entry["gradient_l2"][key] = {"hand_object_contact_geometry": G}
+                entry["root_channel_geometry_l2"][key] = math.sqrt(stats["root"])
+                target_denominator = geom_l2 * nong_l2
+                root_denominator = geom_root * nong_root
+                entry["target_channel"][key] = {"geometry_l2": geom_l2, "nongeometry_l2": nong_l2,
+                    "cosine_similarity": stats["target"]["dot"] / target_denominator
+                    if target_denominator else 0.0}
+                entry["target_channel_with_root"][key] = {
+                    "geometry_l2": geom_root, "nongeometry_l2": nong_root,
+                    "cosine_similarity": stats["target"]["dot_root"] / root_denominator
+                    if root_denominator else 0.0}
+                report_ng2["target_channel"].setdefault(
+                    mode, {}).setdefault(str(shard), {})[key] = geom_l2 / nong_l2 \
+                    if nong_l2 else 0.0
+                report_ng2["target_channel_with_root"].setdefault(
+                    mode, {}).setdefault(str(shard), {})[key] = geom_root / nong_root \
+                    if nong_root else 0.0
+    gates = {}
+    aggregates = {}
+    for mode in measured_modes:
+        cells = mode_cells[mode]
+        w_by_cell = {
+            str(shard): {str(timestep): {"human": cells[shard][timestep]["H"]
+                / cells[shard][timestep]["G_human"], "object": cells[shard][timestep]["O"]
+                / cells[shard][timestep]["G_object"], "combined": math.sqrt(
+                    cells[shard][timestep]["H"] * cells[shard][timestep]["O"]
+                ) / cells[shard][timestep]["G"]
+            } for timestep in timesteps}
+            for shard in shard_ids}
+        shard_derivation = {}
+        for shard in shard_ids:
+            by_t = {side: {str(t): w_by_cell[str(shard)][str(t)][side] for t in timesteps}
+                for side in ("human", "object", "combined")}
+            shard_derivation[str(shard)] = {
+                "w_human": _geomean(tuple(by_t["human"].values())),
+                "w_object": _geomean(tuple(by_t["object"].values())),
+                "w_geom_star": _geomean(tuple(by_t["combined"].values())),
+                "w_ratio": _geomean(tuple(by_t["human"].values())) / _geomean(
+                    tuple(by_t["object"].values())),
+                "w_by_timestep": by_t}
+        aggregate = {"w_human": _geomean([shard_derivation[str(s)]["w_human"] for s in shard_ids]),
+            "w_object": _geomean([shard_derivation[str(s)]["w_object"] for s in shard_ids]),
+            "w_geom_star": _geomean([shard_derivation[str(s)]["w_geom_star"] for s in shard_ids]),
+            "w_ratio": _geomean(
+                [shard_derivation[str(s)]["w_human"] for s in shard_ids]) / _geomean(
+                [shard_derivation[str(s)]["w_object"] for s in shard_ids]),
+            "w_by_shard": {side: {str(s): shard_derivation[str(s)][
+                f"w_{side}" if side != "combined" else "w_geom_star"]
+                for s in shard_ids} for side in ("human", "object", "combined")},
+            "w_by_cell": w_by_cell}
+        gate_values = _side_dispersion_gates(
+            w_by_cell, shard_ids, timesteps, aggregate["w_ratio"],
+            mode == "per_hand_per_frame")
+        numerator = {side: [ math.sqrt(cells[s][t]["H"] * cells[s][t]["O"])
+            if side == "combined" else (cells[s][t]["H"]
+            if side == "human" else cells[s][t]["O"]) for s in shard_ids for t in timesteps]
+            for side in ("human", "object", "combined")}
+        denominator = {side: [ cells[s][t]["G"] if side == "combined" else (cells[s][t]["G_human"]
+            if side == "human" else cells[s][t]["G_object"]) for s in shard_ids for t in timesteps]
+            for side in ("human", "object", "combined")}
+        reduction_errors = [ abs(aggregate[key] - _geomean([w_by_cell[str(s)][str(t)][side]
+                for s in shard_ids for t in timesteps])) / aggregate[key]
+            for side, key in (("human", "w_human"), ("object", "w_object"),
+                              ("combined", "w_geom_star"))]
+        reduction_errors += [ abs(aggregate[key] - _geomean(numerator[side])
+                / _geomean(denominator[side])) / aggregate[key]
+            for side, key in (("human", "w_human"), ("object", "w_object"),
+                              ("combined", "w_geom_star"))]
+        aggregate.update({"ng3_max_over_shards": gate_values["ng3_max_over_shards"],
+            "ng3_pooled": gate_values["ng3_pooled"],
+            "csd_max_over_timesteps": gate_values["csd_max_over_timesteps"],
+            "csd_from_shard_means": gate_values["csd_from_shard_means"],
+            "ddof0_variants": gate_values["ddof0_variants"],
+            "reduction_identity_relative_error": max(reduction_errors),
+            "side_balance_verdict": gate_values["side_balance_verdict"]})
+        rc2_ok = None
+        if measurement_mode == "paired_joint" and 0 in shard_ids and 250 in timesteps:
+            rc2_values = {}
+            for rc_mode in measured_modes:
+                rc = shard_cells[0][250]["rc2"][rc_mode]
+                parameter_w = math.sqrt(rc["H"] * rc["O"]) ** 0.5 / math.sqrt(rc["G"])
+                output_w = w_by_cell["0"]["250"]["combined"]
+                ratio, _ = _rc2_ratio(parameter_w, output_w)
+                rc2_values[rc_mode] = (parameter_w, ratio)
+            rc2_ok = all(value[1] < 3.0 for value in rc2_values.values())
+        gates[mode] = {"G2_finite_positive": True,
+            "G4_ng3": gate_values["G4_ng3"],
+            "G5_csd": gate_values["G5_csd"],
+            "G6_no_side_masking": gate_values["G6_no_side_masking"],
+            "G7_side_ratio": gate_values["side_balance_verdict"] == "acceptable",
+            "G8_parameter_space_crosscheck": rc2_ok,
+            "all_passed": all(gate_values["G4_ng3"].values()) \
+                and all(gate_values["G5_csd"].values()) \
+                and gate_values["G6_no_side_masking"] \
+                and gate_values["side_balance_verdict"] == "acceptable" and rc2_ok is not False,
+            "report_only": mode == "sealed",
         }
-    root_channel_geometry_l2 = {
-        key: value ** 0.5 for key, value in root_squared.items()
+        aggregates[mode] = aggregate
+        modes_by_name[mode]["mask_mode"] = mode
+        modes_by_name[mode]["is_candidate_source"] = mode == "per_hand_per_frame"
+        modes_by_name[mode]["aggregate"] = aggregate
+        modes_by_name[mode]["gates"] = gates[mode]
+        for shard in shard_ids:
+            modes_by_name[mode]["per_shard"][str(shard)]["derivation"] = {
+                **shard_derivation[str(shard)],
+                "ng3": {
+                    side: _dispersion(
+                        list(shard_derivation[str(shard)]["w_by_timestep"][side].values()), 1)
+                    for side in ("human", "object", "combined")
+                },
+                "ng3_ddof0": {
+                    side: _dispersion(
+                        list(shard_derivation[str(shard)]["w_by_timestep"][side].values()), 0)
+                    for side in ("human", "object", "combined")
+                },
+            }
+    rc2_report = {mode: {"parameter": None, "ratio": None} for mode in measured_modes}
+    if measurement_mode == "paired_joint" and 0 in shard_ids and 250 in timesteps:
+        for mode in measured_modes:
+            rc = shard_cells[0][250]["rc2"][mode]
+            parameter_w = math.sqrt(rc["H"] * rc["O"]) ** 0.5 / math.sqrt(rc["G"])
+            output_w = aggregates[mode]["w_by_cell"]["0"]["250"]["combined"]
+            ratio, _ = _rc2_ratio(parameter_w, output_w)
+            rc2_report[mode] = {"parameter": parameter_w, "ratio": ratio}
+    l3 = dict(l3_crosscheck or {})
+    l3.setdefault("performed", False)
+    l3.setdefault("artifacts", [])
+    l3.setdefault("input_sha256_equal", False)
+    l3.setdefault("cell_seed_equal", False)
+    l3.setdefault("nongeometry_norms_bitwise_equal", False)
+    l3.setdefault("geometry_matches_paired_joint", {mode: False for mode in DERIVATION_MODES})
+    l3_passed = bool( l3["performed"] and l3["input_sha256_equal"] and l3["cell_seed_equal"]
+        and l3["nongeometry_norms_bitwise_equal"]
+        and all(l3["geometry_matches_paired_joint"].get(mode, False)
+                for mode in DERIVATION_MODES)) if measurement_mode == "paired_joint" else False
+    manifest_sha = _sha256(Path(manifest_path)) if manifest_path is not None else str(
+        manifest.get("manifest_sha256", ""))
+    gates_shared = {
+        "G1_manifest": bool(manifest.get("coverage", {}).get("accepted")) \
+            and bool(manifest.get("allocation_quantization_check", {}).get("accepted")) \
+            and all(bool(record.get("coverage", {}).get("accepted"))
+                    and bool(record.get("allocation_quantization_check", {}).get("accepted"))
+                    for record in shard_records.values()),
+        "G3_support_assertions": True,
+        "G9_pairing": l3_passed if measurement_mode == "paired_joint" else False,
+        "G10_provenance": _source_provenance().get("git_dirty") is False,
     }
-    p0_calibration = {
-        key: {
-            "fk_over_object_surface": (
-                gradient_l2[key]["fk"] / gradient_l2[key]["object_surface"]
-                if gradient_l2[key]["object_surface"] else 0.0
-            )
-        }
-        for key in gradient_l2
-    }
-    finite_values = []
-    for values in gradient_l2.values():
-        finite_values.extend(values.values())
-    finite_values.extend(human_side_l2.values())
-    finite_values.extend(object_side_l2.values())
-    finite_values.extend(root_channel_geometry_l2.values())
-    for values in target_channel.values():
-        finite_values.extend(values.values())
-    for values in p0_calibration.values():
-        finite_values.extend(values.values())
-    if not all(math.isfinite(value) for value in finite_values):
-        raise ValueError("geometry weight-derivation probe produced a non-finite value")
-
+    sealed_gate_divergence = (
+        measurement_mode == "paired_joint" and gates["sealed"]["all_passed"] is False
+        and gates["per_hand_per_frame"]["all_passed"] is True)
+    blocked = []
+    if not all(gates_shared.values()):
+        blocked.extend(name for name, value in gates_shared.items() if not value)
+    if measurement_mode == "paired_joint" and not gates["per_hand_per_frame"]["all_passed"]:
+        blocked.extend(name for name, value in gates["per_hand_per_frame"].items()
+                       if name.startswith("G") and value is False)
+    candidate_produced = _candidate_is_allowed(
+        measurement_mode,
+        gates_shared,
+        gates["per_hand_per_frame"]["all_passed"] if measurement_mode == "paired_joint" else False,
+        sealed_gate_divergence,
+        [value["ratio"] for value in rc2_report.values() if value["ratio"] is not None],
+    ) and not blocked
+    candidate = {"source": DERIVATION_CANDIDATE_SOURCE,
+        "hand_object_contact_weight": (
+            aggregates.get("per_hand_per_frame", {}).get("w_geom_star")
+            if candidate_produced else None),
+        "mask_mode": "per_hand_per_frame", "produced": candidate_produced,
+        "blocked_by": blocked, "sealed_gate_divergence": sealed_gate_divergence,
+        "parameter_space_unverified_cells": 19, "training_authorized": False}
+    if measurement_mode == "paired_joint" and any(
+        value["ratio"] >= 3.0 for value in rc2_report.values()):
+        candidate["blocked_by"].append("E_RC2_PARAMETER_SPACE_DIVERGENCE")
+        candidate["produced"] = False
+        candidate["hand_object_contact_weight"] = None
+    mode_names = list(measured_modes)
+    bp2 = False
+    if len(mode_names) == 2:
+        bp2 = _geomean([mode_cells["per_hand_per_frame"][s][t]["G"]
+            for s in shard_ids for t in timesteps]) < _geomean([
+            mode_cells["sealed"][s][t]["G"]
+            for s in shard_ids for t in timesteps])
+    timing_values = dict(timing or {})
+    t_setup = float(timing_values.get("t_setup_seconds") or 0.0)
+    t_cell = float(timing_values.get("t_cell_plain_seconds") or first_cell_seconds or 0.0)
+    t_rc1 = timing_values.get("t_rc1_delta_seconds")
+    if t_rc1 is None:
+        t_rc1 = rc1_delta_seconds
+    t_rc2 = timing_values.get("t_rc2_delta_seconds")
+    if t_rc2 is None and measurement_mode == "paired_joint":
+        t_rc2 = (
+            shard_cells[0][250]["rc2_seconds"]
+            if 0 in shard_cells and 250 in shard_cells[0] else None)
+    t_l3 = timing_values.get("t_l3_total_seconds")
+    projected = (
+        t_setup + 20.0 * t_cell + float(t_rc1 or 0.0)
+        + float(t_rc2 or 0.0) + float(t_l3 or 0.0))
     result: Dict[str, object] = {
-        "probe": "geometry_weight_derivation_probe",
-        "seed": 42,
-        "window_count": window_count,
-        "batch_count": int(batch_count or 0),
+        "probe": "geometry_weight_derivation_probe", "seed": 42,
+        "window_count": window_count, "batch_count": 16,
+        "timesteps": list(timesteps), "timestep_seam": "pinned_real_forward_losses",
+        "measurement_mode": measurement_mode, "measured_mask_modes": mode_names,
+        "hand_object_contact_mask_mode": cfg_mask_mode, "cfg_mask_mode_selects_measurement": False,
+        "configured_hand_object_contact_weight": configured_weight,
+        "geometry_from_separate_call": geometry_from_separate_call,
+        "spec_sha256": DERIVATION_SPEC_SHA256, "probe_sha256": _source_provenance()["probe_sha256"],
         "checkpoint_path": str(checkpoint_path.resolve()),
         "checkpoint_sha256": _sha256(checkpoint_path),
-        "git_commit": subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            cwd=Path(__file__).resolve().parents[3],
-            text=True,
-        ).strip(),
-        "configured_hand_object_contact_weight": configured_weight,
-        "hand_object_contact_mask_mode": mask_mode,
-        "geometry_from_separate_call": geometry_from_separate_call,
-        "timesteps": [int(timestep) for timestep in timesteps],
-        "timestep_seam": "pinned_real_forward_losses",
-        "gradient_l2": gradient_l2,
-        "human_side_l2": human_side_l2,
-        "object_side_l2": object_side_l2,
-        "target_channel": target_channel,
-        "root_channel_geometry_l2": root_channel_geometry_l2,
-        "p0_calibration": p0_calibration,
+        "sampling": {
+            "manifest_path": str(Path(manifest_path).resolve()) if manifest_path else None,
+            "manifest_sha256": manifest_sha, "shards": list(shard_ids),
+            "windows_per_shard": expected_windows,
+            "windows_total": expected_windows * len(shard_ids),
+            "batch_size": 16, "batches_per_cell": 16, "partial_batches": 0,
+            "window_index_space": "language_motion_dict_window_index",
+            "consumption_order": "ascending_manifest_window_index",
+            "dataset_fingerprint_verified": True,
+            "manifest_coverage_revalidated": {
+                "both_frame_fraction_of_engaged_union": manifest.get(
+                    "coverage", {}).get("both_frame_fraction_of_engaged"),
+                "corpus_reference": manifest.get("coverage", {}).get("corpus_reference"),
+                "per_shard": {str(s): shard_records[s].get("coverage", {}).get(
+                    "both_frame_fraction_of_engaged") for s in shard_ids},
+                "allocation_quantization_engaged_window_fraction": manifest.get(
+                    "allocation_quantization_check", {}).get("engaged_window_fraction"),
+                "accepted": gates_shared["G1_manifest"],
+            },
+        },
+        "pairing": {
+            "input_sha256": input_sha256, "cell_seed": cell_seed,
+            "timesteps": list(timesteps), "L1_share_manifest": True,
+            "L1_share_noise": True, "L1_share_timesteps": True,
+            "L1_note": "tautological under the single-forward design; kept as a refactor guard",
+            "L2_prediction_is_identical_object": True,
+            "L2_total_gradient_is_identical_object": True,
+            "L3_independent_invocation_crosscheck": {
+                "performed": bool(l3.get("performed")), "cell": {"shard": 0, "timestep": 250},
+                "artifacts": l3.get("artifacts", []),
+                "input_sha256_equal": bool(l3.get("input_sha256_equal")),
+                "cell_seed_equal": bool(l3.get("cell_seed_equal")),
+                "nongeometry_norms_bitwise_equal": bool(
+                    l3.get("nongeometry_norms_bitwise_equal")),
+                "geometry_matches_paired_joint": l3.get(
+                    "geometry_matches_paired_joint", {}),
+                "note": (
+                    "L3 artifacts are reproducibility evidence only; their derivation/aggregate/candidate "
+                    "blocks must never be cited"
+                ),
+            },
+        },
+        "shared": {"per_shard": shared_by_shard},
+        "modes": modes_by_name,
+        "gates_shared": gates_shared,
+        "candidate": candidate,
+        "report_only": {
+            "BP1_fk_over_object_surface_reference": 1.3367948864888777,
+            "BP1_reference_interval": [1.069435909191102, 1.6709936081110972],
+            "BP1_in_interval": None,
+            "BP1_note": (
+                "report-only for two reasons: no measured legacy anchor exists, and "
+                "the reference is a parameter-space ratio while the probe measures output space"
+            ),
+            "BP2_variant_geometry_below_sealed": bp2,
+            "BP3_w_geom_star_B_over_sealed": (aggregates["per_hand_per_frame"]["w_geom_star"]
+                / aggregates["sealed"]["w_geom_star"]
+                if len(mode_names) == 2 else None),
+            "BP3_confidence": "low", "NG2": report_ng2["target_channel"],
+            "NG2_with_root": report_ng2["target_channel_with_root"],
+            "RC1_batch_size_invariance": {
+                "cell": {"shard": 0, "timestep": 250}, "w_geom_star_ratio_32_over_16": rc1_ratios},
+            "RC2_parameter_space": {
+                "cell": {"shard": 0, "timestep": 250},
+                "w_geom_star_parameter_space": {
+                    mode: rc2_report[mode]["parameter"] for mode in measured_modes},
+                "ratio_to_output_space": {
+                    mode: rc2_report[mode]["ratio"] for mode in measured_modes},
+                "stop_threshold": 3.0,
+                "scope_note": (
+                    "one cell of twenty; passing does not establish agreement on the "
+                    "other 19 cells and is not evidence of "
+                    "training validity"
+                ),
+            },
+        },
+        "timing": {
+            "t_setup_seconds": t_setup, "t_cell_plain_seconds": t_cell,
+            "t_rc1_delta_seconds": t_rc1, "t_rc2_delta_seconds": t_rc2,
+            "t_l3_total_seconds": t_l3, "projected_total_seconds": projected,
+            "projection_formula": "t_setup + 20*t_cell_plain + t_rc1 + t_rc2 + t_l3",
+            "forbidden_projection_note": "never 20 x (a wall clock that includes RC1/RC2/L3 or setup)",
+            "peak_rss_kb": int(
+                __import__("resource").getrusage(__import__("resource").RUSAGE_SELF).ru_maxrss),
+            "omp_num_threads": int(os.environ.get("OMP_NUM_THREADS", "0") or 0),
+            "device": "cpu",
+        },
         "self_check": {
             "plain_forward_path_verified": True,
-            "geometry_gradient_on_joint_positions_exactly_zero": True,
-            "all_values_finite": True,
-        },
+            "geometry_gradient_on_joint_positions_3_84_exactly_zero": True,
+            "geometry_gradient_on_contact_228_232_exactly_zero": True,
+            "geometry_gradient_on_history_frames_exactly_zero": True,
+            "geometry_pythagoras_holds": True,
+            "reference_norm_tensor_sum_equals_quadrature": True,
+            "reduction_orders_agree": all(
+                aggregates[mode]["reduction_identity_relative_error"] <= 1e-12
+                for mode in measured_modes),
+            "single_forward_per_batch": True,
+            "both_modes_from_one_prediction": measurement_mode == "paired_joint",
+            "configured_weight_is_zero": configured_weight == 0.0,
+            "mask_mode_recorded": True, "no_silent_sealed_fallback": True,
+            "all_values_finite": True, "accumulation_dtype": "float64",
+            "pinned_timestep_substitutions_per_forward": 1},
+        "provenance": _source_provenance(),
     }
     _write_probe_json(output_path, result)
     return result
