@@ -5256,3 +5256,291 @@ local pose 承载**。旧结果不能替代该 deliverable。
 
 **本节仍然只提交分析计划与预计成本，未启动任何新 GPU 实验，也未执行 C1–C5。**
 等用户决定是否开启独立的 rollout continuity 研究线。
+
+## 2026-08-24（同日第七次）
+
+### A. 本轮授权范围与结论提要
+
+**C1 的注册假设——地板主要是插值／evaluator artifact——被 FALSIFIED。**
+
+本轮只执行了计划中的**首要自检门**与 C1；C2–C5 未执行。全程 zero GPU、zero
+torch、pure numpy，只读已有 export 与已有数据，不启动采样、训练或评测工作负载。
+分析集仍是 closure 使用的 matched `n=370`，但本节所有数字都直接来自
+`.claude/scratch/c1_20260824/MEASURED_FACTS_C1.md` 及其列出的脚本产物。
+
+C1 的结果不是“插值问题被证实”或“插值问题暂时无法判断”：去掉插值后，三个模型格的
+boundary excess 在每一种定义下都保留并增大；GT 自己的 `1.1943` 也不是由插值抬高的。
+唯一找到的真实 evaluator artifact 是 GT 末端被 clamp 后重复的冻结帧，它反而抬高了
+GT null 的 denominator，使模型对 GT 的 excess 被低估。
+
+### B. 无 torch 的 FK，以及它为什么是精确的
+
+`SMPLX_JOINTS_28 = [0..21, 23, 24, 25, 28, 40, 43]` -- all < 55，都是
+kinematic-tree joints，从不是 smplx 在 54 之后追加的 vertex-derived landmarks。
+smplx 通过
+`batch_rigid_transform(rot_mats, J_regressor @ v_shaped, parents)` 计算这些 55 个
+关节，然后加上 `transl`；pose blendshapes 不会触碰 `J`。六个非 body slot 是 head /
+left_wrist / right_wrist 的 children；一个 joint 的位置只依赖 parent 的 global
+transform 与自己的 rest offset，所以 hand、eye、jaw pose 值与这些 slot 无关。
+
+对 `data/dataset/human_joints_aligned.npy` 的验证覆盖 6 条随机 sequence、886 个 frame：
+
+| slots | mean error |
+|---|---:|
+| 26 of 28 | **0.000 mm** |
+| slot 25 (SMPL-X 28, middle1) | 28.018 mm |
+| slot 27 (SMPL-X 43, middle1) | 28.018 mm |
+
+slot 25 / 27 的差异正是文档已经登记的那一对：
+`code/test_infbagel_lingo_hsi.py:869` 指出 evaluator 的 `SMPLX_JOINTS_28` 带的是
+middle1（28/43），而 dataset bundle 带的是 ring1（34/49），两者“about 2.3 cm apart”。
+本轮实测为 28.0 mm。因此这里的 numpy FK 对 26 of 28 slots 是精确复现，另两个误差是
+已知的 slot-layout mismatch，不是 torch 被移除后产生的近似。
+
+### C. 自检门结果
+
+自检门逐字重算 evaluator stencil：`code/priors/hsi/metrics.py:955-1015`，在
+`recon.py:jerk` 中转录，从 export 的 fine rate 重算，并逐 episode 对照封存的
+`per_sequence_metrics.json`。`boundary_jerk` / `interior_jerk` / `jerk_ratio` 的
+容差是 **1e-4 relative**；`boundary_jerk_samples`、`interior_jerk_samples` 与
+`frame_count` 要求 exact。
+
+| cell | max rel `boundary_jerk` | max rel `interior_jerk` | max rel `jerk_ratio` | episodes over tolerance |
+|---|---:|---:|---:|---:|
+| B unguided | 1.554e-05 | 7.449e-06 | 1.886e-05 | **0 / 370** |
+| C unguided | 2.079e-05 | 1.139e-05 | 2.382e-05 | **0 / 370** |
+| C guided v5 | 1.414e-05 | 8.126e-06 | 1.953e-05 | **0 / 370** |
+| GT v3 (no export) | 4.087e-01 | 5.793e-02 | 4.056e-01 | 211 / 370 |
+
+三个 export-backed cells 都以 0 / 370 exceedances 通过。四个 cell × 370 个 episode
+的 sample counts 与 `frame_count` 均 exact match。模型格残留的约 `2e-5` 是 float32-GPU
+与 float64-CPU 算术的差异。
+
+GT 行**不是 export recompute**。`results/lingo_hsi/ground-truth-v3/` 没有 motion
+export，只有一个文件 `evaluation/per_sequence_metrics.json`；这一事实已在本轮之前的
+closure section G 记录。因此 GT 行是完整重实现 GT arm 的结果，而不是从 export 重算，且
+这个 GT reimplementation does not reproduce。
+
+GT relative-error distribution 如下：`boundary_jerk` median `1e-5`，48 episodes
+`>1e-4`，44 `>1e-3`，29 `>1e-2`，4 `>1e-1`；`interior_jerk` median `2.4e-4`，
+209 `>1e-4`，141 `>1e-3`，31 `>1e-2`，0 `>1e-1`。
+
+### D. GT arm 为什么在设备外不可复现
+
+`code/utils.py:quaternion_slerp` 有如下两个 arm：
+
+```text
+35:    use_lerp = dot > (1.0 - eps)              # eps = 1e-6
+43:    lerped = q1 * step + q2 * (1 - step)      # endpoint weights REVERSED
+```
+
+在 `step=0` 时，LERP arm 返回 `q2` 而不是 `q1`。因此两个 arm 在它们自己的 switch
+threshold 处并不一致，而 switch 又由 float32 dot product 的最后几位决定。
+
+| episode | as reconstructed | after flipping borderline branch decisions | flips needed |
+|---|---:|---:|---:|
+| `061:006110` `boundary_jerk` rel | 4.087e-01 | **3.530e-05** | 2 (coarse frames 15, 16; joint 0) |
+| `045:004275` `boundary_jerk` rel | 2.323e-01 | **3.220e-05** | 2 |
+| `010:000335` `interior_jerk` rel | 3.980e-03 | **2.427e-07** | 1 (coarse frame 48, joint 0, `dot-thr = +5.96e-08` = half a float32 ULP) |
+
+把 pose chain 改为 float32 而不是 float64，已经消除了最初 6 个 bad episode 中的 5 个
+残差。例如 `010:000322` 的 `interior_jerk` relative error 从 4.055e-03 变成
+5.338e-07；216 个 fine frame 中有 3-8 个发生差异，最大为 1.478 mm。
+
+`lerpfix.py` 在 seed 7 的 40 个随机 episode 上显示，LERP arm 在连续
+(frame, joint) pair 中的 firing rate 是 **16.0%**，范围为 [min 0.2%, max 39.6%]。
+修正 endpoint weights 后，joint position 的 mean shift 是 0.0556 mm，largest single
+frame 是 3.683 mm；metric 变化为：
+
+| | as written | corrected | delta |
+|---|---:|---:|---:|
+| `boundary_jerk` | 79.8277 | 77.4889 | -2.93% |
+| `interior_jerk` | 67.1174 | 62.2754 | **-7.21%** |
+| `jerk_ratio` | 1.1638 | 1.2648 | **+8.68%** |
+
+这不是对 tie 的 isolation，因为 branch decisions 仍来自 numpy dots。修正 weights 会使
+GT ratio 更高；该 defect 是 masking seam elevation，而不是造成 seam elevation。
+
+**C1 的 GT fine column 使用 sealed values，绝不使用这个 rebuild。**GT 的其他 view
+`coarse`、`coarse_fk`、`raw30` 不含 interpolation，也不含 slerp，因此不受这一点影响。
+
+### E. C1 主表
+
+以下是 n=370 的均值；`[...]` 是 95% CI，bootstrap 使用 10000 reps、以 episode
+重采样、seed 42。`aggB/aggI` 是 mean(boundary) / mean(interior)，即在 aggregate
+上计算而不是逐 episode 计算 ratio。
+
+views 定义为：`fine_sealed` 是 sealed value；`fine` 是我的 recompute（30 Hz、对
+exported fine params 做 FK）；`fine@knots` 是相同 FK joints 在 interpolation knots
+取 subsample、按 10 Hz 计分；`coarse` 是没有 interpolation、没有 FK 的 native 10 Hz
+joint channel（model 使用 `global_jpos`，GT gather `human_joints_aligned`）；
+`coarse_fk` 只对 GT，是未插值 coarse pose 的 FK；`raw30` 只对 GT，是同一 span、同一
+seam indices 上 dataset 的 true 30 Hz motion（pure gather，不做 interpolation、FK 或
+slerp）。
+
+| cell | view | boundary_jerk | interior_jerk | jerk_ratio | aggB/aggI |
+|---|---|---:|---:|---:|---:|
+| GT v3 | fine_sealed | 84.5051 [80.7042, 88.3123] | 70.4399 [67.8579, 72.9919] | 1.1943 [1.1667, 1.2234] | 1.1997 |
+| GT v3 | coarse | 11.9233 [11.2976, 12.5780] | 9.9646 [9.4834, 10.4532] | 1.2204 [1.1879, 1.2539] | 1.1966 |
+| GT v3 | coarse_fk | 11.9641 [11.3340, 12.6244] | 9.9980 [9.5135, 10.4896] | 1.2202 [1.1876, 1.2537] | 1.1966 |
+| GT v3 | raw30 | 71.8933 [62.3554, 82.8698] | 61.0106 [54.9611, 67.7692] | **1.1543** [1.0905, 1.2242] | 1.1784 |
+| B unguided | fine_sealed | 127.9225 [122.4131, 133.8731] | 63.9562 [62.0851, 65.8430] | 2.0205 [1.9534, 2.0898] | 2.0002 |
+| B unguided | fine | 127.9225 | 63.9561 | 2.0205 | 2.0002 |
+| B unguided | fine@knots | 24.5114 [23.4714, 25.6516] | 8.2119 [7.9118, 8.5184] | 3.1893 [3.0637, 3.3203] | 2.9849 |
+| B unguided | coarse | 34.0737 [32.5801, 35.7022] | 9.1493 [8.8172, 9.4813] | **3.9019** [3.7639, 4.0462] | 3.7242 |
+| C unguided | fine_sealed | 128.9641 [123.6137, 134.5941] | 63.0876 [61.2590, 64.9574] | 2.0435 [1.9886, 2.1001] | 2.0442 |
+| C unguided | fine | 128.9641 | 63.0876 | 2.0435 | 2.0442 |
+| C unguided | fine@knots | 24.4276 [23.4115, 25.5319] | 9.2569 [8.9847, 9.5347] | 2.6659 [2.5900, 2.7469] | 2.6388 |
+| C unguided | coarse | 33.4686 [31.9853, 35.0475] | 9.8852 [9.5983, 10.1806] | **3.3793** [3.2794, 3.4813] | 3.3857 |
+| C guided v5 | fine_sealed | 159.4378 [144.4321, 177.0289] | 68.8335 [65.9032, 72.1294] | 2.1715 [2.0931, 2.2556] | 2.3163 |
+| C guided v5 | fine | 159.4379 | 68.8335 | 2.1715 | 2.3163 |
+| C guided v5 | fine@knots | 29.4305 [26.8259, 32.3985] | 10.2417 [9.6945, 10.8501] | 2.8119 [2.7062, 2.9248] | 2.8736 |
+| C guided v5 | coarse | 40.3555 [36.8566, 44.3173] | 11.3073 [10.6668, 12.0387] | **3.5221** [3.3849, 3.6676] | 3.5690 |
+
+绝对 jerk 不能跨 sampling rate 比较：third difference 在 10 Hz 跨 0.3 s，在 30 Hz
+跨 0.1 s，而 `dt^-3` 相差 27x。可比较的是 `jerk_ratio`，以及同一 view 中的
+cell-vs-GT comparison。
+
+GT 的 `coarse_fk` 对 `coarse` 只差 0.34% 的 `boundary_jerk` 与 0.0002 的
+`jerk_ratio`；joint-channel choice negligible。这正是 model cells 的 coarse view
+可以使用 `global_jpos` 的 licensing evidence。
+
+### F. 去掉插值后边界超出量保留了多少
+
+三种 definition 均以 fine 对 coarse，`retained = coarse / fine`：
+
+| cell | measure | fine | coarse | retained |
+|---|---|---:|---:|---:|
+| B unguided | `jerk_ratio - 1` | +1.0205 [+0.9534, +1.0898] | +2.9019 [+2.7639, +3.0462] | **284.4%** |
+| B unguided | `ratio - ratio_GT` (paired) | +0.8262 [+0.7544, +0.8995] | +2.6816 [+2.5411, +2.8278] | **324.6%** |
+| B unguided | `boundary/boundary_GT - 1` | +0.7382 [+0.6457, +0.8353] | +2.4928 [+2.2770, +2.7226] | **337.7%** |
+| C unguided | `jerk_ratio - 1` | +1.0435 [+0.9886, +1.1001] | +2.3793 [+2.2794, +2.4813] | 228.0% |
+| C unguided | `ratio - ratio_GT` (paired) | +0.8492 [+0.7877, +0.9106] | +2.1589 [+2.0560, +2.2635] | 254.2% |
+| C unguided | `boundary/boundary_GT - 1` | +0.7480 [+0.6606, +0.8412] | +2.4205 [+2.2156, +2.6350] | 323.6% |
+| C guided v5 | `jerk_ratio - 1` | +1.1715 [+1.0931, +1.2556] | +2.5221 [+2.3849, +2.6676] | 215.3% |
+| C guided v5 | `ratio - ratio_GT` (paired) | +0.9772 [+0.8937, +1.0649] | +2.3018 [+2.1624, +2.4479] | 235.6% |
+| C guided v5 | `boundary/boundary_GT - 1` | +1.1545 [+0.9466, +1.3919] | +3.1034 [+2.7356, +3.5110] | 268.8% |
+
+FK channel cross-check：同样在 10 Hz，以 `fine@knots` 对 GT `coarse_fk = 1.2202`，
+B unguided 为 +1.9691，C unguided 为 +1.4457，C guided v5 为 +1.5917；对应 fine-view
+的 +0.8262 / +0.8492 / +0.9772。
+
+**所有 definition 与两个 channel 都给出同一结论：去掉 interpolation 后，excess 变大。**
+
+### F2. 「这只是采样率」这一质疑的实测反驳
+
+从 30 Hz -> 10 Hz 会同时改变 stencil 的 physical aperture（一个 4-frame span 覆盖
+0.1 s 对 0.3 s），并把 interpolated frames 从 interior set 中移除。如果 F 节的 elevation
+只是 metric 在这一采样率改变下的性质，而不是 cell 的性质，那么 GT 应该和 models 一样
+移动。下面是 paired per episode 的结果，CI over episodes：
+
+| cell | paired change in `jerk_ratio`, fine -> coarse | multiple of the GT change |
+|---|---:|---:|
+| GT v3 | **+0.0261 [-0.0052, +0.0582]** (interval contains 0) | 1.0x |
+| B unguided | +1.8814 [+1.7920, +1.9741] | **72.1x** |
+| C unguided | +1.3358 [+1.2585, +1.4162] | 51.2x |
+| C guided v5 | +1.3507 [+1.2555, +1.4491] | 51.8x |
+
+在 FK channel 而不是 native channel 中测同一变化（`fine@knots - fine`，同样是
+30 Hz -> 10 Hz）：B unguided +1.1688 [+1.0925, +1.2478]，C unguided +0.6224
+[+0.5794, +0.6670]，C guided v5 +0.6404 [+0.5875, +0.6938]。GT 没有
+`fine@knots` view，因为构造它需要那条不可复现的 interpolation。
+
+因此，rate change 不是产生 model elevation 的原因。C1 **没有**解决两个同向机制之间的
+拆分：interpolation 把 seam discontinuity smear 到 3 个 fine frames 上，以及
+interpolation 抬高 interior denominator（在 GT 上，它把 `interior_jerk` 从 61.0106
+抬到 70.4399，把 `boundary_jerk` 从 71.8933 抬到 84.5051，即两者都按相近 factor
+变化）。区分这两种机制要靠 C3 的 per-offset profile；本轮未执行。
+
+### G. GT 自己的 1.1943 也不是插值造成的
+
+`GT fine (sealed) - GT raw30` 在 episode-paired 比较下为 **+0.0399 [-0.0268,
++0.1021]**。该 interval contains 0，因此 interpolation+FK path 没有 measurable raise
+GT 的 `jerk_ratio`。coarse↔raw index map（`coarse frame c <-> raw start + 3c`）在
+**370/370** 个 episode 上验证 exact。
+
+所以，GT 自己的 `1.1943` 不能归因于 interpolation；本轮不能用 interpolation 解释
+model boundary floor，也不能用 GT fine 的这条路径把该 floor 改写成 evaluator artifact。
+
+### H. 唯一找到的真实 evaluator artifact：被 clamp 的冻结帧
+
+`GroundTruthSource.episode_indices` 使用
+`raw = min(start + 42w + 3k, end - 1)`。当 source sequence 没有填满最后一个 window
+时，tail 会重复 final frame；repeated frame 的 jerk 恰好为 zero。
+
+- **331 / 370** 个 GT episode 至少带一个 repeated coarse frame；平均是 **5.89** 个
+  frozen frame（共 **86.9** 个 coarse frame）= 全部 GT coarse frame 的 **6.78%**，最大
+  **13** 个。
+- model cells 的 zero-motion coarse step 为 **zero**：三个 cell 的 mean `0.000`、
+  max `0`，全部为零；rollout 不论 source length 如何，每个 window 都生成 16 frame。
+
+排除所有 4-frame span touch frozen frame 的 stencil 后：
+
+| GT view | `jerk_ratio` as scored | frozen-excluded | paired delta | interior_jerk |
+|---|---:|---:|---:|---|
+| coarse | 1.2204 | **1.1324** [1.1018, 1.1639] | -0.0880 [-0.0989, -0.0772] | 9.9646 -> 10.7208 (x1.0759) |
+| raw30 | 1.1543 | **1.0716** [1.0117, 1.1347] | -0.0827 [-0.1010, -0.0670] | 61.0106 -> 65.5343 (x1.0741) |
+
+Boundary stencils lost to exclusion 的平均数是 0.11；34/370 episode 至少失去一个。
+所以 correction 几乎完全是 denominator 的 correction，而不是 boundary numerator 的
+correction。在 genuine continuous 30 Hz motion 上移除 clamped frame 后，ratio 是
+**1.0716**；seam indices 接近 neutral，正如 continuous motion 所应有。
+
+对 frozen-excluded GT coarse null `1.1324` 的 10 Hz excess 为：B unguided **+2.7695**，
+C unguided **+2.2469**，C guided v5 **+2.3897**。
+
+### I. 派生量（明确标注为派生）
+
+冻结帧 correction 将 GT 的 interior_jerk 提高 x1.0759（coarse）／x1.0741（raw30）。
+它不能直接应用到 GT 的 fine view，因为 fine view 是 sealed value，且其中没有保存
+frozen mask。下面把实测 +7.4% 做 **projection**：
+
+| cell | fine interior_jerk | / GT as sealed | / GT projected frozen-corrected |
+|---|---:|---:|---:|
+| B unguided | 63.956 | 0.9080 | 0.8454 |
+| C unguided | 63.088 | 0.8956 | 0.8339 |
+| C guided v5 | 68.834 | 0.9772 | 0.9099 |
+
+closure 中“unguided cells are smoother than GT in the interior（0.908x / 0.896x）”的
+reading 因此是 **understated**；真实 gap 按该 projection 会更大。该 row 是 projection，
+不是 measurement，不能把 projected frozen-corrected column 当作 GT fine 的实测值。
+
+### J. 判定
+
+C1 的 registered hypothesis——boundary floor 主要是 interpolation / evaluator artifact
+——**FALSIFIED**。去掉 interpolation 后，measured excess 不但没有消失，反而在每种
+definition 与两个 channel 中都增大；GT 自身 ratio elevation 也不是 interpolation
+造成的（+0.04，ns），而主要是 clamped-frame artifact（排除后 -0.083）。这个 artifact
+抬高 null，因此 model-vs-GT excess 是 understated 而非 overstated。剩下的是 real
+rollout-continuity residual，且在 10 Hz generation rate 大于 sealed metric 所报告的
+30 Hz rate。
+
+本轮明确没有做以下事项：
+
+- 未执行 C2–C5。
+- 未修复发现的两个 evaluator defect，只记录：`quaternion_slerp` 的 reversed LERP
+  weights 加 discontinuous branch，以及 GT arm 的 clamped frozen tail。
+- 未启动任何 sampling 或 training；未修改 model、guidance defaults、C 或 walk `h_min`
+  门槛。
+- 三个 guidance switches 仍默认关闭；continuous-w 继续暂缓。
+- 未使用上一轮样本做任何重新调参。
+- guidance-control 路线保持正式关闭。
+- C3 的 per-offset seam profile 是区分上述两种机制的检查，但本轮未执行。
+
+这两项 defect 的处理状态是 recorded, not fixed；本轮只完成首要自检门与 C1 归因，
+C2–C5 remain unexecuted。
+
+### K. 产物清单
+
+以下文件均位于 `.claude/scratch/c1_20260824/`，分别支撑本节各 block；scratch 目录
+被 git-ignored，因此本节本身必须携带这些数字：
+
+- B、C 的 numpy FK 与自检：`fk_numpy.py`、`check_fk.py`、`recon.py`、`run_c1.py`、
+  `run_c1.out`、`gate.json`、`per_episode.json`。
+- D 的 GT dtype、branch 与 LERP 修正探针：`gt_dtype.py`、`gt_branch.py`、
+  `gt_branch2.py`、`lerpfix.py`、`lerpfix.json`。
+- E、F、G 的聚合、raw30 与汇总：`raw30.py`、`raw30.json`、`aggregate.py`、
+  `aggregate.out`、`c1_summary.json`。
+- F2 的 paired rate-change 实测：`rate_delta.out`。
+- H 的冻结帧 census 与排除结果：`frozen.py`、`frozen.json`。
+- 本节所有 block 的唯一数字事实记录：`MEASURED_FACTS_C1.md`。
