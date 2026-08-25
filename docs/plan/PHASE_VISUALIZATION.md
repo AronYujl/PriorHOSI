@@ -285,7 +285,7 @@ Visual review of the six formal frames confirms full floor coverage, smooth
 silhouettes without the V2b.2 stair-step edges, non-flat material highlights,
 coherent human/object shadows, and no first/last-frame camera clipping.
 
-#### V2b.4 — Visualization-only ground correction (approved 2026-08-25)
+#### V2b.4 — Visualization-only ground correction (passed 2026-08-25)
 
 The V2b.3 floor exposes source-motion support inconsistencies: across the
 accepted 126-frame sequence the lowest human vertex remains 1.45--4.52 cm
@@ -311,6 +311,38 @@ new write-once 126-frame video and process figure are rendered. The corrected
 cache must leave no object penetration and keep human support within 5 mm of
 the floor without modifying source SMPL-X/object parameters or any V2b.3
 artifact.
+
+Implementation commit `b9a7e35` adds the contact-aware derived-cache mode,
+fail-closed validation against the accepted uncorrected cache, correction
+streams and audit statistics, CLI options, tests, and operating documentation.
+Visual comparison of frames `[0,63,100,125]` covered the worst initial object
+penetration, a lifted-object contact frame, simultaneous contact and floor
+conflict, and the final grounded pose before the formal render was started.
+
+The formal write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi/p12-armb/visualization-v2b4-grounded-blender-20260825/sub16_clothesstand_000`.
+Its manifests mark the output `visualization_only=true` and
+`evaluation_forbidden=true`, reference the untouched V2b.3 cache SHA256
+`f5b08a9a6bba1655afd29e1a72840dc46cd413687f23c8f198f1974d11493959`,
+and retain the canonical motion SHA256. Across 126 frames, human support is
+within -0.50--0.50 cm of the floor and object penetration is zero. The
+75-frame original-contact interval `[37,111]` changes nearest mesh distance by
+less than 0.000005 cm. Maximum rigid vertical correction is 5.20 cm and the
+maximum foot-to-upper-body correction differential is 7.04 cm.
+
+`ffprobe` verifies the H.264/yuv420p output as 126 frames, 1024x768, 30 FPS,
+and 4.2 seconds. The video SHA256 is
+`b69ada9a6f98ae5525e99bb663dc2d6b1c635f0ad9cf489ed3f1ee90a1ad6ef7`;
+the six-frame process-figure SHA256 is
+`e20226dd37365791fa2bbe75aa02951652639a38c7a822112489c36e8b73c542`;
+the derived mesh-cache SHA256 is
+`df66e1247934c30c16448f7f94b6da5db47c65f19c023e497e78de31f87254de`;
+the 126-frame PNG tree SHA256 is
+`e1fe6df1a4a127ecc3d274d7a818b9fca0dd1ec3fe10e69ca2acf5a7d5d92503`;
+and the render-manifest SHA256 is
+`d8ae2aa62a14d4c7119b62a00d42f775bd0b3a3c12cf0cecc5a0e12b2eb65dec`.
+The repository suite passes 92 tests and research-metadata validation passes
+28 registry records, one split, two evaluators, and one training protocol.
 
 ### V3 — Paper composition
 
