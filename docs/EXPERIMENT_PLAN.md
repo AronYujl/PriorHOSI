@@ -332,3 +332,15 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
 
 每个阶段只允许上文给出的诊断/fallback。新增方向必须先在此处追加日期、证据和原因，并在
 registry 登记，再实现代码。
+
+## 独立可视化 worktree（2026-08-25，设计阶段）
+
+可视化不属于 `phase/01b-hoi` 或 `phase/01c-hsi` 的训练迭代。它在独立的
+`visualization/renderer` worktree 中作为消费端维护：专家/未来 mixer 只负责在其
+匹配的推理代码中导出版本化 motion artifact，后续渲染、关键帧叠加和论文 montage
+均只读取该 artifact。不得修改两个专家分支或 `code/priors/core/` 来服务可视化。
+
+V0 只冻结边界和设计，不分配 run id、不加载 checkpoint、不启动 GPU。具体范围、
+门槛、schema 和无头渲染约束见 `docs/plan/PHASE_VISUALIZATION.md`、
+`docs/visualization/MOTION_EXPORT_SCHEMA.md` 与
+`docs/visualization/HEADLESS_RENDERING.md`。
