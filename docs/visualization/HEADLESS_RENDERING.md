@@ -104,6 +104,52 @@ or manifest paths are rejected. For P12, `mean` remains a static natural SMPL-X
 hand fallback because the checkpoint does not produce articulated finger
 motion; the manifest records this as `smplx_mean`.
 
+### OMOMO-style Blender quality tier
+
+`tools.visualization.blender` is the high-quality offline path. Inspection of
+the official local OMOMO repository showed that its released visualization
+uses Blender 3.2/Cycles, smooth mesh normals, Principled BSDF materials, the
+`floor_colorful_mat.blend` camera/light/world scene, Filmic color management,
+and per-frame image rendering before video encoding. Those are structural
+differences from the fast PyTorch3D preview.
+
+The Blender tier reconstructs an immutable mesh cache with the verified
+InfBaGel Python environment, rotates it from canonical y-up into Blender's
+right-handed z-up coordinates, then launches Blender headlessly. Blender reads
+only the cache. It reuses the OMOMO blue/purple materials and Sun/world setup,
+adds a recorded camera-side fill light and procedural staggered wood floor,
+uses Cycles denoising and smooth shading, and fits one orthographic camera to
+all 126 frames. It retains the per-frame PNGs, encodes a verified H.264 MP4,
+and makes a labelled 3x2 process figure from frames
+`[0,25,50,75,100,125]`.
+
+The locally verified portable binary is Blender 3.2.0 at
+`/data/yujinlun/tools/blender-3.2.0-linux-x64/blender`. It was downloaded from
+the official Blender release archive and verified against the official archive
+SHA256
+`07c9380518ee1ee1ee3d5353e47bf105569cb2860f8bf45a35743b4f8cd6b742`.
+It is a machine-local rendering dependency, not a repository file.
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.blender \
+  /absolute/path/to/motion.npz \
+  --manifest /absolute/path/to/motion.manifest.json \
+  --output-dir /new/write-once/artifact-directory \
+  --smpl-models /absolute/path/to/smpl_models \
+  --object-mesh /absolute/path/to/rest_object.ply \
+  --object-rest-frame z_up \
+  --blend-scene /data/yujinlun/omomo_release/manip/vis/floor_colorful_mat.blend \
+  --blender /data/yujinlun/tools/blender-3.2.0-linux-x64/blender \
+  --width 1024 --height 768 --samples 64 --fps 30 \
+  --hand-pose-fallback mean \
+  --renderer-commit "$(git rev-parse HEAD)"
+```
+
+The entire artifact directory is staged under a unique hidden sibling and
+promoted only after Blender completes, FFmpeg/ffprobe validate all 126 frames,
+and the process figure and provenance manifest are written. It never overwrites
+the faster V2b.2 output.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and

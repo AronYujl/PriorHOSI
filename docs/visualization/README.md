@@ -123,3 +123,9 @@ CPU/headless video module documented in `HEADLESS_RENDERING.md`. It renders one
 full SMPL-X/object mesh pair per source frame and encodes H.264 with FFmpeg; it
 does not rerun inference and does not require Blender. Use a fresh artifact
 directory for every render identity.
+
+For paper-facing material, floor, shadow, and anti-aliased quality, use the
+separate OMOMO-style Blender/Cycles tier in the same document. It consumes the
+same canonical NPZ through an immutable mesh cache and produces both a video
+and a six-frame 3x2 process figure. The PyTorch3D command remains the fast
+debug/preview path.

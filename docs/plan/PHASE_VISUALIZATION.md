@@ -228,6 +228,33 @@ source were visually checked at frames 0, 63, and 125. The MP4 SHA256 is
 its render-manifest SHA256 is
 `f8f4cd0fee052ec7ac71c9aa4605fe7f052161ff7f115f1bb3b2a1469b156666`.
 
+#### V2b.3 — OMOMO-quality Blender render (approved 2026-08-25)
+
+Add a high-quality Linux-headless tier after review found that the V2b.2
+PyTorch3D preview has flat plastic-like shading, no floor or cast shadows, and
+visible raster edges. Reproduce the relevant rendering ingredients from the
+local official OMOMO release without coupling rendering back into inference:
+Blender 3.2 headless rendering, smooth mesh normals, Principled BSDF materials,
+the hash-recorded OMOMO `floor_colorful_mat.blend` scene, its lighting and
+floor, shadows, color management, and supersampled/anti-aliased output.
+
+The canonical 126-frame NPZ remains the only motion input. A preparation step
+may reconstruct one immutable mesh cache outside Git; Blender must consume
+that cache without importing the training code or rerunning inference. Produce
+both a 30 FPS video and one fixed-camera six-keyframe process figure from the
+same cache, scene, material palette, camera policy, and renderer commit. Keep
+the V2b.2 PyTorch3D path as the fast preview backend rather than overwriting it.
+
+Gate: the new write-once artifact records hashes for the motion, source
+manifest, mesh cache, SMPL-X assets, object mesh, OMOMO blend scene, Blender
+binary/version, camera, lights/world/color management, Cycles/Eevee settings,
+materials, floor, selected figure frames, video probe, and every output. The
+video must contain 126 verified frames at 30 FPS; the process figure must show
+six recorded frames with a common camera and floor. Review must confirm smooth
+silhouettes, non-flat material response, a visible floor, and coherent cast or
+contact shadows before this gate passes. The remaining 437 sequences stay
+deferred.
+
 ### V3 — Paper composition
 
 Implement fixed-keyframe selection, alpha compositing, labels, and montage
