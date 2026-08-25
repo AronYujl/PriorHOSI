@@ -13,6 +13,7 @@ __pycache__/
 *.jpg
 results/
 checkpoint/
+/artifacts
 smpl_models/
 /smpl_models
 t2m_eval/

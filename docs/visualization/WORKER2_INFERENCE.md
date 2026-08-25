@@ -81,6 +81,8 @@ worker2 bulk data
 - Worker jobs: `artifacts/jobs/<run-id>`.
 - Authority results:
   `/data/yujinlun/InfBaGel-visualization-artifacts/worker2-inference/<expert>/<run-id>`.
+- For convenient access from the visualization worktree, the local ignored
+  link `artifacts` points to `../InfBaGel-visualization-artifacts`.
 
 Windows is a bootstrap client only.  Neither Windows nor its proxy participates
 in checkpoint, Git, data, or artifact transport.
