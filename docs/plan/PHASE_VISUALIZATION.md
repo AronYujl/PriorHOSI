@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: design-only, no model workload allocated  
+Status: V0 fixture-validator gate passed; no model workload allocated
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -60,11 +60,14 @@ tracked in Git.
 
 ## Planned subphases and gates
 
-### V0 — Contract and boundary
+### V0 — Contract and boundary (passed 2026-08-25)
 
 Deliver the schema document, artifact naming rules, coordinate-frame rules,
-and worktree boundary. Gate: a synthetic fixture can be validated without
-importing either expert package.
+and worktree boundary. The gate passed with ten tests covering valid HSI and
+HOI payloads, object-stream requirements, frame/rate consistency, finite
+values, schema rejection, and provenance hash mismatch. The validator imports
+only NumPy and the Python standard library; it does not import either expert
+package.
 
 ### V1 — Read-only adapters
 
@@ -115,7 +118,7 @@ single trajectory while retaining stage boundaries and seam locations.
 ## Entry and exit points
 
 Entry: this committed design on `visualization/renderer`.  
-Exit for V0: schema, headless-rendering, and isolation documents reviewed;
-expert branches remain byte-for-byte untouched; no run ID or GPU workload is
-created.
-
+Exit for V0: schema, headless-rendering, isolation documents, and the
+synthetic validator are committed; expert branches remain byte-for-byte
+untouched; no run ID or GPU workload is created. V1 remains pending until the
+HSI export is stable and a read-only HOI legacy adapter is approved.

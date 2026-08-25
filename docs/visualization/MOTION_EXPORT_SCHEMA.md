@@ -123,6 +123,19 @@ An adapter/reader must reject, before rendering:
 Validation is read-only. It must not “repair” a source export in place; repairs
 produce a new artifact with a new schema/adapter record.
 
+The V0 implementation is `tools.visualization.schema`. It can be run without
+Hydra, SMPL-X, CUDA, or either expert package:
+
+```bash
+INFBAGEL_PYTHON=/data/yujinlun/anaconda3/envs/infbagel/bin/python
+"$INFBAGEL_PYTHON" -m tools.visualization.schema \\
+  path/to/motion.npz --manifest path/to/manifest.json
+```
+
+The validator returns a compact JSON summary on success and exits non-zero on
+an invalid export. The synthetic tests cover the V0 gate; real HOI/HSI adapter
+tests belong to V1 and must use copied/read-only artifacts.
+
 ## Legacy compatibility
 
 The current HOI `motion_params/*.pkl` contains the core human and object
@@ -131,4 +144,3 @@ record the legacy source path/hash, and preserve the original sequence name.
 The planned HSI export is expected to use the same SMPL-X parameter family.
 PriorHOSI may add stage/routing metadata later without changing the core human
 or object fields.
-
