@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: HOI V1 adapter and headless CPU smoke passed; HSI/mixer work remains pending
+Status: HOI V1 adapter and headless CPU smoke passed; worker2 export workflow in progress; HSI/mixer work remains pending
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -86,6 +86,40 @@ Add an adapter for the eventual HSI export into the common schema. The adapter
 may normalize a legacy file, but must never overwrite the source. Gate:
 round-trip validation preserves frame counts, pose arrays, and provenance once
 the HSI exporter is stable.
+
+### V1c — Worker2 checkpoint-to-artifact workflow (approved 2026-08-25)
+
+Provide one authority-side entry point whose only required scientific input is
+an absolute checkpoint path.  The tool must inspect trusted checkpoint
+metadata, select a version-controlled inference profile, and fail closed when
+no profile matches.  A profile pins the inference source commit separately
+from the checkpoint's training commit, because the P12 checkpoint records
+training commit `25931627a7a5668598e3120f57762546306c13a7` while its validated
+post-repair inference path is commit
+`8742d1a3b88800161324a8e45c597ffafdcbb607`.
+
+The authority controls worker2 only through the loopback reverse endpoint
+`127.0.0.1:22216`.  Checkpoint/Git inputs and returned artifacts remain
+worker2-initiated over direct campus routing to `10.184.17.253`, with
+`ssh -F /dev/null`; Windows and its proxy are not data-plane participants.
+Worker2 state lives under `/data2/yujinlun/infbagel-inference`, and each pinned
+inference commit gets an immutable detached checkout rather than changing an
+expert worktree.
+
+Gate:
+
+1. `start CHECKPOINT` derives the checkpoint hash, compatible profile, source
+   commit, run id, worker paths, exact Hydra overrides, and return destination;
+2. preflight verifies the clean pinned checkout, checkpoint hash, assets, idle
+   selected GPU, and a fully resolved config before starting inference;
+3. inference runs in a worker-owned persistent systemd unit and automatically
+   creates per-file motion hashes and pushes raw motion, evaluation records,
+   logs, and provenance into a non-overwriting authority staging directory;
+4. a successful return atomically promotes staging to the final artifact root,
+   while a failed/interrupted run remains inspectable and is never reused;
+5. dry-run/unit tests prove command construction, profile matching, shell
+   quoting, transfer direction, non-overwrite behavior, and expert-worktree
+   isolation without SSH, checkpoint transfer, or GPU execution.
 
 ### V2a — Headless HOI mesh smoke (passed 2026-08-25)
 

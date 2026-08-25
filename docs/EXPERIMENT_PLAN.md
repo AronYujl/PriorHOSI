@@ -4,6 +4,11 @@
 创建：2026-07-11（Asia/Shanghai）<br>
 主投：CVPR 2027；若未录用，再改进后投 ICCV 2027，不并行投稿同一工作。
 
+> Visualization/inference operations are isolated on
+> `visualization/renderer`.  The 2026-08-25 worker2 checkpoint-to-artifact
+> workflow is specified in `docs/plan/PHASE_VISUALIZATION.md` V1c and does not
+> edit or communicate results into either expert branch.
+
 ## 1. 主张、边界与接口
 
 InfBaGel 的 synthesized-OMOMO scene 由真实 motion 反推，训练条件分布与真实场景下
