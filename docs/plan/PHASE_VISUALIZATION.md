@@ -350,7 +350,7 @@ Implement fixed-keyframe selection, alpha compositing, labels, and montage
 layout. Gate: the same input artifact and render config reproduce the same
 figure hash; method comparison uses the same keyframes and camera.
 
-#### V3a — OMOMO Figure 6-style multi-pose scene (approved 2026-08-25)
+#### V3a — OMOMO Figure 6-style multi-pose scene (passed 2026-08-25)
 
 Replace the diagnostic 3x2 grid as the primary paper still with one wide
 Blender image that instantiates several selected human/object mesh pairs in a
@@ -368,6 +368,33 @@ hashes, renderer commit, image dimensions, and output hash in a write-once
 manifest. First render a five-keyframe grounded P12 prototype; reduce to four
 or adjust the fixed indices only if visual review finds occlusion that obscures
 the action. Keep the V2b.4 video and diagnostic grid unchanged.
+
+Implementation commit `3c83142` adds the cache-only paper-figure orchestrator,
+the shared-scene mode in the Blender consumer, fail-closed dual-manifest and
+scene-hash validation, tests, and documentation. The five-frame prototype
+`[0,31,63,94,125]` was rejected because the middle poses obscured each other.
+The reviewed four-frame selection `[0,42,83,125]` clearly preserves approach,
+interaction, transport, and final states without changing their world-space
+positions. A separate animation-mode Blender smoke confirms that the existing
+video path remains functional.
+
+The formal write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi/p12-armb/visualization-v3a-multipose-20260825/sub16_clothesstand_000`.
+It is a 1600x800 RGB PNG rendered with Cycles at 64 samples. All four opaque
+human/object pairs share one complete-cache-fitted orthographic camera, wood
+floor, OMOMO material palette, lights, shadows, and source world frame. The
+image SHA256 is
+`2df5844d6231f35b9a11d2d7d5611ad9c6a319572d258a80fb1b41ae846ed8ed`;
+the figure-manifest SHA256 is
+`9b0a4d60243df226b9ca46a0b4bacb36d5b28bbe022119e248aae049eeaef963`;
+and the scene-report SHA256 is
+`a301316a2f62de33204869d5f6cbefe770de1a7fa9e637471a23bb5e47612b6b`.
+The figure manifest binds the V2b.4 mesh-cache SHA256
+`df66e1247934c30c16448f7f94b6da5db47c65f19c023e497e78de31f87254de`
+and source render-manifest SHA256
+`d8ae2aa62a14d4c7119b62a00d42f775bd0b3a3c12cf0cecc5a0e12b2eb65dec`,
+and marks the output visualization-only and evaluation-forbidden. The complete
+repository suite passes 101 tests and research-metadata validation.
 
 ### V4 — Mixer/long-horizon extension
 
