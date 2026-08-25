@@ -117,3 +117,9 @@ claimed as predicted hand motion. A future export may provide paired
 
 The generated checkpoints, motion files, meshes, images, and videos remain
 outside Git under a run-specific artifact directory.
+
+To render a synchronized fixed-camera MP4 from the same canonical NPZ, use the
+CPU/headless video module documented in `HEADLESS_RENDERING.md`. It renders one
+full SMPL-X/object mesh pair per source frame and encodes H.264 with FFmpeg; it
+does not rerun inference and does not require Blender. Use a fresh artifact
+directory for every render identity.

@@ -77,6 +77,33 @@ For videos, render one pose per frame instead of compositing all keyframes.
 The same export and camera manifest must be retained so a video frame and a
 trajectory figure can be traced to the same sequence.
 
+The implemented video entry point is `tools.visualization.video`. It uses
+PyTorch3D's CPU rasterizer and streams raw RGB frames directly to system
+FFmpeg/libx264, so it needs neither Blender, EGL, an X display, nor a temporary
+PNG sequence. The camera is fitted once against every human and object vertex
+in the complete motion, then held fixed. The default H.264 output is 640x480,
+30 FPS, CRF 18, and `yuv420p` for broad Windows/browser compatibility.
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.video \
+  /absolute/path/to/motion.npz \
+  --manifest /absolute/path/to/motion.manifest.json \
+  --output /new/write-once/path/motion.mp4 \
+  --render-manifest /new/write-once/path/motion.video.render.json \
+  --smpl-models /absolute/path/to/smpl_models \
+  --object-mesh /absolute/path/to/rest_object.ply \
+  --object-rest-frame z_up --object-geometry full \
+  --fps 30 --width 640 --height 480 \
+  --hand-pose-fallback mean \
+  --renderer-commit "$(git rev-parse HEAD)"
+```
+
+The renderer verifies the encoded dimensions, FPS, and frame count with
+`ffprobe` before atomically promoting the MP4 and its manifest. Existing output
+or manifest paths are rejected. For P12, `mean` remains a static natural SMPL-X
+hand fallback because the checkpoint does not produce articulated finger
+motion; the manifest records this as `smplx_mean`.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and

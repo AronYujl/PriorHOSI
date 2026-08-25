@@ -197,6 +197,25 @@ The earlier `visualization-v2b1-20260825` directory is retained but superseded:
 its PNG is identical, while its render manifest predates the explicit source
 window fields. No Blender installation was required.
 
+#### V2b.2 — P12 fixed-camera video (approved 2026-08-25)
+
+Add one Linux-headless MP4 for the accepted 126-frame
+`sub16_clothesstand_000` export before considering batch rendering. The video
+must reuse the canonical NPZ and its complete SMPL-X/clothesstand meshes,
+render exactly one synchronized human/object pose per source frame at 30 FPS,
+use a fixed orthographic camera derived from the whole sequence, and retain the
+V2b.1 natural mean-hand fallback. It must not rerun inference or interpolate
+the three autoregressive windows.
+
+Gate: a CPU PyTorch3D renderer streams RGB frames to the system FFmpeg
+`libx264` encoder without Blender, EGL, or a display server; the write-once MP4
+has 126 frames and a 30 FPS time base; and its render manifest records source,
+assets, source-window semantics, camera bounds, encoder settings, dimensions,
+frame count, duration, hand-pose source, renderer commit, and output SHA256.
+Unit tests cover fail-closed settings, camera framing, FFmpeg command
+construction, and overwrite refusal. Batch rendering of the remaining 437
+sequences remains deferred.
+
 ### V3 — Paper composition
 
 Implement fixed-keyframe selection, alpha compositing, labels, and montage
