@@ -6547,3 +6547,98 @@ Stage 1 无论 PASS 或 FAIL 都**不得**自动进入 Stage 2，须用户明示
 不修改 C、evaluator、walk 门槛、continuous-w、`code/priors/core/`。不运行其他实验。
 evaluator 的 clamp 与 slerp 缺陷继续只登记不修。除 `.claude/scratch/` 与 run 目录外不产生
 未跟踪文件。
+
+## 2026-08-25（第四次：B-match 实现落地与两处被迫更正 —— 仍在任何 GPU 结果之前）
+
+### A. 本节地位
+
+`519caba` 冻结了预注册，`4bb972e` 提交了 default-off 开关与惰性证明。本节记录**实现阶段
+被迫做出的两处更正**，两处都不是自由裁量，都是因为按指示"先做完再启动"而被发现的，
+且都发生在**任何 GPU 结果产生之前**。唯一出处：
+`.claude/scratch/bmatch_20260825/FROZEN_PILOT_SPEC.md` §10 修订 2。
+
+### B. 更正 2a：起点是"仅权重续训"，不是 `resume_from`
+
+由 AGENTS.md 要求的实数据功能 smoke 发现——这正是 smoke 要跑在正式臂之前的理由。原始
+run 的滚动 `_resume.pth` 被拒绝：
+
+    resume state was written after epoch 222 stopped mid-epoch at the optimizer-update
+    budget; the run is finished and there is nothing to resume
+
+（`train_infbagel.py:282`）。**该守卫是对的，且未被削弱**：原始 run 是因为达到自己预注册的
+`max_optimizer_updates` 而结束的，继续它等于悄悄超出那个 schedule。`test_seam_loss.py`
+现在断言该守卫仍在原处，因为"把守卫改掉"是显然的错误修法。本 pilot 是另行预注册的预算，
+守卫无法知道这一点。
+
+于是两臂改为从 `epoch222.pth` 的**权重**起步：`start_epoch: 223`、`load_state_dict: true`、
+`resume_from: ""`。因 `utils.init_model` 用 `strict=False` 加载（会静默接受部分加载），
+先在 CPU 上验证：**218/218 张量，0 missing，0 unexpected，加载后逐位相等**。
+
+| §E 原先写的 | 现在为真的 |
+|---|---|
+| 从同一文件恢复 Adam 状态 | **全新 Adam 矩**，两臂相同 |
+| 从同一文件恢复逐 rank RNG | **全新 RNG**，`seed + rank`，两臂相同 |
+| 两臂配对 | **仍然配对**，由构造而非由恢复保证 |
+
+配对——T1 减 T0 真正需要的性质——得以保留：`train_ddp` 在 `seed + rank` 上给
+random/numpy/torch/cuda 播种（`:374-377`），数据顺序是
+`DistributedSampler(seed=42).set_epoch(epoch)`，故两臂从相同的全新 Adam 状态出发，看到
+**逐位相同的 batch 与 timestep**。`1/(1−β₂) ≈ 1000` update 的 Adam 瞬态因此**同时存在于
+两臂**，在配对对比中抵消。
+
+**必须直说的后果：T0 现在是 T1 的唯一合法基线。** 两臂都不是原始轨迹的纯粹延续，故封存的
+epoch222 cell 对任何一臂都不是合法比较对象。门槛结构本来就以 T0 为对照，故门槛不变——但
+下面那行 frozen-59 的 epoch222 数值只是**健全性参考**，不是基线。
+
+`start_epoch: 223` 同时修好了 schedule：`optimizer_updates` 初始化为 223×656 = **146,288**，
+已过 2000 update 的 warmup，故 lr 全程平在 2e-4；146,288 + 13,120 = **159,408** 使 epoch
+界与 update 界继续同时到达。`ckpt_interval` 由 20 降为 **5**，使基础设施重启最多损失
+约 0.47 h 而非约 1.8 h；保存块位于 epoch 之间，不消耗 RNG、不触碰 optimizer 状态，
+故该节奏对轨迹中立，且两臂相同。
+
+### C. 更正 2b：分析集是 59，不是 60
+
+`010:000433` 的 canonical ordinal 是 **2**，而 `timing_warmup_sequences` 是 **5**，故
+evaluator 将其标记 `excluded_as_warmup`。该规则是**canonical** 的（`ordinal < 5`）而非
+"最先执行的几个"，所以它在封存的 8-shard run、在 375-shard run、在两臂中都被同样标记。
+被标记的 episode 仍会写出 motion NPZ，但**不产生 metrics 记录**——若保留它，主统计量会算在
+60 个 episode 上而护栏算在 59 个上。审计的匹配集是 375 − 5 = 370，正是同一个原因。
+
+**冻结：唯一分析集，即 evaluator 自己的那个 —— 59 个 episode、359 个计分窗口。**
+总体权重不变（它们是总体量而非样本量）；只有 S4_pene_tight 少一个成员，10 → 9。
+逐层 n：16 / 10 / 16 / 9 / 8。评估仍然**运行**全部 60 个 episode，故每臂 6.71 GPU-h 不变。
+
+重述预注册基线，frozen 59，加权：
+
+| cell | A（加权） | 95% CI | A（未加权） | a_first | a_interior |
+|---|---:|---|---:|---:|---:|
+| B unguided epoch222（健全性参考） | **3.1042** | [2.8169, 3.4035] | 3.2207 | 0.028380 | 0.009923 |
+| C unguided | 2.9814 | [2.7354, 3.2300] | 3.0988 | 0.027343 | 0.009492 |
+| GT v3 | 1.3218 | [1.2119, 1.4394] | 1.2691 | 0.013532 | 0.010421 |
+| **GT v3 排除 clamp** | **1.2362** | [1.1359, 1.3362] | 1.1850 | 0.013532 | 0.011007 |
+
+**冻结参考常量 `A_GT`：1.2368 → 1.2362**（移动 0.05%）。§H 其余门槛全部不变。仅供定位
+（A_T0 尚不存在）：若 T0 落在 epoch222 的数值上，40% 闭合线会在 A ≤ 2.3570、70% 在
+A ≤ 1.7966。门槛按实测的 A_T0 计算，绝不按这两个数。
+
+### D. 归约器与其自检
+
+`reduce_stage1.py` 计分 G-D、G-A、G-C 与探索性护栏，**在两臂存在之前**已冻结并自检：
+把封存导出同时喂给两臂，它在全部 11 个护栏与两个主统计量上返回**恰好 0.0** 的配对差、
+闭合率 0.0000、G-A FAIL、G-C PASS、G-D PASS。空对照必须过不了 G-A，它确实过不了。
+
+### E. 硬件与监控现状
+
+监控器 `results/bmatch_stage1_20260825/monitor.sh` 已按修订 1 启动（HEAD `4bb972e`，
+worktree 干净），双队列 T0→GPU 0–3、T1→GPU 4–7，只读 `nvidia-smi` 判定空闲
+（`memory.used ≤ 1024 MiB` 且 compute process 为 0，连续 3 次轮询间隔 20 s）。
+启动时全 8 卡被他人两个作业占用（每卡约 12.6 GiB），其中 GPU 4–7 **利用率为 0% 但有常驻
+进程**——正是规则要求判为"非空闲"的情形，两组均正确等待。锁为原子 `mkdir` + PID，
+另有第二层保护：即便陈旧锁被误回收，真在跑的 trainer 占着那四张卡，`gpufree.py` 会报 BUSY，
+watcher 也无法启动。
+
+### F. 现行禁令（不变）
+
+Stage 1 无论 PASS 或 FAIL 都不得自动进入 Stage 2。guidance 保持关闭。不修改 C、evaluator、
+walk 门槛、continuous-w、`code/priors/core/`。不干扰他人 GPU 进程。首个 GPU 进程启动后不再
+允许任何修订。
