@@ -350,6 +350,25 @@ Implement fixed-keyframe selection, alpha compositing, labels, and montage
 layout. Gate: the same input artifact and render config reproduce the same
 figure hash; method comparison uses the same keyframes and camera.
 
+#### V3a — OMOMO Figure 6-style multi-pose scene (approved 2026-08-25)
+
+Replace the diagnostic 3x2 grid as the primary paper still with one wide
+Blender image that instantiates several selected human/object mesh pairs in a
+shared scene. Match the structural composition of OMOMO Figure 6: opaque
+smooth-shaded meshes, one camera, one floor and lighting setup, coherent
+shadows, and the original world-space displacement between poses. Do not fake
+motion by translating poses for layout and do not merge this presentation
+artifact back into the canonical motion or evaluation path.
+
+Implement the composition as a consumer of an accepted immutable Blender mesh
+cache. It must fail closed unless the cache hash matches both its cache
+manifest and source render manifest. Record the exact ordered keyframes,
+selection rule, shared camera, scene/material/light configuration, source
+hashes, renderer commit, image dimensions, and output hash in a write-once
+manifest. First render a five-keyframe grounded P12 prototype; reduce to four
+or adjust the fixed indices only if visual review finds occlusion that obscures
+the action. Keep the V2b.4 video and diagnostic grid unchanged.
+
 ### V4 — Mixer/long-horizon extension
 
 Add optional `stage_id`, `state`, `window_id`, and guard-event metadata once

@@ -1,8 +1,8 @@
 """Blender-bundled entry point for the OMOMO-style render.
 
 This file intentionally depends only on Blender's bundled ``bpy``, ``numpy``
-and the Python standard library.  It is launched by
-``tools.visualization.blender`` and must not import InfBaGel training code.
+and the Python standard library.  It is launched by the host-side Blender
+orchestrators and must not import InfBaGel training code.
 """
 
 import argparse
@@ -270,6 +270,9 @@ def _scene_report(scene, camera_report, config, floor):
             "material": floor.active_material.name,
         },
         "materials": config["materials"],
+        "composition": config.get(
+            "composition", {"mode": "animation", "selection_rule": "all_frames"}
+        ),
     }
 
 
@@ -279,9 +282,14 @@ def main():
     base = config_path.parent
     config = json.loads(config_path.read_text(encoding="utf-8"))
     cache_path = _resolve(base, config["cache"])
-    frames_dir = _resolve(base, config["frames_dir"])
     report_path = _resolve(base, config["scene_report"])
-    frames_dir.mkdir(parents=True, exist_ok=True)
+    render_mode = config.get("render_mode", "animation")
+    if render_mode not in ("animation", "multi_pose"):
+        raise RuntimeError("unsupported render_mode: %s" % render_mode)
+    frames_dir = None
+    if render_mode == "animation":
+        frames_dir = _resolve(base, config["frames_dir"])
+        frames_dir.mkdir(parents=True, exist_ok=True)
     with np.load(cache_path, allow_pickle=False) as cache:
         human_vertices = np.asarray(cache["human_vertices"], dtype=np.float32)
         human_faces = np.asarray(cache["human_faces"], dtype=np.int32)
@@ -290,11 +298,27 @@ def main():
     frame_count = int(config["frame_count"])
     if human_vertices.shape[0] != frame_count or object_vertices.shape[0] != frame_count:
         raise RuntimeError("mesh cache frame count does not match Blender config")
-    render_frames = [
-        int(frame) for frame in config.get("render_frame_indices", range(frame_count))
-    ]
-    if not render_frames or any(frame < 0 or frame >= frame_count for frame in render_frames):
-        raise RuntimeError("render_frame_indices contains an invalid source frame")
+    if render_mode == "animation":
+        render_frames = [
+            int(frame)
+            for frame in config.get("render_frame_indices", range(frame_count))
+        ]
+        if not render_frames or any(
+            frame < 0 or frame >= frame_count for frame in render_frames
+        ):
+            raise RuntimeError("render_frame_indices contains an invalid source frame")
+        selected_frames = []
+    else:
+        selected_frames = [
+            int(frame) for frame in config.get("selected_frame_indices", [])
+        ]
+        if (
+            not selected_frames
+            or len(set(selected_frames)) != len(selected_frames)
+            or any(frame < 0 or frame >= frame_count for frame in selected_frames)
+        ):
+            raise RuntimeError("selected_frame_indices contains an invalid source frame")
+        render_frames = []
 
     scene = bpy.context.scene
     for obj in list(scene.objects):
@@ -306,12 +330,27 @@ def main():
     object_material = _copy_omomo_material(
         config["materials"]["object_source"], "PriorHOSI.Object.OMOMOPurple"
     )
-    human = _mesh_object(
-        "PriorHOSI.Human", human_vertices[0], human_faces, human_material
-    )
-    manipulated_object = _mesh_object(
-        "PriorHOSI.Object", object_vertices[0], object_faces, object_material
-    )
+    if render_mode == "animation":
+        human = _mesh_object(
+            "PriorHOSI.Human", human_vertices[0], human_faces, human_material
+        )
+        manipulated_object = _mesh_object(
+            "PriorHOSI.Object", object_vertices[0], object_faces, object_material
+        )
+    else:
+        for order, frame in enumerate(selected_frames):
+            _mesh_object(
+                "PriorHOSI.Human.%02d.Frame%05d" % (order, frame),
+                human_vertices[frame],
+                human_faces,
+                human_material,
+            )
+            _mesh_object(
+                "PriorHOSI.Object.%02d.Frame%05d" % (order, frame),
+                object_vertices[frame],
+                object_faces,
+                object_material,
+            )
     floor = _create_floor([human_vertices, object_vertices], config["floor"])
 
     camera = scene.camera
@@ -344,27 +383,41 @@ def main():
     scene.view_settings.view_transform = config["color_management"]["view_transform"]
     scene.view_settings.look = config["color_management"]["look"]
     scene.frame_start = 0
-    scene.frame_end = frame_count - 1
+    scene.frame_end = frame_count - 1 if render_mode == "animation" else 0
 
     report = _scene_report(scene, camera_report, config, floor)
     report_path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    for progress, frame in enumerate(render_frames):
-        scene.frame_set(frame)
-        human.data.vertices.foreach_set("co", human_vertices[frame].reshape(-1))
-        manipulated_object.data.vertices.foreach_set(
-            "co", object_vertices[frame].reshape(-1)
-        )
-        human.data.update()
-        manipulated_object.data.update()
-        scene.render.filepath = str(frames_dir / ("%05d.png" % frame))
+    if render_mode == "multi_pose":
+        output_image = _resolve(base, config["output_image"])
+        output_image.parent.mkdir(parents=True, exist_ok=True)
+        scene.frame_set(0)
+        scene.render.filepath = str(output_image)
         bpy.ops.render.render(write_still=True)
         print(
-            "V2B3_RENDER %d/%d source=%d"
-            % (progress + 1, len(render_frames), frame),
+            "V3A_RENDER poses=%d frames=%s"
+            % (len(selected_frames), ",".join(str(frame) for frame in selected_frames)),
             flush=True,
         )
+    else:
+        if frames_dir is None:
+            raise RuntimeError("animation frames directory is unavailable")
+        for progress, frame in enumerate(render_frames):
+            scene.frame_set(frame)
+            human.data.vertices.foreach_set("co", human_vertices[frame].reshape(-1))
+            manipulated_object.data.vertices.foreach_set(
+                "co", object_vertices[frame].reshape(-1)
+            )
+            human.data.update()
+            manipulated_object.data.update()
+            scene.render.filepath = str(frames_dir / ("%05d.png" % frame))
+            bpy.ops.render.render(write_still=True)
+            print(
+                "V2B3_RENDER %d/%d source=%d"
+                % (progress + 1, len(render_frames), frame),
+                flush=True,
+            )
 
 
 if __name__ == "__main__":

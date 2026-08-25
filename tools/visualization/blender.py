@@ -528,7 +528,7 @@ def _run_blender(command: Sequence[str], log_path: Path) -> None:
         for line in process.stdout:
             log.write(line)
             log.flush()
-            if line.startswith("V2B3_RENDER"):
+            if line.startswith(("V2B3_RENDER", "V3A_RENDER")):
                 print(line.rstrip(), flush=True)
         returncode = process.wait()
     if returncode != 0:

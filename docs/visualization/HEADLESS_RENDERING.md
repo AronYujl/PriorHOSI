@@ -194,6 +194,38 @@ Ground-corrected outputs are presentation aids only. They must never be used
 for metrics, qualitative claims about physical plausibility, or comparisons
 against uncorrected methods without applying and disclosing the same policy.
 
+### OMOMO Figure 6-style multi-pose still
+
+`tools.visualization.blender_trajectory` places several complete human/object
+mesh pairs from one accepted cache into a single Blender scene. Unlike the
+diagnostic 3x2 process grid, the result has one floor, one lighting setup, one
+camera, and coherent depth occlusion and shadows across all selected poses.
+The poses are opaque and retain their source world coordinates; the renderer
+does not move them apart for layout or use transparency to fake a trajectory.
+
+This paper-composition step consumes the existing mesh cache and performs no
+SMPL-X reconstruction or inference. It checks that the cache SHA256 matches
+both its own manifest and the source Blender render manifest, and checks that
+the blend scene and ground-correction records agree before rendering.
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.blender_trajectory \
+  /absolute/path/to/accepted/mesh-cache.npz \
+  --cache-manifest /absolute/path/to/mesh-cache.manifest.json \
+  --source-render-manifest /absolute/path/to/render.manifest.json \
+  --output-dir /new/write-once/multi-pose-figure-directory \
+  --blend-scene /data/yujinlun/omomo_release/manip/vis/floor_colorful_mat.blend \
+  --blender /data/yujinlun/tools/blender-3.2.0-linux-x64/blender \
+  --frames 0 42 83 125 \
+  --width 1600 --height 800 --samples 64 \
+  --renderer-commit "$(git rev-parse HEAD)"
+```
+
+The output manifest records the ordered source frames, explicit selection
+rule, unaltered-world-layout policy, complete-cache camera fitting, source
+hashes, render settings, scene report, and image hash. It always marks the
+figure `visualization_only=true` and `evaluation_forbidden=true`.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and
