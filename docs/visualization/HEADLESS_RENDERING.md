@@ -150,6 +150,50 @@ promoted only after Blender completes, FFmpeg/ffprobe validate all 126 frames,
 and the process figure and provenance manifest are written. It never overwrites
 the faster V2b.2 output.
 
+### Visualization-only ground correction
+
+The optional `visual_contact_aware_v1` mode addresses floor inconsistencies
+that become visible only after adding a physical-looking floor. It does not
+rewrite SMPL-X parameters, object transforms, the canonical motion NPZ, or any
+evaluation artifact. Instead, it derives a separate Blender mesh cache and
+marks both its cache and render manifests with `visualization_only=true` and
+`evaluation_forbidden=true`.
+
+The correction grounds the lowest human support vertices, raises an object
+only when its mesh penetrates the floor, and detects human-object contact from
+the original meshes. During contact, a recorded height-based smoothstep blend
+lets the human upper body follow the object's vertical correction while the
+feet retain their support correction. This avoids destroying a visible grasp
+by independently translating the complete human and object meshes. The cache
+records all correction streams, thresholds, pre/post floor statistics, contact
+ranges, maximum correction, within-body vertical differential, and contact
+distance change.
+
+This mode deliberately requires the accepted uncorrected cache as immutable
+provenance. The renderer reconstructs the meshes again and refuses to proceed
+unless their arrays and topology exactly match that cache.
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.blender \
+  /absolute/path/to/motion.npz \
+  --manifest /absolute/path/to/motion.manifest.json \
+  --output-dir /new/write-once/grounded-artifact-directory \
+  --smpl-models /absolute/path/to/smpl_models \
+  --object-mesh /absolute/path/to/rest_object.ply \
+  --object-rest-frame z_up \
+  --blend-scene /data/yujinlun/omomo_release/manip/vis/floor_colorful_mat.blend \
+  --blender /data/yujinlun/tools/blender-3.2.0-linux-x64/blender \
+  --width 1024 --height 768 --samples 64 --fps 30 \
+  --hand-pose-fallback mean \
+  --ground-correction visual_contact_aware_v1 \
+  --uncorrected-cache /absolute/path/to/accepted/mesh-cache.npz \
+  --renderer-commit "$(git rev-parse HEAD)"
+```
+
+Ground-corrected outputs are presentation aids only. They must never be used
+for metrics, qualitative claims about physical plausibility, or comparisons
+against uncorrected methods without applying and disclosing the same policy.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and

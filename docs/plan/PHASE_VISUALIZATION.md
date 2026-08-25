@@ -285,6 +285,33 @@ Visual review of the six formal frames confirms full floor coverage, smooth
 silhouettes without the V2b.2 stair-step edges, non-flat material highlights,
 coherent human/object shadows, and no first/last-frame camera clipping.
 
+#### V2b.4 — Visualization-only ground correction (approved 2026-08-25)
+
+The V2b.3 floor exposes source-motion support inconsistencies: across the
+accepted 126-frame sequence the lowest human vertex remains 1.45--4.52 cm
+above the 1.5 cm render floor, while the clothesstand penetrates it by more
+than 1 cm in 60 frames and by up to 5.20 cm. A single shared rigid vertical
+offset cannot satisfy both constraints; after enforcing object non-penetration
+it would leave more than 2 cm of human float in 65 frames.
+
+Add an explicitly visualization-only derived mesh-cache mode without changing
+or overwriting the canonical motion NPZ. Smoothly ground the lowest human
+support vertices, raise the object only when its mesh would penetrate the
+floor, and preserve human/object proximity during detected interaction by
+blending the object correction into the upper body while retaining the foot
+correction at the floor. Store the per-frame foot, upper-body, object, and
+contact-strength corrections plus the vertical weighting formula in the cache.
+
+Gate: the derived cache and render manifest state `visualization_only` and
+`evaluation_forbidden`, retain hashes of the untouched canonical motion and
+uncorrected cache, and report pre/post floor gaps, penetration, contact ranges,
+maximum rigid correction, maximum within-body vertical differential, and
+contact-distance change. A three-frame comparison must be reviewed before a
+new write-once 126-frame video and process figure are rendered. The corrected
+cache must leave no object penetration and keep human support within 5 mm of
+the floor without modifying source SMPL-X/object parameters or any V2b.3
+artifact.
+
 ### V3 — Paper composition
 
 Implement fixed-keyframe selection, alpha compositing, labels, and montage
