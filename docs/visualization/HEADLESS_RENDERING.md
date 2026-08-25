@@ -29,6 +29,14 @@ Linux backend (`pyrender` with EGL/OSMesa, or a controlled software path) or a
 Windows Blender consumer. It requires scene mesh assets to reproduce the
 furnished rooms in the InfBaGel figures.
 
+The current CPU smoke implementation is
+`tools.visualization.headless`. It uses Matplotlib's Agg backend and SMPL-X
+forward kinematics, so it does not require Blender, EGL, or a display server.
+It overlays fixed keyframes from one export and records the camera, frame
+indices, asset hashes, and output hash in a render manifest. The default HOI
+smoke uses a convex-hull proxy for the object; pass `--object-geometry full`
+with an appropriate face budget when the full rest mesh is needed.
+
 `data/hosi_test/Scene_sdf` and occupancy are evaluation geometry. They are not
 automatically equivalent to the room/furniture meshes used in a paper render.
 If no scene mesh is available, the output must say so rather than presenting an
@@ -95,4 +103,3 @@ Missing scene meshes, missing SMPL-X assets, unsupported coordinate frames, and
 bad frame/rate relationships are explicit render failures. They must not be
 silently replaced with a different scene, a different body model, or an
 unrecorded coordinate conversion.
-

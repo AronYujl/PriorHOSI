@@ -140,7 +140,18 @@ tests belong to V1 and must use copied/read-only artifacts.
 
 The current HOI `motion_params/*.pkl` contains the core human and object
 arrays needed for conversion. The adapter should map its keys into this schema,
-record the legacy source path/hash, and preserve the original sequence name.
+record the legacy source path/hash, select one candidate when `S>1`, and
+preserve the original sequence name. The repository implementation is
+`tools.visualization.hoi_legacy`; it accepts the observed flattened human
+layout `[S*F,22,3]` as well as explicit `[S,F,22,3]`, and normalizes the
+object rotation layout `[S,F,9]` to `[F,3,3]` for the selected sample. It
+refuses to overwrite either the NPZ or its manifest.
+
+Old pickles do not contain the reportable run provenance required by a new
+experiment. The adapter therefore labels missing commit/checkpoint/config/data
+hashes `legacy-unrecorded`; those artifacts are suitable for visualization
+smoke tests only and must not be used as scientific result evidence.
+
 The planned HSI export is expected to use the same SMPL-X parameter family.
 PriorHOSI may add stage/routing metadata later without changing the core human
 or object fields.

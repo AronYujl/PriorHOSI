@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: V0 fixture-validator gate passed; no model workload allocated
+Status: HOI V1 adapter and headless CPU smoke passed; HSI/mixer work remains pending
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -69,14 +69,36 @@ values, schema rejection, and provenance hash mismatch. The validator imports
 only NumPy and the Python standard library; it does not import either expert
 package.
 
-### V1 — Read-only adapters
+### V1a — HOI read-only adapter (passed 2026-08-25)
 
-Add adapters that read existing HOI motion parameters and the eventual HSI
-export into the common schema. The adapter may normalize legacy pickle files,
-but must never overwrite the source. Gate: round-trip validation preserves
-frame counts, pose arrays, object transforms, and provenance.
+The adapter reads the existing HOI `motion_params/*.pkl` without importing the
+HOI package, selects one sample from the legacy candidate dimension, and
+writes a new canonical NPZ plus an explicit legacy provenance manifest. The
+gate passed with synthetic multi-sample fixtures and a real 42-frame HOI
+pickle; the output validated with the V0 schema and preserved pose/object
+frame counts. The legacy source and generated artifacts remain outside Git.
 
-### V2 — Headless 2D/3D rendering
+### V1b — HSI read-only adapter (pending)
+
+Add an adapter for the eventual HSI export into the common schema. The adapter
+may normalize a legacy file, but must never overwrite the source. Gate:
+round-trip validation preserves frame counts, pose arrays, and provenance once
+the HSI exporter is stable.
+
+### V2a — Headless HOI mesh smoke (passed 2026-08-25)
+
+The CPU/Agg renderer produced a deterministic PNG from the real converted HOI
+artifact on Linux without Blender or a display server. It selected frames
+`[0,14,27,41]`, reconstructed SMPL-X on CPU, applied the object rest mesh, and
+wrote a render manifest with source/asset/output hashes. The full furnished
+scene and paper-quality camera remain a later gate. The smoke artifact root is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi-smoke-20260825` (outside
+Git); the NPZ SHA256 is
+`2f76c86c21d0e27eee908594249007d04e22888b9a00b478e359c28233a3dff9`, and the
+PNG SHA256 is
+`d20f74ba0f45c00057b79c9a2aa9b66aa21f741c16bf924d9ce62708c37f8298`.
+
+### V2b — Headless 2D/3D rendering gate (pending)
 
 Implement a CPU/headless renderer for trajectory figures and optional mesh
 frames. Gate: it produces deterministic PNG output from a fixture on Linux
@@ -118,7 +140,8 @@ single trajectory while retaining stage boundaries and seam locations.
 ## Entry and exit points
 
 Entry: this committed design on `visualization/renderer`.  
-Exit for V0: schema, headless-rendering, isolation documents, and the
-synthetic validator are committed; expert branches remain byte-for-byte
-untouched; no run ID or GPU workload is created. V1 remains pending until the
-HSI export is stable and a read-only HOI legacy adapter is approved.
+Exit for the current HOI subphase: the schema, HOI adapter, headless renderer,
+isolation documents, synthetic tests, and real HOI smoke artifact are
+committed/recorded on this worktree; expert branches remain untouched; no run
+ID or GPU workload was created. HSI adapter and full scene renderer remain
+pending until their inputs/assets are stable.
