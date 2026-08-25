@@ -76,7 +76,9 @@ HOI package, selects one sample from the legacy candidate dimension, and
 writes a new canonical NPZ plus an explicit legacy provenance manifest. The
 gate passed with synthetic multi-sample fixtures and a real 42-frame HOI
 pickle; the output validated with the V0 schema and preserved pose/object
-frame counts. The legacy source and generated artifacts remain outside Git.
+frame counts. The real pickle predates the P12 frame repair, so the adapter
+must reverse its human-only `yup_to_zup` storage convention before rendering.
+The legacy source and generated artifacts remain outside Git.
 
 ### V1b — HSI read-only adapter (pending)
 

@@ -48,7 +48,7 @@ def test_flattened_multi_sample_pickle_selects_one_trajectory(tmp_path):
     source = tmp_path / "legacy_motion_params.pkl"
     _write_legacy(source)
 
-    payload, metadata = legacy_to_payload(source, sample_index=1)
+    payload, metadata = legacy_to_payload(source, sample_index=1, legacy_human_frame="y_up")
 
     assert payload["global_orient"].shape == (4, 3)
     assert payload["body_pose"].shape == (4, 21, 3)
@@ -58,6 +58,24 @@ def test_flattened_multi_sample_pickle_selects_one_trajectory(tmp_path):
     np.testing.assert_array_equal(payload["global_orient"], np.arange(2 * 4 * 22 * 3, dtype=np.float32).reshape(2, 4, 22, 3)[1, :, 0])
     assert metadata["legacy_sample_index"] == 1
     assert metadata["legacy_sample_count"] == 2
+
+
+def test_legacy_z_up_human_fields_are_converted_to_canonical_y_up(tmp_path):
+    source = tmp_path / "legacy_motion_params.pkl"
+    _write_legacy(source, samples=1, frames=1)
+
+    payload, metadata = legacy_to_payload(source)
+
+    raw_pose = np.arange(22 * 3, dtype=np.float32).reshape(1, 22, 3)
+    raw_root = np.arange(3, dtype=np.float32).reshape(1, 3)
+    expected_pose = raw_pose[..., [0, 2, 1]].copy()
+    expected_pose[..., 2] *= -1
+    expected_root = raw_root[..., [0, 2, 1]].copy()
+    expected_root[..., 2] *= -1
+    np.testing.assert_array_equal(payload["global_orient"], expected_pose[:, 0])
+    np.testing.assert_array_equal(payload["body_pose"], expected_pose[:, 1:])
+    np.testing.assert_array_equal(payload["transl"], expected_root)
+    assert metadata["legacy_human_frame"] == "z_up"
 
 
 def test_adapter_output_round_trips_through_schema_and_manifest(tmp_path):

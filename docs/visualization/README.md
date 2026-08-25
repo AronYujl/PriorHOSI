@@ -53,7 +53,8 @@ INFBAGEL_PYTHON=/data/yujinlun/anaconda3/envs/infbagel/bin/python
   /path/to/*_motion_params.pkl \
   --output /path/to/artifacts/sequence-sample0.npz \
   --manifest /path/to/artifacts/sequence-sample0.manifest.json \
-  --sample-index 0 --fps 30 --coordinate-frame infbagel_y_up
+  --sample-index 0 --fps 30 --coordinate-frame infbagel_y_up \
+  --legacy-human-frame z_up
 ```
 
 The current legacy files may contain three candidates: human arrays are
@@ -62,6 +63,12 @@ flattened as `[S*F,22,3]`, while object arrays are `[S,F,3]` and `[S,F,9]`.
 false long trajectory. Legacy provenance unavailable from the old run is
 labelled `legacy-unrecorded` in the generated manifest; this is a visual smoke
 artifact, not a reportable experiment result.
+
+The pre-P12 released exporter stored human pose/translation after a
+`yup_to_zup` conversion, while object translations stayed in the y-up world.
+The adapter therefore explicitly reverses that human-side conversion when
+`--legacy-human-frame z_up` is used. Exports produced by the post-P12 corrected
+code should use `--legacy-human-frame y_up` instead.
 
 The resulting NPZ can be rendered on the Linux headless server without
 Blender:

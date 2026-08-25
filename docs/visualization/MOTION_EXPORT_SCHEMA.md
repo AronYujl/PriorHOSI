@@ -147,6 +147,13 @@ layout `[S*F,22,3]` as well as explicit `[S,F,22,3]`, and normalizes the
 object rotation layout `[S,F,9]` to `[F,3,3]` for the selected sample. It
 refuses to overwrite either the NPZ or its manifest.
 
+The pre-P12 exporter stored human axis-angle and translation fields in z-up
+after applying `yup_to_zup`, whereas object translations remained in the
+y-up world. The adapter must be given `legacy_human_frame=z_up` for those
+files and reverses only the human-side conversion. A post-P12 export from the
+corrected code is already y-up and must use `legacy_human_frame=y_up`; guessing
+this field would recreate the separation bug.
+
 Old pickles do not contain the reportable run provenance required by a new
 experiment. The adapter therefore labels missing commit/checkpoint/config/data
 hashes `legacy-unrecorded`; those artifacts are suitable for visualization

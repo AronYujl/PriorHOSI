@@ -61,6 +61,15 @@ def _as_nonempty_text(value: Any, name: str) -> str:
     return value
 
 
+def _zup_to_yup(value: np.ndarray) -> np.ndarray:
+    """Convert vectors stored by the legacy exporter from z-up to y-up."""
+
+    converted = np.asarray(value).copy()
+    converted = converted[..., [0, 2, 1]]
+    converted[..., 2] *= -1
+    return converted
+
+
 def _select_text(value: Any, sample_index: int, sample_count: int, name: str) -> str:
     if isinstance(value, (list, tuple, np.ndarray)):
         values = list(value)
@@ -194,6 +203,7 @@ def legacy_to_payload(
     sample_index: int = 0,
     fps: float = 30.0,
     coordinate_frame: str = "infbagel_y_up",
+    legacy_human_frame: str = "z_up",
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
     """Convert one selected legacy HOI sample into canonical NPZ fields.
 
@@ -211,6 +221,10 @@ def legacy_to_payload(
     if not np.isfinite(fps) or fps <= 0:
         raise HOILegacyExportError("fps must be finite and positive")
     coordinate_frame = _as_nonempty_text(coordinate_frame, "coordinate_frame")
+    if legacy_human_frame not in ("z_up", "y_up"):
+        raise HOILegacyExportError(
+            "legacy_human_frame must be 'z_up' or 'y_up'"
+        )
 
     source = Path(path)
     root = load_legacy_pickle(source)
@@ -230,6 +244,13 @@ def legacy_to_payload(
         sample_count=sample_count,
         frames=frames,
     )
+    if legacy_human_frame == "z_up":
+        # The released exporter called yup_to_zup on both axis-angle vectors
+        # and translations immediately before writing the pickle.  Object
+        # translations were not passed through that conversion and remain in
+        # the y-up world.  Undo only that legacy human-side conversion here.
+        pose = _zup_to_yup(pose)
+        root_trans = _zup_to_yup(root_trans)
     gender = _select_text(human.get("gender"), sample_index, sample_count, "gender")
     object_name = _select_text(
         object_motion.get("obj_name"), sample_index, sample_count, "object_name"
@@ -258,6 +279,10 @@ def legacy_to_payload(
         "legacy_sample_index": sample_index,
         "legacy_sample_count": sample_count,
         "legacy_frame_count": frames,
+        "legacy_human_frame": legacy_human_frame,
+        "human_frame_conversion": (
+            "z_up_to_y_up" if legacy_human_frame == "z_up" else "none"
+        ),
         "adapter": "hoi_legacy_v1",
     }
     return payload, metadata
@@ -334,6 +359,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-index", type=int, default=0)
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--coordinate-frame", default="infbagel_y_up")
+    parser.add_argument(
+        "--legacy-human-frame",
+        choices=("z_up", "y_up"),
+        default="z_up",
+        help="frame of human fields in the old pickle; old released exports use z_up",
+    )
     return parser
 
 
@@ -345,6 +376,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             sample_index=args.sample_index,
             fps=args.fps,
             coordinate_frame=args.coordinate_frame,
+            legacy_human_frame=args.legacy_human_frame,
         )
         motion_path = write_motion_npz(args.output, payload)
         manifest_path = None
