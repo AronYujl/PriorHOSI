@@ -67,6 +67,7 @@ def test_valid_hsi_export_and_manifest(tmp_path):
         "coarse_frames": 3,
         "interp_scale": 2,
         "has_object": False,
+        "has_hand_pose": False,
         "manifest_validated": True,
     }
 
@@ -82,6 +83,25 @@ def test_valid_hoi_requires_object_stream(tmp_path):
     )
 
     assert validate_motion_export(motion)["has_object"] is True
+
+
+def test_optional_hand_pose_is_validated_as_a_pair(tmp_path):
+    motion = tmp_path / "hands.npz"
+    _write_export(
+        motion,
+        left_hand_pose=np.zeros((6, 45), dtype=np.float32),
+        right_hand_pose=np.zeros((6, 45), dtype=np.float32),
+    )
+
+    assert validate_motion_export(motion)["has_hand_pose"] is True
+
+    _write_export(
+        motion,
+        left_hand_pose=np.zeros((6, 45), dtype=np.float32),
+        right_hand_pose=np.zeros((5, 45), dtype=np.float32),
+    )
+    with pytest.raises(MotionExportError, match="frame count differs"):
+        validate_motion_export(motion)
 
 
 def test_hsi_rejects_partial_object_stream(tmp_path):

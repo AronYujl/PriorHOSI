@@ -34,6 +34,7 @@ HUMAN_REQUIRED = (
     "gender",
 )
 OBJECT_REQUIRED = ("object_name", "object_trans", "object_rot_mat")
+HAND_POSE_FIELDS = ("left_hand_pose", "right_hand_pose")
 MANIFEST_REQUIRED = (
     "export_schema_version",
     "source_git_commit",
@@ -218,6 +219,16 @@ def validate_motion_export(
     if body_pose.shape[0] != pose_frames or transl.shape[0] != pose_frames:
         raise MotionExportError("global_orient, body_pose, and transl frame counts differ")
 
+    has_hand_pose = any(key in data for key in HAND_POSE_FIELDS)
+    if has_hand_pose:
+        missing = [key for key in HAND_POSE_FIELDS if key not in data]
+        if missing:
+            raise MotionExportError("hand pose fields must be supplied together")
+        for key in HAND_POSE_FIELDS:
+            hand_pose = _array(data, key, ndim=2, shape_tail=(45,))
+            if hand_pose.shape[0] != pose_frames:
+                raise MotionExportError("%s frame count differs from body pose" % key)
+
     coarse_frames = None
     if "global_jpos" in data:
         global_jpos = _array(data, "global_jpos", ndim=3, shape_tail=(28, 3))
@@ -271,6 +282,7 @@ def validate_motion_export(
         "coarse_frames": coarse_frames,
         "interp_scale": interp_scale,
         "has_object": has_object,
+        "has_hand_pose": has_hand_pose,
         "manifest_validated": manifest is not None,
     }
 

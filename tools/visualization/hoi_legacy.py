@@ -181,6 +181,47 @@ def _select_betas(value: Any, sample_index: int, sample_count: int) -> np.ndarra
     return selected.astype(np.float32)
 
 
+def _select_constant_text(value: Any, count: int, name: str) -> str:
+    """Select metadata that must stay constant across autoregressive windows."""
+
+    if isinstance(value, np.ndarray) and value.ndim == 0:
+        value = value.item()
+    if isinstance(value, (list, tuple, np.ndarray)):
+        values = [_as_nonempty_text(item, name) for item in list(value)]
+        if len(values) != count:
+            raise HOILegacyExportError(
+                "%s has %d entries but the pickle has %d windows"
+                % (name, len(values), count)
+            )
+        if any(item != values[0] for item in values[1:]):
+            raise HOILegacyExportError("%s changes across autoregressive windows" % name)
+        return values[0]
+    return _as_nonempty_text(value, name)
+
+
+def _select_constant_betas(value: Any, window_count: int) -> np.ndarray:
+    """Select shape coefficients shared by every autoregressive window."""
+
+    betas = _numeric(value, "human_motion.betas")
+    if betas.ndim == 1:
+        selected = betas
+    elif betas.ndim == 2 and betas.shape[0] == 1:
+        selected = betas[0]
+    elif betas.ndim == 2 and betas.shape[0] == window_count:
+        selected = betas[0]
+        if not np.allclose(betas, selected[None], rtol=0.0, atol=0.0):
+            raise HOILegacyExportError(
+                "human_motion.betas changes across autoregressive windows"
+            )
+    else:
+        raise HOILegacyExportError(
+            "human_motion.betas must have shape [B], [1,B], or [W,B]"
+        )
+    if selected.ndim != 1 or selected.shape[0] <= 0:
+        raise HOILegacyExportError("human_motion.betas must contain shape coefficients")
+    return selected.astype(np.float32)
+
+
 def load_legacy_pickle(path: Path | str) -> Mapping[str, Any]:
     """Load one trusted legacy pickle without importing any expert package."""
 
@@ -204,16 +245,25 @@ def legacy_to_payload(
     fps: float = 30.0,
     coordinate_frame: str = "infbagel_y_up",
     legacy_human_frame: str = "z_up",
+    legacy_layout: Optional[str] = None,
 ) -> Tuple[Dict[str, np.ndarray], Dict[str, Any]]:
-    """Convert one selected legacy HOI sample into canonical NPZ fields.
+    """Convert one legacy HOI trajectory layout into canonical NPZ fields.
 
-    The returned metadata records the legacy sample count/index so a renderer
-    cannot accidentally treat concatenated candidates as one long trajectory.
+    ``samples`` selects one candidate. ``autoregressive_windows`` concatenates
+    consecutive chunks and records their window IDs and seam indices.
     """
 
     if isinstance(sample_index, bool) or int(sample_index) != sample_index:
         raise HOILegacyExportError("sample_index must be an integer")
     sample_index = int(sample_index)
+    if legacy_layout not in ("samples", "autoregressive_windows"):
+        raise HOILegacyExportError(
+            "legacy_layout must explicitly be 'samples' or 'autoregressive_windows'"
+        )
+    if legacy_layout == "autoregressive_windows" and sample_index != 0:
+        raise HOILegacyExportError(
+            "sample_index is not applicable to autoregressive_windows"
+        )
     try:
         fps = float(fps)
     except (TypeError, ValueError) as exc:
@@ -234,7 +284,7 @@ def legacy_to_payload(
     object_trans, object_rot, sample_count, frames = _normalise_object(
         object_motion.get("obj_trans"), object_motion.get("obj_rot_mat")
     )
-    if sample_index < 0 or sample_index >= sample_count:
+    if legacy_layout == "samples" and (sample_index < 0 or sample_index >= sample_count):
         raise HOILegacyExportError(
             "sample_index %d is outside [0,%d)" % (sample_index, sample_count)
         )
@@ -251,10 +301,51 @@ def legacy_to_payload(
         # the y-up world.  Undo only that legacy human-side conversion here.
         pose = _zup_to_yup(pose)
         root_trans = _zup_to_yup(root_trans)
-    gender = _select_text(human.get("gender"), sample_index, sample_count, "gender")
-    object_name = _select_text(
-        object_motion.get("obj_name"), sample_index, sample_count, "object_name"
-    )
+    if legacy_layout == "samples":
+        selected_pose = pose[sample_index]
+        selected_root = root_trans[sample_index]
+        selected_object_trans = object_trans[sample_index]
+        selected_object_rot = object_rot[sample_index]
+        selected_betas = _select_betas(human.get("betas"), sample_index, sample_count)
+        gender = _select_text(human.get("gender"), sample_index, sample_count, "gender")
+        object_name = _select_text(
+            object_motion.get("obj_name"), sample_index, sample_count, "object_name"
+        )
+        layout_payload = {
+            "legacy_sample_index": np.asarray(sample_index, dtype=np.int32),
+            "legacy_sample_count": np.asarray(sample_count, dtype=np.int32),
+        }
+        layout_metadata = {
+            "legacy_sample_index": sample_index,
+            "legacy_sample_count": sample_count,
+            "legacy_frame_count": frames,
+        }
+    else:
+        total_frames = sample_count * frames
+        selected_pose = pose.reshape(total_frames, 22, 3)
+        selected_root = root_trans.reshape(total_frames, 3)
+        selected_object_trans = object_trans.reshape(total_frames, 3)
+        selected_object_rot = object_rot.reshape(total_frames, 3, 3)
+        selected_betas = _select_constant_betas(human.get("betas"), sample_count)
+        gender = _select_constant_text(human.get("gender"), sample_count, "gender")
+        object_name = _select_constant_text(
+            object_motion.get("obj_name"), sample_count, "object_name"
+        )
+        layout_payload = {
+            "window_lengths": np.full(sample_count, frames, dtype=np.int32),
+            "seams": np.arange(1, sample_count, dtype=np.int32) * frames,
+            "window_id": np.repeat(
+                np.arange(sample_count, dtype=np.int32), frames
+            ),
+            "legacy_window_count": np.asarray(sample_count, dtype=np.int32),
+            "legacy_frames_per_window": np.asarray(frames, dtype=np.int32),
+        }
+        layout_metadata = {
+            "legacy_window_count": sample_count,
+            "legacy_frames_per_window": frames,
+            "legacy_frame_count": total_frames,
+            "legacy_seams": [frames * index for index in range(1, sample_count)],
+        }
 
     payload = {
         "schema_version": np.asarray(SCHEMA_VERSION, dtype=np.int32),
@@ -262,24 +353,24 @@ def legacy_to_payload(
         "task_family": np.asarray("hoi"),
         "fps": np.asarray(fps, dtype=np.float32),
         "coordinate_frame": np.asarray(coordinate_frame),
-        "global_orient": pose[sample_index, :, 0],
-        "body_pose": pose[sample_index, :, 1:],
-        "transl": root_trans[sample_index],
-        "betas": _select_betas(human.get("betas"), sample_index, sample_count),
+        "global_orient": selected_pose[:, 0],
+        "body_pose": selected_pose[:, 1:],
+        "transl": selected_root,
+        "betas": selected_betas,
         "gender": np.asarray(gender),
         "object_name": np.asarray(object_name),
-        "object_trans": object_trans[sample_index],
-        "object_rot_mat": object_rot[sample_index],
-        "legacy_sample_index": np.asarray(sample_index, dtype=np.int32),
-        "legacy_sample_count": np.asarray(sample_count, dtype=np.int32),
+        "object_trans": selected_object_trans,
+        "object_rot_mat": selected_object_rot,
+        "legacy_layout": np.asarray(legacy_layout),
+        **layout_payload,
     }
     metadata = {
         "legacy_source_path": str(source.resolve()),
         "legacy_source_sha256": _sha256(source),
-        "legacy_sample_index": sample_index,
-        "legacy_sample_count": sample_count,
-        "legacy_frame_count": frames,
+        "legacy_layout": legacy_layout,
+        **layout_metadata,
         "legacy_human_frame": legacy_human_frame,
+        "hand_pose_source": "absent_in_legacy_export",
         "human_frame_conversion": (
             "z_up_to_y_up" if legacy_human_frame == "z_up" else "none"
         ),
@@ -357,6 +448,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True, help="new canonical .npz path")
     parser.add_argument("--manifest", type=Path, default=None, help="optional output provenance JSON")
     parser.add_argument("--sample-index", type=int, default=0)
+    parser.add_argument(
+        "--legacy-layout",
+        choices=("samples", "autoregressive_windows"),
+        required=True,
+        help="whether the leading legacy object dimension contains candidates or consecutive windows",
+    )
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--coordinate-frame", default="infbagel_y_up")
     parser.add_argument(
@@ -377,6 +474,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             fps=args.fps,
             coordinate_frame=args.coordinate_frame,
             legacy_human_frame=args.legacy_human_frame,
+            legacy_layout=args.legacy_layout,
         )
         motion_path = write_motion_npz(args.output, payload)
         manifest_path = None

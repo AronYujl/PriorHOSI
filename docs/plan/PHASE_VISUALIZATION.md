@@ -157,6 +157,24 @@ Implement a CPU/headless renderer for trajectory figures and optional mesh
 frames. Gate: it produces deterministic PNG output from a fixture on Linux
 without Blender or a display server.
 
+#### V2b.1 — P12 long-window still (approved 2026-08-25; in progress)
+
+The V2a review found that P12 object arrays shaped `[3,42,...]` are three
+consecutive autoregressive windows, not three candidate samples. Correct the
+adapter with an explicit layout flag and retain the complete 126-frame human
+and object timeline with seams `[42,84]`. Produce one write-once paper-style
+still for `sub16_clothesstand_000` using the full SMPL-X and clothesstand
+meshes, six deterministic keyframes, no axes, and an explicit natural
+mean-hand fallback because P12 does not predict articulated fingers.
+
+Gate: the real P12 pickle validates as one 126-frame NPZ, the renderer manifest
+records window semantics, exact assets, full-mesh settings, camera/style,
+selected frames, hand fallback, and hashes, and the visualization test suite
+passes. Batch conversion of the other 437 provisional-model sequences is
+deferred. MP4 generation remains outside this substep because the authority
+environment currently has no maintained EGL renderer; the deterministic PNG
+path must be accepted before adding a video backend.
+
 ### V3 — Paper composition
 
 Implement fixed-keyframe selection, alpha compositing, labels, and montage

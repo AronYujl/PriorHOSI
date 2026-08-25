@@ -26,6 +26,7 @@ import torch
 import trimesh
 from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from PIL import Image, ImageChops
 
 from .schema import MotionExportError, validate_motion_export
 
@@ -35,6 +36,28 @@ class HeadlessRenderError(MotionExportError):
 
 
 PALETTE = ("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b")
+RENDER_STYLES = {
+    "debug": {
+        "human_alpha": 0.32,
+        "object_alpha": 0.26,
+        "trajectory_alpha": 0.65,
+        "axes_visible": True,
+        "orthographic": False,
+        "figure_size": (7.2, 7.2),
+        "bounds_mode": "cube",
+        "crop_padding": None,
+    },
+    "paper": {
+        "human_alpha": 0.48,
+        "object_alpha": 0.42,
+        "trajectory_alpha": 0.80,
+        "axes_visible": False,
+        "orthographic": True,
+        "figure_size": (10.0, 5.6),
+        "bounds_mode": "content",
+        "crop_padding": 24,
+    },
+}
 
 
 def _sha256(path: Path) -> str:
@@ -78,6 +101,31 @@ def _parse_frames(value: Optional[str], frame_count: int, keyframe_count: int) -
     return frames
 
 
+def _style_parameters(style: str) -> Dict[str, Any]:
+    try:
+        return dict(RENDER_STYLES[style])
+    except KeyError as exc:
+        raise HeadlessRenderError("unsupported render style %s" % style) from exc
+
+
+def _crop_white_margins(path: Path, padding: int) -> Tuple[int, int]:
+    """Crop a rendered RGB/RGBA image to non-white content with fixed padding."""
+
+    with Image.open(path) as loaded:
+        image = loaded.convert("RGB")
+    background = Image.new("RGB", image.size, (255, 255, 255))
+    bounds = ImageChops.difference(image, background).getbbox()
+    if bounds is None:
+        raise HeadlessRenderError("paper render contains no visible content")
+    left = max(bounds[0] - padding, 0)
+    top = max(bounds[1] - padding, 0)
+    right = min(bounds[2] + padding, image.width)
+    bottom = min(bounds[3] + padding, image.height)
+    cropped = image.crop((left, top, right, bottom))
+    cropped.save(path, format="PNG")
+    return cropped.size
+
+
 def _load_object_mesh(path: Path, *, coordinate_frame: str) -> Tuple[np.ndarray, np.ndarray]:
     if not path.is_file():
         raise HeadlessRenderError("object rest mesh does not exist: %s" % path)
@@ -100,12 +148,24 @@ def _load_object_mesh(path: Path, *, coordinate_frame: str) -> Tuple[np.ndarray,
 
 
 def _restore_human_mesh(
-    data: Mapping[str, np.ndarray], smpl_models: Path, frames: np.ndarray, device: str
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    data: Mapping[str, np.ndarray],
+    smpl_models: Path,
+    frames: np.ndarray,
+    device: str,
+    hand_pose_fallback: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, str]:
     gender = str(np.asarray(data["gender"]).item())
     betas = np.asarray(data["betas"], dtype=np.float32)
     if betas.ndim != 1 or betas.size == 0:
         raise HeadlessRenderError("betas must be a non-empty vector")
+    has_exported_hands = "left_hand_pose" in data and "right_hand_pose" in data
+    if hand_pose_fallback not in ("mean", "flat"):
+        raise HeadlessRenderError("unsupported hand pose fallback %s" % hand_pose_fallback)
+    hand_pose_source = (
+        "exported"
+        if has_exported_hands
+        else ("smplx_mean" if hand_pose_fallback == "mean" else "flat_zero")
+    )
     try:
         model = smplx.create(
             str(smpl_models),
@@ -113,7 +173,7 @@ def _restore_human_mesh(
             gender=gender,
             num_betas=int(betas.size),
             use_pca=False,
-            flat_hand_mean=True,
+            flat_hand_mean=has_exported_hands or hand_pose_fallback == "flat",
             batch_size=int(frames.size),
         ).to(device)
     except Exception as exc:
@@ -124,6 +184,16 @@ def _restore_human_mesh(
     transl = torch.from_numpy(np.asarray(data["transl"], dtype=np.float32)[frames]).to(device)
     beta_batch = torch.from_numpy(np.repeat(betas[None], frames.size, axis=0)).to(device)
     zeros = lambda width: torch.zeros((frames.size, width), dtype=global_orient.dtype, device=device)
+    if has_exported_hands:
+        left_hand_pose = torch.from_numpy(
+            np.asarray(data["left_hand_pose"], dtype=np.float32)[frames]
+        ).to(device)
+        right_hand_pose = torch.from_numpy(
+            np.asarray(data["right_hand_pose"], dtype=np.float32)[frames]
+        ).to(device)
+    else:
+        left_hand_pose = zeros(45)
+        right_hand_pose = zeros(45)
     with torch.no_grad():
         try:
             output = model(
@@ -131,8 +201,8 @@ def _restore_human_mesh(
                 body_pose=body_pose,
                 betas=beta_batch,
                 transl=transl,
-                left_hand_pose=zeros(45),
-                right_hand_pose=zeros(45),
+                left_hand_pose=left_hand_pose,
+                right_hand_pose=right_hand_pose,
                 jaw_pose=zeros(3),
                 leye_pose=zeros(3),
                 reye_pose=zeros(3),
@@ -144,7 +214,7 @@ def _restore_human_mesh(
     vertices = output.vertices.detach().cpu().numpy().astype(np.float32)
     pelvis = output.joints[:, 0].detach().cpu().numpy().astype(np.float32)
     faces = np.asarray(model.faces, dtype=np.int64)
-    return vertices, pelvis, faces
+    return vertices, pelvis, faces, hand_pose_source
 
 
 def _face_subset(faces: np.ndarray, max_faces: int) -> np.ndarray:
@@ -193,6 +263,10 @@ def render_keyframes(
     dpi: int = 180,
     max_faces: int = 6000,
     renderer_commit: str = "local-unrecorded",
+    style: str = "debug",
+    hand_pose_fallback: str = "mean",
+    camera_elev: float = 18.0,
+    camera_azim: float = -58.0,
 ) -> Dict[str, Any]:
     """Render selected human/object poses into one deterministic PNG."""
 
@@ -200,6 +274,7 @@ def render_keyframes(
     output = Path(output_path)
     models = Path(smpl_models)
     object_asset = Path(object_mesh)
+    style_parameters = _style_parameters(style)
     if output.suffix.lower() != ".png":
         raise HeadlessRenderError("headless output must have a .png suffix")
     if output.exists():
@@ -228,7 +303,9 @@ def render_keyframes(
         selected = _parse_frames(",".join(str(int(item)) for item in frames), frame_count, keyframe_count)
     if device.startswith("cuda") and not torch.cuda.is_available():
         raise HeadlessRenderError("requested CUDA but torch.cuda.is_available() is false")
-    human_vertices, pelvis, human_faces = _restore_human_mesh(data, models, selected, device)
+    human_vertices, pelvis, human_faces, hand_pose_source = _restore_human_mesh(
+        data, models, selected, device, hand_pose_fallback
+    )
     object_rest_vertices, object_faces = _load_object_mesh(object_asset, coordinate_frame=object_rest_frame)
     if object_geometry == "convex_hull":
         try:
@@ -255,10 +332,10 @@ def render_keyframes(
     lower = projected_all.min(axis=0)
     upper = projected_all.max(axis=0)
     center = (lower + upper) / 2.0
-    radius = max(float((upper - lower).max()) / 2.0, 0.5) * 1.12
+    extent = np.maximum(upper - lower, 0.35)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    figure = plt.figure(figsize=(7.2, 7.2), dpi=dpi)
+    figure = plt.figure(figsize=style_parameters["figure_size"], dpi=dpi)
     axis = figure.add_subplot(111, projection="3d")
     for index, frame in enumerate(selected):
         color = PALETTE[index % len(PALETTE)]
@@ -267,7 +344,7 @@ def render_keyframes(
             human_vertices[index],
             human_faces,
             color=color,
-            alpha=0.32,
+            alpha=float(style_parameters["human_alpha"]),
             max_faces=max_faces,
         )
         _add_mesh(
@@ -275,34 +352,74 @@ def render_keyframes(
             object_vertices[index],
             object_faces,
             color="#444444",
-            alpha=0.26,
+            alpha=float(style_parameters["object_alpha"]),
             max_faces=max_faces,
         )
         axis.scatter(*_project_y_up(pelvis[index]), color=color, s=10, depthshade=False)
     trajectory = _project_y_up(object_trans)
-    axis.plot(trajectory[:, 0], trajectory[:, 1], trajectory[:, 2], color="#444444", linewidth=1.0, alpha=0.65)
+    axis.plot(
+        trajectory[:, 0],
+        trajectory[:, 1],
+        trajectory[:, 2],
+        color="#444444",
+        linewidth=1.2,
+        alpha=float(style_parameters["trajectory_alpha"]),
+    )
     axis.scatter(*trajectory[0], color="black", marker="o", s=22, depthshade=False)
     axis.scatter(*trajectory[-1], color="black", marker="X", s=34, depthshade=False)
-    axis.set_xlim(center[0] - radius, center[0] + radius)
-    axis.set_ylim(center[1] - radius, center[1] + radius)
-    axis.set_zlim(center[2] - radius, center[2] + radius)
-    axis.set_box_aspect((1, 1, 1))
-    axis.view_init(elev=18, azim=-58)
-    axis.set_xlabel("x")
-    axis.set_ylabel("z")
-    axis.set_zlabel("y (up)")
-    axis.set_title("%s | keyframes %s" % (summary["sequence_id"], ",".join(map(str, selected))))
-    legend = [
-        Line2D([0], [0], color=PALETTE[index % len(PALETTE)], linewidth=5, label="frame %d" % frame)
-        for index, frame in enumerate(selected)
-    ]
-    legend.append(Line2D([0], [0], color="#444444", linewidth=2, label="object trajectory"))
-    axis.legend(handles=legend, loc="upper left", fontsize=8)
-    figure.tight_layout()
+    if style_parameters["bounds_mode"] == "cube":
+        radius = max(float(extent.max()) / 2.0, 0.5) * 1.12
+        axis.set_xlim(center[0] - radius, center[0] + radius)
+        axis.set_ylim(center[1] - radius, center[1] + radius)
+        axis.set_zlim(center[2] - radius, center[2] + radius)
+        axis.set_box_aspect((1, 1, 1))
+    else:
+        padded_extent = extent * 1.10
+        axis.set_xlim(center[0] - padded_extent[0] / 2.0, center[0] + padded_extent[0] / 2.0)
+        axis.set_ylim(center[1] - padded_extent[1] / 2.0, center[1] + padded_extent[1] / 2.0)
+        axis.set_zlim(center[2] - padded_extent[2] / 2.0, center[2] + padded_extent[2] / 2.0)
+        axis.set_box_aspect(tuple(padded_extent))
+    axis.view_init(elev=camera_elev, azim=camera_azim)
+    if bool(style_parameters["orthographic"]):
+        axis.set_proj_type("ortho")
+    if bool(style_parameters["axes_visible"]):
+        axis.set_xlabel("x")
+        axis.set_ylabel("z")
+        axis.set_zlabel("y (up)")
+        axis.set_title(
+            "%s | keyframes %s"
+            % (summary["sequence_id"], ",".join(map(str, selected)))
+        )
+        legend = [
+            Line2D(
+                [0],
+                [0],
+                color=PALETTE[index % len(PALETTE)],
+                linewidth=5,
+                label="frame %d" % frame,
+            )
+            for index, frame in enumerate(selected)
+        ]
+        legend.append(
+            Line2D([0], [0], color="#444444", linewidth=2, label="object trajectory")
+        )
+        axis.legend(handles=legend, loc="upper left", fontsize=8)
+        figure.tight_layout()
+    else:
+        axis.grid(False)
+        axis.set_axis_off()
+        axis.set_position([0.0, 0.0, 1.0, 1.0])
+        figure.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0)
     try:
         figure.savefig(output, format="png", dpi=dpi, facecolor="white")
     finally:
         plt.close(figure)
+    crop_padding = style_parameters["crop_padding"]
+    if crop_padding is not None:
+        image_dimensions = list(_crop_white_margins(output, int(crop_padding)))
+    else:
+        with Image.open(output) as rendered_image:
+            image_dimensions = list(rendered_image.size)
 
     source_manifest_sha256 = "absent"
     if manifest_path is not None:
@@ -312,17 +429,30 @@ def render_keyframes(
         "source_manifest_sha256": source_manifest_sha256,
         "renderer_commit": renderer_commit,
         "renderer_backend": "matplotlib-agg-smplx",
+        "render_style": style,
+        "hand_pose_source": hand_pose_source,
+        "hand_pose_fallback": hand_pose_fallback,
         "smpl_asset_path": str(models.resolve()),
         "smpl_asset_sha256": _tree_sha256(models),
         "object_asset_path": str(object_asset.resolve()),
         "object_asset_sha256": _sha256(object_asset),
         "object_rest_frame": object_rest_frame,
         "object_geometry": object_geometry,
-        "camera_projection": "orthographic-like fixed 3D view",
-        "camera_elev": 18,
-        "camera_azim": -58,
+        "camera_projection": (
+            "orthographic fixed 3D view"
+            if bool(style_parameters["orthographic"])
+            else "perspective fixed 3D view"
+        ),
+        "camera_elev": camera_elev,
+        "camera_azim": camera_azim,
+        "axes_visible": bool(style_parameters["axes_visible"]),
+        "bounds_mode": str(style_parameters["bounds_mode"]),
+        "crop_padding": crop_padding,
+        "human_alpha": float(style_parameters["human_alpha"]),
+        "object_alpha": float(style_parameters["object_alpha"]),
+        "max_faces": max_faces,
         "selected_frame_indices": selected.tolist(),
-        "image_dimensions": [int(figure.get_figwidth() * dpi), int(figure.get_figheight() * dpi)],
+        "image_dimensions": image_dimensions,
         "dpi": dpi,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "output_sha256": _sha256(output),
@@ -348,6 +478,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dpi", type=int, default=180)
     parser.add_argument("--max-faces", type=int, default=25000)
     parser.add_argument("--renderer-commit", default="local-unrecorded")
+    parser.add_argument("--style", choices=tuple(RENDER_STYLES), default="debug")
+    parser.add_argument("--hand-pose-fallback", choices=("mean", "flat"), default="mean")
+    parser.add_argument("--camera-elev", type=float, default=18.0)
+    parser.add_argument("--camera-azim", type=float, default=-58.0)
     return parser
 
 
@@ -370,6 +504,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             dpi=args.dpi,
             max_faces=args.max_faces,
             renderer_commit=args.renderer_commit,
+            style=args.style,
+            hand_pose_fallback=args.hand_pose_fallback,
+            camera_elev=args.camera_elev,
+            camera_azim=args.camera_azim,
         )
     except (HeadlessRenderError, MotionExportError, OSError, ValueError) as exc:
         print("INVALID: %s" % exc)

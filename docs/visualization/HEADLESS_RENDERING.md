@@ -37,6 +37,16 @@ indices, asset hashes, and output hash in a render manifest. The default HOI
 smoke uses a convex-hull proxy for the object; pass `--object-geometry full`
 with an appropriate face budget when the full rest mesh is needed.
 
+Use `--style paper --object-geometry full --max-faces 0` for an axis-free,
+orthographic, content-cropped trajectory still. The full-face setting avoids
+the disconnected triangles caused by naive face-stride subsampling. Paper
+style is still a mesh compositor, not a furnished-scene reproduction.
+
+If paired `[F,45]` hand-pose arrays exist, the renderer consumes them. When an
+export such as P12 has no finger articulation, `--hand-pose-fallback mean`
+uses the static SMPL-X natural mean hand and records `smplx_mean` in the render
+manifest. It must not be described as generated finger motion.
+
 `data/hosi_test/Scene_sdf` and occupancy are evaluation geometry. They are not
 automatically equivalent to the room/furniture meshes used in a paper render.
 If no scene mesh is available, the output must say so rather than presenting an

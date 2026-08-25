@@ -32,6 +32,8 @@ adapter and are never rewritten in place.
 | `betas` | `[B]` float32 | Shape parameters; B is recorded, normally 16 or 10 |
 | `gender` | scalar string | SMPL-X gender/model variant |
 | `global_jpos` | `[T,28,3]` float32 | Optional but recommended coarse dataset joints |
+| `left_hand_pose` | `[F,45]` float32 | Optional articulated SMPL-X left-hand pose |
+| `right_hand_pose` | `[F,45]` float32 | Optional articulated SMPL-X right-hand pose |
 
 `F` is the pose/FK rate. `T` is the coarse rollout rate. If both are present,
 the file must include `interp_scale` and the relation `F=T*interp_scale` (or an
@@ -138,14 +140,14 @@ tests belong to V1 and must use copied/read-only artifacts.
 
 ## Legacy compatibility
 
-The current HOI `motion_params/*.pkl` contains the core human and object
-arrays needed for conversion. The adapter should map its keys into this schema,
-record the legacy source path/hash, select one candidate when `S>1`, and
-preserve the original sequence name. The repository implementation is
-`tools.visualization.hoi_legacy`; it accepts the observed flattened human
-layout `[S*F,22,3]` as well as explicit `[S,F,22,3]`, and normalizes the
-object rotation layout `[S,F,9]` to `[F,3,3]` for the selected sample. It
-refuses to overwrite either the NPZ or its manifest.
+The current HOI `motion_params/*.pkl` contains the core human and object arrays
+needed for conversion. The same shapes have two different observed meanings:
+older exports may store candidate samples, whereas P12 stores consecutive
+autoregressive windows. The adapter therefore requires an explicit
+`legacy_layout`; it never guesses from shape. `samples` selects one candidate.
+`autoregressive_windows` flattens `[W,F,...]` into one `[W*F,...]` timeline and
+records `window_lengths`, `window_id`, and `seams`. It refuses to overwrite
+either the NPZ or its manifest.
 
 The pre-P12 exporter stored human axis-angle and translation fields in z-up
 after applying `yup_to_zup`, whereas object translations remained in the
@@ -158,6 +160,10 @@ Old pickles do not contain the reportable run provenance required by a new
 experiment. The adapter therefore labels missing commit/checkpoint/config/data
 hashes `legacy-unrecorded`; those artifacts are suitable for visualization
 smoke tests only and must not be used as scientific result evidence.
+
+Legacy P12 files also omit articulated finger pose. The omission is preserved;
+the adapter does not fabricate hand motion. Renderers may use a declared static
+SMPL-X mean-hand fallback, and must record that fallback in their manifest.
 
 The planned HSI export is expected to use the same SMPL-X parameter family.
 PriorHOSI may add stage/routing metadata later without changing the core human
