@@ -14,6 +14,7 @@ __pycache__/
 results/
 checkpoint/
 smpl_models/
+/smpl_models
 t2m_eval/
 data
 .codegraph/
@@ -25,4 +26,5 @@ data
 !experiments/**/*.json
 !experiments/**/*.jsonl
 !experiments/**/*.csv
+!tools/visualization/worker2_profiles.json
 third_party/

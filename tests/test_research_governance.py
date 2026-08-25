@@ -240,6 +240,28 @@ class ManifestTests(unittest.TestCase):
             with self.assertRaises(experiment.ManifestError):
                 experiment.validate_registry(path)
 
+    def test_visualization_registry_phase_does_not_expand_training_run_ids(self):
+        record = {
+            "schema_version": 1,
+            "experiment_id": "visualization-test-20260825",
+            "phase": "visualization",
+            "status": "design",
+            "hypothesis": "h",
+            "config": {},
+            "results": {},
+            "conclusion": None,
+            "next_action": "n",
+            "created_at": "2026-08-25T00:00:00Z",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "registry.jsonl"
+            path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+            self.assertEqual(experiment.validate_registry(path), 1)
+        with self.assertRaises(experiment.ManifestError):
+            experiment.validate_run_id(
+                "visualization-test-smoke-s42-20260825", "visualization", 42
+            )
+
     def test_split_validation_rejects_family_leakage(self):
         value = {
             "algorithm": "scene-family-disjoint-v1",

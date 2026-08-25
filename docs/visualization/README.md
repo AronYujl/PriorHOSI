@@ -23,7 +23,9 @@ Documents:
 - [`MOTION_EXPORT_SCHEMA.md`](MOTION_EXPORT_SCHEMA.md): provisional NPZ
   contract and provenance rules;
 - [`HEADLESS_RENDERING.md`](HEADLESS_RENDERING.md): Linux/Windows rendering
-  paths and paper-figure composition.
+  paths and paper-figure composition;
+- [`WORKER2_INFERENCE.md`](WORKER2_INFERENCE.md): the one-checkpoint worker2
+  dispatch, persistent inference, verification, and automatic return workflow.
 
 ## V0 validator
 

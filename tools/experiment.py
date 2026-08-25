@@ -20,7 +20,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 
 SCHEMA_VERSION = 1
-PHASES = {f"p{i}" for i in range(7)}
+PHASES = {f"p{i}" for i in range(7)} | {"visualization"}
 TERMINAL_STATUSES = {"completed", "failed", "aborted"}
 RUN_ID_RE = re.compile(
     r"^p[0-6]-[a-z0-9][a-z0-9._-]*-s[0-9]+-[0-9]{8}$"

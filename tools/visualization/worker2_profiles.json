@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "name": "hoi-p12-armb",
+      "description": "Post-repair P12 HOIPrior with the sealed deployable Arm B guidance policy.",
+      "match": {
+        "schema_version": 2,
+        "checkpoint_type": "hoi_prior_phase1b",
+        "expert": "hoi",
+        "run_id_regex": "^p1-hoi-p12-"
+      },
+      "inference_commit": "8742d1a3b88800161324a8e45c597ffafdcbb607",
+      "entrypoint": "code/test_infbagel_hoi.py",
+      "config_name": "config_eval_hoi_prior",
+      "run_variant": "p12-armb-motion-export",
+      "expected_sequences": 438,
+      "legacy_human_frame": "y_up",
+      "required_assets": [
+        "data/test/seq_id.pkl",
+        "data/object/rest_object_geo",
+        "data/object/rest_object_sdf_256_npy_files",
+        "smpl_models/smplx"
+      ],
+      "hydra_overrides": [
+        "sampler.pelvis.guidance.enabled=true",
+        "sampler.pelvis.guidance.arm=b",
+        "sampler.pelvis.guidance.guidance_scale=1000.0",
+        "sampler.pelvis.guidance.last_steps=10",
+        "sampler.pelvis.guidance.clamp=1.0",
+        "sampler.pelvis.guidance.clamp_target=update"
+      ]
+    }
+  ]
+}

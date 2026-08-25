@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: HOI V1 adapter and headless CPU smoke passed; worker2 export workflow in progress; HSI/mixer work remains pending
+Status: HOI V1 adapter/headless smoke passed; worker2 workflow implemented and dry-run validated, first live automatic job pending; HSI/mixer work remains pending
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -120,6 +120,23 @@ Gate:
 5. dry-run/unit tests prove command construction, profile matching, shell
    quoting, transfer direction, non-overwrite behavior, and expert-worktree
    isolation without SSH, checkpoint transfer, or GPU execution.
+
+Implementation status (2026-08-25): the profile registry, authority CLI,
+`start`/`status`/`retry-return` lifecycle, persistent unit command, atomic
+return contract, documentation, and nine workflow-specific tests are present.
+The complete repository suite passes 64 tests and registry validation passes
+27 records.  A real dry-run against checkpoint SHA256
+`722d83ee7755b051e2095ccd01d4094bacce99589e679f89379f54661fb43704`
+selected `hoi-p12-armb`, pinned inference commit `8742d1a3...`, and produced
+remote preflight plan SHA256
+`bb5ef01721059b5c596a46b2c41e7facca6b5f80985d3172ce0afe8c6e602c73`.
+Worker2's base Git repository, environment, data/SMPL-X assets, source commit,
+direct campus route, and idle GPU 0 also passed a read-only check.
+
+No duplicate GPU rollout was started for tool validation.  The first new
+user-requested checkpoint job is the remaining live acceptance of the
+automatic systemd generation-and-return path; V1c must not be labelled fully
+passed until that job reaches atomic promotion.
 
 ### V2a — Headless HOI mesh smoke (passed 2026-08-25)
 
