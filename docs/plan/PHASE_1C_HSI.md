@@ -6261,3 +6261,289 @@ D 节中 `pene_pct_scene` 变化 +0.00004、基数 0.06095，**相对 +0.07%**�
 `oracle.py`、`selfcheck.py` / `selfcheck.json`、`run_oracle.py` / `oracle_rows.json`、
 `reduce_oracle.py` / `reduce.out` / `oracle_summary.json`、`coarse_repair.py` /
 `coarse_repair.json`、`split.json`。
+
+## 2026-08-25（第三次：B-match Stage 1 预注册 —— 启动前冻结，含硬件调度修订 1）
+
+### A. 授权范围与本轮边界
+
+用户批准：零 GPU 补齐并冻结规格后，**无需再次确认**即可实施并运行 **Stage 1**；但无论
+Stage 1 结果如何，**禁止自动进入 Stage 2**。启动任何 GPU 任务前必须完成：单一 T1 权重与
+归一化方式的冻结（不扫描）、T0/T1 共同 checkpoint 与 optimizer/LR/resume/预算/seed/唯一
+10 Hz 主视图与 G-A..G-D 的冻结、Stage 2 有实际意义的 penetration 非劣界限、**先提交预注册**、
+default-off 开关加 CPU 惰性测试后**单独提交代码**。
+
+随后用户批准**一次**硬件调度修订（在任何 GPU 结果产生前），并要求先提交修订记录。
+
+guidance 保持关闭；不修改 C、evaluator、walk 门槛、continuous-w、`code/priors/core/`；
+不运行其他实验。evaluator 的 clamp 与 slerp 缺陷继续只登记。
+
+唯一出处：`.claude/scratch/bmatch_20260825/FROZEN_PILOT_SPEC.md`（10 节，443 行）、
+`seamstat.py`（冻结统计量与估计量）、`baseline.json`、`gt_baseline.json`。
+
+### B. 干预的四个自由度，全部由已有测量定死
+
+**哪两帧。** 抬升的加速度恰好两个，位于 seam 偏移 d=−1 与 d=0（`accel_profile.json`：
+B unguided nat10 在 d=−4..+2 为 0.977 / 1.005 / 0.992 / **3.389** / **2.670** / 0.981 /
+0.828）。在窗口局部索引下展开这两个 stencil：
+
+    a[s-1] = w[2] - 2w[1] + w[0]      仅受生成帧 w[2] 控制
+    a[s]   = w[3] - 2w[2] + w[1]      仅受生成帧 w[2], w[3] 控制
+
+故两者都只是**窗口局部第 2、3 帧**的函数。**冻结：`auto_regre_num : auto_regre_num+2`，即 2:4。**
+
+**哪个通道。** 缺陷测在 `global_jpos`（0:84）。独立的 FK 通道以 85% 幅度承载同样的两帧形状，
+故旋转通道也带这个缺陷；但 `loss_jrot` 是 L1、单位不同，单一权重无法良定义。
+**冻结：仅位置 `x_start[:, 2:4, :84]`。** 旋转侧接缝项登记为后续候选，**不属于本臂**。
+
+**哪种函数形式。** 历史帧是 GT 常量，故接缝二阶残差恒等于首生成帧的位置残差
+`â[1] − a*[1] = p̂[2] − p[2]`。两种候选（δ_k = p̂[k] − p[k]）：
+
+    (i)  逐帧加权         惩罚 δ₂² + δ₃²
+    (ii) 显式加速度匹配   惩罚 δ₂² + (δ₃ − 2δ₂)²
+
+由**实测缺陷形状**裁决：逐 episode 的"d=0 超出量 / d=−1 超出量"为 **0.730 [0.695,0.771]**，
+与"孤立单帧误差"（预测 2.0）不符，与"新窗口整体常量偏移"（δ₂ ≈ δ₃ ≈ δ）相符。在该形状下
+(i) 给 2δ²，(ii) 给 δ² + δ² = 2δ²，**两者相同**。**冻结：形式 (i)**，不引入新函数形式，
+从而使"关掉即不变"的证明是结构性的而非数值性的。
+
+**归一化。** **冻结：`F.mse_loss` 默认 `reduction='mean'`，只在接缝切片上取逐元素均值**，
+分母 `B×2×84`。理由：现有五个基础项全是逐元素均值；`get_mask` 在 `p=1.0` 下恒定遮蔽前 2 帧
+故分母确定；该形式对 batch 与帧数不变。
+
+### C. 权重：唯一值 1.0，及其取值依据
+
+    N_gen  = 14 × 84 = 1176（loss_jpos 分母）    N_seam = 2 × 84 = 168（loss_seam 分母）
+    逐元素权重比 ρ = 1 + w·(N_gen/N_seam) = 1 + 7w
+
+**冻结 `loss_w_seam = 1.0`。** 纯计数推得的后果：
+
+| 量 | 值 |
+|---|---|
+| 逐元素权重，接缝 : 内部 | **8×** |
+| 接缝两帧占位置目标的份额 | 16/28 = **57.1%** |
+| 内部十二帧份额 | 12/28 = **42.9%** |
+| 内部帧的**绝对**系数 | **不变**（该项是加上去的，不是重新分配） |
+
+为什么是 1.0：
+
+- **它是该项的自然单位**，没有可反推的小数，不像调出来的；`loss_w_fk` 同样是裸整数。
+- **风险不对称，且指向"宁大勿小"。** Stage 1 是**止损**门。权重过小会返回 null，无法区分
+  "B-match 无效"与"权重太小"，那 28 GPU-h 就白花了；权重过大会返回 G-A 过而 G-C 或护栏不过，
+  这是**有信息**的，且后续动作（降权重）现成。
+- **8× 是仍让内部保持多数（42.9%）的最大加权。** 内部已处于 0.918× GT interior，不需要帮助，
+  也不该被饿着。
+- **不扫描**，按指示只登记一个值。
+
+被拒的候选权重，以便审计：ρ = 3.156（"按实测抬升加权"）——加速度**幅度**比不是误差比，
+从前者到 MSE 权重没有推导，用它等于把任意选择装成测量；梯度范数配平（`loss_w_fk=3` 的先例）
+——需要 GPU 前后向测量，本阶段在冻结前禁止；19:10 的逐帧 profile（两帧对三个 boundary
+stencil 的平方杠杆）——可辩护，但指示要求"前两帧一个权重"，profile 需要第二个数。
+
+### D. 代码契约：default-off 开关
+
+单一旋钮挂在 sampler 上并自带权重，trainer 的 loss 算术**零改动**：
+
+    # Sampler.__init__
+    self.seam_loss_weight = float(kwargs.get('seam_loss_weight', 0.0) or 0.0)
+    # p_losses，紧接五个基础项之后
+    loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
+    loss_seam = None
+    if self.seam_loss_weight > 0.0:
+        n = int(self.auto_regre_num)
+        loss_seam = F.mse_loss(x_start[:, n:n+2, :84], predicted_noise[:, n:n+2, :84])
+        loss = loss + self.seam_loss_weight * loss_seam
+
+`consistency_loss`（C 的目标）**不动**，C 从不设置该键，也不加接缝项。
+**惰性要求（GPU 前必须在 CPU 上证明）**：`seam_loss_weight` 缺省或 0.0 时走完全相同分支，
+`loss` 由完全相同表达式构成，`loss_seam is None`；测试须在固定合成 batch 上断言每个返回
+loss 与改动前**逐位相同**。
+
+### E. 冻结的启动状态（两臂共同）
+
+| 项 | 值 | 来源 / 原因 |
+|---|---|---|
+| 起点 | `hsi_b_lingo_full_v2_resume.pth` | `epoch=222`、`next_epoch=223`、`micro_steps=optimizer_updates=146255`、`epoch_completed=False` |
+| 权重身份 | 同 `..._epoch222.pth`，sha256 `5daaf813ca82…` | 所有封存 B v2 cell 用的同一 checkpoint |
+| optimizer | 从同一文件恢复的 Adam（210 项），`lr=2e-4` | resume 恢复 `optimizer.state_dict()` |
+| LR | 2000 update 线性 warmup 后恒定 2e-4，位置恢复在 `last_epoch=146255` ⇒ **全程平的** | `LambdaLR(min((u+1)/2000,1))` |
+| RNG | 逐 rank `numpy/python/torch_cpu/torch_cuda` 全部恢复 | **故两臂看到逐位相同的 batch 与 timestep，是配对的** |
+| 预算 | **20 epoch**，`epochs: 243`（223..242），`max_optimizer_updates: 159375` = 146255 + 20×656 | 两者同时到界，互不截断 |
+| seed | 42 | 不变 |
+| layout | world_size **4** × 512 × accum 1，effective 2048，bf16_tf32 | `RESUME_GEOMETRY_FIELDS` **拒绝**其他 world_size |
+| 梯度裁剪 | **无** | 不变；该字段参与 resume 几何校验 |
+| `OMP_NUM_THREADS` | **4** | 逐位相同，本 layout 上值 1.38× |
+| 落盘 | epoch240、epoch242 与滚动 resume | `epoch % 20 == 0 or epoch == epochs-1` |
+| T0 | `loss_w_seam` **关** —— loss 表达式与原始 run 逐字节相同 | 预算对照 |
+| T1 | `seam_loss_weight = 1.0` | 两臂**唯一**差异 |
+
+### F. 硬件调度修订 1（在任何 GPU 结果产生前提交）
+
+**固定映射，不替代：T0 → GPU 0–3；T1 → GPU 4–7。** 每臂拿到自己那四张连续卡才启动，
+否则**等待**；不得跨组、不得非连续、不得降 `world_size` / batch size。
+
+B 在 4×512 下实测每卡需 **19.6 GiB**（`sweep_mb512.json`：`peak_reserved_gib` 18.797、
+`driver_used_gib_after` 19.556 / 23.570）。修订时 GPU 0–3 载有他人作业各 12.9 GiB，
+故 T0 **等待**而不迁移。
+
+**双队列、彼此独立、机会式启动。** 每组一个持久监控器，自己那四张卡同时空闲即刻启动自己那臂，
+不等另一组；先空出的先启动；两组同时空闲则**两臂并行，占满 8 卡**；一臂启动或完成后，
+另一组监控器继续等待直到对应臂也完成。
+
+**"空闲"由显存与 compute process 共同判定，绝不看利用率。** 仅当 `memory.used ≤ 1024 MiB`
+**且** compute process 数为 **0**（任何用户），并连续 **3 次轮询（间隔 20 s）**都成立，才算空闲。
+1024 MiB 已用留下 ≥ 23.0 GiB 对 19.6 GiB 需求，余量 3.4 GiB。**0% 利用率但有常驻进程不算空闲。**
+
+**不干扰他人**：监控器只读 `nvidia-smi`，从不发信号、挂起或降权任何进程。
+
+**重启安全**：每臂一个原子 `mkdir` 锁，加 `started` / `done` / `exit_code` 标记、`pid` 文件与独立日志。
+启动前若锁存在、标记存在、PID 存活或最终 checkpoint 已在盘上，则跳过。故 Claude 断线、
+监控器重启或两个监控器竞争都不会重复启动同一臂。基础设施失败只允许以完全相同配置恢复。
+
+**修订 1 改了什么、没改什么。** 改的只有调度：placement（两臂同在 4–7 → T0 0–3 / T1 4–7 固定）、
+顺序（串行 → 按组机会式，可并行）、启动条件（立即 → 等待本组空闲）、墙钟（7.12 h →
+两组同空 3.56 h / 单组 7.12 h，另加排队等待）。**没改**：§B–§C 的干预、起点 checkpoint 与
+sha256、optimizer 及其 Adam 状态、LR 及其恢复位置、逐 rank RNG 及由此而来的配对、
+world_size 4、micro-batch 512、accum 1、effective 2048、bf16_tf32、seed 42、20 epoch /
+13,120 update 预算、无裁剪、`OMP_NUM_THREADS=4`、冻结 60 及其总体权重、主统计量与唯一
+10 Hz 视图、`A_GT = 1.2368`、§H 全部门槛、§I 的 Stage 2 界限，以及 **28.5 GPU-hour**。
+
+**修订 1 放弃的东西，如实记录而非藏起来。** 修订 0 让两臂同卡的理由是"两臂只差 loss，
+不差 PCIe/NUMA 位置"。本修订放弃该性质。本机上 0–3 与 4–7 两组并非可互换：同 effective batch
+的 layout 变更 4×512 → 8×256 实测把 update 1 的全局梯度范数移动 **4.60%**。那是 **rank 数**
+效应、在此不适用（两臂都保持 world_size 4），但两个 NUMA 组之间的残余位置差异并未被本分支上
+任何测量排除。**读 Stage 1 的后果：观测到的 `A_T1 − A_T0` 与分组位置存在未测量程度的混淆。**
+对**止损**门可接受——其登记通过线是闭合一个实测大小为 1.9 的差距的 40%，而位置效应在该单位上
+根本没有被测到过的存在；对**发布**主张不可接受，Stage 2 不得在未测量的情况下继承这种拆分布局。
+
+首个 GPU 进程启动后，不再允许任何修订。
+
+### G. 主统计量与唯一视图
+
+**冻结：`A = first_over_int`，在 `global_jpos` 上、10 Hz**（模型自身的粗生成网格 nat10）。
+实现于 `bmatch_20260825/seamstat.py`，**写在两臂存在之前**；Stage 1 用该模块原封不动地归约。
+
+逐 episode，`a[k] = p[k+1] − 2p[k] + p[k-1]`，`|a[k]|` 为逐关节 L2 再对 28 个关节取均值：
+
+    a_first    = 对各 seam s 的 |a[s-1]| 取均值
+    a_interior = 对既非 first 也非 last 的 k 的 |a[k]| 取均值
+    A_ep       = a_first / a_interior      A = 对 episode 取 A_ep 的均值
+
+**A 是比值的均值，不是均值的比值**（0.028886/0.0097907 = 2.951 而 A = 3.1565）；已登记的门槛
+就是按比值的均值陈述的，故冻结此形式。不用另两个视图：`fk10` 带 `interpolate_joints` 的节点
+漂移（步长 0.330233；216 个 fine 帧只有 2 个落在节点上），`fk30` 受插值污染（period-3 微结构）。
+
+**冻结 60 上的估计量。** 该 60 是**分层**样本，故点估计为总体权重 `N_s/375` 的分层加权均值，
+配对 bootstrap **在层内**重采样再按同权重合并（`hetero_20260823/stratify.py:weighted/wboot`，
+10000 reps，seed 42）。对该集取未加权均值是有偏的。
+
+**预注册基线（在两臂存在之前算出）**，冻结 60（364 窗口）加权：
+
+| cell | A（加权） | 95% CI | A（未加权） | a_first | a_interior |
+|---|---:|---|---:|---:|---:|
+| B unguided epoch222 | **3.1441** | [2.8592, 3.4488] | 3.2592 | 0.028316 | 0.009823 |
+| C unguided | 2.9976 | [2.7581, 3.2409] | 3.1136 | 0.027321 | 0.009438 |
+| GT v3 | 1.3210 | [1.2105, 1.4374] | 1.2690 | 0.013646 | 0.010514 |
+| **GT v3 排除 clamp** | **1.2368** | [1.1376, 1.3363] | 1.1864 | 0.013646 | 0.011094 |
+
+层总体 31/46/195/58/45，权重 0.08267/0.12267/0.52/0.15467/0.12，和为 1.0。GT 无 motion NPZ，
+其 nat10 按审计同一路径（`c25_20260824/recon.py`）从数据集重建，与模型导出 **0/60 seam 不一致**。
+自检：加权的 3.1441 复现匹配-370 的 3.1565 到 **0.4%**，故该集对此统计量具代表性。
+**冻结参考常量 `A_GT = 1.2368`**（排除 clamp，因 6.78% 的 GT 粗帧是零运动重复帧而模型没有）。
+
+### H. 门槛
+
+登记**两个**阈值，因为它们回答不同问题；这不是把先前登记的 70% 放宽——那是**发布**判据，
+而 Stage 1 是**止损**门。
+
+- **G-A / kill（Stage 1，只决定是否值得做 Stage 2）**：同时满足 (1) `A_T1 − A_T0` 的分层配对
+  bootstrap **显著为负**；(2) 闭合率 `(A_T0 − A_T1)/(A_T0 − 1.2368) ≥ 0.40`。
+- **G-A / ship（Stage 2，n=370，未加权，`A_GT = 1.1193`）**：闭合率 **≥ 0.70**，与前节一致不变。
+- **G-C 反过平滑（Stage 1，与 G-A 并列为 PRIMARY）**：若配对
+  `(a_interior,T1 − a_interior,T0)/a_interior,T0` 的**上**界低于 **−0.05** 则 FAIL。单侧，
+  因为登记的担忧是"jerk 增益由过平滑买来"，且模型已在 0.918× GT interior。双侧值照报。
+  **刻意不用裸 CI 形式**——见 §I 的门设计缺陷。
+- **G-D 口径同一（Stage 1，PRIMARY）**：60 个 episode 上，T1 与 T0 的 `seams`、
+  `window_lengths`、`history_frames`、`interp_scale`、`frame_count` 必须**逐位相同**，
+  且 episode 集合相同；B-match 不改几何，任何偏离都意味着干预泄漏进了 harness。
+  另外 T0 的几何须与封存 epoch222 导出在同 60 上一致。
+- **G-B penetration —— Stage 1 不作判定，且这是算出来的而非假设的。** Stage 2 界限为
+  Δ(`pen_ratio`) = 0.0030、Δ(`pene_pct_scene`) = 0.0042（§I），而冻结 60 自身的半宽是
+  **0.00653** 与 **0.00745**（`smoke60.json:mde`），是界限的 **2.2×** 与 **1.8×**。
+  n=60 上**任何方向的结论都不可得**。Stage 1 只把这些数作为**探索性**结果连同半宽一并报出。
+
+**Stage 1 探索性（报半宽、不下判定）**：`pen_ratio`、`pene_pct_scene`、`pen_depth_mean`、
+`min_dist`、`contact_count`、`fs_nemf`、`skate_ratio`、`goal_planar_err_m`，以及封存 30 Hz 的
+`boundary_jerk` / `interior_jerk` / `jerk_ratio`。
+
+### I. Stage 2 的 penetration 非劣界限 —— 推导得出，不是挑的
+
+指示要求实际有意义的界限，不得用"任何非零变化都失败"。后者是已登记的缺陷：它把
+**相对 +0.07%** 的变化判为失败，因为 n=370 的配对差近乎确定。
+
+可用的界限 Δ 必须同时满足两条**实测**约束：
+
+1. **真 null 能过。** 检验为"配对差的 97.5% 上界 < Δ"，真效应为 0 时上界即半宽 h，
+   故 **Δ > h**。n=370 实测（同族封存配对）：h(`pen_ratio`) = 0.002514、
+   h(`pene_pct_scene`) = 0.003014。
+2. **仍能抓住项目已经否决的那个失败。** dose1 对 B guided 是封存的 FAIL：
+   `pen_ratio` **+0.006046** [+0.003929,+0.008436]、`pene_pct_scene` **+0.006811**
+   [+0.004392,+0.009503]。要稳健抓住（整条 CI 都在界限之上）需 **Δ < 其 CI 下界**。
+
+| metric | h（下限） | dose1 CI 下界（上限） | 宽度 |
+|---|---:|---:|---:|
+| `pen_ratio` | 0.002514 | 0.003929 | 1.56× |
+| `pene_pct_scene` | 0.003014 | 0.004392 | 1.46× |
+
+非空但**很窄**，须直说：n=370 上这个门只有约 **1.5×** 的窗口介于"null 能过"与"仍能抓住已知失败"
+之间。第三个锚点在其中定点——B unguided 到 GT 的剩余距离：`pen_ratio` **+0.007485**、
+`pene_pct_scene` **+0.010448**（n=370 配对，均 SIG）。
+
+**冻结：Δ = 该剩余距离的 40%**
+
+    Δ(pen_ratio)      = 0.40 × 0.007485 = 0.002994  →  +0.0030
+    Δ(pene_pct_scene) = 0.40 × 0.010448 = 0.004179  →  +0.0042
+
+两者都落在各自可行区间内；40% 是唯一能让**两个**指标同时落入的、对某个项目内有意义量的整分数
+（1/3 会让 `pen_ratio` 以 0.002495 < 0.002514 失格）。读法：T1 最多可消耗到 GT 剩余距离的 40%，
+超过即算 penetration 退化。
+
+**登记的局限**：`pene_pct_scene` 的界限只低于 dose1 CI 下界 **4.4%**（0.0042 对 0.004392），
+故该界限对自身的"抓住"要求是紧的；落在 0.0042–0.0044 之间的候选会被判失败，而这个区分本设计
+无法自信地分辨。
+
+Stage 2 另冻结一个已被接受的先例锚点：s=0.45 对 B guided **未**被判为 penetration 失败
+（它失在 walk h_min）：`pen_ratio` −0.000337 [−0.002492,+0.001984] ns、
+`pene_pct_scene` +0.001153 [−0.001350,+0.003768] ns。上述两个界限都必须容纳它，且确实容纳。
+
+### J. 成本重算，以及对已提交表格的一处更正
+
+**先前提交的 §I 用错了锚点**：它取 29.6 h / 223 epoch。而该 run 自己的记录写着
+**`wall_clock_hours = 20.98`**、`seconds_per_update_sustained = 0.5164`、`omp_num_threads = 4`
+（`results/hsi_b_lingo_full_v2/metrics.json`）。29.6 h 是 **OMP 未设限**的口径，而该 run 并未
+使用它——config 注释与 launch 脚本都写明设了限。正确的每 epoch 成本是 0.09407 h，不是 0.13274 h。
+
+| 项 | 值 |
+|---|---|
+| 20 epoch = 13,120 update × 0.5164 s | 每臂 **1.882 h** 墙钟，4 GPU ⇒ **7.53 GPU-h** |
+| Stage 1 评估，冻结 60，每臂 | **6.71 GPU-h**（`smoke60.json:gpu_hours`），4 GPU 上 **1.678 h** |
+| **Stage 1 GPU-hour 合计** | **28.5**（与布局无关） |
+| 墙钟，两组同时空闲（8 卡） | **3.56 h** = 1.882（两臂并行）+ 1.678（两评估并行） |
+| 墙钟，仅一组可用、两臂串行 | **7.12 h** |
+
+排队等待不计入以上任何一项：它不消耗 GPU-hour，其长度由他人作业决定而非本设计。
+对已提交的 6.94 h / 34.3 GPU-h：**算力少 17%**。Stage 2 未重新计价，因为它未获批。
+
+### K. 本阶段无法决定的事
+
+- **penetration，任何方向**（§H，已量化）。
+- 接缝修复能否在 n=370 上或在 guidance 下存活。
+- 换一个权重会不会更好。按指示只有一个权重、不扫描。G-A 过而 G-C 不过将指示权重偏大，
+  那是新实验而非微调。
+- 旋转通道是否需要自己的接缝项（FK 通道 85% 的幅度提示很可能需要）。
+
+### L. 现行禁令
+
+Stage 1 无论 PASS 或 FAIL 都**不得**自动进入 Stage 2，须用户明示批准。guidance 保持关闭。
+不修改 C、evaluator、walk 门槛、continuous-w、`code/priors/core/`。不运行其他实验。
+evaluator 的 clamp 与 slerp 缺陷继续只登记不修。除 `.claude/scratch/` 与 run 目录外不产生
+未跟踪文件。
