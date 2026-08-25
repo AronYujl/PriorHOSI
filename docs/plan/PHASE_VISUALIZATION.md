@@ -197,7 +197,7 @@ The earlier `visualization-v2b1-20260825` directory is retained but superseded:
 its PNG is identical, while its render manifest predates the explicit source
 window fields. No Blender installation was required.
 
-#### V2b.2 — P12 fixed-camera video (approved 2026-08-25)
+#### V2b.2 — P12 fixed-camera video (passed 2026-08-25)
 
 Add one Linux-headless MP4 for the accepted 126-frame
 `sub16_clothesstand_000` export before considering batch rendering. The video
@@ -215,6 +215,18 @@ frame count, duration, hand-pose source, renderer commit, and output SHA256.
 Unit tests cover fail-closed settings, camera framing, FFmpeg command
 construction, and overwrite refusal. Batch rendering of the remaining 437
 sequences remains deferred.
+
+Implementation commit `f0b8b8f` adds the CPU PyTorch3D/FFmpeg renderer and
+passes the complete 82-test repository suite plus research-metadata
+validation. The write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi/p12-armb/visualization-v2b2-video-20260825/sub16_clothesstand_000/sub16_clothesstand_000-motion126-fixed-camera.mp4`.
+`ffprobe` verifies H.264/yuv420p, 640x480, 30 FPS, 126 frames, and 4.2 seconds.
+The three source windows contribute 42 frames each and retain seams `[42,84]`.
+The full clothesstand and SMPL-X meshes, fixed camera, and `smplx_mean` hand
+source were visually checked at frames 0, 63, and 125. The MP4 SHA256 is
+`9d86359594de8258e688b3e9d20c93c0ea78517f48a26fbd70634ea3fe39f672`;
+its render-manifest SHA256 is
+`f8f4cd0fee052ec7ac71c9aa4605fe7f052161ff7f115f1bb3b2a1469b156666`.
 
 ### V3 — Paper composition
 
