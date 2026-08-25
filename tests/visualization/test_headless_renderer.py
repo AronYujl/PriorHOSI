@@ -8,6 +8,7 @@ from tools.visualization.headless import (
     _crop_white_margins,
     _parse_frames,
     _style_parameters,
+    _timeline_manifest_fields,
 )
 
 
@@ -51,3 +52,20 @@ def test_paper_crop_removes_white_margin_with_fixed_padding(tmp_path):
 
     assert dimensions == (50, 50)
     assert Image.open(output).size == (50, 50)
+
+
+def test_render_manifest_keeps_window_semantics_for_selected_frames():
+    fields = _timeline_manifest_fields(
+        {
+            "window_lengths": np.asarray([4, 4, 4]),
+            "seams": np.asarray([4, 8]),
+            "window_id": np.repeat(np.arange(3), 4),
+        },
+        np.asarray([0, 3, 4, 8, 11]),
+    )
+
+    assert fields == {
+        "source_window_lengths": [4, 4, 4],
+        "source_seams": [4, 8],
+        "selected_window_ids": [0, 0, 1, 2, 2],
+    }

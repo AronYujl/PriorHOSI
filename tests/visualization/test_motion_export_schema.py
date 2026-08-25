@@ -112,6 +112,18 @@ def test_hsi_rejects_partial_object_stream(tmp_path):
         validate_motion_export(motion)
 
 
+def test_window_metadata_must_match_motion_timeline(tmp_path):
+    motion = tmp_path / "windows.npz"
+    _write_export(
+        motion,
+        window_lengths=np.asarray([2, 1], dtype=np.int32),
+        window_id=np.asarray([0, 1], dtype=np.int32),
+    )
+
+    with pytest.raises(MotionExportError, match="window_id length"):
+        validate_motion_export(motion)
+
+
 @pytest.mark.parametrize(
     "overrides, message",
     [

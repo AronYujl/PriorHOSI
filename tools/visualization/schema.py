@@ -261,11 +261,17 @@ def validate_motion_export(
         if int(object_trans.shape[0]) not in allowed_object_frames:
             raise MotionExportError("object stream has no matching pose/coarse frame rate")
 
-    if coarse_frames is not None:
-        _check_positive_vector(data, "window_lengths", expected_sum=coarse_frames)
-        _check_index_vector(data, "seams", upper=coarse_frames + 1)
+    timeline_frames = coarse_frames if coarse_frames is not None else pose_frames
+    _check_positive_vector(data, "window_lengths", expected_sum=timeline_frames)
+    _check_index_vector(data, "seams", upper=timeline_frames)
+    if "window_id" in data:
+        window_id = _array(data, "window_id", ndim=1, finite=False)
+        if not np.issubdtype(window_id.dtype, np.integer) or (window_id < 0).any():
+            raise MotionExportError("window_id must contain non-negative integers")
+        if window_id.shape[0] != timeline_frames:
+            raise MotionExportError("window_id length must match the motion timeline")
     history_frames = _optional_scalar_int(data, "history_frames")
-    if history_frames is not None and coarse_frames is not None and history_frames >= coarse_frames:
+    if history_frames is not None and history_frames >= timeline_frames:
         raise MotionExportError("history_frames must be smaller than the coarse sequence")
 
     manifest = None

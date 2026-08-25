@@ -126,6 +126,24 @@ def _crop_white_margins(path: Path, padding: int) -> Tuple[int, int]:
     return cropped.size
 
 
+def _timeline_manifest_fields(
+    data: Mapping[str, np.ndarray], selected: np.ndarray
+) -> Dict[str, Any]:
+    """Copy optional source-window semantics into the render record."""
+
+    fields: Dict[str, Any] = {}
+    if "window_lengths" in data:
+        fields["source_window_lengths"] = np.asarray(
+            data["window_lengths"], dtype=np.int64
+        ).tolist()
+    if "seams" in data:
+        fields["source_seams"] = np.asarray(data["seams"], dtype=np.int64).tolist()
+    if "window_id" in data:
+        window_id = np.asarray(data["window_id"], dtype=np.int64)
+        fields["selected_window_ids"] = window_id[selected].tolist()
+    return fields
+
+
 def _load_object_mesh(path: Path, *, coordinate_frame: str) -> Tuple[np.ndarray, np.ndarray]:
     if not path.is_file():
         raise HeadlessRenderError("object rest mesh does not exist: %s" % path)
@@ -456,6 +474,7 @@ def render_keyframes(
         "dpi": dpi,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "output_sha256": _sha256(output),
+        **_timeline_manifest_fields(data, selected),
     }
     render_manifest.parent.mkdir(parents=True, exist_ok=True)
     render_manifest.write_text(json.dumps(render_record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
