@@ -2,6 +2,49 @@
 
 These rules apply to every file in this repository.
 
+## Motion-parameter generation workflow
+
+When the user asks to generate or export motion params, use the established
+worker2 inference-and-return workflow by default.
+
+- This `visualization/renderer` worktree owns inference orchestration and
+  visualization. Do not edit or add planning/context files to `phase/01b-hoi`
+  or `phase/01c-hsi` for a motion-parameter generation request.
+- The user's normal input is one absolute checkpoint path on the authority
+  host. Start the workflow with:
+
+  ```bash
+  /data/yujinlun/anaconda3/envs/infbagel/bin/python \
+    tools/worker2_inference.py start /absolute/authority/checkpoint.pth
+  ```
+
+- Read `docs/visualization/WORKER2_INFERENCE.md` and
+  `tools/visualization/worker2_profiles.json` before execution. They are the
+  canonical, updateable operational specification. Fail closed when no tested
+  profile matches the checkpoint/model family. Do not derive an inference
+  commit or evaluator configuration from a checkpoint's training commit.
+- The currently validated HOI profile is `hoi-p12-armb`: P12 Arm B, guidance
+  scale 1000, 10 last steps, clamp 1, clamp target `update`, `y_up` frame, and
+  438 expected sequences. Its validated inference commit is
+  `8742d1a3b88800161324a8e45c597ffafdcbb607`; the P12 checkpoint training
+  commit `25931627a7a5668598e3120f57762546306c13a7` is not a substitute.
+- Control worker2 through the authority host's loopback reverse endpoint
+  `127.0.0.1:22216`. Worker2 data belongs below
+  `/data2/yujinlun/infbagel-inference`; never use `/home/yujinlun/data` for
+  worker2 data.
+- Git, checkpoint, and artifact bulk transfers are worker2-initiated directly
+  over the campus LAN to `10.184.17.253` with `ssh -F /dev/null`. Never route
+  them through Windows or the Windows proxy.
+- Keep inference in the worker-owned persistent systemd unit. Return results
+  through `.incoming`, verify the motion artifact SHA256, and atomically
+  promote it. Never overwrite or reuse a run ID or artifact destination.
+- If generation succeeded but return failed, use
+  `tools/worker2_inference.py retry-return RUN_ID`; do not rerun generation.
+  Use `tools/worker2_inference.py status RUN_ID` for inspection.
+- HOI architectures other than the registered P12 profile, plus HSIPrior and
+  PriorHOSI, require a tested registered inference profile before the
+  one-checkpoint workflow may run.
+
 ## Locked provenance
 
 - The integration baseline is commit `b9a158f75ab0740c91c9cfc8863a65fa381b014c`.
