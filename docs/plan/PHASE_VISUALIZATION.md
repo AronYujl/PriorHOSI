@@ -157,7 +157,7 @@ Implement a CPU/headless renderer for trajectory figures and optional mesh
 frames. Gate: it produces deterministic PNG output from a fixture on Linux
 without Blender or a display server.
 
-#### V2b.1 — P12 long-window still (approved 2026-08-25; in progress)
+#### V2b.1 — P12 long-window still (passed 2026-08-25)
 
 The V2a review found that P12 object arrays shaped `[3,42,...]` are three
 consecutive autoregressive windows, not three candidate samples. Correct the
@@ -174,6 +174,28 @@ passes. Batch conversion of the other 437 provisional-model sequences is
 deferred. MP4 generation remains outside this substep because the authority
 environment currently has no maintained EGL renderer; the deterministic PNG
 path must be accepted before adding a video backend.
+
+Implementation commits `ee32cff` and `9b4d12d` make legacy layout selection
+mandatory, flatten the P12 windows into one timeline, validate optional paired
+hand-pose arrays, use a recorded SMPL-X mean-hand fallback when absent, and add
+the axis-free orthographic `paper` style with full meshes and deterministic
+content cropping. The complete repository suite passes 73 tests; research
+metadata validation passes 28 registry records, one split, two evaluators, and
+one training protocol.
+
+The accepted write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi/p12-armb/visualization-v2b1-r2-20260825/sub16_clothesstand_000`.
+It contains 126 frames with window lengths `[42,42,42]`, seams `[42,84]`, and
+selected frames `[0,25,50,75,100,125]`; their window IDs are
+`[0,0,1,1,2,2]`. The canonical NPZ SHA256 is
+`6b5f3f2a59320feee4fb89f2d31bfd11e8b35a21326438bfaee368fd3b8fc99c`,
+the PNG SHA256 is
+`9ab3788e85120ec388eb932c671bee627f393b028e89dbdabe987b99ecd871d7`,
+and the render-manifest SHA256 is
+`40c2993a4c165cbc4244eab0ea9b223f790b13936b1b034b7168f0b663834ad6`.
+The earlier `visualization-v2b1-20260825` directory is retained but superseded:
+its PNG is identical, while its render manifest predates the explicit source
+window fields. No Blender installation was required.
 
 ### V3 — Paper composition
 
