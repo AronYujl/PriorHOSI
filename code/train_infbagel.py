@@ -608,6 +608,12 @@ def train_ddp(rank, world_size, cfg):
                         writer.add_scalar('Loss_object', loss_object.item(), epoch * len(dataloader) + step)
                     if loss_fk is not None:
                         writer.add_scalar('Loss_fk', loss_fk.item(), epoch * len(dataloader) + step)
+                    # Present only when the B-match seam weight is on; the
+                    # consistency branch never sets it.  Diagnostics only -- the
+                    # term is already inside `loss`, added by p_losses.
+                    loss_seam = loss_dict.get('loss_seam')
+                    if loss_seam is not None:
+                        writer.add_scalar('Loss_seam', loss_seam.item(), epoch * len(dataloader) + step)
 
             last_loss = float(loss.detach().item())
             is_accumulation_boundary = micro_steps % int(cfg.gradient_accumulation_steps) == 0

@@ -1,0 +1,84 @@
+# B-match Stage 1, arm T1 -- the INTERVENTION.
+#
+# 20 more epochs from hsi_b_lingo_full_v2 epoch222 with ONE change against T0: the
+# first two GENERATED frames of the position channel are weighted harder.  T0 is
+# its budget control and its only valid baseline.
+#
+# WHY THIS IS A WEIGHTS-ONLY CONTINUATION AND NOT A `resume_from`.
+# The 2026-08-25 functional smoke tried resume_from on the origin's rolling
+# _resume.pth and was refused by design:
+#     "resume state was written after epoch 222 stopped mid-epoch at the
+#      optimizer-update budget; the run is finished and there is nothing to resume"
+# That guard (train_infbagel.py:282) is correct and was NOT touched: the origin run
+# ended by reaching its own preregistered max_optimizer_updates, so continuing it
+# would silently exceed that schedule.  This pilot is a separately preregistered
+# budget, which the guard cannot know.  So the arms start from epoch222's WEIGHTS
+# with a fresh optimizer, which costs the Adam moments and gains nothing false.
+#
+# The pairing survives without the restored RNG: train_ddp seeds
+# random/numpy/torch/cuda at `seed + rank` (train_infbagel.py:374-377) and the data
+# order is DistributedSampler(seed=42).set_epoch(epoch), so both arms see
+# bitwise-identical batches and timesteps from identical fresh Adam state.  The
+# ~1/(1-beta2) ~ 1000-update Adam transient is therefore present in BOTH arms and
+# cancels in the paired T1-minus-T0 contrast.  Consequence: T0 is the ONLY valid
+# baseline for T1; the sealed epoch222 cell is not.
+#
+# Everything scientific is INHERITED from config_train_hsi_b_lingo_full: seed 42,
+# 4 x 512 x accum 1 (effective 2048), bf16_tf32, lr 2e-4, warmup 2000,
+# loss_w_fk 3, auto_regre_num 2, no gradient clipping.  Restating any of them here
+# would let the two arms drift apart silently.
+#
+# Frozen spec: .claude/scratch/bmatch_20260825/FROZEN_PILOT_SPEC.md
+# Preregistration: docs/plan/PHASE_1C_HSI.md, 2026-08-25 (third section), commit 519caba.
+defaults:
+  - config_train_hsi_b_lingo_full
+  - _self_
+
+exp_name: hsi_b_seam_t1
+
+# 223..242 inclusive.  start_epoch=223 sets micro_steps = optimizer_updates =
+# 223 * 656 = 146,288, which puts the lr schedule past its 2000-update warmup, so
+# the lr is a flat 2e-4 for the whole pilot.  20 * 656 = 13,120 more updates lands
+# on 159,408, so the epoch bound and the update bound coincide and neither
+# truncates the other.
+start_epoch: 223
+epochs: 243
+max_optimizer_updates: 159408
+
+# The frozen common start: epoch222 weights, sha256 5daaf813ca82...
+# Verified on CPU before any GPU work -- 218/218 tensors, 0 missing, 0 unexpected,
+# every tensor bit-equal after load.  `strict=False` in utils.init_model is a silent
+# partial-load path, so that check is a precondition, not a courtesy.
+load_state_dict: true
+model:
+  infbagel:
+    ckpt: /data/yujinlun/InfBaGel-hsi/results/hsi_b_lingo_full_v2/checkpoints/hsi_b_lingo_full_v2_epoch222.pth
+
+# The launcher overrides resume_from to the ARM'S OWN rolling state (with
+# start_epoch=0) when one exists, so an infrastructure restart continues instead of
+# redoing the 20 epochs.  5 rather than the inherited 20 so that a restart loses at
+# most ~0.47 h instead of ~1.8 h: the save block sits between epochs, consumes no
+# RNG and touches no optimizer state, so the cadence is trajectory-neutral, and it
+# is identical in both arms.
+resume_from: ""
+ckpt_interval: 5
+
+# THE INTERVENTION.  One value, frozen before any GPU work, not swept.
+#
+# 1.0 is the term's natural unit.  By counting alone -- loss_jpos's denominator is
+# 14 frames x 84 = 1176 elements per sample and loss_seam's is 2 x 84 = 168 -- the
+# per-element weight ratio is 1 + w * (1176/168) = 1 + 7w, so w=1.0 gives the two
+# seam frames exactly 8x an interior element and 16/28 = 57.1% of the position
+# objective.  The interior's ABSOLUTE coefficient is unchanged: the term is added,
+# not redistributed.
+#
+# Why err large rather than small: Stage 1 is a kill gate.  Too small returns a
+# null that cannot separate "B-match fails" from "weight too small", wasting the
+# 28.5 GPU-hours; too large returns G-A pass with a G-C or guard failure, which is
+# informative and whose next move (lower the weight) is obvious.  8x is also the
+# largest reweight that still leaves the interior a plurality (42.9%) -- it sits at
+# 0.918x GT interior smoothness already and must not be starved.
+#
+# Rejected: 3.156 ("weight by the measured elevation") -- an acceleration-MAGNITUDE
+# ratio is not an error ratio and there is no derivation from one to an MSE weight.
+seam_loss_weight: 1.0

@@ -61,6 +61,12 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        # B-match seam term, OFF by default (0.0 = the released arithmetic, and
+        # p_losses then takes a branch it cannot distinguish from the old code).
+        # When > 0 it reweights the first two GENERATED frames of the position
+        # channel only -- the two frames that carry the whole measured seam
+        # transient.  See docs/plan/PHASE_1C_HSI.md 2026-08-25 (third section).
+        self.seam_loss_weight = float(kwargs.get('seam_loss_weight', 0.0) or 0.0)
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
@@ -843,6 +849,17 @@ class Sampler:
 
         loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
 
+        # The history frames are clean GT at every step (get_mask p=1.0), so the
+        # seam second-order residual is exactly the first generated frame's
+        # position residual: a_hat[1] - a_star[1] == p_hat[2] - p[2].  Weighting
+        # these two frames IS the acceleration match, not an approximation to it.
+        # Per-element mean over the slice, matching all five terms above.
+        loss_seam = None
+        if self.seam_loss_weight > 0.0:
+            n = int(self.auto_regre_num)
+            loss_seam = F.mse_loss(x_start[:, n:n + 2, :84], predicted_noise[:, n:n + 2, :84])
+            loss = loss + self.seam_loss_weight * loss_seam
+
         # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
         if self.dataset.use_object_keypoints:
             hand_idx_28 = [20, 21, 25, 27]
@@ -917,7 +934,7 @@ class Sampler:
         if occ is not None:
             del occ
                 
-        return dict(loss=loss, loss_object=loss_object, loss_fk=loss_fk)
+        return dict(loss=loss, loss_object=loss_object, loss_fk=loss_fk, loss_seam=loss_seam)
 
     @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \
