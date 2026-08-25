@@ -228,7 +228,7 @@ source were visually checked at frames 0, 63, and 125. The MP4 SHA256 is
 its render-manifest SHA256 is
 `f8f4cd0fee052ec7ac71c9aa4605fe7f052161ff7f115f1bb3b2a1469b156666`.
 
-#### V2b.3 — OMOMO-quality Blender render (approved 2026-08-25)
+#### V2b.3 — OMOMO-quality Blender render (passed 2026-08-25)
 
 Add a high-quality Linux-headless tier after review found that the V2b.2
 PyTorch3D preview has flat plastic-like shading, no floor or cast shadows, and
@@ -254,6 +254,36 @@ six recorded frames with a common camera and floor. Review must confirm smooth
 silhouettes, non-flat material response, a visible floor, and coherent cast or
 contact shadows before this gate passes. The remaining 437 sequences stay
 deferred.
+
+Implementation commit `fe56a5d` adds the immutable mesh-cache builder,
+standalone Blender-bundled scene consumer, Cycles renderer, FFmpeg verifier,
+process-figure compositor, tests, and documentation. A complete 126-frame
+low-sample orchestration smoke passed before the formal render; the repository
+suite passes 91 tests and research-metadata validation.
+
+The formal write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hoi/p12-armb/visualization-v2b3-blender-20260825/sub16_clothesstand_000`.
+It uses Blender 3.2.0, the official OMOMO blend-scene SHA256
+`bc7e2d7de5fe2129c9808c21a00629fd294d97ee52d8d1ca543bb3d748312f1f`,
+Cycles CPU with 64 samples and denoising, smooth OMOMO blue/purple Principled
+materials, the official Sun/world plus a recorded 400 W camera fill, Filmic
+color management, a procedural staggered wood floor, and one sequence-fitted
+orthographic camera. The natural `smplx_mean` hand fallback remains explicit.
+
+`ffprobe` verifies the H.264/yuv420p video as 126 frames, 1024x768, 30 FPS,
+and 4.2 seconds. Its SHA256 is
+`d9374c52f3637bc47848f354b5a0586e0e912f4f870527a6240edc235c91ebe3`.
+All 126 lossless source PNGs are retained with tree SHA256
+`b97022bcea6e6f8f80a5b0d0ca56de064fc2d7c4465b14b943e337d040143f12`.
+The 3104x1648 process figure uses frames `[0,25,50,75,100,125]` and has
+SHA256 `65ec057978f8b56c722a9031ed015630230c566e6013c0c8b0114311ccec8a8d`.
+The mesh-cache SHA256 is
+`f5b08a9a6bba1655afd29e1a72840dc46cd413687f23c8f198f1974d11493959`;
+the render-manifest SHA256 is
+`d68ac3b962691df4586a49884a429d112e322acc786d410facdb02f9b82b1991`.
+Visual review of the six formal frames confirms full floor coverage, smooth
+silhouettes without the V2b.2 stair-step edges, non-flat material highlights,
+coherent human/object shadows, and no first/last-frame camera clipping.
 
 ### V3 — Paper composition
 
@@ -286,7 +316,9 @@ single trajectory while retaining stage boundaries and seam locations.
 - deciding the mixer architecture or state-machine protocol;
 - claiming that an export artifact is a scientific evaluation result;
 - reproducing the authors' unpublished figure-layout script;
-- requiring Blender on the Linux authority host.
+- requiring Blender for training, inference, motion export, or the fast
+  PyTorch3D preview; the optional paper-quality tier uses a pinned portable
+  Blender binary on the Linux authority host.
 
 ## Entry and exit points
 
