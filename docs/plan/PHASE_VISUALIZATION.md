@@ -544,7 +544,7 @@ write-once and is superseded by `v3b2`; it is not the reported result. Neither
 version applies floor correction; the accepted GT retains its measured
 -5.55 to -4.29 cm lowest-vertex floor gap.
 
-### V3b.2 — long-distance chair locomotion prediction/GT (preregistered 2026-08-26)
+### V3b.2 — long-distance chair locomotion prediction/GT (passed 2026-08-26)
 
 Render an existing HSIPrior locomotion export that makes substantial horizontal
 progress and ends with a clearly inspectable sit action. The deterministic
@@ -581,6 +581,32 @@ camera lock, selected frames and output hashes; visual review checks that both
 motions approach the chair and whether their final bodies contact, hover above,
 or penetrate the seat. Do not repair floor height, collision, goal position or
 the sit motion for presentation, and do not edit or run the HSI expert worktree.
+
+The three accepted write-once artifacts are:
+
+- prediction: `artifacts/hsi/b-v2-unguided/visualization-v3b3-chair-locomotion-prediction-20260826/062_006305`;
+- ground truth: `artifacts/hsi/b-v2-unguided/visualization-v3b3-chair-locomotion-ground-truth-20260826/062_006305`;
+- comparison: `artifacts/hsi/b-v2-unguided/visualization-v3b3-chair-locomotion-prediction-vs-ground-truth-20260826/062_006305`.
+
+ffprobe verifies both standalone videos as H.264/yuv420p at 1280x720, 30 FPS,
+300 frames and 10 seconds, and verifies the labelled comparison as the same
+timeline at 2560x720. Prediction motion/cache/video/figure hashes are
+`4124a4d8...`, `063402bd...`, `807e2692...`, and `51e76b1c...`; GT hashes are
+`296da354...`, `e6e7f5f...`, `7e79ceee...`, and `f9c64f78...`. The comparison
+video hash is `89a5f833...`. Its manifest binds prediction render manifest
+`2854d0ab...` and GT render manifest `897fda4c...`; the GT render explicitly
+locks camera fit bounds to the former. The exact GT slice hash is `1ab26433...`,
+and both render paths use SMPL asset tree `514643d8...` and scene
+`0097b492...`.
+
+Visual inspection at fine frames 0, 93, 180 and 299 confirms that both motions
+approach the scene's rear-right armchair and end seated. The prediction reaches
+the chair earlier and transitions more upright; GT has a deeper forward bend
+and crouch before sitting near the front of the seat. Neither has obvious
+hovering or severe seat penetration in the fixed oblique view, although that
+single view cannot rule out minor mesh collision. No floor, contact, collision,
+goal or pose repair was applied. The repository suite passes 123 tests, and no
+checkpoint, inference process, or HSI expert source was used or modified.
 
 ### V3c — LINGO material palette for the HOI shared-scene figure (passed 2026-08-26)
 
