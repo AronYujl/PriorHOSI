@@ -6954,3 +6954,73 @@ commit**。权威陈述是上述每格自记的 provenance 文件，不是 git �
 2. G-C 的 P20/P20S 数字由两个脚本各算一次，`pair1_recovery.txt` 给 −4.24%（上界 −2.42%）
    与 −5.15%（上界 −3.13%），最终六路归约 `pair2_paired.txt` 给 −4.23%（−2.40%）与
    −5.12%（−3.09%）。差异来自 bootstrap 重采样顺序，不改变任何判定；本节采用后者。
+
+## 2026-08-26（同日第二次：固定 teacher 的全量 full-diffusion 推理 —— 逐位复现封存导出，保留 motion param）
+
+用户批准在 8 卡上并行跑一次完整 diffusion 推理并保留 motion param。本节记录该运行，
+并说明它实际买到的是什么。
+
+### A. 配置
+
+固定 teacher = sealed epoch222（`hsi_b_lingo_full_v2_epoch222.pth`，sha256 前缀
+`5daaf813ca828788`），8 卡各跑一个分片（`shard_count=8`，`shard_index=0…7`），
+375 episode / 2271 窗口，`sample_type=diffusion`（500 采样步，1000 次 denoiser 调用）、
+`use_guidance=false`、seed 42、`hsi_progress_fix=true`、`export_motion=true`、
+`batch_size=1`、`OMP_NUM_THREADS=4`。其余为配置默认并逐项核对与封存运行一致：
+`hsi_gt_trajectory=false`、`hsi_lookahead_m=0.8`、`hsi_guidance_norm_cap=null`、
+`hsi_guidance_dose_scale=null`。RDS 自行开启（`rds_available = not guided`，无 flag）。
+
+**这些参数不是自选的**：它们逐项钉在 2026-08-23 的封存运行
+`p1-hsi-b-v2-eval-epoch222-unguided-shard8-s42-20260823`（即 `b_v2_unguided_shard8`）
+上，目的就是让本次运行与它可直接比较。
+
+成本：墙钟 **2 h 39 m**（159 min），**约 21.2 GPU-hour**，8 个分片全部 exit 0，
+merge exit 0。产物 375/375 `motion/<sequence_id>.npz`，含 `global_jpos`
+与 SMPL-X FK 输入（`global_orient`、`body_pose`、`transl`、`betas`、`gender`）。
+脚本与标记：`results/hsi_teacher_full_20260826/{run.sh,compare.py,state/,logs/}`。
+
+### B. 结果：逐位复现
+
+`compare.py` 对封存导出做三层比较，全部逐位相同：
+
+| 层 | 比较对象 | 结果 |
+|---|---|---|
+| 协议声明 | seed / `sample_type` / `guided` / fps / `sampling_body` / `model_name` / `sequence_count` / `scene_count` / checkpoint sha256 / 分片切分与每-episode 播种规则 | 全部一致 |
+| 每-episode 指标 | 51 个数值键 × 375 episode | **51/51 逐位相同**，max \|dev\| = 0 |
+| motion 导出数组 | `global_jpos`、`transl`、`global_orient`、`body_pose`、`betas` | **各 375/375 逐位相同**，max \|dev\| = 0 |
+
+分片切分也逐位一致：`shard_window_totals` [285, 283, 283, 285, 285, 284, 284, 282]，
+`shard_episode_counts` [49, 46, 46, 47, 47, 47, 47, 46]。
+
+### C. 这次运行买到了什么，以及没买到什么
+
+**没买到新几何。** 该导出此前已存在于
+`/home/yujinlun/yujinlun_data/InfBaGel-hsi/results/lingo_hsi/b_v2_unguided_shard8`
+（注意是与 checkout 的 `results/` **不同的文件系统**，只搜仓库树会漏掉），375/375、
+含同样的 SMPL-X 参数。本次是复现，不产生任何新的模型侧读数，也不改变任何既有判定。
+
+**买到两件事，都不是既有证据能给的：**
+
+1. **`loss_w_jpos` 默认值在推理路径上的端到端惰性。** 训练侧惰性此前已由 CPU 位型、
+   Hydra 解析与真机 smoke 证明；但 `code/config/sampler/pelvis.yaml` 的新键在**采样**
+   配置上同样会被解析，这条路径此前未被覆盖。375 个 episode 上 51 个指标键与 5 个
+   motion 数组全部逐位相同，是该覆盖的直接证据。
+
+2. **HSI 推理是逐位可复现的，而训练不是。** 本文件 2026-08-25 第五次一节已记录
+   `train_infbagel.py` 既未设 `cudnn.deterministic` 也未设
+   `use_deterministic_algorithms`，故反向传播不可逐位复现（T0/T1 的 26.145 参数分离即
+   混沌放大）。推理侧不存在该问题：同一 checkpoint、同一 seed、同一
+   `seed_everything(seed + canonical_ordinal)` 播种规则下，跨日、跨进程、跨本仓库两次
+   commit 之间的重跑逐位相同。**推论：任何评测行都可以被精确重新导出，任何训练臂都不能。**
+   这决定了哪些结论可以事后复算、哪些必须重跑。
+
+### D. Provenance
+
+启动时快照记于 `results/hsi_teacher_full_20260826/state/provenance.*`：
+HEAD **`ea55a344e311b7a5d7a58149d29a3e13f3f4736c`** 加当时未提交的两文件 diff
+（sha256 前缀 `728ee8189fea5fec`）。
+
+本轮收尾的两个 commit（`b48f39d`、`257b272`）是在该运行**进行中**落地的，因此运行结束时
+的 HEAD 已不是启动时的 HEAD。这不影响磁盘上的任何记录：`per_sequence_metrics.json`
+**不含 `git_commit` 字段**（已核对），没有任何产物会在完成时回写 HEAD。权威陈述是上述
+启动时快照。
