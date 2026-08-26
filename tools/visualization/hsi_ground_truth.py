@@ -11,9 +11,10 @@ import pickle
 import shutil
 import sys
 import uuid
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
@@ -583,6 +584,50 @@ def _matched_render_identity(
     }
 
 
+def _matched_render_grid_identity(
+    manifests: Sequence[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    if len(manifests) < 2 or len(manifests) > 6:
+        raise GroundTruthError("render grid requires 2 to 6 inputs")
+    base = manifests[0]
+    for candidate in manifests[1:]:
+        for key in ("sequence_id", "caption"):
+            if base.get(key) != candidate.get(key):
+                raise GroundTruthError("render grid inputs disagree on %s" % key)
+        _matched_render_identity(base, candidate)
+    return {
+        **_matched_render_identity(base, manifests[1]),
+        "sequence_id": base.get("sequence_id"),
+        "caption": base.get("caption"),
+    }
+
+
+def _validate_grid_labels(labels: Sequence[str]) -> List[str]:
+    normalized = []
+    for label in labels:
+        if label != label.strip() or not label:
+            raise GroundTruthError("render grid labels must be non-empty and trimmed")
+        if len(label) > 48:
+            raise GroundTruthError("render grid labels may not exceed 48 characters")
+        normalized.append(label)
+    if len(set(normalized)) != len(normalized):
+        raise GroundTruthError("render grid labels must be unique")
+    return normalized
+
+
+def _parse_labeled_render(value: str) -> Tuple[str, Path]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError("grid input must be LABEL=RENDER_DIR")
+    label, directory = value.split("=", 1)
+    try:
+        _validate_grid_labels([label])
+    except GroundTruthError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+    if not directory:
+        raise argparse.ArgumentTypeError("grid render directory must be non-empty")
+    return label, Path(directory)
+
+
 def compose_prediction_ground_truth(
     prediction_render_dir: Path | str,
     ground_truth_render_dir: Path | str,
@@ -666,6 +711,132 @@ def compose_prediction_ground_truth(
     }
 
 
+def compose_render_grid(
+    labeled_render_dirs: Sequence[Tuple[str, Path | str]],
+    *,
+    output_dir: Path | str,
+    columns: int = 2,
+    crf: int = 18,
+    renderer_commit: str = "local-unrecorded",
+    command: Optional[str] = None,
+) -> Dict[str, Any]:
+    labels = _validate_grid_labels([label for label, _ in labeled_render_dirs])
+    if not 1 <= columns <= len(labeled_render_dirs):
+        raise GroundTruthError("render grid columns must be in [1, input count]")
+    destination = Path(output_dir).resolve()
+    if destination.exists():
+        raise GroundTruthError("refusing to overwrite HSI render-grid artifact")
+
+    inputs = []
+    manifests = []
+    for label, directory_value in zip(labels, (item[1] for item in labeled_render_dirs)):
+        directory = Path(directory_value).resolve()
+        manifest_path = directory / "render.manifest.json"
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise GroundTruthError("cannot read render manifest for %s" % label) from exc
+        inputs.append((label, directory, manifest_path, manifest))
+        manifests.append(manifest)
+    identity = _matched_render_grid_identity(manifests)
+    ffmpeg = shutil.which("ffmpeg")
+    ffprobe = shutil.which("ffprobe")
+    if ffmpeg is None or ffprobe is None:
+        raise GroundTruthError("FFmpeg and ffprobe are required")
+
+    rows = int(math.ceil(len(inputs) / columns))
+    output_width = identity["width"] * columns
+    output_height = identity["height"] * rows
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staging = destination.with_name(".%s.%s.staging" % (destination.name, uuid.uuid4().hex))
+    staging.mkdir()
+    frames_dir = staging / "frames"
+    frames_dir.mkdir()
+    for frame in range(identity["frame_count"]):
+        frame_name = "%05d.png" % frame
+        paths = [directory / "frames" / frame_name for _, directory, _, _ in inputs]
+        if not all(path.is_file() for path in paths):
+            raise GroundTruthError("render-grid frame is missing at index %d" % frame)
+        combined = Image.new("RGB", (output_width, output_height), "white")
+        with ExitStack() as stack:
+            sources = [stack.enter_context(Image.open(path)) for path in paths]
+            for index, ((label, _, _, _), source) in enumerate(zip(inputs, sources)):
+                image = source.convert("RGB")
+                if image.size != (identity["width"], identity["height"]):
+                    raise GroundTruthError("render-grid frame dimensions disagree")
+                x = (index % columns) * identity["width"]
+                y = (index // columns) * identity["height"]
+                combined.paste(image, (x, y))
+                draw = ImageDraw.Draw(combined)
+                bbox = draw.textbbox((0, 0), label)
+                label_width = bbox[2] - bbox[0]
+                draw.rectangle(
+                    (x + 16, y + 14, x + max(170, label_width + 34), y + 40),
+                    fill=(255, 255, 255),
+                )
+                draw.text((x + 22, y + 20), label, fill=(18, 25, 28))
+        combined.save(frames_dir / frame_name, format="PNG")
+
+    video = staging / "render-comparison-grid.mp4"
+    _encode_frames(ffmpeg, frames_dir, video, fps=identity["fps"], crf=crf)
+    probe = _probe_video(ffprobe, video)
+    if (
+        probe["frame_count"] != identity["frame_count"]
+        or probe["width"] != output_width
+        or probe["height"] != output_height
+        or not math.isclose(probe["fps"], identity["fps"], abs_tol=1e-6)
+    ):
+        raise GroundTruthError("render-grid video failed ffprobe validation")
+    input_records = []
+    for label, directory, manifest_path, manifest in inputs:
+        input_records.append(
+            {
+                "label": label,
+                "render_dir": str(directory),
+                "render_manifest_path": str(manifest_path),
+                "render_manifest_sha256": _sha256(manifest_path),
+                "motion_role": manifest.get("motion_role"),
+                "native_source_path": manifest.get("native_source_path"),
+                "native_source_sha256": manifest.get("native_source_sha256"),
+                "canonical_motion_sha256": manifest.get("canonical_motion_sha256"),
+                "video_sha256": manifest.get("video_sha256"),
+            }
+        )
+    record = {
+        "schema": "infbagel-hsi-render-grid-v1",
+        "sequence_id": identity["sequence_id"],
+        "caption": identity["caption"],
+        "labels": labels,
+        "inputs": input_records,
+        "matched_render_identity": identity,
+        "grid": {
+            "columns": columns,
+            "rows": rows,
+            "tile_dimensions": [identity["width"], identity["height"]],
+            "output_dimensions": [output_width, output_height],
+        },
+        "encoder": {"codec": "libx264", "crf": crf, "pixel_format": "yuv420p"},
+        "video_probe": probe,
+        "video_sha256": _sha256(video),
+        "renderer_commit": renderer_commit,
+        "command": command,
+        "visualization_only": True,
+        "evaluation_forbidden": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    manifest_path = staging / "comparison-grid.manifest.json"
+    _write_json(manifest_path, record)
+    if destination.exists():
+        raise GroundTruthError("render-grid artifact directory appeared during composition")
+    os.rename(staging, destination)
+    return {
+        "output_dir": str(destination),
+        "video_path": str(destination / video.name),
+        "manifest_path": str(destination / manifest_path.name),
+        "video_probe": probe,
+    }
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -688,6 +859,15 @@ def _parser() -> argparse.ArgumentParser:
     compare.add_argument("ground_truth_render_dir", type=Path)
     compare.add_argument("--output-dir", type=Path, required=True)
     compare.add_argument("--crf", type=int, default=18)
+    grid = sub.add_parser("compose-grid")
+    grid.add_argument(
+        "--input", dest="inputs", action="append", type=_parse_labeled_render,
+        required=True, metavar="LABEL=RENDER_DIR",
+    )
+    grid.add_argument("--columns", type=int, default=2)
+    grid.add_argument("--output-dir", type=Path, required=True)
+    grid.add_argument("--crf", type=int, default=18)
+    grid.add_argument("--renderer-commit", default="local-unrecorded")
     return parser
 
 
@@ -708,10 +888,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 args.prediction, args.ground_truth, smpl_models=args.smpl_models,
                 output_path=args.output,
             )
-        else:
+        elif args.command == "compose":
             result = compose_prediction_ground_truth(
                 args.prediction_render_dir, args.ground_truth_render_dir,
                 output_dir=args.output_dir, crf=args.crf,
+            )
+        else:
+            result = compose_render_grid(
+                args.inputs, output_dir=args.output_dir, columns=args.columns,
+                crf=args.crf, renderer_commit=args.renderer_commit,
+                command=" ".join(sys.argv),
             )
     except (GroundTruthError, OSError, ValueError) as exc:
         print("INVALID: %s" % exc)

@@ -56,6 +56,16 @@ worker2 inference-and-return workflow by default.
 
 ## Experiment lifecycle
 
+The lifecycle below applies to reportable model-training and scientific
+evaluation experiments. This visualization worktree is primarily a
+post-training engineering consumer: ordinary rendering, material, camera,
+compositing, export-format, and visualization-only post-processing requests
+must not update `docs/EXPERIMENT_PLAN.md` or `experiments/registry.jsonl`.
+Record their reproducibility in write-once artifact manifests with input,
+configuration, tool-version, and output hashes. Re-enter the experiment
+lifecycle only when the user explicitly requests a reportable training or
+evaluation experiment.
+
 - Before adding a new direction, update `docs/EXPERIMENT_PLAN.md` and append a
   hypothesis to `experiments/registry.jsonl`.
 - Training must refuse a dirty worktree. Use `tools/experiment.py start`; do not

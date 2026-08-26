@@ -9,7 +9,10 @@ from tools.visualization.hsi_ground_truth import (
     GroundTruthError,
     _error_statistics,
     _matched_render_identity,
+    _matched_render_grid_identity,
     _motion_statistics,
+    _parse_labeled_render,
+    _validate_grid_labels,
     export_matched_ground_truth,
     matched_frame_indices,
 )
@@ -176,6 +179,46 @@ def test_render_identity_requires_exact_camera_and_video_contract():
     changed["scene_report"]["camera_video"]["ortho_scale"] = 9.1
     with pytest.raises(GroundTruthError, match="cameras disagree"):
         _matched_render_identity(base, changed)
+
+
+def test_render_grid_requires_shared_sequence_caption_and_camera():
+    camera = {
+        "location": [1.0, 2.0, 3.0],
+        "rotation_euler": [0.1, 0.2, 0.3],
+        "ortho_scale": 9.0,
+    }
+    base = {
+        "sequence_id": "062:006305",
+        "caption": "sit down on chair",
+        "scene_mesh_sha256": "a" * 64,
+        "frame_png_count": 300,
+        "video_probe": {
+            "width": 1280, "height": 720, "fps": 30.0, "frame_count": 300
+        },
+        "scene_report": {"camera_video": camera},
+    }
+    identity = _matched_render_grid_identity(
+        [json.loads(json.dumps(base)) for _ in range(4)]
+    )
+    assert identity["sequence_id"] == "062:006305"
+    assert identity["frame_count"] == 300
+    changed = [json.loads(json.dumps(base)) for _ in range(4)]
+    changed[2]["caption"] = "walk elsewhere"
+    with pytest.raises(GroundTruthError, match="caption"):
+        _matched_render_grid_identity(changed)
+
+
+def test_render_grid_labels_and_cli_inputs_fail_closed():
+    assert _validate_grid_labels(["Unguided", "Ground truth"]) == [
+        "Unguided", "Ground truth"
+    ]
+    assert _parse_labeled_render("Guided=/tmp/render") == (
+        "Guided", Path("/tmp/render")
+    )
+    with pytest.raises(GroundTruthError, match="unique"):
+        _validate_grid_labels(["Guided", "Guided"])
+    with pytest.raises(GroundTruthError, match="trimmed"):
+        _validate_grid_labels([" Guided"])
 
 
 def test_blender_consumer_supports_reference_fit_bounds_lock():
