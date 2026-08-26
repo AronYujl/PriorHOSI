@@ -345,6 +345,10 @@ registry 登记，再实现代码。
 匹配的推理代码中导出版本化 motion artifact，后续渲染、关键帧叠加和论文 montage
 均只读取该 artifact。不得修改两个专家分支或 `code/priors/core/` 来服务可视化。
 
+HSI 定性失败分析必须以导出文件中的 dataset identity 精确反查同段 GT，并把模型
+粗关节、IK/FK 重建和 renderer 三层分开诊断；预测/GT 对比必须固定相同场景、
+相机和时序口径。
+
 V0 只冻结边界和设计，不分配 run id、不加载 checkpoint、不启动 GPU。具体范围、
 门槛、schema 和无头渲染约束见 `docs/plan/PHASE_VISUALIZATION.md`、
 `docs/visualization/MOTION_EXPORT_SCHEMA.md` 与

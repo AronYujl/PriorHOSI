@@ -484,6 +484,36 @@ the HSI export contains no articulated finger parameters. The repository
 `tests/` suite passes 110 tests and research metadata validates 29 records
 before the completion record below is appended.
 
+### V3b.1 — matched HSI prediction/ground-truth diagnosis (planned 2026-08-26)
+
+Diagnose the missing right-hand writing motion in `071-write:007162` without
+rerunning inference or changing the Phase 1C checkout. The native prediction is
+the immutable reference for `data_idx=1321205`, `source_sequence_index=7162`,
+`episode_num=4`, and caption `write on blackboard with right hand`. A read-only
+dataset adapter must reproduce the evaluator's exact four 16-frame, stride-3
+windows, drop the two history frames from windows 2--4, clamp only at the
+recorded source end, and apply the evaluator's scale-3 pose/translation
+interpolation. It must fail closed when any reference identity, caption, source
+boundary, episode count, or frame count disagrees.
+
+The diagnosis must keep three signals separate: native coarse `global_jpos`,
+SMPL-X joints reconstructed from the exported prediction parameters, and the
+matched dataset ground truth. It records right shoulder/elbow/wrist/index
+height and motion statistics plus prediction-FK reconstruction error. The GT
+NPZ and manifest are explicitly labelled ground truth and may never be used as
+model output or evaluation evidence.
+
+Render the GT with the same 174-frame timeline, LINGO scene mesh, Cycles
+settings, camera, cutaway, palette, lighting, dimensions, FPS and hand fallback
+as the accepted prediction artifact. In addition to a standalone GT H.264 MP4
+and shared-scene still, produce a labelled side-by-side prediction/GT MP4 using
+the two independently rendered frame streams. Do not vertically shift either
+motion, alter contacts, or select a different GT segment for presentation.
+Gate: unit tests cover index construction, mismatch rejection, exact field
+shapes and comparison metrics; both videos pass ffprobe; manifests bind all
+dataset/reference/render inputs and hashes; visual inspection confirms that the
+comparison uses one scene and camera policy.
+
 ### V3c — LINGO material palette for the HOI shared-scene figure (planned 2026-08-26)
 
 Add an explicitly selected material-only variant of the accepted V3a HOI
