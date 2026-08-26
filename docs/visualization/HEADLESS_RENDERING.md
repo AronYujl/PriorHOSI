@@ -289,6 +289,58 @@ canonical NPZ, human mesh cache, lossless PNG frames, shared-scene figure,
 Blender report/log, and hash manifests. It does not apply floor/collision
 repair and never edits the native HSI export or HSI worktree.
 
+### Matched HSI ground truth and diagnosis
+
+Do not locate GT by filename or by visually similar motion. The GT adapter
+requires a native prediction carrying `data_idx`, `source_sequence_index`, and
+`episode_num`; it verifies those fields and the caption against the LINGO
+language mapping, then reproduces the evaluator's exact window indices,
+history-frame drops, end clamp, and scale-3 interpolation. A standalone export
+and parameter-level diagnosis can be run before Blender:
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.hsi_ground_truth export \
+  /absolute/path/to/native_hsi_sequence.npz \
+  --dataset-root /data/yujinlun/InfBaGel-hsi/data/dataset \
+  --output /new/write-once/ground-truth.canonical.npz \
+  --manifest /new/write-once/ground-truth.canonical.manifest.json \
+  --smpl-models /data/yujinlun/InfBaGel-visualization/smpl_models \
+  --scene-mesh /data/yujinlun/datasets/LINGO/Scene_mesh/071-write/mesh_low.obj \
+  --source-evaluator-commit COMMIT --renderer-commit COMMIT
+
+"$INFBAGEL_PYTHON" -m tools.visualization.hsi_ground_truth diagnose \
+  /absolute/path/to/native_hsi_sequence.npz \
+  /new/write-once/ground-truth.canonical.npz \
+  --smpl-models /data/yujinlun/InfBaGel-visualization/smpl_models \
+  --output /new/write-once/joint-diagnosis.json
+```
+
+For the formal GT render, use the normal `hsi_lingo` command with identical
+dimensions, samples, decimation, FPS, and figure frames, then add:
+
+```bash
+  --ground-truth-dataset-root /data/yujinlun/InfBaGel-hsi/data/dataset \
+  --reference-render-manifest /accepted/prediction/render.manifest.json \
+  --source-evaluator-commit COMMIT
+```
+
+The reference manifest is mandatory for GT rendering. The consumer rejects a
+different scene or presentation config and reuses the prediction's exact
+Blender fit bounds, which fixes video/figure cameras and light placement while
+leaving GT world positions unchanged. After both full renders exist, create a
+labelled, same-frame side-by-side video:
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.hsi_ground_truth compose \
+  /accepted/prediction/render-directory \
+  /new/ground-truth/render-directory \
+  --output-dir /new/write-once/prediction-vs-ground-truth
+```
+
+The composition fails unless frame count, FPS, dimensions, scene hash, camera
+location, rotation, and orthographic scale match. Neither GT reconstruction nor
+composition performs motion, floor, contact, or collision repair.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and

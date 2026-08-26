@@ -154,3 +154,12 @@ camera-side dollhouse cutaway so the complete closed room does not hide the
 motion, uses Cycles CPU because the authority host has no X display/EGL Eevee
 context, and produces both a full video and an opaque shared-scene multi-pose
 still. See `HEADLESS_RENDERING.md` for the command and provenance boundaries.
+
+For a failed-action diagnosis, `tools.visualization.hsi_ground_truth` uses the
+native prediction's `data_idx`, source-sequence index, episode count, and
+caption to reconstruct that exact evaluator GT window. It separately compares
+the native coarse joints and SMPL-X FK, then the HSI renderer can lock the GT
+camera and lighting bounds to the accepted prediction render. This path reads
+the dataset and prediction only; it does not load a checkpoint, invoke a model,
+or edit the Phase 1C worktree. GT outputs are visibly labelled and marked
+`evaluation_forbidden` so they cannot be mistaken for generated samples.

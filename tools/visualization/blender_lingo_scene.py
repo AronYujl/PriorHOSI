@@ -432,6 +432,28 @@ def main():
     human_upper = human_vertices.max(axis=(0, 1)).astype(np.float64)
     fit_lower = np.minimum(scene_lower, human_lower)
     fit_upper = np.maximum(scene_upper, human_upper)
+    camera_lock = None
+    if "locked_fit_bounds_blender_z_up" in config["camera"]:
+        locked = np.asarray(
+            config["camera"]["locked_fit_bounds_blender_z_up"], dtype=np.float64
+        )
+        if (
+            locked.shape != (2, 3)
+            or not np.isfinite(locked).all()
+            or np.any(locked[1] <= locked[0])
+        ):
+            raise RuntimeError("locked camera fit bounds are invalid")
+        if np.any(scene_lower < locked[0] - 1e-6) or np.any(scene_upper > locked[1] + 1e-6):
+            raise RuntimeError("locked camera fit bounds do not contain the LINGO scene")
+        fit_lower = locked[0]
+        fit_upper = locked[1]
+        camera_lock = {
+            "policy": "reuse_reference_prediction_fit_bounds",
+            "fit_bounds_blender_z_up": locked.tolist(),
+            "source_render_manifest_sha256": config["camera"].get(
+                "locked_from_render_manifest_sha256"
+            ),
+        }
 
     camera_data = bpy.data.cameras.new("PriorHOSI.LINGO.Camera")
     camera = bpy.data.objects.new("PriorHOSI.LINGO.Camera", camera_data)
@@ -535,6 +557,7 @@ def main():
         "human_bounds_blender_z_up": [human_lower.tolist(), human_upper.tolist()],
         "camera_video": camera_report,
         "camera_figure": figure_camera_report,
+        "camera_lock": camera_lock,
         "lights": _light_report(lights),
         "world": {
             "color": config["lighting"]["world_color"],

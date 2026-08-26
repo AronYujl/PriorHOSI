@@ -483,6 +483,9 @@ def render_lingo_hsi(
     hand_pose_fallback: str = "mean",
     render_frames: Optional[Sequence[int]] = None,
     figure_frames: Optional[Sequence[int]] = None,
+    ground_truth_dataset_root: Optional[Path | str] = None,
+    reference_render_manifest_path: Optional[Path | str] = None,
+    source_evaluator_commit: str = "unavailable-read-only-dataset-adapter",
     renderer_commit: str = "local-unrecorded",
     blender_script: Path | str = DEFAULT_BLENDER_SCRIPT,
 ) -> Dict[str, Any]:
@@ -495,6 +498,20 @@ def render_lingo_hsi(
     scene = Path(scene_mesh).resolve()
     blender = Path(blender_binary).resolve()
     script = Path(blender_script).resolve()
+    gt_root = (
+        Path(ground_truth_dataset_root).resolve()
+        if ground_truth_dataset_root is not None
+        else None
+    )
+    reference_render_manifest = (
+        Path(reference_render_manifest_path).resolve()
+        if reference_render_manifest_path is not None
+        else None
+    )
+    if (gt_root is None) != (reference_render_manifest is None):
+        raise BlenderRenderError(
+            "matched GT rendering requires both dataset root and reference render manifest"
+        )
     _validate_render_settings(
         width=width, height=height, fps=fps, samples=samples, figure_columns=1
     )
@@ -524,6 +541,12 @@ def render_lingo_hsi(
         exists = path.is_dir() if is_dir else path.is_file()
         if not exists:
             raise BlenderRenderError("%s does not exist: %s" % (label, path))
+    if gt_root is not None and not gt_root.is_dir():
+        raise BlenderRenderError("LINGO GT dataset root does not exist: %s" % gt_root)
+    if reference_render_manifest is not None and not reference_render_manifest.is_file():
+        raise BlenderRenderError(
+            "reference render manifest does not exist: %s" % reference_render_manifest
+        )
     ffmpeg = shutil.which("ffmpeg")
     ffprobe = shutil.which("ffprobe")
     if ffmpeg is None or ffprobe is None:
@@ -547,18 +570,35 @@ def render_lingo_hsi(
     figure_path = staging / "trajectory-lingo-shared-scene.png"
     render_manifest = staging / "render.manifest.json"
 
-    adapter_summary = adapt_native_hsi(
-        native,
-        output_path=motion,
-        manifest_path=motion_manifest,
-        shard_report_path=shard_report,
-        training_metrics_path=training_metrics,
-        resolved_config_path=resolved_config,
-        smpl_models=models,
-        scene_mesh=scene,
-        adapter_commit=renderer_commit,
-        command=" ".join(sys.argv),
-    )
+    motion_role = "prediction"
+    if gt_root is None:
+        adapter_summary = adapt_native_hsi(
+            native,
+            output_path=motion,
+            manifest_path=motion_manifest,
+            shard_report_path=shard_report,
+            training_metrics_path=training_metrics,
+            resolved_config_path=resolved_config,
+            smpl_models=models,
+            scene_mesh=scene,
+            adapter_commit=renderer_commit,
+            command=" ".join(sys.argv),
+        )
+    else:
+        from .hsi_ground_truth import export_matched_ground_truth
+
+        motion_role = "ground_truth"
+        adapter_summary = export_matched_ground_truth(
+            native,
+            dataset_root=gt_root,
+            output_path=motion,
+            manifest_path=motion_manifest,
+            smpl_models=models,
+            scene_mesh=scene,
+            renderer_commit=renderer_commit,
+            source_evaluator_commit=source_evaluator_commit,
+            command=" ".join(sys.argv),
+        )
     if not math.isclose(float(adapter_summary["fps"]), fps, abs_tol=1e-6):
         raise BlenderRenderError(
             "requested FPS does not match native coarse_fps * interp_scale"
@@ -669,8 +709,38 @@ def render_lingo_hsi(
             "video": "one human pose per fine source frame",
             "figure": "opaque multi-pose shared scene at unmodified world positions",
             "visual_ground_correction": "none",
+            "motion_role": motion_role,
         },
     }
+    reference_render_record = None
+    if reference_render_manifest is not None:
+        reference_render_record = _load_json(
+            reference_render_manifest, "reference prediction render manifest"
+        )
+        reference_config = reference_render_record.get("config")
+        reference_scene_report = reference_render_record.get("scene_report")
+        if not isinstance(reference_config, dict) or not isinstance(reference_scene_report, dict):
+            raise BlenderRenderError("reference render manifest lacks config or scene report")
+        if reference_render_record.get("scene_mesh_sha256") != _sha256(scene):
+            raise BlenderRenderError("reference render uses a different LINGO scene mesh")
+        for key in (
+            "video", "figure", "samples", "engine", "camera", "scene",
+            "human_material", "lighting", "color_management",
+            "selected_figure_frames",
+        ):
+            if config[key] != reference_config.get(key):
+                raise BlenderRenderError(
+                    "matched GT presentation disagrees with reference config field %s" % key
+                )
+        camera_report = reference_scene_report.get("camera_video")
+        if not isinstance(camera_report, dict) or "fit_bounds" not in camera_report:
+            raise BlenderRenderError("reference render has no reusable camera fit bounds")
+        config["camera"]["locked_fit_bounds_blender_z_up"] = camera_report[
+            "fit_bounds"
+        ]
+        config["camera"]["locked_from_render_manifest_sha256"] = _sha256(
+            reference_render_manifest
+        )
     _write_json(config_path, config)
     _run_blender(_blender_command(blender, script, config_path), log_path)
     frame_paths = [frames_dir / ("%05d.png" % frame) for frame in rendered]
@@ -711,11 +781,20 @@ def render_lingo_hsi(
         "sequence_id": cache_record["sequence_id"],
         "scene_name": cache_record["scene_name"],
         "caption": cache_record["caption"],
+        "motion_role": motion_role,
         "mode": "full" if full_timeline else "alignment_smoke",
         "renderer_commit": renderer_commit,
         "renderer_backend": "blender-cycles-lingo-full-scene",
         "native_source_path": str(native),
         "native_source_sha256": _sha256(native),
+        "reference_render_manifest_path": (
+            str(reference_render_manifest) if reference_render_manifest is not None else None
+        ),
+        "reference_render_manifest_sha256": (
+            _sha256(reference_render_manifest)
+            if reference_render_manifest is not None
+            else None
+        ),
         "canonical_motion_sha256": _sha256(motion),
         "canonical_manifest_sha256": _sha256(motion_manifest),
         "mesh_cache_sha256": _sha256(cache),
@@ -789,6 +868,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hand-pose-fallback", choices=("mean", "flat"), default="mean")
     parser.add_argument("--render-frames", nargs="+", type=int, default=None)
     parser.add_argument("--figure-frames", nargs="+", type=int, default=None)
+    parser.add_argument("--ground-truth-dataset-root", type=Path, default=None)
+    parser.add_argument("--reference-render-manifest", type=Path, default=None)
+    parser.add_argument(
+        "--source-evaluator-commit",
+        default="unavailable-read-only-dataset-adapter",
+    )
     parser.add_argument("--renderer-commit", default="local-unrecorded")
     return parser
 
@@ -820,6 +905,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             hand_pose_fallback=args.hand_pose_fallback,
             render_frames=args.render_frames,
             figure_frames=args.figure_frames,
+            ground_truth_dataset_root=args.ground_truth_dataset_root,
+            reference_render_manifest_path=args.reference_render_manifest,
+            source_evaluator_commit=args.source_evaluator_commit,
             renderer_commit=args.renderer_commit,
         )
     except (BlenderRenderError, MotionExportError, OSError, ValueError) as exc:
