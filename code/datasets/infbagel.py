@@ -122,6 +122,19 @@ class InfBaGelDataset(Dataset):
         self.use_object_keypoints = use_object_keypoints
 
         self.use_pen_loss = kwargs.get('use_pen_loss', False)
+        # P16-NS.  The released LINGO pickle carries a precomputed per-window
+        # `need_scene` boolean that is False on 38.91% of training windows
+        # (522,818 of 1,343,667), and models/infbagel.py:1433-1438 zeroes all
+        # five scene tokens for those rows.  Inference never reads it:
+        # test_infbagel_lingo_hsi.py:1362 pins it True for every one of the 375
+        # sealed episodes.  With this flag the training-time gate is disabled so
+        # training matches inference.  It does NOT touch the 10% temporal-voxel
+        # dropout (models/infbagel.py:1401-1403) or the CFG uncond mask
+        # (:1394-1399), and it does NOT touch the inference-side RDS null pass,
+        # which is implemented as need_scene=False
+        # (test_infbagel_lingo_hsi.py:1848).  Default False -> every existing
+        # config, including every sealed evaluation config, is bitwise unchanged.
+        self.force_need_scene = bool(kwargs.get('force_need_scene', False))
 
         self.parents_22 = get_smpl_parents(use_joints24=False) # 22
         self.parents_24 = get_smpl_parents(use_joints24=True) # 24
@@ -450,7 +463,7 @@ class InfBaGelDataset(Dataset):
                 scene_goal = self.joints[right_hand_inter_frame, 26].copy()  # right hand index1
 
             seq_len = self.ori_sequence_end_idx[origin_sequence_idx] - self.ori_sequence_start_idx[origin_sequence_idx]
-            need_scene = self.need_scene[idx]
+            need_scene = np.bool_(True) if self.force_need_scene else self.need_scene[idx]
             need_pelvis_dir = self.need_pelvis_dir[idx]
             pi = self.pi[idx]
             need_pi = self.need_pi[idx]
