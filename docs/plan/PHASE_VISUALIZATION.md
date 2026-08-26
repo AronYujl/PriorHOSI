@@ -544,6 +544,44 @@ write-once and is superseded by `v3b2`; it is not the reported result. Neither
 version applies floor correction; the accepted GT retains its measured
 -5.55 to -4.29 cm lowest-vertex floor gap.
 
+### V3b.2 — long-distance chair locomotion prediction/GT (preregistered 2026-08-26)
+
+Render an existing HSIPrior locomotion export that makes substantial horizontal
+progress and ends with a clearly inspectable sit action. The deterministic
+selection scans all 375 B-v2 unguided shard exports, first restricts to samples
+with explicit sit/chair semantics and an available matching scene mesh, then
+maximizes prediction pelvis horizontal start-to-end displacement. This selects
+`062:006305`, caption `sit down on chair`, with `data_idx=1247968`,
+`source_sequence_index=6305`, and `episode_num=7`. It is a presentation-sample
+selection, not scientific best-of-N evaluation.
+
+The selected prediction has 100 coarse frames and 300 fine frames (10 seconds
+at 30 FPS), 1.2983 m horizontal start-to-end displacement, 1.7155 m horizontal
+arc length, 0.4294 m final-segment pelvis descent, and 0.0830 m final goal
+distance. Its exactly matched GT has 1.2158 m start-to-end displacement,
+1.9140 m arc length, and 0.4561 m final-segment pelvis descent. The immutable
+native NPZ SHA256 is
+`067cd2c91792965ce70653b7864259cbe5fda3f29f6141211da41ad59a33e58d`;
+the matching scene is `Scene_mesh/062/mesh_low.obj` with SHA256
+`0097b492d8937de65fbb1b178ae524991418f5f9c73f4586b89e102a16aa38c5`.
+
+Use the accepted V3b LINGO materials, lighting, cutaway, Cycles settings and
+formal `/data/yujinlun/lingo/smpl_models` assets. Render the complete prediction
+first at 1280x720, 30 FPS, 24 adaptive samples and 10% scene decimation. Its
+shared-scene figure uses explicit fine frames `[0,21,45,93,180,299]`: the first
+four expose locomotion progress, frame 180 exposes the descent transition, and
+frame 299 exposes the final seated pose. Reconstruct the GT only from the
+prediction's exact dataset identity, then lock its camera fit and complete
+presentation settings to the prediction render manifest. Compose a labelled
+prediction/GT video from the two independently rendered frame streams.
+
+Gate: prediction, GT and comparison videos each pass ffprobe at 30 FPS and 300
+frames; manifests bind the source NPZ, exact GT slice, scene, SMPL-X assets,
+camera lock, selected frames and output hashes; visual review checks that both
+motions approach the chair and whether their final bodies contact, hover above,
+or penetrate the seat. Do not repair floor height, collision, goal position or
+the sit motion for presentation, and do not edit or run the HSI expert worktree.
+
 ### V3c — LINGO material palette for the HOI shared-scene figure (passed 2026-08-26)
 
 Add an explicitly selected material-only variant of the accepted V3a HOI

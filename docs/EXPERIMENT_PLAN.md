@@ -364,3 +364,10 @@ shared-scene 四姿态、原世界位置、木地板、相机和灯光，只将�
 生成一个新的 write-once LINGO-material HOI figure；同时对 HSI 代表样本按原生
 dataset identity 重建同段 GT，锁定预测场景/相机/时序并生成 GT 与并排视频。二者
 仍是 visualization-only，不修改专家分支、不重跑推理、不覆盖既有 artifact。
+
+2026-08-26 新增一个 HSI locomotion 定性样本：只读扫描现有 375 个 B-v2 unguided
+导出，优先保留明确包含坐椅语义且场景 mesh 完整的样本，再按预测水平起终点位移
+选择 `062:006305`（`sit down on chair`）。预测与 matched GT 必须使用同一 LINGO
+场景、相机和 300 帧时间线，分别生成 30 FPS 视频、固定六姿态图和带标签的并排视频；
+样本选择距离仅服务于可读的长距离定性展示，不得作为模型指标，也不得做地面、碰撞
+或坐姿修复。
