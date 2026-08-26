@@ -226,6 +226,51 @@ rule, unaltered-world-layout policy, complete-cache camera fitting, source
 hashes, render settings, scene report, and image hash. It always marks the
 figure `visualization_only=true` and `evaluation_forbidden=true`.
 
+### HSI/LINGO full-scene render
+
+The Phase 1C HSI evaluator writes native schema-3 NPZ files, not pickle. They
+are valid visualization inputs: the adapter preserves all SMPL-X and coarse
+joint arrays, changes only the container metadata needed by the common schema,
+and retains the source NPZ hash. Native `fps=10` is the coarse rollout rate;
+`interp_scale=3` makes the stored SMPL-X timeline 30 FPS. Schema-3
+`smplx_output_transform=identity` means the renderer applies exactly one
+`[x,y,z] -> [x,-z,y]` conversion to both human and room geometry.
+
+```bash
+"$INFBAGEL_PYTHON" -m tools.visualization.hsi_lingo \
+  /absolute/path/to/native_hsi_sequence.npz \
+  --output-dir /new/write-once/hsi-render-directory \
+  --shard-report /absolute/path/to/evaluation/per_sequence_metrics.json \
+  --training-metrics /absolute/path/to/training/metrics.json \
+  --resolved-config /absolute/path/to/training/config_resolved_job.yaml \
+  --smpl-models /data/yujinlun/lingo/smpl_models \
+  --scene-mesh /data/yujinlun/datasets/LINGO/Scene_mesh/071-write/mesh_low.obj \
+  --blender /data/yujinlun/tools/blender-3.2.0-linux-x64/blender \
+  --width 1280 --height 720 --samples 24 --fps 30 \
+  --scene-decimate-ratio 0.10 \
+  --figure-frames 0 25 45 75 \
+  --hand-pose-fallback mean \
+  --renderer-commit "$(git rev-parse HEAD)"
+```
+
+The matching LINGO scene OBJ is a closed, material-free mesh. The Blender
+consumer imports it with the same y-up conversion as the body, applies the
+transform once, decimates it for rendering, and deletes only the ceiling and
+two camera-facing boundary surfaces to form the dollhouse view used by LINGO-
+style figures. Since semantic materials and textures are absent, it uses a
+recorded three-class presentation palette (floor, walls, furniture); this is a
+visual convention, not recovered ground-truth appearance. The body uses a
+recorded relaxed SMPL-X mean hand because HSI exports no articulated finger
+parameters. Neither the palette nor the hand fallback may be described as
+model output.
+
+Supplying `--render-frames 0 87 173` creates an alignment smoke without an
+MP4. Omitting it renders the complete fine timeline, verifies the H.264 output
+with ffprobe, and atomically promotes the artifact. The output keeps the
+canonical NPZ, human mesh cache, lossless PNG frames, shared-scene figure,
+Blender report/log, and hash manifests. It does not apply floor/collision
+repair and never edits the native HSI export or HSI worktree.
+
 ## Windows/Blender hand-off
 
 Windows may run Blender interactively or headless using the same NPZ and

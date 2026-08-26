@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: HOI V1 adapter/headless smoke passed; worker2 workflow implemented and dry-run validated, first live automatic job pending; HSI/mixer work remains pending
+Status: HOI visualization passed through the shared-scene paper figure; worker2 workflow implemented and dry-run validated; HSI native-NPZ adapter and LINGO-scene renderer in progress; mixer work remains pending
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -80,12 +80,23 @@ frame counts. The real pickle predates the P12 frame repair, so the adapter
 must reverse its human-only `yup_to_zup` storage convention before rendering.
 The legacy source and generated artifacts remain outside Git.
 
-### V1b — HSI read-only adapter (pending)
+### V1b — HSI read-only adapter (in progress 2026-08-26)
 
-Add an adapter for the eventual HSI export into the common schema. The adapter
-may normalize a legacy file, but must never overwrite the source. Gate:
-round-trip validation preserves frame counts, pose arrays, and provenance once
-the HSI exporter is stable.
+The Phase 1C evaluator now exports native schema-3, non-pickle NPZ files. Add a
+read-only adapter into the common visualization schema without importing or
+editing the HSI worktree. The adapter must preserve the complete
+`global_orient`, `body_pose`, `transl`, `betas`, `gender`, coarse
+`global_jpos`, window/seam structure, caption, scene identity, and source
+hash. Native `fps=10` describes the coarse rollout; the canonical artifact
+must record `fps=30` for its `174` fine SMPL-X frames when
+`interp_scale=3`, while retaining the 10 Hz value separately. Schema-3
+`smplx_output_transform="identity"` means FK output stays in LINGO y-up world
+metres and receives exactly one y-up-to-Blender-z-up conversion downstream.
+
+Gate: synthetic tests reject malformed native exports and prove array/rate
+preservation; one real schema-3 sequence validates as common schema 1; all
+adapter outputs and manifests are write-once and bind the untouched source
+NPZ, shard evaluation report, SMPL-X assets, and scene mesh by SHA256.
 
 ### V1c — Worker2 checkpoint-to-artifact workflow (approved 2026-08-25)
 
@@ -395,6 +406,39 @@ and source render-manifest SHA256
 `d8ae2aa62a14d4c7119b62a00d42f775bd0b3a3c12cf0cecc5a0e12b2eb65dec`,
 and marks the output visualization-only and evaluation-forbidden. The complete
 repository suite passes 101 tests and research-metadata validation.
+
+### V3b — LINGO-style HSI scene visualization (in progress 2026-08-26)
+
+Render one HSIPrior sequence in its matching full LINGO scene, independently
+of training and inference. The first deterministic smoke sample is
+`071-write:007162` (`write on blackboard with right hand`): it has 174 fine
+frames, a visible 0.68 m root-trajectory span suitable for a shared-scene
+multi-pose still, and only 0.000818 reported non-floor penetration mean. The
+initial lower-error candidate `007212` was rejected at geometry preflight
+because its complete trajectory spans only about 0.09 m and its opaque poses
+would almost completely overlap. This selection avoids both a known-broken
+input and an unreadable composition; it is not a best-of-N scientific result
+and must not be used as quantitative evidence.
+
+The scene source is
+`Scene_mesh/071-write/mesh_low.obj`, not an occupancy grid. Because this OBJ
+contains geometry only, the Blender consumer supplies a recorded neutral
+indoor palette, soft area lighting, ambient world light, shadows, smooth human
+normals, and a fixed elevated room camera. It must produce both a 30 FPS video
+with one body per source frame and one wide shared-scene still containing
+several opaque source poses at their unmodified world locations, matching the
+structural presentation of the LINGO teaser. The source NPZ and its SMPL-X
+parameters remain untouched; no presentation-only floor or collision repair
+is allowed in this first HSI smoke because a global vertical correction could
+break blackboard/hand alignment.
+
+Gate: a low-sample alignment render confirms that the body and room share one
+coordinate frame and the camera exposes the interaction. The promoted
+write-once artifact then records native/canonical motion hashes, shard report,
+scene mesh, SMPL-X assets, the single coordinate transform, fine FPS
+derivation, selected still frames, Blender/FFmpeg settings and hashes, and
+contains a verified 174-frame H.264 MP4 plus one multi-pose PNG. Large inputs
+and outputs remain outside Git under the ignored `artifacts` link.
 
 ### V4 — Mixer/long-horizon extension
 

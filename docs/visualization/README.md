@@ -129,3 +129,21 @@ separate OMOMO-style Blender/Cycles tier in the same document. It consumes the
 same canonical NPZ through an immutable mesh cache and produces both a video
 and a six-frame 3x2 process figure. The PyTorch3D command remains the fast
 debug/preview path.
+
+## HSI native NPZ and LINGO scene rendering
+
+Phase 1C HSI exports are already safe non-pickle NPZ files, but their native
+schema differs from the common visualization schema: `fps=10` is the coarse
+rollout rate while `global_orient`, `body_pose`, and `transl` contain
+`interp_scale=3` times as many frames. `tools.visualization.hsi_lingo`
+preserves those arrays exactly and records the fine SMPL-X rate as 30 FPS. It
+then reconstructs SMPL-X on CPU and renders against the matching
+`Scene_mesh/<scene_name>/mesh_low.obj`; no checkpoint or expert code is loaded.
+
+The source LINGO OBJ files contain geometry but no material directives. The
+consumer therefore records a neutral floor/wall/furniture presentation
+palette rather than claiming to recover missing textures. It creates a
+camera-side dollhouse cutaway so the complete closed room does not hide the
+motion, uses Cycles CPU because the authority host has no X display/EGL Eevee
+context, and produces both a full video and an opaque shared-scene multi-pose
+still. See `HEADLESS_RENDERING.md` for the command and provenance boundaries.
