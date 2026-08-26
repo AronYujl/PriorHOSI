@@ -514,7 +514,37 @@ shapes and comparison metrics; both videos pass ffprobe; manifests bind all
 dataset/reference/render inputs and hashes; visual inspection confirms that the
 comparison uses one scene and camera policy.
 
-### V3c — LINGO material palette for the HOI shared-scene figure (planned 2026-08-26)
+Implementation commit `2b8cf46` adds the exact evaluator-window adapter,
+parameter-level coarse/FK/GT diagnosis, reference-camera lock, labelled
+side-by-side composer, tests and operating documentation. The matched native
+identity is `data_idx=1321205`, not the earlier exploratory transcription
+`1324831`. The resulting GT has the same 58 coarse and 174 fine frames as the
+prediction. Its right wrist reaches 0.3236 m above its pelvis, while the
+prediction's maximum is -0.0540 m; the 0.3776 m gap is already present in
+native `global_jpos`. Prediction SMPL-X FK differs from interpolated native
+joints by 9.77 mm mean overall and 15.77 mm mean at the right wrist, so neither
+IK/FK export nor Blender explains the missing arm raise.
+
+The accepted write-once GT is
+`artifacts/hsi/b-v2-unguided/visualization-v3b2-matched-ground-truth-assets-20260826/071-write_007162`.
+It intentionally reuses the prediction's `/data/yujinlun/lingo/smpl_models`
+tree hash `514643d8...`, scene hash and exact video/figure fit bounds. ffprobe
+verifies its H.264/yuv420p video at 1280x720, 30 FPS, 174 frames and 5.8 s. The
+GT video SHA256 is `af053c62...`, figure SHA256 `97a73aa0...`, and render
+manifest SHA256 `31df6324...`. The labelled 2560x720 comparison video lives in
+the sibling `visualization-v3b2-prediction-vs-ground-truth-20260826` artifact
+and has SHA256 `5a76ce85...`; the joint diagnosis lives in
+`visualization-v3b2-joint-diagnosis-20260826` and has SHA256 `a0208a5e...`.
+
+An earlier `v3b1` render used the general release SMPL asset directory whose
+tree contains two additional unrelated helper files. All files common with the
+LINGO tree, including the consumed SMPL-X male model, are byte-identical, but
+the tree hash did not match the prediction manifest. That artifact remains
+write-once and is superseded by `v3b2`; it is not the reported result. Neither
+version applies floor correction; the accepted GT retains its measured
+-5.55 to -4.29 cm lowest-vertex floor gap.
+
+### V3c — LINGO material palette for the HOI shared-scene figure (passed 2026-08-26)
 
 Add an explicitly selected material-only variant of the accepted V3a HOI
 multi-pose renderer. It must preserve the same immutable mesh cache, ordered
@@ -533,6 +563,17 @@ this implementation-only subphase: unit tests prove the default is unchanged,
 the LINGO preset is exact and fail-closed, and CLI/config provenance is
 unambiguous. A formal Blender render is deliberately deferred until review of
 the implementation; no inference or expert-worktree edit is permitted.
+
+Implementation commit `15933b8` passed the gate with the OMOMO source-copy
+path unchanged and an explicit fail-closed `--material-style lingo` selector.
+After implementation review, the requested formal write-once figure was
+rendered from the accepted V2b.4 cache at frames `[0,42,83,125]` into
+`artifacts/hoi/p12-armb/visualization-v3c-multipose-lingo-materials-20260826/sub16_clothesstand_000`.
+Its image SHA256 is `c0e69958...` and figure-manifest SHA256 is `447608b3...`.
+Manifest comparison proves that camera, floor, lights, world, color management,
+Cycles settings, dimensions, grounded cache and source positions match V3a;
+only the foreground material block and its identifying output/provenance fields
+differ. No inference or expert-worktree edit occurred.
 
 ### V4 — Mixer/long-horizon extension
 

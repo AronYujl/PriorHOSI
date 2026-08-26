@@ -359,3 +359,8 @@ shared-scene 四姿态、原世界位置、木地板、相机和灯光，只将�
 切换为 V3b LINGO 的蓝色/sage Principled 配色。旧 OMOMO 材质保持默认，两种样式
 必须在配置和 write-once manifest 中可区分；本次只实现、测试与文档化，不重新
 推理、不覆盖现有 artifact、不启动耗时正式 Blender 渲染。
+
+2026-08-26 在实现 gate 通过并收到正式渲染请求后，允许从既有 immutable cache
+生成一个新的 write-once LINGO-material HOI figure；同时对 HSI 代表样本按原生
+dataset identity 重建同段 GT，锁定预测场景/相机/时序并生成 GT 与并排视频。二者
+仍是 visualization-only，不修改专家分支、不重跑推理、不覆盖既有 artifact。
