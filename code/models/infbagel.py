@@ -67,6 +67,8 @@ class Sampler:
         # channel only -- the two frames that carry the whole measured seam
         # transient.  See docs/plan/PHASE_1C_HSI.md 2026-08-25 (third section).
         self.seam_loss_weight = float(kwargs.get('seam_loss_weight', 0.0) or 0.0)
+        _w = kwargs.get('loss_w_jpos', 1.0)
+        self.loss_w_jpos = 1.0 if _w is None else float(_w)
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
@@ -847,7 +849,7 @@ class Sampler:
         
         loss_contact = F.l1_loss(x_start[:, :, 228:232][mask_inv[:, :, 228:232]], predicted_noise[:, :, 228:232][mask_inv[:, :, 228:232]])
 
-        loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
+        loss = self.loss_w_jpos * loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
 
         # The history frames are clean GT at every step (get_mask p=1.0), so the
         # seam second-order residual is exactly the first generated frame's

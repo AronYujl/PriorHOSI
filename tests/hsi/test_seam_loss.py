@@ -98,6 +98,101 @@ def _seam_term(x_start, predicted, n=AUTO_REGRE_NUM):
     return F.mse_loss(x_start[:, n:n + SEAM_FRAMES, :84], predicted[:, n:n + SEAM_FRAMES, :84])
 
 
+# The base objective, as released: five terms, in this order, and the ONE weight
+# that 2026-08-26 added to the position term.  loss_w_jpos defaults to exactly 1.0,
+# so the default path is bitwise the released sum -- but the assembly itself is now
+# the thing that has to be pinned, because a literal source string no longer can be.
+BASE_TERMS = ("loss_jpos", "loss_jrot", "loss_otrans", "loss_orot", "loss_contact")
+WEIGHTED_TERM = "loss_jpos"
+WEIGHT_ATTR = "loss_w_jpos"
+
+RELEASED_ASSEMBLY = (
+    "loss = self.loss_w_jpos * loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact"
+)
+
+
+def _parse_assign(line):
+    """One statement, parsed standalone.  Lets the tests below run the real
+    checker against deliberate mutations instead of only against the real file."""
+    return ast.parse(line).body[0]
+
+
+def _add_chain(node):
+    """Flatten the left-nested `a + b + c` BinOp that Python builds into [a, b, c].
+
+    Only `.left` recurses, so a parenthesised `(b + c)` stays one node and is
+    therefore rejected downstream as a non-bare term rather than silently
+    flattened into two.
+    """
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _add_chain(node.left) + [node.right]
+    return [node]
+
+
+def _base_assembly(func):
+    """Locate the base objective structurally.
+
+    Returns (assembly_node_or_None, every_unguarded_rebinding_of_loss).  The base
+    assembly is the `loss = ...` in the function's own body that does not read
+    `loss` back -- which distinguishes it from `loss = loss + ...` accumulations
+    without depending on line numbers or on how many of them there are.
+    """
+    rebinds = []
+    for stmt in func.body:
+        if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                and getattr(stmt.targets[0], "id", None) == "loss"):
+            rebinds.append(stmt)
+        elif isinstance(stmt, ast.AugAssign) and getattr(stmt.target, "id", None) == "loss":
+            rebinds.append(stmt)
+    fresh = [
+        stmt for stmt in rebinds
+        if isinstance(stmt, ast.Assign)
+        and "loss" not in {n.id for n in ast.walk(stmt.value) if isinstance(n, ast.Name)}
+    ]
+    return (fresh[0] if fresh else None), rebinds
+
+
+def _assembly_violations(node):
+    """Every way the base objective could stop being the released five terms.
+
+    Returns a list of violations; empty means the invariant holds.  It takes a node
+    rather than reading the file so the tests can drive it with mutated source --
+    which is what makes "this pin cannot be weakened" a demonstration instead of a
+    claim.
+    """
+    if node is None:
+        return ["no unguarded `loss = ...` assembly found"]
+    if not isinstance(node, ast.Assign):
+        return ["the base objective must be a plain assignment, not %s" % type(node).__name__]
+    terms = _add_chain(node.value)
+    if len(terms) != len(BASE_TERMS):
+        return ["expected exactly %d summed terms, found %d" % (len(BASE_TERMS), len(terms))]
+    violations = []
+    for term, expected in zip(terms, BASE_TERMS):
+        if expected == WEIGHTED_TERM:
+            # The only coefficient permitted anywhere in the assembly.  Either
+            # operand order is accepted: the invariant is WHICH factor multiplies
+            # the term, not how it was typed.
+            if not (isinstance(term, ast.BinOp) and isinstance(term.op, ast.Mult)):
+                violations.append("%s must be multiplied by self.%s" % (expected, WEIGHT_ATTR))
+                continue
+            operands = (term.left, term.right)
+            names = [o.id for o in operands if isinstance(o, ast.Name)]
+            weights = [
+                o for o in operands
+                if isinstance(o, ast.Attribute) and o.attr == WEIGHT_ATTR
+                and isinstance(o.value, ast.Name) and o.value.id == "self"
+            ]
+            if names != [expected] or len(weights) != 1:
+                violations.append(
+                    "%s may be multiplied by self.%s and by nothing else"
+                    % (expected, WEIGHT_ATTR)
+                )
+        elif not (isinstance(term, ast.Name) and term.id == expected):
+            violations.append("term %r must stay bare, unweighted and in position" % expected)
+    return violations
+
+
 class DefaultIsOffTests(unittest.TestCase):
     def test_absent_kwarg_is_zero(self):
         self.assertEqual(_sampler().seam_loss_weight, 0.0)
@@ -119,9 +214,79 @@ class InertWhenOffTests(unittest.TestCase):
     """The load-bearing pair: structural, then numeric."""
 
     def test_five_term_assembly_is_untouched(self):
-        # If this line ever gains a term, every sealed B v2 cell's objective changes.
-        needle = "loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact"
-        self.assertEqual(SOURCE.count(needle), 1)
+        """The base objective is the released five terms, weighted only on jpos.
+
+        If this assembly ever gains a term, loses one, reorders them, or grows a
+        second coefficient, every sealed B v2 cell's objective changes and no other
+        test in the suite would notice -- the difference is a small change in a loss
+        scalar, not a crash.  This used to be a literal source-string pin; the
+        2026-08-26 loss_w_jpos change rewrote that string, so the invariant is now
+        enforced structurally, which is strictly stronger: it is insensitive to
+        whitespace and line wrapping but sensitive to every semantic change above.
+        """
+        assembly, rebinds = _base_assembly(_method("p_losses"))
+        self.assertIsNotNone(assembly, "the base `loss = ...` assembly is gone")
+        self.assertEqual(_assembly_violations(assembly), [])
+        # `loss += extra_term` in the function body would change every default run
+        # while leaving the assembly above pristine, so the assembly must be the
+        # ONLY rebinding of `loss` that is not inside a conditional guard.
+        self.assertEqual(
+            len(rebinds), 1,
+            "the objective is modified outside a guard at lines %r"
+            % [node.lineno for node in rebinds],
+        )
+
+    def test_the_released_assembly_is_what_the_mutation_controls_mutate(self):
+        # Ties the synthetic controls in the next test to the real file: if the real
+        # assembly is edited in any way that survives _assembly_violations (an
+        # operand-order swap, say), this fails and the controls get revisited rather
+        # than silently drifting out of correspondence with the source.
+        assembly, _ = _base_assembly(_method("p_losses"))
+        self.assertEqual(
+            ast.dump(assembly.value),
+            ast.dump(_parse_assign(RELEASED_ASSEMBLY).value),
+        )
+
+    def test_the_assembly_pin_rejects_every_way_of_weakening_it(self):
+        # The pin is only worth its comment if it actually bites.  Each mutation is
+        # a real way someone could change the objective; all of them must be caught.
+        self.assertEqual(_assembly_violations(_parse_assign(RELEASED_ASSEMBLY)), [])
+        mutations = {
+            "sixth term appended": RELEASED_ASSEMBLY + " + loss_seam",
+            "a term dropped":
+                "loss = self.loss_w_jpos * loss_jpos + loss_jrot + loss_otrans + loss_contact",
+            "loss_jpos left unweighted":
+                "loss = loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact",
+            "a different coefficient on loss_jpos":
+                "loss = 20.0 * loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact",
+            "the weight attribute renamed":
+                "loss = self.loss_w * loss_jpos + loss_jrot + loss_otrans + loss_orot"
+                " + loss_contact",
+            "a coefficient added to another term":
+                "loss = self.loss_w_jpos * loss_jpos + 2.0 * loss_jrot + loss_otrans"
+                " + loss_orot + loss_contact",
+            "the weight moved onto another term":
+                "loss = loss_jpos + self.loss_w_jpos * loss_jrot + loss_otrans + loss_orot"
+                " + loss_contact",
+            "terms reordered":
+                "loss = loss_jrot + self.loss_w_jpos * loss_jpos + loss_otrans + loss_orot"
+                " + loss_contact",
+            "a term renamed":
+                "loss = self.loss_w_jpos * loss_jpos + loss_jrot + loss_otrans + loss_orot"
+                " + loss_penetration",
+            "a term replaced by a nested sum":
+                "loss = self.loss_w_jpos * loss_jpos + (loss_jrot + loss_extra) + loss_otrans"
+                " + loss_orot + loss_contact",
+            "a term divided instead of summed":
+                "loss = self.loss_w_jpos * loss_jpos + loss_jrot / 2 + loss_otrans + loss_orot"
+                " + loss_contact",
+        }
+        for label, line in mutations.items():
+            with self.subTest(label):
+                self.assertNotEqual(
+                    _assembly_violations(_parse_assign(line)), [],
+                    "the pin failed to reject: %s" % label,
+                )
 
     def test_every_seam_statement_is_inside_the_weight_guard(self):
         p_losses = _method("p_losses")
