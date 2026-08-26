@@ -324,6 +324,14 @@ dimensions, samples, decimation, FPS, and figure frames, then add:
   --source-evaluator-commit COMMIT
 ```
 
+The same `--reference-render-manifest` option may be supplied without
+`--ground-truth-dataset-root` when rendering another prediction variant. In
+that mode the variant keeps its own motion and provenance but reuses the
+reference render's camera fit bounds. This is required for synchronized
+guidance/ablation grids whenever variant-specific body bounds would otherwise
+change the camera by even a small amount. Ground-truth rendering still requires
+both options.
+
 The reference manifest is mandatory for GT rendering. The consumer rejects a
 different scene or presentation config and reuses the prediction's exact
 Blender fit bounds, which fixes video/figure cameras and light placement while

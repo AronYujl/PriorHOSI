@@ -11,6 +11,7 @@ from tools.visualization.hsi_lingo import (
     _blender_command,
     _load_native_hsi,
     _obj_geometry_summary,
+    _validate_reference_request,
     _validate_frame_subset,
     adapt_native_hsi,
 )
@@ -190,6 +191,16 @@ def test_frame_subset_and_blender_command_are_deterministic(tmp_path):
     )
     assert command[1:3] == ["--background", "--factory-startup"]
     assert command[-2:] == ["--config", str(tmp_path / "config.json")]
+
+
+def test_reference_camera_lock_is_optional_for_prediction_and_required_for_gt(tmp_path):
+    reference = tmp_path / "reference.manifest.json"
+    dataset = tmp_path / "dataset"
+    _validate_reference_request(None, None)
+    _validate_reference_request(None, reference)
+    _validate_reference_request(dataset, reference)
+    with pytest.raises(BlenderRenderError, match="matched GT"):
+        _validate_reference_request(dataset, None)
 
 
 def test_blender_consumer_creates_world_for_empty_factory_scene():

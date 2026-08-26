@@ -458,6 +458,16 @@ def _validate_frame_subset(
     return selected
 
 
+def _validate_reference_request(
+    ground_truth_dataset_root: Optional[Path],
+    reference_render_manifest: Optional[Path],
+) -> None:
+    if ground_truth_dataset_root is not None and reference_render_manifest is None:
+        raise BlenderRenderError(
+            "matched GT rendering requires a reference render manifest"
+        )
+
+
 def render_lingo_hsi(
     native_motion_path: Path | str,
     *,
@@ -508,10 +518,7 @@ def render_lingo_hsi(
         if reference_render_manifest_path is not None
         else None
     )
-    if (gt_root is None) != (reference_render_manifest is None):
-        raise BlenderRenderError(
-            "matched GT rendering requires both dataset root and reference render manifest"
-        )
+    _validate_reference_request(gt_root, reference_render_manifest)
     _validate_render_settings(
         width=width, height=height, fps=fps, samples=samples, figure_columns=1
     )
@@ -715,7 +722,7 @@ def render_lingo_hsi(
     reference_render_record = None
     if reference_render_manifest is not None:
         reference_render_record = _load_json(
-            reference_render_manifest, "reference prediction render manifest"
+            reference_render_manifest, "reference render manifest"
         )
         reference_config = reference_render_record.get("config")
         reference_scene_report = reference_render_record.get("scene_report")
@@ -730,7 +737,8 @@ def render_lingo_hsi(
         ):
             if config[key] != reference_config.get(key):
                 raise BlenderRenderError(
-                    "matched GT presentation disagrees with reference config field %s" % key
+                    "camera-locked presentation disagrees with reference config field %s"
+                    % key
                 )
         camera_report = reference_scene_report.get("camera_video")
         if not isinstance(camera_report, dict) or "fit_bounds" not in camera_report:
@@ -792,6 +800,13 @@ def render_lingo_hsi(
         ),
         "reference_render_manifest_sha256": (
             _sha256(reference_render_manifest)
+            if reference_render_manifest is not None
+            else None
+        ),
+        "reference_render_policy": (
+            "matched_ground_truth_camera_lock"
+            if reference_render_manifest is not None and gt_root is not None
+            else "prediction_camera_lock"
             if reference_render_manifest is not None
             else None
         ),
