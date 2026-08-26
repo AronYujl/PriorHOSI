@@ -50,6 +50,43 @@ def _copy_omomo_material(source_name, name):
     return material
 
 
+def _principled_material(name, settings):
+    required = ("base_color", "roughness", "specular")
+    missing = [key for key in required if key not in settings]
+    if missing:
+        raise RuntimeError(
+            "Principled material settings are missing: %s" % ", ".join(missing)
+        )
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    shader = material.node_tree.nodes.get("Principled BSDF")
+    if shader is None:
+        raise RuntimeError("Principled BSDF node is unavailable")
+    shader.inputs["Base Color"].default_value = settings["base_color"]
+    shader.inputs["Roughness"].default_value = float(settings["roughness"])
+    shader.inputs["Specular"].default_value = float(settings["specular"])
+    return material
+
+
+def _foreground_materials(settings):
+    style = settings.get("style", "omomo_source_copy")
+    if style == "omomo_source_copy":
+        return (
+            _copy_omomo_material(
+                settings["human_source"], "PriorHOSI.Human.OMOMOBlue"
+            ),
+            _copy_omomo_material(
+                settings["object_source"], "PriorHOSI.Object.OMOMOPurple"
+            ),
+        )
+    if style == "lingo_principled_v1":
+        return (
+            _principled_material("PriorHOSI.Human.LINGOBlue", settings["human"]),
+            _principled_material("PriorHOSI.Object.LINGOSage", settings["object"]),
+        )
+    raise RuntimeError("unsupported foreground material style: %s" % style)
+
+
 def _wood_material(settings):
     material = bpy.data.materials.new("PriorHOSI.ProceduralWoodFloor")
     material.use_nodes = True
@@ -324,12 +361,7 @@ def main():
     for obj in list(scene.objects):
         if obj.type == "MESH":
             obj.hide_render = True
-    human_material = _copy_omomo_material(
-        config["materials"]["human_source"], "PriorHOSI.Human.OMOMOBlue"
-    )
-    object_material = _copy_omomo_material(
-        config["materials"]["object_source"], "PriorHOSI.Object.OMOMOPurple"
-    )
+    human_material, object_material = _foreground_materials(config["materials"])
     if render_mode == "animation":
         human = _mesh_object(
             "PriorHOSI.Human", human_vertices[0], human_faces, human_material

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import subprocess
@@ -28,6 +29,22 @@ from .headless import _sha256
 DEFAULT_WIDTH = 1600
 DEFAULT_HEIGHT = 800
 DEFAULT_SAMPLES = 64
+DEFAULT_MATERIAL_STYLE = "omomo"
+MATERIAL_STYLE_CHOICES = (DEFAULT_MATERIAL_STYLE, "lingo")
+LINGO_FOREGROUND_MATERIALS = {
+    "style": "lingo_principled_v1",
+    "human": {
+        "base_color": [0.20, 0.42, 0.56, 1.0],
+        "roughness": 0.46,
+        "specular": 0.35,
+    },
+    "object": {
+        "base_color": [0.42, 0.56, 0.43, 1.0],
+        "roughness": 0.66,
+        "specular": 0.26,
+    },
+    "smooth_shading": True,
+}
 
 
 def _load_json(path: Path, label: str) -> Dict[str, Any]:
@@ -55,6 +72,26 @@ def _validate_keyframes(frames: Sequence[int], frame_count: int) -> list[int]:
     if selected[0] < 0 or selected[-1] >= frame_count:
         raise BlenderRenderError("multi-pose keyframe is outside the source timeline")
     return selected
+
+
+def _resolve_materials(
+    source_materials: Mapping[str, Any], material_style: str
+) -> Dict[str, Any]:
+    if material_style == DEFAULT_MATERIAL_STYLE:
+        required = ("human_source", "object_source")
+        missing = [key for key in required if key not in source_materials]
+        if missing:
+            raise BlenderRenderError(
+                "source OMOMO materials are missing: %s" % ", ".join(missing)
+            )
+        # Preserve the accepted V3a material configuration rather than
+        # approximating the source .blend materials with new shader nodes.
+        return copy.deepcopy(dict(source_materials))
+    if material_style == "lingo":
+        return copy.deepcopy(LINGO_FOREGROUND_MATERIALS)
+    raise BlenderRenderError(
+        "unsupported multi-pose material style: %s" % material_style
+    )
 
 
 def _validate_sources(
@@ -124,6 +161,7 @@ def _build_config(
     width: int,
     height: int,
     samples: int,
+    material_style: str = DEFAULT_MATERIAL_STYLE,
 ) -> Dict[str, Any]:
     required = (
         "camera",
@@ -139,6 +177,7 @@ def _build_config(
             "source Blender config is missing: %s" % ", ".join(missing)
         )
     selected = _validate_keyframes(frames, frame_count)
+    materials = _resolve_materials(source_config["materials"], material_style)
     return {
         "cache": str(cache),
         "scene_report": "blender-scene-report.json",
@@ -154,7 +193,7 @@ def _build_config(
         "device": source_config["device"],
         "camera": source_config["camera"],
         "floor": source_config["floor"],
-        "materials": source_config["materials"],
+        "materials": materials,
         "color_management": source_config["color_management"],
         "composition": {
             "mode": "opaque_multi_pose_shared_scene",
@@ -163,6 +202,8 @@ def _build_config(
             "pose_layout": "unaltered_source_world_coordinates",
             "camera_fit_source": "complete_mesh_cache_all_frames",
             "human_object_pair_count": len(selected),
+            "material_style": material_style,
+            "material_change_scope": "foreground_human_and_object_only",
         },
     }
 
@@ -179,6 +220,7 @@ def render_multi_pose_figure(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     samples: int = DEFAULT_SAMPLES,
+    material_style: str = DEFAULT_MATERIAL_STYLE,
     renderer_commit: str = "local-unrecorded",
     blender_script: Path | str = DEFAULT_BLENDER_SCRIPT,
 ) -> Dict[str, Any]:
@@ -216,7 +258,13 @@ def render_multi_pose_figure(
     identity = uuid.uuid4().hex
     staging = destination.with_name(".%s.%s.staging" % (destination.name, identity))
     staging.mkdir()
-    image_name = "trajectory-k%d-omomo-grounded-style.png" % len(selected)
+    if material_style == DEFAULT_MATERIAL_STYLE:
+        image_name = "trajectory-k%d-omomo-grounded-style.png" % len(selected)
+    else:
+        image_name = (
+            "trajectory-k%d-omomo-grounded-layout-lingo-materials.png"
+            % len(selected)
+        )
     image_path = staging / image_name
     config_path = staging / "blender-trajectory-config.json"
     scene_report = staging / "blender-scene-report.json"
@@ -231,6 +279,7 @@ def render_multi_pose_figure(
         width=width,
         height=height,
         samples=samples,
+        material_style=material_style,
     )
     _write_json(config_path, config)
     _run_blender(_blender_command(blender, scene_asset, script, config_path), log_path)
@@ -253,6 +302,7 @@ def render_multi_pose_figure(
         "sequence_id": cache_record["sequence_id"],
         "renderer_commit": renderer_commit,
         "renderer_backend": "blender-cycles-omomo-multi-pose-scene",
+        "material_style": material_style,
         "composition": config["composition"],
         "ground_correction": ground_correction,
         "visualization_only": True,
@@ -306,6 +356,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
     parser.add_argument("--samples", type=int, default=DEFAULT_SAMPLES)
+    parser.add_argument(
+        "--material-style",
+        choices=MATERIAL_STYLE_CHOICES,
+        default=DEFAULT_MATERIAL_STYLE,
+        help="foreground palette; omomo preserves the accepted source materials",
+    )
     parser.add_argument("--renderer-commit", default="local-unrecorded")
     return parser
 
@@ -324,6 +380,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             width=args.width,
             height=args.height,
             samples=args.samples,
+            material_style=args.material_style,
             renderer_commit=args.renderer_commit,
         )
     except (BlenderRenderError, OSError, ValueError) as exc:

@@ -130,6 +130,13 @@ same canonical NPZ through an immutable mesh cache and produces both a video
 and a six-frame 3x2 process figure. The PyTorch3D command remains the fast
 debug/preview path.
 
+The shared-scene HOI paper figure also has an explicit
+`--material-style lingo` foreground-only variant. It retains the accepted
+multi-pose world layout, procedural wood floor, camera and lighting while
+using the same blue human and sage furniture colors as the HSI/LINGO renderer.
+The default remains the original OMOMO `.blend` materials; see
+`HEADLESS_RENDERING.md` for the exact palette and write-once command policy.
+
 ## HSI native NPZ and LINGO scene rendering
 
 Phase 1C HSI exports are already safe non-pickle NPZ files, but their native

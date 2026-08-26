@@ -226,6 +226,24 @@ rule, unaltered-world-layout policy, complete-cache camera fitting, source
 hashes, render settings, scene report, and image hash. It always marks the
 figure `visualization_only=true` and `evaluation_forbidden=true`.
 
+The accepted OMOMO blue/purple `.blend` materials remain the default. To keep
+the same four poses, world coordinates, wood floor, camera, lights, color
+management and samples while changing only the foreground pair to the exact
+LINGO palette, add:
+
+```bash
+  --material-style lingo
+```
+
+This explicit opt-in uses the V3b human blue
+`base_color=[0.20,0.42,0.56,1.0], roughness=0.46, specular=0.35` and furniture
+sage for the manipulated object
+`base_color=[0.42,0.56,0.43,1.0], roughness=0.66, specular=0.26`. The selected
+style and complete numeric material definitions are stored in the config and
+figure manifest, and the output filename identifies the LINGO-material
+variant. Always use a fresh write-once output directory; the option does not
+change or overwrite the accepted OMOMO-material artifact.
+
 ### HSI/LINGO full-scene render
 
 The Phase 1C HSI evaluator writes native schema-3 NPZ files, not pickle. They

@@ -349,3 +349,9 @@ V0 只冻结边界和设计，不分配 run id、不加载 checkpoint、不启�
 门槛、schema 和无头渲染约束见 `docs/plan/PHASE_VISUALIZATION.md`、
 `docs/visualization/MOTION_EXPORT_SCHEMA.md` 与
 `docs/visualization/HEADLESS_RENDERING.md`。
+
+2026-08-26 新增一个仅影响展示的 HOI 材质变体：保留已验收的
+shared-scene 四姿态、原世界位置、木地板、相机和灯光，只将人体/操作物材质
+切换为 V3b LINGO 的蓝色/sage Principled 配色。旧 OMOMO 材质保持默认，两种样式
+必须在配置和 write-once manifest 中可区分；本次只实现、测试与文档化，不重新
+推理、不覆盖现有 artifact、不启动耗时正式 Blender 渲染。

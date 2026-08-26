@@ -484,6 +484,26 @@ the HSI export contains no articulated finger parameters. The repository
 `tests/` suite passes 110 tests and research metadata validates 29 records
 before the completion record below is appended.
 
+### V3c — LINGO material palette for the HOI shared-scene figure (planned 2026-08-26)
+
+Add an explicitly selected material-only variant of the accepted V3a HOI
+multi-pose renderer. It must preserve the same immutable mesh cache, ordered
+frames `[0,42,83,125]`, unmodified world positions, procedural wood floor,
+complete-cache camera fit, lights, shadows, color management, dimensions and
+samples. The only allowed visual change is to use the exact V3b LINGO
+Principled palette for the foreground pair: blue human
+`[0.20,0.42,0.56,1.0]` and sage object `[0.42,0.56,0.43,1.0]`, including the
+recorded roughness/specular values.
+
+The OMOMO source-material path remains the default for backward compatibility.
+The selected palette and its complete numeric parameters must appear in both
+the Blender configuration and the write-once figure manifest, and its output
+name must not be confused with the accepted OMOMO-material figure. Gate for
+this implementation-only subphase: unit tests prove the default is unchanged,
+the LINGO preset is exact and fail-closed, and CLI/config provenance is
+unambiguous. A formal Blender render is deliberately deferred until review of
+the implementation; no inference or expert-worktree edit is permitted.
+
 ### V4 — Mixer/long-horizon extension
 
 Add optional `stage_id`, `state`, `window_id`, and guard-event metadata once

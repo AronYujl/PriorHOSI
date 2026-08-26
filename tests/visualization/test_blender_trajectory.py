@@ -6,7 +6,10 @@ import pytest
 
 from tools.visualization.blender import BlenderRenderError
 from tools.visualization.blender_trajectory import (
+    LINGO_FOREGROUND_MATERIALS,
     _build_config,
+    _build_parser,
+    _resolve_materials,
     _validate_keyframes,
     _validate_sources,
 )
@@ -56,8 +59,103 @@ def test_multi_pose_config_uses_shared_scene_and_unaltered_world_layout():
         "pose_layout": "unaltered_source_world_coordinates",
         "camera_fit_source": "complete_mesh_cache_all_frames",
         "human_object_pair_count": 5,
+        "material_style": "omomo",
+        "material_change_scope": "foreground_human_and_object_only",
     }
     assert config["camera"] is source["camera"]
+
+
+def test_multi_pose_default_preserves_omomo_source_materials():
+    source_materials = {
+        "human_source": "blue",
+        "object_source": "purple",
+        "smooth_shading": True,
+    }
+
+    resolved = _resolve_materials(source_materials, "omomo")
+
+    assert resolved == source_materials
+    assert resolved is not source_materials
+    resolved["human_source"] = "changed"
+    assert source_materials["human_source"] == "blue"
+
+    with pytest.raises(BlenderRenderError, match="source OMOMO materials"):
+        _resolve_materials({"human_source": "blue"}, "omomo")
+
+
+def test_multi_pose_lingo_style_uses_exact_hsi_foreground_palette():
+    source = {
+        "camera": {"projection": "orthographic"},
+        "color_management": {"view_transform": "Filmic", "look": "None"},
+        "device": "CPU",
+        "engine": "CYCLES",
+        "floor": {"height": 0.015},
+        "materials": {"human_source": "blue", "object_source": "purple"},
+    }
+
+    config = _build_config(
+        source,
+        cache=Path("/immutable/mesh-cache.npz"),
+        frame_count=126,
+        frames=[0, 42, 83, 125],
+        output_image="trajectory-k4-lingo.png",
+        width=1600,
+        height=800,
+        samples=64,
+        material_style="lingo",
+    )
+
+    assert config["materials"] == LINGO_FOREGROUND_MATERIALS
+    assert config["materials"] is not LINGO_FOREGROUND_MATERIALS
+    assert config["composition"]["material_style"] == "lingo"
+    assert config["camera"] is source["camera"]
+    assert config["floor"] is source["floor"]
+    assert config["color_management"] is source["color_management"]
+
+
+@pytest.mark.parametrize("style", ["", "unknown", "LINGO"])
+def test_multi_pose_material_style_fails_closed(style):
+    with pytest.raises(BlenderRenderError, match="material style"):
+        _resolve_materials(
+            {"human_source": "blue", "object_source": "purple"}, style
+        )
+
+
+def test_multi_pose_parser_requires_explicit_lingo_opt_in():
+    required = [
+        "cache.npz",
+        "--cache-manifest",
+        "cache.json",
+        "--source-render-manifest",
+        "render.json",
+        "--output-dir",
+        "output",
+        "--blend-scene",
+        "scene.blend",
+        "--blender",
+        "blender",
+        "--frames",
+        "0",
+        "125",
+    ]
+
+    assert _build_parser().parse_args(required).material_style == "omomo"
+    lingo_args = _build_parser().parse_args(
+        required + ["--material-style", "lingo"]
+    )
+    assert lingo_args.material_style == "lingo"
+
+
+def test_blender_consumer_dispatches_lingo_principled_materials():
+    consumer = (
+        Path(__file__).parents[2] / "tools/visualization/blender_scene.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'settings.get("style", "omomo_source_copy")' in consumer
+    assert 'style == "lingo_principled_v1"' in consumer
+    assert '"PriorHOSI.Human.LINGOBlue"' in consumer
+    assert '"PriorHOSI.Object.LINGOSage"' in consumer
+    assert "human_material, object_material = _foreground_materials" in consumer
 
 
 def test_multi_pose_source_validation_binds_both_manifests(tmp_path):
