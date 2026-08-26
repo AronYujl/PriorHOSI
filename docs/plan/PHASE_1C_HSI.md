@@ -7024,3 +7024,735 @@ HEAD **`ea55a344e311b7a5d7a58149d29a3e13f3f4736c`** 加当时未提交的两文�
 的 HEAD 已不是启动时的 HEAD。这不影响磁盘上的任何记录：`per_sequence_metrics.json`
 **不含 `git_commit` 字段**（已核对），没有任何产物会在完成时回写 HEAD。权威陈述是上述
 启动时快照。
+
+## 2026-08-26（同日第三次：P16-NS 预注册与实现落地 —— 启动前冻结；含 readout 判读决定、terminal-pose 指标、P16-GQ 冻结设计、以及四处过期引用的订正）
+
+用户授权："授权为 P16-NS 起草并写入 dated plan/registry、实现必要代码与测试，并将计划/实现
+分别提交。提交、测试、worktree clean 和 GPU preflight 全部确认后，可在 GPU0–3 启动 P16-NS；
+不要占用 GPU4–7。P16-GQ 的完整 GPU 运行仍需我在门控权重校准完成后单独批准。自适应门控继续
+暂缓。"
+
+本节是 **P16-NS 的启动前预注册**（§A），外加三件与它同批冻结、但作用域更广的东西：判读决定
+（§B）、terminal-pose 保真指标（§C）、以及 **P16-GQ 的冻结设计与门控权重校准结果**（§D，
+**记录而非授权**）。§E 是四处过期 `file:line` 引用的订正，§F 是自适应门控的状态。
+
+冻结的机器可读依据全部留在 scratch，不迁入 docs：
+`.claude/scratch/p16-ns-spec/SPEC.md`（臂规格）、
+`.claude/scratch/p16-prereg-calibers/{PREREG.md,DECISIONS_APPLIED.md,tiers.json,TIERS_ARITH.md}`、
+`.claude/scratch/p16-tpf/{AFFORDANCE_RULE.md,AFFORDANCE_SUBSET.md,STILLNESS_SPEC.md,STILLNESS.md,stillness.json}`、
+`.claude/scratch/p16-gq/{SPEC.md,CALIB.md,B_dose_area512_nf002.json,D_calib.json}`、
+`.claude/scratch/p16-adaptive-gate/REOPEN_CONDITION.md`、
+`.claude/scratch/p16-launch/COST_AND_LAYOUT.md`。
+
+---
+
+### A. P16-NS 预注册 —— 本轮唯一启动的臂
+
+Run id `p1-hsi-b-p16ns-s42-20260826`，`exp_name: hsi_b_p16ns`，seed 42，GPU0–3。
+
+#### A.1 唯一被操纵的变量
+
+释出的 LINGO pickle
+（`data/dataset/language_motion_dict/language_motion_dict__inter_and_loco__16.pkl`）
+携带一个逐窗口预计算的 `need_scene` 布尔。在 v3 训练划分的 1,343,667 个窗口上它有
+**522,818 个为 False（38.9098%）**，而 `code/models/infbagel.py:1434-1438` 对这些行把
+**全部五个 scene token** 置零 —— `scene_emb`（goal-centred crop）与 `scene_emb_0..3`
+（当前帧 + 三个 temporal voxel）。置零一个激活同时置零它的梯度，因此 B-v2 的 scene encoder
+只在 **61.09%** 的行上收到梯度，trunk 学到的是一个 38.91% 的时间里静音的 scene 通道。
+
+**推理侧从不读这个标志**：`code/test_infbagel_lingo_hsi.py:1362` 对全部 375 个封存 episode
+把它钉为 True。数据侧的 episode 归属是 ns=True 287 / ns=False **88**，也就是说
+**88/375 个门控 episode 是在"caption 的整个训练史都是 scene-blind"的条件下、用五个活的
+scene token 采样的**。这是一个 train/test 条件不匹配，不是双侧共同的盲区。
+
+本臂加一个默认关闭的 `force_need_scene` 开关，训练时把这个门强制打开，**只改这一件事**。
+实现是两处：`code/datasets/infbagel.py:125-137`（读 kwarg）与 `:466`
+（`need_scene = np.bool_(True) if self.force_need_scene else self.need_scene[idx]`）。
+默认 False，因此**每一份既有配置（含每一份封存的评测配置）的含义逐位不变**。
+
+机制预测（可被证伪的部分）：如果 train/test 条件不匹配确实是上层穿透的一个来源，则
+NSu 相对 Bu 应在 **C-above 穿透**上显著改善；如果不是，则本臂返回 ns 或 INCONCLUSIVE，
+而这**不构成对机制的否证**（见 §A.13）。
+
+#### A.2 负向要求 —— 写成要求，不是描述
+
+以下每一项都已核验为 B-v2 的取值，并且必须逐位复现：
+
+| 不改 | B-v2 取值 | 依据 |
+|---|---|---|
+| ego-crop 轴序 | `nb_voxels: [32,32,32]` | `code/config/dataset/lingo_v3_train.yaml` |
+| crop 高度 | `mesh_grid: [-0.6,0.6,0.1,1.2,-0.6,0.6]`，即 y∈[0.1,1.2] m | 同上 |
+| HANDHELD_PROP 数据范围 | 245,764 窗口（占训练 18.29%），100% `need_scene=False`，**本臂保留不删** | `.claude/scratch/p16-needscene/NOTES.md` |
+| 推理配置 | `code/config/config_sample_infbagel_lingo_hsi.yaml`，sha256 `c0a680e9…` | 两份 baseline eval manifest |
+| 目标权重 | `loss_w_fk: 3`、`loss_w_obj_pts: 50`（`lingo_only` 下惰性） | `config_train_hsi_b_lingo_full.yaml` |
+| lr / warmup | 2e-4 / 2000 | 同上 |
+| 有效 batch | 2048（已注册档位） | 同上 |
+| 预算 | `epochs: 223`、`max_optimizer_updates: 146255` | 同上 |
+| gradient clipping | 无（`grad_clip_max_norm` 未配置） | `metrics.json` `gradient_clipping: "none"` |
+| 10% temporal-voxel dropout 与 CFG uncond mask | `:1401-1403` / `:1394-1399`，只触及 `scene_emb_1..3`，本臂不动 | 直接读源码 |
+| `code/priors/core/` | 冻结的跨分支契约 | `AGENTS.md:31-38` |
+
+注意最后第三行：**本臂不移除 scene dropout**。`need_scene=False` 是代码库里唯一同时置零
+`scene_emb` 与 `scene_emb_0` 的机制，所以关掉这个门之后模型仍然保留 10% 的 temporal-voxel
+dropout 与 uncond mask 两层 scene 正则化。
+
+**baseline 一律复用、不重跑**：Bu = `p1-hsi-b-v2-eval-epoch222-unguided-shard8-s42-20260823`，
+Bg = `p1-hsi-b-v2-eval-epoch222-guided-shard8-s42-20260822`，均在 checkpoint
+`hsi_b_lingo_full_v2_epoch222.pth`（sha256 `5daaf813ca82878868602840760f35df43b642d73f73cb37e24bb5a4dbf62b4c`）
+上。依据 `AGENTS.md:108-110`。
+
+#### A.3 from scratch，不是 fine-tune —— 并把"本项目没有 no-warm-start 规则"写清楚
+
+**决定：from scratch，完整 B-v2 配方。** 理由是实验设计，不是治理规则：
+
+B-v2 本身就是冷启动（`load_state_dict: false`、`ckpt_path: ""`、`resume_from: ""`、
+`start_epoch: 0`，全部继承不变）。因此一个 warm-start 的臂相对它**自己的 baseline** 会在
+三个变量上不同 —— 累计 update 数、t=0 时的 optimizer state、LR schedule 的位置 —— 而不是
+一个。continuation 还必须在"把 2000 步 warmup 重放进一个已收敛模型"和"跳过 warmup、从此与
+baseline 的 schedule 不同"之间选，**没有空选项**。此外
+`hsi_b_lingo_full_v2_resume.pth` 携带的 Adam 二阶矩正是拟合在 scene-blind régime 上的，
+而那恰是本臂要 unlearn 的状态。
+
+**必须明确记录：本项目没有任何成文的 no-warm-start 规则。** 对 `AGENTS.md`、`CLAUDE.md`、
+`docs/`、git log 的穷举检索只给出四处命中，没有一处是关于训练臂的规则：
+
+- **`AGENTS.md:11-12`** 是关于**一个特定工件**的 provenance 规则 —— *released* InfBaGel
+  checkpoint 绝不能初始化 HOIPrior / HSIPrior / mixer。`hsi_b_lingo_full_v2_epoch222.pth`
+  不是那个工件，它是本项目自己训练的产物，该规则**不覆盖它**。把它当作 no-warm-start 规则
+  引用是过度解读。
+- **`AGENTS.md:118`** 要求保留**一份**正式的 from-random 训练。**B-v2 已经满足这条**；它对
+  "后续的臂能不能 warm-start"没有任何表述。
+
+所以 from-scratch 的依据只有上面的实验设计论证，它本身足够成立，不需要治理规则背书。
+将来若有臂想做 fine-tune，本仓库不禁止它，但它需要自己的预注册与自己的 baseline。
+
+#### A.4 layout：4 × 512 × accum 1 = 有效 batch 2048；8 × 256 不是替代
+
+| 项 | 值 |
+|---|---|
+| micro-batch / GPU | 512 |
+| GPU 数 | 4（GPU0–3） |
+| gradient accumulation | 1 |
+| **有效 batch** | **2048**（`AGENTS.md:205-206` 的已注册档位之一） |
+| epochs / max_optimizer_updates | 223 / **146255** |
+| 处理窗口预算（主预算） | 146,255 × 2048 = **299,530,240 窗口** |
+| seed | 42 |
+
+**8 × 256 在相同有效 batch 下不是替代，即使它更快、GPU-hour 相同。**
+`code/models/infbagel.py:1332` 在 `int(timesteps[0])`（**sample 0 的 timestep**）上分支，
+`:1333` 把 `cfg_scale` 覆写为整个 rank-local batch 的值。因此 **rank 数改变的是"算什么"，
+不只是"怎么求和"**：两种 layout 在 update 1 的全局梯度范数上相差 **4.60%**，而 trainer 在
+同一 layout 内是逐位确定的。历史依据见 `config_train_hsi_b_lingo_full.yaml` 的 layout 注释
+与 registry 修订 `p1-hsi-b-layout-4x512-s42-20260814`。
+
+#### A.5 配置同一性 —— 已核验
+
+`code/config/config_train_hsi_b_lingo_full.yaml` 的 sha256
+**`34c4798e93275b85444c65c2847dd91c2b07b80557bd730d5d3c98480ee4f9f2`**，与 B-v2 registry 行
+记录的 `config.sha256` **逐字节一致**；且 B-v2 的 registry 行记录 `config.overrides: []`
+—— 它跑的就是这份 base 配置本身。所以"base 配置 + 恰好一个被操纵的键"是一个真正的
+单变量复制。
+
+本臂的配置是一份 **override fragment**（`code/config/config_train_hsi_b_p16ns.yaml`，
+`defaults: [config_train_hsi_b_lingo_full, _self_]`），而不是 base 的完整副本。这是
+`docs/EXPERIMENT_CONVENTIONS.md:19-21` 的要求（"one config override fragment … carrying
+only the delta"），本地先例见 `code/config/config_train_hsi_b_seam_t0.yaml:26-29`
+（"Restating any of them here would let the two arms drift apart silently"）。
+`tests/hsi/test_need_scene_gate.py:406` 断言 fragment 的键集恰为
+`["dataset","defaults","exp_name"]`，**该断言本身就是单变量守卫**，不得为了容纳第三个键
+而放宽。
+
+#### A.6 与 B-v2 的 resolved-config 差异恰为 4 项
+
+对照 B-v2 归档的 `results/hsi_b_lingo_full_v2/config_resolved_job.yaml`，本臂的 resolved
+job config 的差异被穷举为 4 项，全部有账：
+
+| # | 差异 | 性质 |
+|---|---|---|
+| 1 | `+ dataset.force_need_scene: true` | **就是那个变量** |
+| 2 | `exp_name` / `exp_dir` | **强制**，保护封存 baseline（见 §A.7） |
+| 3 | `sampler/pelvis.yaml` 在 B-v2 之后新增的五个键（`hsi_guidance_norm_cap`、`hsi_guidance_dose_scale`、`hsi_guidance_alpha_decay`、`seam_loss_weight`、`loss_w_jpos`） | 已核验在训练路径上惰性（本文件 2026-08-25 第四次、2026-08-26 两节） |
+| 4 | `log_grad_norm` | 由**启动行** `+log_grad_norm=true` 提供，与 B-v2 相同 |
+
+第 4 项在启动行给出后即消失：实测**加了该 override 的归档 resolved config 与 B-v2 只差
+前 3 项**（不加时 `log_grad_norm` 键完全不存在）。`log_grad_norm` 纯观测 ——
+`train_infbagel.py:442` 读、`:626`/`:682` 用，且本 trainer **未配置** `grad_clip_max_norm`，
+所以计算范数不可能改变任何一次 update。打开它是**消除一处与 B-v2 的差异**，不是新增变量。
+
+**用词精确性要求：说"bitwise-identical objective（目标逐位一致）"，不要说
+"bitwise-identical config"。** 第 3 项意味着两份 resolved config 并非逐字节相等。
+
+#### A.7 `exp_name` 必须覆盖 —— 否则会覆盖封存的 B-v2
+
+base 配置第 20 行硬写 `exp_name: hsi_b_lingo_full_v2`，第 70 行派生
+`exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}`。**不覆盖 `exp_name` 的话本臂会写进
+`results/hsi_b_lingo_full_v2/`，覆盖封存的 B-v2 baseline，包括当前每一个结果都依赖的
+epoch222 teacher checkpoint**，这会不可挽回地违反 `AGENTS.md:85-86`（"never overwrite
+results"）。本臂用 `exp_name: hsi_b_p16ns`。
+
+#### A.8 成本 —— 用 B-v2 实测，不用 B v1
+
+| 阶段 | GPU | 墙钟 | GPU-h | 是否承诺 |
+|---|---:|---:|---:|---|
+| 训练（GPU0–3） | 4 | **20.98 h** | **83.9** | 是 |
+| （启动/收尾） | 4 | ~0.35 h | ~1.4 | 是 |
+| NSu 全量评测 | 8 | ~2.7 h | **21.7** | 是 |
+| NSg 全量评测 | 8 | ~5.9 h | **47.0** | **仅在 §A.10 的条件成立时** |
+| **承诺小计** | | | **105.6** | |
+| NSg 触发后的全部 | | | **152.6** | |
+
+146,255 × 0.5164 s = 75,526 s = **20.98 h**，× 4 GPU = 83.9 GPU-h。
+
+**B v1 的 0.7305 s/update（29.6 h / 118.4 GPU-h）是另一次运行，不是本臂的预期。**
+1.41 倍差距与已知的 `OMP_NUM_THREADS` 效应吻合（未设时在 112 核上生成 1344 线程；capping
+到 4 是逐位相同的）。因此：
+
+> **启动要求：`export OMP_NUM_THREADS=4`。** 不设则预期 ~29.6 h / ~118 GPU-h 而不是
+> ~21 h / ~84 GPU-h。这是单臂 **34 GPU-h** 的差额，且完全免费。
+
+主机：8 卡权威主机（`AGENTS.md:23-24` 的分支/主机归属；`AGENTS.md:200-203` 把 HSIPrior 指派
+给 8×RTX 3090，而"一个 run 可以使用其 expert 池的子集"，所以 4/8 合规）。**GPU4–7 本臂不
+占用。** 4 卡 worker 不是替代：`AGENTS.md:171-174` 禁止把 LINGO `data/dataset` 复制到它上面。
+
+#### A.9 checkpoint 计划、停止条件、live tripwires
+
+**checkpoint**：`ckpt_interval: 20`、`save_checkpoints: true`，不变。
+`train_infbagel.py:744-745` 因此写 epoch 0,20,…,220（12 份）**加 222**（`epochs-1` 分支），
+共 13 份 epoch 文件 + 1 份滚动 `hsi_b_p16ns_resume.pth`。磁盘 13 × 179,662,353 +
+515,490,513 = **2,851,101,102 B = 2.66 GiB**，全部保留。
+
+**指定产物 = final-epoch-only**：`results/hsi_b_p16ns/checkpoints/hsi_b_p16ns_epoch222.pth`。
+这沿用本文件 `:629-631` 已有的用户决定，不新立规则；引入任何 checkpoint 间选择都会构成
+第二个被操纵变量并违反 `AGENTS.md:219-220`。注意与预算的交互：`max_optimizer_updates`
+在 epoch 222 自然结束前 33 步触发（223 × 656 = 146,288 vs 146,255），`stop_training` 打断
+step 循环但 checkpoint 块仍以 `epoch == 222 == cfg.epochs - 1` 执行，所以 `epoch222.pth`
+会被写出。**B-v2 就是这样，不要"修"这个 off-by-33。**
+
+**先订正一处前提**：HSI trainer **完全不计算 validation loss** ——
+`grep -n "valid\|val_\|held.out\|holdout" code/train_infbagel.py` 无命中，
+`results/hsi_b_lingo_full_v2/metrics.json` 无 `validation` 键。所以这里不存在 validation
+tripwire，也从来没有过。但**训练 loss 是 10 步粒度实时的**，这是 HOI 侧没有的：
+
+| 通道 | 位置 | 节奏 | 实时？ |
+|---|---|---|---|
+| 打印训练 loss，**全 4 rank** | `train_infbagel.py:600-602`（`flush=True`，无 rank guard），由 `\| tee train.log` 捕获 | 每 10 步 ≈ **5.2 s** | **是** |
+| `grad_norms/grad_norms_rank*.jsonl` | `:682-691`，每 128 条 flush | 每 128 步 ≈ **66 s** | **是**（需 `+log_grad_norm=true`） |
+| checkpoint 文件到达 | `:744-770` | 每 20 epoch ≈ 1.88 h | 是（粗粒度存活探针） |
+| TensorBoard | `:603-616`，仅 rank 0 | 每 10 步 | 仅可视化（`AGENTS.md:87`） |
+| 逐 update 非有限值守卫 | **不存在** | — | **否** |
+
+**三个 tripwire，冻结于启动前：**
+
+- **T1（loss spike）**：4-rank 均值的相邻打印点比值 **> 3.0** 即记录。**不中止** —— 记下
+  (epoch, step)、继续跑、在结果里报告。历史两次事件（比值 5.94 @ ep10/step50、3.66 @
+  ep160/step340，后者"约损失 23 个 epoch 的进展"）都是可存活的；在第一次 spike 上中止会
+  丢掉 20 h。本臂**保持 clipping 关闭**：B-v2 warmup 后全局范数 min 1.0394 / median
+  5.9947，`max_norm=1.0` 会裁掉 146,255 次中的 146,253 次，那是全局 LR 重缩放而不是异常
+  值守卫；打开它是第二个变量。
+- **T2（本臂自己预期的优化效应）**：warmup 后（update > 2000）全局 DDP 范数。B-v2 参考：
+  min 1.0394、median 5.9947、mean 6.318、max 26.1939、max/median 4.37、
+  `fraction_over_3x_median` 1.73e-4。若运行中位数超过 B-v2 的 **2 倍（>12.0）**或单次
+  update 超过 B-v2 max 的 **3 倍（>78.6）**则记录。**不中止** —— 抬高的中位数正是预测的
+  效应（scene encoder 的梯度来源从 61.09% 升到 100%，贡献上限升约 1.64 倍），
+  **它是科学数据不是故障**。只有**单调发散**（>5000 步持续增长）才是故障。
+  因此 **B-v2 的梯度范数分布不是本臂的有效 null**。
+- **T3（NaN）**：`grep -c "Loss: nan\|Loss: inf" train.log`，NaN 会在 5.2 s 内出现在日志里。
+
+**真正提前中止（并作为保留的运行失败记录，绝不静默重启，`AGENTS.md:126-127`）**：
+① 非有限 loss 持续超过 100 步，或 JSONL 里出现非有限梯度范数；② trainer 非零退出；
+③ CUDA OOM（本臂前向的形状与分配与 B-v2 相同，OOM 意味着主机争用而不是本臂）；
+④ warmup 后梯度范数中位数连续 >5000 步单调增长；⑤ preflight 失败（未解析的 Hydra
+interpolation，或 resolved config 未显示 `dataset.force_need_scene: true`）；
+⑥ `tools/experiment.py start` 时 worktree 不干净 —— **不绕过**。
+**明确不是中止条件**：loss spike（T1）、抬高的梯度范数中位数（T2 的预期分支）、
+SSH/隧道中断（`AGENTS.md:158-162`，"隧道中断是一次访问事件，不是重启许可"）。
+
+#### A.10 分级评测 —— 用户决定
+
+评测协议是封存的那一套，逐项不变：375 episode / 26 场景 / 2271 窗口、seed 42、
+`seed_everything(seed + canonical_ordinal)`、8 路 `greedy_longest_first_bin_packing_by_window_count`
+（`shard_window_totals` [285,283,283,285,285,284,284,282]）、
+`sample_type=diffusion hsi_progress_fix=true export_motion=true`、
+`shard_count>1` 下 timing 按构造为 null。`export_motion=true` 是必需而非可选：>5g 骨盆加速度
+与 `h_min` 守卫都算在 motion 导出上。
+
+**分级规则（启动前冻结）：**
+
+1. **先跑 NSu（unguided）全量评测**（~21.7 GPU-h）。它是 primary：`need_scene` 是一个
+   **条件**变量，而 guidance 是不管条件如何都作用在关节上的推理期修正，所以 unguided 才是
+   "模型学到了什么"的干净读数。它也是唯一能拿到 RDS 的格
+   （`rds_available = not guided`，`test_infbagel_lingo_hsi.py:1714`），而 RDS 是对
+   "模型是否使用场景"的直接测量，即本臂自己的机制。
+2. **NSg（guided）只在下列条件成立时才跑**（~47.0 GPU-h）：**C-above、terminal facing、
+   或某个预注册机制判据（§A.12）中至少有一项显示可用的改善，且自然度没有明显退化。**
+3. 若 NSu 是清楚的 null 或 INCONCLUSIVE 且无任何机制信号，则**不跑 NSg**，把结果按
+   INCONCLUSIVE 收口。
+
+**记录这条分级偏离了什么**：`AGENTS.md:219-220` 的等预算要求与"gate 是 C+guided、四格全测"
+的旧约定都指向"两格都跑"。分级是用户在本次授权中做的显式取舍，理由是 47.0 GPU-h 不应在
+primary 已判 null 时无条件支出。**其代价必须在正式结果里写明：若 NSg 未跑，本臂就不能与
+Bg 比较，G1–G5（§A.11）也无从判定。**
+
+**primary 判据（NSu vs Bu，episode 配对 bootstrap，10,000 replicate，seed 42）**：
+C-above `pene_sum_mean` **与** C-above `pene_pct_scene` 都显著更低。二者缺一即
+INCONCLUSIVE，方向一致但不显著也是 INCONCLUSIVE。参考行（n=375）：
+
+| 指标 | GT | **Bu（要打败的）** | Bu/GT |
+|---|---:|---:|---:|
+| C-above `pene_pct_scene` | 0.013111 | **0.022653** | 1.728x |
+| C-above `pene_sum_mean` (m) | 5.9733 | **13.4361** | 2.249x |
+
+**守卫：near-floor band 不得退化。** NSu 的 C-floor `pct` 不得显著**高于** Bu 的
+0.038134（Bu 已在 GT 的 2.1% 以内，这里几乎没有可赢的、只有可输的）。用地板穿透换家具穿透
+是把 null 包装成 win。
+
+**功效告知（第一等，不是脚注）**：本协议在 n=375 上**可能无法分辨 P16-NS**。同族对照的
+配对半宽给出的最小可检测效应是 C-above `summean` **1.3–2.5 m**（裸显著性）到
+**2.6–4.9 m**（已注册的 hw ≤ |d|/2 判据），即 Bu→GT 差距的 ~17–33% 到 ~35–66%。
+更糟的是：表中每个半宽都来自"固定 checkpoint 上翻转 guidance"，两格共享权重、配对很强；
+**P16-NS 是另一组权重**，配对差会更不相关，半宽会落在区间上端**或更高**。
+**把 2.5 m / 0.0029 当作 MDE 的下界，不是估计。**
+
+#### A.11 G1–G5 在本臂中的作用域
+
+**G1–G5 是为 guidance-dose 臂冻结的，参考格是 B+guided、判定集是 holdout355**
+（本文件 `:3648-3712`）。用户决定：**在本臂中它们只作为 NSg-vs-Bg 的自然度守卫**，
+在 holdout355 上判定、full375 并行报告，**并且明确不是晋级的唯一依据**。
+
+也就是说：primary 是 §A.10 的 NSu-vs-Bu 穿透判据；G1–G5 的角色是"不许为了穿透把自然度
+弄坏"。如果 NSg 未触发（§A.10），G1–G5 **不适用**，这必须在结果里写成"未测"，
+不是"通过"。
+
+#### A.12 预注册的机制次要指标 —— 现在冻结，不是事后补救
+
+以下三项在启动前预注册，全部零额外 GPU 成本：
+
+1. **SUPPORT_ENTER / SUPPORT_EXIT 几何匹配对照。** SUPPORT_ENTER（117 episode，
+   `need_scene=True`）vs SUPPORT_EXIT（20 episode，`need_scene=False`），同一批家具。
+   已在 Bu 上测得：Bu−GT 关节 `sumf_mean` 超出量 +0.02756 → +0.11241，delta **+0.08485
+   [+0.01542, +0.16408] SIG**；`pene_sum_floorexcl` 25.328 → 77.154，delta **+51.83
+   [+13.74, +94.18] SIG**。**机制预测：如果 P16-NS 起作用，这个对照应当缩小。**
+   EXIT 侧 n=20，功效低，但它是机制真正预测的估计量。
+2. **RDS 的 OLS 系数。** 只在 unguided 格可得。Bu 的全集 RDS 对"caption 训练时 scene-blind"
+   的点二列相关是 −0.2661（pearson）/ −0.2902（spearman，p=1e-8）；控制运动幅度后的 OLS
+   给 `scene_blind` **−0.03785（se 0.00983，t −3.85）**。**机制预测：该系数应向 0 移动。**
+   这是整份计划里最干净的机制检验，且随 NSu 免费得到。
+3. **Terminal facing。** `theta_head_exp`（未做 seed 校正），主判定集是 affordance
+   子集（§C）。
+
+#### A.13 INCONCLUSIVE 是一个被接受的可能结果
+
+明确写下来：**P16-NS 返回 INCONCLUSIVE 是被接受的结局之一，且不构成对机制的否证。**
+本文件 `:4650` 已规定落在半宽内的差异报 INCONCLUSIVE 而非 PASS。启动前预先声明、
+因此事后选择它不构成 post-hoc：
+
+- **首选：报 INCONCLUSIVE**，配 §A.12 的机制次要指标。
+- **不做**：不把配对单元从 episode 改成 window（2271 vs 375，半宽约窄 2.5 倍）来凑显著性
+  —— 那会破坏已注册的配对单元并使本分支每一行既有结果不可比，需要它自己的预注册。
+- **不做**：不扩大 episode 集。这 375 个是封存的 scene-disjoint LINGO 测试划分，扩大它
+  会重置本分支已发表的每一行。
+- **不做**：不在 primary 判 null 后就近扫参数（§D 的 Tier 0 同规则）。
+
+#### A.14 可复现性不对称 —— 决定哪些结论可以事后复算
+
+`train_infbagel.py` 既未设 `cudnn.deterministic` 也未设 `use_deterministic_algorithms`，
+所以 **HSI 训练不可逐位复现**；而 HSI 推理是逐位可复现的（本文件 2026-08-26 第二次一节，
+375 episode × 51 指标键 + 5 个 motion 数组全部逐位相同）。推论：
+
+- 本臂的**评测行**可以在任何时候从本臂 checkpoint 精确重新导出（~21.7 或 ~47.0 GPU-h）。
+- 本臂的**训练是一次性的**。**一个被怀疑的训练数字需要一个 replicate，不是一次 rerun**
+  —— 而 `AGENTS.md:216-218` 又不允许为主表增加训练 seed。**本臂只有一次机会。**
+
+另一条 provenance 危害：`git_commit` 是在 metrics 写盘时记录的，即**完成时**的 HEAD 而非
+启动时的 HEAD。因此**所有 commit 都必须在启动之前落地**；运行中提交会改写该 run 记录的
+provenance。
+
+---
+
+### B. 判读决定 —— 同时约束本臂与 P16-GQ
+
+#### B.1 判定 cohort：holdout355 是门控 cohort，full375 必须并行报告
+
+**holdout355 是判定 gate 的 cohort**（full375 减去用于模型选择的 worst20，本文件
+`:3618-3624`；其 walk 子集为 126）。**full375 必须作为含 worst20 的压力测试并行报告，
+不得省略、不得互相替代。** 依据：105 个对照格中有 8 个在两个 cohort 之间翻转，
+一个 cohort 不是另一个的四舍五入。full375 的 C-above 差距是 holdout355 的 **1.358 倍**，
+因为 worst20 在 5.33% 的 cohort 上承载 **32.4684 m** 的 C-above `summean` 差距，
+是 holdout355 差距的 **7.71 倍**。
+
+#### B.2 三个 caliber 的角色
+
+- **C-total**：仅作历史兼容保留。
+- **C-above（y ≥ 0.02 m）**：`pene_pct_scene` 与 `pene_sum_mean` 是**家具穿透的 primary
+  读数**。（C-above 的 summed 形式就是已注册的 `pene_sum_mean_floorexcl`；C-above 的 pct
+  形式是新列，必须带此 provenance 报告。）
+- **C-floor**：名称固定为 **"near-floor band（近地板带）"**，不叫 ground plane —— 解析地面
+  只解释它 70–82% 的质量 —— 且**仅作守卫**。
+- **不得用非可加的 `summax` 做分解。** C-total = C-floor + C-above 只对可加的量成立。
+
+#### B.3 订正一处此前的假陈述
+
+此前的陈述 **"Bu→Bg 在 C-above 上对每一个量都是 ns"** 是**假的**，在此订正并保留被撤回的
+版本以便追溯。holdout355 上 C-above 的 Bu→Bg1.0：
+
+| 量 | delta | 95% CI | 判定 | `n_req` |
+|---|---:|---|---|---:|
+| `pen_ratio` | **−0.00196905** | [−0.00439996, −8.33757e-05] | **SIG** | 1706 |
+| `pene_pct_scene` | — | — | ns | 2308（= 6.5×n） |
+| `pene_sum_mean` | — | — | ns | 3433（= 9.7×n） |
+
+**G5 把 `pen_ratio` 与 `pene_pct_scene` 以合取方式命名**，所以在 C-above 上 G5 的读数是
+**UNDECIDABLE（不可判定）** —— 由那个功效不足的子句驱动，**既不是 PASS 也不是 FAIL**。
+（`pen_ratio` 虽 SIG 但边际：CI 上界离 0 只有 |delta| 的 4.2%。）
+另记：此前引用的路径 `p16-holdout-calibers/TABLE.md:161` **不存在**，被引的三元组是
+`p16-t0-calibers/TABLE.md:161` 的 **full375** 行（−0.002102 / [−0.004549, −0.000094] /
+`n_req` 1686）。实质结论在两个 cohort 上都成立，错的是数字上的 cohort 标签。
+
+#### B.4 `min_dist` 降级为"到达目标"诊断量
+
+**`min_dist` 不再是反-dodging 守卫**，降级为 goal-arrival 诊断量，反-dodging 的职责转给
+`contact_count_exterior` @ C-above（§B.6）。
+
+理由是一处口径不一致，在此**记录、不修改被冻结的原文**：本文件 **`:3670`** 把 `min_dist`
+解释为到**表面**的距离（"变大 = 离表面更远"），而 `code/priors/hsi/metrics.py:838-860`
+计算的是到 **GOAL** 的**水平**距离（`:843-845` 取 xz 平面对 goal 的差，`:846` 逐帧取最近
+关节的 min，`:851` 输出 `min_dist`）。一个 episode 完全可以精确抵达它的 goal，同时悬空
+避开每一件家具，所以这个量按构造检测不到 dodging。它与 `success_min_10cm` 在全部 5 个
+cell 上有 0/375 处不一致，而 success 已饱和在 1.00000。**`:3670` 的文本不动**，
+本节即为订正记录。
+
+#### B.5 `contact_count` 在 C-above 上读，不在 C-total 上读
+
+理由是实测的假阳性：holdout355 上 guidance 的 C-total contact 下降 **−37.6149 SIG**
+几乎全部是近地板的（C-floor **−39.4957 SIG**，C-above **+1.88078 ns**）。
+**一个双侧的 C-total 门会把封存的 B+guided baseline 判为"在躲避场景"，这是一个被实测到的
+假阳性。**
+
+#### B.6 新增下界守卫：`contact_count_exterior` @ C-above vs B+guided
+
+`contact_count` @ C-above 中有 38.6–48.2% 是穿透本身（恒等式
+`contact_count = pene_count/frame + contact_exterior`，残差 4.5e-13），所以单纯减少穿透
+就会拉低它。**0–5 cm 外壳才是 dodge 必须破坏的部分**：合成 dodge 在 d=0.05 m 上给
+**−30.496 [−37.667, −23.774] SIG**，灵敏度比 0.649，而 d=0 的格逐位复现封存导出
+（0.000e+00）。因此新增守卫：**`contact_count_exterior` @ C-above 相对 B+guided 不得显著
+下降**。
+
+**并且明确撤销**本文件 `:1720` 那份**从未确认、从未执行**的指标删除清单中对
+`contact_count_exterior` 的删除提议。该键现在是承载判定的。**撤销记录在本节，
+`:1720` 的原文不动。**
+
+#### B.7 悬空 1–5 cm：被接受的已知残差
+
+**P16 这一轮的机制探针接受"身体悬在表面上方 1–5 cm 而不是贴合"这一残差，不为它新建任何
+门控。** 这是一个带代价的范围决定，代价必须点名：**本预注册里没有任何自动子句能检测悬空**
+—— `pene_sum_mean` 在两种情况下都是 0；`contact_count` @ C-above 按 `sdf ≤ +0.05` 计数，
+3 cm 悬空仍算 contact；`contact_count_exterior` 在悬空时**反而升高**（样本从内部移到
+0–5 cm 壳层），所以 §B.6 的下界会被悬空满足；`min_dist` 完全看不到它。
+
+**正因如此，正式结果必须包含那份冻结的 12-episode 目视检查**（选取规则只读封存的 B+guided
+格、GT 和用户点名的那个 episode，**从不读被检验的臂**；名单在
+`.claude/scratch/p16-prereg-calibers/tiers.json`）：
+
+| block | 规则 | episode |
+|---|---|---|
+| V-a (6) | holdout355 中 Bg1.0 C-above `summean_above` 最大的 6 个 | `031:002568` `015:000948` `015:000960` `031:002589` `015:000903` `031:002598` |
+| V-b (3) | holdout355 中 Bg1.0 `contact_exterior_above` 最大的 3 个（排除 V-a） | `031:002600` `024:001784` `024:001756` |
+| V-c (2) | holdout355 中 `summean_above > 0` 的最小 2 个（排除上面）—— 假阳性探测器 | `056:005699` `061:006110` |
+| V-d (1) | 用户点名的 terminal-pose episode | `062:006305` |
+
+12 个互不重叠、全部在 holdout355 内。逐 episode 报告 GT / B+guided / 臂，并说明身体是
+**贴合**还是**悬空**。它**不产出 gate 判定**，也不能让臂失败；它的职责是让被接受的残差
+**被看见并被写下来**，而不是被那些证明看不见它的指标推断出来。
+
+---
+
+### C. Terminal-pose 保真指标
+
+#### C.1 primary 是 `theta_head_exp`，**不做** seed 校正
+
+`M1.theta_head_exp`（模型与 GT 的末端朝向夹角，两者都用同一公式从导出的关节通道
+`global_jpos` 的 hips 算出，在最后 10 个 coarse 帧 = 1.00 s 上取均值）是**绝对朝向的
+primary 读数**，**不做**协议 seed-yaw 校正。`theta_head_exp_seedcorr` 是**次要诊断量**，
+并列报告、绝不取代。
+
+理由固定下来以免事后重议：未校正的量才是下游消费者真实体验到的量 —— 身体在世界坐标里
+要么朝向物体要么不朝向。seed 校正移除的是**评测协议自己注入**的逐 episode yaw
+（`|seed yaw|` 均值 **57.228 deg**，`code/test_infbagel_lingo_hsi.py:1457-1473`），
+回答的是一个更窄的问题。而且**校正是讨巧的那一侧**：full375 W=10 上未校正 Bu 66.893
+对 N2 floor 20.062（比 **3.33x**），seed 校正后 60.193 对 floor 32.903（比 **1.83x**）
+—— 它同时降低分子并抬高地板。只报校正值会是讨巧的选择，所以它是次要的。
+
+#### C.2 affordance 锚定子集：6 caption / 375 中的 107 episode，由纯 GT 规则冻结
+
+规则冻结在 `.claude/scratch/p16-tpf/AFFORDANCE_RULE.md`，其 §§1-6 的 md5 钉为
+**`43e38b669e309b7906168f4f42eb5bd9`**（该 pin 故意排除 CHANGELOG，使追加不能移动它）。
+
+**规则**：在 GT episode 上构造已钉住的 N2 primary tier（同场景 + 同 caption、
+`|Δgoal| < 0.25 m`、`|Δstart| < 0.50 m`），用同一公式算每个 GT 配对的 `theta_head_exp`
+分歧；一个 caption 被接纳当且仅当 `n_pair >= 8` **且** median **< 20.0 deg** **且**
+`frac(pair > 45 deg) < 0.25`。阈值取自 GT-only 的池化统计量（该 tier 池化均值 20.06 deg、
+尾部占比 13.1%），不取自任何逐 caption 行。规则只读 `meta_GT.json` 与 `win_GT.npz`，
+不读任何模型格。**自检**：配对构造精确复现独立算出的 tier 规模 **213 对**；
+**确定性**由逐字节相同的重跑核实。
+
+**冻结结果：6 caption / 107 of 375 episode（28.5%）** ——
+`sit down on chair` 47、`wash hands at washbasin` 19、`sit down on toilet` 15、
+`sit down in front of drum kit` 13、`type on drum kit while in sitting position` 8、
+`type on piano with both hands` 5。
+**`walk` 被拒**（130 episode，占 cohort 34.7%）：GT 配对 median **35.47 deg**、
+`frac > 45` **0.33** —— 在 walk 上末端朝向是自由变量，那里的朝向误差什么也没测到。
+
+**记录一处约束**：`n_pair >= 8` 是实际的约束条件，不是"锚定性"。
+`play guitar with both hands` 拥有全 cohort 最紧的 GT 配对 median（**1.90 deg**，17 episode）
+却仅因配对数被排除。因此并报一个**标注为次要**的敏感性分析：放宽到 `n_pair >= 3` 给
+12 caption / 162 episode（43.2%），任何在两者间翻转的判定都因此可见为"配对数敏感"。
+**冻结的 primary 子集仍是 6 caption / 107 episode。**
+
+#### C.3 泄漏 —— 按真实量级披露，这是对此前低估的订正，不得软化
+
+此前把它描述为"轻微泄漏：三个 caption"。**实测不是三个：**
+
+- `.claude/scratch/p16-tpf/fairness.log` 对 `n_pair >= 8` 的 **8 个** caption 同时打印了
+  **GT 末端离散度**（选择器自己的统计量）**与 B222-unguided 的朝向误差**。
+- `.claude/scratch/p16-tpf/DETAIL.md` 的 caption 分解对 **10 个**最大 caption 打印了
+  Bu / Bg1.0 / Bg0.45 在四个 gate-eligible 量上的值。
+- **并集：12 个 caption，覆盖 375 中的 290 个 episode = 77.3%。**
+- **被选中的 6 个 caption 全部、107/107 个子集 episode 全部落在泄漏集内。**
+
+**所以该子集是冻结的，但不是盲的。** 三件事界定损害，第三件是实测：
+
+1. 选择器机制上只读 GT，脚本输入可审计。
+2. 阈值来自池化 GT 统计量，不来自逐 caption 行。
+3. **泄漏无法被用来讨巧，这是实测的**：Spearman(GT 离散度, 泄漏的 Bu 误差) = **−0.1667**，
+   无可用的单调关系，选择器的统计量不是模型误差的代理。更决定性地：把 8 个泄漏 caption 按
+   模型误差从坏到好排序，子集**保留了 rank 1**（`type on piano with both hands`，
+   **107.17 deg**）而拒掉了 rank 2 与 rank 4。**一次为讨巧而利用泄漏的选择，第一个会丢掉的
+   就是 rank 1。**
+
+诚实的反面事实并列写下：被选中 caption 的泄漏 Bu 误差均值 **61.51 deg**，被拒两个是
+**89.19 deg**。差异真实，但 `n_rejected = 2`，且两个被拒者（`walk`、
+`sit down on yoga ball`）恰是 **GT 自己都不一致**的 caption（45.18 / 44.32 deg）——
+那是规则在起作用，且 n=2 无论如何都不可分辨。
+
+**关键的、随臂而变的推论（这是操作性的那一点）**：泄漏损害的是关于**既有 Bu→Bg 格的
+回溯性论断**，因为选择过程见过从那些格派生出的信息。它**不偏置 P16-NS 或 P16-GQ**，
+因为子集在这两个臂存在**之前**就已冻结，两者的任何数据都不可能影响选择。
+**所以它作为预注册的次要判据是前瞻有效的，只在回溯使用时附带该 caveat。**
+
+**affordance 子集是 facing 的 primary 晋级集；full375 facing 并行报告。**
+
+#### C.4 诊断-only
+
+躯干、手臂与任何 root-aligned 姿态量（`M2b arms/torso/head/hands`、全部 `M2c`、`M2a`、
+`M1c`、`M1c'`、每个 `L1full`/`L1yaw` 组）**只是诊断量，P16 内不得晋级为门**。两条实测理由：
+`M2.EXP.L1full.pelvis` 在每个 cell 的每个 episode 上**恒为 0.000 mm**（L1full 按定义减去
+pelvis），盲目套用晋级规则会除以零地板；`M2b hands` 在 slot 25/27 上带一个已记录的
+**2.8 cm** FK-vs-export 口径偏移，其绝对水平在两个位置头之间根本不可比。
+
+#### C.5 新增诊断守卫：最后 1 秒的 root 静止性
+
+公式在测量之前冻结于 `.claude/scratch/p16-tpf/STILLNESS_SPEC.md`（md5
+`64a4d3b0ca5be75164608564057331f0`）。**零 GPU**；独立 CPU 脚本跑在既有导出上，
+**封存的 evaluator 未被修改**。coarse 10 Hz、`dt = 0.1 s`、最后 **11** 个 coarse 帧
+→ 恰好 **10** 个区间 = **1.00 s**、末端对齐。（30 Hz 细网格不可用：`interp_jrot` 在最后
+三个细帧上保持最后一个 coarse 旋转，所以细率姿态速度在每个 cell 上按构造为零。）
+
+`omega_k = geo_deg(R_{k+1}, R_k) / dt`：
+
+| 键 | 定义 | 单位 | 通道 |
+|---|---|---|---|
+| **`rav_mean_1s`**（primary） | `mean_k omega_k` | deg/s | rotation |
+| `rav_max_1s` | `max_k omega_k` | deg/s | rotation |
+| `rav_net_1s` | `geo_deg(R_10, R_0)` | deg | rotation |
+| `rav_jitter_1s` | `(dt·Σ_k omega_k)/max(rav_net_1s, 0.5)`，按三角不等式 ≥ 1 | 比 | rotation |
+| `yawrate_mean_1s` | `mean_k \|wrap(signed yaw(f_{k+1},f_k))\|/dt` | deg/s | **joint** |
+| `still_frac_1s` | `mean_k 1[omega_k < 10 deg/s]` | 分数 | rotation |
+
+两个头都读，因为它们是两个独立网络输出、在末帧已相差 0.75–0.83 deg：只守 rotation 通道
+可能通过，而产生穿透指标所评几何的 joint 通道在乱抖。`rav_jitter_1s` 分离失效模式：
+**静止** = 低 `rav_mean_1s`；**转身** = 高 `rav_mean_1s` 且 jitter ≈ 1；
+**乱抖** = 高 `rav_mean_1s` 且 jitter ≫ 1。10 deg/s 的阈值在测量前钉在 GT 自身均值的
+**1.85 倍**上，故意宽松。
+
+**holdout355（门控 cohort，n=355）实测：**
+
+| 量 | 单位 | GT | Bu | **Bg1.0** | Bg0.45 | Bg1.0/GT |
+|---|---|---:|---:|---:|---:|---:|
+| `rav_mean_1s` | deg/s | **5.4651** | **16.9739** | **16.3896** | **18.3435** | 3.00x |
+| `rav_max_1s` | deg/s | 14.1901 | 29.9471 | 30.1519 | 31.7543 | 2.13x |
+| `rav_net_1s` | deg | 4.5760 | 15.2279 | 13.5996 | 15.2679 | 2.97x |
+| `rav_jitter_1s` | 比 | 1.0086 | 1.4040 | 1.7441 | 1.6492 | 1.73x |
+| `yawrate_mean_1s` | deg/s | 4.3661 | 13.7957 | 12.4764 | 14.2262 | 2.86x |
+| `still_frac_1s` | 分数 | 0.8276 | 0.5383 | 0.4749 | 0.4518 | 0.57x |
+
+自检：`rav_mean_1s` 在 full375 上以独立路径复现已发表的 GT 5.392 / Bu 17.041 /
+Bg1.0 16.458 / Bg0.45 18.320 到三位小数。
+
+**这个守卫在任何臂存在之前就产出的新结果**：holdout355 上 Bu→Bg1.0 在 `rav_mean_1s` 上
+**ns**（−0.5844，`n_req` 10617），但在 `rav_jitter_1s` 上 **SIG（+0.3401
+[+0.1423, +0.5488]）**、在 `still_frac_1s` 上 **SIG（−0.0634 [−0.1039, −0.0239]）**。
+**guidance 并没有让末端这一秒转得更快；它让这一秒转得更低效、并且更少处于静止。**
+这是一个乱抖签名，而**没有任何已注册的键报告它**。full375 上 Bg1.0 的 jitter 比进一步升到
+2.0700（holdout355 是 1.7441），说明 worst20 承担了不成比例的份额。
+
+**用法**：诊断量，两侧、两 cohort 报告，一条约束性子句：
+**GQ-S1（乱抖，约束性）** —— `rav_mean_1s` 在 holdout355 上不得显著**高于** B+guided 的
+**16.3896 deg/s**（rollout 末期施加的 guidance 增量只可能*增加*末端运动，所以机制能造成的
+是升高那一侧）。**GQ-S2（冻结，记录但不约束）** —— 显著**低于** GT 的 5.4651 deg/s 记录
+其 CI 与 `n_req`，但不约束：B+guided 已是 GT 的 3.00 倍，朝 GT 回落是自然度**改善**，
+约束它等于为修好一件事而罚款。**它检测不到悬空** —— 身体可以完美静止地悬空，
+所以悬空没有必然的姿态签名；悬空由 §B.7 处理。
+
+#### C.6 又一个新结果：affordance 子集把 facing 的读数**反转**了
+
+| cohort | Bu | Bg1.0 | N2 floor | `Bu → Bg1.0` | 判定 | `n_req` |
+|---|---|---|---|---|---|---:|
+| **affordance107** | 52.127 [43.027, 61.395] | 72.721 [62.638, 82.744] | 13.360 [10.760, 16.207] (n=133) | **+20.594 [+11.659, +29.671]** | **SIG 更差** | **82** |
+| full375 | 66.893 [61.766, 72.207] | 69.876 [64.744, 75.050] | 20.062 [16.555, 23.859] (n=213) | +2.983 [−2.180, +8.083] | ns | 4440 |
+
+同一个对照在 107 个 episode 上比在 375 个上**功效高 54 倍**（因为 walk 的自由朝向在这个
+指标里是纯噪声），**并且它反转了读数**：在 affordance 子集上 **guidance 显著地把末端朝向
+弄坏 +20.6 deg**；在 full375 上这完全不可见。**这就是把子集定为 primary 集的实证依据。**
+在 W=3 与 W=1 上同样成立。因此 **GQ-T1 约束在 affordance107 而不是 full375** ——
+后者 `n_req` 4440，会是不可证伪的表演。
+
+---
+
+### D. P16-GQ —— 冻结设计与门控权重校准结果；**记录，未获授权，未启动**
+
+> **本小节是"已记录但未授权"。** 用户的本次授权明确写道："P16-GQ 的完整 GPU 运行仍需我在
+> 门控权重校准完成后单独批准。" 校准现已完成（§D.2），因此本小节把设计与校准结果冻结下来
+> 等待那次单独批准。**本轮不为 P16-GQ 分配 run id，不写 registry 行，不启动任何 GPU 工作
+> 负载。**
+
+#### D.1 冻结的设计
+
+- **代理点集：`area512`**（512 点，按 rest-pose 表面积配额分配，`upper_legs`/`lower_legs`/
+  `feet` 上 boost **1.6**、其余 1.0）。**明确记录：legs 的 1.6 是 post-hoc 的 —— 它是在
+  看过覆盖率表之后选的。**
+- **精确 SMPL-X LBS + pose blend shapes**。刚性偏移族的全部残差就是 pose blend shapes，
+  移除它们要一次 `[N,3,189]×[B,T,189]` matmul（N=512 时 1.6 MFLOP）：仅 LBS 的最大偏差
+  26.6 mm（对 3 cm 阈值是 0.89 倍，会泄漏），加上 blend shapes 后降到 **5.2e-4 mm**。
+- **margin = 0**，`loss_pen = w_pen · pen²` 在 B·T·N 上取均值。
+- **不扫**点数、margin 或权重。
+- **近地板保留原来的 voxel 项，上层改用 mesh SDF**，两项在
+  **`FLOOR_EXCLUSION_HEIGHT_M = 0.02`（`code/priors/hsi/metrics.py:109`）** 处精确划分
+  —— 这个常数是 evaluator 自己的常数，不是一个新旋钮。
+- 门边界不是刀锋敏感：至多 **0.36%** 的穿透点落在阈值 5 mm 内、0.48% 在 10 mm 内，
+  所以 ±5 mm 移动该常数只能重分类不到半个百分点的穿透质量。
+
+#### D.2 校准结果 —— 并订正被冻结的锚
+
+**推荐权重：`hsi_guidance_sdf_weight = 4879`**（area512，跨语料，在全部 375 个封存 episode
+上的确定性 CPU 推导），实测 ARM/BASELINE 总实现增量 **0.9906**。
+in-situ 推导（3 episode / 140 步、实现增量 `‖dL/dx_start‖`）给 **5,574**，dose **1.0000**；
+两条完全独立的推导（不同数据、不同样本、不同被测量）**相差 1.142 倍**，都在 1% 内 dose 中性。
+`[4879, 5574]` 区间内任何值都把总 dose 保持在 1% 内。
+
+**此前冻结的 ~30,573 不得使用：它给 dose 1.3567，即 +35.7%。** 在那个取值上本臂就是一次
+**dose 改动**，其结果不可解释 —— 而 dose 混淆正是本臂存在的目的所要避开的。
+
+**为什么旧锚是错的，写成算术**：30,573 = 6,187.7 / 0.2024，**而 0.2024 本身就是
+6,187.7 / 30,573** —— **同一个匹配被应用了两次**。被否掉的 loss-layer 规则（R2'，
+= 6,187.7）其实是对的；那句"R2' 少给了约 5 倍剂量"的否证，本身是拿错误的参照物量出来的
+（它拿的是**未门控的全量旧项**，而本臂真正替换掉的只是旧项的**上层部分**）。
+
+另外订正：那句"沿轨迹从 0.240 漂到 0.125"是**窗口构成**的假象，不是 diffusion-time 漂移
+—— 在 window 0 内部按 t 分段是 0.2425 / 0.2657 / 0.2393（早段与旧测量吻合到 0.9%），
+旧测量的晚段 0.1246 在 window 0 里根本不出现。
+
+**还有一条 provenance**：此前发表过的每一个锚都是 **fps512**，不是被冻结的 **area512**，
+两者**相差 1.54 倍**（w(C) 5,574 vs 8,590），因此不可互换。而 area512 在真实穿透上的
+可观测性是 **0.7713**，fps512 是 0.6890 —— 即 24 关节 baseline 的 0.0374 的
+**20.6 倍**，不是此前报的 18.4 倍。
+
+#### D.3 两级判据，**嵌套**（strong 蕴含 usable）
+
+在 **holdout355** 上，C-above `pene_sum_mean`：GT **5.0297**、Bg1.0 **9.2416**、
+差距 **4.2119 m**，40% = **1.6848 m**（臂 ≤ 7.5568）。
+full375：GT 5.9733、Bg1.0 11.6922、差距 **5.7189 m**，40% = **2.2876 m**（臂 ≤ 9.4046）。
+
+- **Tier 1 `usable`**：① C-above `pene_sum_mean` 相对 B+guided 的 95% CI **整体位于 0 以下**
+  （配对 percentile bootstrap，按 episode 名配对，10,000 replicate，seed 42）；**且**
+  ② 全部自然度 / contact / terminal-facing 守卫**保持稳定**。"稳定"被穷举为 10 条编号子句
+  （`PREREG.md` §K.6），其中新增且约束性的是 `contact_count_exterior` @ C-above（§B.6）、
+  **GQ-S1**（`rav_mean_1s` @ holdout355，§C.5）与 **GQ-T1**（`theta_head_exp` @
+  affordance107 vs Bg1.0 的 72.721 deg，§C.6）。
+- **Tier 2 `strong`**：`usable` **且**在 holdout355 上点估计至少填平 **40%** 的
+  B+guided→GT 差距，即至少改善 **1.6848 m**。**full375 的对应填平率并行报告**
+  （对该 cohort 自己的 2.2876 m）。
+- **Tier 0 `INCONCLUSIVE`**：小的点改善但 CI 不排除 0 ⇒ **INCONCLUSIVE，停，不要扫参数。**
+  不是"有希望"、不是"趋势"、也不是"试一个邻近剂量"的理由。
+
+**阈值一律表述为"该 cohort 自己差距的一个比例"，绝不复述成单一米数。** 把 1.685 m 套到
+full375 是 29.5% 填平，把 2.288 m 套到 holdout355 是 54.3% —— 同一个 cohort 错误、
+反方向。**被撤回的单一 −3.9 m 线是在 full375 上陈述的（该 cohort 的 68.2%），套到门控
+cohort 上会要求 92.6% 填平** —— 这正是两级判据要替换掉的错误。
+
+**嵌套的理由**：1.6848 m **低于**一次独立运行对照在同一量、同一 cohort 上的半宽
+**2.2689 m**（`Bu→Bg1.0`），所以若不嵌套，一个点估计可以通过 `strong` 而未通过 `usable`。
+P16-GQ 是**固定权重上的扰动臂**，其实测半宽是 **0.4415 m**（同一 rollout 上的合成 dodge），
+此时 1.6848 m 在 `n_req = 98` 上可分辨。**臂必须打印它自己实现的半宽与 `n_req`；若它实际
+表现为一次独立运行，则 `usable` 是约束条件，而 `strong` 在 n=355 上无论点估计如何都不可达。**
+
+#### D.4 公开记录的风险与预算超支
+
+- **风险（开放）**：上层穿透是**突发性的**，只在 **5.7%** 的采样步上活跃（旧项的上层部分
+  只在 2.1% 上活跃）。因此 `strong` 阈值可能因为与 −3.9 m 线同样的理由而偏乐观。
+- **风险（开放）**：in-situ 权重建立在 **8 个有信息的步**上（其中只有 3 步旧项上层非零），
+  leave-one-episode-out 的散布是 **5,524–12,725**。**但即使在 12,725 上 dose 也只有
+  ~1.09**，所以判定（30,573 不可用、~5000 量级可用）稳健，**只有点值是软的**。
+- **预算超支，如实记录**：批准的额度是"<1 min、500 步"，**实际是 1,500 步 / 326.6 s**。
+  两半在字面上都不可行：**单独 500 步本身就要 87.0 s**（147.52 ms/step × 500 + 13.29 s
+  启动），而**唯一被批准的那一格（canonical episode 0 / scene 010 / window 0）给出的是
+  `17.5177 / 0`** —— 在那一格上被门控的新项**与**旧项的上层部分在 100/100 步上都恰好是 0
+  （全部 438 个穿透代理点与全部 32 个穿透关节都在 y=0.02 以下）。也就是说，
+  **规格所命名的那一格上，规格所定义的校准无值可取**，必须扩到另外两格才有 8 个有信息的步。
+- **订正 SPEC D**：其 1.43 倍争用系数**不被实测支持** —— 封存的 8 分片运行平均
+  **134.8 ms/application**，而单进程无争用测量是 **147.5 ms**，争用的那次反而更快。
+- 门本身不影响成本：gate 前向 +0.0581 ms、loss-layer 反向 +0.1344 ms，合计 **+0.1925 ms**，
+  即新项自身增量的 +4.1%、每步预算的 **+0.13%**。
+- **若获批准的成本**：增量占每步 4.85/147.52 = **3.29%** ⇒ **43.8–44.6 GPU-h**；
+  4 卡 **10.96–11.15 h**，8 卡 5.48–5.58 h。
+
+---
+
+### E. 四处过期引用的订正 —— 记录，不修改被封存的原文
+
+在 HEAD `a4ba3d9` 上逐一核实：
+
+| 此前引用为 | 实际（HEAD `a4ba3d9`） |
+|---|---|
+| `models/infbagel.py:1257` 覆写 `cfg_scale` | **`:1333`**，由 `:1332` 守卫（`grep -n 'cfg_scale = torch.full'` 恰好一处命中） |
+| scene-token 置零 `:1432-1437` / `:1433-1437` | **`:1434-1438`**（五次写入）；**`:1433` 是 `logical_not`** |
+| `:1400-1403` temporal-voxel dropout | **`:1401-1403`**（`:1400` 是 `else:`） |
+| `:1393-1397` uncond mask | **`:1394-1399`** |
+
+**四处的机制都没有变**，`4 × 512` 的 layout 要求照旧成立（`:1332` 在
+`int(timesteps[0])`（sample 0 的 timestep）上分支，`:1333` 覆写整个 rank-local batch 的
+`cfg_scale`，所以 rank 数改变的是"算什么"）。
+
+另记：错误的 `1257` 同时被固化在 `code/config/config_train_hsi_b_lingo_full.yaml:56`
+（一处封存的配置注释）与 registry 修订 `p1-hsi-b-layout-4x512-s42-20260814` 里，
+**两处都没有订正** —— 前者是封存注释，后者是一处引用而非机制。订正只记录在本节。
+
+---
+
+### F. 自适应门控 —— 仍然暂缓
+
+**状态：暂缓（CLOSED FOR NOW），不是永久关闭。** 依据
+`.claude/scratch/p16-adaptive-gate/REOPEN_CONDITION.md`。
+
+重开的**必要条件**是那条被保留的发现成立：**"经过订正的全强度 guidance 改善家具穿透，
+但损害运动自然度"**。两个子句都必需 —— 若"改善穿透"不成立，门控没有东西可门；
+若"改善穿透"成立而"损害自然度"不成立，全强度 guidance 就是更好的选择，门控什么也买不到。
+**这是重开的必要条件，不是永久关闭。** 重开在程序上仍需一份带日期的 plan 条目加一行
+registry，测量只让它变得**有资格**，不会自动重开。
+
+不必重新推导的既有结论：常数剂量族已关闭（s=0.45 保住 99.3% 的 `pen_ratio` 收益但只有
+84.6% 的 `pene_pct_scene`，且在 jerk 上是 FAIL 那一格）；仿射投影不可能翻转显著性判定
+（|delta|/半宽 在均匀缩放下不变，所以"相对全强度 ns"的门用任何均匀剂量缩放都不可能通过，
+未来的门必须在改变该比值的意义上是非均匀的）；1/23.8 的剂量归一化杀掉了每一个 >5g 帧、
+在 jerk 上胜过 C，但在 355 集 holdout 上过度矫正、穿透显著变差；jerk 收益是尾部
+（秩相关 +0.056）而穿透代价是广谱税（225 个 episode 为一个它们从未需要的修复付费，
+2.95% 的窗口承载全部损害）。
