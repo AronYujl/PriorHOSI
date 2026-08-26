@@ -1,6 +1,6 @@
 # Visualization Worktree Phase
 
-Status: HOI visualization passed through the shared-scene paper figure; worker2 workflow implemented and dry-run validated; HSI native-NPZ adapter and LINGO-scene renderer in progress; mixer work remains pending
+Status: HOI and HSI visualization paths passed through shared-scene paper figures and verified videos; worker2 workflow implemented and dry-run validated; mixer work remains pending
 Date: 2026-08-25 (Asia/Shanghai)  
 Branch: `visualization/renderer`  
 Worktree: `/data/yujinlun/InfBaGel-visualization`
@@ -80,7 +80,7 @@ frame counts. The real pickle predates the P12 frame repair, so the adapter
 must reverse its human-only `yup_to_zup` storage convention before rendering.
 The legacy source and generated artifacts remain outside Git.
 
-### V1b — HSI read-only adapter (in progress 2026-08-26)
+### V1b — HSI read-only adapter (passed 2026-08-26)
 
 The Phase 1C evaluator now exports native schema-3, non-pickle NPZ files. Add a
 read-only adapter into the common visualization schema without importing or
@@ -97,6 +97,15 @@ Gate: synthetic tests reject malformed native exports and prove array/rate
 preservation; one real schema-3 sequence validates as common schema 1; all
 adapter outputs and manifests are write-once and bind the untouched source
 NPZ, shard evaluation report, SMPL-X assets, and scene mesh by SHA256.
+
+Implementation commit `0ff029a` adds the native schema-3 validator/adapter and
+nine HSI/LINGO tests. The real `071-write:007162` source SHA256 is
+`0ada35f65942fa1783084ea75701dcf6b9de6e4112a6f57f29960c902b56fb65`;
+the normalized common-schema NPZ SHA256 is
+`efb64e67ff4b57a717c97e91c8a2a490e395fcf4180dbca618dce43af72242f1`.
+All SMPL-X pose, translation, shape, coarse-joint and stitch arrays are
+unchanged. The adapter records 58 coarse frames at 10 Hz, 174 fine frames at
+30 Hz, `interp_scale=3`, and a 5.8-second duration.
 
 ### V1c — Worker2 checkpoint-to-artifact workflow (approved 2026-08-25)
 
@@ -407,7 +416,7 @@ and source render-manifest SHA256
 and marks the output visualization-only and evaluation-forbidden. The complete
 repository suite passes 101 tests and research-metadata validation.
 
-### V3b — LINGO-style HSI scene visualization (in progress 2026-08-26)
+### V3b — LINGO-style HSI scene visualization (passed 2026-08-26)
 
 Render one HSIPrior sequence in its matching full LINGO scene, independently
 of training and inference. The first deterministic smoke sample is
@@ -439,6 +448,41 @@ scene mesh, SMPL-X assets, the single coordinate transform, fine FPS
 derivation, selected still frames, Blender/FFmpeg settings and hashes, and
 contains a verified 174-frame H.264 MP4 plus one multi-pose PNG. Large inputs
 and outputs remain outside Git under the ignored `artifacts` link.
+
+Implementation commit `0ff029a` adds the isolated adapter, immutable human
+mesh cache, Blender-bundled scene consumer, camera-side dollhouse cutaway,
+recorded three-class presentation palette, Cycles CPU render, FFmpeg/ffprobe
+validation, shared-scene figure, tests and operating documentation. The first
+smoke failed before rendering because a factory-empty Blender scene has no
+World; the second proved that Eevee cannot open a display on this headless
+host. Both failures remained unpromoted. Cycles smoke then exposed the closed
+ceiling/walls and drove the explicit cutaway. The accepted style uses the
+geometry-only OBJ without pretending to recover missing textures.
+
+The formal write-once artifact is
+`/data/yujinlun/InfBaGel-visualization-artifacts/hsi/b-v2-unguided/visualization-v3b-lingo-blender-20260826/071-write_007162`.
+It uses Blender 3.2.0 Cycles CPU, 24 adaptive samples with denoising, a 10%
+scene decimation followed by the recorded cutaway (1,947,290 source faces;
+97,058 rendered faces), 1280x720 frames, and renderer commit `0ff029a`.
+`ffprobe` verifies H.264/yuv420p at 30 FPS, 174 frames and 5.8 seconds. The MP4
+SHA256 is
+`5ee5d8bca511b231b80bdf088adff21dba2797026ac770b2556b73b588e941ae`;
+the 1800x1000 shared-scene figure at frames `[0,25,45,75]` has SHA256
+`411505e683ff9496bf2a4b7d42ffc7ad035d48652d1341bc7ce5f03b3e7cda2d`;
+the human mesh-cache SHA256 is
+`6b2c2c17d3e99ff0634f462b8527db84ad113e40e810cdc67396f1dc45facb25`;
+and the render-manifest SHA256 is
+`64497c5e23c78f76430e1fcbeab7d5cc77acf108bf623aa8f652adc4f6f4e565`.
+
+Visual inspection of frames 0, 75, 100, 125, 150 and 173 confirms that the
+body remains in the matching furnished room and reaches the board. No
+vertical/collision correction is applied. The manifest records that the
+lowest body vertex lies 4.58--5.72 cm below the scene floor; this is retained
+rather than shifting the body and silently changing hand-to-board height.
+The relaxed mean-hand fallback is also recorded as visualization-only because
+the HSI export contains no articulated finger parameters. The repository
+`tests/` suite passes 110 tests and research metadata validates 29 records
+before the completion record below is appended.
 
 ### V4 — Mixer/long-horizon extension
 
