@@ -108,7 +108,9 @@ __all__ = [
     "OCC_VOXEL_SIZE",
     "SDF_VOXEL_SIZE",
     "SDF_PAD",
+    "SDF_CACHE_PROTOCOL_ID",
     "default_cache_dir",
+    "sdf_cache_protocol_identity",
 ]
 
 # ---------------------------------------------------------------------------
@@ -131,7 +133,34 @@ SDF_EXACT_BAND: int = 1
 # Bumped whenever the numerics change, so a stale cache is never read back.
 BUILD_VERSION: int = 1
 
-# One 004-sized field is ~40 MB of float32; four scenes resident is ~160 MB.
+# This identity is part of the P16-GQ treatment contract.  The filename carries
+# the short form, while the JSON metadata carries the complete form so a cache
+# copied under a convincing name cannot silently change the field protocol.
+SDF_CACHE_PROTOCOL_ID = "mesh_low_sdf_v1"
+
+
+def sdf_cache_protocol_identity() -> Dict[str, object]:
+    """Return the immutable on-disk mesh/SDF cache protocol identity."""
+    return {
+        "id": SDF_CACHE_PROTOCOL_ID,
+        "mesh_filename": "mesh_low.obj",
+        "voxel_size_m": SDF_VOXEL_SIZE,
+        "padding_m": SDF_PAD,
+        "exact_band_voxels": SDF_EXACT_BAND,
+        "build_version": BUILD_VERSION,
+        "field_dtype": "<f4",
+        "origin_dtype": "<f8",
+        "filename_binding": (
+            "scene__mesh_sha256_prefix16__h{voxel_mm}mm__p{pad_mm}mm__"
+            "b{band}__v{build_version}.npz"
+        ),
+        "metadata_binding": "full_mesh_sha256_and_field_shape",
+    }
+
+# One 004-sized field is ~40 MB of float32.  This four-entry LRU bounds
+# dataset-only accessors; the sealed evaluator separately retains one strong
+# ``geometries`` entry for each of its roughly 19--20 scenes, so this constant
+# must never be read as the formal evaluation residency bound.
 DEFAULT_CACHE_SIZE: int = 4
 
 _TRI_BITS = 24
@@ -142,6 +171,92 @@ _KEY_EMPTY = np.int64((1 << 62))
 # Triangle-cell pairs materialised at once.  ~20 float32 temporaries of this
 # length live at the peak of the point-triangle kernel, i.e. ~0.6 GB.
 _PAIR_CHUNK = 2_000_000
+
+
+def _cache_metadata(
+    field: np.ndarray,
+    origin: np.ndarray,
+    mesh_sha256: str,
+    *,
+    scene_name: Optional[str] = None,
+    voxel_size: float,
+    pad: float,
+    band: int,
+) -> Dict[str, object]:
+    """Return the protocol fields persisted beside a generated SDF field."""
+    protocol = sdf_cache_protocol_identity()
+    return {
+        "cache_protocol_id": SDF_CACHE_PROTOCOL_ID,
+        "mesh_filename": "mesh_low.obj",
+        "mesh_sha256": str(mesh_sha256),
+        "mesh_sha256_prefix": str(mesh_sha256)[:16],
+        "scene_name": None if scene_name is None else str(scene_name),
+        "voxel_size_m": float(voxel_size),
+        "padding_m": float(pad),
+        "exact_band_voxels": int(band),
+        "build_version": int(BUILD_VERSION),
+        "field_dtype": "<f4",
+        "origin_dtype": "<f8",
+        "field_shape": [int(value) for value in field.shape],
+        "origin_shape": [int(value) for value in origin.shape],
+        # Persist the protocol's filename and metadata bindings as well as the
+        # concrete hash/shape values.  A valid-looking NPZ with an older
+        # binding convention is not the P16-GQ cache protocol.
+        "filename_binding": str(protocol["filename_binding"]),
+        "metadata_binding": str(protocol["metadata_binding"]),
+    }
+
+
+def _cache_metadata_matches(
+    field: np.ndarray,
+    origin: np.ndarray,
+    metadata: object,
+    mesh_sha256: Optional[str],
+    *,
+    scene_name: Optional[str] = None,
+    voxel_size: float,
+    pad: float,
+    band: int,
+) -> bool:
+    if field.ndim != 3 or field.dtype != np.dtype("<f4"):
+        return False
+    if not np.isfinite(field).all():
+        return False
+    if origin.shape != (3,) or origin.dtype != np.dtype("<f8"):
+        return False
+    if not np.isfinite(origin).all() or not isinstance(metadata, dict):
+        return False
+    expected = _cache_metadata(
+        field,
+        origin,
+        "" if mesh_sha256 is None else mesh_sha256,
+        scene_name=scene_name,
+        voxel_size=voxel_size,
+        pad=pad,
+        band=band,
+    )
+    for key in (
+        "cache_protocol_id",
+        "mesh_filename",
+        "voxel_size_m",
+        "padding_m",
+        "exact_band_voxels",
+        "build_version",
+        "field_dtype",
+        "origin_dtype",
+        "field_shape",
+        "origin_shape",
+        "filename_binding",
+        "metadata_binding",
+        "scene_name",
+    ):
+        if metadata.get(key) != expected[key]:
+            return False
+    if mesh_sha256 is not None and metadata.get("mesh_sha256") != mesh_sha256:
+        return False
+    if mesh_sha256 is not None and metadata.get("mesh_sha256_prefix") != mesh_sha256[:16]:
+        return False
+    return True
 
 
 def _chunk_starts(cumulative: np.ndarray, n_items: int, budget: int) -> Sequence[int]:
@@ -748,9 +863,13 @@ class SceneGeometry:
         """
         dataset_root = Path(dataset_root)
         mesh_root = Path(mesh_root)
+        cache_root = (
+            Path(cache_dir) if cache_dir is not None else default_cache_dir()
+        ).resolve()
         key = (
             str(mesh_root.resolve()),
             str(dataset_root.resolve()),
+            str(cache_root),
             str(scene_name),
             float(voxel_size),
             float(pad),
@@ -776,13 +895,23 @@ class SceneGeometry:
         occupancy = np.load(occ_path)
         _validate_occupancy(str(scene_name), occupancy)
 
-        cache_root = Path(cache_dir) if cache_dir is not None else default_cache_dir()
         digest = _mesh_sha256(mesh_path)
         cache_path = cache_root / (
             f"{scene_name}__{digest[:16]}__h{round(voxel_size * 1000)}mm"
             f"__p{round(pad * 1000)}mm__b{band}__v{BUILD_VERSION}.npz"
         )
-        payload = cls._read_cache(cache_path) if use_cache else None
+        payload = (
+            cls._read_cache(
+                cache_path,
+                mesh_sha256=digest,
+                scene_name=str(scene_name),
+                voxel_size=voxel_size,
+                pad=pad,
+                band=band,
+            )
+            if use_cache
+            else None
+        )
         if payload is None:
             vertices, faces, mesh_info = _load_mesh(mesh_path)
             field, origin, stats = _build_field(
@@ -796,6 +925,17 @@ class SceneGeometry:
             )
             stats.update(mesh_info)
             stats["mesh_sha256_prefix"] = digest[:16]
+            stats.update(
+                _cache_metadata(
+                    field,
+                    origin,
+                    digest,
+                    scene_name=str(scene_name),
+                    voxel_size=voxel_size,
+                    pad=pad,
+                    band=band,
+                )
+            )
             payload = (field, origin, stats)
             if use_cache:
                 cls._write_cache(cache_path, *payload)
@@ -869,15 +1009,34 @@ class SceneGeometry:
     # -- disk cache ---------------------------------------------------------
 
     @staticmethod
-    def _read_cache(path: Path):
+    def _read_cache(
+        path: Path,
+        *,
+        mesh_sha256: Optional[str] = None,
+        scene_name: Optional[str] = None,
+        voxel_size: float = SDF_VOXEL_SIZE,
+        pad: float = SDF_PAD,
+        band: int = SDF_EXACT_BAND,
+    ):
         if not path.exists():
             return None
         try:
             with np.load(path, allow_pickle=False) as data:
-                field = data["field"]
-                origin = data["origin"]
+                field = np.asarray(data["field"])
+                origin = np.asarray(data["origin"])
                 stats = json.loads(str(data["meta"]))
         except Exception:  # a truncated or foreign file must not be fatal
+            return None
+        if not _cache_metadata_matches(
+            field,
+            origin,
+            stats,
+            mesh_sha256,
+            scene_name=scene_name,
+            voxel_size=voxel_size,
+            pad=pad,
+            band=band,
+        ):
             return None
         return field, origin, stats
 

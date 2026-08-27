@@ -17,6 +17,7 @@ import ast
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import torch
 
@@ -171,6 +172,32 @@ class DirectVersusMaterializedTests(unittest.TestCase):
             eager.get_nearest_free_voxel(points, scene_flag),
         ):
             torch.testing.assert_close(left, right, rtol=0, atol=0)
+
+    def test_prepared_query_resolves_scene_ids_once_and_matches_direct(self):
+        dataset = _mix_dataset_with_synthetic_scene(lazy=False)
+        points = _probe_points()
+        scene_flag = torch.tensor([0, 1], dtype=torch.long)
+        prepared = dataset.prepare_nearest_free_voxel(scene_flag)
+        self.assertEqual(prepared.scene_ids, (0, 1))
+
+        with patch.object(
+            torch.Tensor, "tolist", wraps=torch.Tensor.tolist
+        ) as tolist:
+            before = tolist.call_count
+            optimized = prepared(points, scene_flag)
+            self.assertEqual(tolist.call_count, before)
+        direct = InfBaGelDataset._get_nearest_free_voxel_direct(
+            dataset, points, scene_flag
+        )
+        torch.testing.assert_close(optimized[0], direct[0], rtol=0, atol=0)
+        torch.testing.assert_close(optimized[1], direct[1], rtol=0, atol=0)
+
+    def test_direct_source_has_no_unique_scene_flag_cpu_conversion(self):
+        source = (REPO / "code" / "datasets" / "infbagel.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("torch.unique(penetrating_scene_flags).tolist()", source)
+        self.assertIn("prepared_scene_ids", source)
 
 
 class BorrowedCallSiteGuard(unittest.TestCase):

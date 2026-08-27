@@ -1,10 +1,11 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from datasets.infbagel import InfBaGelDataset, LazyOccRef
+from datasets.infbagel import InfBaGelDataset, LazyOccRef, PreparedNearestFreeVoxel
 import os
 import json
 import pickle
+from pathlib import Path
 
 class InfBaGelMixDataset(Dataset):
     """Mixed dataset class, supports joint training of OMOMO and LINGO datasets"""
@@ -25,6 +26,7 @@ class InfBaGelMixDataset(Dataset):
                  random_seed=42,
                  split_manifest=None,
                  split_partition=None,
+                 hsi_mesh_root=None,
                  **kwargs):
         
         # Initialize the two datasets
@@ -95,6 +97,7 @@ class InfBaGelMixDataset(Dataset):
         self.lingo_only = lingo_only
         self.split_manifest = split_manifest
         self.split_partition = split_partition
+        self.hsi_mesh_root = None if hsi_mesh_root is None else Path(hsi_mesh_root)
 
         if self.split_manifest is not None:
             self.lingo_window_scene_name = self._create_corrected_lingo_scene_labels()
@@ -205,6 +208,12 @@ class InfBaGelMixDataset(Dataset):
             self.unified_scene_source[unified_flag] = 'lingo'  # Mark as LINGO source
             current_flag += 1
 
+        # The sampler hands scene flags to scene_geometry only once per guided
+        # window.  Keep the inverse encoding ready at dataset construction so
+        # that the hot path never rebuilds it for every guided step.
+        self._scene_name_by_flag = {
+            int(flag): str(name) for name, flag in self.unified_scene_dict.items()
+        }
 
         # Merge scene occupancy data
         self._merge_scene_data()
@@ -594,6 +603,50 @@ class InfBaGelMixDataset(Dataset):
         # (int key), which this class's LazyOccRef supports, whereas the
         # materialized body batch-indexes it and would stack one ref per sample.
         return InfBaGelDataset._get_nearest_free_voxel_direct(self, points, scene_flag)
+
+    def prepare_nearest_free_voxel(self, scene_flag):
+        """Resolve the mixed scene ids once for one guided sampling window."""
+        return PreparedNearestFreeVoxel(self, scene_flag)
+
+    def scene_geometry(self, scene_flag):
+        """Return cached mesh SDF geometry for one or more unified LINGO flags."""
+        if self.hsi_mesh_root is None:
+            raise ValueError("mesh-SDF guidance requires dataset.hsi_mesh_root")
+
+        if torch.is_tensor(scene_flag):
+            flags = scene_flag.detach().reshape(-1).cpu().tolist()
+        else:
+            flags = np.asarray(scene_flag).reshape(-1).tolist()
+        if not flags:
+            raise ValueError("scene_geometry requires at least one scene flag")
+
+        from priors.hsi.scene_field import SceneGeometry, default_cache_dir
+
+        names = []
+        geometries_by_name = {}
+        scene_names = self._scene_name_by_flag
+        for raw_flag in flags:
+            flag = int(raw_flag)
+            if flag not in scene_names:
+                raise KeyError("unknown unified scene flag: %d" % flag)
+            if getattr(self, "unified_scene_source", {}).get(flag) not in (None, "lingo"):
+                raise ValueError("mesh-SDF guidance is only defined for LINGO scenes")
+            scene_name = scene_names[flag]
+            names.append(scene_name)
+            if scene_name not in geometries_by_name:
+                # SceneGeometry owns the process-wide bounded LRU.  Do not add
+                # a dataset-owned strong reference here: a long-lived dataset
+                # would otherwise keep every scene alive after the LRU evicts it.
+                geometries_by_name[scene_name] = SceneGeometry.from_scene(
+                    scene_name,
+                    dataset_root=Path(self.lingo_dataset.folder),
+                    mesh_root=self.hsi_mesh_root,
+                    cache_dir=default_cache_dir(),
+                )
+
+        if len(set(names)) == 1:
+            return geometries_by_name[names[0]]
+        return tuple(geometries_by_name[name] for name in names)
     
     def add_object_points(self, points, occ):
         points = points.reshape(-1, 3)

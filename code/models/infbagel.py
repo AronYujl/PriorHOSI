@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from vit_pytorch import ViT
 from tqdm import tqdm
 from utils import *
-from guidance_loss import apply_hsi_guidance_loss
+from guidance_loss import apply_hsi_scene_guidance_loss
 import pytorch3d.transforms as transforms
 
 @torch.no_grad()
@@ -61,6 +61,13 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        # P16-GQ mesh-SDF guidance is opt-in.  Keeping both values disabled by
+        # default preserves every existing sampler configuration and its legacy
+        # nearest-free-voxel arithmetic.
+        sdf_proxy = kwargs.get('hsi_guidance_sdf_proxy', None)
+        self.hsi_guidance_sdf_proxy = None if sdf_proxy in (None, False, '', 'none') else str(sdf_proxy)
+        sdf_weight = kwargs.get('hsi_guidance_sdf_weight', 0.0)
+        self.hsi_guidance_sdf_weight = 0.0 if sdf_weight is None else float(sdf_weight)
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
         # p_losses then takes a branch it cannot distinguish from the old code).
         # When > 0 it reweights the first two GENERATED frames of the position
@@ -79,6 +86,239 @@ class Sampler:
         self.target_model = target_model
         nb_voxels = dataset.nb_voxels
         self.occ_idx = torch.arange(0, nb_voxels[1], 1).to(self.device)
+
+    def _scene_sdf_geometry(self, scene_flag):
+        if self.hsi_guidance_sdf_proxy is None or self.hsi_guidance_sdf_weight <= 0.0:
+            return None
+        return self.dataset.scene_geometry(scene_flag)
+
+    def _prepare_scene_guidance_geometry(self, scene_flag, is_object, guidance_fn):
+        """Resolve LINGO mesh geometry once for this guided sampling window."""
+        if guidance_fn is None or self.hsi_guidance_sdf_proxy is None:
+            return None
+        if self.hsi_guidance_sdf_weight <= 0.0:
+            return None
+        scene_flags = torch.as_tensor(scene_flag, device=self.device).reshape(-1)
+        object_mask = torch.as_tensor(
+            is_object, device=scene_flags.device, dtype=torch.bool
+        ).reshape(-1)
+        if object_mask.numel() != scene_flags.numel():
+            raise ValueError("is_object and scene_flag do not match")
+        hsi_mask = torch.logical_not(object_mask)
+        if not bool(hsi_mask.any()):
+            return None
+        return self._scene_sdf_geometry(scene_flags[hsi_mask])
+
+    def _prepare_nearest_free_voxel(self, scene_flag, guidance_fn):
+        """Resolve occupancy scene ids once for all steps in one window."""
+        if guidance_fn is None:
+            return None
+        prepare = getattr(self.dataset, "prepare_nearest_free_voxel", None)
+        if prepare is not None:
+            return prepare(scene_flag)
+        # Compatibility for small legacy/test datasets.  The formal mixed
+        # dataset implements the explicit preparation API above.
+        return self.dataset.get_nearest_free_voxel
+
+    def _build_object_guidance_inputs(
+        self,
+        x_start,
+        mat,
+        obj_rot_mat_ref,
+        obj_rest_verts,
+        obj_vert_normals,
+        seq_name_dict,
+        obj_rot_mat_prefix,
+        row_indices,
+    ):
+        """Build object guidance tensors for the selected object rows only."""
+        del obj_vert_normals  # apply_hosi consumes vertices only; normals were dead work.
+        batch_size = x_start.shape[0]
+        row_indices = torch.as_tensor(
+            row_indices, device=x_start.device, dtype=torch.long
+        ).reshape(-1)
+        window_size = self.dataset.max_window_size
+
+        pred_seq_com_pos = x_start[:, :, 216:219].reshape(batch_size, window_size, 3)
+        pred_seq_com_pos = transform_points(
+            self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat
+        )
+
+        object_rot_mat = x_start[:, :, 219:228].reshape(
+            batch_size, window_size, 3, 3
+        )
+        if self.dataset.vis:
+            pred_obj_rot_mat = (
+                obj_rot_mat_prefix
+                @ object_rot_mat.reshape(batch_size, -1, 3, 3)
+                @ obj_rot_mat_ref
+            )
+        else:
+            pred_obj_rot_mat = (
+                object_rot_mat.reshape(batch_size, -1, 3, 3) @ obj_rot_mat_ref
+            )
+
+        contact_labels = x_start[:, :, 228:232].reshape(batch_size, window_size, 4)
+
+        obj_verts = []
+        for raw_seg_id in row_indices.detach().cpu().tolist():
+            seg_id = int(raw_seg_id)
+            obj_name = seq_name_dict[seg_id].split('_')[1]
+            pred_obj_rot_mat_seg = pred_obj_rot_mat[seg_id].reshape(-1, 3, 3)
+            pred_seq_com_pos_seg = pred_seq_com_pos[seg_id].reshape(-1, 3)
+            obj_rest_verts_seg = load_object_geometry_w_rest_geo(
+                pred_obj_rot_mat_seg,
+                pred_seq_com_pos_seg,
+                obj_rest_verts[obj_name],
+            )
+            obj_rest_verts_seg = obj_rest_verts_seg.reshape(
+                1, window_size, -1, 3
+            )
+            num_obj_verts = obj_rest_verts_seg.shape[2]
+            if num_obj_verts > 10000:
+                # Keep the released 10,000-point cap and its sampling behavior.
+                indices = torch.randperm(num_obj_verts)[:10000]
+                obj_rest_verts_seg = obj_rest_verts_seg[:, :, indices, :].reshape(
+                    1, window_size, 10000, 3
+                )
+            obj_verts.append(obj_rest_verts_seg)
+
+        if not obj_verts:
+            raise ValueError("object guidance requires at least one object row")
+        return (
+            pred_seq_com_pos[row_indices],
+            pred_obj_rot_mat[row_indices],
+            contact_labels[row_indices],
+            torch.cat(obj_verts, dim=0),
+        )
+
+    def _guidance_loss(
+        self,
+        x_start,
+        human_jnts,
+        global_jrot_mat,
+        local_jrot_mat,
+        mat,
+        scene_flag,
+        is_object,
+        obj_rot_mat_ref,
+        obj_rest_verts,
+        obj_vert_normals,
+        seq_name_dict,
+        obj_rot_mat_prefix,
+        guidance_fn,
+        scene_geometry=None,
+        nearest_free_voxel=None,
+    ):
+        """Route HSI and HOSI guidance independently for mixed batches."""
+        batch_size = x_start.shape[0]
+        object_mask = torch.as_tensor(
+            is_object, device=x_start.device, dtype=torch.bool
+        ).reshape(-1)
+        if object_mask.numel() != batch_size:
+            raise ValueError("is_object does not match the guidance batch")
+        scene_flag = torch.as_tensor(
+            scene_flag, device=x_start.device
+        ).reshape(-1)
+        if scene_flag.numel() != batch_size:
+            raise ValueError("scene_flag does not match the guidance batch")
+
+        # Keep the two homogeneous paths byte-for-byte in their call structure;
+        # only the mixed case selects rows before evaluating either expert.
+        if not bool(object_mask.any()):
+            if scene_geometry is None:
+                scene_geometry = self._scene_sdf_geometry(scene_flag)
+            nearest = (
+                self.dataset.get_nearest_free_voxel
+                if nearest_free_voxel is None
+                else nearest_free_voxel
+            )
+            return apply_hsi_scene_guidance_loss(
+                human_jnts,
+                global_jrot_mat,
+                local_jrot_mat,
+                scene_flag=scene_flag,
+                get_nearest_free_voxel=nearest,
+                geometry=scene_geometry,
+                cfg=self,
+            )
+
+        object_rows = torch.arange(
+            batch_size, device=x_start.device, dtype=torch.long
+        )
+        if bool(object_mask.all()):
+            pred_seq_com_pos, pred_obj_rot_mat, contact_labels, obj_verts = (
+                self._build_object_guidance_inputs(
+                    x_start,
+                    mat,
+                    obj_rot_mat_ref,
+                    obj_rest_verts,
+                    obj_vert_normals,
+                    seq_name_dict,
+                    obj_rot_mat_prefix,
+                    object_rows,
+                )
+            )
+            nearest = (
+                self.dataset.get_nearest_free_voxel
+                if nearest_free_voxel is None
+                else nearest_free_voxel
+            )
+            return guidance_fn(
+                human_jnts,
+                obj_verts,
+                pred_seq_com_pos,
+                pred_obj_rot_mat,
+                contact_labels,
+                scene_flag,
+                nearest,
+            )
+
+        hsi_mask = torch.logical_not(object_mask)
+        hsi_local_jrot_mat = local_jrot_mat.reshape(
+            batch_size, human_jnts.shape[1], 22, 3, 3
+        )[hsi_mask].reshape(-1, 22, 3, 3)
+        if scene_geometry is None:
+            scene_geometry = self._scene_sdf_geometry(scene_flag[hsi_mask])
+        nearest = (
+            self.dataset.get_nearest_free_voxel
+            if nearest_free_voxel is None
+            else nearest_free_voxel
+        )
+        loss_hsi = apply_hsi_scene_guidance_loss(
+            human_jnts[hsi_mask],
+            global_jrot_mat[hsi_mask],
+            hsi_local_jrot_mat,
+            scene_flag=scene_flag[hsi_mask],
+            get_nearest_free_voxel=nearest,
+            geometry=scene_geometry,
+            cfg=self,
+        )
+
+        object_rows = torch.nonzero(object_mask, as_tuple=False).reshape(-1)
+        pred_seq_com_pos, pred_obj_rot_mat, contact_labels, obj_verts = (
+            self._build_object_guidance_inputs(
+                x_start,
+                mat,
+                obj_rot_mat_ref,
+                obj_rest_verts,
+                obj_vert_normals,
+                seq_name_dict,
+                obj_rot_mat_prefix,
+                object_rows,
+            )
+        )
+        object_fn = getattr(guidance_fn, "object_guidance_fn", guidance_fn)
+        loss_object = object_fn(
+            human_jnts[object_mask],
+            obj_verts,
+            pred_seq_com_pos,
+            pred_obj_rot_mat,
+            contact_labels,
+            scene_flag[object_mask],
+            nearest,
+        )
+        return loss_hsi + loss_object
 
     def get_scheduler(self):
         betas = linear_beta_schedule(timesteps=self.timesteps)
@@ -481,6 +721,12 @@ class Sampler:
         device = next(self.student_model.parameters()).device
         shape = (self.batch_size, self.dataset.max_window_size, self.channel)
         points = torch.randn(shape, device=device, dtype=torch.float32)
+        scene_geometry = self._prepare_scene_guidance_geometry(
+            scene_flag, is_object, guidance_fn
+        )
+        nearest_free_voxel = self._prepare_nearest_free_voxel(
+            scene_flag, guidance_fn
+        )
 
         if self.auto_regre_num > 0:
             self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
@@ -499,7 +745,7 @@ class Sampler:
             points, occ, pred_x_0 = self.cm_sample(model_used, x0[-1], points, fixed_points, mat, scene_flag,
                                         torch.full((self.batch_size,), i, device=device, dtype=torch.long), t_index,
                                         text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, obj_rot_mat_prefix, guidance_fn, guidance_scale, object_only, w)
+                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, obj_rot_mat_prefix, guidance_fn, guidance_scale, object_only, w, scene_geometry=scene_geometry, nearest_free_voxel=nearest_free_voxel)
             if self.auto_regre_num > 0:
                 self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
 
@@ -670,7 +916,7 @@ class Sampler:
 
     def cm_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, obj_rot_mat_prefix, guidance_fn, guidance_scale, object_only=False, w=None):
+                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, obj_rot_mat_prefix, guidance_fn, guidance_scale, object_only=False, w=None, scene_geometry=None, nearest_free_voxel=None):
         occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix)
 
         # if w is None, set the w value based on t_index
@@ -748,44 +994,23 @@ class Sampler:
                 # verts, joints = zup_to_yup(verts), zup_to_yup(joints)
                 # verts = verts.reshape(self.batch_size, self.dataset.max_window_size, -1, 3)
 
-                if not is_object.any():
-                    # scene-only batch: human-scene penetration guidance (no object geometry)
-                    loss = apply_hsi_guidance_loss(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
-                else:
-                    pred_seq_com_pos = x_start[:, :, 216:219].reshape(self.batch_size, self.dataset.max_window_size, 3)
-                    pred_seq_com_pos = transform_points(self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat)
-
-                    object_rot_mat = x_start[:, :, 219:228].reshape(self.batch_size, self.dataset.max_window_size, 3, 3) # B X 16 X 3 X 3
-
-                    if self.dataset.vis:
-                        pred_obj_rot_mat = (obj_rot_mat_prefix @ object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
-                    else:
-                        pred_obj_rot_mat = (object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
-
-                    contact_labels = x_start[:, :, 228:232].reshape(self.batch_size, self.dataset.max_window_size, 4)
-
-                    obj_verts = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
-                    obj_normals = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
-
-                    for seg_id in range(self.batch_size):
-                        obj_name = seq_name_dict[seg_id].split('_')[1]
-                        pred_obj_rot_mat_seg = pred_obj_rot_mat[seg_id].reshape(-1, 3, 3)
-                        pred_seq_com_pos_seg = pred_seq_com_pos[seg_id].reshape(-1, 3)
-                        obj_rest_verts_seg, obj_rest_normals_seg = load_object_geometry_w_rest_geo_and_normals(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name], obj_vert_normals[obj_name])
-                        obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
-                        obj_rest_normals_seg = obj_rest_normals_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
-                        num_obj_verts = obj_rest_verts_seg.shape[2]
-                        if num_obj_verts > 10000:
-                            # randomly select indices of 10000 points
-                            indices = torch.randperm(num_obj_verts)[:10000]
-                            obj_rest_verts_seg = obj_rest_verts_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
-                            obj_rest_normals_seg = obj_rest_normals_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
-                        obj_verts = torch.cat([obj_verts, obj_rest_verts_seg], dim=0)
-                        obj_normals = torch.cat([obj_normals, obj_rest_normals_seg], dim=0)
-
-                    assert obj_verts.shape[0] == self.batch_size
-
-                    loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
+                loss = self._guidance_loss(
+                    x_start,
+                    human_jnts,
+                    global_jrot_mat,
+                    local_jrot_mat,
+                    mat,
+                    scene_flag,
+                    is_object,
+                    obj_rot_mat_ref,
+                    obj_rest_verts,
+                    obj_vert_normals,
+                    seq_name_dict,
+                    obj_rot_mat_prefix,
+                    guidance_fn,
+                    scene_geometry=scene_geometry,
+                    nearest_free_voxel=nearest_free_voxel,
+                )
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
                 # penetration_gradient = torch.autograd.grad(-penetration_loss, x_start)[0]
@@ -945,6 +1170,12 @@ class Sampler:
         device = next(self.student_model.parameters()).device
         shape = (self.batch_size, self.dataset.max_window_size, self.channel)
         points = torch.randn(shape, device=device)
+        scene_geometry = self._prepare_scene_guidance_geometry(
+            scene_flag, is_object, guidance_fn
+        )
+        nearest_free_voxel = self._prepare_nearest_free_voxel(
+            scene_flag, guidance_fn
+        )
 
         if self.auto_regre_num > 0:
             self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
@@ -958,7 +1189,7 @@ class Sampler:
             points, occ, pred_x0 = self.p_sample(model_used, x0[-1], points, fixed_points, mat, scene_flag,
                                         torch.full((self.batch_size,), i, device=device, dtype=torch.long), i,
                                         text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix, object_only)
+                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix, object_only, scene_geometry=scene_geometry, nearest_free_voxel=nearest_free_voxel)
             if self.auto_regre_num > 0:
                 self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
 
@@ -973,7 +1204,7 @@ class Sampler:
     @torch.no_grad()
     def p_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
+                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False, scene_geometry=None, nearest_free_voxel=None):
         occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix)
 
         cond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True)
@@ -1019,44 +1250,23 @@ class Sampler:
                 _, human_jnts = self.dataset.quat_fk_torch(local_jrot_mat, curr_seq_local_jpos) # [b*t, 24, 3]
                 human_jnts = human_jnts.reshape(self.batch_size, -1, 24, 3) # [b, t, 24, 3]
 
-                if not is_object.any():
-                    # scene-only batch: human-scene penetration guidance (no object geometry)
-                    loss = apply_hsi_guidance_loss(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
-                else:
-                    pred_seq_com_pos = x_start[:, :, 216:219].reshape(self.batch_size, self.dataset.max_window_size, 3)
-                    pred_seq_com_pos = transform_points(self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat)
-
-                    object_rot_mat = x_start[:, :, 219:228].reshape(self.batch_size, self.dataset.max_window_size, 3, 3) # B X 16 X 3 X 3
-
-                    if self.dataset.vis:
-                        pred_obj_rot_mat = (obj_rot_mat_prefix @ object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
-                    else:
-                        pred_obj_rot_mat = (object_rot_mat.reshape(self.batch_size, -1, 3, 3) @ obj_rot_mat_ref)
-
-                    contact_labels = x_start[:, :, 228:232].reshape(self.batch_size, self.dataset.max_window_size, 4)
-
-                    obj_verts = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
-                    obj_normals = torch.zeros(0, self.dataset.max_window_size, 10000, 3).to(self.device)
-
-                    for seg_id in range(self.batch_size):
-                        obj_name = seq_name_dict[seg_id].split('_')[1]
-                        pred_obj_rot_mat_seg = pred_obj_rot_mat[seg_id].reshape(-1, 3, 3)
-                        pred_seq_com_pos_seg = pred_seq_com_pos[seg_id].reshape(-1, 3)
-                        obj_rest_verts_seg, obj_rest_normals_seg = load_object_geometry_w_rest_geo_and_normals(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name], obj_vert_normals[obj_name])
-                        obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
-                        obj_rest_normals_seg = obj_rest_normals_seg.reshape(1, self.dataset.max_window_size, -1, 3) # 1 X T X Nv X 3
-                        num_obj_verts = obj_rest_verts_seg.shape[2]
-                        if num_obj_verts > 10000:
-                            # randomly select indices of 10000 points
-                            indices = torch.randperm(num_obj_verts)[:10000]
-                            obj_rest_verts_seg = obj_rest_verts_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
-                            obj_rest_normals_seg = obj_rest_normals_seg[:, :, indices, :].reshape(1, self.dataset.max_window_size, 10000, 3)
-                        obj_verts = torch.cat([obj_verts, obj_rest_verts_seg], dim=0)
-                        obj_normals = torch.cat([obj_normals, obj_rest_normals_seg], dim=0)
-
-                    assert obj_verts.shape[0] == self.batch_size
-
-                    loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
+                loss = self._guidance_loss(
+                    x_start,
+                    human_jnts,
+                    global_jrot_mat,
+                    local_jrot_mat,
+                    mat,
+                    scene_flag,
+                    is_object,
+                    obj_rot_mat_ref,
+                    obj_rest_verts,
+                    obj_vert_normals,
+                    seq_name_dict,
+                    obj_rot_mat_prefix,
+                    guidance_fn,
+                    scene_geometry=scene_geometry,
+                    nearest_free_voxel=nearest_free_voxel,
+                )
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
                 # Per-step trust region on the guidance increment, per sample so the

@@ -28,8 +28,8 @@ formal_attestation_protocol: p16-gq-preflight-attestation-v1
 formal_wrapper: code/priors/hsi/gq_shards.py
 expected_checkpoint_sha256: 5daaf813ca82878868602840760f35df43b642d73f73cb37e24bb5a4dbf62b4c
 
-# The evaluator resolves the mesh from this dataset-local accessor.  The base
-# value is an input asset root; it is not a result or manifest location.
+# The evaluator resolves meshes from the checkout-local staged immutable copy.
+lingo_mesh_root: ${oc.env:ROOT_DIR}/assets/lingo_scene_mesh
 dataset:
   hsi_mesh_root: ${lingo_mesh_root}
 

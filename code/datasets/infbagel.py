@@ -58,6 +58,43 @@ class LazyOccRef:
         return occ_ref
 
 
+class PreparedNearestFreeVoxel:
+    """Window-scoped occupancy query with scene ids resolved once.
+
+    ``LazyOccRef`` intentionally remains lazy and bounded.  A guided sampler
+    may call the query hundreds of times for the same window, so converting a
+    CUDA ``scene_flag`` to Python ids in that loop is both a synchronization
+    cost and an accidental dependence on host staging.  This adapter captures
+    the finite scene-id set once at window setup; the query body then selects
+    scenes with tensor comparisons and asks the lazy reference for an integer
+    key.  It retains no displacement tensors, so the four-scene LRU contract is
+    unchanged.
+    """
+
+    def __init__(self, dataset, scene_flag):
+        if torch.is_tensor(scene_flag):
+            flags = scene_flag.detach().reshape(-1).cpu().tolist()
+        else:
+            flags = np.asarray(scene_flag).reshape(-1).tolist()
+        if not flags:
+            raise ValueError("prepare_nearest_free_voxel requires at least one scene flag")
+        self.scene_ids = tuple(dict.fromkeys(int(value) for value in flags))
+        self.dataset = dataset
+        implementation = getattr(dataset, "_get_nearest_free_voxel_direct", None)
+        self._implementation = implementation
+
+    def __call__(self, points, scene_flag):
+        if self._implementation is None:
+            # The mixed dataset deliberately does not inherit the private
+            # implementations; keep the ownership boundary explicit.
+            return InfBaGelDataset._get_nearest_free_voxel_direct(
+                self.dataset, points, scene_flag, prepared_scene_ids=self.scene_ids
+            )
+        return self._implementation(
+            points, scene_flag, prepared_scene_ids=self.scene_ids
+        )
+
+
 class InfBaGelDataset(Dataset):
     def __init__(self, folder, device, mesh_grid, batch_size, step, nb_voxels, train=True,
                  load_scene=True, load_language=True, load_pelvis_goal=False, load_scene_goal=False,
@@ -791,7 +828,13 @@ class InfBaGelDataset(Dataset):
         
         return occ_for_points
 
-    def _get_nearest_free_voxel_direct(self, points, scene_flag):
+    def prepare_nearest_free_voxel(self, scene_flag):
+        """Resolve scene ids once for all guidance queries in one window."""
+        return PreparedNearestFreeVoxel(self, scene_flag)
+
+    def _get_nearest_free_voxel_direct(
+        self, points, scene_flag, *, prepared_scene_ids=None
+    ):
         """Query occupancy and references without materializing full scene batches."""
         original_shape = points.shape[:-1]
         batch_size = points.shape[0]
@@ -817,13 +860,28 @@ class InfBaGelDataset(Dataset):
 
         # For penetrating points, get the displacement and compute the safe position
         penetrating_mask = valid_mask & is_penetrating
-        if penetrating_mask.any():
-            pen_indices = voxel_indices[penetrating_mask]
+        pen_indices = voxel_indices[penetrating_mask]
+        # ``Tensor.any()`` in a Python branch synchronizes a CUDA scalar.  The
+        # indexed tensor has a host-visible shape already, so this empty-safe
+        # guard avoids that extra sync while retaining the exact grouped lookup.
+        if pen_indices.numel() > 0:
             penetrating_scene_flags = scene_flag[b_idx[penetrating_mask]]
-            displacements = torch.empty_like(pen_indices, dtype=torch.int16)
-            for scene_id in torch.unique(penetrating_scene_flags).tolist():
-                scene_mask = penetrating_scene_flags == scene_id
+            displacements = torch.zeros_like(pen_indices, dtype=torch.int16)
+            if prepared_scene_ids is None:
+                # Compatibility path for direct callers.  The formal sampler
+                # always supplies PreparedNearestFreeVoxel, so this conversion
+                # is never in its per-step path.
+                scene_ids = tuple(
+                    int(value)
+                    for value in scene_flag.detach().reshape(-1).cpu().tolist()
+                )
+            else:
+                scene_ids = tuple(int(value) for value in prepared_scene_ids)
+            for scene_id in scene_ids:
+                scene_mask = penetrating_scene_flags == int(scene_id)
                 scene_pen_indices = pen_indices[scene_mask]
+                if scene_pen_indices.numel() == 0:
+                    continue
                 occ_ref = self.scene_occ_ref[int(scene_id)]
                 displacements[scene_mask] = occ_ref[scene_pen_indices[:, 0], scene_pen_indices[:, 1], scene_pen_indices[:, 2]]
             # Compute the safe position

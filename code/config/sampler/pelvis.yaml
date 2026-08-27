@@ -18,6 +18,9 @@ pelvis:
   hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}
   hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
   hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}
+  # P16-GQ mesh-SDF guidance is disabled unless both opt-in keys are supplied.
+  hsi_guidance_sdf_proxy: ${oc.select:hsi_guidance_sdf_proxy,null}
+  hsi_guidance_sdf_weight: ${oc.select:hsi_guidance_sdf_weight,0.0}
   # B-match seam weight, 0.0 = off.  Same oc.select pattern: model C's train
   # config and the sampling configs never define the top-level key, and they
   # must still resolve.  consistency_loss ignores it -- C is not in scope.
