@@ -13,7 +13,7 @@ from tools.visualization.blender import (
     _validate_render_settings,
     _y_up_to_z_up,
 )
-from tools.visualization.materials import TIME_GRADIENT_MATERIAL_STYLE
+from tools.visualization.materials import ORANGE_TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_y_up_to_z_up_is_right_handed_rotation():
@@ -34,7 +34,7 @@ def test_process_frame_selection_matches_accepted_long_window():
     )
 
 
-def test_blender_parser_accepts_explicit_time_gradient_material():
+def test_blender_parser_accepts_explicit_orange_time_gradient_material():
     from tools.visualization.blender import _build_parser
 
     args = _build_parser().parse_args(
@@ -51,10 +51,10 @@ def test_blender_parser_accepts_explicit_time_gradient_material():
             "--blender",
             "blender",
             "--material-style",
-            TIME_GRADIENT_MATERIAL_STYLE,
+            ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
         ]
     )
-    assert args.material_style == TIME_GRADIENT_MATERIAL_STYLE
+    assert args.material_style == ORANGE_TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_visual_ground_correction_plants_support_and_preserves_upper_contact():

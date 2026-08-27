@@ -92,6 +92,13 @@ def _set_material_base_color(material, color):
     shader.inputs["Base Color"].default_value = color
 
 
+def _is_timeline_material(settings):
+    return settings.get("style") in (
+        "timeline_white_to_yellow_lingo_object_v1",
+        "timeline_white_to_orange_lingo_object_v1",
+    )
+
+
 def _foreground_materials(settings, frame=0, frame_count=1):
     style = settings.get("style", "omomo_source_copy")
     if style == "omomo_source_copy":
@@ -108,10 +115,10 @@ def _foreground_materials(settings, frame=0, frame_count=1):
             _principled_material("PriorHOSI.Human.LINGOBlue", settings["human"]),
             _principled_material("PriorHOSI.Object.LINGOSage", settings["object"]),
         )
-    if style == "timeline_white_to_yellow_lingo_object_v1":
+    if _is_timeline_material(settings):
         return (
             _principled_material(
-                "PriorHOSI.Human.WhiteYellowTime",
+                "PriorHOSI.Human.TimelineColor",
                 _timeline_human_settings(settings["human"], frame, frame_count),
             ),
             _principled_material("PriorHOSI.Object.LINGOSage", settings["object"]),
@@ -406,9 +413,9 @@ def main():
     else:
         for order, frame in enumerate(selected_frames):
             pose_human_material = human_material
-            if config["materials"].get("style") == "timeline_white_to_yellow_lingo_object_v1":
+            if _is_timeline_material(config["materials"]):
                 pose_human_material = _principled_material(
-                    "PriorHOSI.Human.WhiteYellowTime.%02d.Frame%05d"
+                    "PriorHOSI.Human.TimelineColor.%02d.Frame%05d"
                     % (order, frame),
                     _timeline_human_settings(
                         config["materials"]["human"], frame, frame_count
@@ -480,7 +487,7 @@ def main():
             raise RuntimeError("animation frames directory is unavailable")
         for progress, frame in enumerate(render_frames):
             scene.frame_set(frame)
-            if config["materials"].get("style") == "timeline_white_to_yellow_lingo_object_v1":
+            if _is_timeline_material(config["materials"]):
                 _set_material_base_color(
                     human_material,
                     _timeline_human_settings(

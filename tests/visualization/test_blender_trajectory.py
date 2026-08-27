@@ -7,6 +7,8 @@ import pytest
 from tools.visualization.blender import BlenderRenderError
 from tools.visualization.blender_trajectory import (
     LINGO_FOREGROUND_MATERIALS,
+    ORANGE_TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
+    ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
     TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
     TIME_GRADIENT_MATERIAL_STYLE,
     _build_config,
@@ -147,6 +149,36 @@ def test_multi_pose_time_gradient_uses_white_to_yellow_human_and_lingo_object():
     assert encoding["interpolation"] == "linear_rgba"
 
 
+def test_multi_pose_orange_time_gradient_is_darker_and_keeps_lingo_object():
+    source = {
+        "camera": {"projection": "orthographic"},
+        "color_management": {"view_transform": "Filmic", "look": "None"},
+        "device": "CPU",
+        "engine": "CYCLES",
+        "floor": {"height": 0.015},
+        "materials": {"human_source": "blue", "object_source": "purple"},
+    }
+
+    config = _build_config(
+        source,
+        cache=Path("/immutable/mesh-cache.npz"),
+        frame_count=126,
+        frames=[0, 42, 83, 125],
+        output_image="trajectory-k4-orange.png",
+        width=1600,
+        height=800,
+        samples=64,
+        material_style=ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
+    )
+
+    assert config["materials"] == ORANGE_TIME_GRADIENT_LINGO_OBJECT_MATERIALS
+    assert config["materials"]["object"] == LINGO_FOREGROUND_MATERIALS["object"]
+    assert config["materials"]["human"]["end_color"] == [0.82, 0.32, 0.055, 1.0]
+    assert config["materials"]["human"]["roughness"] == 0.62
+    assert config["materials"]["human"]["specular"] == 0.20
+    assert config["composition"]["temporal_color_encoding"]["target"] == "human"
+
+
 @pytest.mark.parametrize("style", ["", "unknown", "LINGO"])
 def test_multi_pose_material_style_fails_closed(style):
     with pytest.raises(BlenderRenderError, match="material style"):
@@ -182,6 +214,10 @@ def test_multi_pose_parser_requires_explicit_material_opt_in():
         required + ["--material-style", TIME_GRADIENT_MATERIAL_STYLE]
     )
     assert time_args.material_style == TIME_GRADIENT_MATERIAL_STYLE
+    orange_args = _build_parser().parse_args(
+        required + ["--material-style", ORANGE_TIME_GRADIENT_MATERIAL_STYLE]
+    )
+    assert orange_args.material_style == ORANGE_TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_blender_consumer_dispatches_lingo_principled_materials():
@@ -191,7 +227,8 @@ def test_blender_consumer_dispatches_lingo_principled_materials():
 
     assert 'settings.get("style", "omomo_source_copy")' in consumer
     assert 'style == "lingo_principled_v1"' in consumer
-    assert 'style == "timeline_white_to_yellow_lingo_object_v1"' in consumer
+    assert '"timeline_white_to_yellow_lingo_object_v1"' in consumer
+    assert '"timeline_white_to_orange_lingo_object_v1"' in consumer
     assert '"PriorHOSI.Human.LINGOBlue"' in consumer
     assert '"PriorHOSI.Object.LINGOSage"' in consumer
     assert "human_material, object_material = _foreground_materials" in consumer

@@ -9,10 +9,16 @@ from typing import Any, Dict, Mapping
 DEFAULT_MATERIAL_STYLE = "omomo"
 LINGO_MATERIAL_STYLE = "lingo"
 TIME_GRADIENT_MATERIAL_STYLE = "white-yellow-time-lingo-object"
+ORANGE_TIME_GRADIENT_MATERIAL_STYLE = "white-orange-time-lingo-object"
 MATERIAL_STYLE_CHOICES = (
     DEFAULT_MATERIAL_STYLE,
     LINGO_MATERIAL_STYLE,
     TIME_GRADIENT_MATERIAL_STYLE,
+    ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
+)
+TEMPORAL_GRADIENT_MATERIAL_STYLES = (
+    TIME_GRADIENT_MATERIAL_STYLE,
+    ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
 )
 
 LINGO_FOREGROUND_MATERIALS = {
@@ -44,6 +50,20 @@ TIME_GRADIENT_LINGO_OBJECT_MATERIALS = {
     "smooth_shading": True,
 }
 
+ORANGE_TIME_GRADIENT_LINGO_OBJECT_MATERIALS = {
+    "style": "timeline_white_to_orange_lingo_object_v1",
+    "human": {
+        "color_mode": "timeline_linear",
+        "start_color": [0.92, 0.92, 0.90, 1.0],
+        "end_color": [0.82, 0.32, 0.055, 1.0],
+        "timeline_normalization": "source_frame_index/(frame_count-1)",
+        "roughness": 0.62,
+        "specular": 0.20,
+    },
+    "object": copy.deepcopy(LINGO_FOREGROUND_MATERIALS["object"]),
+    "smooth_shading": True,
+}
+
 
 def resolve_foreground_materials(
     source_materials: Mapping[str, Any], material_style: str
@@ -60,4 +80,6 @@ def resolve_foreground_materials(
         return copy.deepcopy(LINGO_FOREGROUND_MATERIALS)
     if material_style == TIME_GRADIENT_MATERIAL_STYLE:
         return copy.deepcopy(TIME_GRADIENT_LINGO_OBJECT_MATERIALS)
+    if material_style == ORANGE_TIME_GRADIENT_MATERIAL_STYLE:
+        return copy.deepcopy(ORANGE_TIME_GRADIENT_LINGO_OBJECT_MATERIALS)
     raise ValueError("unsupported foreground material style: %s" % material_style)

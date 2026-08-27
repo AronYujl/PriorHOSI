@@ -27,6 +27,9 @@ from .materials import (
     DEFAULT_MATERIAL_STYLE,
     LINGO_FOREGROUND_MATERIALS,
     MATERIAL_STYLE_CHOICES,
+    ORANGE_TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
+    ORANGE_TIME_GRADIENT_MATERIAL_STYLE,
+    TEMPORAL_GRADIENT_MATERIAL_STYLES,
     TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
     TIME_GRADIENT_MATERIAL_STYLE,
     resolve_foreground_materials,
@@ -166,7 +169,7 @@ def _build_config(
         "material_style": material_style,
         "material_change_scope": "foreground_human_and_object_only",
     }
-    if material_style == TIME_GRADIENT_MATERIAL_STYLE:
+    if material_style in TEMPORAL_GRADIENT_MATERIAL_STYLES:
         composition["temporal_color_encoding"] = {
             "target": "human",
             "interpolation": "linear_rgba",
@@ -251,9 +254,7 @@ def render_multi_pose_figure(
             % len(selected)
         )
     else:
-        image_name = "trajectory-k%d-white-yellow-time-lingo-object.png" % len(
-            selected
-        )
+        image_name = "trajectory-k%d-%s.png" % (len(selected), material_style)
     image_path = staging / image_name
     config_path = staging / "blender-trajectory-config.json"
     scene_report = staging / "blender-scene-report.json"
