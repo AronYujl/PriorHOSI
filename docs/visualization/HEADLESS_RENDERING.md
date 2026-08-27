@@ -141,9 +141,18 @@ It is a machine-local rendering dependency, not a repository file.
   --blend-scene /data/yujinlun/omomo_release/manip/vis/floor_colorful_mat.blend \
   --blender /data/yujinlun/tools/blender-3.2.0-linux-x64/blender \
   --width 1024 --height 768 --samples 64 --fps 30 \
+  --material-style white-yellow-time-lingo-object \
   --hand-pose-fallback mean \
   --renderer-commit "$(git rev-parse HEAD)"
 ```
+
+The optional `white-yellow-time-lingo-object` preset updates the human material
+from warm white to yellow at every source frame while retaining the LINGO sage
+object material. The same preset on `tools.visualization.blender_trajectory`
+creates a distinct human material for every selected pose, so a shared-scene
+figure shows elapsed time without changing pose locations. The full RGBA,
+roughness, specular, and timeline-normalization values are embedded in each
+render config and manifest.
 
 The entire artifact directory is staged under a unique hidden sibling and
 promoted only after Blender completes, FFmpeg/ffprobe validate all 126 frames,

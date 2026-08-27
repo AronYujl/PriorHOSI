@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import json
 import os
 import subprocess
@@ -24,29 +23,19 @@ from .blender import (
     _write_json,
 )
 from .headless import _sha256
+from .materials import (
+    DEFAULT_MATERIAL_STYLE,
+    LINGO_FOREGROUND_MATERIALS,
+    MATERIAL_STYLE_CHOICES,
+    TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
+    TIME_GRADIENT_MATERIAL_STYLE,
+    resolve_foreground_materials,
+)
 
 
 DEFAULT_WIDTH = 1600
 DEFAULT_HEIGHT = 800
 DEFAULT_SAMPLES = 64
-DEFAULT_MATERIAL_STYLE = "omomo"
-MATERIAL_STYLE_CHOICES = (DEFAULT_MATERIAL_STYLE, "lingo")
-LINGO_FOREGROUND_MATERIALS = {
-    "style": "lingo_principled_v1",
-    "human": {
-        "base_color": [0.20, 0.42, 0.56, 1.0],
-        "roughness": 0.46,
-        "specular": 0.35,
-    },
-    "object": {
-        "base_color": [0.42, 0.56, 0.43, 1.0],
-        "roughness": 0.66,
-        "specular": 0.26,
-    },
-    "smooth_shading": True,
-}
-
-
 def _load_json(path: Path, label: str) -> Dict[str, Any]:
     if not path.is_file():
         raise BlenderRenderError("%s does not exist: %s" % (label, path))
@@ -77,21 +66,10 @@ def _validate_keyframes(frames: Sequence[int], frame_count: int) -> list[int]:
 def _resolve_materials(
     source_materials: Mapping[str, Any], material_style: str
 ) -> Dict[str, Any]:
-    if material_style == DEFAULT_MATERIAL_STYLE:
-        required = ("human_source", "object_source")
-        missing = [key for key in required if key not in source_materials]
-        if missing:
-            raise BlenderRenderError(
-                "source OMOMO materials are missing: %s" % ", ".join(missing)
-            )
-        # Preserve the accepted V3a material configuration rather than
-        # approximating the source .blend materials with new shader nodes.
-        return copy.deepcopy(dict(source_materials))
-    if material_style == "lingo":
-        return copy.deepcopy(LINGO_FOREGROUND_MATERIALS)
-    raise BlenderRenderError(
-        "unsupported multi-pose material style: %s" % material_style
-    )
+    try:
+        return resolve_foreground_materials(source_materials, material_style)
+    except ValueError as exc:
+        raise BlenderRenderError(str(exc)) from exc
 
 
 def _validate_sources(
@@ -178,6 +156,22 @@ def _build_config(
         )
     selected = _validate_keyframes(frames, frame_count)
     materials = _resolve_materials(source_config["materials"], material_style)
+    composition = {
+        "mode": "opaque_multi_pose_shared_scene",
+        "selected_frame_indices": selected,
+        "selection_rule": "explicit_increasing_source_frames",
+        "pose_layout": "unaltered_source_world_coordinates",
+        "camera_fit_source": "complete_mesh_cache_all_frames",
+        "human_object_pair_count": len(selected),
+        "material_style": material_style,
+        "material_change_scope": "foreground_human_and_object_only",
+    }
+    if material_style == TIME_GRADIENT_MATERIAL_STYLE:
+        composition["temporal_color_encoding"] = {
+            "target": "human",
+            "interpolation": "linear_rgba",
+            **materials["human"],
+        }
     return {
         "cache": str(cache),
         "scene_report": "blender-scene-report.json",
@@ -195,16 +189,7 @@ def _build_config(
         "floor": source_config["floor"],
         "materials": materials,
         "color_management": source_config["color_management"],
-        "composition": {
-            "mode": "opaque_multi_pose_shared_scene",
-            "selected_frame_indices": selected,
-            "selection_rule": "explicit_increasing_source_frames",
-            "pose_layout": "unaltered_source_world_coordinates",
-            "camera_fit_source": "complete_mesh_cache_all_frames",
-            "human_object_pair_count": len(selected),
-            "material_style": material_style,
-            "material_change_scope": "foreground_human_and_object_only",
-        },
+        "composition": composition,
     }
 
 
@@ -260,10 +245,14 @@ def render_multi_pose_figure(
     staging.mkdir()
     if material_style == DEFAULT_MATERIAL_STYLE:
         image_name = "trajectory-k%d-omomo-grounded-style.png" % len(selected)
-    else:
+    elif material_style == "lingo":
         image_name = (
             "trajectory-k%d-omomo-grounded-layout-lingo-materials.png"
             % len(selected)
+        )
+    else:
+        image_name = "trajectory-k%d-white-yellow-time-lingo-object.png" % len(
+            selected
         )
     image_path = staging / image_name
     config_path = staging / "blender-trajectory-config.json"

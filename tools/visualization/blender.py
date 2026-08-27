@@ -29,6 +29,11 @@ from .headless import (
     _timeline_manifest_fields,
     _tree_sha256,
 )
+from .materials import (
+    DEFAULT_MATERIAL_STYLE,
+    MATERIAL_STYLE_CHOICES,
+    resolve_foreground_materials,
+)
 from .schema import MotionExportError, validate_motion_export
 from .video import VideoRenderError, _probe_video
 
@@ -598,6 +603,7 @@ def render_blender_motion(
     height: int = DEFAULT_HEIGHT,
     fps: float = 30.0,
     samples: int = DEFAULT_SAMPLES,
+    material_style: str = DEFAULT_MATERIAL_STYLE,
     crf: int = 18,
     figure_count: int = DEFAULT_FIGURE_COUNT,
     figure_columns: int = 3,
@@ -633,6 +639,17 @@ def render_blender_motion(
         samples=samples,
         figure_columns=figure_columns,
     )
+    try:
+        materials = resolve_foreground_materials(
+            {
+                "human_source": "blue",
+                "object_source": "purple",
+                "smooth_shading": True,
+            },
+            material_style,
+        )
+    except ValueError as exc:
+        raise BlenderRenderError(str(exc)) from exc
     if destination.exists():
         raise BlenderRenderError("refusing to overwrite artifact directory %s" % destination)
     for label, path, kind in (
@@ -662,6 +679,8 @@ def render_blender_motion(
     log_path = staging / "blender.log"
     grounded = ground_correction != "none"
     render_identity = "omomo-grounded-style" if grounded else "omomo-style"
+    if material_style != DEFAULT_MATERIAL_STYLE:
+        render_identity = "%s-%s" % (render_identity, material_style)
     video_path = staging / ("motion-%s.mp4" % render_identity)
     figure_path = staging / ("process-k6-%s.png" % render_identity)
     render_manifest = staging / "render.manifest.json"
@@ -706,11 +725,7 @@ def render_blender_motion(
             "roughness": 0.48,
             "bump_strength": 0.06,
         },
-        "materials": {
-            "human_source": "blue",
-            "object_source": "purple",
-            "smooth_shading": True,
-        },
+        "materials": materials,
         "ground_correction": cache_summary["ground_correction"],
         "color_management": {"view_transform": "Filmic", "look": "None"},
     }
@@ -751,6 +766,7 @@ def render_blender_motion(
         "sequence_id": cache_summary["sequence_id"],
         "renderer_commit": renderer_commit,
         "renderer_backend": "blender-cycles-omomo-scene",
+        "material_style": material_style,
         "source_motion_sha256": cache_summary["source_motion_sha256"],
         "source_manifest_sha256": cache_summary["source_manifest_sha256"],
         "mesh_cache_sha256": _sha256(cache),
@@ -808,6 +824,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
     parser.add_argument("--fps", type=float, default=30.0)
     parser.add_argument("--samples", type=int, default=DEFAULT_SAMPLES)
+    parser.add_argument(
+        "--material-style",
+        choices=MATERIAL_STYLE_CHOICES,
+        default=DEFAULT_MATERIAL_STYLE,
+        help="foreground palette and optional timeline encoding",
+    )
     parser.add_argument("--crf", type=int, default=18)
     parser.add_argument("--figure-count", type=int, default=DEFAULT_FIGURE_COUNT)
     parser.add_argument("--figure-columns", type=int, default=3)
@@ -842,6 +864,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             height=args.height,
             fps=args.fps,
             samples=args.samples,
+            material_style=args.material_style,
             crf=args.crf,
             figure_count=args.figure_count,
             figure_columns=args.figure_columns,

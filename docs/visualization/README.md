@@ -137,6 +137,14 @@ using the same blue human and sage furniture colors as the HSI/LINGO renderer.
 The default remains the original OMOMO `.blend` materials; see
 `HEADLESS_RENDERING.md` for the exact palette and write-once command policy.
 
+For a paper-facing temporal encoding, both the Blender video and shared-scene
+figure accept `--material-style white-yellow-time-lingo-object`. Human color is
+linearly interpolated from warm white `[0.92,0.92,0.90,1]` to yellow
+`[1.0,0.62,0.03,1]` using `source_frame_index/(frame_count-1)`. Each selected
+human pose therefore records its actual place on the complete source timeline;
+the object keeps the exact LINGO sage material. This is a visualization-only
+encoding and does not modify the canonical motion or any evaluation input.
+
 ## HSI native NPZ and LINGO scene rendering
 
 Phase 1C HSI exports are already safe non-pickle NPZ files, but their native

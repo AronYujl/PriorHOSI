@@ -7,6 +7,8 @@ import pytest
 from tools.visualization.blender import BlenderRenderError
 from tools.visualization.blender_trajectory import (
     LINGO_FOREGROUND_MATERIALS,
+    TIME_GRADIENT_LINGO_OBJECT_MATERIALS,
+    TIME_GRADIENT_MATERIAL_STYLE,
     _build_config,
     _build_parser,
     _resolve_materials,
@@ -113,6 +115,38 @@ def test_multi_pose_lingo_style_uses_exact_hsi_foreground_palette():
     assert config["color_management"] is source["color_management"]
 
 
+def test_multi_pose_time_gradient_uses_white_to_yellow_human_and_lingo_object():
+    source = {
+        "camera": {"projection": "orthographic"},
+        "color_management": {"view_transform": "Filmic", "look": "None"},
+        "device": "CPU",
+        "engine": "CYCLES",
+        "floor": {"height": 0.015},
+        "materials": {"human_source": "blue", "object_source": "purple"},
+    }
+
+    config = _build_config(
+        source,
+        cache=Path("/immutable/mesh-cache.npz"),
+        frame_count=126,
+        frames=[0, 42, 83, 125],
+        output_image="trajectory-k4-time.png",
+        width=1600,
+        height=800,
+        samples=64,
+        material_style=TIME_GRADIENT_MATERIAL_STYLE,
+    )
+
+    assert config["materials"] == TIME_GRADIENT_LINGO_OBJECT_MATERIALS
+    assert config["materials"]["object"] == LINGO_FOREGROUND_MATERIALS["object"]
+    assert config["materials"]["human"]["start_color"] == [0.92, 0.92, 0.90, 1.0]
+    assert config["materials"]["human"]["end_color"] == [1.0, 0.62, 0.03, 1.0]
+    encoding = config["composition"]["temporal_color_encoding"]
+    assert encoding["target"] == "human"
+    assert encoding["timeline_normalization"] == "source_frame_index/(frame_count-1)"
+    assert encoding["interpolation"] == "linear_rgba"
+
+
 @pytest.mark.parametrize("style", ["", "unknown", "LINGO"])
 def test_multi_pose_material_style_fails_closed(style):
     with pytest.raises(BlenderRenderError, match="material style"):
@@ -121,7 +155,7 @@ def test_multi_pose_material_style_fails_closed(style):
         )
 
 
-def test_multi_pose_parser_requires_explicit_lingo_opt_in():
+def test_multi_pose_parser_requires_explicit_material_opt_in():
     required = [
         "cache.npz",
         "--cache-manifest",
@@ -144,6 +178,10 @@ def test_multi_pose_parser_requires_explicit_lingo_opt_in():
         required + ["--material-style", "lingo"]
     )
     assert lingo_args.material_style == "lingo"
+    time_args = _build_parser().parse_args(
+        required + ["--material-style", TIME_GRADIENT_MATERIAL_STYLE]
+    )
+    assert time_args.material_style == TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_blender_consumer_dispatches_lingo_principled_materials():
@@ -153,9 +191,11 @@ def test_blender_consumer_dispatches_lingo_principled_materials():
 
     assert 'settings.get("style", "omomo_source_copy")' in consumer
     assert 'style == "lingo_principled_v1"' in consumer
+    assert 'style == "timeline_white_to_yellow_lingo_object_v1"' in consumer
     assert '"PriorHOSI.Human.LINGOBlue"' in consumer
     assert '"PriorHOSI.Object.LINGOSage"' in consumer
     assert "human_material, object_material = _foreground_materials" in consumer
+    assert "_timeline_human_settings" in consumer
 
 
 def test_multi_pose_source_validation_binds_both_manifests(tmp_path):

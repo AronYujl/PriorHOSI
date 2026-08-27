@@ -68,7 +68,31 @@ def _principled_material(name, settings):
     return material
 
 
-def _foreground_materials(settings):
+def _timeline_human_settings(settings, frame, frame_count):
+    if settings.get("color_mode") != "timeline_linear":
+        raise RuntimeError("timeline human material requires timeline_linear color mode")
+    if settings.get("timeline_normalization") != "source_frame_index/(frame_count-1)":
+        raise RuntimeError("unsupported timeline material normalization")
+    if frame_count < 1 or frame < 0 or frame >= frame_count:
+        raise RuntimeError("timeline material frame is outside the source timeline")
+    start = np.asarray(settings["start_color"], dtype=np.float64)
+    end = np.asarray(settings["end_color"], dtype=np.float64)
+    if start.shape != (4,) or end.shape != (4,):
+        raise RuntimeError("timeline material colors must be RGBA")
+    progress = float(frame) / float(max(frame_count - 1, 1))
+    resolved = dict(settings)
+    resolved["base_color"] = ((1.0 - progress) * start + progress * end).tolist()
+    return resolved
+
+
+def _set_material_base_color(material, color):
+    shader = material.node_tree.nodes.get("Principled BSDF")
+    if shader is None:
+        raise RuntimeError("Principled BSDF node is unavailable")
+    shader.inputs["Base Color"].default_value = color
+
+
+def _foreground_materials(settings, frame=0, frame_count=1):
     style = settings.get("style", "omomo_source_copy")
     if style == "omomo_source_copy":
         return (
@@ -82,6 +106,14 @@ def _foreground_materials(settings):
     if style == "lingo_principled_v1":
         return (
             _principled_material("PriorHOSI.Human.LINGOBlue", settings["human"]),
+            _principled_material("PriorHOSI.Object.LINGOSage", settings["object"]),
+        )
+    if style == "timeline_white_to_yellow_lingo_object_v1":
+        return (
+            _principled_material(
+                "PriorHOSI.Human.WhiteYellowTime",
+                _timeline_human_settings(settings["human"], frame, frame_count),
+            ),
             _principled_material("PriorHOSI.Object.LINGOSage", settings["object"]),
         )
     raise RuntimeError("unsupported foreground material style: %s" % style)
@@ -361,7 +393,9 @@ def main():
     for obj in list(scene.objects):
         if obj.type == "MESH":
             obj.hide_render = True
-    human_material, object_material = _foreground_materials(config["materials"])
+    human_material, object_material = _foreground_materials(
+        config["materials"], frame=0, frame_count=frame_count
+    )
     if render_mode == "animation":
         human = _mesh_object(
             "PriorHOSI.Human", human_vertices[0], human_faces, human_material
@@ -371,11 +405,20 @@ def main():
         )
     else:
         for order, frame in enumerate(selected_frames):
+            pose_human_material = human_material
+            if config["materials"].get("style") == "timeline_white_to_yellow_lingo_object_v1":
+                pose_human_material = _principled_material(
+                    "PriorHOSI.Human.WhiteYellowTime.%02d.Frame%05d"
+                    % (order, frame),
+                    _timeline_human_settings(
+                        config["materials"]["human"], frame, frame_count
+                    ),
+                )
             _mesh_object(
                 "PriorHOSI.Human.%02d.Frame%05d" % (order, frame),
                 human_vertices[frame],
                 human_faces,
-                human_material,
+                pose_human_material,
             )
             _mesh_object(
                 "PriorHOSI.Object.%02d.Frame%05d" % (order, frame),
@@ -437,6 +480,13 @@ def main():
             raise RuntimeError("animation frames directory is unavailable")
         for progress, frame in enumerate(render_frames):
             scene.frame_set(frame)
+            if config["materials"].get("style") == "timeline_white_to_yellow_lingo_object_v1":
+                _set_material_base_color(
+                    human_material,
+                    _timeline_human_settings(
+                        config["materials"]["human"], frame, frame_count
+                    )["base_color"],
+                )
             human.data.vertices.foreach_set("co", human_vertices[frame].reshape(-1))
             manipulated_object.data.vertices.foreach_set(
                 "co", object_vertices[frame].reshape(-1)

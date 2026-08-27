@@ -13,6 +13,7 @@ from tools.visualization.blender import (
     _validate_render_settings,
     _y_up_to_z_up,
 )
+from tools.visualization.materials import TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_y_up_to_z_up_is_right_handed_rotation():
@@ -31,6 +32,29 @@ def test_process_frame_selection_matches_accepted_long_window():
     np.testing.assert_array_equal(
         _select_process_frames(126, 6), [0, 25, 50, 75, 100, 125]
     )
+
+
+def test_blender_parser_accepts_explicit_time_gradient_material():
+    from tools.visualization.blender import _build_parser
+
+    args = _build_parser().parse_args(
+        [
+            "motion.npz",
+            "--output-dir",
+            "output",
+            "--smpl-models",
+            "models",
+            "--object-mesh",
+            "object.ply",
+            "--blend-scene",
+            "scene.blend",
+            "--blender",
+            "blender",
+            "--material-style",
+            TIME_GRADIENT_MATERIAL_STYLE,
+        ]
+    )
+    assert args.material_style == TIME_GRADIENT_MATERIAL_STYLE
 
 
 def test_visual_ground_correction_plants_support_and_preserves_upper_contact():
