@@ -7756,3 +7756,232 @@ registry，测量只让它变得**有资格**，不会自动重开。
 在 jerk 上胜过 C，但在 355 集 holdout 上过度矫正、穿透显著变差；jerk 收益是尾部
 （秩相关 +0.056）而穿透代价是广谱税（225 个 episode 为一个它们从未需要的修复付费，
 2.95% 的窗口承载全部损害）。
+
+---
+
+## 2026-08-27 P16-GQ — approved mesh-SDF guidance arm (preregistered)
+
+This dated section supersedes the earlier recorded-but-not-authorized P16-GQ design
+for this approved arm.  It does not revise the frozen text at lines 1720, 3670, or
+the baseline configuration comment at line 56.  `C-above` below is the registered
+metric caliber, not model C.
+
+### Protocol and implementation contract
+
+P16-GQ is one inference arm against the sealed B+guided baseline, with seed **42**,
+the fixed v2 test enumeration of **375 episodes**, and the existing **8 logical
+shards**.  The checkpoint is reused, not retrained or rerun: the epoch-222 B
+checkpoint is the checkout-relative asset
+`results/hsi_b_lingo_full_v2/checkpoints/hsi_b_lingo_full_v2_epoch222.pth`, SHA-256
+`5daaf813ca82878868602840760f35df43b642d73f73cb37e24bb5a4dbf62b4c`.  The sealed
+Bg baseline is reused by reference; there is no baseline rerun.
+
+The proxy is **area512**, with rest-surface-area quotas and a **1.6** boost for
+`upper_legs`, `lower_legs`, and `feet`, and 1.0 elsewhere.  The 1.6 leg weight was
+selected **post-hoc from the recorded coverage table** and is disclosed here; no
+P16-GQ output is used in that choice.  Its checkout-local index is
+`code/priors/hsi/assets/idx_area512.npy`, shape `(512,)`, sorted unique `int64`,
+min 109, max 10260, file SHA-256
+`92b3f40e60837da06414f685c798764650fafdb0baec40134015bdd35968c468`, and raw
+little-endian int64 SHA-256
+`862ba310b98ab3b2aa6e12a7f5cd84025dcf61b22b8ee54d8bab4ebc916a09fd`.
+
+Each proxy point uses exact SMPL-X male rest assets and the exact SMPL-X LBS plus
+pose blend-shape formula, not a rigid or one-hot approximation:
+
+```
+p_i = sum_k W22[i,k] * (T_k + R_k *
+      (v_template[i] + posedirs[i] @ theta - J_rest[k]))
+theta = (R_local[1:22] - I).reshape(189)
+```
+
+LINGO's zero-beta, SMPL-X-rest-offset contract is retained.  The new term uses
+`hsi_guidance_sdf_weight = 4879` and `margin = 0`.  The original voxel nearest-free
+target remains the near-floor term; only points at or above the exact
+`FLOOR_EXCLUSION_HEIGHT_M = 0.02` m split use the mesh signed-distance term.  The
+mesh SDF is queried above the floor and has `pen = relu(-sdf)` with zero margin;
+the voxel term remains below it.  The old rejected weight **30573** is excluded;
+it would increase dose by **35.7%**.  There is no calibration pass and no scan.
+
+The implementation must leave `code/priors/core/`, the sealed HSI metrics/evaluator,
+and all unrelated model paths unchanged.  The new sampler knobs are opt-in and
+default-off outside this wrapper.  The dataset supplies a cached `scene_geometry`
+accessor to the sampler; it must not change the evaluator's sealed metric code.
+
+### Promotion, guards, and reporting
+
+The formal gate is the fixed **holdout355** cohort.  Usable means the C-above
+`pene_sum_mean` arm-minus-Bg paired episode-bootstrap 95% CI is entirely below zero
+and every naturalness, contact, orientation, and stillness guard below passes.
+`contact_count` is read from **C-above**, and its C-above lower bound is compared
+against B+guided under the frozen contact guard; the C-above `contact_count_exterior`
+lower-bound comparison against B+guided is retained as the anti-dodging guard.
+`min_dist` is a goal-arrival diagnostic only and is never a gate.  The C-above
+penetration quantity is the metric caliber named above, not a surface-distance
+reinterpretation.
+
+The arm must not significantly increase `rav_jitter_1s` or significantly decrease
+`still_frac_1s` versus B+guided; `rav_mean_1s` and the complete stillness family are
+reported with the frozen 10 Hz / 1-second definitions.  The existing penetration,
+over-lifting, jerk, amplitude, success, goal, contact, and orientation guards remain
+binding as enumerated by the preregistered caliber evidence.  Every contrast prints
+delta, paired percentile-bootstrap 95% CI, significance, and `n_req`, using 10,000
+episode resamples and seed 42; full375 is reported in parallel.
+
+The **strong** result is nested inside usable and requires at least **1.685 m**
+improvement on holdout355, i.e. at least **40% closure of that cohort's own
+B+guided-to-GT gap**.  The full375 cohort reports its own closure fraction and is
+not substituted for holdout355.  A CI that includes zero is `INCONCLUSIVE`; it does
+not authorize a dose, weight, point-count, calibration, or sample-size search.
+
+The accepted 1–5 cm hover residual is inspected visually on the already frozen
+12-episode list and is not made into a new automated gate.  The affordance107 set is
+an exploratory promotion set frozen from GT-only inputs before new P16-GQ outputs;
+it is never blind or confirmatory.  Report its uncorrected primary orientation,
+the seed-corrected secondary, and full375 orientation in parallel, with the required
+disclosure of **12 captions / 290 of 375 episodes viewed**.  The frozen visual list
+is:
+`031:002568`, `015:000948`, `015:000960`, `031:002589`, `015:000903`, `031:002598`,
+`031:002600`, `024:001784`, `024:001756`, `056:005699`, `061:006110`, and
+`062:006305`.
+
+No run ID is allocated in this preregistration.  After the implementation commit,
+the only permitted future lifecycle invocation is from this checkout, with default
+registry/manifest roots or explicit paths whose realpaths are beneath it.  Before
+and after each lifecycle call the operator must assert this repository root, the
+registry, manifest, result path, branch, and HEAD; no live-parent-checkout path or
+`..` traversal is permitted.
+
+#### 2026-08-27 consolidated prelaunch remediation — preregistration amendment
+
+Before any P16-GQ sampling, the implementation must use the tracked derived proxy
+asset `code/priors/hsi/assets/body_proxy_area512.npz`, SHA-256
+`b5065f93dc1c37acb2d02c1607ee02b4743b443ddcad13476a6eb36d98fcf3b5`, size
+`1,352,698` bytes.  The frozen authority source used to generate it is
+`SMPLX_MALE.npz`, exactly `108,753,445` bytes with SHA-256
+`ab318e3f37d2bfaae26abf4e6fab445c2a610e1d63714794d60379cc263bc2a5`.  The source
+is a read-only generation input and is not a formal-runtime dependency.
+
+The deterministic derivation reads the source arrays as float64, reduces all 55
+source-joint weights to their 22-joint body ancestors, computes
+`J_rest = J_regressor @ v_template` for the first 22 joints, stores
+`offsets = v_template[index,None,:] - J_rest[None,:,:]`, retains the first 189
+pose-blend coefficients, casts the four derived arrays to little-endian float32
+(indices remain little-endian int64), and writes a fixed-order, timestamp-free,
+uncompressed NPZ.  Runtime must validate the derived file hash, metadata, dtypes,
+and shapes; no runtime code may derive or load the full source NPZ for P16-GQ
+guidance.
+
+The formal path is gated by `formal_preflight: true` and the sealed checkpoint
+SHA-256 `5daaf813ca82878868602840760f35df43b642d73f73cb37e24bb5a4dbf62b4c`.
+Before the first timed shard it must exercise the real derived proxy and real
+`SceneGeometry` loader, and require `INFBAGEL_SDF_CACHE` to name a checkout-local
+cache containing every selected scene's cache keyed by the exact mesh hash,
+resolution, padding, build version, and validated finite field payload.  A cache
+must be populated from a separately verified immutable snapshot or prebuilt for
+all scenes in the shard before timed sampling; a cache miss, hash mismatch,
+missing checkpoint, checkpoint mismatch, parent-checkout path, or missing real
+dependency is a hard preflight failure.  This amendment allocates no run ID and
+authorizes no lifecycle invocation.
+
+#### 2026-08-27 final adversarial-audit amendment — sealed-wrapper attestation postcondition
+
+The sealed file `code/test_infbagel_lingo_hsi.py` is a byte-for-byte protected
+input and is not an owner of P16-GQ preflight or shard identity.  The independent
+HSI-owned module `code/priors/hsi/gq_shards.py` must resolve the exact formal
+config, run the CPU preflight, and create a deterministic, nonce-free preflight
+attestation **before** invoking the sealed child evaluator.  The raw evaluator
+payload is never decorated or rewritten; the raw shard payload remains
+byte-for-byte unchanged.  The attestation records
+`wrapper_used=true` and `preflight_passed=true`, the wrapper and sealed-evaluator
+hashes, the complete resolved config and its digest, and the verified observed
+asset values.  Its digest covers exactly the observed treatment fields:
+`guidance_mode=mesh_sdf_gq`; `guidance_version=p16-gq-mesh-sdf-v1`;
+`sdf_weight=4879`; `sdf_margin_m=0`; `floor_threshold_m=0.02`; area512 index,
+derived proxy, and authority SMPL-X source expected/observed hashes; checkpoint
+expected/observed hashes; the complete mesh/SDF cache-protocol identity; every
+relevant resolved treatment flag; the episode-manifest file/hash identity;
+selected shard ordinals and index; and the canonical output/receipt paths.
+Missing or altered attestation, legacy treatment claims, altered weight/hash/
+cache/flag/config, or forbidden episode/weight token `30573` is a hard failure.
+Merge is never allowed to infer identity from a raw shard or from the first shard.
+
+After the sealed child returns successfully, the wrapper performs a private
+post-run attachment that only verifies the existing preflight attestation, the
+raw payload's SHA-256, raw shard index, observed checkpoint hash, canonical
+output path, and the deterministic execution receipt.  It writes the receipt
+as a sibling `.gq_receipt.json` sidecar and binds it to the pre-created
+`.gq_preflight.json` sidecar and raw payload digest.  No caller-supplied or
+synthesized treatment values are accepted at this stage.  Missing or tampered
+receipt, direct sealed output, altered raw claim, shard/output replay, or a
+checkpoint/episode-manifest/cache change after preflight is rejected.
+
+The wrapper's only shard override is the plain Hydra argument
+`shard_index=$i`; the P16-GQ fragment has no inherited `shard_index` key in its
+registered `fragment_keys`, and `ckpt_path` is explicitly registered.  A CPU
+composition test must pass for every value `0..7`, and a mechanical wrapper
+delta test must prove that the sealed evaluator and `code/priors/core/` are
+absent from the final delta.  The wrapper creates no lifecycle run id and has
+no dependency on ignored scratch files for a normative input; scratch material
+is bounded evidence only.
+
+The formal cache identity is `mesh_low_sdf_v1`: `mesh_low.obj`, 20 mm voxel
+size, 200 mm padding, exact band 1, build version 1, little-endian float32
+field, little-endian float64 origin, full mesh hash, scene name, and field
+shape.  Preflight must reject any mismatch and must exercise the real proxy,
+real scene mesh, real cache, checkpoint, and SDF loader before timed sampling.
+
+The sealed evaluator's `geometries` dictionary deliberately retains the roughly
+19--20 scene objects it materializes; neither the evaluator dictionary nor its
+objects may be altered or evicted.  Baseline metric calls use
+`geometries[scene_name]`, while the grouped sampler resolves the same
+`SceneGeometry.from_scene` key during that scene's episode group, so the
+metric and sampler queries materialize the same per-device/dtype CUDA views.
+This is a zero-increment residency claim to verify, not a four-scene formal
+residency claim: launch readiness requires measured steady-state and late-shard
+memory headroom with the retained 19--20-scene dictionary.  The generic
+four-entry accessor LRU remains a separate dataset-only bound.
+
+The hot path must resolve occupancy scene ids once per guided window through
+`prepare_nearest_free_voxel`; no per-step `scene_flag` CPU sync or inverse-map
+reconstruction is permitted.  The eligible-only near-floor/SDF query and its
+full `B*T*N` normalization, the optimized proxy forward/gradient contraction,
+real proxy/scene/checkpoint/cache preflight, explicit shared scene-guidance
+route, unused-normal elimination, occupancy LRU, mixed-batch, sampler, and
+composition tests are required evidence.  The authoritative CPU differential
+is run once against the read-only source after checking source hash, using the
+frozen vertices, zero-beta rest template, 55-to-22 ancestor reduction, pose
+ coefficients, and world translations; its bounded scratch report is not a
+ normative input and committed tests remain hermetic.  This authoritative
+ comparison supersedes the earlier contradictory scratch differential logs:
+ their differing pose/selection or translation probes are not canonical P16-GQ
+ evidence and must not be used to alter the frozen asset or contraction tolerance.
+
+Governance is binding and durable: `rav_jitter_1s` must not increase (one-sided
+paired 95% CI upper bound at or below zero), `still_frac_1s` must not decrease
+(one-sided paired 95% CI lower bound at or above zero), and the existing
+binding `rav_mean_1s` guard is retained.  The primary, uncorrected
+`theta_head_exp` guard is retained on affordance107; seed-corrected facing and
+full375 facing are required parallel reports, never substitutes.  The exact
+affordance107 exploratory promotion set is the pre-output-frozen 6-caption /
+107-episode set (12 captions / 290 of 375 episodes were viewed during its
+GT-only selection); it is used for exploratory promotion, not report-only,
+blind, independent, or confirmatory analysis.  `contact_count` at C-above must
+not significantly increase versus B+guided, while
+`contact_count_exterior` at C-above must not significantly decrease versus
+B+guided.  Both cohorts and all registered uncertainty, significance, and
+`n_req` fields are required in the report.
+
+The formal P16-GQ config must declare
+`formal_wrapper: code/priors/hsi/gq_shards.py`,
+`formal_attestation: true`, and
+`formal_attestation_protocol: p16-gq-preflight-attestation-v1`; these keys are
+registered in the fragment and the resolved flags are part of the attestation
+digest.  A shard is reportable only when launched by that executable wrapper,
+which creates the preflight attestation, invokes the sealed evaluator, writes
+the execution receipt, and is merged through receipt validation.  Direct
+invocation of the sealed evaluator, including its native `merge_shards` mode,
+is not a reportable P16-GQ route even when its other overrides match; native
+output has no reportable treatment identity.  The sealed evaluator's retained
+`geometries` dictionary is therefore unchanged; the four-entry cache caveat
+applies only to dataset accessors and is not an evaluator eviction policy.

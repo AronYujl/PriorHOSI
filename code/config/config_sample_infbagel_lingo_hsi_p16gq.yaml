@@ -1,0 +1,39 @@
+# P16-GQ -- the approved mesh-SDF guidance arm.
+# The protocol and all promotion criteria are frozen in the dated PHASE_1C_HSI
+# section and the matching registry row.  This wrapper is the only new config
+# fragment; the sealed base remains unchanged.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+exp_name: lingo_hsi_p16gq
+lingo_hsi_mode: sample
+sample_type: diffusion
+use_guidance: true
+export_motion: true
+hsi_progress_fix: true
+shard_count: 8
+
+# P16-GQ's single manipulated guidance term.
+hsi_guidance_sdf_proxy: area512
+hsi_guidance_sdf_weight: 4879
+
+# The formal wrapper must resolve this config, verify the checkout-local real-data
+# preflight, create a nonce-free attestation, and only then invoke the sealed
+# evaluator.  The raw evaluator payload is never edited; its reportability is
+# established only by the post-run execution receipt bound to that attestation.
+formal_preflight: true
+formal_attestation: true
+formal_attestation_protocol: p16-gq-preflight-attestation-v1
+formal_wrapper: code/priors/hsi/gq_shards.py
+expected_checkpoint_sha256: 5daaf813ca82878868602840760f35df43b642d73f73cb37e24bb5a4dbf62b4c
+
+# The evaluator resolves the mesh from this dataset-local accessor.  The base
+# value is an input asset root; it is not a result or manifest location.
+dataset:
+  hsi_mesh_root: ${lingo_mesh_root}
+
+# Future launch templates override these only to the current checkout's staged
+# result and checkpoint paths.  No parent checkout path is valid for this arm.
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/experiments/p1-hsi-b-p16gq-s42-20260827/generation
+ckpt_path: ${oc.env:ROOT_DIR}/results/hsi_b_lingo_full_v2/checkpoints/hsi_b_lingo_full_v2_epoch222.pth
