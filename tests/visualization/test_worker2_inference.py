@@ -59,6 +59,27 @@ def test_registered_p12_profile_pins_inference_commit_separately_from_training()
     assert selected["legacy_human_frame"] == "y_up"
 
 
+def test_registered_p15_profile_pins_matched_guided_evaluator():
+    profiles, _ = load_profiles()
+    metadata = _metadata("p1-hoi-p15-geom-perhand-equalized-s42-20260825")
+    metadata["git_commit"] = "b85c7459b5a6fef1975e9ec5013fbb7849cb2aa0"
+    selected = select_profile(profiles, metadata)
+
+    assert selected["name"] == "hoi-p15-armb"
+    assert selected["inference_commit"] == metadata["git_commit"]
+    assert selected["run_variant"] == "p15-armb-motion-export"
+    assert selected["expected_sequences"] == 438
+    assert selected["legacy_human_frame"] == "y_up"
+    assert selected["hydra_overrides"] == [
+        "sampler.pelvis.guidance.enabled=true",
+        "sampler.pelvis.guidance.arm=b",
+        "sampler.pelvis.guidance.guidance_scale=1000.0",
+        "sampler.pelvis.guidance.last_steps=10",
+        "sampler.pelvis.guidance.clamp=1.0",
+        "sampler.pelvis.guidance.clamp_target=update",
+    ]
+
+
 def test_auto_profile_fails_closed_for_an_unregistered_checkpoint():
     profiles, _ = load_profiles()
 

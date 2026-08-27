@@ -1,10 +1,11 @@
 # Worker2 checkpoint-to-artifact workflow
 
 This workflow turns a trusted checkpoint on the authority host into returned
-motion parameters without modifying either expert worktree.  Its current
-registered scope is post-repair P12 HOIPrior inference with sealed Arm B
-guidance; HSI and mixer profiles will be added only after their exporters and
-inference contracts stabilize.
+motion parameters without modifying either expert worktree. Its registered HOI
+scope contains the post-repair P12 baseline and the P15 per-hand equalized
+geometry model, both with the matched deployable Arm B guidance policy. HSI and
+mixer profiles will be added only after their exporters and inference contracts
+stabilize.
 
 ## One-input start
 
@@ -61,6 +62,15 @@ therefore pins:
 Auto-selection fails closed if no profile matches.  A new HOI architecture,
 HSIPrior, or PriorHOSI output requires one tested profile addition before the
 one-input interface can accept it; the workflow never guesses a source commit.
+
+The `hoi-p15-armb` profile matches only checkpoints whose metadata run id starts
+with `p1-hoi-p15-geom-perhand-equalized-`. It pins inference commit
+`b85c7459b5a6fef1975e9ec5013fbb7849cb2aa0`, the commit used by the matched
+438-sequence P15 Arm B evaluation. The guidance values are scale 1000, last 10
+steps, clamp 1, clamp target `update`, with the remaining Arm B values inherited
+from the resolved evaluator config. P15 remains the base HOIPrior architecture;
+the profile distinction prevents its scientific identity from being confused
+with P12 merely because their tensor shapes are compatible.
 
 ## Fixed topology and transfer ownership
 
