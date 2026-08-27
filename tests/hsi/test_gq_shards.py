@@ -278,6 +278,16 @@ class ReceiptFixture(unittest.TestCase):
 
 
 class AttestationIdentityTests(ReceiptFixture):
+    def test_preflight_scene_comparison_uses_unique_scene_set(self):
+        with self.contract():
+            resolved = self.resolved(0)
+            preflight = self.preflight(["scene-0"])
+            gq_shards._validate_preflight_observation(
+                preflight,
+                resolved,
+                ["scene-0", "scene-0"],
+            )
+
     def test_attestation_digest_contains_observed_contract_fields(self):
         with self.contract():
             paths = self.make_attested_shards()
