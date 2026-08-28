@@ -7756,3 +7756,175 @@ registry，测量只让它变得**有资格**，不会自动重开。
 在 jerk 上胜过 C，但在 355 集 holdout 上过度矫正、穿透显著变差；jerk 收益是尾部
 （秩相关 +0.056）而穿透代价是广谱税（225 个 episode 为一个它们从未需要的修复付费，
 2.95% 的窗口承载全部损害）。
+
+## 2026-08-28（P16-NS 治理收尾 —— 训练完成、NSu 判定 INCONCLUSIVE、NSg 记为 NOT MEASURED、teacher 不变、need_scene 路线关闭）
+
+### A. 本节地位
+
+本节是 P16-NS 的**结论段**，由用户在 2026-08-28 明确授权写入并提交。授权范围是
+**只改 registry 与本计划/结论文档**；不改模型、训练或评估代码，不把 P16-GQ 的实现分支
+合入主分支。本节所引的每个数字都来自已封存的产物，不重新计算、不重新采样。
+
+判读口径在启动前就已冻结（见 2026-08-26 第三次 §A、§B），本节不修改它，只执行它。
+
+### B. 训练执行事实（run `p1-hsi-b-p16ns-s42-20260826`）
+
+从零重训 model B，**唯一被操纵的变量**是 `dataset.force_need_scene=true`。基础配置
+`code/config/config_train_hsi_b_lingo_full.yaml`，sha256 `34c4798e…4f9f2`，与 B-v2
+所跑的配置逐字节一致，因此"base + 一个键"确实是单变量复制臂。
+
+| 项 | 值 |
+|---|---|
+| 状态 | completed，`trainer_exit_code` 0 |
+| 起止 | 2026-08-26T16:46:30Z → 2026-08-27T15:13:58Z |
+| epochs / updates | 223 epoch 完成；146,255 次 optimizer update；656 step/epoch |
+| 布局 | 4 × 512，authority host GPU0–3；`effective_batch_size` 2048，`grad_accum` 1 |
+| 精度 / 线程 | bf16_tf32；`OMP_NUM_THREADS=4` |
+| 吞吐 | 0.5311 s/update（sustained） |
+| 末期训练损失 | epoch222 均值 0.02615003096270225 |
+| 梯度 | 无 clipping（与 B-v2 同）；`gradient_anomalies` 为空；post-warmup 范数中位数 6.1153、最大 30.2945（max/median 4.95），>4× 中位数仅 5 次（3.5e-05） |
+| 被评估的 checkpoint | `results/hsi_b_p16ns/checkpoints/hsi_b_p16ns_epoch222.pth` |
+| checkpoint sha256 | `d95dba9887597f2354f438cbef93869428472696e7e398283d848248ee780002`（179,662,353 B） |
+| checkpoint 总数 | 14 个已记录哈希（epoch000…epoch222） |
+| git | `fc033a9bcb1d05fb827bc431e1ed31905977c827`，起止两端 `dirty: false` |
+| split | `experiments/splits/lingo_scene_family_disjoint_v3_seed42.json`，sha256 `12097e24…646d1b` |
+
+`evaluated_checkpoint_note` 冻结了"只用末 epoch"：引入任何 checkpoint 间选择都会
+增加第二个被操纵变量。T2 tripwire（post-warmup 中位数 > 12.0）未触发。
+
+### C. NSu 评估执行事实（run `p1-hsi-b-p16ns-eval-epoch222-unguided-shard8-s42-20260827`）
+
+8 路 episode 分片、unguided、`sample_type=diffusion`、`hsi_progress_fix=true`、
+`export_motion=true`、seed 42。8/8 分片 `fail=0`，launcher 自动 merge，`MERGE_EXIT=0`。
+合并载荷校验：`sequence_count` 375、`canonical_window_total` 2271、`merged_from` 长度 8、
+`shard_episode_counts [49,46,46,47,47,47,47,46]`、
+`shard_window_totals [285,283,283,285,285,284,284,282]`、`scene_count` 26、
+`guided false`、`schema_version` 4、`timing_valid false`（shard_count>1 下计时无效，
+本臂不报 FPS）。
+
+复算闸门（PREREG §E.5，容差 cell-mean ≤1e-5、per-episode ≤1e-4）：NSu 最坏 cell-mean
+相对偏差 **4.462e-06**，通过。唯一超出 per-episode 容差的是 `024:001832` 的
+`pene_sum_max_floorexcl`（7.828e-03），是 max 统计量的 argmax 翻转，不触及本臂判定
+所用的 `summean` / `pct`。在写入任何新数字之前，已先用同一套脚本端到端复现四个
+**已发表**的 Bu / GT / Bg 数字，全部精确命中。
+
+### D. 主判据 —— FAIL，判定为 INCONCLUSIVE
+
+§A.10 要求：C-above 口径下 `pene_sum_mean` **与** `pene_pct_scene` **同时**显著低于 Bu。
+配对 bootstrap，10,000 次重抽，seed 42，episode 重抽。
+
+| 队列 | 量 | Bu | NSu | delta | 95% CI | 判定 | n_req |
+|---|---|---:|---:|---:|---|---|---:|
+| holdout355（判定队列） | `pene_sum_mean` | 10.7008 | 11.1225 | **+0.42168** | [−0.69808, +1.52826] | ns | 9,896 |
+| holdout355 | `pene_pct_scene` | 0.0190951 | 0.0193459 | **+0.00025076** | [−0.00115132, +0.00158484] | ns | 42,266 |
+| full375 | `pene_sum_mean` | 13.4361 | 13.0983 | −0.33778 | [−1.69962, +0.930743] | ns | 22,740 |
+| full375 | `pene_pct_scene` | 0.0226525 | 0.0222530 | −0.00039946 | [−0.0019194, +0.00108605] | ns | 21,227 |
+
+两个量都不显著，注册的 `hw ≤ |d|/2` 判据全部不满足，**且在判定队列 holdout355 上两个
+点估计的符号都是"更差"**。两个队列在两个量上符号相反，本身就说明结构上没有可解读的
+效应。`n_req` 为 9,896–42,266，即相对本臂 n=355/375 欠功效 **25–113 倍**；按 §E.4，
+`ns` 在这里意味着**未测出**，不是"证明为 null"。
+
+**判定：P16-NS = INCONCLUSIVE**，这是 §A.13 事先声明的可接受结局之一。
+NSu 相对 GT 在 C-above 两个量上仍然 SIG 更差（pct +0.00803 SIG，summean +6.093 SIG），
+即本臂没有把 penetration 拉近 GT。
+
+### E. 近地带守卫 —— 通过
+
+C-floor `pct` 显著**更低**（holdout355 −0.00041586 [−0.00064686, −0.00016520] SIG；
+full375 −0.00039239 [−0.00063290, −0.00013443] SIG），`ratio` 亦 SIG 更低。
+不存在"拿地板换家具"的交换。C-total 大体 ns，full375 的 `ratio` SIG 更低。
+
+### F. 机制次要指标（§A.12）—— 三条都不构成可用改善
+
+**(1) SUPPORT ENTER(117)/EXIT(20) 对照**（非配对两组 bootstrap，两组不相交）：
+`joint sumf_mean excess over GT` 的 EXIT−ENTER 差从 Bu 的 +0.08485 [+0.01542, +0.16408]
+收缩到 NSu 的 +0.07430 [+0.00073, +0.16048]；`pene_sum_mean_floorexcl` 从
++51.826 [+13.737, +94.183] 收缩到 +47.200 [+13.498, +84.228]。方向与预测一致，但幅度小、
+CI 大幅重叠、NSu 侧两个对照**仍然 SIG**，且没有做差中差检验（EXIT n=20 不可配对）。
+不算可用改善。
+
+**(2) RDS OLS —— 反向，且这是本臂唯一功效充足的机制检验。**
+预注册的预测是：`trained_scene_blind` 系数**向 0 移动**。实测是远离 0 且约翻倍：
+
+```
+RDS[Bu]  ~ 1 + motion_extent[Bu]  + scene_blind : coef -0.03785 se 0.00983 t -3.85  R2 0.0762
+RDS[NSu] ~ 1 + motion_extent[NSu] + scene_blind : coef -0.08220 se 0.01052 t -7.81  R2 0.1781
+RDS[NSu] ~ 1 + motion_extent[Bu]  + scene_blind : coef -0.08586 se 0.01055 t -8.14  R2 0.1794
+```
+
+点二列相关从 −0.2661 (p 1.69e-07) 走到 −0.4220 (p 1.27e-17)；ns=False 组均值
+0.11188 → 0.07797，而 ns=True 组 0.15711 → 0.15967。也就是说，把 `need_scene` 强制为
+True 之后，**恰恰是那些训练时被置盲的 caption 上 RDS 掉得更多**，组间分离变大而不是变小。
+这是对机制预测方向的**反驳**，不是 null。
+
+`motion_extent` 的定义（`.claude/scratch/p16-needscene/matched.py:16`：coarse `global_jpos`
+上逐关节位置 std 对 28 个关节取均值）是可复算的，重建复现了 Bu 侧全部五个已冻结数字，
+因此上表两侧同口径。
+
+**(3) 终态朝向 `theta_head_exp`**（affordance107 冻结子集，未校正）：
+Bu 52.127° → NSu 58.315°，delta **+6.187 [−3.447, +16.205] ns**，方向**更差**（越低越好）。
+full375 +1.561 ns、holdout355 +2.289 ns，同样无改善。
+
+### G. 自然度（回归读数）—— 在本分支最大的 GT 缺口上显著退化
+
+G1–G5 是 NSg-vs-Bg 的护栏，本轮不适用（见 §H）。以下是 NSu-vs-Bu 的回归读数：
+
+| 指标 | Bu | NSu | delta (holdout355) | 判定 |
+|---|---:|---:|---|---|
+| `boundary_jerk` | 126.050 | 135.998 | **+9.948 [+6.912, +13.071]** | SIG 更差 |
+| `interior_jerk` | 63.331 | 67.696 | +4.365 [+3.514, +5.227] | SIG 更差 |
+| `transition_distance_aligned` | 0.00689 | 0.00760 | +0.00071 [+0.00053, +0.00089] | SIG 更差 |
+| `fs_nemf` | 0.31795 | 0.30733 | −0.01062 [−0.01826, −0.00301] | SIG 更好 |
+| `jerk_ratio` | 2.01442 | 2.02470 | +0.01028 ns | — |
+| `pen_ratio` | 0.03241 | 0.03143 | −0.00099 ns（full375 −0.00148 SIG 更好） | — |
+
+full375 同向：`boundary_jerk` +9.188 [+6.164, +12.170] SIG。
+`boundary_jerk` 正是本分支已知**最大的 GT 缺口**，在它上面 SIG 退化不能算"自然度未明显退化"。
+安全侧读数不变坏：>5g 骨盆加速度 episode 数 0、帧数 0（与 Bu 同）、walk `h_min`<0.6 为 0/126；
+幅度略升而非略降（`mean_speed` 0.2229→0.2338，`pelvis_path_horiz` 1.194→1.211）。
+
+### H. 分级触发判定 —— 未触发；NSg 记为 NOT MEASURED
+
+§A.10 的分级规则要求：**至少一项**（C-above penetration / terminal facing / 预注册机制
+指标）出现可用改善，**且**自然度未明显退化。
+
+- C-above：否（§D，判定队列上点估计方向还是反的）。
+- terminal facing：否（§F(3)，+6.187° 更差）。
+- 机制指标：否（§F(1) 边际且两对照仍 SIG；§F(2) 反向且强显著）。
+- 自然度：**已明显退化**（§G，`boundary_jerk` +9.95 SIG）。
+
+规则的两侧都不满足。
+
+**NSg（guided，约 47.0 GPU-h）不运行。NSg 记为 NOT MEASURED。**
+**G1–G5 随之记为 NOT MEASURED，不得记为通过**；本臂没有可与 Bg 比较的读数。
+committed 小计停在 105.6 GPU-h，未支出 47.0 GPU-h。
+
+### I. Teacher 不变
+
+**P16-NS 不替换正式 teacher。** 后续蒸馏继续使用已封存的 B-v2 `epoch222`
+（registry 行 `p1-hsi-b-lingo-full-v2-s42-20260819` 所封存的那一个），与 2026-08-26
+§F "teacher 固定为 sealed epoch222" 的记录一致。`hsi_b_p16ns_epoch222.pth`
+（sha256 `d95dba98…0002`）**只作为机制证据保留**，不进入任何下游管线。
+
+### J. 路线关闭
+
+自本节起停止在 `need_scene` 家族上继续调参：不再重跑 P16-NS，不启动 NSg，不再调 P16-GQ
+的权重或增加门控。P16-GQ 的实现留在分支 `experiment/p16-gq-20260827`，**不合入**。
+
+保留的结论是：训练集里 38.9098%（522,818 / 1,343,667）的 v3 窗口 `need_scene=False`
+会把五个 scene token 置零，这是一个**已被描述、已被测量过一次的数据侧缺陷**，而不是
+一个已被证明可用的杠杆。在推理端把它强制为 True，既没有降低 penetration，也没有改善
+终态朝向，反而让被置盲 caption 上的 RDS 分离变大，并在 seam jerk 上付出代价。
+
+### K. 两处需要用户裁决的记录缺口（本次不擅自填补）
+
+1. **P16-GQ 的完成行不在本分支。** 分支 `experiment/p16-gq-20260827` 上只有一条
+   `planned` 行 `p1-hsi-b-p16gq-s42-20260827`；它 2026-08-27 的 FAIL 判定目前没有任何
+   已提交的 registry 完成行。用户本次的授权范围不含 GQ 行，且明确要求不合入该分支，
+   因此本次不写。这是一个**已知的、有意留下的记录缺口**，需要单独决定如何补。
+2. **预注册行占用了运行 id。** `p1-hsi-b-p16ns-s42-20260826` 这个 id 已被
+   `preregistered` 行占用，`tools/experiment.py register` 因此拒绝为同名 manifest 追加
+   完成行（registry 是 append-only，不改旧行）。本次按 HOI 的既有先例，用
+   `-completion-` 后缀追加完成行，并在该行的 conclusion 中写明它封存的是哪个 run id
+   与哪个 manifest sha256。后续预注册行应使用 `-preregister-` 后缀，避免再次占用运行 id。
