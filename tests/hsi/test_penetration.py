@@ -454,7 +454,7 @@ class ObjectivePlumbingTests(unittest.TestCase):
 
         self.assertEqual(build.call_args.args[0], {10: "train", 12: "held_out"})
 
-    def test_p17oc_config_is_a_six_key_override_and_sampler_resolves_all_keys(self):
+    def test_p17oc_config_is_a_minimal_override_and_sampler_resolves_all_keys(self):
         from omegaconf import OmegaConf
 
         config_path = REPO / "code" / "config" / "config_train_hsi_b_p17oc.yaml"
@@ -465,10 +465,19 @@ class ObjectivePlumbingTests(unittest.TestCase):
         self.assertEqual(raw.pen_delta, 0.03)
         self.assertEqual(raw.pen_floor_height, 0.02)
         self.assertEqual(raw.pen_sdf_dtype, "float16")
+        # occ_list_layout_repaired is the one key this branch adds that 589ac7f on
+        # phase/01c-hsi does not have.  There the occ_list[0] X/Y permute is applied
+        # unconditionally -- it is one of that commit's three changes -- so P17-OC's
+        # config needs to say nothing.  Here the permute is gated and defaults to the
+        # released layout, because every OTHER checkpoint in the project was trained
+        # under the defect.  So this config must ask for the repair explicitly, or a
+        # resume or relaunch from this branch would train a different model than the
+        # one 01c is training, and nothing in the config would record the difference.
+        self.assertIs(raw.occ_list_layout_repaired, True)
         self.assertEqual(
             sorted(raw.keys()),
-            ["defaults", "exp_name", "pen_delta", "pen_floor_height",
-             "pen_loss_weight", "pen_sdf_cache", "pen_sdf_dtype"],
+            ["defaults", "exp_name", "occ_list_layout_repaired", "pen_delta",
+             "pen_floor_height", "pen_loss_weight", "pen_sdf_cache", "pen_sdf_dtype"],
         )
         sampler_config = (REPO / "code" / "config" / "sampler" / "pelvis.yaml").read_text()
         for key, default in (

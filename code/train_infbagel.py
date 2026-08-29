@@ -17,7 +17,20 @@ from pathlib import Path
 
 import numpy as np
 
-os.environ['ROOT_DIR'] = '..'
+# setdefault, not assignment.  Production launches this module with cwd=code/
+# (readme.md:112-120) and does not export ROOT_DIR, so the value is still '..'
+# and every one of the 38 ${oc.env:ROOT_DIR} config references resolves exactly
+# as before.  What the assignment additionally did was overwrite an ALREADY-SET
+# absolute ROOT_DIR at import time, with a RELATIVE path.  In a pytest process
+# rooted at the repository that makes ROOT_DIR resolve to the repository's
+# PARENT, so any test importing this module silently redirected every later
+# test's asset paths one directory too high -- measured as
+# FileNotFoundError: /data/yujinlun/experiments/splits/omomo_hoi_train_validation_seed42.json
+# from tests/hoi/test_hoi_run_provenance.py once tests/test_training_resume.py
+# shared its process.  This is the pattern the repository's own tools already
+# use (tools/measure_hoi_geometry_gradient.py:21,
+# tools/measure_hoi_repr_ceiling.py:191).
+os.environ.setdefault('ROOT_DIR', '..')
 os.environ['HYDRA_FULL_ERROR'] = '1'
 os.environ['CURRENT_TIME'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')
 os.environ['CUDA_LAUNCH_BLOCKING'] = '0'

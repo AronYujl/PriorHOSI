@@ -60,6 +60,24 @@ class Sampler:
         # See config_sample_infbagel_lingo_hsi.yaml: hsi_guidance_norm_cap.
         cap = kwargs.get('hsi_guidance_norm_cap', None)
         self.hsi_guidance_norm_cap = None if cap is None else float(cap)
+        # occ_list entry 0 reaches the scene ViT with X and Y transposed in the
+        # released code: `occ` is built [B,X,Y,Z] while occ_list is declared
+        # [0,Y,X,Z], the occ_temp entries ARE permuted before their cat and the
+        # returned `occ` IS permuted, but entry 0 is not.  nb_voxels is [32,32,32]
+        # so the cat succeeds and nothing raises.  Both sites (training
+        # _compute_occ and inference _compute_occ_sample) are consistently wrong,
+        # so training and inference currently AGREE and the defect is only
+        # correctable by moving both together plus a retrain.
+        #
+        # Hence a gate rather than an unconditional fix: every existing checkpoint
+        # -- released InfBaGel, HSIPrior B/C, HOIPrior P15 -- was trained with the
+        # defect present, so evaluating any of them with it repaired creates a
+        # train/inference mismatch that did not previously exist.  False (the
+        # default) reproduces the released arithmetic bit for bit.  Set True only
+        # for a model trained with it True.
+        self.occ_list_layout_repaired = bool(
+            kwargs.get('occ_list_layout_repaired', False)
+        )
         # Two independent dose knobs on the same diffusion-path increment, both off by
         # default.  The 2026-08-23 norm-cap smoke showed the per-step MAGNITUDE is not
         # the defect -- B's increments are smaller than C's at every percentile to p99 --
@@ -86,7 +104,11 @@ class Sampler:
         self.pen_sdf_cache = kwargs.get('pen_sdf_cache', None) or None
         self.pen_sdf_dtype = resolve_sdf_dtype(kwargs.get('pen_sdf_dtype', torch.float16))
         self.pen_sdf_bank = None
-        
+
+    def _occ_list_entry0(self, occ):
+        """occ_list entry 0, in the layout this sampler is configured for."""
+        return occ.permute(0, 2, 1, 3) if self.occ_list_layout_repaired else occ
+
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
         if dataset.load_scene:
@@ -310,7 +332,7 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            occ_list = torch.cat([occ_list, self._occ_list_entry0(occ)], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 object_points_temp = object_points.clone()
@@ -678,7 +700,7 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
                 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            occ_list = torch.cat([occ_list, self._occ_list_entry0(occ)], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 if self.dataset.vis:

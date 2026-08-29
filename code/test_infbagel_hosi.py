@@ -1,5 +1,6 @@
 import os
 import time
+import hashlib
 import pickle as pkl
 import numpy as np
 import torch
@@ -216,6 +217,17 @@ def get_guidance_from_json(cfg, test_item, max_episode=10):
 
 
 
+def _subsample_seed(seed, scene_name, test_idx):
+    """A per-episode seed for the object-vertex subsample, independent of run order.
+
+    Keyed on the episode's own identity (scene name and index within the scene) rather
+    than on a counter, so an episode draws the same subsample whether it is evaluated
+    alone, in a shard, or in the full 469-episode sweep.
+    """
+    digest = hashlib.sha256(f'{seed}|{scene_name}|{test_idx}'.encode('utf-8')).digest()
+    return int.from_bytes(digest[:8], 'big', signed=False) & ((1 << 63) - 1)
+
+
 def load_scene_sdf_data(scene_sdf_root):
     """Load SDF data and meta info for all scenes"""
     scene_sdf = {}
@@ -296,8 +308,14 @@ def compute_scene_sdf_penetration(human_verts, scene_name, scene_sdf, scene_sdf_
 
 def compute_metrics_for_sample(points_all, obj_trans, obj_rot, test_item,
                               obj_rest_verts, obj_sdf, obj_sdf_json, synhsi_dataset,
-                              verts, joints, transformed_obj_verts, obj_name, scene_sdf, scene_sdf_json, human_faces):
-    """Compute evaluation metrics for a single sample"""
+                              verts, joints, transformed_obj_verts, obj_name, scene_sdf, scene_sdf_json, human_faces,
+                              subsample_seed=0):
+    """Compute evaluation metrics for a single sample
+
+    ``subsample_seed`` seeds the object-vertex subsample below from a dedicated
+    generator so this function draws nothing from the global RNG.  See the comment
+    at the subsample for the measurement that motivates it.
+    """
     metrics = {}
 
     # Hand vertex index cache: read from disk only on first call, reused afterward
@@ -376,10 +394,26 @@ def compute_metrics_for_sample(points_all, obj_trans, obj_rot, test_item,
     metrics['scene_human_penetration_s_max'] = penetration_s_max
     metrics['scene_human_penetration_frame_ratio'] = penetration_frame_ratio
 
-    # Downsample object vertices to 10475 points (same sampling across all time frames)
+    # Downsample object vertices to 10475 points (same sampling across all time frames).
+    #
+    # 2026-08-29: drawn from a DEDICATED generator, not the global RNG.  Every one of
+    # the 13 objects exceeds 10475 vertices (min clothesstand 17996, max suitcase
+    # 38353), so this branch fires on all 469 episodes, and the evaluator interleaves
+    # sample_step (which draws the diffusion noise) with this call.  Drawing here from
+    # the global RNG therefore shifted the noise stream of every LATER episode:
+    # measured, episode 0 is unchanged and episodes 1..3 differ from the no-draw run by
+    # max abs 5.71 / 6.17 / 5.92.  That made a single episode unreproducible in
+    # isolation and a sharded run unequal to a serial one.  Seeding per episode from
+    # (seed, scene_name, test_idx) also makes the subsample identical across episodes
+    # of the same object instead of a fresh Monte-Carlo draw each time -- two
+    # consecutive global draws shared only 6076/10475 indices.
     T, Nv = transformed_obj_verts.shape[:2]
     if Nv > 10475:
-        indices = torch.randperm(Nv, device=transformed_obj_verts.device)[:10475]
+        subsample_generator = torch.Generator(device='cpu')
+        subsample_generator.manual_seed(subsample_seed)
+        indices = torch.randperm(Nv, generator=subsample_generator).to(
+            transformed_obj_verts.device
+        )[:10475]
         transformed_obj_verts_sampled = transformed_obj_verts[:, indices, :]
     else:
         transformed_obj_verts_sampled = transformed_obj_verts
@@ -583,7 +617,22 @@ def main(cfg: DictConfig) -> None:
                     pred_seq_com_pos_seg = object_trans_orig[:, 0, :].reshape(-1, 3)
                     obj_rest_verts_seg = load_object_geometry_w_rest_geo(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name])
                     obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, -1, 3)
-                    indices = torch.randperm(obj_rest_verts_seg.shape[1])[:1024]
+                    # 2026-08-29: dedicated generator, seeded per (episode, window).
+                    # These 1024 points are the object's footprint in the scene
+                    # occupancy grid (get_occ_for_points), i.e. MODEL CONDITIONING and
+                    # not a metric, and the draw is repeated at every window.  Taking
+                    # them from the global RNG made the conditioning depend on run
+                    # order, so the same episode conditioned differently when
+                    # evaluated alone, in a shard, or in the full sweep.  The
+                    # distribution is unchanged -- still a fresh uniform 1024-subset
+                    # per window -- only its dependence on call order is removed.
+                    object_points_generator = torch.Generator(device='cpu')
+                    object_points_generator.manual_seed(
+                        _subsample_seed(int(cfg.seed), f'{scene_name}|objpts', test_idx * 10000 + step)
+                    )
+                    indices = torch.randperm(
+                        obj_rest_verts_seg.shape[1], generator=object_points_generator
+                    ).to(obj_rest_verts_seg.device)[:1024]
                     object_points = obj_rest_verts_seg[:, indices, :].reshape(1, 1024, 3)
 
                     mat = get_mat(cfg, points_orig, 0)
@@ -626,7 +675,14 @@ def main(cfg: DictConfig) -> None:
                     pred_seq_com_pos_seg = obj_trans[:, -cfg.auto_regre_num, :].reshape(-1, 3)
                     obj_rest_verts_seg = load_object_geometry_w_rest_geo(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name])
                     obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, -1, 3)
-                    indices = torch.randperm(obj_rest_verts_seg.shape[1])[:1024]
+                    # Same as the step==0 branch above, same seed scheme, same reason.
+                    object_points_generator = torch.Generator(device='cpu')
+                    object_points_generator.manual_seed(
+                        _subsample_seed(int(cfg.seed), f'{scene_name}|objpts', test_idx * 10000 + step)
+                    )
+                    indices = torch.randperm(
+                        obj_rest_verts_seg.shape[1], generator=object_points_generator
+                    ).to(obj_rest_verts_seg.device)[:1024]
                     object_points = obj_rest_verts_seg[:, indices, :].reshape(1, 1024, 3)
 
                     mat = get_mat(cfg, points, -cfg.auto_regre_num)
@@ -765,7 +821,8 @@ def main(cfg: DictConfig) -> None:
                 points_all, obj_trans, obj_rot_mat,
                 test_item, obj_rest_verts, obj_sdf, obj_sdf_json, synhsi_dataset,
                 human_verts, joints, transformed_obj_verts, obj_name,
-                scene_sdf, scene_sdf_json, human_faces
+                scene_sdf, scene_sdf_json, human_faces,
+                subsample_seed=_subsample_seed(int(cfg.seed), scene_name, test_idx),
             )
 
             completed = (metrics['xy_points_err'] < 10.0 and metrics['end_obj_trans_err'] < 10.0)
@@ -795,6 +852,24 @@ def main(cfg: DictConfig) -> None:
 
         if scene_metrics:
             all_scenes_metrics.extend(scene_metrics)
+        else:
+            skipped_scenes += 1
+
+    # 2026-08-29: expected-episode guard, matching hoi_expected_sequences on the HOI
+    # path.  Without it a partial sweep emitted a complete-looking aggregate over
+    # however many episodes finished -- and `skipped_scenes` was initialized and
+    # printed but never incremented, so it reported 0 whatever happened.  The
+    # benchmark is 67 scenes x 7 objects = 469 episodes; set
+    # hosi_expected_episodes: null to evaluate a deliberate subset.
+    expected_episodes = cfg.get('hosi_expected_episodes', 469)
+    if expected_episodes is not None and len(all_scenes_metrics) != int(expected_episodes):
+        raise ValueError(
+            f"HOSI evaluation produced {len(all_scenes_metrics)} episodes, expected "
+            f"{int(expected_episodes)} ({len(scene_files)} scene files, "
+            f"{skipped_scenes} scenes contributed nothing). Refusing to report an "
+            f"aggregate over an incomplete sweep; set hosi_expected_episodes=null to "
+            f"evaluate a subset deliberately."
+        )
 
     if all_scenes_metrics:
         print(f"\n=== Overall Evaluation Results ===")

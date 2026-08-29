@@ -7,3 +7,11 @@ pen_delta: 0.03
 pen_floor_height: 0.02
 pen_sdf_cache: ${oc.env:ROOT_DIR}/.cache/hsi_sdf
 pen_sdf_dtype: float16
+# P17-OC was launched on phase/01c-hsi at 589ac7f, which applies the occ_list[0]
+# X/Y permute UNCONDITIONALLY -- it is one of that commit's three changes.  On
+# this branch the permute is gated and defaults to the released layout, so this
+# config must ask for it explicitly or a resume/relaunch from here would train a
+# different model than the one 01c is training.  It is the first checkpoint in
+# the project trained under the repaired layout, so its evaluation config must
+# set occ_list_layout_repaired: true as well.
+occ_list_layout_repaired: true
