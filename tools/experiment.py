@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import itertools
 import json
 import os
 import platform
@@ -461,20 +462,63 @@ def validate_split(path: Path) -> None:
         if not hashes or any(not re.fullmatch(r"[0-9a-f]{64}", value) for value in hashes.values()):
             raise ManifestError(f"invalid HOI split source hashes: {path}")
         return
-    if algorithm != "scene-family-disjoint-v1":
+    if algorithm not in ("scene-family-disjoint-v1", "scene-family-disjoint-v2", "scene-family-disjoint-v3"):
         raise ManifestError(f"unexpected split algorithm: {path}")
-    if split.get("seed") != 42 or split.get("validation_ratio") != 0.2:
-        raise ManifestError(f"LINGO split must use seed 42 and ratio 0.2: {path}")
-    train = split.get("train", {})
-    validation = split.get("validation", {})
-    if set(train.get("scene_families", [])) & set(validation.get("scene_families", [])):
-        raise ManifestError(f"scene-family leakage: {path}")
-    if set(train.get("scenes", [])) & set(validation.get("scenes", [])):
-        raise ManifestError(f"scene leakage: {path}")
+    expected_validation_ratio = 0.1 if algorithm == "scene-family-disjoint-v3" else 0.2
+    if split.get("seed") != 42 or split.get("validation_ratio") != expected_validation_ratio:
+        raise ManifestError(
+            f"LINGO split must use seed 42 and ratio {expected_validation_ratio}: {path}"
+        )
+    # v1 partitions the whole dataset into train/validation.  v2 additionally carves
+    # out a `test` side and drops the mirrored twins of every held-out family, so the
+    # invariants are checked over whichever partitions the manifest declares.
+    partitions = ("train", "validation", "test") if algorithm in ("scene-family-disjoint-v2", "scene-family-disjoint-v3") else ("train", "validation")
+    sides = {name: split.get(name, {}) for name in partitions}
+    for name, side in sides.items():
+        if not side.get("scene_families"):
+            raise ManifestError(f"LINGO split partition {name} has no scene families: {path}")
+    for first, second in itertools.combinations(partitions, 2):
+        if set(sides[first].get("scene_families", [])) & set(sides[second].get("scene_families", [])):
+            raise ManifestError(f"scene-family leakage between {first} and {second}: {path}")
+        if set(sides[first].get("scenes", [])) & set(sides[second].get("scenes", [])):
+            raise ManifestError(f"scene leakage between {first} and {second}: {path}")
     mapped_families = set(split.get("scene_to_family", {}).values())
-    partitioned = set(train.get("scene_families", [])) | set(validation.get("scene_families", []))
+    partitioned = set().union(*(set(side.get("scene_families", [])) for side in sides.values()))
     if mapped_families != partitioned:
         raise ManifestError(f"not every scene family is assigned exactly once: {path}")
+    if algorithm == "scene-family-disjoint-v1":
+        return
+    if algorithm == "scene-family-disjoint-v3":
+        verification = split.get("mirror_verification", {})
+        if verification.get("pairs_sampled") is not False:
+            raise ManifestError(f"v3 split must verify every mirror pair, not a sample: {path}")
+        return
+    # The defect v2 exists to repair: every mirrored sequence shipped labelled
+    # 005_mirror, so a label-disjoint split was content-duplicated across the
+    # boundary.  Assert the repair actually ran and that the held-out sides are
+    # free of mirrored content, rather than trusting the generator.
+    verification = split.get("mirror_verification", {})
+    if verification.get("pairs_sampled") is not False:
+        raise ManifestError(f"v2 split must verify every mirror pair, not a sample: {path}")
+    if not verification.get("pairs_checked"):
+        raise ManifestError(f"v2 split records no mirror-pair verification: {path}")
+    for failure in ("length_equal_failures", "x_exactly_negated_failures", "yz_exactly_equal_failures"):
+        if verification.get(failure) != 0:
+            raise ManifestError(f"v2 split has mirror-structure failures in {failure}: {path}")
+    relabel = split.get("mirror_relabel", {})
+    if relabel.get("source_labels_ending_in_mirror") != 0:
+        raise ManifestError(f"v2 relabel is ambiguous: a source label already ends in _mirror: {path}")
+    if not relabel.get("relabelled_sequences"):
+        raise ManifestError(f"v2 split records no mirror relabelling: {path}")
+    baseline_scenes = set(split.get("baseline_reference", {}).get("selected_scenes", []))
+    if not baseline_scenes:
+        raise ManifestError(f"v2 split must record the baseline's LINGO scene exposure: {path}")
+    # Only `test` carries the zero-shot-for-both-models property.  `validation` is
+    # deliberately drawn from the baseline-touched families: it selects HSIPrior's
+    # own configuration on internal rollout and the baseline is never scored on it.
+    if baseline_scenes & set(sides["test"].get("scenes", [])):
+        raise ManifestError(f"test scene was seen by the baseline: {path}")
+
 
 
 def validate_evaluator_config(path: Path) -> None:

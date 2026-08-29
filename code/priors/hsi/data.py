@@ -27,7 +27,8 @@ from pytorch3d import transforms
 from scipy.spatial.transform import Rotation
 from torch.utils.data import Dataset
 
-from datasets.utils import get_smpl_parents, zup_to_yup
+from datasets.utils import (get_smpl_parents, zup_to_yup, resolve_asset_world_up,
+                            rest_offsets_to_yup, world_up_correction)
 from ..core.representation import REPRESENTATION
 from ..core.window_codec import WindowStateCodec
 
@@ -54,19 +55,39 @@ def partition_for_scenes(split: Dict[str, object], scenes: np.ndarray) -> np.nda
     return values
 
 
-def _global_rotations(root_orient: np.ndarray, pose: np.ndarray, parents: np.ndarray) -> torch.Tensor:
-    root = zup_to_yup(root_orient.copy()).reshape(-1, 1, 3)
-    body = zup_to_yup(pose.copy().reshape(-1, 3)).reshape(-1, 21, 3)
-    local = transforms.axis_angle_to_matrix(torch.from_numpy(np.concatenate((root, body), axis=1)).float())
+def _global_rotations(root_orient: np.ndarray, pose: np.ndarray, parents: np.ndarray,
+                     world_correction: Optional[np.ndarray] = None) -> torch.Tensor:
+    """Compose global rotations in the y-up world.
+
+    ``world_correction`` is a change of world frame, so it left-multiplies the
+    root only: ``human_pose`` holds parent-relative rotations of the SMPL
+    template and carries no world frame at all.  The released code conjugated
+    both with ``zup_to_yup`` instead; that also rotates the template, so it
+    cancels against OMOMO's conjugated ``rest_human_offsets_aligned.npy`` and
+    does not cancel against LINGO's already-y-up ``human_orient.npy``.  See
+    datasets/utils.py, "Asset world frame".
+    """
+    # Composed in float64 and cast once at the end.  datasets/infbagel.py builds
+    # the same chain from the same float64 arrays and casts at the same point, so
+    # the two paths differ only by float32 rounding of one identical float64
+    # value -- which is what gate E in tests/hsi/test_representation_frame.py
+    # measures.
+    root = np.ascontiguousarray(root_orient, dtype=np.float64).reshape(-1, 1, 3)
+    body = np.ascontiguousarray(pose, dtype=np.float64).reshape(-1, 21, 3)
+    local = transforms.axis_angle_to_matrix(torch.from_numpy(np.concatenate((root, body), axis=1)))
+    if world_correction is not None:
+        correction = torch.as_tensor(np.asarray(world_correction), dtype=local.dtype)
+        local[:, 0] = correction @ local[:, 0]
     global_rotation = local.clone()
     for joint, parent in enumerate(parents):
         if parent >= 0:
             global_rotation[:, joint] = global_rotation[:, parent] @ global_rotation[:, joint]
-    return global_rotation
+    return global_rotation.float()
 
 
-def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, parents: np.ndarray) -> torch.Tensor:
-    global_rotation = _global_rotations(root_orient, pose, parents)
+def _rotation_6d(root_orient: np.ndarray, pose: np.ndarray, shift: np.ndarray, parents: np.ndarray,
+                 world_correction: Optional[np.ndarray] = None) -> torch.Tensor:
+    global_rotation = _global_rotations(root_orient, pose, parents, world_correction)
     shifted = torch.from_numpy(shift).float()[None, None] @ global_rotation
     return transforms.matrix_to_rotation_6d(shifted)
 
@@ -132,11 +153,20 @@ class PriorWindowDataset(Dataset):
         self.text_features = np.load(self.root / "clip_features.npy", mmap_mode="r")
         self.text_to_feature = self._load_pickle("text2features_idx.pkl")
         self.parents = get_smpl_parents(use_joints24=False).copy()
+        # One y-up world for both corpora.  human_orient.npy is y-up in LINGO and
+        # z-up in OMOMO; the probe decides functionally (FK must reproduce
+        # human_joints_aligned.npy) and raises rather than guessing.
+        rest_offsets = np.load(self.root / "rest_human_offsets_aligned.npy", mmap_mode="r")
+        self.asset_world_up, self.asset_frame_probe_errors = resolve_asset_world_up(
+            self.orient, self.pose, self.joints, rest_offsets, self.seq_starts, self.parents,
+        )
+        self.world_correction = world_up_correction(self.asset_world_up)
         if expert == "hoi":
             self.object_trans = np.load(self.root / "object_trans.npy", mmap_mode="r")
             self.object_rot = np.load(self.root / "object_rot_mat.npy", mmap_mode="r")
             self.object_minimum, self.object_maximum = self.norm[2].astype(np.float32), self.norm[3].astype(np.float32)
-            self.rest_human_offsets = np.load(self.root / "rest_human_offsets_aligned.npy", mmap_mode="r")
+            # y-up SMPL template: the stored array has zup_to_yup baked into it.
+            self.rest_human_offsets = rest_offsets_to_yup(rest_offsets)
             self.codec = WindowStateCodec(
                 torch.from_numpy(self.minimum), torch.from_numpy(self.maximum),
                 torch.from_numpy(self.object_minimum), torch.from_numpy(self.object_maximum),
@@ -185,6 +215,7 @@ class PriorWindowDataset(Dataset):
         joints = np.asarray(self.joints[frames], dtype=np.float32)
         global_rotations = _global_rotations(
             np.asarray(self.orient[start:end]), np.asarray(self.pose[start:end]), self.parents,
+            self.world_correction,
         )[::3]
         sequence = int(self.sequence_ids[index])
         sequence_name = str(self.scene_names[sequence] if self.expert == "hoi" else self.scene_names[start])

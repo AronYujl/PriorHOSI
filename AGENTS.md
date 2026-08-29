@@ -93,9 +93,10 @@ was violated somewhere and that must be resolved before composition.
 
 ### Lean HOIPrior iteration profile
 
-For Phase 1B HOIPrior work after 2026-07-30, follow
-`docs/HOIPRIOR_ITERATION_WORKFLOW.md`. Its purpose is to reduce orchestration and
-context overhead without changing model training or scientific evaluation.
+This profile is defined by `docs/HOIPRIOR_ITERATION_WORKFLOW.md`, which the graft
+carried onto this branch from `phase/01b-hoi`. Its bullets below are lifecycle
+rules rather than HOI-specific ones, so on this branch read them as the lean
+profile for either expert and for the mixer.
 
 - A proposal/review turn is read-only. Do not edit source, allocate a run id, or
   start a GPU workload until the user explicitly approves one concrete experiment.

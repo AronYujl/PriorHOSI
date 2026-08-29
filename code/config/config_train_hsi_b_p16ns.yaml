@@ -1,0 +1,70 @@
+# P16-NS -- model B retrained from scratch with the training-time need_scene gate
+# forced ON.  ONE manipulated variable against config_train_hsi_b_lingo_full.
+#
+# THE VARIABLE.  The released LINGO pickle
+# data/dataset/language_motion_dict/language_motion_dict__inter_and_loco__16.pkl
+# carries a precomputed per-window `need_scene` boolean.  On the 1,343,667 v3
+# training windows it is False on 522,818 of them (38.9098%), and
+# models/infbagel.py:1433-1438 zeroes all five scene tokens -- scene_emb, the
+# goal-centred crop, and scene_emb_0..3 -- for exactly those rows.  Zeroing an
+# activation zeroes its gradient, so under B-v2 the scene encoder was trained on
+# 61.09% of rows.  Inference never reads the flag:
+# test_infbagel_lingo_hsi.py:1362 pins it True for all 375 sealed episodes.  So
+# 88 of the 375 gate episodes are sampled with five live scene tokens under a
+# caption whose whole training history was scene-blind.  This arm removes that
+# train/test conditioning mismatch and nothing else.
+#
+# WHAT THE FLAG DOES NOT TOUCH.  The 10% per-sample temporal-voxel dropout
+# (models/infbagel.py:1401-1403) and the cfg_scale == -1 uncond mask (:1394-1399)
+# both survive unchanged; they only reach scene_emb_1..3.  need_scene=False is
+# the only mechanism in the codebase that also zeroes scene_emb and scene_emb_0,
+# so disabling it does not leave the model without scene regularization.  The
+# inference-side RDS null-scene pass is also implemented as need_scene=False
+# (test_infbagel_lingo_hsi.py:1848) and is a runtime argument, not this flag.
+#
+# FROM SCRATCH, NOT A FINE-TUNE.  Inherited unchanged: load_state_dict false,
+# ckpt_path "", resume_from "", start_epoch 0.  The baseline B-v2 is itself a
+# cold start, so a warm-started arm would differ from its own baseline in total
+# updates seen, in optimizer state at t=0 and in learning-rate schedule position
+# -- three variables, not one.  A continuation would also have to either replay
+# the 2000-update warmup into a converged model or skip it; there is no null
+# choice.  And hsi_b_lingo_full_v2_resume.pth carries Adam moments fitted to the
+# scene-blind regime, which is the exact state this arm exists to unlearn.
+#
+# EVERYTHING SCIENTIFIC IS INHERITED, deliberately not restated: seed 42,
+# 4 GPUs x micro-batch 512 x accum 1 (effective 2048), bf16_tf32, lr 2e-4,
+# warmup 2000, loss_w_fk 3, loss_w_obj_pts 50 (inert under lingo_only),
+# auto_regre_num 2, no gradient clipping, epochs 223 / max_optimizer_updates
+# 146255, ckpt_interval 20, temp_voxel_num 3, human_only_ratio 0.4, and the
+# lingo_v3_train dataset group with its ego-crop mesh_grid and nb_voxels.
+# Restating any of them here is how two arms drift apart silently.
+#
+# LAYOUT IS PART OF THE CONTRACT, not a resource choice.  4 x 512 is required,
+# and 8 x 256 at the same effective batch is NOT a substitute even though it is
+# faster: models/infbagel.py:1331-1333 overwrites cfg_scale for the whole
+# rank-local batch from sample 0's timestep, so rank count changes what is
+# computed, not merely how it is summed (measured: 4.60% apart in global
+# gradient norm at update 1, while the trainer is bitwise deterministic within a
+# layout).  See the layout comment in config_train_hsi_b_lingo_full and registry
+# amendment p1-hsi-b-layout-4x512-s42-20260814.  LAUNCH MUST SET
+# OMP_NUM_THREADS=4 and CUDA_VISIBLE_DEVICES=0,1,2,3.
+#
+# Frozen spec: .claude/scratch/p16-ns-spec/SPEC.md
+defaults:
+  - config_train_hsi_b_lingo_full
+  - _self_
+
+# Not hsi_b_lingo_full_v2: that directory's 13 epoch checkpoints and metrics.json
+# back registry row p1-hsi-b-lingo-full-v2-s42-20260819 by path and sha256, and
+# AGENTS.md forbids overwriting an existing result.
+exp_name: hsi_b_p16ns
+
+# The single manipulated variable.  Forwarded through
+# InfBaGelMixDataset(**kwargs) (datasets/infbagel_mix.py:28) to BOTH inner
+# InfBaGelDataset instances (:31-80) and read at datasets/infbagel.py:466.
+# `dataset` is a defaults-list group, so this is a merge into lingo_v3_train, not
+# a replacement -- the resolved job config must still show all of its keys plus
+# this one.  Default is False everywhere else, so no sealed config, including
+# every evaluation config, changes meaning.
+dataset:
+  force_need_scene: true

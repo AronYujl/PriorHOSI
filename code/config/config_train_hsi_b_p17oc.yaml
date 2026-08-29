@@ -1,0 +1,9 @@
+# P17-OC -- single-sided negative-SDF penetration loss on B-v2.
+defaults: [config_train_hsi_b_lingo_full, _self_]
+
+exp_name: hsi_b_p17oc
+pen_loss_weight: 8.36
+pen_delta: 0.03
+pen_floor_height: 0.02
+pen_sdf_cache: ${oc.env:ROOT_DIR}/.cache/hsi_sdf
+pen_sdf_dtype: float16

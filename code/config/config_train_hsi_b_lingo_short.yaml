@@ -1,0 +1,108 @@
+# Model B short-budget LINGO-only diffusion training config
+#
+# is_mix must be false on BOTH the model and the sampler, matching the
+# preregistration and matching A's routing.  The two flags do different things:
+#   Sampler.is_mix  (sampler/pelvis*.yaml)  gates infbagel.py:793-794, which
+#     overwrites the *input* object channels with the *target* for scene-only
+#     samples.  Under lingo_only that is every sample, so the model would
+#     satisfy loss_otrans/orot/contact by copying its input and never learn to
+#     denoise 216:232 -- while both sample loops start from randn over all 232
+#     dims with no such substitution.  That mismatch defeats the zero-target
+#     guarantee the mixer depends on.
+#   Unet.is_mix     (model/infbagel*.yaml)   gates pelvis-goal vs scene-goal
+#     routing at infbagel.py:1377,1391.  Keeping it false matches A, so A vs B
+#     is not confounded by a routing difference on top of corpus and model class.
+defaults:
+  - dataset: lingo_v3_train
+  - guidance:
+      - pelvis
+  - model:
+      - infbagel
+  - sampler:
+      - pelvis
+  - _self_
+
+exp_name: hsi_b_lingo_short
+seed: 42
+random_seed: 42
+sample_type: diffusion
+lingo_scene_num: 45
+lingo_data_ratio: 0.5
+empty_omomo_scene: false
+epochs: 1
+ckpt_interval: 1
+lingo_only: true
+
+train: true
+load_state_dict: false
+batch_size: 256
+effective_batch_size: 2048
+gradient_accumulation_steps: 1
+precision: bf16_tf32
+# 256 x 8 GPUs x accum 1 = effective 2048, the preregistered layout, restored.
+# The warmup advances per optimizer update, so the schedule is unchanged
+# (verified: accumulation 1 and 2 give identical per-update lr sequences).
+#
+# The earlier retreat to 4 GPUs blamed "transient CPU-side staging of the
+# 254-scene occupancy grid".  That diagnosis was wrong on both counts and has
+# been replaced by measurement.  The 30.25 GiB per-rank peak was RETAINED, not
+# transient (VmHWM == post-construction RSS; gc.collect() freed nothing), and
+# the LINGO sub-dataset that owns all 254 scenes contributed ~0 GiB of it --
+# its scenes go straight to the GPU one at a time.  The whole cost was the
+# OMOMO sub-dataset's per-sample object payload: object_points (9.21 GiB,
+# infbagel.py:118-119) and the 4379-file BPS list-then-cat (18.8 GiB peak,
+# infbagel.py:261-274).  Under lingo_only no mixed index maps to that dataset,
+# so its __getitem__ never runs and none of it is ever read.
+#
+# Skipping it (load_object_payload=False, threaded from infbagel_mix.py:31)
+# takes a rank from 30.25 -> 5.82 GiB, proven value-identical.  Each DataLoader
+# worker costs roughly a full copy of its parent, which is what actually
+# exhausted the 503 GiB host: pre-fix ~90 GiB per rank+workers, ~720 GiB total.
+# Post-fix the 8-rank run peaks at 150 GiB with 353 GiB free.
+lr: 0.0002
+warmup_updates: 2000
+device: cuda:0
+use_tensorboard: true
+save_checkpoints: true
+max_optimizer_updates: 300
+benchmark_metrics_path: null
+exp_dir: ${oc.env:ROOT_DIR}/results/${exp_name}
+
+w: 0
+
+num_gpus: 8
+num_workers: 2
+scene_type: occ_temp
+max_window_size: 16
+vis: false
+start_type: stand
+
+load_language: true
+load_scene: true
+use_pi: true
+load_scene_goal: true
+load_pelvis_goal: true
+load_object_goal: true
+
+human_only_ratio: 0.4
+
+temp_voxel_num: 3
+
+use_random_frame_bps: true
+use_object_keypoints: true
+add_object_voxel: true
+
+loss_w_obj_pts: 50
+loss_w_fk: 50
+auto_regre_num: 2
+
+start_epoch: 0
+ckpt_path: ""
+# "" starts fresh; "auto" continues {exp_dir}/checkpoints/{exp_name}_resume.pth
+# when it exists; an explicit path must exist.  Resuming at a world size other
+# than the one that wrote the state is rejected, not adapted.
+resume_from: ""
+
+hydra:
+  run:
+    dir: ${exp_dir}

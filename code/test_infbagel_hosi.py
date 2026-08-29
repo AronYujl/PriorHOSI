@@ -98,7 +98,7 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
     speed_new = None
     if is_loco:
-        if not is_object:
+        if not is_object and not bool(cfg.get('hsi_progress_fix', False)):
             pi = torch.zeros((cfg.batch_size, ), dtype=torch.long).to(cfg.device)
 
         curr_loc = mat[0, :3, 3].cpu().numpy()
@@ -106,7 +106,11 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
         dist = np.linalg.norm(curr_loc - trajectory, axis=1)
         min_idx = np.argmin(dist)
-        base_step = math.ceil(trajectory.shape[0] / np.sum(np.linalg.norm(trajectory[1:] - trajectory[:-1], axis=1)) * 0.8)
+        # 2026-08-20: the 0.8 m lookahead is an ARC LENGTH, and was never exercised
+        # before episode set v2 (v1 clamped on 0/2271 windows).  Config-gated so the
+        # released value stays the default; see config_sample_infbagel_lingo_hsi.yaml.
+        lookahead_m = float(cfg.get('hsi_lookahead_m', 0.8))
+        base_step = math.ceil(trajectory.shape[0] / np.sum(np.linalg.norm(trajectory[1:] - trajectory[:-1], axis=1)) * lookahead_m)
         pelvis_goal = torch.tensor([trajectory[min(min_idx+base_step, len(trajectory)-1)][0], 0,
                                     trajectory[min(min_idx+base_step, len(trajectory)-1)][1]]).reshape(1, 1, 3).to(cfg.device).float()
 
@@ -130,10 +134,14 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
 
     human_dict['rest_human_offsets'] = human_dict['rest_human_offsets'][None, None, :].repeat(1, cfg.max_window_size, 1, 1)
 
-    guidance_fn = apply_hosi_guidance_loss
+    guidance_fn = select_guidance_fn(cfg.use_guidance, is_object)
 
-    samples, occs = sampler.cm_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
-                                        object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, w=cfg.w, obj_rot_mat_prefix=obj_rot_mat_prefix)
+    if cfg.sample_type == 'consistency':
+        samples, occs = sampler.cm_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
+                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, w=cfg.w, obj_rot_mat_prefix=obj_rot_mat_prefix)
+    elif cfg.sample_type == 'diffusion':
+        samples, occs = sampler.p_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
+                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, obj_rot_mat_prefix=obj_rot_mat_prefix)
 
     points_gene = samples[-1]
 

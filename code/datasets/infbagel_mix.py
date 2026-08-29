@@ -1,8 +1,10 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from datasets.infbagel import InfBaGelDataset
+from datasets.infbagel import InfBaGelDataset, LazyOccRef
 import os
+import json
+import pickle
 
 class InfBaGelMixDataset(Dataset):
     """Mixed dataset class, supports joint training of OMOMO and LINGO datasets"""
@@ -21,6 +23,8 @@ class InfBaGelMixDataset(Dataset):
                  empty_omomo_scene=False,
                  lingo_only=False,
                  random_seed=42,
+                 split_manifest=None,
+                 split_partition=None,
                  **kwargs):
         
         # Initialize the two datasets
@@ -37,6 +41,12 @@ class InfBaGelMixDataset(Dataset):
             load_pelvis_goal=load_pelvis_goal,
             load_scene_goal=load_scene_goal,
             load_object_goal=True,  # OMOMO dataset loads objects
+            # Under lingo_only no mixed index maps to this dataset (see
+            # _create_mixed_indices), so its __getitem__ never runs and the
+            # per-sample object payload is dead weight -- ~19 GB per rank,
+            # which is what kept the 8-GPU layout from fitting in host RAM.
+            # The normalization scalars and the scene table are still loaded.
+            load_object_payload=not lingo_only,
             use_random_frame_bps=use_random_frame_bps,
             use_object_keypoints=use_object_keypoints,
             max_window_size=max_window_size,
@@ -83,6 +93,11 @@ class InfBaGelMixDataset(Dataset):
         self.omomo_size = len(self.omomo_dataset)
         self.lingo_size = len(self.lingo_dataset)
         self.lingo_only = lingo_only
+        self.split_manifest = split_manifest
+        self.split_partition = split_partition
+
+        if self.split_manifest is not None:
+            self.lingo_window_scene_name = self._create_corrected_lingo_scene_labels()
 
         # Save configuration parameters
         self.train = train
@@ -141,17 +156,23 @@ class InfBaGelMixDataset(Dataset):
             self.unified_obj_min_torch = self.omomo_dataset.obj_min_torch
             self.unified_obj_max_torch = self.omomo_dataset.obj_max_torch
         else:
-            # When using only the LINGO dataset
-            # self.unified_min = self.lingo_dataset.min
-            # self.unified_max = self.lingo_dataset.max
-            # self.unified_min_torch = self.lingo_dataset.min_torch
-            # self.unified_max_torch = self.lingo_dataset.max_torch
-            norm = np.load(os.path.join(lingo_folder, 'norm_inter_and_loco__16frames.npy'))
-
-            self.unified_min = norm[0].astype(np.float32)
-            self.unified_max = norm[1].astype(np.float32)
-            self.unified_min_torch = torch.tensor(self.unified_min).to(self.lingo_dataset.device)
-            self.unified_max_torch = torch.tensor(self.unified_max).to(self.lingo_dataset.device)
+            # When using only the LINGO dataset.  InfBaGelDataset.__getitem__ has
+            # already normalized `joints` with <lingo_folder>/norm.npy
+            # (infbagel.py:301-306), so the unified constants must be those same
+            # rows or the mix normalizes and denormalizes in two different boxes.
+            # The released code loaded LINGO's own norm_inter_and_loco__16frames.npy
+            # here -- a (2,3) box whose per-axis range is only
+            # [0.39924, 1.04313, 0.39456] of norm.npy's -- so every
+            # denormalize_torch site disagreed with the data by up to 1.03 m per
+            # joint.  That file is LINGO's genuine and much tighter box; it is
+            # deliberately not used, because the single position box shared with
+            # HOIPrior and the mixer (priors/core/contracts.py:44, which names
+            # norm.npy and forbids recomputing it) outranks the better fit.
+            # Retuning the box is a later design decision, not part of this fix.
+            self.unified_min = self.lingo_dataset.min
+            self.unified_max = self.lingo_dataset.max
+            self.unified_min_torch = self.lingo_dataset.min_torch
+            self.unified_max_torch = self.lingo_dataset.max_torch
 
             # (LINGO dataset has no objects) keep the default values
             self.unified_obj_min = self.lingo_dataset.obj_min
@@ -196,21 +217,29 @@ class InfBaGelMixDataset(Dataset):
         """Merge the scene occupancy data of the two datasets"""
         # Create the merged scene occupancy data list
         self.merged_scene_occ = []
+        self.merged_scene_occ_ref = []
+        lazy_occ_ref = isinstance(self.omomo_dataset.scene_occ_ref, LazyOccRef) or \
+            isinstance(self.lingo_dataset.scene_occ_ref, LazyOccRef)
 
         # Merge scene data in unified-code order
         scene_name_to_data = {}
+        scene_name_to_ref = {}
 
         if not self.lingo_only:
             # Collect scene data from the OMOMO dataset
             for scene_name, original_flag in self.omomo_dataset.scene_dict.items():
                 scene_data = self.omomo_dataset.scene_occ[original_flag]
                 scene_name_to_data[scene_name] = scene_data
+                if not lazy_occ_ref and len(self.omomo_dataset.scene_occ_ref) > 0:
+                    scene_name_to_ref[scene_name] = self.omomo_dataset.scene_occ_ref[original_flag]
 
         # Collect scene data from the LINGO dataset (if not duplicated)
         for scene_name, original_flag in self.lingo_dataset.scene_dict.items():
             if scene_name not in scene_name_to_data:
                 scene_data = self.lingo_dataset.scene_occ[original_flag]
                 scene_name_to_data[scene_name] = scene_data
+                if not lazy_occ_ref and len(self.lingo_dataset.scene_occ_ref) > 0:
+                    scene_name_to_ref[scene_name] = self.lingo_dataset.scene_occ_ref[original_flag]
 
         # Organize data in unified-code order
         for unified_flag in range(len(self.unified_scene_dict)):
@@ -222,20 +251,38 @@ class InfBaGelMixDataset(Dataset):
             
             if scene_name and scene_name in scene_name_to_data:
                 self.merged_scene_occ.append(scene_name_to_data[scene_name])
+                if not lazy_occ_ref and scene_name in scene_name_to_ref:
+                    self.merged_scene_occ_ref.append(scene_name_to_ref[scene_name])
         
         # Convert to torch.stack format
         if self.merged_scene_occ:
             self.merged_scene_occ = torch.stack(self.merged_scene_occ)
+        if not lazy_occ_ref and self.merged_scene_occ_ref:
+            self.merged_scene_occ_ref = torch.stack(self.merged_scene_occ_ref)
 
-        if not self.lingo_only:
-            # Release the original dataset scene data to save GPU memory
-            if hasattr(self.omomo_dataset, 'scene_occ'):
-                del self.omomo_dataset.scene_occ
-                self.omomo_dataset.scene_occ = None  # Ensure it is deleted
+        self.scene_occ = self.merged_scene_occ
+        if lazy_occ_ref:
+            self.scene_occ_ref = LazyOccRef(self.merged_scene_occ)
+        else:
+            self.scene_occ_ref = self.merged_scene_occ_ref
+        self.scene_grid_torch = self.omomo_dataset.scene_grid_torch
+
+        # Release the original dataset scene data to save GPU memory
+        if hasattr(self.omomo_dataset, 'scene_occ'):
+            del self.omomo_dataset.scene_occ
+            self.omomo_dataset.scene_occ = None  # Ensure it is deleted
 
         if hasattr(self.lingo_dataset, 'scene_occ'):
             del self.lingo_dataset.scene_occ
             self.lingo_dataset.scene_occ = None  # Ensure it is deleted
+
+        if hasattr(self.omomo_dataset, 'scene_occ_ref'):
+            del self.omomo_dataset.scene_occ_ref
+            self.omomo_dataset.scene_occ_ref = None
+
+        if hasattr(self.lingo_dataset, 'scene_occ_ref'):
+            del self.lingo_dataset.scene_occ_ref
+            self.lingo_dataset.scene_occ_ref = None
 
         # Force garbage collection to release GPU memory immediately
         import gc
@@ -295,6 +342,23 @@ class InfBaGelMixDataset(Dataset):
 
         return filtered_indices
 
+    def _create_corrected_lingo_scene_labels(self):
+        """Create the corrected LINGO scene label for every language window."""
+        if hasattr(self.lingo_dataset, 'scene_name'):
+            scene_name = self.lingo_dataset.scene_name
+        else:
+            with open(os.path.join(self.lingo_dataset.folder, 'scene_name.pkl'), 'rb') as f:
+                scene_name = pickle.load(f)
+
+        start_idx = self.lingo_dataset.ori_sequence_start_idx
+        half = len(start_idx) // 2
+        source_scene_names = [str(scene_name[int(start_idx[i])]) for i in range(half)]
+        sequence_scene_names = np.asarray(
+            source_scene_names + [f"{name}_mirror" for name in source_scene_names],
+            dtype=object,
+        )
+        return sequence_scene_names[np.asarray(self.lingo_dataset.ori_sequence_idx)]
+
     def _create_mixed_indices(self):
         """Create the index mapping for the mixed dataset, supporting scene and data-ratio filtering"""
         omomo_size = len(self.omomo_dataset)
@@ -302,7 +366,16 @@ class InfBaGelMixDataset(Dataset):
         # 1. Scene filtering (for the LINGO dataset)
         lingo_indices = list(range(len(self.lingo_dataset)))
 
-        if self.lingo_scene_num < 111:
+        if self.split_manifest is not None:
+            with open(self.split_manifest, 'r') as f:
+                split = json.load(f)
+            selected_scenes = set(split[self.split_partition]['scenes'])
+            lingo_indices = [
+                idx for idx, scene_name in enumerate(self.lingo_window_scene_name)
+                if scene_name in selected_scenes
+            ]
+            print(f"LINGO scene selection: Select {len(selected_scenes)} scenes from {self.split_partition} partition")
+        elif self.lingo_scene_num < 111:
             # Get all unique scenes and their corresponding data indices
             scene_to_indices = {}
             for idx in lingo_indices:
@@ -362,7 +435,11 @@ class InfBaGelMixDataset(Dataset):
 
         print(f"Mixed dataset creation completed:")
         print(f"  - OMOMO: {omomo_size} seqs")
-        print(f"  - LINGO: {len(lingo_indices)} seqs (scene: {self.lingo_scene_num}, proportion: {self.lingo_data_ratio})")
+        if self.split_manifest is not None:
+            # lingo_scene_num / lingo_data_ratio are ignored on the split path
+            print(f"  - LINGO: {len(lingo_indices)} seqs (split: {self.split_partition}, scene: {len(set(self.lingo_window_scene_name[lingo_indices]))})")
+        else:
+            print(f"  - LINGO: {len(lingo_indices)} seqs (scene: {self.lingo_scene_num}, proportion: {self.lingo_data_ratio})")
         print(f"  - All: {len(indices)} seqs")
     
     def __getitem__(self, idx):
@@ -377,7 +454,11 @@ class InfBaGelMixDataset(Dataset):
         else:
             # Fetch from the LINGO dataset
             info = self.lingo_dataset[sample_idx]
-            original_scene_flag = info['scene_flag']
+            if self.split_manifest is not None:
+                scene_name = self.lingo_window_scene_name[sample_idx]
+                original_scene_flag = self.lingo_dataset.scene_dict[scene_name]
+            else:
+                original_scene_flag = info['scene_flag']
             # Convert to the unified scene encoding
             info['scene_flag'] = self.scene_flag_mapping[('lingo', original_scene_flag)]
 
@@ -503,6 +584,16 @@ class InfBaGelMixDataset(Dataset):
     def quat_fk_torch(self, lrot_mat, lpos, use_joints24=True):
         """Proxy to the quat_fk_torch method of omomo_dataset"""
         return self.omomo_dataset.quat_fk_torch(lrot_mat, lpos, use_joints24)
+
+    def get_nearest_free_voxel(self, points, scene_flag):
+        # InfBaGelMixDataset subclasses Dataset, not InfBaGelDataset, so it borrows
+        # the implementation unbound.  Target the direct variant explicitly: the
+        # dispatcher InfBaGelDataset.get_nearest_free_voxel resolves
+        # self._get_nearest_free_voxel_direct, which does not exist here.  The
+        # direct body is the compatible one -- it indexes scene_occ_ref per scene
+        # (int key), which this class's LazyOccRef supports, whereas the
+        # materialized body batch-indexes it and would stack one ref per sample.
+        return InfBaGelDataset._get_nearest_free_voxel_direct(self, points, scene_flag)
     
     def add_object_points(self, points, occ):
         points = points.reshape(-1, 3)
@@ -528,7 +619,78 @@ class InfBaGelMixDataset(Dataset):
                 # occ = occ.unsqueeze(0)
                 # occ[0, voxel[:, 0], voxel[:, 1], voxel[:, 2]] = 2
 
-    def get_occ_for_points(self, points, obj_points, scene_flag):
+    def _get_occ_for_points_direct(self, points, obj_points, scene_flag):
+        """Query mixed-scene occupancy without materializing full scene batches."""
+        batch_size = points.shape[0]
+        seq_len = points.shape[1]
+        query_count = points.numel() // (batch_size * 3)
+        points = points.reshape(-1, 3)
+        voxel_size = torch.div(self.omomo_dataset.scene_grid_torch[3: 6] - self.omomo_dataset.scene_grid_torch[:3], self.omomo_dataset.scene_grid_torch[6:])
+        grid_size = self.omomo_dataset.scene_grid_torch[6:].to(dtype=torch.long)
+        voxel = torch.div((points - self.omomo_dataset.scene_grid_torch[:3]), voxel_size)
+        voxel = voxel.to(dtype=torch.long)
+        lb = torch.all(voxel >= 0, dim=-1)
+        ub = torch.all(voxel < self.omomo_dataset.scene_grid_torch[6:] - 0, dim=-1)
+        in_bound = torch.logical_and(lb, ub)
+        voxel[torch.logical_not(in_bound)] = 0
+
+        scene_flag = scene_flag.reshape(-1)
+        batch_id = torch.arange(batch_size, device=points.device, dtype=torch.long) \
+            .view(-1, 1).expand(-1, query_count).reshape(-1)
+        occ_for_points = self.merged_scene_occ[
+            scene_flag[batch_id], voxel[:, 0], voxel[:, 1], voxel[:, 2]
+        ].to(dtype=torch.int8)
+
+        if self.empty_omomo_scene:
+            need_clear = self._omomo_scene_mask[scene_flag]
+            occ_for_points = torch.where(
+                need_clear[batch_id], torch.zeros_like(occ_for_points), occ_for_points
+            )
+
+        if obj_points is not None:
+            object_points = obj_points.reshape(batch_size, -1, 3)
+            object_count = object_points.shape[1]
+            object_voxel = torch.div(
+                object_points.reshape(-1, 3) - self.omomo_dataset.scene_grid_torch[:3],
+                voxel_size,
+            ).to(dtype=torch.long)
+            object_lb = torch.all(object_voxel >= 0, dim=-1)
+            object_ub = torch.all(
+                object_voxel < self.omomo_dataset.scene_grid_torch[6:] - 0,
+                dim=-1,
+            )
+            object_in_bound = torch.logical_and(object_lb, object_ub)
+            object_voxel[torch.logical_not(object_in_bound)] = 0
+
+            def voxel_key(batch, xyz):
+                return (((batch * grid_size[0] + xyz[:, 0]) * grid_size[1] +
+                         xyz[:, 1]) * grid_size[2] + xyz[:, 2])
+
+            object_batch = torch.arange(
+                batch_size, device=points.device, dtype=torch.long
+            ).view(-1, 1).expand(-1, object_count).reshape(-1)
+            object_keys = torch.sort(voxel_key(object_batch, object_voxel)).values
+            query_keys = voxel_key(batch_id, voxel)
+            positions = torch.searchsorted(object_keys, query_keys)
+            in_key_range = positions < object_keys.numel()
+            safe_positions = positions.clamp(max=object_keys.numel() - 1)
+            is_object_voxel = in_key_range & (
+                object_keys[safe_positions] == query_keys
+            )
+            occ_for_points = torch.where(
+                is_object_voxel,
+                torch.full_like(occ_for_points, 2),
+                occ_for_points,
+            )
+
+        occ_for_points = torch.where(
+            in_bound, occ_for_points, torch.ones_like(occ_for_points)
+        )
+        occ_for_points = occ_for_points.reshape(batch_size, seq_len, -1)
+
+        return occ_for_points
+
+    def _get_occ_for_points_materialized(self, points, obj_points, scene_flag):
         batch_size = points.shape[0]
         seq_len = points.shape[1]
         points = points.reshape(-1, 3)
@@ -577,3 +739,8 @@ class InfBaGelMixDataset(Dataset):
         occ_for_points = occ_for_points.reshape(batch_size, seq_len, -1)
         
         return occ_for_points
+
+    def get_occ_for_points(self, points, obj_points, scene_flag):
+        if self.train:
+            return self._get_occ_for_points_direct(points, obj_points, scene_flag)
+        return self._get_occ_for_points_materialized(points, obj_points, scene_flag)

@@ -93,6 +93,15 @@ def apply_hoi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_ro
     loss = loss_hand_object_interaction * 10 + loss_feet_floor_contact * 500
     return loss
 
+def apply_hsi_guidance_loss(human_jnts, scene_flag, get_nearest_free_voxel):
+    is_penetrating, nearest_free_points = get_nearest_free_voxel(human_jnts, scene_flag)
+    loss = F.mse_loss(human_jnts, nearest_free_points) * 20000
+    return loss
+
+def apply_hsi_guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, get_nearest_free_voxel):
+    # Object arguments satisfy the guidance_fn convention and are deliberately unused, as apply_hoi_guidance_loss accepts and ignores scene_flag and get_nearest_free_voxel.
+    return apply_hsi_guidance_loss(human_jnts, scene_flag, get_nearest_free_voxel)
+
 def apply_hosi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, get_nearest_free_voxel):
     bs = human_jnts.shape[0]
 
@@ -105,10 +114,21 @@ def apply_hosi_guidance_loss(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_r
                 torch.zeros_like(obj_verts[:, :, :, -2])).abs().mean()
     loss += bs * loss_floor_object * 100
 
-    is_penetrating, nearest_free_points = get_nearest_free_voxel(human_jnts, scene_flag)
-    loss += F.mse_loss(human_jnts, nearest_free_points) * 20000
+    loss += apply_hsi_guidance_loss(human_jnts, scene_flag, get_nearest_free_voxel)
 
     is_penetrating, nearest_free_points = get_nearest_free_voxel(obj_verts, scene_flag)
     loss += F.mse_loss(obj_verts, nearest_free_points) * 1000
 
     return loss
+
+def select_guidance_fn(use_guidance, is_object):
+    """Select guidance without sending scene-only inputs through object terms.
+    Scene-only LINGO has exactly-zero ``obj_rot_mat_ref``, so the temporal-consistency term in
+    ``apply_hand_object_interaction_guidance_loss`` normalizes palm positions relative to a zero object frame and returns NaN.
+    Its 0.95 gate was crossed by 447 contact-semantic predictions over one real scene-only LINGO episode.
+    """
+    if not use_guidance:
+        return None
+    if not is_object.any():
+        return apply_hsi_guidance_fn
+    return apply_hosi_guidance_loss

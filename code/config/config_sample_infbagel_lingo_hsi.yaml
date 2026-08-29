@@ -1,0 +1,170 @@
+defaults:
+  - _self_
+  - dataset: lingo_v3_test
+  - guidance:
+      - pelvis
+  - model:
+      - infbagel
+  - sampler:
+      - pelvis
+
+exp_name: lingo-hsi-eval
+seed: 42
+train: false
+batch_size: 1
+device: cuda:0
+vis: false
+start_type: stand
+
+max_window_size: 16
+auto_regre_num: 2
+interp_s: 3
+fps: 30.0
+
+load_language: true
+load_scene: true
+load_scene_goal: true
+load_pelvis_goal: true
+load_object_goal: true
+use_pi: true
+use_random_frame_bps: false
+use_object_keypoints: false
+# Keep the sampler's shape-only object tensor alive for its settled occ_temp
+# interface. The scene-only dataset wrapper never writes it into occupancy.
+add_object_voxel: true
+
+human_only_ratio: 0.4
+lingo_scene_num: 111
+lingo_data_ratio: 1.0
+empty_omomo_scene: false
+random_seed: 42
+
+scene_type: occ_temp
+temp_voxel_num: 3
+w: 1
+guidance_weight: 1
+use_guidance: false
+sample_type: consistency
+timing_warmup_sequences: 5
+
+# Opt-in motion export.  When false nothing is written beyond
+# evaluation/per_sequence_metrics.json and that payload carries no
+# motion_export key, so an export-capable build reproduces a pre-export payload
+# byte for byte.  When true, motion/<sequence_id>.npz is written next to it with
+# global_jpos at the rollout rate (fps = fps / interp_s) for the frozen
+# text-motion evaluator, plus the SMPL-X FK inputs so a later metric
+# redefinition is a CPU rebuild instead of another GPU run.
+export_motion: false
+
+lingo_hsi_mode: ground_truth
+lingo_sequence_limit: null
+
+# Episode sharding for the quality pass.  shard_count=1 is the serial protocol
+# and is the default; >1 splits the canonical episode enumeration by greedy
+# longest-first bin packing over per-episode window counts, and invalidates
+# every timing aggregate because the shards contend for the host.
+# 2026-08-20 diagnostic gate, default OFF so the sealed path is bitwise unchanged.
+# test_infbagel_hosi.sample_step zeroes `pi` inside `if is_loco:` but leaves `end_pi`,
+# so the model receives end_pi - pi = 42*step + 48 while training carries
+# min(pi + 16*3, seq_len) i.e. exactly 48 on 517,484 of 529,132 need_pi windows.
+# Only step 0 is training-legal: 375 of 2271 eval windows (16.5%).
+# true = keep the true pi, restoring end_pi - pi == 48 on every window.
+hsi_progress_fix: false
+
+# hsi_guidance_norm_cap: per-step trust region on the guidance increment, applied on
+# the DIFFUSION path only (Sampler.p_sample); the consistency path is untouched.
+# null = off, and the arithmetic emitted is byte-identical to the released path -- no
+# norm is computed and no extra tensor op runs.  A float caps the increment's PER-SAMPLE
+# L2 norm: gradient *= min(1, cap / (||gradient|| + 1e-12)).
+# It exists because the matched 2x2 of 2026-08-23 attributed 100% of the physically
+# impossible root accelerations to guidance -- 132 frames over 5g in B v2 guided and 41
+# in C v2 guided against 0 in both unguided cells -- and 80.2% of the summed effect
+# magnitude on boundary_jerk to guidance-involving terms, with the interaction (64.401)
+# the largest single term.  The released sampler adds the increment unnormalised once
+# per sampler step, 499 times per window against the consistency path's 16.
+# Units are those of the normalised 232-channel x_start, so a threshold is only
+# meaningful relative to a measured increment distribution; see
+# docs/plan/PHASE_1C_HSI.md 2026-08-23 SS-H.
+hsi_guidance_norm_cap: null
+
+# The two DOSE knobs, both off by default and both diffusion-path only.  They exist
+# because the 2026-08-23 norm-cap smoke measured the per-step increment distributions and
+# found the magnitude hypothesis false: B's increments are SMALLER than C's at every
+# percentile up to p99 (p50 0.688x, mean 0.717x), and larger only at the extreme max.
+# What differs is the count -- guidance fires on every step but the last, so 499 times per
+# window on the diffusion path against 15 on the consistency path, giving 23.8x the total
+# per-window displacement (499 x 46.54 = 23,225 against 15 x 64.94 = 974).
+#
+# hsi_guidance_dose_scale: a constant multiplier on the increment.  null = off.  1/23.8 =
+# 0.04202 makes B's per-window total displacement equal C's, measured 975.8 vs C's 974.1.
+#
+# hsi_guidance_alpha_decay: multiply the increment by (1 - alpha_cumprod_t), the factor
+# written and then commented out at the consistency-path guidance site.  alpha_cumprod
+# rises to 1 as t falls to 0, so this SUPPRESSES guidance on the late low-noise refinement
+# steps and keeps it on the early high-noise ones.  It is not equivalent to a constant
+# scale: measured on the frozen worst-20 it takes the per-window total to 0.596x, i.e.
+# 14.21x C rather than 23.84x, so it is a partial dose reduction with a schedule shape.
+hsi_guidance_dose_scale: null
+hsi_guidance_alpha_decay: false
+
+# 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
+# CURRENT behaviour so every sealed cell stays bitwise reproducible.
+#
+# Training (datasets/infbagel.py:468-477) feeds pelvis_goal = joints[w0+45, 0] with
+# y=0 for both the sit/lie and loco branches -- a per-window target.  The driver
+# instead takes a point `hsi_lookahead_m` ahead along _straight_trajectory(), a
+# straight chord from episode start to episode goal.  Measured distance from the
+# driver's choice to training's target, over all 2271 windows:
+#   walk 1099 windows: 1.0180 m mean (straight chord) vs 0.2124 m (GT pelvis path)
+#   sit/lie 609      : 0.2012 m                       vs 0.1643 m
+# and the GT pelvis advances only 0.478 m (walk) / 0.186 m (sit/lie) over those 45
+# raw frames, against a hardcoded 0.8 m.  On a real wiggly path 0.8 m of ARC length
+# nets ~0.48 m of displacement, so the constant is arc-length-calibrated; the chord
+# makes arc length equal displacement, so it overshoots ~1.7x on walk.
+# Evidence: .claude/scratch/isloco_offline_20260820/{goal_source_error.py,controls.py}
+#
+# hsi_gt_trajectory: true = build the lookahead path from the episode's GROUND-TRUTH
+#   pelvis xz path instead of the chord.  Attribution UPPER BOUND only -- it feeds
+#   privileged information a deployment cannot have.  Never use it for a baseline.
+hsi_gt_trajectory: false
+# hsi_lookahead_m: the lookahead arc length in metres.  0.8 is the released value.
+#   0.48 is the deployable variant: one global constant, no privileged information.
+hsi_lookahead_m: 0.8
+
+shard_index: 0
+shard_count: 1
+
+# Serial latency pass.  Selects a deterministic scene-spanning episode subset
+# sized by window budget; requires shard_count=1 so timing stays valid.
+# 70 windows = 19 episodes over 18 of the 26 scenes; after the 5 warmup episodes
+# that leaves 48 timed windows, i.e. ~47 min of measured guided-diffusion
+# sampling at the measured 59.1 s/window (~68 min of total run wall clock).
+latency_subset: false
+latency_target_windows: 70
+
+# lingo_hsi_mode=merge_shards inputs.  merge_shard_dir defaults to the parent
+# directory the sharded runs wrote into; the expected totals are the full
+# protocol and are the external anchor against a silently short merge.
+merge_shard_dir: null
+merge_expected_episodes: 375
+merge_expected_windows: 2271
+# 2026-08-18: default moved from `data/lingo_hsi_test/data` (v1) to v2. In v1
+# `pelvis_goal` was the last frame of the FIRST 16-frame window, held fixed for
+# the whole rollout, so start->goal was <= 0.778 m over all 375 episodes and the
+# 0.8 m lookahead in `sample_step` clamped on every window of every episode
+# (measured 0/2271 unclamped). v2 sets the goal to the rollout terminus; GT then
+# scores `last_dist` == 0. The four sealed model cells and every
+# `results/lingo_hsi/ground_truth*` row except `ground-truth-v2`/`-v3` predate
+# this and were run against v1 -- reproduce those with an explicit
+# `lingo_episode_dir=${oc.env:ROOT_DIR}/data/lingo_hsi_test/data` override.
+lingo_episode_dir: ${oc.env:ROOT_DIR}/data/lingo_hsi_test_v2/data
+lingo_mesh_root: /data/yujinlun/datasets/LINGO/Scene_mesh
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/${lingo_hsi_mode}-${sample_type}-${oc.select:use_guidance,false}
+ckpt_path: ${oc.env:ROOT_DIR}/checkpoint/checkpoint.pth
+# When null, the evaluator uses the checkpoint file stem.
+model_name: null
+smplx_batch_size: 128
+
+hydra:
+  run:
+    dir: ${oc.env:ROOT_DIR}/.claude/scratch/hydra_lingo_hsi
