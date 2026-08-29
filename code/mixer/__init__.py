@@ -7,13 +7,33 @@ single-expert anchor rows and the composed row are produced by one measurement
 protocol.
 """
 
-from .composition import ExpertOutputs, compose_x0, gate_is_identity
+from .composed_sampler import HOSIComposedSampler
+from .composition import (
+    OBJECT_CHANNEL_START,
+    ExpertOutputs,
+    compose_x0,
+    gate_is_identity,
+    human_gate_mask,
+)
+from .gates import (
+    ChannelBlockGate,
+    ConstantGate,
+    ObjectConditionedGate,
+    ScheduleGate,
+)
 from .hoi_adapter import HOIExpertSamplerAdapter, SceneBlindDatasetView
 
 __all__ = [
+    'OBJECT_CHANNEL_START',
+    'ChannelBlockGate',
+    'ConstantGate',
     'ExpertOutputs',
+    'HOIExpertSamplerAdapter',
+    'HOSIComposedSampler',
+    'ObjectConditionedGate',
+    'SceneBlindDatasetView',
+    'ScheduleGate',
     'compose_x0',
     'gate_is_identity',
-    'HOIExpertSamplerAdapter',
-    'SceneBlindDatasetView',
+    'human_gate_mask',
 ]

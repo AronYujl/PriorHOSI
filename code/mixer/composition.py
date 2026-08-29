@@ -19,12 +19,54 @@ There is no HOSI ground truth by design (``docs/plan/OVERVIEW.md``), so nothing
 here is fit against a target; ``G`` is produced by a mixer that reads only the
 expert outputs (MixerMDM's modularity property, 2504.01019), which is what
 keeps the experts swappable without retraining it.
+
+The gate is masked to the human channels, and that is forced by measurement
+rather than chosen.  HSI is never supervised on channels 216:232:
+``priors/hsi/data.py:253`` calls ``codec.encode`` with no object arguments and
+``core/window_codec.py:215`` starts from ``torch.zeros``, so every HSI training
+target is exactly zero there.  Blending against that zero is not a compromise
+between two opinions, it is a pull toward the origin of the normalized box:
+
+* object translation 216:219 -- the error is ``G * |x| * half_range`` per axis,
+  and the box half range is [3.0880, 1.0918, 3.0581] m, i.e. up to 4.481 m of
+  L2 object displacement per unit of gate.
+* contact 228:232 -- the composed value is ``contact_HOI * (1 - G)``, so the
+  gate scales every contact label down monotonically, straight into the metric
+  the contact budget is written against.
+* object rotation 219:228 -- measured invariant: a uniform positive scale
+  leaves the polar factor unchanged, so ``project_to_so3((1-G) * R) == R`` to
+  9.99e-16 over 64x4 random cases.  The mask covers these nine channels for
+  uniformity, not because they need it, and only ``G == 1`` degenerates (the
+  zero matrix has no polar factor).
+
+So ``HUMAN_GATE_MASK`` is 1 on 0:216 and 0 on 216:232, and it is the default.
+The object and contact channels always come from HOI.  Measurements behind the
+numbers: ``.claude/scratch/phase2-blend/blend_space.json``.
 """
 
 from dataclasses import dataclass
 from typing import Optional
 
 import torch
+
+from priors.core.representation import REPRESENTATION
+
+#: The first channel HSI is not supervised on.  Named rather than spelled 216 so
+#: that a change to the frozen representation moves the mask with it.
+OBJECT_CHANNEL_START = REPRESENTATION.field('object_translation').start
+
+
+def human_gate_mask(*, device=None, dtype=torch.float32):
+    """A [232] mask that is 1 on the human channels and 0 on object/contact.
+
+    Multiplying any gate by this is what keeps the object and contact channels
+    equal to the HOI expert's prediction regardless of what the gate producer
+    emits, so scene-awareness cannot leak into channels no HSI checkpoint has
+    ever been supervised on.
+    """
+    mask = torch.zeros(REPRESENTATION.dimension, device=device, dtype=dtype)
+    mask[:OBJECT_CHANNEL_START] = 1
+    return mask
 
 
 @dataclass
@@ -69,8 +111,25 @@ def gate_is_identity(gate, value):
     return bool(gate == value)
 
 
-def compose_x0(outputs, gate, state=None):
+def compose_x0(outputs, gate, state=None, channel_mask='human'):
     """Blend two experts' x_hat_0 under ``gate``.
+
+    ``channel_mask`` defaults to ``'human'``, which multiplies the gate by
+    ``human_gate_mask()`` so the object and contact channels come from HOI
+    whatever the gate says.  Pass ``None`` to apply the gate to all 232 channels,
+    which is the literal preregistered operator and is what the HSI-alone anchor
+    needs; pass a tensor to supply your own mask.
+
+    The two anchors are exact and UNMASKED: ``G == 0`` returns the HOI tensor and
+    ``G == 1`` returns the HSI tensor, bit for bit, whatever ``channel_mask``
+    says.  They are diagnostics -- "run this one expert alone and report it" --
+    not compositions, and their whole value is being bitwise identical to the
+    single-expert row.  That does make the operator discontinuous at ``G == 1``
+    under the default mask: the limit from below is HSI-on-human with
+    HOI-on-object, while exactly 1 is HSI everywhere, including HSI's
+    never-supervised zeros on 216:232.  A learned gate reaches that only by
+    emitting exactly 1.0 on all 232 channels of every batch element at once,
+    which is the HSI-alone case by any reading.
 
     ``state`` is RESERVED and unused.  It is the slot the LLM state machine
     (CLoSD-style) will fill with the discrete task state that selects or
@@ -121,5 +180,29 @@ def compose_x0(outputs, gate, state=None):
             raise ValueError('gate must lie in [0, 1]')
     elif not (0.0 <= float(gate) <= 1.0):
         raise ValueError('gate must lie in [0, 1]')
+
+    if channel_mask is not None:
+        if isinstance(channel_mask, str):
+            if channel_mask != 'human':
+                raise ValueError(
+                    f"channel_mask must be 'human', None or a tensor, got {channel_mask!r}"
+                )
+            mask = human_gate_mask(
+                device=outputs.hoi.device, dtype=outputs.hoi.dtype,
+            )
+        elif isinstance(channel_mask, torch.Tensor):
+            mask = channel_mask.to(device=outputs.hoi.device, dtype=outputs.hoi.dtype)
+            try:
+                torch.broadcast_shapes(mask.shape, outputs.hoi.shape)
+            except RuntimeError as error:
+                raise ValueError(
+                    f'channel_mask shape {tuple(mask.shape)} does not broadcast '
+                    f'against expert output shape {tuple(outputs.hoi.shape)}'
+                ) from error
+        else:
+            raise TypeError(
+                f"channel_mask must be 'human', None or a tensor, got {type(channel_mask)!r}"
+            )
+        gate = gate * mask
 
     return gate * outputs.hsi + (1.0 - gate) * outputs.hoi

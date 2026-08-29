@@ -494,9 +494,41 @@ class HOIPriorSampler:
         obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, seq_name_dict,
         obj_rot_mat_prefix=None, object_only=False, ground_truth_contact=None,
     ):
+        batch = fixed_points.shape[0]
+        arguments = self.prepare_sample_arguments(
+            fixed_points, mat, text_emb, pelvis_goal, object_goal, pi, end_pi,
+            seq_length, is_object, obj_bps_data, obj_rot_mat_ref, obj_rest_verts,
+            seq_name_dict, ground_truth_contact=ground_truth_contact,
+        )
         del scene_flag, scene_goal, need_scene, need_pelvis_dir, need_pi
         del is_loco, object_points
         del obj_rot_mat_prefix, object_only
+        sample = self.diffusion.sample(self.student_model, fixed_points, **arguments)
+        sample[..., 219:228] = project_to_so3(
+            sample[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
+        ).reshape(batch, REPRESENTATION.window_frames, 9)
+        self._update_audit(sample)
+        return [sample], []
+
+    def prepare_sample_arguments(
+        self, fixed_points, mat, text_emb, pelvis_goal, object_goal, pi, end_pi,
+        seq_length, is_object, obj_bps_data, obj_rot_mat_ref, obj_rest_verts,
+        seq_name_dict, *, ground_truth_contact=None,
+    ):
+        """Translate the legacy evaluator's arguments into ``diffusion.sample``'s.
+
+        Extracted from ``p_sample_loop`` verbatim so that the Phase 2 composed
+        sampler, which has to drive the reverse loop itself in order to blend
+        x0_hat with a second expert at every step, consumes the SAME translation
+        rather than a copy of it.  A copy would drift silently: the composed row
+        would stop being comparable to the HOI-alone anchor without any test
+        failing.  ``tests/phase2`` asserts the two paths agree bitwise.
+
+        Everything here is loop-invariant -- computed once per window and
+        constant across all 500 reverse steps -- which is what makes hoisting it
+        out of the loop correct.  Note that it advances ``sample_calls`` and
+        builds the guidance object, so it must be called exactly once per window.
+        """
         batch = fixed_points.shape[0]
         if not bool(torch.as_tensor(is_object).all()):
             raise ValueError("HOIPrior evaluation received a non-object window")
@@ -579,24 +611,17 @@ class HOIPriorSampler:
             }
             if self.guidance_audit is not None:
                 self.guidance_audit.sample_calls += 1
-        sample = self.diffusion.sample(
-            self.student_model,
-            fixed_points,
-            text,
-            bps,
-            goals,
-            progress,
-            local_object_bps=local_bps,
+        return {
+            'text_embedding': text,
+            'object_bps': bps,
+            'goals': goals,
+            'progress': progress,
+            'local_object_bps': local_bps,
             **relation_arguments,
-            generator=generator,
-            object_so3_x0=self.object_so3_x0,
+            'generator': generator,
+            'object_so3_x0': self.object_so3_x0,
             **guidance_arguments,
-        )
-        sample[..., 219:228] = project_to_so3(
-            sample[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
-        ).reshape(batch, REPRESENTATION.window_frames, 9)
-        self._update_audit(sample)
-        return [sample], []
+        }
 
     def _update_audit(self, sample: torch.Tensor) -> None:
         finite = torch.isfinite(sample)
