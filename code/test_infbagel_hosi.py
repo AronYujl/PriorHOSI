@@ -217,6 +217,15 @@ def get_guidance_from_json(cfg, test_item, max_episode=10):
 
 
 
+def sha256_file(path, chunk_size=1 << 20):
+    """Streamed SHA256 of a file; same helper and same spelling as the HOI evaluator."""
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _subsample_seed(seed, scene_name, test_idx):
     """A per-episode seed for the object-vertex subsample, independent of run order.
 
@@ -477,10 +486,54 @@ def main(cfg: DictConfig) -> None:
             raise FileExistsError(f"Refusing to overwrite HOSI evaluation output: {base_output_dir}")
         os.makedirs(base_output_dir, exist_ok=False)
 
-    model_body = init_model(cfg.model.infbagel, device=device, eval=True)
+    # 2026-08-29: expert dispatch.  `expert: hoi` evaluates HOIPrior -- a Phase 1B
+    # checkpoint behind priors.hoi.diffusion.HOIPriorSampler -- on this benchmark.
+    # It is a different model class with a different checkpoint schema, so it
+    # cannot go through init_model: load_trained_hoi_prior rejects a released
+    # InfBaGel state dict outright, which is the rule that the released
+    # checkpoint must never initialize an expert.
+    #
+    # This produces the G==0 anchor of the preregistered gating operator.  Note
+    # what it is NOT: the model is scene-blind, but `get_path` (code/astar.py)
+    # plans on the scene occupancy and the evaluator feeds a point on that path
+    # in as `pelvis_goal` at every window, so the anchor is a scene-blind model
+    # under scene-aware waypoint supervision.
+    checkpoint_metadata = None
+    expert = cfg.get('expert')
+    if expert == 'hoi':
+        # Imported inside the branch, not at module scope: this module is also
+        # imported by code/test_infbagel_lingo_hsi.py, and the default and HSI
+        # paths keep their existing import graph.
+        from priors.hoi.models import load_trained_hoi_prior
+        if not cfg.ckpt_path:
+            raise ValueError('HOIPrior evaluation requires ckpt_path')
+        checkpoint_sha256 = sha256_file(str(cfg.ckpt_path))
+        if cfg.get('checkpoint_sha256') and str(cfg.checkpoint_sha256) != checkpoint_sha256:
+            raise ValueError(
+                f'HOIPrior checkpoint hash mismatch: {checkpoint_sha256} != {cfg.checkpoint_sha256}'
+            )
+        model_body, checkpoint_metadata = load_trained_hoi_prior(
+            str(cfg.ckpt_path), torch.device(device),
+            weight_variant=str(cfg.get('checkpoint_weight_variant', 'online')),
+        )
+        checkpoint_metadata['sha256'] = checkpoint_sha256
+        if cfg.sample_type != 'diffusion':
+            raise ValueError(
+                'HOIPrior has no consistency-model sampler (it was never '
+                f'distilled); sample_type must be diffusion, got {cfg.sample_type!r}'
+            )
+    elif expert is not None:
+        raise ValueError(f'unknown expert for HOSI evaluation: {expert!r}')
+    else:
+        model_body = init_model(cfg.model.infbagel, device=device, eval=True)
 
     json_data_dir = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data')
     scene_files = sorted(f for f in os.listdir(json_data_dir) if f.endswith('.json'))
+    # A deliberate scene subset, for cost probes only.  hosi_expected_episodes
+    # must be set to null alongside it, or the aggregate guard refuses the run.
+    scene_limit = cfg.get('hosi_scene_limit', None)
+    if scene_limit is not None:
+        scene_files = scene_files[:int(scene_limit)]
 
     all_scenes_metrics = []
     gen_time_list = []
@@ -906,9 +959,24 @@ def main(cfg: DictConfig) -> None:
                 'timing_cuda_synchronized': True,
             }
 
+        # 2026-08-29: record the guidance state IN THE PAYLOAD.  A HOI run id that
+        # says "guided" is not evidence that it was: --eval-tag does not set
+        # guidance, and on this path `use_guidance` selects only whether the
+        # EVALUATOR passes a guidance_fn, which is always false for the HOI expert
+        # while HOIPrior's own preregistered guidance is configured on the sampler.
+        # The only trustworthy record is what the sampler reports about itself.
+        sampler_audit = None
+        if sampler_body is not None and hasattr(sampler_body, 'audit_dict'):
+            sampler_audit = sampler_body.audit_dict()
+
         evaluation_results = {
             'model_name': model_name,
             'seed': int(cfg.seed),
+            'expert': expert,
+            'sample_type': str(cfg.sample_type),
+            'evaluator_guidance_fn': bool(cfg.use_guidance),
+            'checkpoint': checkpoint_metadata,
+            'sampler_audit': sampler_audit,
             'scene_order': scene_files,
             'individual_metrics': all_scenes_metrics,
             'statistics': statistics,
@@ -946,6 +1014,11 @@ def main(cfg: DictConfig) -> None:
             aggregate_results = {
                 'model_name': evaluation_results['model_name'],
                 'seed': evaluation_results['seed'],
+                'expert': evaluation_results['expert'],
+                'sample_type': evaluation_results['sample_type'],
+                'evaluator_guidance_fn': evaluation_results['evaluator_guidance_fn'],
+                'checkpoint': evaluation_results['checkpoint'],
+                'sampler_audit': evaluation_results['sampler_audit'],
                 'statistics': evaluation_results['statistics'],
                 'summary': evaluation_results['summary'],
             }

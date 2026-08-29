@@ -1,0 +1,51 @@
+# HOI-alone HOSI-test row -- the G==0 anchor of the preregistered gating operator.
+#
+# WHAT THIS ROW IS.  HOIPrior (Phase 1B settled: P15 + guidance Arm B) generating
+# on the 469-episode HOSI-test benchmark, scored by the same evaluator and the
+# same 15 metrics as every other row on it.
+#
+# WHAT IT IS NOT.  A scene-blind row.  `code/astar.py:get_path` reads the scene
+# occupancy grid, collapses and dilates it, plans a collision-free path, and the
+# evaluator feeds a point on that path in as `pelvis_goal` at every window.  The
+# MODEL never sees the scene; its WAYPOINTS are scene-aware.  Every row on this
+# benchmark shares that, so it does not confound row-to-row comparison, but it
+# caps the headroom a scene-aware expert can demonstrate here and must be stated
+# wherever this row is cited.
+defaults:
+  - config_sample_infbagel
+  - _self_
+  - override sampler:
+      - hosi_hoi_expert
+
+expert: hoi
+
+# HOIPrior was never distilled: HOIPriorSampler has no cm_sample_loop.  This
+# makes the row 500 network calls per window against the released baseline's 16,
+# so the two rows' LATENCY is not comparable -- only their quality metrics are.
+sample_type: diffusion
+
+# The EVALUATOR supplies no guidance_fn.  This does NOT mean the row is unguided:
+# HOIPrior's guidance is the preregistered Phase 1B P2 term, configured on the
+# sampler (sampler.pelvis.guidance.*), which defaults to sealed Arm B here.  For
+# the unguided control set sampler.pelvis.guidance.enabled=false, and never infer
+# the guidance state of a HOI row from its run id or from this key.
+use_guidance: false
+
+# The dataset must load the scene: the evaluator needs `scene_dict` for the scene
+# flag, `scene_occ` for A*, and the scene SDF for the penetration metrics.  The
+# expert does not see any of it -- mixer.hoi_adapter.SceneBlindDatasetView makes
+# the scene payload unreachable from HOIPrior rather than merely unused.
+load_scene: true
+
+# Inert on this path and kept only to match the sealed HOI evaluation config:
+# HOIPriorSampler.p_sample_loop deletes `object_points`.
+add_object_voxel: false
+
+ckpt_path: /data/yujinlun/InfBaGel-visualization-artifacts/source-checkpoints/hoi/p15/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth
+checkpoint_weight_variant: online
+checkpoint_sha256: ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c
+
+# 67 scenes x 7 objects.  hosi_scene_limit (inherited from config_sample_infbagel)
+# trims the scene list for cost probes only, and requires hosi_expected_episodes=null
+# so the aggregate guard refuses to report a partial sweep as a complete one.
+hosi_expected_episodes: 469

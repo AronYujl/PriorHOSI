@@ -1,0 +1,27 @@
+# The HOI expert driven by the HOSI-test evaluator.
+#
+# Identical knobs to sampler/hoi_prior.yaml -- the same HOIPriorSampler is
+# constructed inside -- wrapped so the evaluator's released call signature
+# reaches it.  Kept as a separate group rather than a flag on hoi_prior.yaml so
+# that the HOI branch's own evaluation config stays byte-identical.
+pelvis:
+  _target_: mixer.hoi_adapter.HOIExpertSamplerAdapter
+  device: ${device}
+  auto_regre_num: ${auto_regre_num}
+  timesteps: 500
+  object_so3_x0: false
+  # Phase 1B settled HOIPrior is P15 + guidance Arm B (docs/HOIPRIOR_EVIDENCE_INDEX.md).
+  # Defaults here are Arm B's sealed values; set enabled=false for the unguided control.
+  guidance:
+    enabled: true
+    arm: b
+    guidance_scale: 1000.0
+    last_steps: 10
+    clamp: 1.0
+    clamp_target: update
+    contact_mask_source: predicted
+    contact_mask_threshold: 0.95
+    contact_weight: 1.0
+    consistency_weight: 1.0
+    consistency_normalization: author
+    object_goal_weight: 0.0

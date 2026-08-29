@@ -58,6 +58,9 @@ hosi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 # HOSI-test is 67 scenes x 7 objects. The evaluator refuses to report an aggregate
 # over fewer episodes than this; set to null to evaluate a subset deliberately.
 hosi_expected_episodes: 469
+# Trim the scene list, for cost probes and diagnostics only. Requires
+# hosi_expected_episodes=null, or the aggregate guard refuses the partial sweep.
+hosi_scene_limit: null
 hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hoi_expected_sequences: 438
 hoi_sequence_limit: null
