@@ -23,3 +23,8 @@ pelvis:
   # must still resolve.  consistency_loss ignores it -- C is not in scope.
   seam_loss_weight: ${oc.select:seam_loss_weight,0.0}
   loss_w_jpos: ${oc.select:loss_w_jpos,1.0}
+  pen_loss_weight: ${oc.select:pen_loss_weight,0.0}
+  pen_delta: ${oc.select:pen_delta,0.03}
+  pen_floor_height: ${oc.select:pen_floor_height,0.02}
+  pen_sdf_cache: ${oc.select:pen_sdf_cache,null}
+  pen_sdf_dtype: ${oc.select:pen_sdf_dtype,float16}

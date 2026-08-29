@@ -1,3 +1,4 @@
+import json
 import math
 import torch
 from torch import nn
@@ -7,6 +8,11 @@ from tqdm import tqdm
 from utils import *
 from guidance_loss import apply_hsi_guidance_loss
 import pytorch3d.transforms as transforms
+from priors.hsi.penetration import (
+    DEFAULT_LINGO_MESH_ROOT,
+    SceneSDFBank,
+    resolve_sdf_dtype,
+)
 
 @torch.no_grad()
 def update_ema(target_params, source_params, rate=0.99):
@@ -69,6 +75,17 @@ class Sampler:
         self.seam_loss_weight = float(kwargs.get('seam_loss_weight', 0.0) or 0.0)
         _w = kwargs.get('loss_w_jpos', 1.0)
         self.loss_w_jpos = 1.0 if _w is None else float(_w)
+        _pen_weight = kwargs.get('pen_loss_weight', 0.0)
+        self.pen_loss_weight = 0.0 if _pen_weight is None else float(_pen_weight)
+        _pen_delta = kwargs.get('pen_delta', 0.03)
+        self.pen_delta = 0.03 if _pen_delta is None else float(_pen_delta)
+        _pen_floor_height = kwargs.get('pen_floor_height', 0.02)
+        self.pen_floor_height = (
+            0.02 if _pen_floor_height is None else float(_pen_floor_height)
+        )
+        self.pen_sdf_cache = kwargs.get('pen_sdf_cache', None) or None
+        self.pen_sdf_dtype = resolve_sdf_dtype(kwargs.get('pen_sdf_dtype', torch.float16))
+        self.pen_sdf_bank = None
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
         self.dataset = dataset
@@ -79,6 +96,86 @@ class Sampler:
         self.target_model = target_model
         nb_voxels = dataset.nb_voxels
         self.occ_idx = torch.arange(0, nb_voxels[1], 1).to(self.device)
+
+    def _compute_human_joints(self, predicted_noise, joints, mat, rest_human_offsets):
+        global_jpos = transform_points(
+            self.dataset.denormalize_torch(predicted_noise[:, :, :84]), mat
+        ).reshape(joints.shape[0], -1, 28, 3)
+
+        # FK to get joint positions.
+        curr_seq_local_jpos = rest_human_offsets[:, None].repeat(
+            1, global_jpos.shape[1], 1, 1
+        )  # [b, t, 24, 3]
+        curr_seq_local_jpos = curr_seq_local_jpos.reshape(-1, 24, 3)  # [b*t, 24, 3]
+        curr_seq_local_jpos[:, 0, :] = global_jpos.reshape(-1, 28, 3)[:, 0, :]
+
+        global_jrot_6d = predicted_noise[:, :, 84:216].reshape(
+            joints.shape[0], -1, 22, 6
+        )
+        global_jrot_mat = transforms.rotation_6d_to_matrix(global_jrot_6d)  # [b, t, 22, 3, 3]
+        global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat
+
+        local_jrot_mat = self.dataset.quat_ik_torch(
+            global_jrot_mat.reshape(-1, 22, 3, 3)
+        )  # [b*t, 22, 3, 3]
+        _, human_jnts = self.dataset.quat_fk_torch(
+            local_jrot_mat, curr_seq_local_jpos
+        )  # [b*t, 24, 3]
+        human_jnts = human_jnts.reshape(joints.shape[0], -1, 24, 3)  # [b, t, 24, 3]
+        return global_jpos, human_jnts
+
+    def _get_pen_sdf_bank(self):
+        if self.pen_sdf_bank is None:
+            split_scene_names = None
+            if self.dataset.split_manifest is not None:
+                with open(self.dataset.split_manifest, "r") as f:
+                    split = json.load(f)
+                split_scene_names = {
+                    str(name)
+                    for name in split[self.dataset.split_partition]["scenes"]
+                }
+
+            flag_to_name = {}
+            source_scene_names = set()
+            for scene_name, unified_flag in self.dataset.unified_scene_dict.items():
+                unified_flag = int(unified_flag)
+                scene_name = str(scene_name)
+                if self.dataset.unified_scene_source[unified_flag] != "lingo":
+                    continue
+                if split_scene_names is not None and scene_name not in split_scene_names:
+                    continue
+                flag_to_name[unified_flag] = scene_name
+                source_scene_names.add(
+                    scene_name[:-7]
+                    if scene_name.endswith("_mirror")
+                    else scene_name
+                )
+
+            if split_scene_names is not None:
+                expected_source_scene_names = {
+                    name[:-7] if name.endswith("_mirror") else name
+                    for name in split_scene_names
+                }
+                if source_scene_names != expected_source_scene_names:
+                    missing = sorted(expected_source_scene_names - source_scene_names)
+                    unexpected = sorted(source_scene_names - expected_source_scene_names)
+                    raise RuntimeError(
+                        "split partition scene selection produced "
+                        f"{len(source_scene_names)} source scenes, expected "
+                        f"{len(expected_source_scene_names)}; "
+                        f"missing={missing}, unexpected={unexpected}"
+                    )
+
+            self.pen_sdf_bank = SceneSDFBank.from_scene_flags(
+                flag_to_name,
+                dataset_root=self.dataset.lingo_dataset.folder,
+                mesh_root=DEFAULT_LINGO_MESH_ROOT,
+                cache_dir=self.pen_sdf_cache,
+                dtype=self.pen_sdf_dtype,
+                device=self.device,
+                require_cache=True,
+            )
+        return self.pen_sdf_bank
 
     def get_scheduler(self):
         betas = linear_beta_schedule(timesteps=self.timesteps)
@@ -213,7 +310,7 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ], dim=0)
+            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 object_points_temp = object_points.clone()
@@ -581,7 +678,7 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
                 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ], dim=0)
+            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 if self.dataset.vis:
@@ -843,11 +940,37 @@ class Sampler:
 
         loss_jpos = F.mse_loss(x_start[:, :, :84][mask_inv[:, :, :84]], predicted_noise[:, :, :84][mask_inv[:, :, :84]])
         loss_jrot = F.l1_loss(x_start[:, :, 84:216][mask_inv[:, :, 84:216]], predicted_noise[:, :, 84:216][mask_inv[:, :, 84:216]])
-        
-        loss_otrans = F.mse_loss(x_start[:, :, 216:219][mask_inv[:, :, 216:219]], predicted_noise[:, :, 216:219][mask_inv[:, :, 216:219]])
-        loss_orot = F.l1_loss(x_start[:, :, 219:228][mask_inv[:, :, 219:228]], predicted_noise[:, :, 219:228][mask_inv[:, :, 219:228]])
-        
-        loss_contact = F.l1_loss(x_start[:, :, 228:232][mask_inv[:, :, 228:232]], predicted_noise[:, :, 228:232][mask_inv[:, :, 228:232]])
+
+        mask_obj = torch.logical_and(
+            mask_inv[:, :, 216:232],
+            is_object.to(mask_inv.device, dtype=torch.bool).reshape(-1, 1, 1),
+        )
+        mask_otrans = mask_obj[:, :, 0:3]
+        if mask_otrans.any():
+            loss_otrans = F.mse_loss(
+                x_start[:, :, 216:219][mask_otrans],
+                predicted_noise[:, :, 216:219][mask_otrans],
+            )
+        else:
+            loss_otrans = x_start.new_zeros(())
+
+        mask_orot = mask_obj[:, :, 3:12]
+        if mask_orot.any():
+            loss_orot = F.l1_loss(
+                x_start[:, :, 219:228][mask_orot],
+                predicted_noise[:, :, 219:228][mask_orot],
+            )
+        else:
+            loss_orot = x_start.new_zeros(())
+
+        mask_contact = mask_obj[:, :, 12:16]
+        if mask_contact.any():
+            loss_contact = F.l1_loss(
+                x_start[:, :, 228:232][mask_contact],
+                predicted_noise[:, :, 228:232][mask_contact],
+            )
+        else:
+            loss_contact = x_start.new_zeros(())
 
         loss = self.loss_w_jpos * loss_jpos + loss_jrot + loss_otrans + loss_orot + loss_contact
 
@@ -863,6 +986,7 @@ class Sampler:
             loss = loss + self.seam_loss_weight * loss_seam
 
         # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
+        human_jnts = None
         if self.dataset.use_object_keypoints:
             hand_idx_28 = [20, 21, 25, 27]
             hand_idx_24 = [20, 21, 22, 23]
@@ -872,20 +996,9 @@ class Sampler:
             gt_global_hand_jpos = gt_global_jpos[:, :, hand_idx_28, :]
             gt_global_foot_jpos = gt_global_jpos[:, :, foot_idx, :]
 
-            global_jpos = transform_points(self.dataset.denormalize_torch(predicted_noise[:, :, :84]), mat).reshape(joints.shape[0], -1, 28, 3)
-
-            # FK to get joint positions.
-            curr_seq_local_jpos = rest_human_offsets[:, None].repeat(1, global_jpos.shape[1], 1, 1) # [b, t, 24, 3]
-            curr_seq_local_jpos = curr_seq_local_jpos.reshape(-1, 24, 3) # [b*t, 24, 3]
-            curr_seq_local_jpos[:, 0, :] = global_jpos.reshape(-1, 28, 3)[:, 0, :]
-
-            global_jrot_6d = predicted_noise[:, :, 84:216].reshape(joints.shape[0], -1, 22, 6)
-            global_jrot_mat = transforms.rotation_6d_to_matrix(global_jrot_6d) # [b, t, 22, 3, 3]
-            global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat
-            
-            local_jrot_mat = self.dataset.quat_ik_torch(global_jrot_mat.reshape(-1, 22, 3, 3)) # [b*t, 22, 3, 3]
-            _, human_jnts = self.dataset.quat_fk_torch(local_jrot_mat, curr_seq_local_jpos) # [b*t, 24, 3]
-            human_jnts = human_jnts.reshape(joints.shape[0], -1, 24, 3) # [b, t, 24, 3]
+            global_jpos, human_jnts = self._compute_human_joints(
+                predicted_noise, joints, mat, rest_human_offsets
+            )
 
             pred_global_hand_jpos = human_jnts[:, :, hand_idx_24, :]
             pred_global_foot_jpos = human_jnts[:, :, foot_idx, :] # [b, t, 4, 3]
@@ -931,12 +1044,41 @@ class Sampler:
             loss_object = None
             loss_fk = None
 
+        loss_pen = None
+        if self.pen_loss_weight > 0.0:
+            if human_jnts is None:
+                _, human_jnts = self._compute_human_joints(
+                    predicted_noise, joints, mat, rest_human_offsets
+                )
+
+            pen_sdf_bank = self._get_pen_sdf_bank()
+            sdf, m_out_of_bounds = pen_sdf_bank.signed_distance(human_jnts, scene_flag)
+            m_floor = human_jnts[..., 1] >= self.pen_floor_height
+            m_hist = torch.ones_like(m_floor, dtype=torch.bool)
+            m_hist[:, :int(self.auto_regre_num)] = False
+            m_finite = torch.isfinite(sdf)
+            m_inbound = torch.logical_not(m_out_of_bounds)
+            m_scorable = m_floor & m_hist & m_finite & m_inbound
+
+            d = torch.clamp(-(sdf + self.pen_delta), min=0.0)
+            if m_scorable.any():
+                loss_pen = (d ** 2)[m_scorable].mean()
+            else:
+                loss_pen = predicted_noise.new_zeros(())
+            loss = loss + self.pen_loss_weight * loss_pen
+
         if occ_list is not None:
             del occ_list
         if occ is not None:
             del occ
                 
-        return dict(loss=loss, loss_object=loss_object, loss_fk=loss_fk, loss_seam=loss_seam)
+        return dict(
+            loss=loss,
+            loss_object=loss_object,
+            loss_fk=loss_fk,
+            loss_seam=loss_seam,
+            loss_pen=loss_pen,
+        )
 
     @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \
