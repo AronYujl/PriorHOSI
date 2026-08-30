@@ -10995,3 +10995,164 @@ episode 上正式判读的那一对，不能从 n=1 外推。
    `apply_feet_floor_contact_guidance`（HOI/HOSI 侧权重 500），而 E3 的
    `pen_floor_height=0.02` 排除地板。对着 `fs_nemf_ankle` 1.2916x 与箱内足部覆盖 0.0247，
    任何杠杆须在目标函数一侧，因为 guidance 控制路线已于 2026-08-24 关闭。
+
+## 2026-08-31（P0-ZO 治理收尾 —— guided 格完成、第一层判据 FAIL 且方向相反、按停止规则不跑 unguided；归因混杂由此被**定量上界**而非归零）
+
+### A. 本节地位
+
+本节封存 **P0-ZO**（run `p1-hsi-b-p0zo-eval-epoch222-guided-shard8-s42-20260830`,
+HEAD `c05b560`）的 guided 格评估，并给出预注册两层判据下的正式判定。
+**第一层 FAIL，且点估计方向相反。**
+
+本节是治理性的：**不触碰任何模型、训练或评估源码**。不晋级 checkpoint，
+**不跑 unguided 格**（预注册停止规则的直接后果，不是资源决定），
+不启动任何 C-v5 蒸馏运行。teacher 仍为封存的 B-v2 epoch222。
+
+预注册行 `p1-hsi-b-p0zo-preregister-s42-20260830` **不被改写**。
+完成行使用 bare eval id `p1-hsi-b-p0zo-eval-epoch222-guided-shard8-s42-20260830`,
+因为预注册行占的是 `-preregister-` 后缀（P16-NS 之后的正确惯例）。
+
+**一处与既有做法的差异，写明而不是静默照做**：P17-OC 的两个 eval manifest 至今
+`status: running`、`ended_at: null`、无 metrics、无 resolved config，且没有各自的 registry 行 ——
+其评估结果是折进训练臂完成行的。P0-ZO 的臂**本身就是评估**，没有训练运行可折进,
+所以本臂按完整生命周期封存：`finish --status completed`、绑定 metrics 文件哈希
+（`1a0e2208bbca67e3…`）与 resolved config 哈希（`3da5e8144824ab39…`）、`final_git.dirty=false`。
+这不追改 P17-OC 的既有记录。
+
+### B. 执行事实
+
+| | |
+|---|---|
+| run id | `p1-hsi-b-p0zo-eval-epoch222-guided-shard8-s42-20260830` |
+| git commit | `c05b5606232b0cf849b958d04058defc336a6cec`（起止同一 commit，无 transition）|
+| 臂 | P17-OC epoch222 + `hsi_zero_object_x0=true`（**推理侧**，零训练）|
+| checkpoint | `f64d956f88b8a81d…`，与封存 P17-OC 资产**同一文件**，`sha256sum` 独立复核 |
+| split manifest | `12097e24200c584b…`，同样独立复核而非从旧 manifest 抄录 |
+| 协议 | 固定 8 路，375 序列，2271 窗口，seed 42，`hsi_progress_fix=true`，`export_motion=true` |
+| 启动 / 结束 | 2026-08-30 22:22:22 → 2026-08-31 03:58:11（**5 h 35 m**）|
+| 分片 / 合并 | 8，`fail=0`；`MERGE_EXIT=0`；**375** 个 motion 导出 |
+| 输出 | `results/lingo_hsi/p0zo_guided_shard8/…-merged08` |
+
+**resolved config 与封存 P17-OC guided 格逐行相差恰好三行**：`hsi_zero_object_x0: true`
+（顶层与 sampler 组各一处）与 `lingo_output_dir`。其余逐字节相同，零未解析 `${`。
+这是本对照能做到的最干净形态。
+
+### C. 第一层判据 —— FAIL，且方向相反
+
+**判读前先从封存 payload 复算三个冻结参照，全部吻合**：P17-OC guided
+`boundary_jerk` **207.716**、Bg 相对 GT 的 delta **+99.85**、Bg 全部帧尾部
+**0.12394 / 0.23944**。判读脚本在任一不符时拒绝出结论。
+
+| | `boundary_jerk` | 相对 GT |
+|---|---:|---:|
+| **P0-ZO guided** | **214.723** | **2.5496x** |
+| P17-OC guided | 207.716 | 2.4664x |
+| Bg（门控参照）| 184.064 | 2.1856x |
+| GT | 84.217 | 1.0000x |
+
+**delta（P0-ZO − P17-OC）= +7.0065，95% CI [−6.1269, +22.4203]，不显著。**
+判据要求 delta < 0 且 CI 严格不含 0 → **FAIL**。
+
+**而且对门控参照更远了**：P0-ZO 相对 Bg 是 **+30.659 SIG**，而 P17-OC 是 +23.653 SIG。
+这处修复把臂推离了门，不是拉近。
+
+**并列报告（预注册要求，非判据）：**
+`interior_jerk` +2.3314 [−0.4698, +6.0979] ns；`jerk_ratio` −0.0494 [−0.1183, +0.0290] ns;
+`pen_depth_max` >20 cm 份额 **47/355 vs 42/355**，delta +0.01408，CI 下界**恰好 +0.00000**;
+>15 cm 份额 83/355 vs 80/355，delta +0.00845 ns。
+
+**那个"恰好 0"必须解释而不是留着**：355 个 episode 下单个 episode 是 1/355 = 0.0028169,
+份额 delta 因此是它的整数倍，百分位可以精确落在 0 上 —— 10,000 个 replicate 中有 **240 个**
+delta 恰好为 0。显著性规则是"**严格**不含 0"，所以这是 ns，脚本判对了。
+
+### D. 停止规则已执行
+
+预注册 §G 写定："第一层不显著 → P0 停止；不跑 unguided；进入 §I 修订与 {E0,E1} 臂。"
+
+**已执行**：第二层（§M.6 双门 + 三守卫）**未判读**，unguided 格**未跑**,
+checkpoint **未晋级**，蒸馏**未启动**。把两层写成两个独立脚本正是为此 ——
+让停止规则是机械的，而不是我看着整张表做的判断。
+
+### E. 本臂不是 inert —— 这是它最有信息量的部分
+
+**机制是活的，量级不小。** 启动前单 episode smoke：`body_pose` 移动 **0.530 rad**、
+`global_orient` 0.445 rad、`global_jpos` 0.311 m、`transl` 0.0838 m。
+holdout355 上 **48 列中 12 列**相对 P17-OC guided 显著移动。
+
+**显著变好（8 列，均非门控列）：**
+
+| 列 | P0-ZO | P17-OC | delta | 95% CI |
+|---|---:|---:|---:|---|
+| `fs_nemf` | 0.3074 | 0.3194 | **−0.0120** | [−0.0191, −0.0043] |
+| `fs_nemf_ankle` | 0.1205 | 0.1265 | −0.0060 | [−0.0090, −0.0027] |
+| `fs_nemf_toe` | 0.1869 | 0.1928 | −0.0060 | [−0.0102, −0.0014] |
+| `pen_ratio` | 0.0196 | 0.0208 | −0.00115 | [−0.00192, −0.00036] |
+| `pene_pct_scene` | 0.0460 | 0.0481 | −0.00215 | [−0.00314, −0.00116] |
+| `reachability_violation_ratio` | 0.0526 | 0.0540 | −0.00142 | [−0.00239, −0.00044] |
+| `time_to_goal_20cm_s` | 0.7754 | 0.8085 | −0.03305 | [−0.0729, −0.0011] |
+| `contact_count_exterior` | 335.21 | 322.40 | **+12.806** | [+5.00, +20.56] |
+
+`fs_nemf` 落到 **0.3074**，而 Bg 是 0.3073 —— 把 P17-OC 在这一列上丢掉的东西还了回来。
+`contact_count_exterior` 上升说明反 dodging 方向无虞（`contact_count` −9.74 ns）。
+
+**显著变差（2 列）**：`transition_distance_aligned_max` +0.00159 [+0.00018, +0.00341]、
+`transition_distance_unaligned_max` +0.00199 [+0.0000075, +0.00429]。
+
+`pen_samples` / `pene_samples` 亦显著移动，它们是**样本计数诊断**而非质量列，
+为完整性报告。
+
+**结论的形状**：钉零那 16 通道产生了**大而连贯**的轨迹改变，只是它在门控列上不是
+系统性有益的。**trunk 对那 16 个输入通道携带什么是鲁棒的。**
+
+### F. 归因后果 —— 混杂被**定量上界**，不是归零
+
+本臂是为这个问题买的，答案必须精确：
+
+**问**：E0 的推理侧 216:232 错配，是否承载 P17-OC 相对 Bg 的 +23.653 `boundary_jerk` 回归？
+
+**答：不承载；且它在未来 {E0,E1}-vs-B-v2 对照上留下的混杂是有界的，不是零。**
+
+把 CI 翻符号：该错配对 P17-OC `boundary_jerk` 的自身贡献落在 **[−22.4203, +6.1269]**,
+所以它最多解释 +23.653 中的 **6.1269，即 25.9%**。点估计符号相反 ——
+移除错配让 jerk 略微**变差**。
+
+**所以 {E0,E1} 对照 B-v2 可以读作 E1 的隔离，误差不超过约 6.13 的 `boundary_jerk` 混杂。**
+
+**一处必须并列写明的对照**：本分支 §L.1 的初稿会允许一个**更强**的主张 ——
+"E0 的权重从未移动（`max|Δ|` 恰好 0.0），故 E0 无效应"。那个主张建立在一处前向路径
+错误上，已在预注册 commit 中就地更正；**现在替代它的是一个实测上界，而不是一个零**。
+这两者在科学上不等价：前者会让 {E0,E1} 的读法看起来无条件成立，后者给出条件和数值。
+
+### G. 可复现性
+
+HSI 推理逐位可复现，所以本格可精确重导出，**本节任何数字都不需要重跑来复核**。
+这也是为什么在现有 checkpoint 上做推理侧 A/B 是这里最便宜的实验形态：
+没有花掉任何一条训练臂去问这个问题。
+
+### H. 未决问题 —— 均未启动、均未申请 GPU、均需用户批准一条具体实验
+
+1. **{E0, E1} 归因臂**（22 h 训练 + 两格评估）。现在**可读**，条件是接受 §F 的
+   约 6.13 上界。
+2. **E3-v2**：批均值形式**可证明**触不到深度尾部（关节侧 >20 cm 恒 0/355，
+   顶点尾部 44/355），不是调 `w_E3` 的问题。max 加权与逐 episode 形式都重新引入
+   P16-GQ 的 dodging 风险，守卫须先设计。
+3. **seam 项重新瞄准 —— 本节之后这是接缝上最强的未测线索。**
+   `loss_seam`（`:985`）监督 `x_start[:, n:n+2, :84]` 的 28 个位置槽位，
+   而 `boundary_jerk` 走 SMPL-X FK 身体（root + 22 旋转）：84 个受监督通道里只有
+   槽位 0 的 3 个进指标，决定 21 个 FK 关节的旋转通道**一个 seam 监督都没有**。
+   P0-ZO 与 P17-OC 都没有动过旋转通道的接缝监督，两臂在 `boundary_jerk` 上都没赢,
+   这条线索因此仍然完好未测。
+4. **首次 scene crop**：`p_sample_loop:1089` 的第一个 x0 是 `torch.randn`,
+   crop 在全部 500 步上从运行中的 x0 重算；按 t 分层重测是零 GPU 的收紧。
+5. **足部**：`apply_hsi_guidance_loss` 只有 20000 权重的穿透项，无
+   `apply_feet_floor_contact_guidance`。**但本节给了它一个新的负面证据**：
+   P0-ZO 在三个 footskate 变体上都显著变好却没改善 jerk，说明 footskate 与
+   `boundary_jerk` 不是同一个缺陷，把足部项当作接缝杠杆的假设缺少支持。
+
+`hsi_zero_object_x0` 保留在树内、默认关闭（逐位恒等，19 个测试覆盖）。
+它现在是**门控列上的实测 null**，不再是一个开放问题。
+`train_infbagel.py` 新增的 `Loss_pen` 标量属于下一条训练臂，本臂不训练故未被行使。
+
+判读文件：`.claude/scratch/p0zo_tier1_read.json`（判定）、
+`.claude/scratch/p0zo_full_table.json`（全列，仅存档，判定在它之前已定）；
+metrics：`results/hsi_b_p0zo_eval_guided_shard8/metrics.json`。
