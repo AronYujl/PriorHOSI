@@ -202,6 +202,46 @@ class TimingTests(unittest.TestCase):
     def test_none_stays_none(self):
         self.assertIsNone(invalidate_timing(None))
 
+    def test_every_nulled_key_survives_the_evaluator_report_block(self):
+        """The nulls have to be printable, not just present.
+
+        `invalidate_timing` nulls the wall-clock keys AFTER the timing lists are
+        collected, and the report block is guarded on the LISTS being non-empty.
+        So on a sharded run the branch is entered with the values already None and
+        `f"{None:.4f}"` raises `TypeError: unsupported format string passed to
+        NoneType.__format__`.  That killed all four shards of
+        `p2-mixer-fixed-bodygroup-p15-p17oc-s42-20260830` at the very end, after
+        every payload was already on disk -- 8 GPU-hours that reported as failure.
+
+        This asserts the property directly: no nulled key may be formatted with a
+        numeric format spec.
+        """
+        nulled = invalidate_timing({key: 1.0 for key in SHARD_INVALID_TIMING_KEYS})
+        for key in SHARD_INVALID_TIMING_KEYS:
+            with self.assertRaises(TypeError):
+                '{0:.4f}'.format(nulled[key])
+
+    def test_the_evaluator_guards_the_timing_block_on_the_value(self):
+        """Read the source: the guard must test a VALUE, not only the lists.
+
+        A guard on `gen_time_list` alone is what produced the crash, so the fix has
+        to be visible at the guard rather than at the call sites.
+        """
+        source = (REPO / 'code' / 'test_infbagel_hosi.py').read_text()
+        marker = "if gen_time_list and fps_list and frames_list:"
+        self.assertIn(marker, source)
+        # Inside the report block (the second occurrence -- the first builds the
+        # dict), there must be a None check before any numeric format of a timing
+        # key.
+        report = source.split(marker)[-1]
+        aits_format = report.find("generation_metrics['aits']:.4f")
+        none_guard = report.find("generation_metrics.get('aits') is None")
+        self.assertGreater(aits_format, -1, 'timing report block not found')
+        self.assertGreater(none_guard, -1,
+                           'the timing report block must check for None first')
+        self.assertLess(none_guard, aits_format,
+                        'the None check must precede the numeric format')
+
 
 def _shard_payload(shard_index, shard_count, ordinals, *, hoi='aa' * 32,
                    hsi='bb' * 32, gate=None, seed=42, episode_total=8,

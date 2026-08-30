@@ -1264,11 +1264,23 @@ def main(cfg: DictConfig) -> None:
 
         if gen_time_list and fps_list and frames_list:
             print("\n=== Generation Latency and Rate Statistics (all sequences) ===")
-            print(f"AITS (avg inference time per sequence): {generation_metrics['aits']:.4f}s")
-            print(f"FPS (avg frame rate): {generation_metrics['avg_fps']:.3f}")
-            print(f"Avg frames per sequence: {generation_metrics['avg_frames_per_seq']:.1f}")
-            print(f"End-to-end episode latency: {generation_metrics['avg_end_to_end_episode_seconds']:.4f}s")
-            print("LLM planning latency: N/A (Atomic-HOSI baseline has no LLM planner)")
+            # A sharded run COLLECTED timing and then had it nulled by
+            # `invalidate_timing`: four shards share a host, so the wall clock
+            # measures contention rather than the model.  The lists are still
+            # populated, so this branch is still entered -- print the nulled state
+            # instead of formatting None, and say why it is null rather than
+            # silently omitting it.
+            if generation_metrics.get('aits') is None:
+                print("Timing: INVALIDATED -- this run was sharded "
+                      f"({sharding_plan['shard_count']} shards on one host), so "
+                      "wall-clock aggregates measure contention, not the model. "
+                      "Metrics above are unaffected.")
+            else:
+                print(f"AITS (avg inference time per sequence): {generation_metrics['aits']:.4f}s")
+                print(f"FPS (avg frame rate): {generation_metrics['avg_fps']:.3f}")
+                print(f"Avg frames per sequence: {generation_metrics['avg_frames_per_seq']:.1f}")
+                print(f"End-to-end episode latency: {generation_metrics['avg_end_to_end_episode_seconds']:.4f}s")
+                print("LLM planning latency: N/A (Atomic-HOSI baseline has no LLM planner)")
     else:
         print("No test items successfully processed!")
 
