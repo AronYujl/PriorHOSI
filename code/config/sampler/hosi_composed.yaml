@@ -11,6 +11,11 @@
 # producing an unlabelled blend.  Override `mixer_gate` for a constant dose, or
 # point `sampler.pelvis.gate` at one of mixer.gates for a schedule / per-object /
 # per-channel gate.
+#
+# CHANNEL MASK.  Not a knob.  `mixer_channel_mask` must resolve to 'human' (or to a
+# tensor that is zero on 216:232); the sampler refuses `null` at construction, which
+# is what makes the object and contact channels come from HOI at every gate value
+# including 1.  See the 2026-08-30 revision in code/mixer/composition.py.
 pelvis:
   _target_: mixer.composed_sampler.HOSIComposedSampler
   gate: ${mixer_gate}

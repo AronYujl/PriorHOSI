@@ -37,17 +37,18 @@ Phase 2 has to establish is therefore not "beat 12.45" in isolation but
 
 per denoising step, on one shared reverse chain. `code/mixer/composition.py`.
 
-Two anchors are exact and bitwise:
+One anchor is exact and bitwise:
 
 * `G == 0` → HOIPrior alone. Asserted against `HOIPriorSampler.p_sample_loop`
   itself at the production 500 steps (`tests/phase2/test_composed_sampler.py`,
   test C1), not argued from the shape of the code.
-* `G == 1` → HSIPrior alone.
 
-Both short-circuit before any validation of the unused side. That is a
+It short-circuits before any validation of the unused side. That is a
 correctness property, not an optimization: `0 * nan == nan`, so the naive
 arithmetic does **not** satisfy the anchor, and the tests assert it against a
 sentinel tensor that raises on any access.
+
+The second anchor was **withdrawn on 2026-08-30**; see the revision below.
 
 ### Per step, not per window
 
@@ -79,14 +80,46 @@ origin of the normalized box:
   leaves the polar factor unchanged, so `project_to_so3((1-G) * R) == R` to
   9.99e-16 over 64x4 random cases. Masked for uniformity, not necessity.
 
-So `human_gate_mask()` is 1 on 0:216 and 0 on 216:232 and is the default. Object
-and contact always come from HOI. Consequence worth stating: the operator is
-**discontinuous at `G == 1`** under the mask — the limit from below keeps HOI's
-object channels, exactly 1 returns HSI's zeros. A learned gate reaches that only
-by emitting exactly 1.0 on all 232 channels of every batch element, which is the
-HSI-alone case by any reading. Pinned by a test.
+So `human_gate_mask()` is 1 on 0:216 and 0 on 216:232. Object and contact always
+come from HOI.
 
 Measurements: `.claude/scratch/phase2-blend/blend_space.json`.
+
+### Revision to the preregistration — 2026-08-30
+
+On the user's instruction, two things changed together, because they are the same
+defect seen from two sides.
+
+**The mask is a hard requirement, not an option.** `channel_mask=None` is refused
+by `compose_x0`, and `HOSIComposedSampler` refuses it at construction rather than
+500 steps into the first window. A caller-supplied mask tensor is accepted only if
+it is exactly zero on 216:232 — so an all-ones tensor, which is the same invalid row
+`None` was, fails the same way. Any row produced with an open object channel is
+invalid, and there is now no configuration that can produce one. The payload
+records `composition.object_channels_from_hoi: true` as a claim, not as prose.
+
+**The `G ≡ 1` = "HSIPrior alone" anchor is withdrawn.** It does not hold on
+HOSI-test. HSIPrior receives no gradient on 216:232, so that row was never a scene
+expert generating without object help; it was an object at the *centre* of the
+normalized box, a zero 3×3 matrix with no polar factor at all, and every contact
+label at 0. That is not a baseline for anything. The anchor now reads
+
+    G ≡ 1  →  HSI on 0:216, HOI on 216:232, for channels only
+
+which is exactly what the masked arithmetic gives, so **the operator is now
+continuous at 1**: the value at 1 equals the limit from below, asserted at three
+values of ε and at the level of the whole 500-step loop.
+
+Why the old short-circuit was a defect and not a documented curiosity: it skipped
+the mask, so a gate reaching exactly 1.0 anywhere hit a *different operator* than a
+gate at 0.999. A learned gate is free to move through that value. The one gate value
+that would genuinely degenerate — `G == 1`, where the object rotation's uniform scale
+is 0 and the zero matrix has no polar factor — was the one value sitting outside the
+mask's protection.
+
+Consequence to state wherever it matters: **there is no HSI-alone row on this
+benchmark.** `compose_x0` raises with a message naming this revision if asked for
+one, rather than producing it.
 
 ### What each expert keeps
 
@@ -265,10 +298,18 @@ Measured with the real weights on one window, remapping 2 → 1 moves HSI's
 t ∈ {1, 100, 250, 400}, and by **exactly 0 at t = 499** — where those temporal
 embeddings are zeroed on both passes, which independently confirms the whole
 effect travels through the temporal channels. So `hsi_object_voxel_mode` is an
-explicit knob: `occupied` (default) keeps the input in distribution for a
-LINGO-trained expert, `object` is the released arithmetic and the control. Nothing
-yet says which generates better motion. Evidence:
+explicit knob: `occupied` keeps the input in distribution for a LINGO-trained
+expert, `object` is the released arithmetic. Evidence:
 `.claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json`.
+
+**Decided 2026-08-30 (user): `occupied` for every row; `object` is demoted to a
+later ablation and must not be used for a reported row until that ablation runs.**
+The grounds are the two facts above and nothing more — the input is in distribution
+and the alternative is not, and the measured difference lives entirely in the
+temporal channels where that shift is (exactly zero at t = 499, where those
+embeddings are zeroed on both CFG passes). It is explicitly *not* a claim that
+`occupied` generates better motion. Nothing measures that yet; the ablation is what
+would.
 
 ### What a composed row costs
 
@@ -309,9 +350,11 @@ remains open is empirical rather than structural:
 * Per-object gate values. The concentration says *where* to spend, not how much.
 * Whether HSI should drive joint positions (0:84) but not rotations (84:216),
   since scene collision is a positional constraint. `ChannelBlockGate` exists to
-  ask this.
-* `hsi_object_voxel_mode`: `occupied` vs `object`, which the measurement above
-  shows matters by up to 0.158 m but does not rank.
+  ask this — but see the body split below, which is the better-posed version.
+* Where the body split's seam should sit: `BodyGroupGate`'s `torso` group defaults
+  to HOI, putting the one unavoidable seam at the collars rather than inside the
+  spine. Nothing measures which placement is better.
+* `hsi_object_voxel_mode`: `occupied` is now the decision, `object` the ablation.
 
 A first orientation on 7 episodes of one scene, G = 0.5 against G = 0 (a smoke,
 **not** a result — 7 episodes of 469, one scene of 67, no uncertainty, and it
@@ -339,5 +382,3 @@ checkpoint predates the permute and must keep the default `false`.
   arms). What is missing is the citable record, not the evidence.
 * Whether the object-point conditioning subset should be one fixed subset per
   object rather than the current per-window redraw.
-* Scene-level shard safety for the HOSI evaluator, which needs a
-  `hosi_scene_offset` knob that deliberately does not exist yet.

@@ -61,26 +61,66 @@ mixer_hsi_w: 1
 # NOT prevent that (the evaluator sets cfg.vis = True and the temporal grids
 # rebuild the object from geometry regardless).
 #
-#   occupied  rewrite 2 -> 1: an ordinary obstacle, which is in distribution for a
-#             LINGO-trained expert.  The default.
-#   object    pass the 2 through: the released arithmetic, and the control.
+# DECIDED 2026-08-30 (user): `occupied` for every row.  `object` is retained only
+# as a later ablation and must not be used for a reported row until that ablation
+# runs.  Two grounds, both measured, neither of them a preference:
 #
-# Measured with the real P17-OC weights on one window, the two differ by
-# 0.039-0.057 m mean / 0.158 m max in joint position at t in {1,100,250,400} and
-# by exactly 0 at t=499.  So this is a real knob, not a formality -- but nothing
-# yet says which one generates better motion.
+#   1. Training distribution.  Under `lingo_only` the value 2 reached HSIPrior's
+#      scene ViT as at most ONE clamped corner voxel per grid, because
+#      object_points is the 999.0 sentinel.  On HOSI-test the three temporal grids
+#      carry 225-239 voxels at 2.  `occupied` puts the input back in the
+#      distribution the expert was trained on; `object` asks a LINGO-trained model
+#      to read a token it has effectively never seen.
+#   2. The effect is confined to exactly the channels that claim explains.  The two
+#      modes differ by 0.039-0.057 m mean / 0.158 m max in joint position at
+#      t in {1,100,250,400} and by EXACTLY 0 at t=499 -- the step where
+#      models/infbagel.py:1554 zeroes the temporal embeddings on both CFG passes.
+#      So the whole difference travels through the temporal scene channels, which
+#      is where the distribution shift is, and nowhere else.
+#
+#   occupied  rewrite 2 -> 1: an ordinary obstacle.  In distribution.  Use this.
+#   object    pass the 2 through: the released arithmetic.  Ablation only.
+#
+# What this decision does NOT claim: that `occupied` generates better motion.
+# Nothing measures that yet.  It claims the input is in distribution and the
+# alternative is not, which is the only ground available before the ablation.
 # Evidence: .claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json
 mixer_hsi_object_voxel_mode: occupied
 
 # THE GATE.  Default 0 = the HOI-alone anchor, which this config reproduces
 # bitwise; that is the safe default, because a config that forgets to set a gate
 # then produces a LABELLED anchor row rather than an unlabelled blend.
+#
+# A scalar here is a CONSTANT dose on all 216 human channels.  The other gate
+# families live in mixer/gates.py and are selected by overriding the gate node:
+#
+#   ScheduleGate         step-dependent dose (late vs early); which way round is
+#                        an open empirical question.
+#   ObjectConditionedGate  per-episode dose keyed on object name; the penetration
+#                        mass concentrates 37x by object and transfers between
+#                        models (rho +0.827), so this is where a dose can be spent
+#                        selectively.
+#   BodyGroupGate        the BODY split: HSI drives the root and lower body, HOI
+#                        drives the arms and hands, object/contact always HOI.
+#                        Per-joint inside both the position and rotation blocks --
+#                        see mixer/body_groups.py for the layout and for which
+#                        channels reach the metrics at all.
+#   ChannelBlockGate     positions (0:84) against rotations (84:216); a coarser cut
+#                        than BodyGroupGate and kept for that ablation only.
 mixer_gate: 0
-# 'human' masks the gate to channels 0:216.  HSI is never supervised on 216:232
-# (priors/hsi/data.py:253 -> core/window_codec.py:215 starts from zeros), so
-# blending there pulls the object toward the normalized box origin -- up to 4.481 m
-# of L2 object displacement per unit gate -- and scales every contact label by
-# (1-G).  Set null only to reproduce the literal unmasked operator.
+# THE CHANNEL CONTRACT -- a hard requirement, not an option (2026-08-30).
+# 'human' masks the gate to channels 0:216, so object translation, object rotation
+# and contact come from HOI at EVERY gate value, G == 1 included.  HSI is never
+# supervised on 216:232 (priors/hsi/data.py:253 -> core/window_codec.py:215 starts
+# from zeros), so blending there pulls the object toward the CENTRE of the
+# normalized box -- up to 4.481 m of L2 object displacement per unit gate -- and
+# scales every contact label by (1-G).
+#
+# `null` is REFUSED by the sampler at construction, and so is any mask tensor that
+# is non-zero on 216:232.  Rows produced with an open object channel are invalid;
+# there is no configuration that can produce one.  This also withdraws the
+# preregistered `G == 1 -> HSIPrior alone` anchor: see the revision note in
+# code/mixer/composition.py and docs/plan/PHASE_2_COMPOSITION.md.
 mixer_channel_mask: human
 
 # HOIPrior: Phase 1B settled P15, guidance Arm B.

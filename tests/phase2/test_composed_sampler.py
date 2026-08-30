@@ -407,42 +407,62 @@ class HSIExpertCallTests(unittest.TestCase):
         self.assertTrue(torch.equal(first_x, first_x0))
 
         # From step 498 on they must differ, and x0 must equal the PREVIOUS
-        # step's x_hat_0 -- which under G == 1 is the CFG output.  With the
-        # default w == 1 that is 2.0 + 1.0 * (2.0 - 0.5) == 3.5, and it holds on
-        # the history frames too: _hsi_x0 returns the raw model output, and the
-        # G == 1 anchor short-circuits before any history restoration.
+        # step's COMPOSED x_hat_0.  `_compute_occ_sample` reads only `x0[:, :, :84]`
+        # -- joint positions -- which at G == 1 is HSI's CFG output: with the
+        # default w == 1 that is 2.0 + 1.0 * (2.0 - 0.5) == 3.5.  It holds on the
+        # history frames too, because `_hsi_x0` returns the raw model output and the
+        # blend applies no history restoration to the HSI side.
+        #
+        # The object block 216:232 is deliberately NOT asserted to be 3.5 here:
+        # since the 2026-08-30 revision it comes from HOI at every gate value, so
+        # the composed x_hat_0 is not uniform across channels any more.  This test
+        # asserts what occupancy actually reads.
         second_x, second_x0 = hsi_sampler.occ_calls[1]
         self.assertFalse(torch.equal(second_x, second_x0))
+        queried = second_x0[..., :84]
         self.assertTrue(
-            torch.allclose(second_x0, torch.full_like(second_x0, 3.5), atol=1e-6),
+            torch.allclose(queried, torch.full_like(queried, 3.5), atol=1e-6),
             f'x0 is not the previous step x_hat_0: '
-            f'{torch.unique(second_x0).tolist()[:4]}',
+            f'{torch.unique(queried).tolist()[:4]}',
         )
 
-    def test_the_hsi_anchor_returns_the_hsi_prediction_unmasked(self):
-        """G == 1 short-circuits before the mask, including on 216:232."""
-        composed, _, _, _ = _make_composed_with_hsi(gate=1.0)
+    def test_gate_one_keeps_the_object_channels_on_hoi(self):
+        """The 2026-08-30 revision at the level of the whole 500-step loop.
+
+        This test asserted the opposite until the revision: that G == 1
+        short-circuited before the mask and passed HSI's object channels through.
+        It now asserts that gate 1 is INSIDE the mask, so the object block is
+        HOI's prediction and is bitwise equal to what a gate just below 1 gives.
+        Whole-loop rather than single-call, because the discontinuity that was
+        removed lived in `compose_x0` but its consequence was a produced row.
+        """
         arguments = _evaluator_arguments()
-        torch.manual_seed(42)
-        imgs, _ = composed.p_sample_loop(**arguments)
-        final = imgs[-1]
-        # Object translation comes from HSI at the anchor, so it is the CFG value
-        # (3.5 at the default w == 1, shrunk by coef1[0] on the last step) and NOT
-        # HOI's prediction.  219:228 is excluded: p_sample_loop closes it on SO(3)
-        # at the end, which rewrites those nine channels by design.
-        coef1_at_zero = float(composed.inner_hoi.diffusion.posterior_mean_coef1[0])
-        expected = 3.5 * coef1_at_zero
-        object_translation = final[
-            :, REPRESENTATION.history_frames:,
-            OBJECT_CHANNEL_START:OBJECT_CHANNEL_START + 3,
-        ]
+        finals = {}
+        for gate in (1.0, 1.0 - 1e-6):
+            composed, _, _, _ = _make_composed_with_hsi(gate=gate)
+            torch.manual_seed(42)
+            imgs, _ = composed.p_sample_loop(**arguments)
+            # 219:228 is excluded throughout: p_sample_loop closes it on SO(3) at
+            # the end, which rewrites those nine channels by design.
+            finals[gate] = imgs[-1][
+                :, REPRESENTATION.history_frames:,
+                OBJECT_CHANNEL_START:OBJECT_CHANNEL_START + 3,
+            ].clone()
         self.assertTrue(
+            torch.equal(finals[1.0], finals[1.0 - 1e-6]),
+            'the object channel moved between gate 1 and its limit from below',
+        )
+        # And it is not HSI's value: the CFG output is 3.5 at the default w == 1.
+        coef1_at_zero = float(
+            _make_composed_with_hsi(gate=1.0)[0].inner_hoi.diffusion
+            .posterior_mean_coef1[0]
+        )
+        self.assertFalse(
             torch.allclose(
-                object_translation, torch.full_like(object_translation, expected),
+                finals[1.0], torch.full_like(finals[1.0], 3.5 * coef1_at_zero),
                 atol=1e-5,
             ),
-            'the HSI anchor did not pass HSI through on the object channels: '
-            f'{torch.unique(object_translation).tolist()[:4]}',
+            'gate 1 still passed HSI through on the object channels',
         )
 
     def test_the_mask_keeps_object_channels_on_hoi_under_a_partial_gate(self):
@@ -487,6 +507,76 @@ class HSIExpertCallTests(unittest.TestCase):
         audit = composed.audit_dict()
         self.assertTrue(audit['composition']['hsi_expert_loaded'])
         self.assertEqual(audit['composition']['channel_mask'], 'human')
+        self.assertTrue(audit['composition']['object_channels_from_hoi'])
+
+
+class ChannelMaskIsMandatoryTests(unittest.TestCase):
+    """`mixer_channel_mask: human` is a requirement, not an option.
+
+    The failure mode this closes is specific and was reachable: a config with
+    `mixer_channel_mask: null` constructed fine, ran all 500 steps of all 469
+    episodes, and wrote an aggregate whose object translation had been pulled
+    toward the centre of the normalized box by the gate.  Nothing in the payload
+    said so.  Now the sampler refuses to construct, so no such row can exist.
+    """
+
+    def _adapter(self):
+        from mixer.hoi_adapter import HOIExpertSamplerAdapter
+
+        return HOIExpertSamplerAdapter(device='cpu', timesteps=500)
+
+    def test_the_sampler_refuses_a_null_mask_at_construction(self):
+        with self.assertRaisesRegex(ValueError, 'channel_mask=None is refused'):
+            HOSIComposedSampler(
+                self._adapter(), hsi_sampler=RecordingHSISampler(), gate=0.5,
+                channel_mask=None,
+            )
+
+    def test_the_sampler_refuses_a_null_mask_even_on_the_anchor_config(self):
+        """Where it matters most: gate 0 is the DEFAULT, so it must fail too.
+
+        Validating only on the arithmetic path would let the safe default config
+        carry an invalid mask silently until someone raised the gate months later.
+        """
+        with self.assertRaisesRegex(ValueError, 'channel_mask=None is refused'):
+            HOSIComposedSampler(self._adapter(), gate=0, channel_mask=None)
+
+    def test_the_sampler_refuses_a_mask_that_opens_the_object_channels(self):
+        for offending in (torch.ones(REPRESENTATION.dimension),
+                          torch.ones(1, 16, REPRESENTATION.dimension)):
+            with self.subTest(shape=tuple(offending.shape)):
+                with self.assertRaisesRegex(ValueError, 'must be exactly 0 on channels'):
+                    HOSIComposedSampler(
+                        self._adapter(), hsi_sampler=RecordingHSISampler(),
+                        gate=0.5, channel_mask=offending,
+                    )
+
+    def test_the_sampler_refuses_an_unknown_mask_name(self):
+        with self.assertRaises(ValueError):
+            HOSIComposedSampler(
+                self._adapter(), hsi_sampler=RecordingHSISampler(), gate=0.5,
+                channel_mask='everything',
+            )
+
+    def test_a_valid_custom_mask_is_accepted(self):
+        """Not a blanket ban on tensors: a per-frame mask is legitimate.
+
+        What must hold is the invariant, not the literal string 'human'.  A mask
+        that gates only the lower body, or only some frames, is a design the gate
+        family is meant to support -- provided 216:232 stays closed.
+        """
+        from mixer.composition import human_gate_mask
+
+        mask = human_gate_mask().expand(1, 16, REPRESENTATION.dimension).clone()
+        mask[:, :8, :] = 0.0
+        composed = HOSIComposedSampler(
+            self._adapter(), hsi_sampler=RecordingHSISampler(), gate=0.5,
+            channel_mask=mask,
+        )
+        self.assertEqual(composed.audit_dict()['composition']['channel_mask'], 'tensor')
+        self.assertTrue(
+            composed.audit_dict()['composition']['object_channels_from_hoi']
+        )
 
 
 class HSISkipTests(unittest.TestCase):

@@ -52,7 +52,12 @@ from priors.core.representation import REPRESENTATION
 from priors.core.window_codec import project_to_so3
 from priors.hoi.diffusion import prepare_clean_x0
 
-from .composition import ExpertOutputs, compose_x0, gate_is_identity
+from .composition import (
+    ExpertOutputs,
+    _validate_channel_mask,
+    compose_x0,
+    gate_is_identity,
+)
 
 
 class HOSIComposedSampler:
@@ -75,6 +80,12 @@ class HOSIComposedSampler:
                 "hsi_object_voxel_mode must be 'occupied' or 'object', got "
                 f'{hsi_object_voxel_mode!r}'
             )
+        # Validate the mask HERE, not 500 steps into the first window.  A row
+        # configured with `mixer_channel_mask: null` used to run to completion and
+        # produce an invalid object channel; now the sampler refuses to construct.
+        # A scalar probe stands in for the expert output: the check needs only a
+        # device, a dtype and the 232-channel extent.
+        _validate_channel_mask(channel_mask, torch.zeros(REPRESENTATION.dimension))
         self.hoi_adapter = hoi_adapter
         self.hsi_sampler = hsi_sampler
         self.gate = 0 if gate is None else gate
@@ -124,9 +135,12 @@ class HOSIComposedSampler:
         audit['composition'] = {
             'gate': self._describe_gate(),
             'channel_mask': (
-                self.channel_mask if isinstance(self.channel_mask, str)
-                else ('tensor' if self.channel_mask is not None else None)
+                self.channel_mask if isinstance(self.channel_mask, str) else 'tensor'
             ),
+            # Recorded as a payload claim, not as prose: validated at construction
+            # for every mask this sampler will accept, so a row on disk carries the
+            # statement that its object channel came from HOI at every gate value.
+            'object_channels_from_hoi': True,
             'compose_calls': self.compose_calls,
             'hsi_expert_loaded': self.hsi_sampler is not None,
             'per_step_composition': True,
@@ -401,13 +415,19 @@ class HOSIComposedSampler:
         confirmation that the whole effect travels through the temporal channels).
         Evidence: .claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json.
 
-        'occupied' (default) rewrites 2 to 1: the object becomes ordinary occupied
-        geometry, which is what LINGO furniture looked like in training, so the
+        DECIDED 2026-08-30 (user): 'occupied' for every row, 'object' demoted to a
+        later ablation.  'occupied' rewrites 2 to 1, so the object becomes ordinary
+        occupied geometry -- what LINGO furniture looked like in training -- and the
         input is in distribution.  'object' passes the 2 through, which is the
-        released arithmetic and the right control -- it is what a model trained
-        with `is_mix=True` would expect, and the released InfBaGel checkpoint is
-        such a model.  Neither is known to produce better MOTION; the measurement
-        above says only that the choice is not free.
+        released arithmetic and what a model trained with `is_mix=True` would
+        expect; the released InfBaGel checkpoint is such a model, HSIPrior is not.
+
+        The decision rests on the two facts above and on nothing else.  It does NOT
+        claim 'occupied' generates better motion -- no measurement says that yet,
+        and the ablation is what would. What it claims is that the input is in
+        distribution and the alternative is not, and that the measured difference
+        lives entirely in the temporal channels where that shift is (zero at
+        t=499, where those embeddings are zeroed on both CFG passes).
         """
         if self.hsi_object_voxel_mode == 'object':
             return occ, occ_list

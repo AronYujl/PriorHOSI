@@ -1,15 +1,23 @@
-"""The gating operator's two identity anchors, and the reserved `state` slot.
+"""The gating operator's identity anchor, its channel contract, and `state`.
 
     x_hat_0,h = G * x_hat_0^HSI + (1 - G) * x_hat_0^HOI
 
 A1  G == 0 returns the HOI tensor BIT FOR BIT, and never reads the HSI side.
-A2  G == 1 returns the HSI tensor BIT FOR BIT, and never reads the HOI side.
 
 A1 is what makes the HOI-alone HOSI-test row an anchor of the operator rather
 than a separate measurement that happens to sit next to it.  It is asserted here
 against a sentinel that raises on any access, so "never reads" is measured and
 not inferred from reading the arithmetic -- `0 * nan` is `nan`, so the naive
 expression does NOT satisfy A1.
+
+A2, `G == 1 returns the HSI tensor bit for bit`, was WITHDRAWN on 2026-08-30.
+HSIPrior receives no gradient on channels 216:232, so that row was an object at
+the centre of the normalized box, a zero 3x3 rotation with no polar factor, and
+every contact label at 0 -- not a baseline.  The anchor is now `G == 1` -> HSI on
+0:216, HOI on 216:232, which equals the limit from below, and the tests below
+assert that CONTINUITY where they used to assert the discontinuity.  The channel
+mask is consequently mandatory: `channel_mask=None` is refused, and a
+caller-supplied tensor must be exactly zero on 216:232.
 """
 
 import sys
@@ -64,11 +72,20 @@ class AnchorTests(unittest.TestCase):
                 out = compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), gate)
                 self.assertTrue(torch.equal(out, self.hoi))
 
-    def test_gate_one_returns_hsi_bitwise(self):
+    def test_gate_one_is_hsi_on_human_and_hoi_on_object(self):
+        """The revised A2.  Not bitwise HSI: 216:232 stays at HOI."""
         for gate in (1, 1.0, torch.ones(1), torch.ones(2, 16, 232)):
             with self.subTest(gate=type(gate).__name__):
                 out = compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), gate)
-                self.assertTrue(torch.equal(out, self.hsi))
+                self.assertTrue(torch.allclose(
+                    out[..., :OBJECT_CHANNEL_START],
+                    self.hsi[..., :OBJECT_CHANNEL_START],
+                ))
+                self.assertTrue(torch.equal(
+                    out[..., OBJECT_CHANNEL_START:],
+                    self.hoi[..., OBJECT_CHANNEL_START:],
+                ))
+                self.assertFalse(torch.equal(out, self.hsi))
 
     def test_gate_zero_never_reads_the_hsi_side(self):
         tripwire = TripwireTensor()
@@ -76,11 +93,14 @@ class AnchorTests(unittest.TestCase):
         self.assertTrue(torch.equal(out, self.hoi))
         self.assertEqual(tripwire.accesses, [])
 
-    def test_gate_one_never_reads_the_hoi_side(self):
+    def test_gate_one_needs_the_hoi_side(self):
+        """The withdrawn anchor's inverse: at 1 the HOI object channel is required.
+
+        A tripwire on the HOI side must now FIRE, because 216:232 comes from it.
+        """
         tripwire = TripwireTensor()
-        out = compose_x0(ExpertOutputs(hoi=tripwire, hsi=self.hsi), 1)
-        self.assertTrue(torch.equal(out, self.hsi))
-        self.assertEqual(tripwire.accesses, [])
+        with self.assertRaises((AssertionError, ValueError, TypeError)):
+            compose_x0(ExpertOutputs(hoi=tripwire, hsi=self.hsi), 1)
 
     def test_anchor_survives_a_nonfinite_unused_expert(self):
         """The property the naive arithmetic fails: 0 * nan is nan."""
@@ -91,15 +111,42 @@ class AnchorTests(unittest.TestCase):
         naive = 0.0 * poisoned + 1.0 * self.hoi
         self.assertTrue(torch.isnan(naive).all())
 
-    def test_anchor_needs_only_the_expert_it_returns(self):
+    def test_the_zero_anchor_needs_only_hoi_and_gate_one_needs_both(self):
         self.assertTrue(torch.equal(
             compose_x0(ExpertOutputs(hoi=self.hoi), 0), self.hoi))
-        self.assertTrue(torch.equal(
-            compose_x0(ExpertOutputs(hsi=self.hsi), 1), self.hsi))
         with self.assertRaises(ValueError):
             compose_x0(ExpertOutputs(hsi=self.hsi), 0)
+        # There is no HSI-alone row on this benchmark, at gate 1 or anywhere else.
+        with self.assertRaisesRegex(ValueError, '216:232'):
+            compose_x0(ExpertOutputs(hsi=self.hsi), 1)
         with self.assertRaises(ValueError):
             compose_x0(ExpertOutputs(hoi=self.hoi), 1)
+
+    def test_the_operator_is_continuous_at_gate_one(self):
+        """What replaced the discontinuity: the value at 1 IS the limit from below.
+
+        The withdrawn short-circuit skipped the mask, so a gate reaching exactly
+        1.0 hit a different operator than a gate at 1 - 1e-6.  A learned gate is
+        free to move through that value, so the jump was a defect in the operator
+        rather than a documented curiosity.
+        """
+        outputs = ExpertOutputs(hoi=self.hoi, hsi=self.hsi)
+        at = compose_x0(outputs, 1.0)
+        # The exact bound, not a guessed one: on the human channels the operator
+        # differs from its value at 1 by `epsilon * (hoi - hsi)`, so the tolerance
+        # has to carry the actual separation of the two experts.
+        separation = float((self.hoi - self.hsi).abs().max())
+        for epsilon in (1e-3, 1e-6, 1e-9):
+            near = compose_x0(outputs, 1.0 - epsilon)
+            with self.subTest(epsilon=epsilon):
+                self.assertTrue(torch.allclose(
+                    near, at, atol=epsilon * separation + 1e-6,
+                ))
+        # And the two sides of the limit agree exactly on the masked block.
+        self.assertTrue(torch.equal(
+            at[..., OBJECT_CHANNEL_START:],
+            compose_x0(outputs, 1.0 - 1e-6)[..., OBJECT_CHANNEL_START:],
+        ))
 
 
 class BlendTests(unittest.TestCase):
@@ -112,9 +159,10 @@ class BlendTests(unittest.TestCase):
     def test_scalar_half_is_the_midpoint_on_the_human_channels(self):
         """The midpoint holds where both experts are supervised, and only there.
 
-        Under the default human mask the object and contact channels stay at HOI,
-        so a scalar 0.5 is the midpoint on 0:216 and the identity on 216:232.
-        `channel_mask=None` recovers the unmasked midpoint on all 232.
+        Under the mandatory human mask the object and contact channels stay at
+        HOI, so a scalar 0.5 is the midpoint on 0:216 and the identity on 216:232.
+        There is no way to recover the unmasked midpoint on all 232, which is the
+        point of the 2026-08-30 revision.
         """
         out = compose_x0(self.outputs, 0.5)
         midpoint = 0.5 * (self.hoi + self.hsi)
@@ -124,8 +172,6 @@ class BlendTests(unittest.TestCase):
         self.assertTrue(torch.equal(
             out[..., OBJECT_CHANNEL_START:], self.hoi[..., OBJECT_CHANNEL_START:]
         ))
-        unmasked = compose_x0(self.outputs, 0.5, channel_mask=None)
-        self.assertTrue(torch.allclose(unmasked, midpoint))
 
     def test_per_channel_gate_broadcasts(self):
         gate = torch.zeros(1, 16, 232)
@@ -273,56 +319,72 @@ class ChannelMaskTests(unittest.TestCase):
         self.assertTrue(torch.allclose(composed[..., :OBJECT_CHANNEL_START],
                                        torch.zeros(2, 16, OBJECT_CHANNEL_START)))
 
-    def test_mask_none_applies_the_gate_to_all_232_channels(self):
-        composed = compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
-                              channel_mask=None)
-        self.assertTrue(torch.allclose(composed, torch.zeros(2, 16, 232)))
+    def test_mask_none_is_refused(self):
+        """The row that used to be producible and was never valid."""
+        for gate in (0.5, 1.0, torch.full((2, 16, 232), 0.5)):
+            with self.subTest(gate=type(gate).__name__):
+                with self.assertRaisesRegex(ValueError, 'channel_mask=None is refused'):
+                    compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), gate,
+                               channel_mask=None)
 
-    def test_a_custom_mask_is_honoured(self):
+    def test_mask_none_is_refused_even_at_the_zero_anchor(self):
+        """No path accepts it, so no config can reach it by choosing a gate.
+
+        The G == 0 short-circuit returns before the mask is used, so this asserts
+        the ORDER: validate, then short-circuit.  Otherwise `mixer_channel_mask:
+        null` would be accepted by exactly the config that is the safe default,
+        and only fail once someone raised the gate.
+        """
+        with self.assertRaisesRegex(ValueError, 'channel_mask=None is refused'):
+            compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0,
+                       channel_mask=None)
+
+    def test_a_custom_mask_is_honoured_on_the_human_channels(self):
         mask = torch.zeros(232)
         mask[7] = 1.0
-        composed = compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 1.0,
-                              channel_mask=mask)
-        # Gate 1.0 is an ANCHOR and short-circuits before the mask, so use a
-        # non-anchor gate to exercise the mask itself.
         composed = compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.99,
                               channel_mask=mask)
         self.assertAlmostEqual(float(composed[0, 0, 7]), 0.5 - 0.99, places=5)
         self.assertAlmostEqual(float(composed[0, 0, 8]), 0.5, places=6)
 
-    def test_both_anchors_ignore_the_mask_and_stay_bitwise(self):
+    def test_a_custom_mask_must_be_zero_on_the_object_channels(self):
+        """The invariant, enforced on the tensor rather than trusted.
+
+        An all-ones tensor is the same invalid row `channel_mask=None` was, so it
+        must fail the same way -- otherwise refusing None only moves the defect.
+        """
+        for offending in (
+            torch.ones(232),
+            torch.ones(1, 16, 232),
+        ):
+            with self.subTest(shape=tuple(offending.shape)):
+                with self.assertRaisesRegex(ValueError, 'must be exactly 0 on channels'):
+                    compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
+                               channel_mask=offending)
+        # One channel is enough: 219:228 is measured invariant under a uniform
+        # scale, but the mask is not allowed to be the thing that knows that.
+        for channel in (OBJECT_CHANNEL_START, 219, 228, 231):
+            mask = human_gate_mask()
+            mask[channel] = 1.0
+            with self.subTest(channel=channel):
+                with self.assertRaisesRegex(ValueError, 'must be exactly 0 on channels'):
+                    compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
+                               channel_mask=mask)
+
+    def test_the_zero_anchor_still_short_circuits_under_a_valid_mask(self):
         outputs = ExpertOutputs(hoi=self.hoi, hsi=self.hsi)
         self.assertIs(compose_x0(outputs, 0), self.hoi)
-        self.assertIs(compose_x0(outputs, 1), self.hsi)
-        self.assertIs(compose_x0(outputs, 0, channel_mask=None), self.hoi)
-        self.assertIs(compose_x0(outputs, 1, channel_mask=None), self.hsi)
-
-    def test_the_operator_is_discontinuous_at_the_hsi_anchor_under_the_mask(self):
-        """Documented, not accidental: G==1 is HSI alone, its limit is not.
-
-        The limit from below keeps HOI's object channels; exactly 1 returns HSI's
-        never-supervised zeros there.  A learned gate reaches the anchor only by
-        emitting exactly 1.0 on all 232 channels of every batch element.
-        """
-        outputs = ExpertOutputs(hoi=self.hoi, hsi=self.hsi)
-        near = compose_x0(outputs, 1.0 - 1e-6)
-        at = compose_x0(outputs, 1.0)
-        self.assertTrue(
-            torch.allclose(
-                near[..., OBJECT_CHANNEL_START:], self.hoi[..., OBJECT_CHANNEL_START:],
-                atol=1e-5,
-            )
-        )
-        self.assertTrue(
-            torch.equal(
-                at[..., OBJECT_CHANNEL_START:], self.hsi[..., OBJECT_CHANNEL_START:]
-            )
-        )
+        self.assertIs(compose_x0(outputs, 0, channel_mask=human_gate_mask()), self.hoi)
 
     def test_a_bad_mask_shape_raises(self):
         with self.assertRaises(ValueError):
             compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
                        channel_mask=torch.ones(999))
+
+    def test_a_mask_that_does_not_broadcast_raises(self):
+        with self.assertRaisesRegex(ValueError, 'does not broadcast'):
+            compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
+                       channel_mask=human_gate_mask().expand(5, 232))
 
     def test_an_unknown_mask_name_raises(self):
         with self.assertRaises(ValueError):
@@ -334,20 +396,23 @@ class ChannelMaskTests(unittest.TestCase):
             compose_x0(ExpertOutputs(hoi=self.hoi, hsi=self.hsi), 0.5,
                        channel_mask=7)
 
-    def test_contact_scaling_is_what_the_mask_prevents(self):
-        """The measured reason, as an assertion: unmasked, contact scales by (1-G).
+    def test_contact_is_never_scaled_by_the_gate(self):
+        """The measured reason the mask exists, now asserted over the whole range.
 
-        contact_percent is the metric the 15% budget is written against, so an
-        unmasked gate would spend that budget on channels HSI has no opinion
-        about.
+        Unmasked the composed contact would be `contact_HOI * (1-G)`, straight
+        into the metric the 15% contact budget is written against.  There is no
+        longer any way to produce that, so the assertion is that contact is
+        INVARIANT in G -- including at G == 1, which used to return HSI's zeros.
         """
         hoi = torch.zeros(1, 16, 232)
         hoi[..., 228:232] = 1.0
         hsi = torch.zeros(1, 16, 232)
-        unmasked = compose_x0(ExpertOutputs(hoi=hoi, hsi=hsi), 0.3, channel_mask=None)
-        self.assertTrue(torch.allclose(unmasked[..., 228:232], torch.full((1, 16, 4), 0.7)))
-        masked = compose_x0(ExpertOutputs(hoi=hoi, hsi=hsi), 0.3)
-        self.assertTrue(torch.allclose(masked[..., 228:232], torch.ones(1, 16, 4)))
+        for gate in (0.0, 0.3, 0.5, 0.99, 1.0):
+            with self.subTest(gate=gate):
+                composed = compose_x0(ExpertOutputs(hoi=hoi, hsi=hsi), gate)
+                self.assertTrue(torch.equal(
+                    composed[..., 228:232], torch.ones(1, 16, 4),
+                ))
 
 
 if __name__ == '__main__':
