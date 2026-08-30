@@ -9035,6 +9035,19 @@ guidance 把总量压到 0.795x（SIG）却**抬高**集中度（Gini 0.627→0.
 1. `pen_depth_max` 的 **>20 cm episode 份额**显著低于 Bg 的 **0.12394**（44/355）；
 2. `boundary_jerk` 显著低于 Bg 的 **2.1856x GT**（delta +99.85，hw 14.48）。
 
+> **2026-08-30 第二节的口径修订（用户指示），写在原处**：自 P0-ZO 起，第 1 条按
+> **仅生成帧**口径判读 —— `pen_depth_max` 排除 GT 播种的自回归条件前缀帧
+> （`auto_regre_num=2` 展开后为前 4 帧，9–10 个 episode 为 3 帧）。仅生成帧口径下
+> **Bg 的冻结基线是 43/355 = 0.12113**；`>15 cm` 并列点在两种口径下**同为
+> 85/355 = 0.23944**（实测，非推断：前缀污染只影响 1 个 episode 的 >20 cm 归属,
+> 对 >15 cm 阈值一个都不影响）。
+> 理由已在同日第一节 §I 量化：那几帧是自回归条件而非模型输出，guided 格 19.4% 的
+> episode 其 argmax 落在前缀内，去掉前缀后"两臂逐位相同"的计数精确降到 0/355。
+> **这是本判据自身的缺陷，不是评估器的缺陷。** 修订**不改写任何已封存判定**：
+> P17-OC 在三种视角下同为 FAIL。全部帧口径的 0.12394 作为历史锚点保留，
+> 四个封存格的原始列都以它复算过。第 2 条不受影响（`boundary_jerk` 的评估器掩码
+> 本就只取 offset {−1,0,+1} 的接缝帧）。
+
 **为什么是这两条**：它们是用户两个抱怨各自最大的可测缺陷，且都从未被当过门
 （`pen_depth_max` 从未；`boundary_jerk` 是本分支已知最大 GT 缺口）。
 一条满足一条不满足 → **PARTIAL**，按 §S 报告，不四舍五入成 PASS。
@@ -10703,6 +10716,16 @@ episode 的未来臂它会起作用。**§M.6 判据的任何重述应采用视�
      死输出行上，`max|Δ|` 恰好 0.0，故 {E0,E1} 相对 B-v2 的行为差异就是 E1 的）;
    - **{E0, E1} vs 本臂** 隔离 **E3**。
 
+   > **2026-08-30 第二节的订正，写在原处而不是替换原文**：上面第一项括号里的
+   > "**前向路径外**"是错的。`max|Δ| = 0.0` 作为**训练期权重**陈述成立（146,255 个
+   > update），但那 16 行在**跨时间步**意义上完全在前向路径上：`self.out`（`:1402`）
+   > → `model_mean`（`:1125-1133`）→ `x_prev` → `embedding_input`（`:1377`，
+   > `nn.Linear(232, dim_model)`，无掩码）。真正在前向路径外的是 `embedding_output`,
+   > 那是另一个模块。**后果：{E0,E1} 对照 B-v2 不能干净地隔离 E1**，除非 E0 的
+   > 推理侧效应先被测为空或被中和。这正是 P0-ZO 必须排在 {E0,E1} 之前的原因,
+   > 见 2026-08-30 第二节 §B。单 episode smoke 已把该效应的量级定性为 0.5 rad
+   > 而非数值噪声（同节 §J）。
+
    **一处订正**：本节初稿把"{E0, E1} 对照本臂"写成隔离 E1，那是错的 —— 该方向的
    差集是 E3。隔离 E1 需要的是与 B-v2 的对照，或一条不含 E1 的 {E0, E3} 臂。
 2. **批均值形式的 E3 证明触不到深度尾部。** 关节侧 >20 cm 恒为 0/355，而顶点尾部是
@@ -10713,3 +10736,262 @@ episode 的未来臂它会起作用。**§M.6 判据的任何重述应采用视�
 判读文件：`.claude/scratch/p17oc_guided_findings.md`、`p17oc_unguided_findings.md`;
 数据：`p17oc_guided_read.json`、`p17oc_unguided_read.json`、`p17oc_seedmask_read.json`、
 `p17oc_seedmask_depth.json`、`p17oc_identical_probe.json`、`p17oc_prefix_check.json`。
+
+## 2026-08-30 第二节（P0-ZO 预注册 —— 推理侧 216:232 清零 A/B，零训练；含 §M.6 仅生成帧口径修订与 `Loss_pen` 补记）
+
+### A. 本节地位与授权
+
+本节预注册 **P0-ZO**：在**现有** P17-OC `epoch222` checkpoint 上做一次**纯推理侧**
+A/B，不训练任何模型。
+
+**授权**：用户 2026-08-30 明确批准一条具体实验 —— "先执行 P0，不先做单卡输出幅度探针，
+也暂不启动 {E0,E1} 完整训练"，并指定了实现形态（默认关闭、仅作用于 LINGO 非物体样本、
+位置在 CFG 合成之后与 posterior `model_mean` 之前）、运行形态（新实验 ID、现有
+P17-OC epoch222、seed 42、原 8-shard 协议、先跑 guided 格、不覆盖任何旧结果）
+与两层判据。本节按该批准执行，不扩大范围。
+
+**P17-OC 的 FAIL 记录不变。** 上一节（`:10471`）的判定、预注册行与完成行都不被改写。
+本节不晋级任何 checkpoint，不启动蒸馏。
+
+**同时不启动**：E3-v2（max 加权 / 逐 episode）、FK/rotation 侧 seam 项、首次 scene crop
+分层、足部目标项。这四项在本节中只被记录为未决，均不申请 GPU。
+
+### B. 机制 —— 已在源码中核实的部分，与未测的部分
+
+**已核实（读源码，非取自任何自述）：**
+
+| 事实 | 位置 |
+|---|---|
+| `self.out = nn.Linear(dim_model, 232)`，输出全部 232 通道 | `code/models/infbagel.py:1402` |
+| `model_output` 全 232 通道进 `model_mean`，再成为 `x_prev` | `:1125-1133` |
+| `self.embedding_input = nn.Linear(232, dim_model)`，**无掩码**地吃回全部 232 通道 | `:1377`、`:1653` |
+| HSI 训练中 `is_mix=False`，故 `p_losses` 不走 `x_noisy[~is_object, :, 216:] = x_start[...]` 分支；`x_start[:, :, 216:232]` 恒为 0，三个 object 项被 `mask_obj` 屏蔽 | `:1030-1060` |
+| `set_fixed_points` 覆写前缀帧的**全部 232 通道** | `:1246-1247` |
+| HSI 评估把 `get_occ_for_points` 换成 `scene_only_occ`，object 点云**不写进 occupancy** | `code/test_infbagel_lingo_hsi.py:1336-1341` |
+
+**由此得到的机制**：216:232 这 16 行在**跨时间步**意义上完全在前向路径上 ——
+`self.out` → `model_mean` → `x_prev` → `embedding_input` → trunk → 0:216 的输出。
+B-v2 在那里预测 ≈0（死行范数 9.223e-3），与训练分布一致；P17-OC 的 E0 切断了该处梯度，
+16 行停在 `nn.Linear` 初始化（范数 0.5761 = sqrt(1/3)，epoch000 与 epoch140 逐位相同），
+于是反向链把 x[216:232] 推向一个**训练在低 t 从未见过**的非零预测。
+这是 B-v2 **不存在**的一处训练/推理输入错配。
+
+**未测**：该错配对 0:216 人体通道的**幅度**。行范数不等于输出幅度 ——
+随机初始化行与隐状态 `h` 的对齐是随机的，点积要吃 1/sqrt(512) ≈ 1/22.6 的折扣，
+训练过的行不吃；所以 62x 的范数比既不是 62x 也不是 1x，**方向未定**。
+导出 NPZ 只有人体通道（22 个键，无 232 维原始张量），磁盘上读不出来。
+**用户决定不先做单卡幅度探针，直接由 P0 的端到端指标回答**：若 P0 在指标上是空的，
+该错配在指标层面就是空的，幅度问题随之关闭。
+
+**一处必须写明的自我订正**：上一节 §L（`:10700-10703`）写 "E0 的效应被独立验证局限在
+16 行**前向路径外**的死输出行上"。`max|Δ| = 0.0` 作为**训练期权重**陈述是对的
+（146,255 个 update），但"前向路径外"是错的。真正在前向路径外的是 `embedding_output`
+（另一个模块，另一条记录）。后果：{E0,E1} 对照 B-v2 **不能**干净地隔离 E1，除非
+A1 的推理侧效应先被测为空或被中和 —— 这正是 P0 必须排在 {E0,E1} 之前的原因。
+
+### C. 改动 —— 一个开关，默认关闭时逐位恒等
+
+`zero_object_x0(model_output, is_object, enabled)`（`code/models/infbagel.py`）:
+在 `Sampler.p_sample` 中、**CFG 合成之后、`model_mean` 之前**，把预测 x0 的
+216:232（com 216:219、rot 219:228、contact 228:232）在 `is_object=False` 的行上钉为
+**恰好 0**，人体 216 通道逐位不动。
+
+四条性质，每条都有测试钉住（`tests/hsi/test_object_channel_zeroing.py`，19 个用例）：
+
+1. **`enabled=False` 返回同一个对象** —— 不建掩码、不跑任何张量算子，
+   封存格逐位复现；
+2. **人体通道 0:216 在两种状态下都逐位不变**；
+3. **掩码逐样本**，`is_object=True` 的行逐位原样返回，且单行结果与它搭哪个 batch 无关
+   （layout 中性；批级分支曾经就是这样被破坏的）;
+4. **只有 `p_sample` 应用它** —— `cm_sample` 与 `p_losses` 都不调用，由 AST 守卫检查。
+   C 既不修改也不重训，这一条把"C 未被触碰"变成被检查的断言而非承诺。
+
+**为什么钉预测 x0 而不是钉 x**：在高 t 上把 x 钉 0 是**反方向**的错配，因为训练在那里
+有 `sqrt(1-abar_t)·noise`。钉预测让后验把这 16 通道沿 `q_sample(0)` 的路径走 ——
+高 t 是 O(1) 噪声、随 t→0 衰减到 0，与训练完全一致。
+
+**它不改变任何随机数抽取。** `torch.randn_like(x)` 在两个格里以相同形状、相同顺序被调用，
+guidance 不用随机数，object/vis 分支不进入。所以 A/B 的差别只在那 16 通道的算术上，
+以及 trunk 在下一步对它们的反应上 —— 这是可能做到的最干净的对照。
+
+**已核实的一处非平凡副作用，写明而不是静默**：`generated_object_trans/rotation/contact`
+（`test_infbagel_lingo_hsi.py:1607-1609`）来自这 16 通道，并进入下一窗口的
+`fixed_points` 前缀。所以 P0 也改变了窗口间前缀的 object 分量。这**不是**污染：
+那条链路本身就是评估器的既有行为，B-v2 与 P17-OC 都有；P0 改的是模型自己在那里贡献了多少。
+occupancy 一侧不受影响，因为 `scene_only_occ` 已经把 object 点云挡在 occupancy 之外。
+
+### D. 评估格 —— 一格，guided，新 ID，不覆盖
+
+| | |
+|---|---|
+| run id | `p1-hsi-b-p0zo-eval-epoch222-guided-shard8-s42-20260830` |
+| checkpoint | `results/hsi_b_p17oc/checkpoints/hsi_b_p17oc_epoch222.pth`，sha256 `f64d956f88b8a81dddb160cb84fb5e9bdbe08f0606437a0e8b079cc92e8db5aa`（**复用封存哈希**，同一文件）|
+| 协议 | 固定 8 路 HSI 协议，375 序列，2271 窗口，seed 42，`hsi_progress_fix=true`，`export_motion=true` |
+| 开关 | `hsi_zero_object_x0=true`，其余与 P17-OC guided 格逐键相同 |
+| 输出 | `results/lingo_hsi/p0zo_guided_shard8`（**新目录**；`p17oc_guided_shard8` 与 `p17oc_unguided_shard8` 原样保留）|
+| 预算 | 约 5 h（P17-OC guided 格实测 5 h 19 m），8 卡 |
+| unguided | **本节不跑**。仅在第二层判据整体通过后才补跑，见 §G |
+
+### E. 第一层判据 —— 相对 P17-OC guided，只看一条
+
+**这是"P0 是否做了任何事"的判据，配对集与统计协议与上一节完全相同**：
+holdout355（full375 减去被选样烧掉的冻结 worst20）、配对 episode bootstrap、
+10,000 replicate、seed 42、2.5/97.5 百分位。
+
+**判据**：`boundary_jerk` 相对 **P17-OC guided**（207.716）**显著下降**
+（配对 delta < 0 且 95% CI 严格不含 0）。
+
+- **显著下降 → 进第二层。**
+- **不显著（含方向对但不显著、方向反）→ P0 停止。** 不跑 unguided 格，
+  转入 §I 的 §M.6 口径修订与 {E0,E1} 归因臂。此时的科学结论是：
+  E0 的推理侧输入错配在 `boundary_jerk` 上不承载 +23.65 的回归，
+  A1 在指标层面为空，{E0,E1} 对照 B-v2 因此**可以**读作 E1 的隔离。
+  **这是一个有价值的负结果，不是浪费**：它是 §L 归因链能否闭合的前提。
+
+**同表并列报告，不可省**：`interior_jerk`、`jerk_ratio`（判断增益是否集中在接缝，
+与上一节 14.3 倍集中度可比）、`pen_depth_max` 的 >20 cm 与 >15 cm 份额。
+
+### F. 第二层判据 —— 相对 Bg 的完整双门加三守卫
+
+**仅在第一层通过后判读，且必须整体通过才谈晋级。**
+
+**主判据（§M.6 冻结，两条都要满足）：**
+1. `pen_depth_max` 的 >20 cm episode 份额显著低于 **Bg 的 0.12394**（44/355）;
+2. `boundary_jerk` 显著低于 **Bg 的 2.1856x GT**（delta +99.85，hw 14.48）。
+
+一条满足一条不满足 → **PARTIAL**，按 §S 报告，**不四舍五入成 PASS**。
+
+**三守卫，任一触发即不得声称胜利（§M.6 原文）：**
+- **G1 反 dodging**：`contact_count` / `contact_count_exterior` 不得显著下降。
+  P16-GQ 正是在这里 FAIL 的。
+- **G2 不得用地板换家具**：不排除地板的 `pen_value` 不得显著上升。
+- **G3 发生率不得退化**：`pen_ratio` 现为 0.8615x GT（优于 GT），不得被交换掉。
+
+**其他稳定性列，同表报告**：`pen_depth_mean`、`pene_sum_mean_floorexcl`、
+`pene_sum_max_floorexcl`、`pen_burst`、`fs_nemf` 三变体、`skate_ratio`、
+`transition_distance_aligned{,_max}`、`min_dist`、`last_dist`、`goal_planar_err_m`、
+`reachability_violation_ratio`。判读脚本报告输入文件中出现的**全部**列，
+不设"仅报告某子集"的开关。
+
+**用户明确的一条约束，写成要求**：**仅 jerk 改善不得自动晋级。**
+第一层通过而第二层未整体通过 → 结论是"机制被证实、门未过"，checkpoint 不晋级。
+
+### G. 停止规则与后续，现在写定
+
+- **第一层不显著** → P0 停止；不跑 unguided；进入 §I 修订与 {E0,E1} 臂。
+- **第一层通过、第二层未整体通过** → 记录为 PARTIAL 或 FAIL（按 §M.6 的字面规则），
+  不跑 unguided，不晋级，不启动蒸馏。
+- **第二层完整 guided 门控通过** → 补跑 unguided 格（新 ID
+  `p1-hsi-b-p0zo-eval-epoch222-unguided-shard8-s42-<日期>`，约 2 h 40 m），
+  然后**才**讨论是否把这个采样修复后的版本作为新 teacher 候选。
+  该讨论需要用户批准才能进入蒸馏。
+
+### H. 启动前门 —— 全部零 GPU，已全绿
+
+1. **默认关闭的逐位恒等**：`enabled=False` 返回同一对象（`assertIs`），
+   19/19 用例通过。
+2. **全权威套件**：386 passed / 3 skipped，`INFBAGEL_PYTHON` 已设。
+   diffusion 源码变更，故按 AGENTS.md 跑全套而非仅组件。
+3. **真实数据功能 smoke**：单 episode（canonical ordinal 0 = `010:000341`，4 窗口），
+   guided diffusion，P17-OC epoch222，两格（开关 off / on）。
+   要求：off 格逐位复现封存导出；on 格在人体通道上有差异且全部有限。
+   结果记于 §J。
+4. **性能基准免除，理由记录**：改动只在推理路径，且默认关闭时不跑任何额外张量算子;
+   开启时新增一次 clone 与一次 [B,16,16] 的乘法，相对每步两次全模型前向不可测。
+   训练路径唯一改动是一行 tensorboard scalar，不进计算图。
+
+### I. 两项同行修订
+
+**I.1 §M.6 的仅生成帧口径修订（用户 2026-08-30 指示，本节完成）。**
+
+§M.6 的主判据第 1 条自本节起按**仅生成帧**口径判读：`pen_depth_max` 的逐 episode 取值
+在计算时**排除 GT 播种的自回归条件前缀帧**（`auto_regre_num=2` 展开后为前 4 帧，
+9–10 个 episode 为 3 帧）。第 2 条不受影响：`boundary_jerk` 的评估器掩码本就只取
+offset {−1,0,+1} 的接缝帧。
+
+**仅生成帧口径下的冻结基线，实测自封存 payload（`.claude/scratch/p17oc_seedmask_depth.json`）：**
+
+| 口径 | Bg >20 cm | Bg >15 cm |
+|---|---|---|
+| 全部帧（历史锚点，保留）| 44/355 = **0.12394** | 85/355 = **0.23944** |
+| **仅生成帧（自此生效）** | 43/355 = **0.12113** | 85/355 = **0.23944** |
+
+`>15 cm` 在两种口径下相同 —— 前缀污染只把 1 个 episode 移出 >20 cm 的 cohort,
+对 >15 cm 阈值一个都不影响。
+
+理由已在上一节 §I 量化：`set_fixed_points` 覆写前缀的全部 232 通道，那几帧是条件而非
+模型输出；guided 格 19.4% / 19.2% 的 episode 其 `pen_depth_max` 的 argmax 落在前缀内，
+去掉前缀后"两臂逐位相同"的计数在每个格都精确降到 0/355。
+**这是本项目自己预注册判据的缺陷，不是评估器的缺陷。**
+
+**修订不改写任何已封存判定。** 上一节已同时报告三种视角，且 A/B/C 三视角下 P17-OC
+的判决同为 FAIL（41/355 vs 43/355，delta −0.00563 ns）。Bg 的冻结基线在仅生成帧口径下
+为 **43/355 = 0.12113**；判读脚本按视角分别校验，任一视角与其记录值不符即拒绝出结论。
+**全部帧口径的 0.12394 仍作为历史锚点保留**，因为四个封存格的原始列都以它复算过。
+
+**I.2 `Loss_pen` 补记（用户 2026-08-30 指示，下一次训练生效）。**
+
+`train_infbagel.py` 现在记 `Loss_pen`，形态与 `Loss_seam` 相同：仅在
+`pen_loss_weight > 0` 时出现，已在 `loss` 之内，纯诊断。
+
+它存在是因为 P17-OC 跑的时候没有这一行 —— `p_losses` 在 `:1130` 返回了 `loss_pen`，
+而 `train_infbagel.py:592-593` 只解包 `loss/loss_object/loss_fk`，
+所以 §O.4b(i) 预注册的那条读数**在磁盘上没有数据源，且事后无法回填**。
+本臂（P0）不训练，故这一行对 P0 无效；它是给下一条训练臂的。
+
+### J. 启动前 smoke 的实测结果
+
+单 episode（canonical ordinal 0 = `010:000361`，6 窗口，258 帧），guided diffusion,
+P17-OC epoch222，`shard_count=1`、`lingo_sequence_limit=1`、seed 42。
+逐 episode 种子是 `seed + canonical_ordinal`，该 episode 在封存 shard02 中的
+canonical ordinal 同为 0，所以 smoke 与封存格用的是同一个种子。
+
+**门 1 —— 开关 OFF 必须逐位复现封存导出：PASS。**
+`global_jpos` (86,28,3)、`global_orient` (258,3)、`body_pose` (258,21,3)、
+`transl` (258,3)、`betas` (16,) 全部 `max|Δ| = 0.000e+00`，逐位相同。
+`boundary_jerk`、`pen_depth_max`、`contact_count` 等列同样与封存值逐位相同。
+
+**门 2 —— 开关 ON 必须在人体通道上有差异且全部有限：PASS。**
+`body_pose` max|Δ| **0.530 rad**、`global_orient` 0.445 rad、`global_jpos` 0.311 m、
+`transl` 0.0838 m，全部有限。**这直接回答了 §B 那个"未测的幅度"问题的定性一半：
+那 16 通道的推理侧错配对人体输出的效应不是数值噪声量级，是 0.5 rad 量级。**
+
+**单 episode 的指标移动 —— 是活性检查，不是判据，n=1 无统计意义：**
+
+| 列 | 封存 = OFF | ON | 方向 |
+|---|---:|---:|---|
+| `boundary_jerk` | 184.951 | 166.469 | 降 |
+| `interior_jerk` | 55.530 | 59.593 | 升 |
+| `jerk_ratio` | 3.3307 | 2.7935 | 降 |
+| `pen_depth_max` | 0.08095 | 0.05898 | 降 |
+| `pen_ratio` | 0.00976 | 0.00598 | 降 |
+| `pen_value` | 0.02222 | 0.01877 | 降 |
+| `contact_count` | 522.643 | 511.922 | 降 2.1% |
+| `contact_count_exterior` | 145.485 | 166.814 | 升 |
+
+**必须写在同一处的告诫**：这是 355 个 episode 中的 1 个，且它不在判定集的任何
+预先指定位置上。它证明机制活着、方向不荒谬、没有 NaN —— **它不预测 §E 的判定**,
+也不构成对 §E 的任何 peek，因为 §E/§F 的判据在这些数字之前就已按用户指示写定并冻结。
+`contact_count` 降 2.1% 而 `contact_count_exterior` 升，是 G1 守卫需要在 355 个
+episode 上正式判读的那一对，不能从 n=1 外推。
+
+### K. 未决问题 —— 均未启动、均未申请 GPU
+
+1. **{E0, E1} 归因臂**（22 h 训练 + 两格评估）。它一条臂给两个对照：
+   对本臂之外的 P17-OC 隔离 **E3**，对 B-v2 隔离 **E1** —— 但后者**仅当** P0 判定
+   A1 的推理侧效应为空或已被中和时成立。P0 是它的前提，顺序不可交换。
+2. **E3-v2**：批均值形式**可证明**触不到深度尾部（关节侧 >20 cm 恒 0/355，
+   顶点尾部 44/355），所以这不是调 `w_E3` 的问题。max 加权与逐 episode 形式都重新
+   引入 P16-GQ 的 dodging 风险，守卫须先设计。
+3. **seam 项重新瞄准**：`loss_seam`（`:985`）监督 `x_start[:, n:n+2, :84]` 的 28 个
+   位置槽位，而 `boundary_jerk` 走 SMPL-X FK 身体（root + 22 旋转）。84 个受监督通道里
+   只有槽位 0 的 3 个进指标，决定 21 个 FK 关节的旋转通道**一个 seam 监督都没有**。
+   任何真正的接缝干预须作用在旋转通道或 FK 身体上。
+4. **首次 scene crop**：`p_sample_loop:1089` 的第一个 x0 是 `torch.randn`，
+   `_compute_occ_sample` 在全部 500 步上从运行中的 x0 重算 crop，
+   所以早期 crop 心散布在反归一化人体箱的尺度上，而非 §O.5 登记的 ±0.1 m。
+   免费的收紧是按 t 分层重测。
+5. **足部**：`apply_hsi_guidance_loss` 只有 20000 权重的穿透项，没有
+   `apply_feet_floor_contact_guidance`（HOI/HOSI 侧权重 500），而 E3 的
+   `pen_floor_height=0.02` 排除地板。对着 `fs_nemf_ankle` 1.2916x 与箱内足部覆盖 0.0247，
+   任何杠杆须在目标函数一侧，因为 guidance 控制路线已于 2026-08-24 关闭。
