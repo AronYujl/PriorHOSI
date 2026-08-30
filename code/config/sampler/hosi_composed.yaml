@@ -1,0 +1,72 @@
+# The two-expert composed sampler driven by the HOSI-test evaluator.
+#
+# One reverse chain, both experts called at every step, x_hat_0 blended by the
+# preregistered gating operator.  `hoi_adapter` is the same HOIExpertSamplerAdapter
+# the G==0 anchor row uses -- byte-identical knobs to sampler/hosi_hoi_expert.yaml --
+# and `hsi_sampler` is the released Sampler, because HSIPrior IS that architecture
+# and needs no adapter.
+#
+# GATE.  `gate` here is the scalar default and is deliberately the G==0 anchor, so a
+# config that forgets to set it reproduces the HOI-alone row rather than silently
+# producing an unlabelled blend.  Override `mixer_gate` for a constant dose, or
+# point `sampler.pelvis.gate` at one of mixer.gates for a schedule / per-object /
+# per-channel gate.
+pelvis:
+  _target_: mixer.composed_sampler.HOSIComposedSampler
+  gate: ${mixer_gate}
+  channel_mask: ${mixer_channel_mask}
+  hsi_object_voxel_mode: ${mixer_hsi_object_voxel_mode}
+  hoi_adapter:
+    _target_: mixer.hoi_adapter.HOIExpertSamplerAdapter
+    device: ${device}
+    auto_regre_num: ${auto_regre_num}
+    timesteps: 500
+    object_so3_x0: false
+    # Phase 1B settled HOIPrior is P15 + guidance Arm B. Same values as
+    # sampler/hosi_hoi_expert.yaml; set enabled=false for the unguided control.
+    guidance:
+      enabled: true
+      arm: b
+      guidance_scale: 1000.0
+      last_steps: 10
+      clamp: 1.0
+      clamp_target: update
+      contact_mask_source: predicted
+      contact_mask_threshold: 0.95
+      contact_weight: 1.0
+      consistency_weight: 1.0
+      consistency_normalization: author
+      object_goal_weight: 0.0
+  hsi_sampler:
+    _target_: models.infbagel.Sampler
+    device: ${device}
+    mask_ind: ${guidance.pelvis.mask_ind}
+    emb_f: ${guidance.pelvis.emb_f}
+    batch_size: ${batch_size}
+    channel: 232
+    auto_regre_num: ${auto_regre_num}
+    timesteps: 500
+    ddim_timesteps: 25
+    cm_timesteps: 16
+    # HSIPrior's inference CFG scale.  Its "uncond" pass zeroes only the TEMPORAL
+    # scene embeddings, so this amplifies dynamic scene perception specifically --
+    # the one term HOIPrior has no analogue for.  Never set it to 0 to "simplify"
+    # the composed run: that de-scenes the scene expert.
+    w: ${mixer_hsi_w}
+    scene_type: ${scene_type}
+    temp_voxel_num: ${temp_voxel_num}
+    is_mix: false
+    # P17-OC is the first checkpoint trained with the repaired occ_list[0] layout,
+    # so a composed row using it MUST set occ_list_layout_repaired: true at the top
+    # level. Every earlier checkpoint keeps the released default of false.
+    occ_list_layout_repaired: ${oc.select:occ_list_layout_repaired,false}
+    hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}
+    hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
+    hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}
+    seam_loss_weight: ${oc.select:seam_loss_weight,0.0}
+    loss_w_jpos: ${oc.select:loss_w_jpos,1.0}
+    pen_loss_weight: ${oc.select:pen_loss_weight,0.0}
+    pen_delta: ${oc.select:pen_delta,0.03}
+    pen_floor_height: ${oc.select:pen_floor_height,0.02}
+    pen_sdf_cache: ${oc.select:pen_sdf_cache,null}
+    pen_sdf_dtype: ${oc.select:pen_sdf_dtype,float16}

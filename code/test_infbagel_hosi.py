@@ -499,8 +499,14 @@ def main(cfg: DictConfig) -> None:
     # in as `pelvis_goal` at every window, so the anchor is a scene-blind model
     # under scene-aware waypoint supervision.
     checkpoint_metadata = None
+    hsi_model = None
+    hsi_checkpoint_metadata = None
     expert = cfg.get('expert')
-    if expert == 'hoi':
+    if expert not in (None, 'hoi', 'composed'):
+        raise ValueError(f'unknown expert for HOSI evaluation: {expert!r}')
+    if expert is None:
+        model_body = init_model(cfg.model.infbagel, device=device, eval=True)
+    if expert in ('hoi', 'composed'):
         # Imported inside the branch, not at module scope: this module is also
         # imported by code/test_infbagel_lingo_hsi.py, and the default and HSI
         # paths keep their existing import graph.
@@ -522,10 +528,37 @@ def main(cfg: DictConfig) -> None:
                 'HOIPrior has no consistency-model sampler (it was never '
                 f'distilled); sample_type must be diffusion, got {cfg.sample_type!r}'
             )
-    elif expert is not None:
-        raise ValueError(f'unknown expert for HOSI evaluation: {expert!r}')
-    else:
-        model_body = init_model(cfg.model.infbagel, device=device, eval=True)
+    if expert == 'composed':
+        # 2026-08-30: the second expert.  HSIPrior IS models.infbagel.Unet -- the
+        # released architecture, trained from random on LINGO -- so it loads
+        # through init_model like the baseline does, with `ckpt` pointed at the HSI
+        # checkpoint instead of the HOI one.  It needs no adapter; only HOIPrior
+        # does, because that is a separate implementation.
+        #
+        # The two checkpoints are hashed independently and both hashes are recorded:
+        # a composed row is a claim about a PAIR of models, and neither identity is
+        # recoverable from the other.
+        if not cfg.get('hsi_ckpt_path'):
+            raise ValueError('composed evaluation requires hsi_ckpt_path')
+        hsi_checkpoint_sha256 = sha256_file(str(cfg.hsi_ckpt_path))
+        if cfg.get('hsi_checkpoint_sha256') and \
+                str(cfg.hsi_checkpoint_sha256) != hsi_checkpoint_sha256:
+            raise ValueError(
+                f'HSIPrior checkpoint hash mismatch: {hsi_checkpoint_sha256} '
+                f'!= {cfg.hsi_checkpoint_sha256}'
+            )
+        hsi_model_cfg = OmegaConf.merge(
+            cfg.model.infbagel, {'ckpt': str(cfg.hsi_ckpt_path)},
+        )
+        hsi_model = init_model(hsi_model_cfg, device=device, eval=True)
+        hsi_checkpoint_metadata = {
+            'path': str(cfg.hsi_ckpt_path),
+            'sha256': hsi_checkpoint_sha256,
+            'occ_list_layout_repaired': bool(
+                cfg.get('occ_list_layout_repaired', False)
+            ),
+            'inference_cfg_w': float(cfg.get('mixer_hsi_w', 0)),
+        }
 
     json_data_dir = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data')
     scene_files = sorted(f for f in os.listdir(json_data_dir) if f.endswith('.json'))
@@ -566,7 +599,15 @@ def main(cfg: DictConfig) -> None:
         else:
             synhsi_dataset.set_test_scene(scene_name)
         sampler_body = hydra.utils.instantiate(cfg.sampler.pelvis)
-        sampler_body.set_dataset_and_model(synhsi_dataset, model_body)
+        if hsi_model is not None:
+            # The composed sampler wires both experts: `model_body` (HOIPrior)
+            # through the scene-blind adapter, `hsi_model` with the full
+            # scene-loaded dataset, because reading the scene is its whole job.
+            sampler_body.set_dataset_and_model(
+                synhsi_dataset, model_body, hsi_model=hsi_model,
+            )
+        else:
+            sampler_body.set_dataset_and_model(synhsi_dataset, model_body)
 
         scene_metrics = []
 
@@ -976,6 +1017,11 @@ def main(cfg: DictConfig) -> None:
             'sample_type': str(cfg.sample_type),
             'evaluator_guidance_fn': bool(cfg.use_guidance),
             'checkpoint': checkpoint_metadata,
+            # 2026-08-30: a composed row is a claim about a PAIR of checkpoints and
+            # a gate.  Neither model's identity is recoverable from the other, and
+            # the gate is not recoverable from either, so all three are recorded
+            # here rather than left to the run id. Null on single-expert rows.
+            'hsi_checkpoint': hsi_checkpoint_metadata,
             'sampler_audit': sampler_audit,
             'scene_order': scene_files,
             'individual_metrics': all_scenes_metrics,
@@ -1018,6 +1064,7 @@ def main(cfg: DictConfig) -> None:
                 'sample_type': evaluation_results['sample_type'],
                 'evaluator_guidance_fn': evaluation_results['evaluator_guidance_fn'],
                 'checkpoint': evaluation_results['checkpoint'],
+                'hsi_checkpoint': evaluation_results['hsi_checkpoint'],
                 'sampler_audit': evaluation_results['sampler_audit'],
                 'statistics': evaluation_results['statistics'],
                 'summary': evaluation_results['summary'],

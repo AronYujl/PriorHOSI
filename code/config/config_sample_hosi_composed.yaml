@@ -1,0 +1,99 @@
+# Composed HOSI-test row -- both experts on one reverse chain.
+#
+# WHAT THIS ROW IS.  HOIPrior (Phase 1B settled: P15 + guidance Arm B) and HSIPrior
+# generating together on the 469-episode HOSI-test benchmark, their x_hat_0 blended
+# at every one of the 500 reverse steps by the preregistered gating operator, and
+# scored by the same evaluator and the same 15 metrics as every other row on it.
+#
+# WHAT IT IS NOT.  A scene-blind row, and not a row whose HOI half is degraded:
+# `code/astar.py:get_path` plans on the scene occupancy and the evaluator feeds a
+# point on that path in as `pelvis_goal` at every window, for every row on this
+# benchmark including G==0.  So the scene-awareness the HSI expert adds is on TOP of
+# scene-aware waypoints, not instead of nothing -- which caps the headroom it can
+# demonstrate here and must be stated wherever this row is cited.
+#
+# BASELINES (user's decision, 2026-08-29; docs/plan/PHASE_2_COMPOSITION.md).
+#   primary     InfBaGel (paper) Hybrid, i.e. the 1:0.5 synth-OMOMO:LINGO model.
+#               Published aggregate means only -- it cannot be paired, and it was
+#               measured under the pre-repair representation.
+#   reproducible G==0 P15+guide (p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829).
+#               The only row on this benchmark that is both reproducible and
+#               PAIRABLE, so every significance test belongs against this one.
+defaults:
+  - config_sample_infbagel
+  - _self_
+  - override sampler:
+      - hosi_composed
+
+expert: composed
+
+# Neither expert was distilled for this path: HOIPrior never was, and the composed
+# chain has no consistency solver.  500 network calls per window per expert, so the
+# latency of this row is not comparable to the released baseline's 16-step CM row.
+# The user deferred inference latency until the composition works (2026-08-29).
+sample_type: diffusion
+
+# The EVALUATOR supplies no guidance_fn.  This does NOT mean the row is unguided:
+# HOIPrior carries the preregistered Phase 1B P2 term on its sampler, and HSIPrior
+# carries its own inference CFG (mixer_hsi_w).  Never infer either expert's
+# guidance state from a run id or from this key.
+use_guidance: false
+
+load_scene: true
+
+# HOI's expert deletes `object_points`; HSI's does not.  Under the evaluator's
+# `cfg.vis = True` the temporal occupancy grids rebuild the object from
+# `obj_rest_verts` regardless of this key, so it controls only the ANCHOR grid,
+# occ_list[0]. Measured on one HOSI-test episode: with it false the anchor grid
+# has no `occ == 2` at all and the three temporal grids carry 0.22-0.27% of
+# voxels at 2; with it true the anchor grid joins them at 0.27%.
+# See .claude/scratch/phase2-hsi-wiring/occ_distribution.json.
+add_object_voxel: false
+
+# HSIPrior's inference CFG scale.  1 is the sealed Phase 1C value for model B.
+mixer_hsi_w: 1
+
+# WHAT THE MANIPULATED OBJECT LOOKS LIKE TO THE SCENE EXPERT.
+# The occupancy alphabet is 0 free / 1 occupied / 2 object.  HSIPrior trained
+# LINGO-only, where object_points is the 999.0 sentinel, so the value 2 reached
+# its scene ViT as at most one clamped corner voxel per grid.  On HOSI-test the
+# three temporal grids carry 225-239 voxels at 2, and add_object_voxel: false does
+# NOT prevent that (the evaluator sets cfg.vis = True and the temporal grids
+# rebuild the object from geometry regardless).
+#
+#   occupied  rewrite 2 -> 1: an ordinary obstacle, which is in distribution for a
+#             LINGO-trained expert.  The default.
+#   object    pass the 2 through: the released arithmetic, and the control.
+#
+# Measured with the real P17-OC weights on one window, the two differ by
+# 0.039-0.057 m mean / 0.158 m max in joint position at t in {1,100,250,400} and
+# by exactly 0 at t=499.  So this is a real knob, not a formality -- but nothing
+# yet says which one generates better motion.
+# Evidence: .claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json
+mixer_hsi_object_voxel_mode: occupied
+
+# THE GATE.  Default 0 = the HOI-alone anchor, which this config reproduces
+# bitwise; that is the safe default, because a config that forgets to set a gate
+# then produces a LABELLED anchor row rather than an unlabelled blend.
+mixer_gate: 0
+# 'human' masks the gate to channels 0:216.  HSI is never supervised on 216:232
+# (priors/hsi/data.py:253 -> core/window_codec.py:215 starts from zeros), so
+# blending there pulls the object toward the normalized box origin -- up to 4.481 m
+# of L2 object displacement per unit gate -- and scales every contact label by
+# (1-G).  Set null only to reproduce the literal unmasked operator.
+mixer_channel_mask: human
+
+# HOIPrior: Phase 1B settled P15, guidance Arm B.
+ckpt_path: /data/yujinlun/InfBaGel-visualization-artifacts/source-checkpoints/hoi/p15/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth
+checkpoint_weight_variant: online
+checkpoint_sha256: ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c
+
+# HSIPrior: the P17-OC arm, trained on phase/01c-hsi from 589ac7f.  It is the FIRST
+# checkpoint in the project trained with the repaired occ_list[0] layout, which is
+# why occ_list_layout_repaired must be true here and false everywhere else.
+hsi_ckpt_path: /data/yujinlun/InfBaGel-hsi/results/hsi_b_p17oc/checkpoints/hsi_b_p17oc_epoch222.pth
+hsi_checkpoint_sha256: f64d956f88b8a81dddb160cb84fb5e9bdbe08f0606437a0e8b079cc92e8db5aa
+occ_list_layout_repaired: true
+
+# 67 scenes x 7 objects.
+hosi_expected_episodes: 469

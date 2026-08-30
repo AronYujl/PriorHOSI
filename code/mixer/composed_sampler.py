@@ -33,7 +33,15 @@ own:
 
 ``G == 0`` reduces this to HOIPrior alone, bitwise, with no HSI checkpoint
 loaded, and ``tests/phase2`` asserts that against ``HOIPriorSampler.p_sample_loop``
-rather than trusting the arithmetic.
+rather than trusting the arithmetic.  It also holds with the HSI expert LOADED and
+running -- measured on 7 real HOSI-test episodes against the sealed anchor row, all
+15 metrics identical, which is what rules out the composed loop perturbing HOI's
+chain through a shared RNG stream
+(``.claude/scratch/phase2-hsi-wiring/anchor_comparison_smoke_g0.json``).
+
+One asymmetry is NOT a free choice and is exposed as ``hsi_object_voxel_mode``:
+HOSI-test has a manipulated object, HSIPrior's training data never did, and the
+occupancy alphabet has a distinct value for it.  See ``_resolve_object_voxels``.
 """
 
 from typing import Optional
@@ -56,19 +64,26 @@ class HOSIComposedSampler:
     """
 
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
-                 channel_mask='human'):
+                 channel_mask='human', hsi_object_voxel_mode='occupied'):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
                 'parameter; the LLM state machine is not implemented'
             )
+        if hsi_object_voxel_mode not in ('occupied', 'object'):
+            raise ValueError(
+                "hsi_object_voxel_mode must be 'occupied' or 'object', got "
+                f'{hsi_object_voxel_mode!r}'
+            )
         self.hoi_adapter = hoi_adapter
         self.hsi_sampler = hsi_sampler
         self.gate = 0 if gate is None else gate
         self.channel_mask = channel_mask
+        self.hsi_object_voxel_mode = hsi_object_voxel_mode
         self.dataset = None
         self.student_model = None
         self.compose_calls = 0
+        self.hsi_object_voxels_remapped = 0
         if hsi_sampler is None and not gate_is_identity(self.gate, 0):
             raise ValueError(
                 'a non-zero gate needs an HSI sampler; pass hsi_sampler or use '
@@ -82,7 +97,10 @@ class HOSIComposedSampler:
 
     @property
     def timesteps(self):
-        return self.inner_hoi.timesteps
+        # HOIPriorSampler holds the step count on its diffusion object, not on
+        # itself; the released Sampler holds it directly. Read HOI's, because
+        # HOI's diffusion is what advances the composed chain.
+        return self.inner_hoi.diffusion.timesteps
 
     def set_dataset_and_model(self, dataset, model, hsi_model=None):
         """Wire both experts.
@@ -112,6 +130,8 @@ class HOSIComposedSampler:
             'compose_calls': self.compose_calls,
             'hsi_expert_loaded': self.hsi_sampler is not None,
             'per_step_composition': True,
+            'hsi_object_voxel_mode': self.hsi_object_voxel_mode,
+            'hsi_object_voxels_remapped': self.hsi_object_voxels_remapped,
         }
         return audit
 
@@ -133,6 +153,14 @@ class HOSIComposedSampler:
             'never distilled, so there is no few-step HOI x_hat_0 to compose'
         )
 
+    # Both single-expert loops carry this (priors/hoi/diffusion.py:490,
+    # models/infbagel.py:1137) and the composed loop needs it for the same
+    # reason: without it the HSI expert's two forward passes build a graph, the
+    # returned window comes back with requires_grad set, and the evaluator dies
+    # on `.cpu().numpy()` 500 steps later.  It does not disable HOIPrior's
+    # guidance, which opens its own `torch.enable_grad()` around a detached copy
+    # (priors/hoi/inference_guidance.py:612).
+    @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal,
                       scene_goal, object_goal, need_scene, need_pelvis_dir, pi,
                       end_pi, seq_length, need_pi, is_loco, is_object,
@@ -183,6 +211,15 @@ class HOSIComposedSampler:
                 obj_rot_mat_prefix, object_only,
             )
 
+        # The released HSI loop carries the PREVIOUS step's x_hat_0 forward: its
+        # `x0` list starts at the initial noise and `_compute_occ_sample` reads
+        # `x0[:, :, :84]` to place the temporal occupancy queries.  Under
+        # composition the chain's own best estimate of the finished motion is the
+        # BLEND, so that is what the occupancy sees -- feeding HSI's private
+        # prediction instead would let the scene queries follow a trajectory the
+        # chain is not taking.  Initialized to `current` to match the released
+        # `x0.append(points)`, which happens after the history fix.
+        previous_x0 = current
         imgs = []
         for step in reversed(range(diffusion.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=device)
@@ -192,7 +229,9 @@ class HOSIComposedSampler:
             )
             hsi_clean = None
             if self.hsi_sampler is not None:
-                hsi_clean = self._hsi_x0(current, timesteps, hsi_context)
+                hsi_clean = self._hsi_x0(
+                    current, previous_x0, timesteps, hsi_context,
+                )
 
             gate = self._gate_for_step(step, current, hoi_clean, hsi_clean)
             clean = compose_x0(
@@ -200,6 +239,7 @@ class HOSIComposedSampler:
                 channel_mask=self.channel_mask,
             )
             self.compose_calls += 1
+            previous_x0 = clean
 
             if step:
                 noise = torch.randn(shape, device=device, generator=generator)
@@ -280,17 +320,26 @@ class HOSIComposedSampler:
             'object_only': object_only,
         }
 
-    def _hsi_x0(self, current, timesteps, context):
+    def _hsi_x0(self, current, previous_x0, timesteps, context):
         """HSIPrior's x_hat_0 for one step: occupancy, then cond and uncond.
 
         Mirrors ``models/infbagel.py`` p_sample's model calls exactly, including
         ``cond + w * (cond - uncond)``, and stops before its posterior step --
         the composed chain owns the posterior.
+
+        ``_compute_occ_sample`` reads BOTH states and they are not
+        interchangeable.  ``current`` (its ``x``) centres the anchor query and
+        carries the object pose that builds the temporal object point cloud;
+        ``previous_x0`` (its ``x0``) supplies the human joints at frames 5/10/15
+        that place the three temporal occupancy queries.  The released loop
+        passes ``x0[-1]``, i.e. the previous step's prediction, so passing
+        ``current`` for both would query the scene along a NOISY trajectory at
+        high timesteps -- pure noise on the first step.
         """
         sampler = self.hsi_sampler
         model = sampler.student_model
         occ, occ_list, occ_pos = sampler._compute_occ_sample(
-            current, current, context['mat'], context['scene_flag'],
+            current, previous_x0, context['mat'], context['scene_flag'],
             context['object_points'], context['pelvis_goal'],
             context['scene_goal'], context['object_goal'], context['is_loco'],
             context['is_object'], context['need_pelvis_dir'],
@@ -298,6 +347,7 @@ class HOSIComposedSampler:
             context['obj_rest_verts'], context['seq_name_dict'],
             context['obj_rot_mat_prefix'],
         )
+        occ, occ_list = self._resolve_object_voxels(occ, occ_list)
         common = (
             occ, timesteps, context['text_emb'], context['pelvis_goal'],
             context['scene_goal'], context['is_loco'], context['need_scene'],
@@ -308,6 +358,52 @@ class HOSIComposedSampler:
         cond = model(current, *common, is_sample=True)
         uncond = model(current, *common, is_sample=True, is_uncondition=True)
         return cond + sampler.w * (cond - uncond)
+
+    def _resolve_object_voxels(self, occ, occ_list):
+        """Decide what the manipulated object looks like to the HSI expert.
+
+        The occupancy alphabet is 0 free / 1 occupied / 2 object.  HSIPrior was
+        trained LINGO-only, and under `lingo_only` every sample's object_points is
+        the 999.0 sentinel (datasets/infbagel_mix.py:471), which falls out of
+        bounds, clamps to voxel 0 and is written as 2 there.  So the value 2
+        reached its scene ViT as at most ONE spurious corner voxel per grid.
+
+        On HOSI-test the object is real.  Measured on one episode, the three
+        TEMPORAL grids carry 225-239 voxels at 2 -- and `add_object_voxel: false`
+        does not prevent it, because the evaluator sets `cfg.vis = True` and
+        `_compute_occ_sample:706` then rebuilds the object from `obj_rest_verts`
+        regardless of the flag.  Those temporal grids are exactly the embeddings
+        HSI's CFG amplifies.
+
+        The choice matters, measured with the real P17-OC weights on one window:
+        remapping moves x_hat_0 by 0.039-0.057 m mean and up to 0.158 m max in
+        joint position at t in {1, 100, 250, 400}, and by exactly zero at t = 499
+        (where models/infbagel.py:1554 zeroes the temporal embeddings on both
+        passes, so the only grids carrying a 2 have no effect -- an independent
+        confirmation that the whole effect travels through the temporal channels).
+        Evidence: .claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json.
+
+        'occupied' (default) rewrites 2 to 1: the object becomes ordinary occupied
+        geometry, which is what LINGO furniture looked like in training, so the
+        input is in distribution.  'object' passes the 2 through, which is the
+        released arithmetic and the right control -- it is what a model trained
+        with `is_mix=True` would expect, and the released InfBaGel checkpoint is
+        such a model.  Neither is known to produce better MOTION; the measurement
+        above says only that the choice is not free.
+        """
+        if self.hsi_object_voxel_mode == 'object':
+            return occ, occ_list
+        remapped = 0
+        if occ is not None:
+            remapped += int((occ == 2).sum())
+            occ = torch.where(occ == 2, torch.ones_like(occ), occ)
+        if occ_list is not None:
+            remapped += int((occ_list == 2).sum())
+            occ_list = torch.where(
+                occ_list == 2, torch.ones_like(occ_list), occ_list,
+            )
+        self.hsi_object_voxels_remapped += remapped
+        return occ, occ_list
 
     def _gate_for_step(self, step, current, hoi_clean, hsi_clean):
         """Resolve the gate for one step.
