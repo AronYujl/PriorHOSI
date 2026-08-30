@@ -107,6 +107,30 @@ hsi_guidance_norm_cap: null
 hsi_guidance_dose_scale: null
 hsi_guidance_alpha_decay: false
 
+# hsi_zero_object_x0: force the 16 object channels (216:232 -- com 216:219, rot
+# 219:228, contact 228:232) of the PREDICTED x0 to exactly 0 on scene-only rows,
+# applied in Sampler.p_sample after CFG and before the posterior mean.  false = off
+# and the emitted arithmetic is byte-identical to the released path (the helper
+# returns its argument object; no mask is built and no tensor op runs), so every
+# sealed cell reproduces bitwise.  Diffusion path only -- cm_sample is untouched
+# because C is neither modified nor retrained.
+#
+# It exists because HSI training presents those channels as q_sample(0) and nothing
+# else (`is_object` pinned False, object pose empty, contact fabricated zero, and
+# p_losses masks the three object terms), while `self.out` emits all 232 channels and
+# `embedding_input` consumes all 232 at the next reverse step -- so those rows ARE on
+# the forward path across timesteps.  B-v2 learned ~0 there (dead-row norm 9.223e-3)
+# because its unmasked loss still drove them to the zero target.  P17-OC's E0 severed
+# that gradient, leaving them at nn.Linear init (0.5761, and bitwise identical at
+# epoch000 and epoch140), so its reverse chain drives x[216:232] toward a value the
+# trunk never saw at low t.  This knob removes that one mismatch without retraining.
+#
+# Why the predicted x0 and not x: imposing 0 on x at high t would be the OPPOSITE
+# mismatch, because training has sqrt(1-abar_t)*noise there.  Zeroing the prediction
+# makes the posterior walk those channels along the q_sample(0) path exactly.
+# Evidence and preregistration: docs/plan/PHASE_1C_HSI.md 2026-08-30 SS-P0.
+hsi_zero_object_x0: false
+
 # 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
 # CURRENT behaviour so every sealed cell stays bitwise reproducible.
 #

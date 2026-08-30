@@ -39,6 +39,50 @@ def cap_guidance_increment(gradient, cap):
     norm = gradient.flatten(1).norm(dim=1).view(-1, *([1] * (gradient.ndim - 1)))
     return gradient * torch.clamp(float(cap) / (norm + 1e-12), max=1.0)
 
+
+OBJECT_CHANNEL_SLICE = slice(216, 232)
+
+
+def zero_object_x0(model_output, is_object, enabled):
+    """Zero channels 216:232 of a predicted x0, PER SAMPLE, for scene-only rows.
+
+    ``enabled=False`` returns the very same object, so a build carrying this knob
+    reproduces the released arithmetic bitwise and no extra tensor op runs.
+
+    When enabled, a row with ``is_object=False`` gets exactly zero in the 16 object
+    channels (com 216:219, rot 219:228, contact 228:232) and is untouched in the 216
+    human channels; a row with ``is_object=True`` comes back bitwise unchanged.  The
+    mask is built from ``is_object`` alone and applied per sample, so the result for
+    one row never depends on which rows shared its batch.
+
+    Why this exists: HSI training never supervises those channels with anything but
+    zero (``is_object`` is pinned False, so ``x_start[:, :, 216:232]`` is identically
+    0 and ``p_losses`` masks the three object terms out), yet ``self.out`` emits all
+    232 channels and ``embedding_input`` consumes all 232 at the next reverse step.
+    B-v2 learned to predict ~0 there (dead-row norm 9.223e-3) because the unmasked
+    loss still pushed it to the zero target; the P17-OC arm's E0 severed that
+    gradient, so those rows stayed at ``nn.Linear`` init (norm 0.5761) and the
+    reverse chain now drives x[216:232] toward a non-zero prediction the trunk never
+    saw at low t.  Zeroing the PREDICTED x0 -- not x itself -- is the form that
+    matches training: the DDPM posterior then walks those channels along exactly the
+    q_sample(0) path, O(1) noise at high t decaying to 0, instead of imposing 0 at
+    high t where training had sqrt(1-abar_t)*noise.
+    """
+    if not enabled:
+        return model_output
+    if not torch.is_tensor(is_object):
+        is_object = torch.as_tensor(
+            is_object, dtype=torch.bool, device=model_output.device
+        )
+    flags = is_object.reshape(-1).to(device=model_output.device, dtype=torch.bool)
+    if flags.numel() == 1 and model_output.shape[0] != 1:
+        flags = flags.expand(model_output.shape[0])
+    keep = flags.to(model_output.dtype).view(-1, *([1] * (model_output.ndim - 1)))
+    out = model_output.clone()
+    out[..., OBJECT_CHANNEL_SLICE] = out[..., OBJECT_CHANNEL_SLICE] * keep
+    return out
+
+
 class Sampler:
     def __init__(self, device, mask_ind, emb_f, batch_size, channel, auto_regre_num, timesteps, ddim_timesteps, cm_timesteps, **kwargs):
         self.device = device
@@ -67,6 +111,12 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        # Training/inference input-distribution repair on the 16 object channels,
+        # OFF by default (False = the released arithmetic, bitwise).  Diffusion path
+        # only: cm_sample is the consistency path and C is neither modified nor
+        # retrained.  See zero_object_x0 and
+        # config_sample_infbagel_lingo_hsi.yaml: hsi_zero_object_x0.
+        self.hsi_zero_object_x0 = bool(kwargs.get('hsi_zero_object_x0', False))
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
         # p_losses then takes a branch it cannot distinguish from the old code).
         # When > 0 it reweights the first two GENERATED frames of the position
@@ -1123,6 +1173,15 @@ class Sampler:
         uncond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True, is_uncondition=True)
 
         model_output = cond_model_output + self.w * (cond_model_output - uncond_model_output)
+
+        # After CFG, before the posterior mean: the 16 object channels of the
+        # predicted x0 are forced to their training value (exactly 0) on scene-only
+        # rows.  Off by default and then the identity object, so a sealed guided cell
+        # reproduces bitwise.  It changes NO random draw -- torch.randn_like below is
+        # called with the same shape in the same order either way -- so the A/B
+        # differs only in the arithmetic on those 16 channels and in whatever the
+        # trunk then makes of them at the next step.
+        model_output = zero_object_x0(model_output, is_object, self.hsi_zero_object_x0)
 
         model_mean = (
             extract(self.posterior_mean_coef1, t, x.shape) * model_output +

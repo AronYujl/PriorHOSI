@@ -614,6 +614,14 @@ def train_ddp(rank, world_size, cfg):
                     loss_seam = loss_dict.get('loss_seam')
                     if loss_seam is not None:
                         writer.add_scalar('Loss_seam', loss_seam.item(), epoch * len(dataloader) + step)
+                    # Same shape as Loss_seam: present only when pen_loss_weight > 0,
+                    # already inside `loss`, diagnostics only.  P17-OC ran without
+                    # this line, so its preregistered loss_pen readout had no data
+                    # source on disk and could not be filled in afterwards --
+                    # p_losses returned the tensor and nothing ever read it.
+                    loss_pen = loss_dict.get('loss_pen')
+                    if loss_pen is not None:
+                        writer.add_scalar('Loss_pen', loss_pen.item(), epoch * len(dataloader) + step)
 
             last_loss = float(loss.detach().item())
             is_accumulation_boundary = micro_steps % int(cfg.gradient_accumulation_steps) == 0
