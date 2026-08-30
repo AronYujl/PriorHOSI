@@ -444,7 +444,6 @@ def compute_metrics_for_sample(points_all, obj_trans, obj_rot, test_item,
 
     return metrics
 
-@hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def run_merge_shards(cfg: DictConfig) -> None:
     """Merge a sharded campaign's payloads into one serial-shaped payload.
 
@@ -503,6 +502,7 @@ def run_merge_shards(cfg: DictConfig) -> None:
     )
 
 
+@hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
     if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_shards':
         run_merge_shards(cfg)

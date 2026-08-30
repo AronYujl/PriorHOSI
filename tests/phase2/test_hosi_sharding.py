@@ -450,6 +450,44 @@ class SeedingTests(unittest.TestCase):
         self.assertEqual(isolated, reseeded_and_reset)
 
 
+class EntryPointTests(unittest.TestCase):
+    """The evaluator's `__main__` path, which no other test exercised.
+
+    Adding `run_merge_shards` put `@hydra.main` on IT and left `main` undecorated,
+    so `main()` at the bottom of the module raised `TypeError: main() missing 1
+    required positional argument: 'cfg'` -- every invocation of the evaluator,
+    sharded or serial, was dead.  The full suite still passed, because every test
+    calls the merge helpers directly and none of them goes through the CLI.  These
+    two assertions are the cheapest thing that closes that gap: hydra's decorator
+    sets `__wrapped__`, a plain function does not.
+    """
+
+    def _module(self):
+        import importlib
+        return importlib.import_module('test_infbagel_hosi')
+
+    def test_main_carries_the_hydra_decorator(self):
+        module = self._module()
+        self.assertTrue(
+            hasattr(module.main, '__wrapped__'),
+            'main must be the @hydra.main entry point: the module calls main() '
+            'with no arguments, so an undecorated main raises TypeError',
+        )
+
+    def test_the_merge_dispatch_target_is_a_plain_function(self):
+        """`main` calls `run_merge_shards(cfg)` positionally.
+
+        A hydra-decorated callable takes no positional config, so decorating both
+        would leave the merge path broken even once `main` itself worked.
+        """
+        module = self._module()
+        self.assertFalse(
+            hasattr(module.run_merge_shards, '__wrapped__'),
+            'run_merge_shards is dispatched from main with an explicit cfg and '
+            'must not be hydra-decorated',
+        )
+
+
 class StatisticsTests(unittest.TestCase):
     def test_a_none_metric_is_dropped_not_zeroed(self):
         records = [
