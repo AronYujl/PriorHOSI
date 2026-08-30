@@ -29,6 +29,12 @@ from typing import Dict, Optional, Sequence
 
 import torch
 
+from .body_groups import (
+    DEFAULT_BODY_GROUP_GATE,
+    GROUP_NAMES,
+    body_group_channel_gate,
+    describe_body_groups,
+)
 from .composition import human_gate_mask
 
 
@@ -175,6 +181,67 @@ class ObjectConditionedGate:
         }
 
 
+class BodyGroupGate:
+    """One gate value per body group: HSI on the root and legs, HOI on the arms.
+
+    The design question ``ChannelBlockGate`` cannot express.  Cutting at 84 splits
+    positions from rotations, but the two experts do not disagree along that axis:
+    scene collision is decided by where the ROOT and LEGS go and object
+    manipulation by where the ARMS and HANDS go, and each of those spans both
+    blocks.  ``mixer/body_groups.py`` carries the per-joint layout, taken from the
+    repository's own indices, and the reasoning about which channels reach the
+    metrics at all.
+
+    Defaults (``DEFAULT_BODY_GROUP_GATE``): root and lower_body at HSI, torso,
+    arms and hands at HOI.  ``torso`` at HOI puts the one unavoidable seam at the
+    collars instead of inside the spine, so the arm chain keeps a single parent
+    frame.  Nothing has measured whether that placement is the better one; it is
+    the knob's default, not a result.
+
+    Note what the object channels do NOT do here: they are not a group and cannot
+    be gated.  216:232 comes from HOI at every value of every group, enforced by
+    ``compose_x0``.
+    """
+
+    def __init__(self, weights=None):
+        self.weights = dict(DEFAULT_BODY_GROUP_GATE)
+        if weights is not None:
+            unknown = sorted(set(weights) - set(GROUP_NAMES))
+            if unknown:
+                raise ValueError(
+                    f'unknown body group(s) {unknown}; known groups are '
+                    f'{list(GROUP_NAMES)}'
+                )
+            self.weights.update({str(k): float(v) for k, v in weights.items()})
+        for name, value in self.weights.items():
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(
+                    f'gate value for {name!r} must lie in [0, 1], got {value}'
+                )
+        self._cache = {}
+
+    def __call__(self, *, step, current, hoi, hsi):
+        del step, hsi
+        reference = hoi if hoi is not None else current
+        key = (reference.device, reference.dtype)
+        if key not in self._cache:
+            self._cache[key] = body_group_channel_gate(
+                self.weights, device=reference.device, dtype=reference.dtype,
+            )
+        return self._cache[key]
+
+    def is_identically_zero_at(self, step):
+        del step
+        return all(value == 0.0 for value in self.weights.values())
+
+    def describe(self):
+        return {
+            'kind': 'body_group',
+            'weights': dict(self.weights),
+            'groups': describe_body_groups(),
+        }
+
+
 class ChannelBlockGate:
     """A fixed per-channel gate, for ablating which channels HSI may touch.
 
@@ -183,6 +250,8 @@ class ChannelBlockGate:
     human channels one may still want to ask whether HSI should drive joint
     POSITIONS (0:84) but not joint ROTATIONS (84:216), since scene collision is a
     positional constraint.
+
+    For splitting the body by JOINT rather than by block, use ``BodyGroupGate``.
     """
 
     def __init__(self, positions=0.0, rotations=0.0):

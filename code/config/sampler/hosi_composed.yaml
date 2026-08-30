@@ -10,12 +10,19 @@
 # config that forgets to set it reproduces the HOI-alone row rather than silently
 # producing an unlabelled blend.  Override `mixer_gate` for a constant dose, or
 # point `sampler.pelvis.gate` at one of mixer.gates for a schedule / per-object /
-# per-channel gate.
+# per-channel gate.  For the body split -- HSI on the root and legs, HOI on the arms
+# and hands -- override the gate node itself:
+#
+#   sampler.pelvis.gate._target_=mixer.gates.BodyGroupGate
+#   '+sampler.pelvis.gate.weights={root:1.0,lower_body:1.0,torso:0.0,arms:0.0,hands:0.0}'
+#
+# Those five weights are BodyGroupGate's defaults, so `_target_` alone selects the
+# default split.  Groups and the per-joint layout: mixer/body_groups.py.
 #
 # CHANNEL MASK.  Not a knob.  `mixer_channel_mask` must resolve to 'human' (or to a
-# tensor that is zero on 216:232); the sampler refuses `null` at construction, which
-# is what makes the object and contact channels come from HOI at every gate value
-# including 1.  See the 2026-08-30 revision in code/mixer/composition.py.
+# tensor that is zero on 216:232); the sampler refuses `null` at construction, and a
+# BodyGroupGate cannot open those channels either -- `hands` is a body group, the
+# object is not.
 pelvis:
   _target_: mixer.composed_sampler.HOSIComposedSampler
   gate: ${mixer_gate}

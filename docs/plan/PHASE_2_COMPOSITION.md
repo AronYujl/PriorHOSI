@@ -382,3 +382,56 @@ checkpoint predates the permute and must keep the default `false`.
   arms). What is missing is the citable record, not the evidence.
 * Whether the object-point conditioning subset should be one fixed subset per
   object rather than the current per-window redraw.
+
+## 2026-08-30 — the body split, per joint
+
+`ChannelBlockGate` can only cut the representation at 84: positions against
+rotations. That is the wrong axis. The two experts do not disagree along it — scene
+collision is decided by where the **root and legs** go, object manipulation by where
+the **arms and hands** go, and each of those spans both blocks. So the split has to
+be per joint inside both, which was an implementation gap rather than a
+configuration one. `mixer/body_groups.py` + `mixer.gates.BodyGroupGate`.
+
+Groups, and the indices are taken from the repository's own code rather than assumed
+from SMPL convention: `eval_metrics.py:107-119` reads ankles at 7/8 and feet at
+10/11; `priors/hoi/losses.py:335-336` reads wrists at 20/21; `utils.py:300` gives
+`SMPLX_JOINTS_28`, and `test_infbagel_hosi.py:379-380` plus `losses.py:335` read
+hands at position slots 24/26 and 25/27.
+
+| group | rotation joints | position joints | default |
+|---|---|---|--:|
+| `root` | 0 | 0 | HSI |
+| `lower_body` | 1,2,4,5,7,8,10,11 | same | HSI |
+| `torso` | 3,6,9,12,15 | + 22,23 (eyes) | HOI |
+| `arms` | 13,14,16,17,18,19,20,21 | same | HOI |
+| `hands` | — none — | 24,25,26,27 | HOI |
+
+Both dicts are asserted at import to be a partition of 22 and 28 joints
+respectively, and one weight drives a joint's positions *and* its rotations — a knee
+whose position followed HSI while its rotation followed HOI is the defect the design
+makes unrepresentable.
+
+There are **no hand rotations**: the representation stops at 22 joints. "HOI drives
+the hands" is a claim about four hand position channels and about the arm chain
+carrying them, not about finger articulation this representation cannot express.
+
+Two facts that shape the design and are easy to get wrong:
+
+**Of the 84 position channels, only channels 0:3 reach the metrics.** The evaluator
+takes `points_all[:, 0]` as the root translation
+(`test_infbagel_hosi.py:885`), converts the 22 global rotations to locals through
+`quat_ik_torch`, and runs SMPL-X; every geometric metric is computed on the vertices
+and joints that come back. The other 81 act on the *rollout* instead — they are the
+autoregressive history the next window is conditioned on, and what
+`_compute_occ_sample` reads to place the temporal occupancy queries. Both matter, but
+through different mechanisms, and a gate design that conflated them would be
+reasoning about the wrong tensor. That is why `root` is its own group.
+
+**A split cannot violate bone lengths, but it does create a one-joint seam.**
+`quat_ik_torch` differences each global rotation against its parent, so a local
+rotation is well defined however the globals were mixed and the rest template
+supplies the lengths. What a split does create: if HSI owns Spine3's global frame and
+HOI owns L_Collar's, the local collar rotation absorbs the whole disagreement between
+the two experts' body headings as a shoulder twist. That seam is unavoidable in any
+split; the group boundaries decide only where it lands. `torso` is a group of its own
+so that placement is a knob rather than something folded silently into one side.
