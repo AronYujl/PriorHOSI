@@ -208,18 +208,120 @@ Deferred by the user, with the interface reserved now. `compose_x0`,
 `state` and all raise `NotImplementedError` if anything is passed. Reserving the
 name costs nothing; letting a caller believe state is honoured would not.
 
+## 2026-08-30 — the HSI expert is wired in and running
+
+The P17-OC arm finished on `phase/01c-hsi` at 589ac7f: epoch 222, sha256
+`f64d956f88b8a81dddb160cb84fb5e9bdbe08f0606437a0e8b079cc92e8db5aa`. The composed
+path now runs on real HOSI-test data with both checkpoints loaded
+(`config_sample_hosi_composed.yaml`, `expert: composed`).
+
+**One caveat on the checkpoint, stated because it is not visible from this
+branch.** P17-OC's own Phase 1C verdict is not in. Its native LINGO evaluation
+(guided and unguided, 8 shards) merged on 2026-08-30 but no aggregate or paired
+bootstrap has been written, so whether the arm passed its own gate is unknown
+here. The user's instruction was that the HSIPrior *framework* is settled and to
+compose with the undistilled expert, which is what this does. The mixer code is
+checkpoint-agnostic — `hsi_ckpt_path` is a config key — so if a different arm
+becomes the official HSIPrior, composed rows need re-running but nothing needs
+rewriting. No composed row should be cited as a main-table result until P17-OC's
+own verdict exists.
+
+### What real weights showed that the unit tests could not
+
+* **`G == 0` still reproduces the sealed anchor, with the HSI expert loaded.** 7
+  HOSI-test episodes, all 15 metrics identical to
+  `p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829`. This is what rules out the
+  composed loop perturbing HOI's chain through a shared RNG stream, and it is
+  strictly stronger than the stub-model C1 test.
+* **The occupancy state was being passed wrong.** `_compute_occ_sample` takes both
+  the noisy state and the previous step's `x_hat_0`, and they are not
+  interchangeable: the second one places the three temporal occupancy queries. The
+  composed loop was passing the noisy state for both, so the scene expert was
+  querying the scene along a noise trajectory. It now carries the previous
+  *composed* `x_hat_0` — the shared chain's own estimate, not either expert's
+  private one.
+* **The composed loop had no `@torch.no_grad()`.** Both single-expert loops do.
+  Without it the HSI forward passes build a graph and the evaluator dies 500 steps
+  later on `.cpu().numpy()`.
+
+### The object-voxel decision, which is not free
+
+The occupancy alphabet is 0 free / 1 occupied / 2 object. HSIPrior trained
+LINGO-only, and under `lingo_only` every `object_points` tensor is the 999.0
+sentinel (`datasets/infbagel_mix.py:471`) that falls out of bounds and clamps to
+voxel 0 — so **the value 2 reached its scene ViT as at most one spurious corner
+voxel per grid.** HOSI-test's object is real: measured on one episode, the three
+temporal grids carry 225–239 voxels at 2.
+
+`add_object_voxel: false` does *not* prevent this. The evaluator sets
+`cfg.vis = True` unconditionally (`test_infbagel_hosi.py:442`) and
+`_compute_occ_sample:706` then rebuilds the object from `obj_rest_verts`
+regardless of the flag, so the key controls only the anchor grid `occ_list[0]`.
+And the temporal grids are exactly the embeddings HSI's CFG amplifies
+(`models/infbagel.py:1554` zeroes only those on the uncond pass).
+
+Measured with the real weights on one window, remapping 2 → 1 moves HSI's
+`x_hat_0` by **0.039–0.057 m mean and up to 0.158 m max** in joint position at
+t ∈ {1, 100, 250, 400}, and by **exactly 0 at t = 499** — where those temporal
+embeddings are zeroed on both passes, which independently confirms the whole
+effect travels through the temporal channels. So `hsi_object_voxel_mode` is an
+explicit knob: `occupied` (default) keeps the input in distribution for a
+LINGO-trained expert, `object` is the released arithmetic and the control. Nothing
+yet says which generates better motion. Evidence:
+`.claude/scratch/phase2-hsi-wiring/occ2_sensitivity.json`.
+
+### What a composed row costs
+
+Skipping the HSI expert on steps whose gate is identically zero is worth **10x**,
+not the 3x that counting network calls predicts: 58.69 s/episode → 5.89 s on the
+same 7 episodes, still bitwise equal to the sealed row. So the HSI expert's
+per-step cost here is dominated by `_compute_occ_sample`'s four 32,768-point scene
+queries, not by its two forward passes. A `G > 0` row over the full 469 episodes
+is therefore ≈7.8 h single-GPU, and the anchor row is already sealed so it does not
+need re-running.
+
+### Posterior identity, checked rather than assumed
+
+The composed chain advances with `priors/core/ddpm.posterior_sample`. HOIPrior
+already used exactly that; the HSI expert did not — `Sampler.p_sample` computes
+its own mean from its own buffers. All four buffers are **bitwise identical**
+(`betas`, `posterior_mean_coef1/2`, `posterior_log_variance`), and the operator
+agrees bitwise at t ∈ {499, 250, 1, 0}. One wrinkle worth knowing: core always
+adds `(0.5·log_var).exp()·noise`, and `posterior_variance[0]` is 0 but the *log*
+clamps to log(1e-20), so that factor is 1e-10 rather than 0. It cancels only
+because the caller passes a zero noise tensor at step 0 — which both the composed
+loop and HOIPrior's own `sample()` do. Pass nonzero noise there and the two paths
+diverge by 2.33e-10. Also, `posterior_mean_coef1[0]` is 0.9998340606689453, not 1,
+because `1 − alpha_bar[0]` loses three digits in float32: the last reverse step is
+*not* an identity on `x_hat_0`. That is shared with every InfBaGel row ever
+produced, not introduced here. Evidence:
+`.claude/scratch/phase2-hsi-wiring/posterior_identity.json`.
+
 ## Blocked on an HSI checkpoint
 
-* Any composed row at all, and the `G == 1` HSI-alone anchor.
+Unblocked as of 2026-08-30 by P17-OC, subject to the verdict caveat above. What
+remains open is empirical rather than structural:
+
 * Whether `ScheduleGate`'s `late` or `early` mode is right. The argument for
   `late` is that object manipulation is the harder constraint and should set the
   coarse trajectory; for `early`, that scene collision is decided by coarse
-  structure and is expensive to fix afterwards. Both are cheap to measure once a
-  checkpoint exists, and neither is settled.
+  structure and is expensive to fix afterwards. Neither is settled.
 * Per-object gate values. The concentration says *where* to spend, not how much.
 * Whether HSI should drive joint positions (0:84) but not rotations (84:216),
   since scene collision is a positional constraint. `ChannelBlockGate` exists to
   ask this.
+* `hsi_object_voxel_mode`: `occupied` vs `object`, which the measurement above
+  shows matters by up to 0.158 m but does not rank.
+
+A first orientation on 7 episodes of one scene, G = 0.5 against G = 0 (a smoke,
+**not** a result — 7 episodes of 469, one scene of 67, no uncertainty, and it
+predates the object-voxel default): completion 57.1% → 71.4%, pelvis error
+3.44 → 2.16, human penetration loss 7.45 → 3.97, scene-human penetration mean
+1.00 → 0.26 and its frame ratio 0.503 → 0.269, object error flat at 8.08 → 8.10
+exactly as the channel mask predicts, contact unchanged at 0.65 — and scene-object
+penetration mean **worse**, 86.54 → 97.87. That last one is the direction to watch:
+the human moves out of the scene while the object is still HOI's, so the pair can
+be pulled apart. Whether any of it survives 469 episodes is unknown.
 
 P17-OC also has a specific consequence for evaluation: it is the first checkpoint
 in the project trained with the `occ_list[0]` X/Y permute applied, so any config

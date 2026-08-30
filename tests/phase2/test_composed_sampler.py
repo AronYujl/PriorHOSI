@@ -489,6 +489,71 @@ class HSIExpertCallTests(unittest.TestCase):
         self.assertEqual(audit['composition']['channel_mask'], 'human')
 
 
+class HSISkipTests(unittest.TestCase):
+    """Skipping the HSI expert on steps whose gate discards it.
+
+    Sound because the G == 0 row reproduced a sealed anchor produced with no HSI
+    expert in the process at all, so those two forward passes draw nothing from
+    HOIPrior's RNG stream.  Worth doing because HSI is 2 of the 3 network calls
+    per step.
+    """
+
+    def test_a_zero_constant_gate_never_calls_the_hsi_model(self):
+        composed, hsi_sampler, hsi_model, _ = _make_composed_with_hsi(gate=0)
+        composed.p_sample_loop(**_evaluator_arguments())
+        self.assertEqual(hsi_model.cond_calls, 0)
+        self.assertEqual(hsi_model.uncond_calls, 0)
+        self.assertEqual(len(hsi_sampler.occ_calls), 0)
+
+    def test_a_nonzero_constant_gate_calls_it_every_step(self):
+        composed, _, hsi_model, _ = _make_composed_with_hsi(gate=0.5)
+        composed.p_sample_loop(**_evaluator_arguments())
+        self.assertEqual(hsi_model.cond_calls, 500)
+
+    def test_a_schedule_gate_skips_only_its_zero_steps(self):
+        """`late` is exactly 0 at the first reverse step and only there."""
+        composed, _, hsi_model, _ = _make_composed_with_hsi(gate=0)
+        composed.gate = ScheduleGate(timesteps=500, peak=0.5, mode='late')
+        composed.p_sample_loop(**_evaluator_arguments())
+        self.assertEqual(hsi_model.cond_calls, 499)
+
+    def test_a_zero_peak_schedule_skips_every_step(self):
+        composed, _, hsi_model, _ = _make_composed_with_hsi(gate=0)
+        composed.gate = ScheduleGate(timesteps=500, peak=0.0, mode='late')
+        composed.p_sample_loop(**_evaluator_arguments())
+        self.assertEqual(hsi_model.cond_calls, 0)
+
+    def test_an_output_reading_gate_is_never_skipped(self):
+        """A gate that needs both predictions cannot be resolved without them."""
+        composed, _, hsi_model, _ = _make_composed_with_hsi(gate=0)
+
+        def reads_outputs(*, step, current, hoi, hsi):
+            del step, current, hoi, hsi
+            return 0.0
+
+        composed.gate = reads_outputs
+        composed.p_sample_loop(**_evaluator_arguments())
+        self.assertEqual(hsi_model.cond_calls, 500)
+
+    def test_an_object_gate_without_names_is_not_skipped(self):
+        composed, _, hsi_model, _ = _make_composed_with_hsi(gate=0)
+        composed.gate = ObjectConditionedGate({'clothesstand': 0.0}, default=0.0)
+        with self.assertRaises(ValueError):
+            composed.p_sample_loop(**_evaluator_arguments())
+        # The expert ran before the gate refused: conservative, as intended.
+        self.assertEqual(hsi_model.cond_calls, 1)
+
+    def test_skipping_does_not_move_the_anchor(self):
+        reference, _, _, _ = _make_pair(timesteps=500)
+        arguments = _evaluator_arguments()
+        torch.manual_seed(42)
+        expected, _ = reference.p_sample_loop(**arguments)
+        composed, _, _, _ = _make_composed_with_hsi(gate=0)
+        torch.manual_seed(42)
+        actual, _ = composed.p_sample_loop(**_evaluator_arguments())
+        self.assertTrue(torch.equal(expected[0], actual[-1]))
+
+
 class ObjectVoxelModeTests(unittest.TestCase):
     """What the manipulated object looks like to the LINGO-trained scene expert.
 

@@ -45,6 +45,11 @@ class ConstantGate:
         del step, current, hoi, hsi
         return self.value
 
+    def is_identically_zero_at(self, step):
+        """Lets the sampler skip the HSI expert's two forward passes entirely."""
+        del step
+        return self.value == 0.0
+
     def describe(self):
         return {'kind': 'constant', 'value': self.value}
 
@@ -73,9 +78,22 @@ class ScheduleGate:
 
     def __call__(self, *, step, current, hoi, hsi):
         del current, hoi, hsi
+        return self._value_at(step)
+
+    def _value_at(self, step):
         progress = 1.0 - (float(step) / max(self.timesteps - 1, 1))
         fraction = progress if self.mode == 'late' else 1.0 - progress
         return self.peak * fraction
+
+    def is_identically_zero_at(self, step):
+        """True on the steps this schedule hands entirely to HOI.
+
+        Worth having rather than merely correct: ``late`` is exactly 0 at
+        ``step == timesteps - 1`` and ``early`` is exactly 0 at ``step == 0``, and
+        a schedule reaching 0 over a RANGE (peak 0, or a future shape with a flat
+        head) then costs one forward per step instead of three.
+        """
+        return self._value_at(step) == 0.0
 
     def describe(self):
         return {
@@ -135,6 +153,20 @@ class ObjectConditionedGate:
             values, device=reference.device, dtype=reference.dtype,
         ).reshape(batch, 1, 1)
 
+    def is_identically_zero_at(self, step):
+        """Only when every object in THIS window is gated to zero.
+
+        Batch-dependent, so it needs the names; without them it answers False and
+        the expert runs, which is the conservative direction.
+        """
+        del step
+        if self._object_names is None:
+            return False
+        return all(
+            self.values.get(name, self.default) == 0.0
+            for name in self._object_names
+        )
+
     def describe(self):
         return {
             'kind': 'object_conditioned', 'values': dict(self.values),
@@ -169,6 +201,10 @@ class ChannelBlockGate:
         gate[:84] = self.positions
         gate[84:216] = self.rotations
         return gate * human_gate_mask(device=gate.device, dtype=gate.dtype)
+
+    def is_identically_zero_at(self, step):
+        del step
+        return self.positions == 0.0 and self.rotations == 0.0
 
     def describe(self):
         return {
