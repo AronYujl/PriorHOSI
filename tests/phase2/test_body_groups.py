@@ -244,5 +244,73 @@ class BodyGroupGateTests(unittest.TestCase):
         json.dumps(describe_body_groups())
 
 
+class OverrideRecipeTests(unittest.TestCase):
+    """The documented Hydra recipe must actually select the gate.
+
+    `sampler/hosi_composed.yaml` carried a recipe that could not work: `gate`
+    resolves to the SCALAR `${mixer_gate}`, so `sampler.pelvis.gate._target_=...`
+    raises `Key '_target_' is not in struct`, and the `{root:1.0,...}` literal it
+    suggested for the weights would have its braces expanded by bash inside the
+    launcher's double-quoted tmux command.  A comment cannot be wrong about this
+    without costing a launch, so the recipe is asserted here against the real
+    config tree.
+    """
+
+    RECIPE = (
+        '++sampler.pelvis.gate._target_=mixer.gates.BodyGroupGate',
+        '++sampler.pelvis.gate.weights.root=1.0',
+        '++sampler.pelvis.gate.weights.lower_body=1.0',
+        '++sampler.pelvis.gate.weights.torso=0.0',
+        '++sampler.pelvis.gate.weights.arms=0.0',
+        '++sampler.pelvis.gate.weights.hands=0.0',
+    )
+
+    def _compose(self, overrides):
+        import os
+
+        import hydra
+        from hydra import compose, initialize_config_dir
+        from omegaconf import OmegaConf
+
+        OmegaConf.register_new_resolver(
+            'times', lambda x, y: int(x) * int(y), replace=True,
+        )
+        os.environ.setdefault('ROOT_DIR', str(REPO))
+        cfgdir = str(REPO / 'code' / 'config')
+        with initialize_config_dir(version_base=None, config_dir=cfgdir):
+            cfg = compose(config_name='config_sample_hosi_composed',
+                          overrides=list(overrides))
+        return cfg, hydra
+
+    def test_the_documented_recipe_instantiates_the_body_group_gate(self):
+        cfg, hydra = self._compose(self.RECIPE)
+        gate = hydra.utils.instantiate(cfg.sampler.pelvis.gate)
+        self.assertIsInstance(gate, BodyGroupGate)
+        self.assertEqual(
+            gate.weights,
+            {'root': 1.0, 'lower_body': 1.0, 'torso': 0.0, 'arms': 0.0,
+             'hands': 0.0},
+        )
+
+    def test_the_recipe_carries_no_shell_metacharacters(self):
+        """Every override has to survive a double-quoted tmux command."""
+        for override in self.RECIPE:
+            self.assertNotRegex(override, r'[{}$`\'"\\|&;<>()*?\[\]~#]')
+
+    def test_a_single_plus_is_not_enough_for_the_target(self):
+        """Documents WHY the recipe uses `++`, so a future edit cannot regress it."""
+        from hydra.errors import ConfigCompositionException
+
+        with self.assertRaises(ConfigCompositionException):
+            self._compose(
+                ('sampler.pelvis.gate._target_=mixer.gates.BodyGroupGate',),
+            )
+
+    def test_the_composed_config_keeps_the_object_contract(self):
+        cfg, _ = self._compose(self.RECIPE)
+        self.assertEqual(cfg.mixer_channel_mask, 'human')
+        self.assertEqual(cfg.mixer_hsi_object_voxel_mode, 'occupied')
+
+
 if __name__ == '__main__':
     unittest.main()

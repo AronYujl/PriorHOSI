@@ -13,11 +13,24 @@
 # per-channel gate.  For the body split -- HSI on the root and legs, HOI on the arms
 # and hands -- override the gate node itself:
 #
-#   sampler.pelvis.gate._target_=mixer.gates.BodyGroupGate
-#   '+sampler.pelvis.gate.weights={root:1.0,lower_body:1.0,torso:0.0,arms:0.0,hands:0.0}'
+#   ++sampler.pelvis.gate._target_=mixer.gates.BodyGroupGate
+#   ++sampler.pelvis.gate.weights.root=1.0
+#   ++sampler.pelvis.gate.weights.lower_body=1.0
+#   ++sampler.pelvis.gate.weights.torso=0.0
+#   ++sampler.pelvis.gate.weights.arms=0.0
+#   ++sampler.pelvis.gate.weights.hands=0.0
 #
-# Those five weights are BodyGroupGate's defaults, so `_target_` alone selects the
-# default split.  Groups and the per-joint layout: mixer/body_groups.py.
+# `++` on every key and one key per weight, both for a reason.  `gate` resolves to
+# the SCALAR `${mixer_gate}`, so `gate._target_` is not in the struct and plain `=`
+# raises `Key '_target_' is not in struct`; `++` adds-or-overrides and turns the
+# scalar into the gate node.  And a `{root:1.0,...}` literal cannot survive the
+# launcher, whose shard command lives inside a double-quoted tmux string where bash
+# expands the braces -- dotted keys have no shell metacharacters at all.
+#
+# Those five values are BodyGroupGate's defaults, so `_target_` alone selects the
+# same split; pass them anyway on a reportable row, so the audit records the split
+# the row actually used rather than whatever the default was that day.  Groups and
+# the per-joint layout: mixer/body_groups.py.
 #
 # CHANNEL MASK.  Not a knob.  `mixer_channel_mask` must resolve to 'human' (or to a
 # tensor that is zero on 216:232); the sampler refuses `null` at construction, and a
