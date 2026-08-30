@@ -619,3 +619,128 @@ differing files — leaving the Phase 1B OMOMO-only snapshot untouched, since
 
 Both were found by running the real evaluator on the worker. A one-scene preflight
 through the actual CLI cost ~8 min and is now the thing that precedes a launch.
+
+## 2026-08-31 — P2-BG result: FAIL, and the metric is the reason it reads as nothing
+
+`p2-mixer-fixed-bodygroup-p15-p17oc-s42-20260830`, n=469, merged from 4 scene
+shards, sealed and registered. HOI `ed8cf169` (P15 + guidance Arm B), HSI
+`f64d956f` (P17-OC epoch 222), both hash-verified. Gate audit: `body_group` with the
+five preregistered weights, mask `human`, `object_channels_from_hoi: true`, per-step
+composition, timing nulled by design.
+
+### The four criteria
+
+| quantity | result | gate | verdict |
+|---|--:|--:|---|
+| `contact_percent` | 0.60395 | ≥ 0.5878 | PASS — but **significantly worse** |
+| `completion_rate` | 0.75267 | ≥ 0.7433 | PASS |
+| `scene_human_penetration_s_mean` | 6.97567 | ≤ 6.28801 | **FAIL** |
+| `scene_obj_penetration_s_mean` | 32.79765 | (none) | 1.021×, null |
+
+**The primary criterion fails as a null, not a shortfall.** Paired delta −0.011 with
+CI [−0.782, +0.863] — a 0.16% drop against a 10% gate. The arm did not move the
+metric it was built to move.
+
+### Paired against G=0, 469 episodes, 10,000 replicates, seed 42
+
+Significantly **better** (5): `scene_human_penetration_frame_ratio` −0.0719
+(23.2% relative), `foot_sliding` −0.0459 (27.8%), `feet_height` −0.299,
+`hand_pen_loss_omomo` −0.0254, `scene_obj_penetration_frame_ratio` −0.0125.
+
+Significantly **worse** (2): `contact_percent` −0.0875 (12.7% relative),
+`human_pen_ratio` +0.0147.
+
+Null (9): `completed`, `end_obj_trans_err`, `hand_pen_ratio`,
+`human_pen_loss_infbagel`, `scene_human_penetration_s_max`,
+**`scene_human_penetration_s_mean`**, `scene_obj_penetration_s_max`,
+`scene_obj_penetration_s_mean`, `xy_points_err`.
+
+### Why the gated metric is a null while prevalence moves 23%
+
+`penetration_s_mean` is `penetration_sum_per_frame.mean()` over **all** frames
+(`test_infbagel_hosi.py:316`) and `frame_ratio` is the fraction of frames with any
+penetrating vertex (`:320`). Both are then averaged over episodes, and the mass of
+the first is extremely concentrated:
+
+| | share of the G=0 `s_mean` total |
+|---|--:|
+| top 1% of episodes (5) | **52.9%** |
+| top 5% (23) | 75.7% |
+| top 10% (47) | **86.1%** |
+| top 25% (117) | 95.8% |
+
+The arm does not reach that tail:
+
+| | `s_mean` G=0 → BG | ratio | `frame_ratio` ratio |
+|---|--:|--:|--:|
+| heavy decile (n=47, 86.1% of mass) | 60.008 → 61.122 | **1.019** | 0.929 |
+| the other 422 episodes | 1.082 → 0.945 | **0.874** | 0.728 |
+
+So penetration improves ~12.6% on 90% of the benchmark and the gated metric cannot
+see it, because that metric is a mean over a distribution whose mass sits in 47
+episodes. Per-episode `s_mean` is better on 266 and worse on 174; the four largest
+regressions are +112.8, +73.5, +65.6 and +64.4, all on episodes already at 232–605.
+
+Conditional depth per penetrating frame is itself a null (1.045×, CI
+[−0.394, +2.871]), so this is not a prevalence-for-depth trade within episodes — it
+is heterogeneity **between** them. Compare
+[[hsi-prevalence-and-depth-disagree-on-deltas]]: the same two columns disagreeing,
+for the same reason.
+
+### The contact cost buys nothing
+
+Spearman r(contact delta, penetration `frame_ratio` delta) = **+0.0177**. The
+episodes that lost contact are not the episodes that gained on penetration. This is
+the structure of the Phase 1C guidance-dose result, where +0.056 meant a uniform
+intervention taxed 225 episodes that never needed it — here the correlation is
+weaker still.
+
+Both effects are object-conditioned, and **in different orders**:
+
+| object | contact ratio | `s_mean` ratio |
+|---|--:|--:|
+| floorlamp | **0.705** | 1.025 |
+| tripod | **0.639** | 1.053 |
+| monitor | 0.864 | **1.096** |
+| clothesstand | 0.868 | 0.804 |
+| smalltable | 0.957 | 0.871 |
+| smallbox | 0.963 | 0.926 |
+| suitcase | 0.976 | **0.780** |
+
+Contact loss is floorlamp and tripod (a 10× spread against suitcase). Penetration
+regression is monitor and tripod. Penetration gain is suitcase and clothesstand.
+14 episodes completed under G=0 and not here, carrying a larger contact loss
+(−0.0945) than the 344 completed in both (−0.0589).
+
+### What this says to do next
+
+1. **Do not tune the body split against `s_mean`.** The metric is a mean whose mass
+   is in 10% of episodes, and this arm demonstrably moves the other 90%. Tuning
+   against it optimises a number that is structurally blind to what the gate does.
+2. **The tail is the target, and it is probably not a body-split problem.** The
+   large regressions land on episodes that were already catastrophic. The next
+   diagnostic should ask what those 47 episodes share, not what weight the torso
+   should take.
+3. **`ObjectConditionedGate` already exists**, and the two effects being
+   object-conditioned in different orders is the one intervention this data points
+   at directly.
+4. **One cheap separation first:** with r = +0.018 between the contact cost and the
+   penetration gain, a gate keeping HSI on `lower_body` but returning `root` to HOI
+   would test whether the contact loss is the root's doing. This arm confounds the
+   two.
+
+**Citation rule.** Quoting the `s_mean` null alone misreports this row. The finding
+is a 23.2% significant reduction in penetration **prevalence** with no change in
+mean depth, bought at a 12.7% contact cost that is uncorrelated with it.
+
+### One operational fault, recorded not hidden
+
+All four shard processes **exited 1**. The cause is a print block that formats a
+timing key `invalidate_timing` had nulled; it runs after both `json.dump` calls
+(`:1223`, `:1239`; crash at `:1267`), so all 469 episodes with ordinals 0..468
+complete were already on disk and the measurement is unaffected. The watcher's
+all-succeeded test correctly refused to merge, and the merge was run separately at
+the same pinned commit — merge mode returns from `main` at `:509`, before the
+defective block. Fixed in `27b4d5f` with two tests, one of them reading the source
+so the guard itself is asserted. ~8 GPU-hours reported failure for work that had
+succeeded; nothing was lost, and nothing was re-run.
