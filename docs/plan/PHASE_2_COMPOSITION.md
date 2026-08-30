@@ -511,3 +511,111 @@ rows are **re-run, not rewritten** — the merge turns that into a mechanical ch
 The launcher deliberately has no `--execute`: a row is a GPU workload needing the
 user's explicit approval of one concrete experiment and a run id allocated through
 `tools/experiment.py`.
+
+## 2026-08-30 — P2-BG: the fixed body-group row, preregistered
+
+**Approved by the user 2026-08-30**, run id
+`p2-mixer-fixed-bodygroup-p15-p17oc-s42-20260830`, worker `node01`, 4 scene-level
+shards on GPUs 0–3, seed 42. This section is written **before the result exists**.
+
+### The arm
+
+`BodyGroupGate` at its defaults: `root: 1.0`, `lower_body: 1.0` (HSIPrior),
+`torso: 0.0`, `arms: 0.0`, `hands: 0.0` (HOIPrior), channels 216:232 from HOI at
+every gate value. No `ScheduleGate` — the gate is constant over all 500 steps.
+`mixer_hsi_object_voxel_mode: occupied`, `mixer_channel_mask: human`,
+`hosi_per_episode_seeding: false`, `mixer_hsi_w: 1`.
+
+HOIPrior is P15 + guidance Arm B, sha256 `ed8cf169…`. HSIPrior is P17-OC epoch 222,
+sha256 `f64d956f…`. Both hashes are pinned in the config and the evaluator refuses a
+mismatch; both are recorded in the manifest and in every shard payload.
+
+### Criteria, as the user fixed them
+
+| quantity | gate | G=0 anchor | note |
+|---|--:|--:|---|
+| `contact_percent` | ≥ 0.5878 | 0.69147 | 0.85× the anchor — the accepted 15% contact budget |
+| `completion_rate` | ≥ 0.7433 | 0.76333 | 2 points below the anchor |
+| `scene_human_penetration_s_mean` | ≤ ~6.288 | 6.98668 | ≈10% relative reduction |
+| `scene_obj_penetration_s_mean` | reported separately | 32.11539 | **no threshold set** |
+
+Primary comparison is **paired per episode against G=0**
+(`p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829`, n=469), which is the only row
+on this benchmark that is both reproducible here and pairable. Pairing is by
+`scene_name/object_name/test_idx` through `tools/hosi_per_sequence.py`; 15 metrics
+carry sequence-level intervals and `completion_rate` does not — it is a proportion
+over episodes, so it gets a proportion test, not a place in the same table.
+
+**Immutable diagnostic.** The user's ruling: this row does not enter the main table
+before P17-OC's own Phase 1C verdict exists. That verdict has since landed on
+`phase/01c-hsi` as `f58d2b6` — **FAIL on both criteria, checkpoint not promoted**.
+So P2-BG is a test of the composition mechanism, not a claim about a settled
+HSIPrior, and its HSI half is an arm that failed its own gate.
+
+### The risk the criteria do not cover
+
+The threshold list constrains contact, completion and **human** penetration. The
+metric the composed row most owes is **object** penetration: G=0 is 32.12 against
+the July released row's 16.96 and the paper hybrid's 12.45, and that is the number
+the phase's own "where the composed row has to improve" table marks as *the target*.
+It has no threshold here, and it is the one the mechanism can be expected to move
+the wrong way: 216:232 always comes from HOI, and HOI is scene-blind, so when HSI
+moves the pelvis the object follows a root that no scene-aware expert chose.
+
+Measured on the 7-episode smoke scene, same episodes, three arms:
+
+| metric | G=0 | uniform G=0.5 | body-group | bg/G=0 |
+|---|--:|--:|--:|--:|
+| `contact_percent` | 0.6483 | 0.6474 | 0.5852 | 0.903 |
+| `scene_human_penetration_s_mean` | 1.0020 | 0.2552 | 0.6553 | **0.654** |
+| `scene_obj_penetration_s_mean` | 86.54 | 97.87 | 103.17 | **1.192** |
+| `foot_sliding` | 0.1599 | 0.1057 | 0.0641 | 0.401 |
+| `feet_height` | 4.0220 | 3.8731 | 3.2955 | 0.819 |
+| `hand_pen_loss_omomo` | 0.4537 | 0.2414 | 0.2827 | 0.623 |
+| `xy_points_err` | 3.4352 | 2.1592 | 3.1205 | 0.908 |
+
+n=7 resolves nothing — HSI-side experience puts the sample needed for penetration
+near 266 — and the smoke scene is harder than the benchmark (its G=0 object
+penetration is 2.7× the full-set mean). Two things in it are still worth carrying
+into the reading of the full row:
+
+* Human penetration improves on **5 of 7** episodes, which is the mechanism working
+  in the direction the arm claims.
+* The object-penetration increase is **one episode**: clothesstand 527.5 → 656.8,
+  +129.3, against 3 of 7 improving and 2 tied at exactly 0. clothesstand and tripod
+  are 29% of episodes and 65.7% of the object-penetration mass, so the full row's
+  verdict on this metric is mostly a verdict about those two objects.
+
+The contact number needs the same care: 0.5852 looks like it fails the 0.5878 gate,
+but 0.5878 is 0.85× the **full-set** anchor and this subset's anchor is 0.6483. The
+subset-proportional floor is 0.551, which 0.5852 clears. Reading a full-set
+threshold against a subset mean is the error to avoid here.
+
+### What ran, operationally
+
+Return armed before the first shard and verified with a probe file that reached the
+authority at 23:43 — before any GPU work. `OMP_NUM_THREADS=MKL=OPENBLAS=4` on every
+shard. The merge runs **inside** the return watcher, gated on all four exit codes
+being 0, so the merged payload comes back in the same transfer; on a shard failure
+the merge is skipped and the logs transfer anyway.
+
+The worker needed provisioning first: it had no `hosi_test` at all. A second
+immutable snapshot `InfBaGel-p2-hosi-v1` (test + object + hosi_test, 9.5 GB) was
+pulled worker-initiated and verified by full-content `rsync --checksum` — zero
+differing files — leaving the Phase 1B OMOMO-only snapshot untouched, since
+`MULTI_SERVER_TRAINING.md`'s prohibition on `hosi_test` there is scoped to Phase 1B.
+
+### Two defects this launch found, both mine
+
+* `bb44621` put `@hydra.main` on `run_merge_shards` and left `main` undecorated, so
+  **every** HOSI invocation died on `TypeError: main() missing 1 required positional
+  argument`. The 856-test suite passed over it because no test goes through the CLI.
+  Fixed in `0a1a26b`, with two assertions on the entry point.
+* The `BodyGroupGate` override recipe in `sampler/hosi_composed.yaml` could not work:
+  `gate` resolves to the scalar `${mixer_gate}`, so `_target_` needs `++`, and the
+  `{root:1.0,…}` weights literal has its braces expanded by bash inside the
+  launcher's tmux string. Fixed in `03e39cc`, with the recipe asserted against the
+  real config tree.
+
+Both were found by running the real evaluator on the worker. A one-scene preflight
+through the actual CLI cost ~8 min and is now the thing that precedes a launch.
