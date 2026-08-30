@@ -60,7 +60,37 @@ hosi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hosi_expected_episodes: 469
 # Trim the scene list, for cost probes and diagnostics only. Requires
 # hosi_expected_episodes=null, or the aggregate guard refuses the partial sweep.
+# Mutually exclusive with hosi_shard_count>1: both subset the scene enumeration.
 hosi_scene_limit: null
+
+# HOSI-test evaluation sharding (2026-08-30). `evaluate` is the normal path;
+# `merge_shards` loads the shard payloads, checks the anchors and writes the merged
+# pair, loading no model and touching no GPU.
+hosi_mode: evaluate
+# shard_count=1 is the serial protocol and the default. >1 splits the run by SCENE
+# -- balanced by the sum of each scene's episode xz chords, via greedy longest-first
+# bin packing -- and invalidates every wall-clock aggregate because concurrent
+# shards contend for the host. Metrics are unaffected.
+#
+# The scene is the unit, and by measurement rather than by taste: `set_test_scene`
+# costs 4.96 s and there are 67 scenes, so episode-level shards each pay ~61 scene
+# switches against a scene-level shard's 17. Predicted slowest shard at 4 shards,
+# switches included: 1.97 h scene-level (3.94x) vs 2.02 h episode-level (3.83x).
+#
+# It is also bitwise-safe with NO reseeding, which is why the sealed G==0 anchor
+# needs no re-run: `sample_calls` already resets per scene (the sampler is rebuilt
+# there), `torch.initial_seed()` is constant, and `__getitem__` consumes no global
+# RNG at test time. All four facts are measured; see code/hosi_sharding.py.
+# Evidence: .claude/scratch/phase2-sharding/.
+hosi_shard_index: 0
+hosi_shard_count: 1
+# Re-seed from the canonical ordinal and reset the sampler's per-window counter at
+# every episode. OFF by default and NOT needed for scene-level sharding. It buys one
+# thing: an episode reproducible in ISOLATION -- today episode 3 of a scene needs
+# episodes 0-2 run first, and the same episode at scene position 0 vs 2 differs by
+# up to 1.91 in normalized units. It changes every number, so a campaign that turns
+# it on must re-run its own anchor. Never mix the two regimes in one comparison.
+hosi_per_episode_seeding: false
 hoi_output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/evaluation
 hoi_expected_sequences: 438
 hoi_sequence_limit: null

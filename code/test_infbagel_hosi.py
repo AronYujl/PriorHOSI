@@ -17,6 +17,13 @@ from utils import *
 from constants import *
 from datasets.infbagel import InfBaGelDataset
 from astar import get_path
+from hosi_sharding import (
+    enumerate_canonical_episodes,
+    invalidate_timing,
+    merge_shard_payloads,
+    recompute_statistics,
+    select_shard_scenes,
+)
 from guidance_loss import *
 from eval_metrics import *
 
@@ -438,7 +445,68 @@ def compute_metrics_for_sample(points_all, obj_trans, obj_rot, test_item,
     return metrics
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
+def run_merge_shards(cfg: DictConfig) -> None:
+    """Merge a sharded campaign's payloads into one serial-shaped payload.
+
+    Loads every `<hosi_output_dir>-shard<i>of<n>/overall_evaluation_summary.json`,
+    checks the anchors, recomputes the statistics over the union of episode records
+    and writes the merged pair beside them.  Reached with
+    `hosi_mode=merge_shards hosi_shard_count=<n>`; it loads no model and touches no
+    GPU.
+
+    Every guard in `merge_shard_payloads` raises rather than warning.  A short merge
+    is the failure mode that matters here because it reads as a complete result: the
+    aggregate would be a mean over whatever was on disk with nothing saying so.
+    """
+    shard_count = int(cfg.get('hosi_shard_count', 1))
+    if shard_count < 2:
+        raise ValueError(
+            f'merge_shards needs hosi_shard_count >= 2, got {shard_count}'
+        )
+    base = os.path.abspath(str(cfg.hosi_output_dir))
+    payloads = []
+    for index in range(shard_count):
+        path = os.path.join(
+            '%s-shard%02dof%02d' % (base, index, shard_count),
+            'overall_evaluation_summary.json',
+        )
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'shard {index} payload is missing: {path}')
+        with open(path) as handle:
+            payloads.append(json.load(handle))
+
+    merged = merge_shard_payloads(
+        payloads,
+        expected_episodes=int(cfg.get('hosi_expected_episodes') or 469),
+        expected_shard_count=shard_count,
+        metric_names=list(METRIC_NAMES),
+    )
+
+    output_dir = '%s-merged%02d' % (base, shard_count)
+    if os.path.exists(output_dir):
+        raise FileExistsError(f'Refusing to overwrite merged HOSI output: {output_dir}')
+    os.makedirs(output_dir, exist_ok=False)
+    with open(os.path.join(output_dir, 'overall_evaluation_summary.json'), 'x') as handle:
+        json.dump(merged, handle, indent=2, default=convert_to_serializable)
+    aggregate = {
+        key: merged[key] for key in (
+            'model_name', 'seed', 'expert', 'sample_type', 'evaluator_guidance_fn',
+            'checkpoint', 'hsi_checkpoint', 'sampler_audit', 'sharding',
+            'statistics', 'summary',
+        ) if key in merged
+    }
+    with open(os.path.join(output_dir, 'aggregate_metrics.json'), 'x') as handle:
+        json.dump(aggregate, handle, indent=2, default=convert_to_serializable)
+    print(
+        f'Merged {shard_count} shards, '
+        f'{merged["statistics"]["total_samples"]} episodes -> {output_dir}'
+    )
+
+
 def main(cfg: DictConfig) -> None:
+    if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_shards':
+        run_merge_shards(cfg)
+        return
     cfg.vis = True
     device = cfg.device
     seed_everything(int(cfg.seed))
@@ -481,6 +549,14 @@ def main(cfg: DictConfig) -> None:
 
     model_name = os.path.splitext(cfg.ckpt_path.split('/')[-1])[0]
     base_output_dir = os.path.abspath(str(cfg.hosi_output_dir))
+    # The shard suffix means concurrent shards stay isolated even when they are given
+    # one hosi_output_dir, instead of racing on the same directory and tripping each
+    # other's overwrite guard.
+    _shard_count_for_dir = int(cfg.get('hosi_shard_count', 1))
+    if _shard_count_for_dir > 1:
+        base_output_dir = '%s-shard%02dof%02d' % (
+            base_output_dir, int(cfg.get('hosi_shard_index', 0)), _shard_count_for_dir,
+        )
     if cfg.save_results_json:
         if os.path.exists(base_output_dir):
             raise FileExistsError(f"Refusing to overwrite HOSI evaluation output: {base_output_dir}")
@@ -561,12 +637,55 @@ def main(cfg: DictConfig) -> None:
         }
 
     json_data_dir = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data')
-    scene_files = sorted(f for f in os.listdir(json_data_dir) if f.endswith('.json'))
+    # 2026-08-30: sharding.  The canonical enumeration -- scene files sorted, then
+    # test items in file order -- is what assigns every episode its canonical
+    # ordinal, and the ordinal is what a merge anchors on and what identifies an
+    # episode across runs.  It is computed from the FULL benchmark before any
+    # subsetting, so a shard's ordinals are the serial run's ordinals.
+    all_scene_files, per_scene_items, canonical_ordinals = enumerate_canonical_episodes(
+        json_data_dir,
+    )
+    shard_count = int(cfg.get('hosi_shard_count', 1))
+    shard_index = int(cfg.get('hosi_shard_index', 0))
+    per_episode_seeding = bool(cfg.get('hosi_per_episode_seeding', False))
     # A deliberate scene subset, for cost probes only.  hosi_expected_episodes
     # must be set to null alongside it, or the aggregate guard refuses the run.
     scene_limit = cfg.get('hosi_scene_limit', None)
+    if scene_limit is not None and shard_count > 1:
+        raise ValueError(
+            'hosi_scene_limit and hosi_shard_count>1 both subset the scene '
+            'enumeration and would compose into a subset of a subset. Use one.'
+        )
     if scene_limit is not None:
-        scene_files = scene_files[:int(scene_limit)]
+        scene_files = all_scene_files[:int(scene_limit)]
+        sharding_plan = {
+            'shard_index': 0, 'shard_count': 1,
+            'partition_rule': 'scene_limit_prefix',
+            'partition_unit': 'scene',
+            'canonical_episode_total': len(canonical_ordinals),
+            'canonical_scene_total': len(all_scene_files),
+            'shard_scene_count': len(scene_files),
+            'shard_episode_count': sum(
+                len(per_scene_items[i]) for i in range(len(scene_files))
+            ),
+        }
+    else:
+        scene_files, sharding_plan = select_shard_scenes(
+            all_scene_files, per_scene_items, shard_index, shard_count,
+        )
+    sharding_plan['per_episode_seeding'] = per_episode_seeding
+    sharded = int(sharding_plan['shard_count']) > 1
+    if sharded:
+        # The scene is the shard unit precisely so this is true; see
+        # hosi_sharding.py for the four measurements behind it.
+        print(
+            f'SHARD {shard_index}/{shard_count}: '
+            f'{sharding_plan["shard_scene_count"]} scenes, '
+            f'{sharding_plan["shard_episode_count"]} episodes, '
+            f'balance key {sharding_plan["shard_balance_key"]:.1f} '
+            f'(rule {sharding_plan["partition_rule"]})',
+            flush=True,
+        )
 
     all_scenes_metrics = []
     gen_time_list = []
@@ -612,6 +731,27 @@ def main(cfg: DictConfig) -> None:
         scene_metrics = []
 
         for test_idx, test_item in enumerate(tqdm(test_data, desc=f"Processing {scene_name}")):
+            canonical_ordinal = canonical_ordinals[(scene_name, test_idx)]
+            # OFF by default, and scene-level sharding does not need it: a scene's
+            # episodes are already seeded identically however many other scenes ran,
+            # because `sampler_body` is rebuilt per scene (so `sample_calls` resets)
+            # and `torch.initial_seed()` is constant.  Verified, not assumed --
+            # hosi_sharding.py lists the four measurements.
+            #
+            # What it buys is an episode reproducible in ISOLATION.  Today episode 3
+            # of a scene can only be reproduced by running episodes 0-2 first, and
+            # the same episode at scene position 0 vs 2 differs by up to 1.91 in
+            # normalized units.  Both halves are needed: reseeding alone does not fix
+            # it, because `sample_calls` is the generator's other seed input.
+            #
+            # It changes every number, so a campaign that turns it on must re-run its
+            # own anchor.  Never mix the two regimes inside one comparison.
+            if per_episode_seeding:
+                seed_everything(int(cfg.seed) + int(canonical_ordinal))
+                if sampler_body is not None and hasattr(sampler_body, 'inner_hoi'):
+                    sampler_body.inner_hoi.sample_calls = 0
+                elif sampler_body is not None and hasattr(sampler_body, 'sample_calls'):
+                    sampler_body.sample_calls = 0
             synchronize_cuda(cfg.device)
             _episode_start_time = time.perf_counter()
             print(f"\n=== Test item {test_idx + 1}/{len(test_data)} ===")
@@ -924,6 +1064,11 @@ def main(cfg: DictConfig) -> None:
             metrics['scene_name'] = test_item['scene_name']
             metrics['object_name'] = test_item['object_name']
             metrics['test_idx'] = test_idx
+            # The episode's index in the FULL enumeration, never in this shard.  It
+            # is what the merge anchors on -- a duplicate or a gap in the ordinals is
+            # what catches a short merge, which would otherwise read as a complete
+            # result -- and it identifies an episode across runs and shard counts.
+            metrics['canonical_ordinal'] = int(canonical_ordinal)
 
             scene_metrics.append(metrics)
 
@@ -956,6 +1101,13 @@ def main(cfg: DictConfig) -> None:
     # benchmark is 67 scenes x 7 objects = 469 episodes; set
     # hosi_expected_episodes: null to evaluate a deliberate subset.
     expected_episodes = cfg.get('hosi_expected_episodes', 469)
+    # Under sharding the guard checks the SHARD's own planned episode count, not the
+    # benchmark total: a shard is complete when it finished its own scenes.  The
+    # benchmark total is still enforced, but by the merge, over the union of
+    # canonical ordinals -- which is strictly stronger, because it also catches a
+    # shard that ran the wrong scenes.
+    if sharded:
+        expected_episodes = int(sharding_plan['shard_episode_count'])
     if expected_episodes is not None and len(all_scenes_metrics) != int(expected_episodes):
         raise ValueError(
             f"HOSI evaluation produced {len(all_scenes_metrics)} episodes, expected "
@@ -999,6 +1151,14 @@ def main(cfg: DictConfig) -> None:
                 'warmup_sequences_excluded': timing_warmup_sequences,
                 'timing_cuda_synchronized': True,
             }
+            # Concurrent shards contend for host CPU, PCIe and the scene occupancy
+            # and SDF caches, so every wall-clock aggregate is contaminated.  Nulled
+            # explicitly rather than deleted: a reader diffing a sharded payload
+            # against a serial one must see the same keys with nulls, not a
+            # structurally different object.  Metrics are untouched -- sharding
+            # invalidates the timing and nothing else.
+            if sharded:
+                generation_metrics = invalidate_timing(generation_metrics)
 
         # 2026-08-29: record the guidance state IN THE PAYLOAD.  A HOI run id that
         # says "guided" is not evidence that it was: --eval-tag does not set
@@ -1023,7 +1183,12 @@ def main(cfg: DictConfig) -> None:
             # here rather than left to the run id. Null on single-expert rows.
             'hsi_checkpoint': hsi_checkpoint_metadata,
             'sampler_audit': sampler_audit,
-            'scene_order': scene_files,
+            # The partition this payload is one part of.  Present on serial rows too
+            # (shard_count 1), so a serial and a merged payload are the same shape
+            # and `merge_shard_payloads` can refuse a payload that predates sharding
+            # rather than silently merging one.
+            'sharding': sharding_plan,
+            'scene_order': list(scene_files),
             'individual_metrics': all_scenes_metrics,
             'statistics': statistics,
             'summary': {
@@ -1066,6 +1231,7 @@ def main(cfg: DictConfig) -> None:
                 'checkpoint': evaluation_results['checkpoint'],
                 'hsi_checkpoint': evaluation_results['hsi_checkpoint'],
                 'sampler_audit': evaluation_results['sampler_audit'],
+                'sharding': evaluation_results['sharding'],
                 'statistics': evaluation_results['statistics'],
                 'summary': evaluation_results['summary'],
             }

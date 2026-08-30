@@ -435,3 +435,79 @@ HOI owns L_Collar's, the local collar rotation absorbs the whole disagreement be
 the two experts' body headings as a shoulder twist. That seam is unavoidable in any
 split; the group boundaries decide only where it lands. `torso` is a group of its own
 so that placement is a knob rather than something folded silently into one side.
+
+## 2026-08-30 — sharding the HOSI evaluation
+
+A composed `G > 0` row costs 7.74 h on one GPU. `code/hosi_sharding.py` splits it;
+`tools/launch_hosi_sharded.py` emits the launch plan. Four design points, each
+decided by measurement, all in `.claude/scratch/phase2-sharding/`.
+
+**The unit is the scene, not the episode.** `set_test_scene` reloads the scene mesh
+and rebuilds the occupancy: 4.96 s, 67 scenes. An episode-level shard's episodes
+scatter across nearly every scene, so each of four shards pays 60–63 switches; a
+scene-level shard pays 17. Predicted slowest shard at four shards, switches
+included: **1.97 h scene-level (3.94×) against 2.02 h episode-level (3.83×)**.
+
+**Balance is by window count via a free proxy, and the exact plan is a net loss.**
+The true per-episode window count is not in the data files. `test_item['episode_num']`
+looks like it and is not: it matches the true count **164 of 461 times** (Spearman
+0.853), and the evaluator never reads it — `seg_len = ceil(A* arc / 0.8) + 1`, with
+`cond['is_loco']` true on all 469 episodes so that branch always fires. Computing the
+true counts takes a **332 s** pre-pass. The straight-line xz chord from the JSON is
+free and has **Spearman 0.971** against the true count (the A* arc is 1.13× the chord
+on average, max 2.19×). At four shards the chord's packing costs **1.3 min** more wall
+clock than the exact packing — so the 5.5 min pre-pass that would buy it back is a
+loss. Measured totals: **469 episodes, 2086 windows**, min 2 max 11 per episode.
+
+**No reseeding is needed, and that is measured.** Four facts, together:
+`torch.initial_seed()` returns the seed rather than the live state, so drawing
+numbers does not move it; `sample_calls` is per sampler instance and the evaluator
+rebuilds `sampler_body` inside the scene loop, so it already resets per scene;
+`__getitem__` consumes **no** global RNG at test time (all four of its draws are
+gated off by `train=False`, `use_random_frame_bps=false`,
+`use_object_keypoints=false`, or never fire — `np.random.randint` at
+`datasets/infbagel.py:534` needs `not need_pi`, and `need_pi` is true on every
+HOSI-test episode); and the three `randperm` sites already carry dedicated
+generators (1c2d99b). Verified by hashing numpy, python-`random` and torch state
+before and after every `__getitem__` over three scenes: **zero changes**. So a
+scene-level shard reproduces the serial row bitwise, and **the sealed
+`p2-hosi-hoi-alone-g0-…` anchor stays valid and pairable with no re-run.**
+
+`hosi_per_episode_seeding` is implemented anyway, defaulting **off**, because it buys
+a property scene sharding does not: an episode reproducible in *isolation*. Today
+episode 3 of a scene can only be reproduced by running episodes 0–2 first — measured
+offline, the same episode at scene position 0 versus 2 differs by up to **1.91** in
+normalized units. Both halves are required: reseeding alone does *not* fix it
+(`sample_calls` is the generator's other seed input) and resetting alone does; both
+together reproduce the isolated episode exactly. Turning it on changes every number,
+so a campaign that enables it must re-run its own anchor, and the merge refuses
+shards that disagree on the flag.
+
+**The merge anchors on canonical ordinals and raises on everything.** Every episode
+record carries `canonical_ordinal` — its index in the full enumeration, never in its
+shard. The merge refuses a missing shard, two shards claiming one index, a duplicated
+or absent ordinal, a shard count that disagrees with the operator's own statement, a
+different HOI *or* HSI checkpoint hash, a different gate/mask/voxel-mode, a different
+seed, a different seeding regime, and a payload that predates sharding. Statistics
+are recomputed over the union, never averaged from per-shard means — shards hold
+unequal episode counts (119/112/119/119 at four shards), so averaging averages would
+weight them wrongly. Wall-clock aggregates are nulled rather than deleted, so a
+sharded payload diffs against a serial one as explicit nulls instead of missing keys.
+Metrics are untouched: sharding invalidates the timing and nothing else.
+
+**Operational, from the user (2026-08-30):** HSIPrior keeps iterating on the
+authority host and mixer rows move to `infbagel-4gpu`. So the launcher arms the
+return **before** the first shard starts — two detached tmux sessions per campaign,
+one running the shards and writing `<name>.exitcode`, one blocking on all N and then
+rsyncing — and proves the return path immediately with one tiny file rather than
+discovering a key problem after the last shard. It transfers on failure too, since a
+failed shard's log is the artifact most needed. It caps `OMP_NUM_THREADS=4`: uncapped,
+the same protocol took 23 min against a capped 195 s, the cost being oversubscribed
+BLAS in per-episode preprocessing, and capping is bitwise identical. Four concurrent
+shards make that contention worse, not better. And every row records both
+`checkpoint.sha256` and `hsi_checkpoint.sha256`, so a superseded HSIPrior means these
+rows are **re-run, not rewritten** — the merge turns that into a mechanical check.
+
+The launcher deliberately has no `--execute`: a row is a GPU workload needing the
+user's explicit approval of one concrete experiment and a run id allocated through
+`tools/experiment.py`.
