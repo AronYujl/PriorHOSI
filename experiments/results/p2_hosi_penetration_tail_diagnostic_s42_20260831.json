@@ -28,8 +28,8 @@
     "mass_share_top25pct": 0.9578185992665706
   },
   "cause_1_scene_identity": {
-    "r2_log1p_s_mean": 0.27145543886334167,
-    "r2_after_removing_length_cubic": 0.2741514533826633,
+    "r2_log1p_s_mean": 0.2714554388633416,
+    "r2_after_removing_length_cubic": 0.27415145338266333,
     "groups": 67,
     "scenes_holding_a_tail_episode": 31,
     "worst_scene": "0adb88db",
@@ -272,6 +272,40 @@
       "prevalence_multiple": 2.24,
       "depth_multiple": 35.71
     }
+  },
+  "stratified_cell_robustness": {
+    "rule": "a stratified cell on a heavy-tailed metric needs the sign test, the median and the top-episode share of the stratum delta beside the mean interval; where they disagree the mean interval loses",
+    "trustworthy_columns": [
+      "scene_human_penetration_frame_ratio",
+      "contact_percent"
+    ],
+    "why_those": "bounded in [0,1], significant in all four strata, not zero-inflated",
+    "withdrawn_cells": [
+      {
+        "metric": "scene_obj_penetration_s_mean",
+        "stratum": "S2",
+        "reported": "+15.5% significant worse",
+        "verdict": "NULL",
+        "n": 159,
+        "worse": 50,
+        "better": 55,
+        "exactly_tied": 54,
+        "sign_test_p": 0.696,
+        "median_delta": 0.0,
+        "top1_share_of_stratum_delta": 0.347,
+        "top2_share": 0.668,
+        "top5_share": 1.039,
+        "note": "the four largest regressions are all clothesstand; its own median delta is exactly 0.000 with 12 of 26 worse"
+      },
+      {
+        "metric": "scene_obj_penetration_s_mean",
+        "stratum": "S4",
+        "reported": "-21.4% (null)",
+        "verdict": "no information",
+        "n": 39,
+        "note": "one episode carries -13.8% of a delta of opposite sign"
+      }
+    ]
   },
   "p2bg_stratified_by_length": {
     "authoritative": "by_value",
@@ -1902,7 +1936,8 @@
     "Object identity is NOT a cause (R^2 0.019). The P2-BG closure recommendation of ObjectConditionedGate for the penetration mass is withdrawn.",
     "The border-padding mechanism asserted in the 2026-08-31 preregistration is REFUTED: six null rank correlations against scene box geometry. The tail depth is real geometry.",
     "P2-BG geometric gains decay with rollout length while the contact cost RISES monotonically. By frame-count value: frame_ratio -24.1/-27.2/-21.2/-10.1%, contact -12.0/-11.5/-14.6/-16.3% (all eight significant), feet_height -7.6/-9.3/-5.5(null)/-4.0(null)%. S4 is 39 episodes holding 12 of the 47 tail episodes, a 3.7x enrichment.",
-    "Two effects are visible only stratified: foot_sliding on the longest episodes flips sign to +64.1% (null, n=39, baseline 0.0898 vs ~0.18 elsewhere), and scene_obj_penetration_s_mean is +15.5% SIGNIFICANTLY WORSE on S2 (CI [+0.32,+9.96], n=159) while the overall row is a +2.1% null.",
+    "One effect is visible only stratified: foot_sliding on the longest episodes flips sign to +64.1% (null, n=39, baseline 0.0898 vs ~0.18 elsewhere).",
+    "WITHDRAWN: the scene_obj_penetration_s_mean +15.5% \"significant\" regression on S2 is four clothesstand episodes. Top 2 of 159 carry 66.8% of the stratum delta, top 5 carry 103.9%, 54 episodes are exactly tied, the median delta is 0.0000 and a two-sided sign test on the 105 non-tied gives p=0.696. Read it as null. Only frame_ratio and contact_percent survive a sign-test check in every stratum -- both bounded in [0,1] and neither zero-inflated -- and those are the two columns the length finding rests on.",
     "Stratify by frame-count VALUE, never by rank: only ten distinct counts exist and every rank quartile boundary cuts a tie group, so the split is not reproducible across sort algorithms.",
     "Therefore: report every mixer row length-stratified, and treat the tail as needing a window-boundary mechanism rather than a better per-step blend."
   ]

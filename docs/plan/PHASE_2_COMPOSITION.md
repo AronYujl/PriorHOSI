@@ -1185,3 +1185,44 @@ licenses: not "the root carries scene compliance" but "the root carries scene co
 which the current sampler cannot express, since the query is read from the composed
 `x0`). Related: the conditioning-box adequacy result was measured on HSI's own benchmark
 and speaks to box *size*, not to centring by a foreign expert.
+
+### Correction to the stratified table — the S2 object-penetration "regression" is four episodes
+
+The section above calls `scene_obj_penetration_s_mean` **+15.5% significantly worse on
+S2** "the only significant object-penetration regression anywhere." The interval is real
+— CI [+0.32, +9.96] excludes zero — and the claim built on it is wrong. Checked properly:
+
+| | S2, n=159 |
+|---|--:|
+| total delta over the stratum | **+740.0** |
+| carried by the single worst episode | +256.6 = **34.7%** |
+| carried by the top 2 | +494.3 = **66.8%** |
+| carried by the top 5 | +768.9 = **103.9%** (the rest net negative) |
+| episodes worse / better / **exactly tied** | 50 / 55 / **54** |
+| two-sided sign test on the 105 non-tied | **p = 0.696** |
+| median delta | **+0.0000** |
+| trimmed mean (10% each end) | +0.066 |
+
+The four largest regressions are **all clothesstand** (+256.6, +237.7, +129.3, +112.0),
+and clothesstand's own median delta is exactly 0.000 with 12 of 26 worse. So this is a
+mean shifted by four episodes of one object, not an effect on the stratum.
+
+Two things make the metric especially unsuited to a mean-difference interval here: **54 of
+159 episodes have exactly zero delta** — the object never penetrates at all in a third of
+the stratum, so the distribution is zero-inflated — and the non-zero part is the same
+heavy tail that made `s_mean` unreadable for human penetration.
+
+**This is the P2-BG smoke failure mode reappearing inside my own stratified table**, three
+hours after I wrote the memory about it. A stratum is a smaller sample, and slicing a
+heavy-tailed zero-inflated metric four ways manufactures exactly the artefact that
+sampling 7 episodes did. The `+15.5% SIG worse` cell should be read as **null**, and the
+S4 `−21.4%` cell (n=39, one episode carrying −13.8% of a delta of the opposite sign)
+carries no information either.
+
+**Rule this adds, and it applies to P2-ROOT's table when it lands:** a stratified cell on
+a heavy-tailed metric needs the sign test and the median beside the mean interval, and the
+top-episode share of the stratum delta. Where they disagree, the mean interval loses. The
+cells that survive this test in the stratified table are `frame_ratio` and
+`contact_percent` — both bounded in [0,1], both significant in all four strata, and
+neither zero-inflated. Those are the two columns the length finding actually rests on, and
+they are unaffected.
