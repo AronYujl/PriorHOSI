@@ -11206,3 +11206,112 @@ hsi_guidance_norm_cap=null hsi_guidance_dose_scale=null hsi_guidance_alpha_decay
 反转守卫后仍然通过，对开关方向是盲的。三处变异（翻默认、反转推理守卫、反转训练守卫）
 均按预期使对应用例失败。`pytest tests/hsi/ tests/core/test_contract_freeze.py`
 → **270 passed**。
+
+---
+
+## P18-CN（2026-08-31）—— checkpoint 噪声地板，epoch220 vs epoch222
+
+**这一格不测任何臂、任何目标项、任何开关。**它测的是：在臂、目标、数据、seed、协议全部固定
+的条件下，**仅由"在哪个 epoch 停"这一任意选择**所产生的指标差。动机是已测事实而非本格重测：
+扩散路径无 EMA（`update_ema` 只在 `infbagel.py:441` 被调用，位于模型 C 的 `consistency_loss`
+内）、146,255 次更新中有 144,255 次是恒定 LR 2e-4、朴素 Adam 无 weight decay 无裁剪、
+`cos(Δθ_{220→222}, Δθ_{200→220}) = −0.04012` 而 `‖Δθ‖/‖θ‖ = 0.998%`。
+**磁盘上每一个评估格都是其运行的最后一个 epoch**，本分支没有任何一条臂被读过第二个 checkpoint。
+
+权重会扩散，这是实测的。扩散以与臂效应可比的量级到达指标空间，这是推断 —— 本格检验它。
+
+### 协议
+
+P17-OC epoch220（sha256 `48e73cc4b9bf89bb2756ce94369568e69d5d703b2678da3eea077c4959fefeb5`）
+对封存的 epoch222，holdout355 配对，两个口径。固定 8 路 HSI 协议，375 序列，seed 42，
+`sample_type=diffusion`、`export_motion=true`、`hsi_progress_fix=true`、
+`occ_permute_fix=true`（P17-OC 受训时 E1 为开），三个引导旋钮 null/false。
+`d_noise = metric(ep220) − metric(ep222)`，10,000 次重抽样，seed 42，2.5/97.5 分位，
+**全列共用同一索引矩阵**（sha256 `3c025efc2da3229621cb516a29c3c4e737b8037f004294f5ab02f49e4000aea8`），
+`U = max(|lo|,|hi|)`。驱动 `tools/paired_bootstrap.py` 本身，`--a`=ep222 `--b`=ep220。
+
+成本：无引导 2.751 h × 8 = **22.01** GPU-h，有引导 5.502 h × 8 = **44.01**，preflight **1.55**,
+合计 **67.57 GPU-h**。两格 `fail=0`、`MERGE_EXIT=0`、各 375 序列。
+
+**Preflight（1.55 GPU-h，在 42.5 之前）**：epoch220 之外先用 **epoch222** 在本 HEAD 以
+`occ_permute_fix=true` 重导出 8 episode / 8 场景 / 32 窗口，两个口径各 472 个指标值 + 176 个
+数组，与封存载荷**逐位一致，0 处不一致**；并配两个反向对照（flag 打到 `false`）分别给出
+**72** 和 **69** 处不一致，证明该 PASS 不是空的。这是必需的：`a5b9842` 改到了推理路径上的
+`_compute_occ_sample`，若重构不保行为，主格就会与一个无效参照配对。
+分片中性由源码确认而非假设 —— `test_infbagel_lingo_hsi.py:1818` 的
+`seed_everything(cfg.seed + canonical_ordinal)` 无条件执行，ordinal 是全枚举下标。
+
+### 结果 —— 噪声地板
+
+| 列 | 口径 | `d_noise` | 95% CI | **U** |
+|---|---|---:|---|---:|
+| `boundary_jerk` | 无引导 | −4.61321 | [−7.51497, −1.73109] SIG | **7.51497** |
+| `boundary_jerk` | 有引导 | −8.47868 | [−20.3199, +4.07017] ns | **20.3199** |
+| `goal_planar_err_m` | 有引导 | +0.00191915 | [−0.00416149, +0.00906263] ns | **0.00906263** |
+
+**引导把 checkpoint 噪声放大 2.70×**（CI 宽 4.22×）。无引导 28/55 列 CI 严格排除零，有引导
+仅 13/53 —— 引导系统性加宽区间。这与 §「2×2：jerk 是引导造成的、不是采样器」同轴。
+
+**噪声方向一致地对封存参照不利**：无引导三个 jerk 列 `d_noise` 全部显著为负
+（−4.613 / −1.235 / −0.0495），即 **epoch220 在 jerk 上一致优于 epoch222**。封存参照是较差的
+那一次抽取，其唯一资格是"它是最后一个"。
+
+### 判定 —— 预先写死的分层规则
+
+| 格 | 供给臂 | \|d_arm\| | h×1.12 | \|d\|−h | \|d\|/U | tier |
+|---|---|---:|---:|---:|---:|---|
+| `boundary_jerk` 无引导 | P16-NS 自然度守卫 | 9.948 | 3.920 | 6.028 | 1.3238 | **2 PROVISIONAL** |
+| `boundary_jerk` 有引导 | P17-OC 主判据② | 23.653 | 13.876 | 9.777 | 1.1640 | **2**（Tier B 区） |
+| `goal_planar_err_m` | dose-0.45 G3 唯一失败条款 | 0.00732 | 0.006011 | 0.001309 | **0.8077** | **3 → B → 2** |
+
+**没有一格到 Tier 1。** 第三格按 Tier 1/2/3 本身是 **WITHDRAWN**；是 Tier B（`0.8 ≤ |d|/U ≤ 1.25`
+一律降为 Tier 2）把它捞回，**仅高出 0.80 下限 0.96%**。Tier B 写进预注册的理由正是那个区间的
+2/3 边界不可信，因此这一格的正确读法是**未解决、按预先规则计为 provisional**，不是"存活"。
+
+### 后果
+
+**§10 触发（3/3 ≥ 一半落在 Tier 2/B/3）：今后任何 HSI 臂不得以单 checkpoint 读数预注册。**
+每条臂必须携带 ≥2 个 checkpoint 或一个权重平均读数，该成本计入该臂预算。这条现在生效。
+
+**§11 未触发**：`U = 20.3199 < 23.653`，差 **14.1%**。P17-OC 的 FAIL **不撤销**，SDF 惩罚项
+**不回到桌面**。但按 §4 的臂级归并（取该臂 verdict-bearing 列中最差的 tier），下列三条读数
+由"封存"降为 **PROVISIONAL：单次抽样、与噪声同量级**，未经复制不得进入
+`docs/HSIPRIOR_DESIGN_PRIORS.md` 或 phase summary：
+
+- **P17-OC**（registry row 306）主判据② `boundary_jerk` 有引导 +23.653 → Tier 2
+- **P16-NS**（row 299）自然度守卫 `boundary_jerk` 无引导 +9.948 → Tier 2
+- **dose 0.45**（row 296）G3 唯一失败条款 `goal_planar_err_m` +0.00732 → Tier 2（经 Tier B）
+
+**每个 `U` 都是下界。** 220→222 是轨迹上存在的**最小**间隔（0.998%，对 200→220 的 2.779%）,
+且 `resume_from: ''` 使各臂是独立的从随机起点轨迹（跨臂权重距离 22.8% 对同轨迹内 1.0%,
+22.9×），故臂间干扰是**跨轨迹**方差，而 `AGENTS.md` 不允许为测它而重训。因此
+**Tier 3 本会是稳健的，Tier 2 不是**：越不过地板可以否证一个 delta，越过了不能认证一个。
+两格距 Tier-3 边界不足 17%，epoch200 格很可能把它们推过去；但 §10 的 epoch200 条款以
+**全部 Tier 1** 为前提，**不触发**，故不作为已成立的条件引用。
+
+### 预注册自身的一处缺陷
+
+预注册 §2 把无引导 `boundary_jerk` 的 `R_sig` = 9.948 归为「seam_t1 vs B-v2」。**错误**：
+seam T0/T1 臂明确不携带任何 verdict-bearing 列（本文件 `:6474` 将其 11 个 payload 列全部
+定为"只报半宽、不下判定"），无法提供 `R_sig`。底层测量把 +9.948 归给 **P16-NS** 的自然度
+守卫（`:7875`）。数字与 tier 不变，落地的臂改变。
+
+### 副产品，非判定
+
+`pen_depth_max` 有引导在 355 中有 **52 个逐位相同**（14.6%），源于共享的 GT seed 前缀，其
+`d_noise` 被结构性稀释向零 —— 该列在开跑前已因 `n_req` 4349 被排除在决定集之外。另有 17 个
+有引导列 `d_noise` 恰为 0（其中 4 个是 bool）：那里的 `U = 0` 是评估器的结构性质，**不是**
+低噪声地板的证据。有引导侧另有 5 列全为 null（引导下 `rds_available` 恒假），无引导侧为 3 列;
+并列阅读两张表时不得把这个差异当作 checkpoint 的变化。
+
+### 登记
+
+两个评估格**没有各自的 run id、manifest 或 registry 行**，与 P17-OC 两个评估格的先例一致
+（其 manifest 载 `run_id: null`，结果归入训练臂的完成行）：本格由 `launch.sh` 直接启动，
+未经 `tools/experiment.py start`，因此不存在可注册的 terminal manifest，也不为它追造一个。
+注册表以一行**注记行**记录判定与上述三条臂的降级，该行无 `manifest_sha256` 并在结论中说明原因。
+
+判读文件：`.claude/scratch/p18cn_{unguided,guided}_dnoise.{md,json}`（全列表 + 协议），
+预注册 `.claude/scratch/P18_CN_prereg_draft.md`，链路状态
+`.claude/scratch/p18cn/P18CN_STATUS.log`，两格 `launch.sh` 与 `exit_status.txt` 在
+`results/hsi_b_p18cn_eval_ep220_{unguided,guided}_shard8/`。
