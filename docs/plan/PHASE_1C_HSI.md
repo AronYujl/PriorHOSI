@@ -11315,3 +11315,526 @@ seam T0/T1 臂明确不携带任何 verdict-bearing 列（本文件 `:6474` 将�
 预注册 `.claude/scratch/P18_CN_prereg_draft.md`，链路状态
 `.claude/scratch/p18cn/P18CN_STATUS.log`，两格 `launch.sh` 与 `exit_status.txt` 在
 `results/hsi_b_p18cn_eval_ep220_{unguided,guided}_shard8/`。
+
+---
+
+## 2026-08-31 第三节（三处更正 + Phase 1C 前瞻性 gate 落地 + T2-C 线索关闭；零 GPU）
+
+### A. 本节地位与授权
+
+用户 2026-08-31 指示，逐条：(1) 撤回"噪声比下降趋势大 12×"以及据此得出的"尚未收敛"强结论,
+改用 per-epoch 均值配合 HAC/Newey–West 或 block bootstrap 重估趋势；(2) 把"goal、穿透和接缝
+没有监督"改为"没有显式的目标达成、碰撞和跨窗口连续辅助损失"，条件仍通过去噪目标得到间接监督；
+(3) 不整体撤销多 checkpoint／权重平均规则，区分"分别评估多个 checkpoint"与"预先固定的
+checkpoint／权重平均读数"，后者可能真正降低方差。修正后**直接落地前瞻性 Phase 1C gate**。
+
+**两条边界由用户写定，本节逐字遵守：**
+
+1. **既有实验仍按原规则保存。** 本节不改写任何已封存判定、已登记 registry 行或已发表数字。
+2. **不得用新 gate 追溯性改判。** 本节 §E 的 gate **仅对未来的臂生效**。P16-GQ / P16-NS /
+   P17-OC / P0-ZO / dose 系列 / seam T0-T1 的判定一律不动，`:11271-11290` 的 Tier 降级也不动。
+
+本节为零 GPU 的 dated plan 修订：不分配 run id、不创建 commit、不启动任何 GPU 工作负载、
+不改动 `code/priors/core/`。全部测量为 CPU 上对已封存产物的重新读数，脚本与日志在
+`.claude/scratch/gate_noise_20260831/`。
+
+### B. 更正一 —— 收敛判读，撤回无效比较并重估
+
+**撤回两项**：(a)「220→222 的系统性下降量比噪声小 12 倍」这一比较；(b) 据它得出的
+「epoch 222 尚未收敛」这一强结论。
+
+**(a) 为何无效。** 分子是相邻两个 epoch **均值**之差，分母却是单次 10-step loss **打印**的
+标准差（4.5e-04，每 epoch 260 次打印）。两者不同尺度：epoch 均值的抽样噪声比单次打印小约
+√260 倍。用后者当尺子必然把趋势压成「埋在噪声里」。**正确的尺子是 epoch 均值围绕趋势线的
+残差 sd。**
+
+**重估协议**（`convergence_hac.py`，读 `results/hsi_b_lingo_full_v2/train.log` 的 60,157 行、
+223 个 epoch、median 260 打印/epoch）：分析单位改为 per-epoch 均值（并列报 per-epoch 中位数）；
+趋势用 OLS；标准误用 Newey–West/Bartlett HAC，带宽按 `4(n/100)^(2/9)` 自动选取；另做残差
+moving-block bootstrap（块长 `n^(1/3)`，10,000 replicate，seed 42），因为它保留残差自相关
+而 iid 重抽样不保留。
+
+| 窗口 | 单位 | OLS 斜率/epoch | HAC se | t | HAC 95% CI | block-bs 95% CI | 判定 |
+|---|---|---:|---:|---:|---|---|---|
+| 最后 20 | 均值 | −1.8842e−05 | 1.5891e−06 | **−11.86** | [−2.1957e−05, −1.5727e−05] | [−2.2882e−05, −1.4987e−05] | DESCENDING |
+| 最后 20 | 中位 | −1.9031e−05 | 1.1671e−06 | **−16.31** | [−2.1319e−05, −1.6744e−05] | [−2.2641e−05, −1.5681e−05] | DESCENDING |
+| 最后 40 | 均值 | −2.2328e−05 | 8.8938e−07 | **−25.11** | [−2.4072e−05, −2.0585e−05] | [−2.3995e−05, −2.0670e−05] | DESCENDING |
+| 最后 60 | 均值 | −2.4617e−05 | 6.2068e−07 | **−39.66** | [−2.5834e−05, −2.3401e−05] | [−2.5685e−05, −2.3513e−05] | DESCENDING |
+| 最后 100 | 均值 | −3.1189e−05 | 1.1658e−06 | **−26.75** | [−3.3474e−05, −2.8904e−05] | [−3.3033e−05, −2.9369e−05] | DESCENDING |
+
+两种标准误、两种中心统计量、五个窗口一致：**尾部趋势确为下降**。残差自相关不大
+（最后 20 epoch 的 AR(1) ρ = −0.250，最后 40 为 −0.004，最后 60 为 +0.167；只有最后 100 出现
+ρ = +0.749，那是曲率被线性化的结果，不是噪声结构），故 HAC 与 block bootstrap 同向 ——
+**修正不改变符号，只改变量级。**
+
+**正确的噪声比较（同一窗口内）：**
+
+| 比较 | 分子（220→222 系统性下降） | 分母 | 比值 |
+|---|---:|---:|---:|
+| **正确** | 3.768e−05 | epoch 均值残差 sd **5.9161e−05** | **0.637** |
+| 我原先的写法（已撤回） | 3.768e−05 | 单次打印 sd 5.024e−04 | 0.075 |
+
+即原说法把该比值**低估约 8.5 倍**。正确读数是 0.637：两个 epoch 的系统性下降约为 epoch 间
+抖动的 **2/3**，不是它的 1/12。
+
+**(b) 撤回的强结论，与保留的三条事实。**「尚未收敛」取决于收敛的定义，而**训练 loss 的趋势
+单独定不了它**。可断言的只有：
+
+1. 目标函数在 epoch 222 仍以约 **−7.05% / 100 epoch** 的速率下降（CI 排除零，见上表）;
+2. LR 全程无衰减 —— `code/train_infbagel.py:119-137` 的 `LambdaLR` 只做 warmup 且封顶 1.0,
+   `config_train_hsi_b_lingo_full.yaml:68` 的 `warmup_updates: 2000` 之后恒为峰值 2e-4;
+3. **该下降没有换来门控指标的改善** —— P18-CN 实测 ep220 与 ep222 在三条 verdict-bearing 列上
+   全部 Tier 2，即两个 checkpoint 的差别与噪声同量级（`:11244-11290`）。
+
+**2 与 3 合起来才支持「改变尾部的优化与读出方式」；1 单独不支持「再训久一点」**，因为 3 说明
+这段区间的 loss 下降不投射到门控指标上。B-v2 另已处于 HOI 获胜预算杠杆的 100.003%
+（299,530,240 processed windows 对 299,520,000），所以「训练更久」本就不是未试的杠杆。
+
+### C. 更正二 —— 监督表述，从「没有监督」改为「没有显式辅助损失」
+
+**撤回表述**：「goal、穿透和接缝没有监督」。**替换为**：封存目标函数**没有显式的目标达成、
+碰撞和跨窗口连续辅助损失项**；这些量仍通过 x0 去噪目标获得**间接监督**。
+
+**测量不变**：封存 B-v2 的项占比为 `loss_jrot` **92.61%**（L1，通道 `84:216`）、`loss_fk`
+**7.14%**（权重 3.0，4 手 + 4 足）、`loss_jpos` **0.247%**（通道 `0:84`）;
+`code/config/sampler/pelvis.yaml:27,29` 把 `seam_loss_weight` 与 `pen_loss_weight` 都解析为
+**0.0**，且封存 run 的 resolved config 两键均未出现；没有任何 loss 项按名引用 `pelvis_goal`
+或 `scene_goal`。
+
+**间接通道确实存在，必须写明。** `scene_emb` / `scene_emb_0..3`、`pelvis_goal`、`scene_goal`
+进入去噪器输入，而 x0 目标监督**整个预测窗口**对 GT 窗口的重建。因此模型在「用好这些条件
+能降低重建误差」的范围内被训练去使用它们 —— 这是间接监督，不是零监督。**缺的是价格**：
+没有任何项直接为穿透深度、接缝连续性或目标误差定价，所以这三个量只在它们与重建误差相关的
+程度上被优化。
+
+**这正好解释两个缺口能与下降的 loss 共存**：间接通道弱于直接通道但非空，所以在重建 loss
+仍下降（§B）的同时，`boundary_jerk` 停在 1.84× GT、floor-excluded `pen_depth_max` 停在
+1.45× GT（§E）。**这也是 §E 两条主判据必须外生于目标函数来设的原因** —— 它们量的不是
+目标函数在优化的东西。
+
+同时更正一处派生说法：96.4% 的「接缝监督打错通道」描述的是**打开接缝项之后**的结构
+（该结构本身成立），不是封存 B-v2 的状态 —— 封存态下该项权重为 0，没有监督可打错。
+
+### D. 更正三 —— 把一条规则拆成两条机制，只撤销其中一条
+
+`:11273-11274` 原文：「今后任何 HSI 臂不得以单 checkpoint 读数预注册。每条臂必须携带 ≥2 个
+checkpoint 或一个权重平均读数，该成本计入该臂预算。」该句**把两种机制混为一条**，现拆开：
+
+| 机制 | 成本 | 是否降低方差 | 副作用 | 处置 |
+|---|---:|---|---|---|
+| (i) **分别评估 ≥2 个 checkpoint** | **+66.02 GPU-h/臂** | **不降低**，只测量 `U` | 重新引入「选哪个 epoch」的选择面，与用户 2026-08-15 的 final-epoch-only 决定（`:629-631`）冲突 | **撤销**为标准要求 |
+| (ii) **预先固定的权重平均读数** | **0 GPU-h/臂**（仍是单次评测） | **降低**：平均的是参数向量本身 | 无选择面：读数是轨迹尾部的确定性函数 | **保留，升为标准规则** |
+
+**(i) 的处置**：不再作为每臂强制项，保留为**按需诊断**——仅当某一具体读数被怀疑时启用
+（先例：P18-CN 本身就是这样一次诊断，它的价值不因本次拆分而减少）。
+
+**(ii) 落地为标准规则，自本节起对每条新的 HSI 训练臂生效：**
+
+- 读数 checkpoint = 尾部**预先固定窗口**内 checkpoint 的**等权参数平均**，窗口在启动前写进
+  预注册，不得在看到指标后调整；平均后的权重落盘并登记 sha256，评测读它而不读单个 epoch。
+- 为使该窗口存在，**启动时把尾部保存节奏加密**。当前 `ckpt_interval: 20`
+  （`config_train_hsi_b_lingo_full.yaml:64`）使尾部只有 `200/220/222` 三个点、跨 22 epoch,
+  无法构成两个不相交的晚期窗口。这是配置改动，**零 GPU 成本**。
+- 机械前提已核实：checkpoint 是扁平 `OrderedDict`，**218/218 全 float32**，50,014,184 元素,
+  无 optimizer state；模型经 `nn.TransformerEncoderLayer` 用 LayerNorm，**全网无 BatchNorm**
+  （`code/models/infbagel.py:1460-1466`），故权重平均**不需要 BN 重校准**。单臂约 2.7 GB,
+  `/data` 余量 11 TB。
+- **诚实标注**：「权重平均降低 `U`」在本分支**尚未实测**，是预测。加密后的尾部让 `U` 能在新
+  轨迹上用两个不相交晚期窗口**直接测出来**，因此第一条采用该规则的臂**自带对该规则的检验**。
+  若 `U` 未明显下降，该规则连同 §E 的判定条件 (b) 都必须重议。
+- 该规则**不适用于纯推理臂**（同一 checkpoint 上的 A/B）：那里 checkpoint 噪声在配对中精确抵消。
+  P18-CN §4 已记录这一区分，本节沿用。
+
+**P18-CN 的 `next_action` 由本节取代**；其判定、`U` 值与三条臂的 Tier 降级**全部不变**。
+
+### E. Phase 1C 前瞻性 gate —— 现在落地
+
+#### E.1 为什么原门槛必须被替换，而不是被数值化
+
+`:19-20` 的原门槛是「HSI 关键原生域指标达到对应单模型 baseline 至少 95%，无系统性
+penetration/FS/FID 退化」。它**不可计算**，两处独立地坏掉：
+
+1. **baseline 行不可重跑。** 表示修复（`3ded4eb` + `a4c979c`，2026-08-18）之后，已发布
+   checkpoint 的模型侧几何数字全部作废且不可重算（`:5076` 一带八条退役结论第 1 条）。
+2. **FID / R-Precision / MM-Dist 从未跑过。** 它们需要自训练的 LINGO text-motion evaluator,
+   而该 evaluator 的训练至今「未批准、需另行申请」（`:136-138`）。
+
+`:138` 已预告该后果：「Phase 1C 的 95% 门槛数值在 baseline 评测完成前不成立。」本节据此
+**替换**该门槛：参照从「已发布 baseline」改为**同 cohort 的 GT**，它是唯一仍可测且已封存的参照。
+
+#### E.2 gate 的口径 —— 沿用既有用户决定，本节不新增口径决定
+
+| 项 | 取值 | 依据 |
+|---|---|---|
+| 判定形态 | **C + guided**（16 步 CM + guidance） | 用户 2026-08-15 决定（`:693`）：判在交付形态上 |
+| cohort | **holdout355** = full375 − 冻结 worst20 | `.claude/scratch/normcap_20260823/worst20.json` |
+| 参照 | **`ground-truth-v3`** | `:5076` 退役结论第 7 条：唯一有效 GT 行 |
+| 统计量 | 配对 episode bootstrap，10,000 replicate，seed 42，共享重抽样索引矩阵 | `tools/paired_bootstrap.py` |
+| 并列格 | unguided 必须同表报告 | 2026-08-13 §D 第 1 条，未被 gate 迁移改动 |
+| 帧口径 | **仅生成帧**：固定丢弃前 **4** 帧 | §M.6 的 2026-08-30 口径修订，见下 |
+
+**仅生成帧的口径必须改写定义方式，原因是实测的。** §M.6 与
+`.claude/scratch/p17oc_seedmask_depth.py` 用「两个模型格逐位相同的前导帧数」定义前缀。
+该把手**对 GT 不存在**：本节实测 C gate 行与 GT 的逐位相同前导帧为 **0 / 375**，因为前缀是
+**从 GT 种子到模型自身首次预测的线性插值**，不是 GT 的拷贝 —— episode `010:000314` 的
+`transl` 逐帧偏差为 0、4.09e−04、8.18e−04、1.23e−03，一条精确的 1/3 斜坡。
+
+因此 gate 采用**固定常数 4 帧**，对候选与 GT 对称丢弃。4 是已封存的保守前缀：
+`p17oc_prefix_check.json` 在三种配对下的最大值在 **355/355 episode 上都是 4**
+（各单配对的分布为 8–10 个 episode 取 3、其余取 4）。常数化使它**逐格可算、且不能按臂调**。
+
+丢弃 4 帧的实测影响：GT 的 `pen_depth_max` 由 0.09687 → 0.09681（0.9993×，21/355 个 episode
+的 argmax 移动），C gate 行由 0.12052 → 0.11915（0.9887×，**86/355** 移动）。
+**`boundary_jerk` 不受影响**：首个接缝在粗帧 16（`window_lengths [16,14,14,14,14]`），
+而评估器的 boundary 掩码只取各接缝 offset {−1,0,+1}，前 4 帧从不进入该统计量。
+
+#### E.3 主判据一 —— `boundary_jerk`，阈值 **≤ 1.50 × GT**
+
+| 量 | 值 |
+|---|---:|
+| GT（`ground-truth-v3`，holdout355） | **84.21693** |
+| 封存 C+guided gate 行（`c_guided_v5_baseline`） | **155.10076 = 1.8417 × GT** |
+| 超出量 | 70.88384 |
+| `U`（guided，P18-CN 实测） | **20.31986 = 0.2413 × GT = 超出量的 28.67%** |
+| `U`（unguided，同一对 checkpoint） | 7.51497 = 0.0892 × GT = 超出量的 10.60% |
+| **阈值** | **≤ 1.50 × GT = 126.32539** |
+| 阈值要求的改善 | 28.77537 = **1.42 U** = 超出量的 **40.6%** |
+
+**阈值的由来是可达性，不是口味。** 全部 12 个封存格在 holdout355 上的读数：
+
+| 格 | 均值 | × GT | 相对 gate 行的改善 | 以 U 计 | 口径 |
+|---|---:|---:|---:|---:|---|
+| **Cg v4**（progressfix OFF） | 131.36976 | **1.5599** | 23.73100 | **1.17** | guided |
+| **Bg dose1**（1/23.8） | 129.54723 | **1.5383** | 25.55354 | **1.26** | guided |
+| Bg dose0.45 | 174.91059 | 2.0769 | −19.80983 | −0.97 | guided |
+| Bg v2 | 184.06369 | 2.1856 | −28.96292 | −1.43 | guided |
+| Cg armT（`hsi_gt_trajectory`） | 157.92349 | 1.8752 | −2.82273 | −0.14 | guided |
+| P17-OC guided | 207.71642 | 2.4664 | −52.61566 | −2.59 | guided |
+| P0-ZO guided | 214.72287 | 2.5496 | −59.62211 | −2.93 | guided |
+| ep220 guided | 199.23773 | 2.3658 | −44.13697 | −2.17 | guided |
+| Bu v2 | 126.05021 | 1.4967 | 29.05056 | 3.87 | unguided |
+| Cu v2 | 127.50162 | 1.5140 | 27.59914 | 3.67 | unguided |
+| P16-NS unguided | 135.99822 | 1.6149 | 19.10254 | 2.54 | unguided |
+
+**1.50 是最松的、使阈值本身不弱于复现性下界的整档取值。** 各档要求的改善：1.60× 要 1.00 U、
+1.55× 要 1.21 U、**1.50× 要 1.42 U**、1.45× 要 1.62 U、1.40× 要 1.83 U。取 1.50 的理由是
+**让 (a) 与 (b) 中更严的那一条是阈值**：在 1.55× 及以上，阈值要求的改善低于 1.25 U，判定实际上
+由 (b) 决定，阈值变成摆设（这不是说 1.55× 无效——(b) 仍会拦住噪声，只是阈值不再起作用）。
+
+它落在 guided 侧两个最好见证 1.5599×（`Cg v4`）与 1.5383×（`Bg dose1`）之下 —— **要求真实改善,
+但不要求前所未见的绝对水平**：unguided 侧已实测到 1.4967×，说明这个水平在本模型族内存在。
+**必须同时记下它的代价**：`Bg dose1` 的 1.26 U 是**唯一**越过 1.25 U 的 guided 见证，而它是
+teacher 侧、不是合法的 gate 读数；C 侧最好的 `Cg v4` 只有 **1.17 U**，且是 progressfix-OFF 行
+（`:5076` 第 5 条：不得引为 gate reading）。**所以在今天的单 checkpoint guided 读数下，
+没有任何合法的 C+guided 格越过本判据的 (b)。** 这不是阈值定得过高，而是 guided 口径的
+checkpoint 噪声（`U` 占超出量 28.67%）大于任何人做出过的效应；它是 §D(ii) 那条读数规则
+真正承重的地方，而该规则的降噪幅度**尚未实测**。这是本 gate 已知的最大风险，写在此处而不是脚注。
+
+#### E.4 主判据二 —— `pen_depth_max`，仅生成帧 **且排除地板**，阈值 **≤ 1.38 × GT**
+
+| 量 | 值 |
+|---|---:|
+| GT，仅生成帧 + 排除地板 | **0.061102** |
+| 封存 C+guided gate 行 | **0.088807 = 1.4534 × GT** |
+| 超出量 | 0.027705 |
+| `U`（guided，同口径实测） | **0.002824 = 0.0462 × GT = 超出量的 10.19%** |
+| **阈值** | **≤ 1.38 × GT = 0.084321** |
+| 阈值要求的改善 | 0.004486 = **1.59 U** = 超出量的 **16.2%** |
+| 可达性见证 | **Cg v4 = 0.083925 = 1.3735 × GT，改善 1.73 U** —— **越过阈值** |
+| 次优见证 | Cg armT = 0.084999 = 1.3911 × GT，改善 1.35 U |
+
+**为什么排除地板，而 §M.6 的主判据一没有排除。** 两者量的不是同一件事，且区别是实测的：
+
+- §M.6 判据一是**尾部份额**（>20 cm 的 episode 比例）。那里不排除地板是对的，理由已在 §M.7
+  查明：>20 cm 尾部在排除地板后 **44/44 全部存活**。
+- 本判据是**深度均值**。均值会被地板带**稀释**，因为 **GT 自己也穿地板**：同 cohort 上
+  未掩码 GT 为 0.09681，排除地板后为 0.06110，即 GT 深度的 **36.9%** 来自地板带。
+  稀释把比值推向 1，使 gate 变松。实测两个口径的差别很大：**未掩码 1.2308× vs 排除地板 1.4534×**。
+
+**而且只有排除地板的口径是可判的。** 同一对 checkpoint、同一 cohort：
+
+| 口径 | gate 行 × GT | `U` | `U` 占超出量 | 最好见证的改善 | 是否越过 1.25 U |
+|---|---:|---:|---:|---:|---|
+| 仅生成帧，未掩码 | 1.2308 | 0.00435 | **19.49%** | Cg v4 = **1.07 U** | **否** |
+| **仅生成帧 + 排除地板** | 1.4534 | 0.00282 | **10.19%** | Cg v4 = **1.73 U** | **是** |
+
+未掩码口径下，**史上最好的格也只有 1.07–1.08 U**，即那个口径在 n=355、单 checkpoint 读数下
+**无法认证任何真实效应**。排除地板把噪声占比减半，并使一个已存在的格越过复现性下界。
+
+**1.38 的取值与判据一同规则**：它使阈值要求的改善（1.59 U）不低于复现性下界 1.25 U，故 (a) 是
+更严的那一条；1.40× 只要 1.16 U，阈值就会变成摆设。它落在 `Cg v4` 的 1.3735× **之上**,
+即**这一条判据存在一个已实测越过它的格**（1.73 U，(a)(b) 双中）。
+
+**但那个格不是合法的 gate 读数**：`Cg v4` 是 progressfix-**OFF** 行，`:5076` 第 5 条明确禁止
+把它引为 gate reading；`Cg armT` 则是 oracle 目标来源，且会触发 §E.6 的两条守卫（§F）。
+**所以两条主判据的现状是不对称的**：判据二已有存在性证明（某个合法格达到该水平是可信的），
+判据一没有（C 侧最好只有 1.17 U）。这个不对称是真实的，不应被"两条都设好了"的表面对称掩盖。
+
+**并列必报，不可省**（防止用地板换家具，双向）：未掩码的仅生成帧 `pen_depth_max`
+（gate 行 1.2308× GT）、`>20 cm` 份额两个口径（gate 行仅生成帧 **47/355 = 0.13239**、
+仅生成帧+排除地板 **46/355 = 0.12958**；GT 两口径同为 3/355 = 0.00845）、`pen_depth_mean`
+两个口径、`pene_sum_mean_floorexcl`。
+
+#### E.5 判定规则 —— 每条主判据都要同时满足两个条件
+
+- **(a) 绝对充分性**：该比值的配对 bootstrap **95% 上界低于阈值**。
+- **(b) 可复现性**：相对封存 gate 行的点改善 **≥ 1.25 U**，`U` 取该列在**该臂实际使用的读数**
+  （§D(ii) 的权重平均读数）上重新测得的值；在测得之前，用 P18-CN 的单 checkpoint `U`
+  作为**保守上界**代入。1.25 是 P18-CN 预注册的 Tier 1 下界，不是本节新造的常数。
+
+**(b) 为何不可省。** guided 口径下 checkpoint 噪声对多数列都大于配对半宽，即「CI 排除阈值」
+这一条**单独可以被 checkpoint 抽样满足**。(a) 管「够不够好」，(b) 管「是不是同一次抽样的运气」。
+
+**guidance 是噪声放大的主因，这一点必须记在 gate 里**（同一对 checkpoint，holdout355 实测）：
+
+| 列 | `U` unguided | `U` guided | 放大 |
+|---|---:|---:|---:|
+| `boundary_jerk` | 7.51497 | 20.31986 | **2.704×** |
+| `interior_jerk` | 1.91363 | 7.99311 | **4.177×** |
+| `contact_count` | 23.14753 | 64.96126 | 2.806× |
+| `pen_value` | 0.00105 | 0.00250 | 2.378× |
+| `pen_ratio` | 0.00173 | 0.00408 | 2.363× |
+| `goal_planar_err_m` | 0.00639 | 0.00906 | 1.418× |
+| `fs_nemf` | 0.01669 | 0.01948 | 1.167× |
+| `skate_ratio` | 0.00557 | 0.00475 | 0.853× |
+| `pen_depth_max` | 0.00405 | 0.00369 | **0.911×** |
+
+`boundary_jerk` 的不可判**主要是 guidance 造成的**；`pen_depth_max` 的**不是**（0.911×），
+它是模型侧固有噪声。所以对判据一，unguided 并列格不只是参考，它是**噪声更小的同一问题的读数**,
+必须同表呈现；对判据二，换口径不会因为 unguided 而变松。
+
+#### E.6 守卫 —— 任一显著触发即不得声称 PASS
+
+gate 行在四列上**已优于 GT**。这些是要守住的资产，不是可以交换的额度：
+
+| 守卫列 | gate 行（holdout355） | 相对 GT | 要求 |
+|---|---:|---:|---|
+| `pen_value` | 0.03046 | 0.9068× | 不得显著上升 |
+| `pen_ratio` | 0.02285 | 0.8611× | 不得显著上升 |
+| `skate_ratio` | 0.11611 | 0.8266× | 不得显著上升 |
+| `interior_jerk` | 67.30446 | 0.9593× | 不得显著上升到 > 1.05 × GT |
+| `contact_count` | 828.69037 | 1.0939× | **不得显著低于 gate 行**（反 dodging；P16-GQ 正是在此 FAIL） |
+| `fs_nemf` | 0.28535 | 1.1143× | 不得显著上升 |
+| `pen_depth_mean` | 0.04989 | 1.0215× | 不得显著上升 |
+| `goal_planar_err_m` | 0.05993 m | GT ≈ 0 | 不得显著高于 gate 行（比值无意义，按**绝对值**判） |
+
+`goal_planar_err_m` 的 GT 是 9.7e−11，本质为零 —— 因为 goal 就是从 GT 定义出来的。
+**任何以「接近 GT」表述的目标在这一列上都无意义**，故它只能是守卫、按绝对值判，不能是主判据。
+T2 的 arm T 正是在这一列上退化 1.539×（§F），这条守卫会直接拦住它。
+
+#### E.7 结局、成本与预算停止条件
+
+| 结局 | 条件 |
+|---|---|
+| **PASS** | 两条主判据各自 (a)+(b) 全中，且八条守卫全部干净 → 写 phase summary，tag `exp/p1c-hsi-v1` |
+| **PARTIAL** | 恰好一条主判据全中，守卫全部干净 → 按 §S 报告，**不得四舍五入成 PASS** |
+| **FAIL** | 两条主判据都不中，或任一守卫显著触发 |
+
+**一次完整 gate 读数的成本，全部实测：**
+
+| 环节 | GPU-h | 来源 |
+|---|---:|---|
+| teacher 训练 | **86.68** | `:10508-10510`，21.669 h × 4 GPU |
+| 蒸馏出对应的 C | **41.54** | `results/hsi_c_lingo_cm_v2/metrics.json`，10.3858 h × 4 GPU |
+| C 侧双格评测（guided 44.01 + unguided 22.01） | **66.02** | `:11233` |
+| **合计** | **194.24** | |
+
+**这条成本链解释了为什么 gate 必须判在 C 上而 teacher 侧的臂不能直接晋级**：teacher 改变后
+必须重新蒸馏才能得到可判的 C。这与「不修改 C」的约束不冲突 —— 冻结的是 `hsi_c_lingo_cm_v2`
+这一**参照工件**，新 teacher 对应的是一个**新的 C**（先例：C-v4），旧 C 作为参照保留不动。
+
+**预算停止条件（本节新增；没有它 gate 不构成停止规则）。** Phase 1C 迄今约 **580 GPU-h、
+14 条臂、0 次晋级**。自本节起再投入 **400 GPU-h** 之后，无论达到哪一档，Phase 1C
+**以当时最好的读数收口**：把结局写进 phase summary，把当时最好的专家交给 mixer,
+不因未达 PASS 而无限延长。400 正好容纳**两次**完整读数（194.24 × 2 = 388.48）。
+用户可另行调整该数值；但一个没有停止条件的 gate 不是 gate。
+
+### F. T2-C 线索关闭 —— 它早已跑过，只是没有写进计划
+
+**先更正我方一处陈述。** 我在本日第一次汇报中把「目标来源诊断」列为「2026-08-20 定好、
+从未运行」。**错误**：它在 **2026-08-20 23:29 – 2026-08-21 00:03 已完整运行**，全量 375、
+4 shard、merge 成功，并已做完分层配对 bootstrap。缺的只是写入计划文件。执行记录在
+`.claude/scratch/traj_arms_20260820/`（`launch_arms.sh`、`arms.log`、`bs_armT_vs_fix/`、
+`bs_armS_vs_fix/`），产物在 `results/lingo_hsi/c_guided_gttraj`（375 episode）与
+`results/lingo_hsi/c_guided_lookahead048`。
+
+**对照就是 gate 行本身。** arm T 的配对 A 侧 `boundary_jerk` 均值 **159.02038**，与
+`c_guided_v5_baseline` 在 holdout355 上**逐位相同**（本节实测），故这是一次对 gate 行的合法
+配对比较。两臂都带 `hsi_progress_fix=true`，与 gate 行同口径；启动前的 gates-off 回归对照为
+93 episode / 4557 数值 / **0 处不一致**。
+
+**arm T（`hsi_gt_trajectory=true`，目标来源的 oracle 上界）的判定：目标来源不是接缝 jerk 的原因。**
+
+| 队列 | 列 | 对照（gate 行） | arm T | delta | 95% CI | 判定 |
+|---|---|---:|---:|---:|---|---|
+| all375 | `boundary_jerk` | 159.020 | 163.669 | +4.648 | [−5.549, +13.212] | ns |
+| **walk130** | **`boundary_jerk`** | **125.49** | **146.27** | **+20.78** | **[+13.77, +28.71]** | **SIG，更差 1.166×** |
+| all375 | `interior_jerk` | 68.586 | 71.138 | +2.552 | [+0.205, +4.662] | SIG，更差 |
+| all375 | `goal_planar_err_m` | 0.06102 | 0.09393 | +0.03291 | [+0.0083, +0.0645] | SIG，更差 1.539× |
+| all375 | `time_to_goal_20cm_s` | 0.83618 | 1.7517 | +0.9156 | [+0.466, +1.481] | SIG，更差 2.095× |
+| all375 | `skate_frames` | 24.336 | 55.632 | +31.30 | [+17.49, +46.67] | SIG，更差 2.286× |
+| all375 | `fs_nemf` | 0.29152 | 0.31140 | +0.01988 | [+0.0117, +0.0284] | SIG，更差 1.068× |
+| all375 | `pen_depth_max` | 0.12810 | 0.12132 | −0.00678 | [−0.0111, −0.0028] | SIG，**更好 0.947×** |
+| all375 | `pen_value` | 0.03174 | 0.03064 | −0.00110 | [−0.0019, −0.0004] | SIG，更好 0.965× |
+
+**机制**，与 `code/config/config_sample_infbagel_lingo_hsi.yaml:140-162` 已记录的离线测量一致：
+把 GT 轨迹当目标喂进去，模型就按 GT 的推进速度走，而它受训时看到的是硬编码 0.8 m 前视，
+GT 在同段 45 raw frame 上只推进 0.478 m。于是它推进不足，评估器按「没到目标」扣分。
+**oracle 目标来源换到的是一点穿透（0.947×），付出的是 goal（1.539×）与 walk 接缝 jerk（1.166×）。**
+
+**后果：T2 不跑，省 22.01 GPU-h。** 用户给定的条件是「如果 T2 的 C 格仍能改变决策，就按预注册
+方案执行」。**条件不满足**：它的 C 格已在盘上、方向与假设相反，且会直接触发 §E.6 的
+`goal_planar_err_m` 与 `fs_nemf` 两条守卫，无法改变决策。**目标来源这条线索就此关闭。**
+
+**arm S（`hsi_lookahead_m=0.48`，当初标注为「可部署变体」）同样不救接缝**：all375 上 54 列中
+11 列显著，`boundary_jerk` **不在其中**；`goal_planar_err_m` 更差 1.126×，`min_dist` 更差
+2.603×，`time_to_goal_20cm_s` 更差 1.457×，walk130 上 `pene_sum_mean_floorexcl` 更差 1.468×、
+`pen_burst` 更差 1.269×。**两条目标来源臂都不是接缝的解。**
+
+**登记。** 两臂由 `launch_arms.sh` 直接启动，未经 `tools/experiment.py start`，无 terminal
+manifest，因此**不追造 run id**（与 P17-OC 两个评估格、P18-CN 两个评估格的先例一致）。
+本节以计划正文记录其判定，registry 以一行注记行记录，该行无 `manifest_sha256` 并在结论中
+说明原因。
+
+### G. 未决问题 —— 均未启动、均未申请 GPU
+
+1. **T1 配方臂**（LR decay 尾部 + 参数 EMA + 尾部加密保存）：用户 2026-08-31 指示
+   **暂不启动**。§D(ii) 的读数规则已独立落地，不依赖 T1 是否运行；但 §E.5 条件 (b) 中
+   「`U` 在实际读数上重新测得」这一步，只有当某条臂采用加密尾部时才能完成。
+2. **T3 显式跨窗口连续项**：在目标函数里加一个**显式**的接缝项，瞄 rotation 块 / FK 身体
+   （现目标已 92.61% 是 L1 旋转项，`loss_jpos` 仅 0.247%，位置通道上的项竞争不过）。
+   须携带 bf16 量化地板约束：实测 fp32 2.37e-07 m → bf16 **4.15e-03 m** 均值、`loss_fk` 自己
+   那 8 个关节 **6.70e-03**、最大 **3.51e-02**，即 E3 hinge 宽度 δ=0.03 的 **13–23%**。未预注册。
+3. **T4 未来 crop 的训练／推理不一致**：训练把 3 个未来 occupancy crop 以 **GT** 为中心置于
+   window offset 5/10/15 并加 ±0.1 m jitter；推理以**上一步预测的 `x0`** 为中心、首值为噪声、
+   无 jitter。有零 GPU 前置测量（按 timestep 量 crop 中心误差）。未预注册。
+4. **§E.7 的 400 GPU-h 预算数值**由用户确认或调整。
+5. **FID / R-Precision / MM-Dist** 仍需自训练 LINGO evaluator，仍「未批准、需另行申请」；
+   它们不进入本节 gate。
+
+---
+
+## 2026-09-01（R1：唯一最终 EMA diffusion teacher；已批准、未启动）
+
+### A. 目标修订与本节地位
+
+用户修订 Phase 1C 的当前目标为：训练出一个**最终 checkpoint 本身可靠**的 diffusion teacher；
+可靠不只指训练稳定，还必须在原生 rollout 指标上改善，并且必须同时考虑 guidance。用户随后批准
+本节的 R1 实验，并要求把精力放在模型迭代实验上、避免防御性编程。
+
+本节因此**前瞻性取代**上一节 §D/E/G 中「先以尾部 checkpoint 等权平均读出，再蒸馏到 C+guided
+才能判定」的 future action，但不改写任何历史实验、阈值、Tier 或失败结论。R1 不蒸馏 C，判定对象
+就是 diffusion teacher 的**唯一最终 EMA checkpoint**；中间状态只用于故障恢复，禁止评测、比较或
+择优。训练时间 EMA 是从初始化起、按预先固定递推得到的单一参数向量，不是从多个已观察 checkpoint
+中选择，因此保留上一节真正需要的「无选择面」原则，同时把目标对准用户指定的 teacher 本身。
+
+### B. 第一性原理：为什么下一步是优化终点，而不是再加一个局部 loss
+
+1. **可靠性是联合命题。** 有限 loss、有限梯度和可恢复只说明优化过程没有坏；teacher 是否可靠，
+   必须由同一最终权重在 autoregressive native rollout 上回答。unguided 测模型本体，guided 测模型与
+   部署时梯度修正的耦合；两者缺一不可。
+2. **当前终点不是低噪声读出。** B-v2 在 warmup 后的 144,255 updates 全程保持 `2e-4`，尾部
+   per-epoch loss 仍下降，但 ep220↔222 的同轨迹指标差达到 `boundary_jerk` unguided 7.51497、
+   guided 20.31986。继续恒定峰值 LR 不能把「最后一次写盘」变成可靠估计；尾部退火降低最终更新噪声，
+   EMA 再对参数轨迹作因果低通，两者都直接作用于唯一最终 checkpoint。
+3. **位置单头不是完整机制。** 用 B-v2 unguided 与 GT motion export 组成生产评估器下的 2×2：
+
+   | pelvis translation / rotations | `boundary_jerk` |
+   |---|---:|
+   | GT / GT | 84.217 |
+   | B-v2 / GT | 106.196 |
+   | GT / B-v2 | 106.845 |
+   | B-v2 / B-v2 | 126.050 |
+
+   B-v2 translation 单独带来 +21.979，95% CI `[19.369, 24.701]`；B-v2 rotations 单独带来
+   +22.628，CI `[17.973, 27.386]`。两头各承担约一半缺口，所以旧的 position-only seam loss
+   机制不完整。本臂不加入 seam loss；若 R1 双格 jerk 均失败，下一臂必须是 FK/SMPL 全身跨窗口
+   连续目标，而不是重复位置通道方案。
+4. **几何损失的数值精度必须匹配其尺度。** 已测同一 FK 路径 fp32 误差约 `2.37e-7 m`，bf16
+   量化地板为 4.15 mm 均值、当前 8 个 FK 关节 6.70 mm、最大 35.1 mm。故 denoiser 主干继续
+   bf16+TF32，只有 FK/几何损失局部用 fp32；否则几何梯度中混入与目标尺度同量级的量化误差。
+
+### C. R1 唯一训练臂
+
+| 项 | 冻结值 |
+|---|---|
+| training run id | `p1-hsi-b-r1-reliable-teacher-s42-20260901` |
+| 初始化 | random；`load_state_dict=false`、`ckpt_path=""`、`resume_from=""` |
+| 数据与预算 | 固定 LINGO split；299,530,240 processed windows = 146,255 updates × 2,048 |
+| 布局 | 8×RTX 3090；micro-batch 256/GPU；accumulation 1；effective batch 2,048 |
+| seed | 42 |
+| 基础语义 | 当前 E0 dead-object masking + `occ_permute_fix=true`；不带 P17-OC 的 E3 penetration loss |
+| 精度 | denoiser bf16+TF32；FK/几何损失局部 fp32 |
+| optimizer | Adam；peak LR `2e-4`；无 gradient clipping |
+| LR | updates 1–2,000 linear warmup；2,001–117,004 保持 `2e-4`；117,005–146,255 cosine 到 0 |
+| EMA | diffusion parameters，beta `0.9999`，从随机初始化副本开始；每次 `optimizer.step()` 后更新 |
+| checkpoint | 仅最终 update 146,255 的 EMA 权重可评测；rolling resume state 保存 online+EMA+optimizer+scheduler+RNG |
+| 明确不变 | architecture、diffusion objective、sampler、数据、processed-window budget、seed、无新 seam/penetration loss |
+
+8×256 是 R1 的新训练轨迹，不声称与 B-v2 的 4×512 bitwise 等价；rank-local seed 与 batch 分片会改变
+轨迹，但不是改变 `p_losses` 的目标语义——训练路径没有传 `cfg_scale`，旧文档所称 sample-0 CFG
+分支不在此路径生效。选择 8×256 是因为本臂的比较单位是最终 rollout、不是逐 update 参数配对，且
+该布局在 OMP=4 下实测约 0.38674 s/update，对 146,255 updates 预计约 15.7 h。
+
+EMA 的 online 权重仍必须写入 rolling resume state，但不得另导出成候选模型。若作业恢复，EMA 更新
+次数和 scheduler update 必须从状态精确连续；这只是维持同一实验，不构成第二个 checkpoint。
+
+### D. 启动前门槛与成本
+
+遵循 lean lifecycle，但只实现本臂承重的最小路径：一份 override config；在现有 component tests 中
+覆盖 cosine 边界/恢复连续性、diffusion EMA 更新与恢复、最终导出选择、几何块 fp32；不新增实验专用
+script 或测试模块。训练源码改变后运行定向测试和真实 LINGO functional smoke；由于布局、tensor
+精度和每步 compute 均变化，正式启动前执行一次 8×256 full-micro-batch 性能/显存预检。
+
+正式 workload 必须在 clean worktree 上由 `tools/experiment.py start` 分配 manifest；同一 escalated
+GPU context 记录 8 卡硬件快照；精确 overrides 的 fully resolved Hydra config 必须先生成、无未解析
+interpolation，并归档在 manifest 旁。报告成本估计：训练 125.7 GPU-h，unguided 22.01 GPU-h，
+guided 44.01 GPU-h，总计约 **191.7 GPU-h / 24 h wall**。这一次完整 teacher 读数计入上一节 400
+GPU-h 的前瞻预算，但取消本臂 41.54 GPU-h 的蒸馏成本。
+
+初始稳定区间只检查有限 loss、R1 所需梯度存在、显存余量、吞吐/ETA 和 rolling state 可恢复；这些
+都是继续跑完的必要条件，**不是科学 PASS 判据**。B-v2 post-warmup gradient norm median 5.9947、
+max 26.1939（4.37× median，0 nonfinite），没有证据支持 clipping，所以 R1 不加 clipping。
+
+### E. 唯一最终 EMA 的双协议评估
+
+同一个 final EMA sha256，固定全量 375 / holdout355、seed 42：先 unguided 原生 diffusion，再 guided
+原生 diffusion；两格使用相同 canonical ordering，并在实现允许处共享 latent。每个候选与对应 B-v2
+格做 episode-paired bootstrap，10,000 replicates、seed 42；报告 point estimate、95% CI、full375 与
+holdout355。禁止评测任何中间 checkpoint，禁止用两格中的一格替另一格过关。
+
+R1 只有在以下条件**全部**满足时 PASS：
+
+1. **unguided jerk：** `boundary_jerk <= 116.66`，且相对 B-v2 unguided 126.050 显著下降；点改善
+   至少超过 `1.25 × U_unguided = 9.3937`（历史同轨迹 `U=7.51497`）。
+2. **guided jerk：** `boundary_jerk <= 158.66`，且相对 B-v2 guided 184.064 显著下降；点改善
+   至少超过 `1.25 × U_guided = 25.3998`（历史同轨迹 `U=20.31986`）。这条防止以 unguided
+   改善掩盖 guidance 耦合退化。
+3. **unguided penetration：** `pen_ratio <= 0.03025`，并显著低于 B-v2 unguided 0.03241。
+4. **guided penetration/engagement：** `pen_ratio <= ground-truth-v3 0.02653`，且 `contact_count`
+   不得相对 B-v2 guided 显著下降；降低穿透但降低接触按 dodging 判 FAIL。
+5. **双格守卫：** 各自在同协议下，`interior_jerk`、`fs_nemf`、`goal_planar_err_m`、penetration
+   depth、engagement/contact 均不得相对 B-v2 显著退化。所有预注册列都报告，不以未显著改善
+   解释为通过主判据。
+
+两条 jerk 绝对阈值分别等于 B-v2 基线减去略高于 1.25U 的改善量，因而同时要求实质幅度和统计
+方向；它们不依赖事后观察 R1 的 CI 来移动。`pen_ratio` 与 contact 同表是
+`HSIPRIOR_DESIGN_PRIORS.md` §7 的反 dodging 约束。
+
+### F. 结果分流（结果出现前冻结）
+
+- unguided 与 guided jerk 都失败：优化终点配方不足；下一臂进入 FK/SMPL 全身跨窗口连续目标，
+  不再做 position-only seam loss。
+- unguided jerk 通过、guided jerk 失败：teacher 本体已改善，瓶颈是 guidance；保留该科学结论但
+  R1 总判定不 PASS，不重训 teacher，下一实验单独迭代 guidance。
+- 两条 jerk 通过但 unguided `pen_ratio` 失败：定位为 scene objective / future-crop train–inference
+  mismatch，下一步进入该方向。
+- 初始或终点优化不稳定：只调整退火或 EMA；不借机加入新 loss。
+- 全部主判据与守卫通过：final EMA checkpoint 晋级为可靠 diffusion teacher；其后是否蒸馏属于
+  新阶段决定，不是 R1 的一部分。
+
+归因分析复现文件为 `.claude/scratch/train2conv_20260901/head_attribution.json`；其 B-v2/B-v2
+`boundary_jerk` 与封存值平均差 `1.01e-5`、最大绝对差 `0.00242`。旧
+`.claude/scratch/train2conv_20260901/unguided_thresholds.*` 把 B-v2 epoch222 与另一条 P17-OC
+轨迹的 epoch220 混作同轨迹噪声，**不得用于 R1 的 U 或阈值**；本节只使用 P17-OC 同轨迹
+epoch220↔222 的合法测量。
