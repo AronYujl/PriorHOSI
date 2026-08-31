@@ -1151,3 +1151,37 @@ One further correction to the section above: it gives the floor-to-grid margin r
 "2.0–6.6 m" from the 12-scene probe. Over all 67 scenes the range is **0.37–6.57 m** — one
 scene (`0aa05d5a`) has a 0.37 m margin, and it is among the *cleanest* at `s_mean` 0.28,
 which is additional evidence against the border mechanism rather than for it.
+
+### Amendment to the P2-ROOT preregistration — 2026-08-31, before the result exists
+
+A third reading for a vanished penetration gain, which the preregistration above names
+only two of. Found by reading the code while the shards ran, so it is recorded here
+rather than after the fact.
+
+**The occupancy window is pelvis-centred, and P2-ROOT hands the centring to a
+scene-blind expert.** `models/infbagel.py:641-650`: HSIPrior's scene perception is a
+32³ ego-crop, `mesh_grid: [-0.6, 0.6, 0.1, 1.2, -0.6, 0.6]` — **±0.6 m horizontally**
+around a query frame whose translation is set from `x[:, :, :84]` at the pelvis joint,
+with y zeroed (`mat_for_query[:, 1, 3] = 0`). So the expert only ever sees geometry
+within 0.6 m of wherever the chain currently believes the pelvis is.
+
+Under P2-BG that pelvis was HSI's own, scene-aware choice. Under P2-ROOT channels 0:3
+come from HOIPrior, which has no scene input at all. If the two experts disagree about
+the pelvis by 0.3 m, HSI's scene window shifts by half its radius, and the obstacle it
+is being asked to avoid may not be inside the crop it is shown.
+
+So the discriminator table has a third row:
+
+| if `foot_sliding`/`feet_height` … | reading |
+|---|---|
+| stay improved ≈ P2-BG | the legs carried the gain |
+| return to ≈ G=0 | the root carried the gain — **either** because pelvis placement *is* the mechanism, **or** because a scene-blind pelvis mis-centres HSI's only view of the scene. These two are not separable by this arm. |
+| worse than G=0 | the hip seam is broken; the column is uninterpretable |
+
+This does not change the arm, the criteria, or the run. It changes what a null in row 2
+licenses: not "the root carries scene compliance" but "the root carries scene compliance
+*and/or* the right to aim the scene sensor," and separating those needs a further cell
+(root at HOI for the *output* channels while HSI's query frame keeps its own pelvis —
+which the current sampler cannot express, since the query is read from the composed
+`x0`). Related: the conditioning-box adequacy result was measured on HSI's own benchmark
+and speaks to box *size*, not to centring by a foreign expert.
