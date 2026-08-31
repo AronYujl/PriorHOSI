@@ -1010,3 +1010,63 @@ And it explains the P2-BG null more completely than the mass-concentration argum
 alone did: the gate improved 90% of the benchmark by 12.6% while the two things that
 actually produce the tail — which scene it is, and how many windows the rollout runs —
 are both invariant to the gate.
+
+## 2026-08-31 — the gate's benefit decays with rollout length; its cost does not
+
+Third zero-GPU section, and the one that changes how a mixer row should be read. Same
+paired protocol as every other row — pair by `scene/object/test_idx`, 10,000 replicates,
+seed 42, 2.5/97.5 percentiles — but computed **within frame-count quartiles** instead of
+over the whole benchmark. P2-BG against G=0, n=469, 117–118 per stratum.
+
+| metric | Q1 90–132 | Q2 132–174 | Q3 174–258 | Q4 258–468 | all |
+|---|--:|--:|--:|--:|--:|
+| `frame_ratio` | −23.7% | −29.5% | −24.7% | **−15.7%** | −23.2% |
+| `foot_sliding` | −35.2% | −36.0% | −31.7% | **−0.3% (null)** | −27.8% |
+| `feet_height` | −9.8% | −7.5% | −8.2% | **−4.5% (null)** | −7.5% |
+| `contact_percent` | −8.1% | −16.4% | −10.2% | **−16.1%** | −12.7% |
+| `s_mean` | null | null | null | null | null |
+
+Every entry except the nulls is significant at the 95% level.
+
+**The three geometric gains decay with length and two of them die in Q4. The contact
+cost does not decay — Q4 pays 16.1%, the joint-worst of the four.** On the longest
+quartile the arm is nearly all cost: it gives up 16% of contact and buys a 15.7%
+prevalence reduction, with foot sliding and foot height both indistinguishable from
+zero (`foot_sliding` point estimate collapses from −0.0627 in Q1 to −0.0004, CI
+[−0.0395, +0.0403]).
+
+And Q4 is where the benchmark's penetration lives: **20 of the 47 tail episodes**, and a
+median `s_mean` of 1.707 against Q1's 0.033.
+
+### One honest confound, and why the reading survives it
+
+Q4's G=0 `foot_sliding` baseline is 0.1271 against ~0.178 in Q1–Q3, so long episodes
+slide less to begin with and there is less to win. That weakens the `foot_sliding` row
+specifically. It does not explain the pattern: `feet_height` baselines are flat across
+quartiles (3.99 / 4.02 / 3.93 / 3.99) and its gain still halves, and `frame_ratio`
+baselines *rise* with length (0.285 / 0.287 / 0.338 / 0.331) — more to win in Q4, and
+the arm wins less. The Q4 confidence intervals are also wide enough that "the effect is
+zero in Q4" is not established; what is established is that the point estimates fall
+monotonically and the contact cost does not.
+
+### Why this is the useful form of the P2-BG null
+
+The closure explained the `s_mean` null by mass concentration: 47 episodes hold 86.1%,
+the arm moves the other 422. That is true, and this is the mechanism underneath it. The
+gate acts per denoising step within a window. It makes each window better, which shows
+up as a large gain on short rollouts. It has no signal for error the rollout has already
+accumulated, so the gain erodes as windows compound — and the episodes with the most
+windows are the ones holding the mass.
+
+Two consequences for every future mixer row:
+
+1. **Report length-stratified, always.** An arm evaluated on short episodes overstates
+   itself by roughly 2× on prevalence and unboundedly on foot metrics.
+2. **The tail needs a window-boundary mechanism, not a better per-step blend.** No
+   choice of body-group weights changes the fact that the gate cannot see accumulated
+   drift. This is the concrete form of what
+   `docs/HSIPRIOR_DESIGN_PRIORS.md`-style negatives are for: a whole family of arms
+   (re-weighting the split, per-object doses, schedules) shares one ceiling.
+
+Recorded before P2-ROOT's result exists, so its own stratified table can be read against
+this one rather than compared after the fact.
