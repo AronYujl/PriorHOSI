@@ -1,0 +1,45 @@
+{
+  "frozen_fullbody_seam_loss_weight": 0.5494500113254572,
+  "median_base_trunk_grad_norm": 529.2033996582031,
+  "median_raw_fullbody_seam_trunk_grad_norm": 96.31511306762695,
+  "micro_batch_per_gpu": 512,
+  "parameter_set": "student_model.module.transformer.parameters()",
+  "ranks": [
+    {
+      "base_loss": 23.14788818359375,
+      "base_trunk_grad_norm": 538.6006469726562,
+      "rank": 0,
+      "raw_fullbody_seam_loss": 4.848471641540527,
+      "raw_fullbody_seam_trunk_grad_norm": 96.62322998046875,
+      "weighted_seam_over_base_trunk_grad_norm": 0.09856957117573993
+    },
+    {
+      "base_loss": 21.935556411743164,
+      "base_trunk_grad_norm": 510.8114929199219,
+      "rank": 1,
+      "raw_fullbody_seam_loss": 4.345249652862549,
+      "raw_fullbody_seam_trunk_grad_norm": 90.243408203125,
+      "weighted_seam_over_base_trunk_grad_norm": 0.09706954981732965
+    },
+    {
+      "base_loss": 23.515165328979492,
+      "base_trunk_grad_norm": 525.0966186523438,
+      "rank": 2,
+      "raw_fullbody_seam_loss": 4.84966516494751,
+      "raw_fullbody_seam_trunk_grad_norm": 96.00699615478516,
+      "weighted_seam_over_base_trunk_grad_norm": 0.10045969303697855
+    },
+    {
+      "base_loss": 22.82706069946289,
+      "base_trunk_grad_norm": 533.3101806640625,
+      "rank": 3,
+      "raw_fullbody_seam_loss": 4.846715450286865,
+      "raw_fullbody_seam_trunk_grad_norm": 99.23196411132812,
+      "weighted_seam_over_base_trunk_grad_norm": 0.10223507028672531
+    }
+  ],
+  "schema_version": 1,
+  "seed": 42,
+  "target_gradient_ratio": 0.1,
+  "world_size": 4
+}

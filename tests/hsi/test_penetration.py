@@ -370,6 +370,31 @@ class ObjectivePlumbingTests(unittest.TestCase):
         self.assertIsNotNone(leaf.grad)
         self.assertTrue(bool(torch.isfinite(leaf.grad).all()))
 
+    def test_fullbody_seam_fk_is_fp32_and_part_of_the_diffusion_loss(self):
+        sampler = _sampler_for_loss(
+            fullbody_seam_loss_weight=1.0, geometry_loss_fp32=True
+        )
+        sampler.dataset = _FKDataset()
+        sampler.student_model = _BFloatOffsetModel()
+        inputs = _loss_inputs()
+
+        seen = []
+        original = sampler._compute_human_joints
+
+        def record_dtype(predicted_noise, *args):
+            seen.append(predicted_noise.dtype)
+            return original(predicted_noise, *args)
+
+        sampler._compute_human_joints = record_dtype
+        with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+            result = sampler.p_losses(**inputs)
+
+        self.assertEqual(seen, [torch.float32, torch.float32])
+        self.assertEqual(result["loss_fullbody_seam"].dtype, torch.float32)
+        self.assertGreater(float(result["loss_fullbody_seam"]), 0.0)
+        without_term = result["loss"] - result["loss_fullbody_seam"]
+        self.assertGreater(float(result["loss"]), float(without_term))
+
     def test_non_object_rows_use_finite_tensor_zero_guards(self):
         sampler = _sampler_for_loss()
         inputs = _loss_inputs()

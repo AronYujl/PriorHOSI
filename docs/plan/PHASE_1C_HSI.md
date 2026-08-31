@@ -11974,3 +11974,48 @@ ordering、10,000 次 episode-paired bootstrap seed 42 和判据：
 若 jerk 降而 interior jerk / goal / engagement 退化，判为局部平滑或少运动，不晋级。只有全部主判据
 和守卫通过，R2 final EMA 才能作为可靠 diffusion teacher；R1 与 R2 都完成后按同一 gate 判读，禁止
 在两个 final checkpoint 中事后择优或把一格协议的胜利替代另一格。
+
+### F. 启动前梯度标定结果（冻结正式权重）
+
+按 §C 在 GPU 4–7 执行 4x512 首个真实 train batch；四个 rank 的 base 与 raw seam 梯度来自同一次
+forward graph，无 optimizer step、无 checkpoint、未读取 rollout 指标：
+
+| rank | base loss | raw seam loss | `G_base` | `G_raw_seam` | `w*G_seam/G_base` |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 23.14789 | 4.84847 | 538.60065 | 96.62323 | 0.09857 |
+| 1 | 21.93556 | 4.34525 | 510.81149 | 90.24341 | 0.09707 |
+| 2 | 23.51517 | 4.84967 | 525.09662 | 96.00700 | 0.10046 |
+| 3 | 22.82706 | 4.84672 | 533.31018 | 99.23196 | 0.10224 |
+
+`median(G_base)=529.2033997`、`median(G_raw_seam)=96.3151131`，故唯一正式值冻结为：
+
+```
+fullbody_seam_loss_weight = 0.10 * 529.2033997 / 96.3151131
+                              = 0.5494500113254572
+```
+
+四 rank 加权比例范围 9.707%–10.224%，没有单 rank 离群主导。raw seam loss 本身约为 base loss 的
+19.8%–20.9%，加权后的 scalar loss 约为 base 的 10.9%–11.7%，与梯度标定同量级。正式配置不再携带
+标定开关，且只保留上述一个 objective 权重。紧凑原始记录：
+`experiments/results/p1_hsi_b_r2_fullbody_seam_calibration_s42_20260901.json`。
+
+### G. 实现验证与正式 4x512 满批 preflight
+
+- component tests：`tests/hsi/test_seam_loss.py tests/hsi/test_penetration.py`，49 passed；
+- full authority suite：396 passed、5 skipped；
+- 真实数据 / 满批：GPU 4–7，与 R1 并发，正式 R2 配方从 random initialization 完成 epoch 0 的
+  **656 optimizer updates**，无 checkpoint、无 reportable run id；loss 从约 20 降到最终 0.59731；
+- peak allocated / reserved：13,405,359,616 / 13,700,694,016 bytes，即 12.48 / 12.76 GiB；
+  相对并发 R1 matched preflight 只增加 15.66 MiB allocated / 8 MiB reserved；
+- gradients：656/656 全部有限；全 epoch min/median/max = 0.7964 / 6.6959 / 867.7110；前 48
+  updates 为 60.6335 / 214.6495 / 867.7110，max 在 update 1。相对 R1 的同口径前 48 median/max
+  约高 9.48% / 9.67%，与标定的 10% 局部目标相符，没有随 update 增长；
+- post-128 median / mean step time = 0.55257 / 0.55737 s，正式 146,255 updates 预计 22.64 h wall、
+  90.58 GPU-h。该 timing 包含 R1 并发竞争与 `log_grad_norm=true`，只用于 ETA；
+- 原始 benchmark sha256 `75446313...b51b5d`，rank-0 gradient JSONL sha256
+  `c8f33fd5...f98756a`，resolved preflight config sha256 `99e5307a...229bb`。
+
+启动门 PASS。训练结束时 DataLoader pin-memory worker 打印 CUDA IPC shutdown warning，但父进程 exit 0、
+656 updates/metrics/gradient logs 完整，且 warning 发生在 peak collection 与 artifact 写入之后；这是短命
+preflight 在 epoch 结束即销毁 worker 的退出噪声，不出现在跨 223 epoch 的正式持久 run 判据中。
+紧凑结果：`experiments/results/p1_hsi_b_r2_fullbody_seam_preflight_s42_20260901.json`。

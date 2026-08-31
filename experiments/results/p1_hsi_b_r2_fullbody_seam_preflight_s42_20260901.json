@@ -1,0 +1,40 @@
+{
+  "artifact_hashes": {
+    "benchmark_metrics_sha256": "75446313c9a3f0a6c0f6784008f38414059fac098cf42b5ed484beb7c9b51b5d",
+    "rank0_gradients_sha256": "c8f33fd552a47c24ed5afee2242336d27c0292934932099a75c7ec9a4f98756a",
+    "resolved_config_sha256": "99e5307aef788d9fbc8651f318bfad4c9a97140929355f1d591361f5762229bb"
+  },
+  "concurrent_with_r1": true,
+  "effective_batch_size": 2048,
+  "estimated_formal_gpu_hours": 90.57586527559033,
+  "estimated_formal_wall_hours": 22.643966318897583,
+  "first_48_gradient_norm": {
+    "max": 867.7109985351562,
+    "max_update": 1,
+    "median": 214.6495132446289,
+    "min": 60.63349533081055
+  },
+  "full_epoch_gradient_norm": {
+    "max": 867.7109985351562,
+    "median": 6.695895433425903,
+    "min": 0.7964314818382263,
+    "nonfinite": 0
+  },
+  "fullbody_seam_loss_weight": 0.5494500113254572,
+  "gpu_ids": [4, 5, 6, 7],
+  "last_loss": 0.5973079204559326,
+  "max_peak_memory_allocated_bytes": 13405359616,
+  "max_peak_memory_reserved_bytes": 13700694016,
+  "micro_batch_per_gpu": 512,
+  "optimizer_updates": 656,
+  "post_128_seconds_per_update_mean": 0.557370884742616,
+  "post_128_seconds_per_update_median": 0.5525650978088379,
+  "schema_version": 1,
+  "seed": 42,
+  "status": "stable",
+  "verification": {
+    "full_suite": "396 passed, 5 skipped",
+    "targeted": "49 passed"
+  },
+  "world_size": 4
+}

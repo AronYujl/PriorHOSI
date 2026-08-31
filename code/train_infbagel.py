@@ -709,6 +709,12 @@ def train_ddp(rank, world_size, cfg):
                     loss_seam = loss_dict.get('loss_seam')
                     if loss_seam is not None:
                         writer.add_scalar('Loss_seam', loss_seam.item(), epoch * len(dataloader) + step)
+                    loss_fullbody_seam = loss_dict.get('loss_fullbody_seam')
+                    if loss_fullbody_seam is not None:
+                        writer.add_scalar(
+                            'Loss_fullbody_seam', loss_fullbody_seam.item(),
+                            epoch * len(dataloader) + step
+                        )
                     # Same shape as Loss_seam: present only when pen_loss_weight > 0,
                     # already inside `loss`, diagnostics only.  P17-OC ran without
                     # this line, so its preregistered loss_pen readout had no data

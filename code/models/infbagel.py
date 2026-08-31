@@ -126,6 +126,9 @@ class Sampler:
         # channel only -- the two frames that carry the whole measured seam
         # transient.  See docs/plan/PHASE_1C_HSI.md 2026-08-25 (third section).
         self.seam_loss_weight = float(kwargs.get('seam_loss_weight', 0.0) or 0.0)
+        self.fullbody_seam_loss_weight = float(
+            kwargs.get('fullbody_seam_loss_weight', 0.0) or 0.0
+        )
         _w = kwargs.get('loss_w_jpos', 1.0)
         self.loss_w_jpos = 1.0 if _w is None else float(_w)
         _pen_weight = kwargs.get('pen_loss_weight', 0.0)
@@ -177,6 +180,22 @@ class Sampler:
         )  # [b*t, 24, 3]
         human_jnts = human_jnts.reshape(joints.shape[0], -1, 24, 3)  # [b, t, 24, 3]
         return global_jpos, human_jnts
+
+    def _compute_fullbody_seam_loss(self, predicted_joints, target_joints):
+        n = int(self.auto_regre_num)
+        predicted_seam = torch.cat(
+            [target_joints[:, n - 2:n], predicted_joints[:, n:n + 2]], dim=1
+        )
+        target_seam = target_joints[:, n - 2:n + 2]
+        predicted_acceleration = (
+            predicted_seam[:, 2:] - 2.0 * predicted_seam[:, 1:-1]
+            + predicted_seam[:, :-2]
+        )
+        target_acceleration = (
+            target_seam[:, 2:] - 2.0 * target_seam[:, 1:-1]
+            + target_seam[:, :-2]
+        )
+        return F.mse_loss(predicted_acceleration, target_acceleration)
 
     def _get_pen_sdf_bank(self):
         if self.pen_sdf_bank is None:
@@ -1045,8 +1064,27 @@ class Sampler:
             loss_seam = F.mse_loss(x_start[:, n:n + 2, :84], predicted_noise[:, n:n + 2, :84])
             loss = loss + self.seam_loss_weight * loss_seam
 
-        # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
         human_jnts = None
+        loss_fullbody_seam = None
+        if self.fullbody_seam_loss_weight > 0.0:
+            with torch.autocast(device_type=predicted_noise.device.type, enabled=False):
+                geometry_prediction = predicted_noise.float()
+                geometry_target = x_start.float()
+                geometry_joints = joints.float()
+                geometry_mat = mat.float()
+                geometry_offsets = rest_human_offsets.float()
+                _, human_jnts = self._compute_human_joints(
+                    geometry_prediction, geometry_joints, geometry_mat, geometry_offsets
+                )
+                _, target_human_jnts = self._compute_human_joints(
+                    geometry_target, geometry_joints, geometry_mat, geometry_offsets
+                )
+                loss_fullbody_seam = self._compute_fullbody_seam_loss(
+                    human_jnts, target_human_jnts
+                )
+            loss = loss + self.fullbody_seam_loss_weight * loss_fullbody_seam
+
+        # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
         if self.dataset.use_object_keypoints:
             hand_idx_28 = [20, 21, 25, 27]
             hand_idx_24 = [20, 21, 22, 23]
@@ -1061,9 +1099,10 @@ class Sampler:
                     gt_global_jpos = transform_points(
                         self.dataset.denormalize_torch(geometry_joints), geometry_mat
                     ).reshape(joints.shape[0], -1, 28, 3)
-                    global_jpos, human_jnts = self._compute_human_joints(
-                        geometry_prediction, geometry_joints, geometry_mat, geometry_offsets
-                    )
+                    if human_jnts is None:
+                        global_jpos, human_jnts = self._compute_human_joints(
+                            geometry_prediction, geometry_joints, geometry_mat, geometry_offsets
+                        )
             else:
                 gt_global_jpos = transform_points(self.dataset.denormalize_torch(joints), mat).reshape(joints.shape[0], -1, 28, 3)
                 global_jpos, human_jnts = self._compute_human_joints(
@@ -1156,6 +1195,7 @@ class Sampler:
             loss_object=loss_object,
             loss_fk=loss_fk,
             loss_seam=loss_seam,
+            loss_fullbody_seam=loss_fullbody_seam,
             loss_pen=loss_pen,
         )
 
