@@ -1070,3 +1070,84 @@ Two consequences for every future mixer row:
 
 Recorded before P2-ROOT's result exists, so its own stratified table can be read against
 this one rather than compared after the fact.
+
+## 2026-08-31 — correction: the stratification above split ties, and the numbers move
+
+The table in the section immediately above used **rank-based** frame-count quartiles. That
+is unstable on this benchmark and I should have checked before committing it.
+
+`test_infbagel_hosi.py:960` sets frames as `seg_len * (16 − 2) * 3 + 6 = 42·seg_len + 6`
+with `seg_len` in 2..11, so there are only **ten distinct frame counts**: 90, 132, 174,
+216, 258, 300, 342, 384, 426, 468. Every quartile boundary lands exactly on a heavily
+populated one — p25 = 132 with **109** episodes at exactly 132, p50 = 174 with 85,
+p75 = 258 with 51 — so a rank split cuts a tie group arbitrarily, and *which* episodes fall
+either side depends on the sort algorithm. Two runs of my own script, one with `argsort`'s
+default quicksort and one with `kind='stable'`, disagreed on the quartile medians and on
+the tail-member counts (11/8/8/20 against 10/10/9/18).
+
+Redone with strata defined by **value**, so episodes sharing a frame count are never split.
+Sizes are unbalanced and that is the honest cost of not cutting ties.
+
+| metric | S1 90/132 n=182 | S2 174/216 n=159 | S3 258/300 n=89 | S4 342+ n=39 | all n=469 |
+|---|--:|--:|--:|--:|--:|
+| `scene_human_pen frame_ratio` | −24.1% | −27.2% | −21.2% | **−10.1%** | −23.2% |
+| `contact_percent` | −12.0% | −11.5% | −14.6% | **−16.3%** | −12.7% |
+| `feet_height` | −7.6% | −9.3% | −5.5% (null) | −4.0% (null) | −7.5% |
+| `foot_sliding` | −32.0% | −35.2% | −25.4% (null) | **+64.1% (null)** | −27.8% |
+| `scene_human_pen s_mean` | null | null | null | null | null |
+| `scene_obj_pen s_mean` | null | **+15.5% SIG worse** | null | −21.4% (null) | null |
+| `completed` | null | null | null | null | null |
+
+`frame_ratio` and `contact_percent` are significant in every stratum.
+
+### What survives, and what changes
+
+**Survives, strengthened.** The geometric gain decays with length while the contact cost
+does not — and the cost is now *monotonically rising*: −12.0 / −11.5 / −14.6 / **−16.3**%.
+On the longest episodes the arm pays its largest contact bill for its smallest penetration
+return (−10.1% prevalence against −24.1% on the shortest). The tail-members column shows
+why this matters: S4 is 39 episodes but holds **12 of the 47** tail episodes, a 3.7×
+enrichment.
+
+**Changes materially, three ways.**
+
+1. **`foot_sliding` on the longest episodes is +64.1%, not −0.3%.** Null (CI [−0.016,
+   +0.142], n=39), but the point estimate *flipped sign*. The S4 G=0 baseline is 0.0898
+   against ~0.18 elsewhere, so long episodes barely slide to begin with and the arm makes
+   them slide more. My earlier confound note was too gentle: this is not "less headroom",
+   it is a sign flip on a small stratum.
+2. **`scene_obj_penetration_s_mean` is +15.5% significantly WORSE on S2** (CI [+0.32,
+   +9.96], n=159) — the only significant object-penetration regression anywhere, and the
+   overall +2.1% null hides it entirely. This is the metric the phase marks as the target
+   and the one the operator was always expected to threaten, since 216:232 is scene-blind
+   HOI riding a pelvis HSI chose. S4 goes the other way at −21.4% (null, n=39).
+3. **The `s_mean` nulls are nulls in every stratum**, including S4. Length does not rescue
+   that metric; it never was going to.
+
+### The per-value trend, which needs no boundary at all
+
+G=0, 469 episodes, all ten frame counts:
+
+| frames | 90 | 132 | 174 | 216 | 258 | 300 | 342 | 384 | 426 | 468 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| n | 73 | 109 | 85 | 74 | 51 | 38 | 26 | 8 | 4 | 1 |
+| median `s_mean` | 0.034 | 0.039 | 0.341 | 0.478 | 0.503 | 1.652 | 3.464 | 2.957 | 3.434 | 9.880 |
+| tail episodes | 7 | 8 | 6 | 6 | 5 | 3 | 7 | 3 | 1 | 1 |
+
+The median rises ~100× from the shortest to the longest bucket, monotonically except for
+the last three buckets which hold 13 episodes between them. **This is the length effect in
+the form that has no analyst degrees of freedom**, and it is the version to cite.
+
+### Standing rule, restated correctly
+
+Stratify by frame-count **value**, never by rank. Four strata {90,132} / {174,216} /
+{258,300} / {342+}, or the ten-value trend where n permits. Numbers and the per-episode
+frame counts are sealed in
+`experiments/results/p2_hosi_penetration_tail_diagnostic_s42_20260831.json`, since the
+evaluator does not persist frame count and the shard logs it was parsed from live under
+`results/incoming/`.
+
+One further correction to the section above: it gives the floor-to-grid margin range as
+"2.0–6.6 m" from the 12-scene probe. Over all 67 scenes the range is **0.37–6.57 m** — one
+scene (`0aa05d5a`) has a 0.37 m margin, and it is among the *cleanest* at `s_mean` 0.28,
+which is additional evidence against the border mechanism rather than for it.

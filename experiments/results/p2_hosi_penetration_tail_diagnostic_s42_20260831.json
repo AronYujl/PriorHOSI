@@ -1,0 +1,1909 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p2-hosi-penetration-tail-diagnostic-s42-20260831",
+  "phase": "p2",
+  "subphase": "2-composition-tail-diagnostic",
+  "status": "completed",
+  "seed": 42,
+  "date": "2026-08-31",
+  "classification": "diagnostic-scene-and-length-are-the-tail-object-identity-is-not",
+  "training_performed": false,
+  "optimizer_updates": 0,
+  "checkpoint_writes": 0,
+  "checkpoint_selected": false,
+  "gpu_work_performed": false,
+  "released_or_prior_checkpoint_initialization": false,
+  "sources": {
+    "note": "zero GPU; derived from two sealed per-episode payloads, the shard logs of both runs, the benchmark test items and the scene SDF grids",
+    "arm_a": "p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829",
+    "arm_b": "p2-mixer-fixed-bodygroup-p15-p17oc-s42-20260830",
+    "episodes": 469
+  },
+  "tail_definition": {
+    "metric": "scene_human_penetration_s_mean",
+    "rule": "top 47 episodes (heaviest decile) by the G=0 value",
+    "mass_share": 0.8607166690402518,
+    "mass_share_top1pct": 0.5293372438860352,
+    "mass_share_top5pct": 0.7565562544813885,
+    "mass_share_top25pct": 0.9578185992665706
+  },
+  "cause_1_scene_identity": {
+    "r2_log1p_s_mean": 0.27145543886334167,
+    "r2_after_removing_length_cubic": 0.2741514533826633,
+    "groups": 67,
+    "scenes_holding_a_tail_episode": 31,
+    "worst_scene": "0adb88db",
+    "worst_scene_mass_share": 0.3358,
+    "worst_scene_tail_episodes": 3,
+    "worst_scene_total_episodes": 7
+  },
+  "cause_2_sequence_length": {
+    "definition": "frames N; windows = ceil((N-2)/14); set at test_infbagel_hosi.py:960 from the dataset seg_len, no model term",
+    "arm_invariant_verified": true,
+    "arm_invariant_mismatches": 0,
+    "rho_frames_vs_s_mean": 0.35267408550581514,
+    "r2_log1p_length_cubic": 0.10735448672766812,
+    "r2_after_removing_scene_means": 0.09074612176398233,
+    "within_scene_rho_mean": 0.29764196764015355,
+    "within_scene_scenes": 67,
+    "within_scene_positive": 52,
+    "within_scene_sign_test_p": 6.4590727912378805e-06,
+    "distinct_values": [
+      90,
+      132,
+      174,
+      216,
+      258,
+      300,
+      342,
+      384,
+      426,
+      468
+    ],
+    "per_value_trend": [
+      {
+        "frames": 90,
+        "windows": 7,
+        "n": 73,
+        "mean_s_mean": 5.08162109935717,
+        "median_s_mean": 0.03448718786239624,
+        "frame_ratio": 0.2928462776878517,
+        "tail_members": 7
+      },
+      {
+        "frames": 132,
+        "windows": 10,
+        "n": 109,
+        "mean_s_mean": 2.453931071065199,
+        "median_s_mean": 0.038742225617170334,
+        "frame_ratio": 0.2713372334154374,
+        "tail_members": 8
+      },
+      {
+        "frames": 174,
+        "windows": 13,
+        "n": 85,
+        "mean_s_mean": 2.235445629358315,
+        "median_s_mean": 0.3411288261413574,
+        "frame_ratio": 0.3246112248476814,
+        "tail_members": 6
+      },
+      {
+        "frames": 216,
+        "windows": 16,
+        "n": 74,
+        "mean_s_mean": 3.287457043279082,
+        "median_s_mean": 0.47827020287513733,
+        "frame_ratio": 0.3307682701411682,
+        "tail_members": 6
+      },
+      {
+        "frames": 258,
+        "windows": 19,
+        "n": 51,
+        "mean_s_mean": 5.792136043296089,
+        "median_s_mean": 0.503498375415802,
+        "frame_ratio": 0.2842377264636989,
+        "tail_members": 5
+      },
+      {
+        "frames": 300,
+        "windows": 22,
+        "n": 38,
+        "mean_s_mean": 30.408674485206383,
+        "median_s_mean": 1.652147650718689,
+        "frame_ratio": 0.3323684305834927,
+        "tail_members": 3
+      },
+      {
+        "frames": 342,
+        "windows": 25,
+        "n": 26,
+        "mean_s_mean": 19.741110084148552,
+        "median_s_mean": 3.4640718698501587,
+        "frame_ratio": 0.3812415651403941,
+        "tail_members": 7
+      },
+      {
+        "frames": 384,
+        "windows": 28,
+        "n": 8,
+        "mean_s_mean": 14.78800419482286,
+        "median_s_mean": 2.9570412635803223,
+        "frame_ratio": 0.4313151128590107,
+        "tail_members": 3
+      },
+      {
+        "frames": 426,
+        "windows": 31,
+        "n": 4,
+        "mean_s_mean": 28.162166364490986,
+        "median_s_mean": 3.433956503868103,
+        "frame_ratio": 0.35504695773124695,
+        "tail_members": 1
+      },
+      {
+        "frames": 468,
+        "windows": 34,
+        "n": 1,
+        "mean_s_mean": 9.880346298217773,
+        "median_s_mean": 9.880346298217773,
+        "frame_ratio": 0.43589746952056885,
+        "tail_members": 1
+      }
+    ],
+    "quartiles_rank_based_SUPERSEDED": [
+      {
+        "stratum": "Q1",
+        "n": 118,
+        "frames_lo": 90.0,
+        "frames_hi": 132.0,
+        "mean_s_mean": 3.889248923196215,
+        "median_s_mean": 0.03956402465701103,
+        "tail_members": 10,
+        "warning": "boundary lands on a tie group; not reproducible across sort algorithms -- use per_value_trend or by_value strata"
+      },
+      {
+        "stratum": "Q2",
+        "n": 117,
+        "frames_lo": 132.0,
+        "frames_hi": 174.0,
+        "mean_s_mean": 2.7438570284893466,
+        "median_s_mean": 0.06722487509250641,
+        "tail_members": 10,
+        "warning": "boundary lands on a tie group; not reproducible across sort algorithms -- use per_value_trend or by_value strata"
+      },
+      {
+        "stratum": "Q3",
+        "n": 117,
+        "frames_lo": 174.0,
+        "frames_hi": 258.0,
+        "mean_s_mean": 3.4257018227882896,
+        "median_s_mean": 0.444649875164032,
+        "tail_members": 9,
+        "warning": "boundary lands on a tie group; not reproducible across sort algorithms -- use per_value_trend or by_value strata"
+      },
+      {
+        "stratum": "Q4",
+        "n": 117,
+        "frames_lo": 258.0,
+        "frames_hi": 468.0,
+        "mean_s_mean": 17.91437815648908,
+        "median_s_mean": 1.707245111465454,
+        "tail_members": 18,
+        "warning": "boundary lands on a tie group; not reproducible across sort algorithms -- use per_value_trend or by_value strata"
+      }
+    ]
+  },
+  "not_a_cause_object_identity": {
+    "r2_log1p_s_mean": 0.019149770810213733,
+    "groups": 7,
+    "tail_counts": {
+      "tripod": 3,
+      "monitor": 6,
+      "floorlamp": 9,
+      "smalltable": 13,
+      "clothesstand": 8,
+      "suitcase": 5,
+      "smallbox": 3
+    },
+    "max_enrichment_over_base_rate": 1.94,
+    "note": "refutes the P2-BG closure recommendation of ObjectConditionedGate as the lever for the penetration mass; object identity carries the CONTACT effect, not this one"
+  },
+  "not_a_cause_travel_distance": {
+    "rho_vs_s_mean": 0.31182967782709536,
+    "rho_travel_vs_frames": 0.9709698079226113,
+    "within_length_decile_rho_mean": -0.021450573250754328,
+    "note": "travel is length in disguise; at fixed frame count it stops predicting"
+  },
+  "refuted_border_padding_mechanism": {
+    "claim": "padding_mode=border charges out-of-box vertices the boundary value, so an episode leaving the SDF box reads as catastrophic penetration",
+    "verdict": "REFUTED",
+    "scenes": 67,
+    "rank_correlations_with_scene_mean_penetration": {
+      "floor_to_grid_margin_m": {
+        "rho": -0.030928246468193792,
+        "p": 0.8037832819653843
+      },
+      "border_charge_m": {
+        "rho": 0.007023705004389817,
+        "p": 0.9550149934502252
+      },
+      "box_extent_max_m": {
+        "rho": -0.03523824726634209,
+        "p": 0.7771022433880388
+      },
+      "box_extent_y_m": {
+        "rho": 0.02845398675073829,
+        "p": 0.819203829039122
+      },
+      "normalisation_divisor_m": {
+        "rho": -0.03523824726634209,
+        "p": 0.7771022433880388
+      },
+      "box_aspect": {
+        "rho": -0.0977332588394924,
+        "p": 0.4313915502075465
+      }
+    },
+    "why": "normalising all three axes by extents.max()/2 makes the grid a CUBE of side extents.max() while the room occupies only its own bbox, so the measured floor-to-grid margin is 2.0-6.6 m, not the 12 cm inferred from the mesh bbox",
+    "margin_m_range": [
+      0.36893240313725517,
+      6.574406413235294
+    ]
+  },
+  "tail_is_episode_not_model": {
+    "tail_overlap_between_arms": 39,
+    "tail_size": 47,
+    "rho_between_arms_s_mean": 0.895549392900782,
+    "builder_penetration_counts_nonzero": 0,
+    "builder_penetration_counts_total_episodes": 469,
+    "inside_tail_vs_rest": {
+      "contact_percent_ratio": 1.031,
+      "xy_points_err_ratio": 0.928,
+      "end_obj_trans_err_ratio": 0.955,
+      "completed_ratio": 1.004
+    },
+    "shape": {
+      "frame_ratio_tail": 0.6175,
+      "frame_ratio_rest": 0.2757,
+      "conditional_depth_tail": 112.051,
+      "conditional_depth_rest": 3.138,
+      "prevalence_multiple": 2.24,
+      "depth_multiple": 35.71
+    }
+  },
+  "p2bg_stratified_by_length": {
+    "authoritative": "by_value",
+    "by_value": {
+      "strata_definition": {
+        "S1": [
+          90,
+          132
+        ],
+        "S2": [
+          174,
+          216
+        ],
+        "S3": [
+          258,
+          300
+        ],
+        "S4": [
+          342,
+          384,
+          426,
+          468
+        ]
+      },
+      "distinct_frame_counts": [
+        90,
+        132,
+        174,
+        216,
+        258,
+        300,
+        342,
+        384,
+        426,
+        468
+      ],
+      "protocol": {
+        "replicates": 10000,
+        "seed": 42,
+        "pairing": "scene/object/test_idx",
+        "strata": "by frame-count VALUE, ties never split"
+      },
+      "results": {
+        "scene_human_penetration_frame_ratio": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 0.27996448743679037,
+            "bg": 0.2125485680260501,
+            "delta": -0.06741591941074028,
+            "ci": [
+              -0.09271013902930113,
+              -0.04206626861954906
+            ],
+            "significant": true,
+            "relative": -0.24080168177030406
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 0.3274767679402476,
+            "bg": 0.23846960189582417,
+            "delta": -0.08900716604442342,
+            "ci": [
+              -0.11346081807629539,
+              -0.06575713369544339
+            ],
+            "significant": true,
+            "relative": -0.27179688685783027
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 0.3047879147395659,
+            "bg": 0.24028394976107592,
+            "delta": -0.06450396497848998,
+            "ci": [
+              -0.09782011899730882,
+              -0.03112915106316549
+            ],
+            "significant": true,
+            "relative": -0.21163557299706945
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 0.39022786915302277,
+            "bg": 0.3506580552038474,
+            "delta": -0.03956981394917537,
+            "ci": [
+              -0.07389778661040158,
+              -0.0039806869454108995
+            ],
+            "significant": true,
+            "relative": -0.1014018143682572
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 0.3099517145517793,
+            "bg": 0.238084097577533,
+            "delta": -0.07186761697424628,
+            "ci": [
+              -0.0865946221231882,
+              -0.057481669417238916
+            ],
+            "significant": true,
+            "relative": -0.23186713800946038
+          }
+        ],
+        "scene_human_penetration_s_mean": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 3.5078946538416487,
+            "bg": 3.8096185268793836,
+            "delta": 0.30172387303773474,
+            "ci": [
+              -0.6991056850658984,
+              1.8489172104790286
+            ],
+            "significant": false,
+            "relative": 0.08601280905266176
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 2.725061004390622,
+            "bg": 2.3606883063533677,
+            "delta": -0.36437269803725386,
+            "ci": [
+              -0.9648318657513301,
+              0.1951724279766852
+            ],
+            "significant": false,
+            "relative": -0.13371175817722103
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 16.302568187033067,
+            "bg": 17.37824040849648,
+            "delta": 1.0756722214634127,
+            "ci": [
+              -1.5827348815690518,
+              4.228139949237538
+            ],
+            "significant": false,
+            "relative": 0.06598176490493037
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 19.335946346221206,
+            "bg": 16.826331552541934,
+            "delta": -2.509614793679271,
+            "ci": [
+              -5.448259664231386,
+              0.19233039729297144
+            ],
+            "significant": false,
+            "relative": -0.1297901198494855
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 6.98667804444746,
+            "bg": 6.9756723656877515,
+            "delta": -0.011005678759708891,
+            "ci": [
+              -0.7729297203836282,
+              0.8755430674173398
+            ],
+            "significant": false,
+            "relative": -0.0015752377152193897
+          }
+        ],
+        "scene_obj_penetration_frame_ratio": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 0.2573010366164393,
+            "bg": 0.2452603003501401,
+            "delta": -0.012040736266299264,
+            "ci": [
+              -0.02075153939390125,
+              -0.004331778817052778
+            ],
+            "significant": true,
+            "relative": -0.04679629909244588
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 0.2543725945852088,
+            "bg": 0.2464627664852536,
+            "delta": -0.007909828099955179,
+            "ci": [
+              -0.018242155705906635,
+              0.0020164901087552536
+            ],
+            "significant": false,
+            "relative": -0.031095441365660066
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 0.25751154479476507,
+            "bg": 0.24150248626351692,
+            "delta": -0.016009058531248167,
+            "ci": [
+              -0.03251125847428953,
+              0.0001838033516587833
+            ],
+            "significant": false,
+            "relative": -0.06216831382844321
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 0.3071863813182482,
+            "bg": 0.2820826173783877,
+            "delta": -0.02510376393986054,
+            "ci": [
+              -0.04619946062970811,
+              -0.006480732266432974
+            ],
+            "significant": true,
+            "relative": -0.08172160442833169
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 0.2604964340328058,
+            "bg": 0.24801683985094017,
+            "delta": -0.012479594181865644,
+            "ci": [
+              -0.01850477147654795,
+              -0.006696303758615338
+            ],
+            "significant": true,
+            "relative": -0.04790696743393431
+          }
+        ],
+        "scene_obj_penetration_s_mean": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 25.9540811153068,
+            "bg": 25.517443748692845,
+            "delta": -0.43663736661395247,
+            "ci": [
+              -1.9021350956838543,
+              1.012838968954113
+            ],
+            "significant": false,
+            "relative": -0.016823456961319243
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 29.99876018180979,
+            "bg": 34.65270951485396,
+            "delta": 4.653949333044171,
+            "ci": [
+              0.3235666769382536,
+              9.95738683366756
+            ],
+            "significant": true,
+            "relative": 0.1551380558675943
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 32.0668517077411,
+            "bg": 34.77583635371934,
+            "delta": 2.7089846459782443,
+            "ci": [
+              -2.7000292283831113,
+              9.690882458058907
+            ],
+            "significant": false,
+            "relative": 0.0844792831759122
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 69.60822146174681,
+            "bg": 54.694737551094406,
+            "delta": -14.913483910652408,
+            "ci": [
+              -36.86987747611641,
+              0.28403557007309455
+            ],
+            "significant": false,
+            "relative": -0.21424888608665446
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 32.11538607865816,
+            "bg": 32.79765410468568,
+            "delta": 0.6822680260275131,
+            "ci": [
+              -2.1239752335887787,
+              3.402562834171406
+            ],
+            "significant": false,
+            "relative": 0.021244272896376763
+          }
+        ],
+        "contact_percent": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 0.6826756576756577,
+            "bg": 0.6007964257964259,
+            "delta": -0.08187923187923189,
+            "ci": [
+              -0.10654630092130092,
+              -0.05788565601065603
+            ],
+            "significant": true,
+            "relative": -0.1199387014296225
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 0.7050330530052933,
+            "bg": 0.6240240728692257,
+            "delta": -0.08100898013606754,
+            "ci": [
+              -0.1045630868615308,
+              -0.05808761958119475
+            ],
+            "significant": true,
+            "relative": -0.11490096782095029
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 0.6874706036059577,
+            "bg": 0.5873643410852714,
+            "delta": -0.10010626252068637,
+            "ci": [
+              -0.14375174200853585,
+              -0.05763411288215312
+            ],
+            "significant": true,
+            "relative": -0.14561533539849358
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 0.6863548225347564,
+            "bg": 0.5746478825010108,
+            "delta": -0.1117069400337455,
+            "ci": [
+              -0.17969160130145878,
+              -0.04718319755686065
+            ],
+            "significant": true,
+            "relative": -0.16275392314022644
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 0.6914711021846419,
+            "bg": 0.6039476990517803,
+            "delta": -0.08752340313286162,
+            "ci": [
+              -0.10348526855645054,
+              -0.07203135617971133
+            ],
+            "significant": true,
+            "relative": -0.12657564843467667
+          }
+        ],
+        "foot_sliding": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 0.17442626581410253,
+            "bg": 0.1186385824883572,
+            "delta": -0.05578768332574536,
+            "ci": [
+              -0.07944250176271112,
+              -0.03242569045542855
+            ],
+            "significant": true,
+            "relative": -0.3198353359533703
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 0.18444294335356443,
+            "bg": 0.11948215504433822,
+            "delta": -0.0649607883092262,
+            "ci": [
+              -0.0965421018693333,
+              -0.0313850426816761
+            ],
+            "significant": true,
+            "relative": -0.35219991140946416
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 0.14425483758637758,
+            "bg": 0.10755903978552954,
+            "delta": -0.036695797800848036,
+            "ci": [
+              -0.07664260460372307,
+              0.005169129656094801
+            ],
+            "significant": false,
+            "relative": -0.2543817484032392
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 0.08981989037742162,
+            "bg": 0.14737331643515217,
+            "delta": 0.05755342605773054,
+            "ci": [
+              -0.016394494042770564,
+              0.14244672666728098
+            ],
+            "significant": false,
+            "relative": 0.6407648218662041
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 0.16506111863814596,
+            "bg": 0.11921151076079713,
+            "delta": -0.04584960787734883,
+            "ci": [
+              -0.06333529868269037,
+              -0.027643196285702106
+            ],
+            "significant": true,
+            "relative": -0.27777351962494756
+          }
+        ],
+        "feet_height": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 3.9583122664755517,
+            "bg": 3.656668486175956,
+            "delta": -0.30164378029959543,
+            "ci": [
+              -0.4577715138157646,
+              -0.14170693008454294
+            ],
+            "significant": true,
+            "relative": -0.0762051500722495
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 4.037583361631669,
+            "bg": 3.660483386531566,
+            "delta": -0.3770999751001034,
+            "ci": [
+              -0.5755288472527978,
+              -0.16608320692050385
+            ],
+            "significant": true,
+            "relative": -0.09339744627531595
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 3.9245713292882685,
+            "bg": 3.710325045532055,
+            "delta": -0.21424628375621324,
+            "ci": [
+              -0.47299122542477723,
+              0.0620659566327427
+            ],
+            "significant": false,
+            "relative": -0.05459100262934127
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 3.9858630070319543,
+            "bg": 3.8272095032227345,
+            "delta": -0.15865350380921975,
+            "ci": [
+              -0.550009466898747,
+              0.2634362799999039
+            ],
+            "significant": false,
+            "relative": -0.03980405335791006
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 3.9810748242620213,
+            "bg": 3.6823254213658476,
+            "delta": -0.29874940289617347,
+            "ci": [
+              -0.4087392024711759,
+              -0.18600232835644606
+            ],
+            "significant": true,
+            "relative": -0.07504239836827312
+          }
+        ],
+        "completed": [
+          {
+            "stratum": "S1",
+            "frames": [
+              90,
+              132
+            ],
+            "n": 182,
+            "tail_members": 15,
+            "g0": 0.7032967032967034,
+            "bg": 0.6923076923076923,
+            "delta": -0.01098901098901099,
+            "ci": [
+              -0.04395604395604396,
+              0.02197802197802198
+            ],
+            "significant": false,
+            "relative": -0.015625
+          },
+          {
+            "stratum": "S2",
+            "frames": [
+              174,
+              216
+            ],
+            "n": 159,
+            "tail_members": 12,
+            "g0": 0.7924528301886793,
+            "bg": 0.7987421383647799,
+            "delta": 0.006289308176100629,
+            "ci": [
+              -0.031446540880503145,
+              0.0440251572327044
+            ],
+            "significant": false,
+            "relative": 0.007936507936507936
+          },
+          {
+            "stratum": "S3",
+            "frames": [
+              258,
+              300
+            ],
+            "n": 89,
+            "tail_members": 8,
+            "g0": 0.8089887640449438,
+            "bg": 0.7865168539325843,
+            "delta": -0.02247191011235955,
+            "ci": [
+              -0.056179775280898875,
+              0.0
+            ],
+            "significant": false,
+            "relative": -0.027777777777777776
+          },
+          {
+            "stratum": "S4",
+            "frames": [
+              342,
+              384,
+              426,
+              468
+            ],
+            "n": 39,
+            "tail_members": 12,
+            "g0": 0.8205128205128205,
+            "bg": 0.7692307692307693,
+            "delta": -0.05128205128205128,
+            "ci": [
+              -0.1282051282051282,
+              0.0
+            ],
+            "significant": false,
+            "relative": -0.0625
+          },
+          {
+            "stratum": "ALL",
+            "frames": null,
+            "n": 469,
+            "tail_members": 47,
+            "g0": 0.7633262260127932,
+            "bg": 0.7526652452025586,
+            "delta": -0.010660980810234541,
+            "ci": [
+              -0.029850746268656716,
+              0.008528784648187633
+            ],
+            "significant": false,
+            "relative": -0.013966480446927373
+          }
+        ]
+      }
+    },
+    "by_rank_quartile_SUPERSEDED": {
+      "reason": "only ten distinct frame counts exist (42*seg_len+6, seg_len 2..11) and every quartile boundary lands on a heavily populated value (109 episodes at exactly 132), so a rank split cuts a tie group arbitrarily and the cut depends on the sort algorithm; two runs disagreed on the quartile medians and tail-member counts",
+      "strata": {
+        "scene_human_penetration_frame_ratio": [
+          {
+            "stratum": "Q1",
+            "n": 118,
+            "frames_lo": 90.0,
+            "frames_hi": 132.0,
+            "g0": 0.28504537685253356,
+            "bg": 0.21759545171664932,
+            "delta": -0.06744992513588424,
+            "ci": [
+              -0.09976962791495342,
+              -0.03470702983312688
+            ],
+            "significant": true,
+            "relative": -0.23662872866301227
+          },
+          {
+            "stratum": "Q2",
+            "n": 117,
+            "frames_lo": 132.0,
+            "frames_hi": 174.0,
+            "g0": 0.28649001547859776,
+            "bg": 0.20190186811308575,
+            "delta": -0.084588147365512,
+            "ci": [
+              -0.11470424076223858,
+              -0.05647941620574676
+            ],
+            "significant": true,
+            "relative": -0.2952568773616865
+          },
+          {
+            "stratum": "Q3",
+            "n": 117,
+            "frames_lo": 174.0,
+            "frames_hi": 258.0,
+            "g0": 0.33766830269979614,
+            "bg": 0.2541524164824404,
+            "delta": -0.08351588621735573,
+            "ci": [
+              -0.11129934912603189,
+              -0.05696370185623503
+            ],
+            "significant": true,
+            "relative": -0.24733113990745376
+          },
+          {
+            "stratum": "Q4",
+            "n": 117,
+            "frames_lo": 258.0,
+            "frames_hi": 468.0,
+            "g0": 0.3308160378573797,
+            "bg": 0.278861770629246,
+            "delta": -0.051954267228133656,
+            "ci": [
+              -0.07857367238228838,
+              -0.025459875749885782
+            ],
+            "significant": true,
+            "relative": -0.15704881651031685
+          },
+          {
+            "stratum": "ALL",
+            "n": 469,
+            "g0": 0.3099517145517793,
+            "bg": 0.238084097577533,
+            "delta": -0.07186761697424628,
+            "ci": [
+              -0.0865946221231882,
+              -0.057481669417238916
+            ],
+            "significant": true,
+            "relative": -0.23186713800946038
+          }
+        ],
+        "scene_human_penetration_s_mean": [
+          {
+            "stratum": "Q1",
+            "n": 118,
+            "frames_lo": 90.0,
+            "frames_hi": 132.0,
+            "g0": 3.889248923196215,
+            "bg": 4.409362672712447,
+            "delta": 0.5201137495162322,
+            "ci": [
+              -0.8928332921295751,
+              2.8106548357252086
+            ],
+            "significant": false,
+            "relative": 0.13373115472609007
+          },
+          {
+            "stratum": "Q2",
+            "n": 117,
+            "frames_lo": 132.0,
+            "frames_hi": 174.0,
+            "g0": 2.7438570284893466,
+            "bg": 2.3939159010087057,
+            "delta": -0.3499411274806412,
+            "ci": [
+              -1.0726060615961246,
+              0.3573467882668374
+            ],
+            "significant": false,
+            "relative": -0.1275362104684092
+          },
+          {
+            "stratum": "Q3",
+            "n": 117,
+            "frames_lo": 174.0,
+            "frames_hi": 258.0,
+            "g0": 3.4257018227882896,
+            "bg": 3.068378430928154,
+            "delta": -0.35732339186013545,
+            "ci": [
+              -1.1964466297337268,
+              0.4208181160629134
+            ],
+            "significant": false,
+            "relative": -0.10430662396918666
+          },
+          {
+            "stratum": "Q4",
+            "n": 117,
+            "frames_lo": 258.0,
+            "frames_hi": 468.0,
+            "g0": 17.91437815648908,
+            "bg": 18.05296672898183,
+            "delta": 0.13858857249275217,
+            "ci": [
+              -2.128924302964212,
+              2.723163274403099
+            ],
+            "significant": false,
+            "relative": 0.007736164285588198
+          },
+          {
+            "stratum": "ALL",
+            "n": 469,
+            "g0": 6.98667804444746,
+            "bg": 6.9756723656877515,
+            "delta": -0.011005678759708891,
+            "ci": [
+              -0.7729297203836282,
+              0.8755430674173398
+            ],
+            "significant": false,
+            "relative": -0.0015752377152193897
+          }
+        ],
+        "contact_percent": [
+          {
+            "stratum": "Q1",
+            "n": 118,
+            "frames_lo": 90.0,
+            "frames_hi": 132.0,
+            "g0": 0.6856445814072931,
+            "bg": 0.630106146207841,
+            "delta": -0.055538435199452146,
+            "ci": [
+              -0.0853118044855333,
+              -0.026497389145694238
+            ],
+            "significant": true,
+            "relative": -0.08100178533528099
+          },
+          {
+            "stratum": "Q2",
+            "n": 117,
+            "frames_lo": 132.0,
+            "frames_hi": 174.0,
+            "g0": 0.6919794764622352,
+            "bg": 0.5788231564093632,
+            "delta": -0.11315632005287178,
+            "ci": [
+              -0.1429711013762738,
+              -0.08408577374094615
+            ],
+            "significant": true,
+            "relative": -0.16352554360627383
+          },
+          {
+            "stratum": "Q3",
+            "n": 117,
+            "frames_lo": 174.0,
+            "frames_hi": 258.0,
+            "g0": 0.7060136476959075,
+            "bg": 0.6341153240712183,
+            "delta": -0.07189832362468912,
+            "ci": [
+              -0.10048545997573663,
+              -0.044515264142647636
+            ],
+            "significant": true,
+            "relative": -0.10183701669129347
+          },
+          {
+            "stratum": "Q4",
+            "n": 117,
+            "frames_lo": 258.0,
+            "frames_hi": 468.0,
+            "g0": 0.6822965024960155,
+            "bg": 0.5725225930472793,
+            "delta": -0.10977390944873608,
+            "ci": [
+              -0.14765039948333877,
+              -0.07298879869347964
+            ],
+            "significant": true,
+            "relative": -0.16088886436784444
+          },
+          {
+            "stratum": "ALL",
+            "n": 469,
+            "g0": 0.6914711021846419,
+            "bg": 0.6039476990517803,
+            "delta": -0.08752340313286162,
+            "ci": [
+              -0.10335398508929226,
+              -0.0719154304435269
+            ],
+            "significant": true,
+            "relative": -0.12657564843467667
+          }
+        ],
+        "foot_sliding": [
+          {
+            "stratum": "Q1",
+            "n": 118,
+            "frames_lo": 90.0,
+            "frames_hi": 132.0,
+            "g0": 0.1779985343354138,
+            "bg": 0.115272289706722,
+            "delta": -0.06272624462869178,
+            "ci": [
+              -0.09251903379740356,
+              -0.03093336336407837
+            ],
+            "significant": true,
+            "relative": -0.3523975344116755
+          },
+          {
+            "stratum": "Q2",
+            "n": 117,
+            "frames_lo": 132.0,
+            "frames_hi": 174.0,
+            "g0": 0.17533275343604957,
+            "bg": 0.11222499340925354,
+            "delta": -0.06310776002679604,
+            "ci": [
+              -0.09012114213446813,
+              -0.03482844083786444
+            ],
+            "significant": true,
+            "relative": -0.3599313807035706
+          },
+          {
+            "stratum": "Q3",
+            "n": 117,
+            "frames_lo": 174.0,
+            "frames_hi": 258.0,
+            "g0": 0.17965736928369722,
+            "bg": 0.12262568662535507,
+            "delta": -0.05703168265834214,
+            "ci": [
+              -0.09555766282403244,
+              -0.015528083570479646
+            ],
+            "significant": true,
+            "relative": -0.3174469429544152
+          },
+          {
+            "stratum": "Q4",
+            "n": 117,
+            "frames_lo": 258.0,
+            "frames_hi": 468.0,
+            "g0": 0.12714524129488244,
+            "bg": 0.12675674185787555,
+            "delta": -0.0003884994370068891,
+            "ci": [
+              -0.0395121793468395,
+              0.04027777544214633
+            ],
+            "significant": false,
+            "relative": -0.0030555562524425058
+          },
+          {
+            "stratum": "ALL",
+            "n": 469,
+            "g0": 0.16506111863814596,
+            "bg": 0.11921151076079713,
+            "delta": -0.04584960787734883,
+            "ci": [
+              -0.06332437090945339,
+              -0.028199296482807872
+            ],
+            "significant": true,
+            "relative": -0.27777351962494756
+          }
+        ],
+        "feet_height": [
+          {
+            "stratum": "Q1",
+            "n": 118,
+            "frames_lo": 90.0,
+            "frames_hi": 132.0,
+            "g0": 3.988844459339724,
+            "bg": 3.5991427756972234,
+            "delta": -0.3897016836425005,
+            "ci": [
+              -0.5774503580089343,
+              -0.19774585709733478
+            ],
+            "significant": true,
+            "relative": -0.0976978891042064
+          },
+          {
+            "stratum": "Q2",
+            "n": 117,
+            "frames_lo": 132.0,
+            "frames_hi": 174.0,
+            "g0": 4.0178336139418125,
+            "bg": 3.714601504497039,
+            "delta": -0.3032321094447731,
+            "ci": [
+              -0.5169455936321846,
+              -0.0842916825388233
+            ],
+            "significant": true,
+            "relative": -0.07547154476296951
+          },
+          {
+            "stratum": "Q3",
+            "n": 117,
+            "frames_lo": 174.0,
+            "frames_hi": 258.0,
+            "g0": 3.931169326488788,
+            "bg": 3.6085299192330775,
+            "delta": -0.3226394072557107,
+            "ci": [
+              -0.5503856868315966,
+              -0.08883635075683277
+            ],
+            "significant": true,
+            "relative": -0.08207212166662974
+          },
+          {
+            "stratum": "Q4",
+            "n": 117,
+            "frames_lo": 258.0,
+            "frames_hi": 468.0,
+            "g0": 3.986385490140344,
+            "bg": 3.8077384488195434,
+            "delta": -0.17864704132080078,
+            "ci": [
+              -0.4179876380496555,
+              0.05936152023127954
+            ],
+            "significant": false,
+            "relative": -0.044814291483514145
+          },
+          {
+            "stratum": "ALL",
+            "n": 469,
+            "g0": 3.9810748242620213,
+            "bg": 3.6823254213658476,
+            "delta": -0.29874940289617347,
+            "ci": [
+              -0.4085551540671127,
+              -0.18751224125626254
+            ],
+            "significant": true,
+            "relative": -0.07504239836827312
+          }
+        ]
+      }
+    }
+  },
+  "per_episode_frames": {
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/clothesstand/0": 216,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/floorlamp/1": 132,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/monitor/2": 90,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/smallbox/3": 90,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/smalltable/4": 258,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/suitcase/5": 90,
+    "00add26c-7a26-4a61-b192-b97aa493b3f3/tripod/6": 132,
+    "0a761819-05d1-4647-889b-a726747201b1/clothesstand/0": 90,
+    "0a761819-05d1-4647-889b-a726747201b1/floorlamp/1": 174,
+    "0a761819-05d1-4647-889b-a726747201b1/monitor/2": 90,
+    "0a761819-05d1-4647-889b-a726747201b1/smallbox/3": 342,
+    "0a761819-05d1-4647-889b-a726747201b1/smalltable/4": 258,
+    "0a761819-05d1-4647-889b-a726747201b1/suitcase/5": 258,
+    "0a761819-05d1-4647-889b-a726747201b1/tripod/6": 384,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/clothesstand/0": 132,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/floorlamp/1": 90,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/monitor/2": 90,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/smallbox/3": 174,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/smalltable/4": 174,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/suitcase/5": 90,
+    "0aa05d5a-81d5-497b-832c-c90c3fe73a36/tripod/6": 174,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/clothesstand/0": 132,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/floorlamp/1": 90,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/monitor/2": 132,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/smallbox/3": 258,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/smalltable/4": 132,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/suitcase/5": 174,
+    "0ab03928-28d4-4dfe-883e-63047de7cc9c/tripod/6": 342,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/clothesstand/0": 90,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/floorlamp/1": 174,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/monitor/2": 90,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/smallbox/3": 258,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/smalltable/4": 174,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/suitcase/5": 174,
+    "0ab19ed6-debc-4c6e-857b-29290fb111d9/tripod/6": 132,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/clothesstand/0": 132,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/floorlamp/1": 90,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/monitor/2": 342,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/smallbox/3": 90,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/smalltable/4": 384,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/suitcase/5": 342,
+    "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a/tripod/6": 132,
+    "0ac97866-dccb-47c3-b220-79712041e187/clothesstand/0": 132,
+    "0ac97866-dccb-47c3-b220-79712041e187/floorlamp/1": 342,
+    "0ac97866-dccb-47c3-b220-79712041e187/monitor/2": 258,
+    "0ac97866-dccb-47c3-b220-79712041e187/smallbox/3": 216,
+    "0ac97866-dccb-47c3-b220-79712041e187/smalltable/4": 216,
+    "0ac97866-dccb-47c3-b220-79712041e187/suitcase/5": 132,
+    "0ac97866-dccb-47c3-b220-79712041e187/tripod/6": 216,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/clothesstand/0": 132,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/floorlamp/1": 216,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/monitor/2": 300,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/smallbox/3": 90,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/smalltable/4": 258,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/suitcase/5": 90,
+    "0adb88db-02a3-43ca-9a69-76dcf25740d6/tripod/6": 300,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/clothesstand/0": 258,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/floorlamp/1": 342,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/monitor/2": 174,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/smallbox/3": 132,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/smalltable/4": 300,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/suitcase/5": 174,
+    "1a1e205b-3f54-49fb-8154-e2d61c3682ae/tripod/6": 300,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/clothesstand/0": 216,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/floorlamp/1": 174,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/monitor/2": 258,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/smallbox/3": 132,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/smalltable/4": 174,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/suitcase/5": 132,
+    "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295/tripod/6": 132,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/clothesstand/0": 216,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/floorlamp/1": 258,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/monitor/2": 132,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/smallbox/3": 174,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/smalltable/4": 216,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/suitcase/5": 216,
+    "1d076f8c-e01d-4a2e-96f9-7676001a0d8c/tripod/6": 90,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/clothesstand/0": 258,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/floorlamp/1": 258,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/monitor/2": 258,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/smallbox/3": 132,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/smalltable/4": 174,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/suitcase/5": 216,
+    "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2/tripod/6": 132,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/clothesstand/0": 174,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/floorlamp/1": 258,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/monitor/2": 342,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/smallbox/3": 132,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/smalltable/4": 174,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/suitcase/5": 174,
+    "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7/tripod/6": 132,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/clothesstand/0": 174,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/floorlamp/1": 174,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/monitor/2": 90,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/smallbox/3": 90,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/smalltable/4": 258,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/suitcase/5": 90,
+    "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380/tripod/6": 216,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/clothesstand/0": 216,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/floorlamp/1": 342,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/monitor/2": 342,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/smallbox/3": 258,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/smalltable/4": 132,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/suitcase/5": 342,
+    "1d89a45b-bb91-40af-9182-6dbb87517097/tripod/6": 300,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/clothesstand/0": 90,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/floorlamp/1": 90,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/monitor/2": 132,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/smallbox/3": 132,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/smalltable/4": 216,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/suitcase/5": 90,
+    "1e12ac7d-0584-47a4-8f90-b6086554e128/tripod/6": 258,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/clothesstand/0": 132,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/floorlamp/1": 90,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/monitor/2": 90,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/smallbox/3": 174,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/smalltable/4": 132,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/suitcase/5": 300,
+    "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1/tripod/6": 174,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/clothesstand/0": 342,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/floorlamp/1": 174,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/monitor/2": 258,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/smallbox/3": 174,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/smalltable/4": 132,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/suitcase/5": 132,
+    "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a/tripod/6": 300,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/clothesstand/0": 300,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/floorlamp/1": 216,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/monitor/2": 426,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/smallbox/3": 342,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/smalltable/4": 132,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/suitcase/5": 90,
+    "2a6c3151-0e15-42e4-878a-e890e9a9d946/tripod/6": 258,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/clothesstand/0": 342,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/floorlamp/1": 132,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/monitor/2": 174,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/smallbox/3": 174,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/smalltable/4": 384,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/suitcase/5": 174,
+    "2a6d5f03-79ed-4fde-83c4-1548ef7082d0/tripod/6": 216,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/clothesstand/0": 174,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/floorlamp/1": 132,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/monitor/2": 216,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/smallbox/3": 300,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/smalltable/4": 216,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/suitcase/5": 174,
+    "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae/tripod/6": 174,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/clothesstand/0": 216,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/floorlamp/1": 300,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/monitor/2": 132,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/smallbox/3": 90,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/smalltable/4": 258,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/suitcase/5": 174,
+    "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f/tripod/6": 132,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/clothesstand/0": 300,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/floorlamp/1": 300,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/monitor/2": 300,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/smallbox/3": 342,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/smalltable/4": 174,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/suitcase/5": 216,
+    "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa/tripod/6": 216,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/clothesstand/0": 90,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/floorlamp/1": 216,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/monitor/2": 90,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/smallbox/3": 90,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/smalltable/4": 174,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/suitcase/5": 90,
+    "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7/tripod/6": 300,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/clothesstand/0": 216,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/floorlamp/1": 300,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/monitor/2": 300,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/smallbox/3": 258,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/smalltable/4": 174,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/suitcase/5": 132,
+    "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f/tripod/6": 300,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/clothesstand/0": 300,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/floorlamp/1": 132,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/monitor/2": 90,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/smallbox/3": 258,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/smalltable/4": 90,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/suitcase/5": 174,
+    "2bfba6fb-59bf-4cde-a606-6a5a95017905/tripod/6": 132,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/clothesstand/0": 174,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/floorlamp/1": 300,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/monitor/2": 132,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/smallbox/3": 132,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/smalltable/4": 132,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/suitcase/5": 90,
+    "2c1acd46-3c34-4f04-879d-0a0cb7aa7354/tripod/6": 174,
+    "2c213709-c572-4f58-92c8-d2a42199314a/clothesstand/0": 426,
+    "2c213709-c572-4f58-92c8-d2a42199314a/floorlamp/1": 132,
+    "2c213709-c572-4f58-92c8-d2a42199314a/monitor/2": 174,
+    "2c213709-c572-4f58-92c8-d2a42199314a/smallbox/3": 132,
+    "2c213709-c572-4f58-92c8-d2a42199314a/smalltable/4": 258,
+    "2c213709-c572-4f58-92c8-d2a42199314a/suitcase/5": 90,
+    "2c213709-c572-4f58-92c8-d2a42199314a/tripod/6": 342,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/clothesstand/0": 216,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/floorlamp/1": 300,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/monitor/2": 132,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/smallbox/3": 132,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/smalltable/4": 132,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/suitcase/5": 258,
+    "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a/tripod/6": 90,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/clothesstand/0": 258,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/floorlamp/1": 174,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/monitor/2": 216,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/smallbox/3": 132,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/smalltable/4": 216,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/suitcase/5": 132,
+    "2cb63f1b-2839-4be4-aa39-b19dc377c8fc/tripod/6": 132,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/clothesstand/0": 174,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/floorlamp/1": 342,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/monitor/2": 132,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/smallbox/3": 132,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/smalltable/4": 174,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/suitcase/5": 216,
+    "2d2070db-89e5-4ade-84e5-0f446ee02e27/tripod/6": 132,
+    "2d38c33c-6311-4497-b68e-018b544912a2/clothesstand/0": 132,
+    "2d38c33c-6311-4497-b68e-018b544912a2/floorlamp/1": 174,
+    "2d38c33c-6311-4497-b68e-018b544912a2/monitor/2": 300,
+    "2d38c33c-6311-4497-b68e-018b544912a2/smallbox/3": 300,
+    "2d38c33c-6311-4497-b68e-018b544912a2/smalltable/4": 132,
+    "2d38c33c-6311-4497-b68e-018b544912a2/suitcase/5": 216,
+    "2d38c33c-6311-4497-b68e-018b544912a2/tripod/6": 216,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/clothesstand/0": 174,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/floorlamp/1": 174,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/monitor/2": 342,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/smallbox/3": 216,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/smalltable/4": 216,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/suitcase/5": 300,
+    "2d485e95-fb65-44eb-ba85-0de22a0b80f6/tripod/6": 300,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/clothesstand/0": 216,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/floorlamp/1": 174,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/monitor/2": 174,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/smallbox/3": 132,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/smalltable/4": 342,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/suitcase/5": 258,
+    "2d50e51d-fb9f-4464-836c-f9f2b269cbea/tripod/6": 132,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/clothesstand/0": 132,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/floorlamp/1": 132,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/monitor/2": 90,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/smallbox/3": 174,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/smalltable/4": 132,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/suitcase/5": 216,
+    "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff/tripod/6": 132,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/clothesstand/0": 216,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/floorlamp/1": 258,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/monitor/2": 216,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/smallbox/3": 90,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/smalltable/4": 216,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/suitcase/5": 300,
+    "3a253a31-c5df-44d6-8834-25760cf833b6/tripod/6": 300,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/clothesstand/0": 90,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/floorlamp/1": 90,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/monitor/2": 132,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/smallbox/3": 132,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/smalltable/4": 174,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/suitcase/5": 132,
+    "3a3f479b-3fc5-4bf5-a60b-637492422f45/tripod/6": 300,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/clothesstand/0": 300,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/floorlamp/1": 90,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/monitor/2": 132,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/smallbox/3": 174,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/smalltable/4": 216,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/suitcase/5": 300,
+    "3a55f775-fc7c-4c6f-ab9f-59e31c04e093/tripod/6": 90,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/clothesstand/0": 174,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/floorlamp/1": 258,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/monitor/2": 384,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/smallbox/3": 132,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/smalltable/4": 216,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/suitcase/5": 174,
+    "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9/tripod/6": 258,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/clothesstand/0": 300,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/floorlamp/1": 384,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/monitor/2": 132,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/smallbox/3": 90,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/smalltable/4": 258,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/suitcase/5": 132,
+    "3a7b704b-fdf3-4d01-8437-a9519e9d76e2/tripod/6": 132,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/clothesstand/0": 216,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/floorlamp/1": 216,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/monitor/2": 90,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/smallbox/3": 90,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/smalltable/4": 384,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/suitcase/5": 216,
+    "3a88f9c1-9db1-4b97-a08e-c6bf36024363/tripod/6": 216,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/clothesstand/0": 90,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/floorlamp/1": 132,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/monitor/2": 216,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/smallbox/3": 90,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/smalltable/4": 174,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/suitcase/5": 132,
+    "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08/tripod/6": 132,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/clothesstand/0": 132,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/floorlamp/1": 90,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/monitor/2": 90,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/smallbox/3": 132,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/smalltable/4": 90,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/suitcase/5": 216,
+    "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44/tripod/6": 342,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/clothesstand/0": 90,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/floorlamp/1": 90,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/monitor/2": 90,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/smallbox/3": 132,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/smalltable/4": 132,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/suitcase/5": 90,
+    "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng/tripod/6": 216,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/clothesstand/0": 258,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/floorlamp/1": 174,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/monitor/2": 174,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/smallbox/3": 90,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/smalltable/4": 342,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/suitcase/5": 174,
+    "4a3101c0-29f7-4e2b-9e24-10bd984ac084/tripod/6": 216,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/clothesstand/0": 258,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/floorlamp/1": 258,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/monitor/2": 90,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/smallbox/3": 216,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/smalltable/4": 90,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/suitcase/5": 384,
+    "4a44797a-9a10-4d38-bab1-fb8c196f94df/tripod/6": 384,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/clothesstand/0": 258,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/floorlamp/1": 132,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/monitor/2": 216,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/smallbox/3": 216,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/smalltable/4": 132,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/suitcase/5": 174,
+    "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng/tripod/6": 174,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/clothesstand/0": 132,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/floorlamp/1": 132,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/monitor/2": 90,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/smallbox/3": 216,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/smalltable/4": 132,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/suitcase/5": 258,
+    "4abcb667-c57f-4d8f-940a-d964152329d5/tripod/6": 216,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/clothesstand/0": 174,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/floorlamp/1": 258,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/monitor/2": 258,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/smallbox/3": 90,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/smalltable/4": 132,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/suitcase/5": 90,
+    "4ac2c1b3-798f-488d-b93f-4fae52366cba/tripod/6": 174,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/clothesstand/0": 258,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/floorlamp/1": 300,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/monitor/2": 342,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/smallbox/3": 216,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/smalltable/4": 342,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/suitcase/5": 174,
+    "4ad6d9bd-5131-4926-a8e5-801140c7127d/tripod/6": 132,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/clothesstand/0": 216,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/floorlamp/1": 174,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/monitor/2": 132,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/smallbox/3": 132,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/smalltable/4": 90,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/suitcase/5": 258,
+    "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303/tripod/6": 216,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/clothesstand/0": 174,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/floorlamp/1": 468,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/monitor/2": 216,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/smallbox/3": 132,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/smalltable/4": 216,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/suitcase/5": 342,
+    "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95/tripod/6": 90,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/clothesstand/0": 174,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/floorlamp/1": 216,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/monitor/2": 90,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/smallbox/3": 90,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/smalltable/4": 132,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/suitcase/5": 216,
+    "a2e8ba09-af97-4301-a9ef-f5e583c853dd/tripod/6": 258,
+    "a3df624b-0917-46e9-ac15-fab766276c72/clothesstand/0": 342,
+    "a3df624b-0917-46e9-ac15-fab766276c72/floorlamp/1": 216,
+    "a3df624b-0917-46e9-ac15-fab766276c72/monitor/2": 216,
+    "a3df624b-0917-46e9-ac15-fab766276c72/smallbox/3": 174,
+    "a3df624b-0917-46e9-ac15-fab766276c72/smalltable/4": 426,
+    "a3df624b-0917-46e9-ac15-fab766276c72/suitcase/5": 300,
+    "a3df624b-0917-46e9-ac15-fab766276c72/tripod/6": 258,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/clothesstand/0": 174,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/floorlamp/1": 258,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/monitor/2": 216,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/smallbox/3": 174,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/smalltable/4": 174,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/suitcase/5": 216,
+    "a3fcee3e-ce5e-41be-ae6d-451de83542bb/tripod/6": 174,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/clothesstand/0": 258,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/floorlamp/1": 132,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/monitor/2": 132,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/smallbox/3": 132,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/smalltable/4": 132,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/suitcase/5": 174,
+    "a4e28b69-2a4e-47fe-910e-c0df5879dcd5/tripod/6": 132,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/clothesstand/0": 174,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/floorlamp/1": 90,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/monitor/2": 132,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/smallbox/3": 132,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/smalltable/4": 174,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/suitcase/5": 174,
+    "a5af701c-1825-40ce-a9d7-0b7ed08fb43b/tripod/6": 174,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/clothesstand/0": 90,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/floorlamp/1": 132,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/monitor/2": 300,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/smallbox/3": 132,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/smalltable/4": 174,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/suitcase/5": 132,
+    "a7a7529d-7799-4213-9ed2-384be3540fe1/tripod/6": 132,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/clothesstand/0": 132,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/floorlamp/1": 216,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/monitor/2": 132,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/smallbox/3": 216,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/smalltable/4": 90,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/suitcase/5": 132,
+    "a8b4f748-b37e-4037-afd1-c245833ef11d/tripod/6": 258,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/clothesstand/0": 216,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/floorlamp/1": 342,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/monitor/2": 132,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/smallbox/3": 132,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/smalltable/4": 132,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/suitcase/5": 132,
+    "b0a8d497-5e4d-4aa4-837b-276a34e9987c/tripod/6": 174,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/clothesstand/0": 132,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/floorlamp/1": 426,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/monitor/2": 174,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/smallbox/3": 90,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/smalltable/4": 174,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/suitcase/5": 216,
+    "b1b053a9-b268-4f62-a06d-b9b9325c5092/tripod/6": 132,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/clothesstand/0": 174,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/floorlamp/1": 258,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/monitor/2": 216,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/smallbox/3": 258,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/smalltable/4": 300,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/suitcase/5": 174,
+    "b2c03fce-6b4e-4297-8937-c618d62df42e/tripod/6": 216,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/clothesstand/0": 132,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/floorlamp/1": 300,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/monitor/2": 216,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/smallbox/3": 174,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/smalltable/4": 174,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/suitcase/5": 216,
+    "b858c92c-9aa4-4767-99a8-661ef1afbd9e/tripod/6": 258,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/clothesstand/0": 174,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/floorlamp/1": 132,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/monitor/2": 90,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/smallbox/3": 216,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/smalltable/4": 132,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/suitcase/5": 258,
+    "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd/tripod/6": 216,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/clothesstand/0": 258,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/floorlamp/1": 174,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/monitor/2": 90,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/smallbox/3": 132,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/smalltable/4": 216,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/suitcase/5": 174,
+    "cf11351b-d370-40bc-afa0-3f0e09c74d1e/tripod/6": 258,
+    "cf536225-9a90-4fde-9175-f453e2436c29/clothesstand/0": 258,
+    "cf536225-9a90-4fde-9175-f453e2436c29/floorlamp/1": 342,
+    "cf536225-9a90-4fde-9175-f453e2436c29/monitor/2": 174,
+    "cf536225-9a90-4fde-9175-f453e2436c29/smallbox/3": 174,
+    "cf536225-9a90-4fde-9175-f453e2436c29/smalltable/4": 90,
+    "cf536225-9a90-4fde-9175-f453e2436c29/suitcase/5": 90,
+    "cf536225-9a90-4fde-9175-f453e2436c29/tripod/6": 90,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/clothesstand/0": 132,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/floorlamp/1": 300,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/monitor/2": 216,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/smallbox/3": 300,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/smalltable/4": 216,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/suitcase/5": 300,
+    "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5/tripod/6": 90
+  },
+  "conclusions": [
+    "The penetration tail has two independent causes: scene identity (R^2 0.271, unchanged at 0.274 after removing a cubic in log frames) and sequence length (R^2 0.091 after removing scene means; within-scene rho +0.298, positive in 52 of 67 scenes, sign test p 6.5e-06).",
+    "Object identity is NOT a cause (R^2 0.019). The P2-BG closure recommendation of ObjectConditionedGate for the penetration mass is withdrawn.",
+    "The border-padding mechanism asserted in the 2026-08-31 preregistration is REFUTED: six null rank correlations against scene box geometry. The tail depth is real geometry.",
+    "P2-BG geometric gains decay with rollout length while the contact cost RISES monotonically. By frame-count value: frame_ratio -24.1/-27.2/-21.2/-10.1%, contact -12.0/-11.5/-14.6/-16.3% (all eight significant), feet_height -7.6/-9.3/-5.5(null)/-4.0(null)%. S4 is 39 episodes holding 12 of the 47 tail episodes, a 3.7x enrichment.",
+    "Two effects are visible only stratified: foot_sliding on the longest episodes flips sign to +64.1% (null, n=39, baseline 0.0898 vs ~0.18 elsewhere), and scene_obj_penetration_s_mean is +15.5% SIGNIFICANTLY WORSE on S2 (CI [+0.32,+9.96], n=159) while the overall row is a +2.1% null.",
+    "Stratify by frame-count VALUE, never by rank: only ten distinct counts exist and every rank quartile boundary cuts a tie group, so the split is not reproducible across sort algorithms.",
+    "Therefore: report every mixer row length-stratified, and treat the tail as needing a window-boundary mechanism rather than a better per-step blend."
+  ]
+}
