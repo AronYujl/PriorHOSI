@@ -744,3 +744,170 @@ the same pinned commit — merge mode returns from `main` at `:509`, before the
 defective block. Fixed in `27b4d5f` with two tests, one of them reading the source
 so the guard itself is asserted. ~8 GPU-hours reported failure for work that had
 succeeded; nothing was lost, and nothing was re-run.
+
+## 2026-08-31 — the tail is a SCENE property, and it refutes my own next-step advice
+
+Zero GPU, from the two sealed per-episode payloads and the scene SDF headers. The
+P2-BG closure ended with four recommendations; this measurement kills the third and
+sharpens the second.
+
+### The 47 episodes holding 86.1% of `scene_human_penetration_s_mean`
+
+| grouping | one-way R² on log1p(`s_mean`), 469 episodes |
+|---|--:|
+| **scene identity** (67 groups) | **0.271** |
+| object identity (7 groups) | **0.019** |
+
+Object identity explains **1.9%**. The P2-BG closure recommended
+`ObjectConditionedGate` as "the one intervention this data points at directly" — on
+`s_mean` that is wrong, and it is my error: I inferred it from a 7-row per-object
+ratio table without ever asking how much variance object identity carries. It does
+carry the *contact* effect; it does not carry the penetration mass.
+
+Concentration is extreme even among scenes: **one scene (`0adb88db`) holds 33.58% of
+the entire benchmark's `s_mean` total** in 3 of its 7 episodes, and 31 of 67 scenes
+hold no tail episode at all. Object enrichment over the 10% base rate is at most
+1.94× (smalltable 13/67), so the tail is not "clothesstand and tripod" — that pair is
+the *object*-penetration story, not this one.
+
+### The tail is a property of the episode, not of the model
+
+| | |
+|---|--:|
+| \|G=0 tail ∩ P2-BG tail\| | **39 of 47** (83.0%) |
+| Spearman ρ(G=0 `s_mean`, P2-BG `s_mean`) | **+0.896** |
+
+A gate change moves the ranking almost not at all. And the tail is not made of failed
+episodes — inside it, contact is 1.031× the rest, `xy_points_err` 0.928×,
+`end_obj_trans_err` 0.955×, completion 1.004×. **These are normal episodes in
+particular scenes.**
+
+### The shape: 36× depth, 2.2× prevalence
+
+| group | n | `s_mean` | `frame_ratio` | depth per penetrating frame |
+|---|--:|--:|--:|--:|
+| tail, G=0 | 47 | 60.008 | 0.6175 | **112.05** |
+| rest, G=0 | 422 | 1.082 | 0.2757 | **3.14** |
+
+Prevalence differs 2.2×; conditional depth differs **35.7×**. So the tail is not
+penetrating more often, it is penetrating *enormously deeper* per frame — which is a
+statement about how many vertices are how far inside something, not about how often
+the body touches geometry.
+
+### Where that depth comes from: `padding_mode='border'`
+
+`compute_scene_sdf_penetration` (`test_infbagel_hosi.py:265-323`) normalises vertices
+by `(v − centroid) / (extents.max()/2)` and samples the 256³ grid with
+`padding_mode='border'`. Probing 12 scenes' grids directly:
+
+| | 6 worst scenes | 6 cleanest |
+|---|--:|--:|
+| fraction of the volume negative | 90.1% | 94.6% |
+| boundary shell negative | 99.5–100% | 99.5–100% |
+| most negative boundary voxel | **−3.17 to −7.98 m** | −5.78 to −9.63 m |
+| box max extent | 9.11 m | **12.94 m** |
+
+Every scene's boundary shell is negative, at metre scale. Under
+`padding_mode='border'`, **a vertex outside the box is charged the boundary value**,
+so leaving the box costs metres per vertex. 10,475 SMPL-X vertices at ~1 cm each is
+~105 units of summed depth, against the tail's measured 112.05 — the right order for
+the mechanism, though this is a consistency check and not yet an attribution.
+
+The worst scenes are also the **smallest** boxes (9.11 m vs 12.94 m max extent), which
+is the direction this mechanism predicts: a smaller box is easier to walk out of.
+
+### What this does and does not license
+
+It does **not** yet prove the tail is an out-of-box artifact. Proving that needs the
+per-frame vertex positions, and the evaluator saves no motion (`np.save` appears
+nowhere in `test_infbagel_hosi.py` outside SDF *loading*), so it needs one re-run with
+a vertex-range probe — GPU work, not authorized here, and not needed for the arm below.
+
+It does establish three things that bind the next decisions:
+
+1. **`ObjectConditionedGate` is not the lever for penetration mass.** R² 0.019.
+2. **No gate can be expected to move `s_mean` much.** ρ = +0.896 across a gate change
+   that altered 100 of 232 channels' provenance.
+3. **A scene-conditioned quantity, or a bounded metric, is where the tail lives.**
+   `frame_ratio` is bounded in [0,1] and is exactly the column that moved 23.2%.
+
+## 2026-08-31 — P2-ROOT: returning the root to HOI, preregistered
+
+**Approved by the user 2026-08-31.** Run id
+`p2-mixer-rootsplit-p15-p17oc-s42-20260831`, worker `node01`, 4 scene-level shards on
+GPUs 0–3, seed 42. Written **before the result exists**. Immutable diagnostic: does
+not enter the main table before HSIPrior settles.
+
+### The arm: a one-key diff from P2-BG
+
+`BodyGroupGate` with `root: 0.0` instead of `1.0`. Everything else is byte-identical
+to P2-BG:
+
+| group | P2-BG | **P2-ROOT** |
+|---|--:|--:|
+| `root` | 1.0 (HSI) | **0.0 (HOI)** |
+| `lower_body` | 1.0 (HSI) | 1.0 (HSI) |
+| `torso` / `arms` / `hands` | 0.0 (HOI) | 0.0 (HOI) |
+
+`mixer_hsi_object_voxel_mode: occupied`, `mixer_channel_mask: human`,
+`hosi_per_episode_seeding: false`, `mixer_hsi_w: 1`, no `ScheduleGate`, 216:232 from
+HOI. HOI `ed8cf169…` (P15 + guidance Arm B), HSI `f64d956f…` (P17-OC epoch 222); both
+hashes pinned in the config, verified by the evaluator, recorded in the manifest.
+
+### What it is expected to answer, and the half it cannot
+
+**The contact half is structural and transfers past this HSI checkpoint.** Contact is
+hand-to-object distance. With `root` at HOI, *every* joint on the chain
+pelvis → Spine1 → Spine2 → Spine3 → Neck/Collar → Shoulder → Elbow → Wrist is HOI, and
+216:232 is HOI, so hand-object registration is HOI's own — the pelvis no longer
+displaces an HOI arm chain to where HSI put the body. Prediction, preregistered:
+**`contact_percent` returns to ≈0.69** (G=0 is 0.69147; P2-BG lost 12.7% to 0.60395).
+Residual coupling is second-order only: the shared `x_t` carries HSI leg content into
+HOI's own forward pass, and the rollout history and the occupancy queries read all 28
+position joints. If contact does *not* recover, pelvis displacement is not the
+mechanism of the contact cost, and that is a finding about the operator rather than
+about P17-OC.
+
+**The penetration half is checkpoint-dependent AND newly confounded.** Two seams
+move. P2-BG's split crossed the skeleton once (pelvis[HSI] → Spine1[HOI]); this arm
+crosses it **three** times — pelvis[HOI] → Spine1[HOI] is now internal, but
+pelvis[HOI] → L_Hip[HSI] and pelvis[HOI] → R_Hip[HSI] are new seams, and they sit
+directly upstream of every foot and leg metric. `quat_ik_torch` differencing means the
+hips absorb the whole disagreement between the two experts' body headings as hip
+twist. So a disappearing penetration gain has **two** readings and the arm alone
+cannot separate them.
+
+### The discriminator that makes a null attributable
+
+Preregistered before the result, on the leg-driven metrics `foot_sliding` and
+`feet_height` (P2-BG: −27.8% and −0.299, both significant):
+
+| if `foot_sliding`/`feet_height` … | reading |
+|---|---|
+| stay improved ≈ P2-BG | the **legs** carried the gain; the root carried the cost. Best case. |
+| return to ≈ G=0 | the **root** carried the gain; a body split cannot have both. |
+| go **worse than G=0** | the **hip seam is broken**; this arm's penetration column is uninterpretable and the split must move, not be re-weighted. |
+
+### Criteria
+
+P2-BG's four gates, carried forward unchanged so the two arms are read on one ruler:
+`contact_percent` ≥ 0.5878, `completion_rate` ≥ 0.7433,
+`scene_human_penetration_s_mean` ≤ ~6.288 (≈10% below the 6.98668 anchor),
+`scene_obj_penetration_s_mean` reported separately with no threshold.
+
+Two paired comparisons, both n=469, 10,000 replicates, seed 42, pairing by
+`scene_name/object_name/test_idx`: **vs G=0** (the primary, as for P2-BG) and **vs
+P2-BG** (the decomposition — a one-key contrast whose delta is attributable to the
+root alone).
+
+Given the tail measurement above, the `s_mean` gate is expected to be a null again,
+and `frame_ratio` is the column carrying the mechanism. That expectation is recorded
+here so it cannot be claimed as a prediction after the fact — and it does not license
+moving the gate: the four thresholds stand as the user set them.
+
+### Standing caveat
+
+P17-OC failed its own Phase 1C gate (`f58d2b6`, FAIL on both criteria, not promoted).
+Everything this row says about *penetration magnitude* is a statement about a
+non-promoted checkpoint and must be re-run when HSIPrior settles. What survives a
+checkpoint change is the contact-recovery structure and the seam reading.
