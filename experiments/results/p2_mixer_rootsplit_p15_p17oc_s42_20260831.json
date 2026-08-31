@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p2-mixer-rootsplit-p15-p17oc-s42-20260831",
+  "phase": "p2",
+  "status": "completed",
+  "classification": "fail-broken-hip-seam-contact-recovered-scene-prevalence-worse",
+  "seed": 42,
+  "episodes": 469,
+  "paired_bootstrap": {"replicates": 10000, "seed": 42},
+  "run": {
+    "host": "node01",
+    "gpu_count": 4,
+    "shard_exit_codes": [0, 0, 0, 0],
+    "merge_exit_code": 0,
+    "started_at": "2026-08-31T14:23:59+00:00",
+    "ended_at": "2026-08-31T17:48:17+00:00",
+    "git_commit_at_start": "60e3bd1c32c6027745b684b6db399829c69cf425",
+    "git_commit_at_completion": "60e3bd1c32c6027745b684b6db399829c69cf425",
+    "timing_valid": false
+  },
+  "arm": {
+    "one_key_contrast": "P2-BG weights.root 1.0 -> P2-ROOT weights.root 0.0",
+    "body_group_weights": {"root": 0.0, "lower_body": 1.0, "torso": 0.0, "arms": 0.0, "hands": 0.0},
+    "channel_mask": "human",
+    "hsi_object_voxel_mode": "occupied",
+    "per_episode_seeding": false,
+    "hoi_checkpoint_sha256": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c",
+    "hsi_checkpoint_sha256": "f64d956f88b8a81dddb160cb84fb5e9bdbe08f0606437a0e8b079cc92e8db5aa"
+  },
+  "criteria": {
+    "contact_percent": {"value": 0.6865943957118427, "operator": ">=", "threshold": 0.5878, "passed": true},
+    "completion_rate": {"value": 0.7547974413646056, "operator": ">=", "threshold": 0.7433, "passed": true},
+    "scene_human_penetration_s_mean": {"value": 7.1662591230323684, "operator": "<=", "threshold": 6.28801, "passed": false},
+    "scene_obj_penetration_s_mean": {"value": 30.770584915579565, "threshold": null, "passed": null},
+    "overall_passed": false
+  },
+  "aggregate_means": {
+    "completion_rate": 0.7547974413646056,
+    "contact_percent": 0.6865943957118427,
+    "end_obj_trans_err": 7.505739140493084,
+    "feet_height": 3.5504383827323345,
+    "foot_sliding": 0.2528871169457515,
+    "hand_pen_loss_omomo": 0.3998665339076906,
+    "hand_pen_ratio": 0.1949336947277506,
+    "human_pen_loss_infbagel": 6.400788174720587,
+    "human_pen_ratio": 0.199838331056588,
+    "scene_human_penetration_frame_ratio": 0.36270246098934017,
+    "scene_human_penetration_s_max": 67.06971315613991,
+    "scene_human_penetration_s_mean": 7.1662591230323684,
+    "scene_obj_penetration_frame_ratio": 0.2504828108577872,
+    "scene_obj_penetration_s_max": 158.29912758731942,
+    "scene_obj_penetration_s_mean": 30.770584915579565,
+    "xy_points_err": 3.45349153642779
+  },
+  "paired_vs_g0": {
+    "baseline_experiment_id": "p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829",
+    "delta_definition": "P2-ROOT minus G=0",
+    "contact_percent": {"baseline": 0.6914711021846419, "delta": -0.004876706472799275, "relative_delta": -0.007052654055088856, "ci95": [-0.014255040230983982, 0.004713199656752393], "positive": 208, "negative": 214, "tied": 47, "sign_test_p_non_tied": 0.8077336452252445},
+    "completion_rate": {"baseline": 0.7633262260127932, "delta": -0.008528784648187633, "relative_delta": -0.011173184357541898, "ci95": [-0.031982942430703626, 0.014925373134328358], "positive": 17, "negative": 13, "tied": 439, "sign_test_p_non_tied": 0.5846647117286922},
+    "scene_human_penetration_frame_ratio": {"baseline": 0.3099517145517793, "delta": 0.052750746437560905, "relative_delta": 0.17019020692898468, "ci95": [0.036302350416902635, 0.06924014613255738], "positive": 270, "negative": 157, "tied": 42, "sign_test_p_non_tied": 5.0129762090977555e-08, "top_episode_share": 0.028784088627932622},
+    "scene_human_penetration_s_mean": {"baseline": 6.98667804444746, "delta": 0.17958107858490704, "relative_delta": 0.025703356794524967, "ci95": [-0.4272076065893618, 0.881664971823728], "positive": 255, "negative": 199, "tied": 15, "sign_test_p_non_tied": 0.009766897911963529, "top_episode_share": 1.137958321677386},
+    "foot_sliding": {"baseline": 0.16506111863814596, "delta": 0.08782599830760555, "relative_delta": 0.5320816860580078, "ci95": [0.06732747572826346, 0.10887240224621103], "positive": 340, "negative": 129, "tied": 0, "sign_test_p_non_tied": 5.610760654870438e-23, "top_episode_share": 0.02767447722612098},
+    "feet_height": {"baseline": 3.9810748242620213, "delta": -0.4306364415296868, "relative_delta": -0.10817089869932665, "ci95": [-0.6524419600267146, -0.2342346085032929], "positive": 99, "negative": 152, "tied": 218, "sign_test_p_non_tied": 0.0009911475665162462},
+    "scene_obj_penetration_frame_ratio": {"baseline": 0.2604964340328058, "delta": -0.010013623175018633, "relative_delta": -0.03844053839814774, "ci95": [-0.01502055775449633, -0.005161408374040353], "positive": 102, "negative": 164, "tied": 203, "sign_test_p_non_tied": 0.0001728815996840576},
+    "scene_obj_penetration_s_mean": {"baseline": 32.11538607865816, "delta": -1.3448011630785945, "relative_delta": -0.041874046283761276, "ci95": [-4.1036409344501905, 1.1322093806715534], "positive": 148, "negative": 170, "tied": 151, "sign_test_p_non_tied": 0.2389003324185934}
+  },
+  "paired_vs_p2_bg": {
+    "baseline_experiment_id": "p2-mixer-fixed-bodygroup-p15-p17oc-s42-20260830",
+    "delta_definition": "P2-ROOT minus P2-BG",
+    "contact_percent": {"baseline": 0.6039476990517803, "delta": 0.08264669666006236, "relative_delta": 0.1368441287048873, "ci95": [0.06769304759631356, 0.09739331490163328], "positive": 310, "negative": 130, "tied": 29, "sign_test_p_non_tied": 4.837757702291355e-18},
+    "scene_human_penetration_frame_ratio": {"baseline": 0.238084097577533, "delta": 0.12461836341180718, "relative_delta": 0.523421617318329, "ci95": [0.10678615204722824, 0.1435362825084275], "positive": 324, "negative": 89, "tied": 56, "sign_test_p_non_tied": 1.850595932208376e-32},
+    "scene_human_penetration_s_mean": {"baseline": 6.9756723656877515, "delta": 0.19058675734461594, "relative_delta": 0.027321632575819155, "ci95": [-0.7788357222192166, 1.0043767598717612], "positive": 305, "negative": 128, "tied": 36, "sign_test_p_non_tied": 9.461446696315722e-18, "top_episode_share": 1.686940274385021},
+    "foot_sliding": {"baseline": 0.11921151076079713, "delta": 0.1336756061849544, "relative_delta": 1.1213313658374826, "ci95": [0.10969453335740847, 0.15751492510566348], "positive": 378, "negative": 91, "tied": 0, "sign_test_p_non_tied": 1.3177622732216636e-42}
+  },
+  "contact_recovery": {
+    "g0": 0.6914711021846419,
+    "p2_bg": 0.6039476990517803,
+    "p2_root": 0.6865943957118427,
+    "fraction_of_p2_bg_loss_recovered": 0.9442782551908066
+  },
+  "stratified_scene_human_penetration_frame_ratio_vs_g0": {
+    "S1_frames_90_132_n182_relative_delta": 0.376,
+    "S2_frames_174_216_n159_relative_delta": 0.148,
+    "S3_frames_258_300_n89_relative_delta": -0.051,
+    "S4_frames_342_384_426_468_n39_relative_delta": -0.049
+  },
+  "decision": {
+    "selected": false,
+    "main_table_eligible": false,
+    "conclusion": "The root change recovers 94.4% of P2-BG's contact loss but creates broken hip seams: foot sliding worsens 53.2% and scene-human penetration prevalence worsens 17.0% versus G=0. Reject this raw-channel root/lower-body split.",
+    "checkpoint_caveat": "P17-OC failed its Phase 1C gate and was not promoted; rerun with a settled HSIPrior before any main-table claim.",
+    "next_entry_point": "Do not tune these weights. Preregister a kinematically coherent operator and explicitly specify which pelvis centres HSI's scene query before any further GPU arm."
+  },
+  "governance_deviations": [
+    "The hypothesis and discriminator were committed before launch in docs/plan/PHASE_2_COMPOSITION.md at 60e3bd1, but the matching registry hypothesis row was omitted. No post-result row is backdated or presented as preregistered.",
+    "No separate pre-launch fully resolved Hydra config or machine-preflight file was archived beside the manifest. The manifest retains config content, exact overrides, hardware and asset hashes, but this does not retroactively satisfy that gate."
+  ],
+  "recovery": {
+    "method": "worker-initiated non-destructive rsync and one SHA-256 pass on both hosts",
+    "worker_authority_trees_identical": true,
+    "file_count": 22,
+    "index": {
+      "manifest.json": "61248c6762d8d22f586a0222bf833d489143a118e4c8a6455b224eb138d68f75",
+      "evaluation-merged04/aggregate_metrics.json": "730387eef09fd80030422fd51190067c4769b833f5356e867fb12774483f8091",
+      "evaluation-merged04/overall_evaluation_summary.json": "e8396e0718df7d2c9a9ad907b811bcf40bce2c371bed15ec1e33aa18ab3cc27d",
+      "evaluation-shard00of04/aggregate_metrics.json": "580836e6c57f9ac7c5efce4c1ff9fde947d085aeb20bae5eab68c6843cd98efb",
+      "evaluation-shard00of04/overall_evaluation_summary.json": "59b794e30e74db45605d32101647249cef0f7cda07ae86e888307cf5b3b27b47",
+      "evaluation-shard01of04/aggregate_metrics.json": "6ba7dfe9053cd08649610d0bd16b363ab8da55416664134cf4f21dc1e3d89e52",
+      "evaluation-shard01of04/overall_evaluation_summary.json": "e3afeaac8565e97331e62d8fb62a9c3adc9724a53147f6b79c54223cb75bd9ff",
+      "evaluation-shard02of04/aggregate_metrics.json": "edc8bb685397abb61e5beb66ffe5c88edc507a5278fc7705ab230785df6cba97",
+      "evaluation-shard02of04/overall_evaluation_summary.json": "d21e86200ddc8d7bf087e5afcbbe0210b3513c52034930d12b45da915289a6c4",
+      "evaluation-shard03of04/aggregate_metrics.json": "586bb377be6d88e4f59b37f40ab2355bf89d491e2f3e9def0e548e08a280b529",
+      "evaluation-shard03of04/overall_evaluation_summary.json": "9aa011632b15ce619e7534c7681995de2fe41235e903fa0ebd688be63add8f4a",
+      "shard00.log": "4623e5ffe2b8cf55ebf5fb2aaec62a21ebe20db080d243831221a11b09cf53a8",
+      "shard01.log": "d344c652a17ecd6b43d5701445816bb828c81f582463a89cb38a0ef7713a4133",
+      "shard02.log": "b08c5f8ab0cb94fd9f79eec79e73cb8e4c0674f71c9a8395d5be3054fbb0058b",
+      "shard03.log": "8654c6938d803bc29dcf6190af5e69a393972e52c073229e10d61a43c4e35a29",
+      "merge.log": "694c4e2a700d13456b2607dd7d63387726b464bdd405be6f40f7f36b4ae7d302"
+    },
+    "identical_exitcode_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "exitcode_files": ["shard00.exitcode", "shard01.exitcode", "shard02.exitcode", "shard03.exitcode", "merge.exitcode"],
+    "return_probe_sha256": "b9df6f0a69298a7b1f24cf53b08c1a076a39e01a458fe2312bf0f7c05e97235f"
+  }
+}

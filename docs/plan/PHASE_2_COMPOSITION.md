@@ -1276,3 +1276,66 @@ and it is the one place where the arm is broadly harmful.
 For symmetry, the same test on `scene_human_penetration_s_mean` overall: 29 tied, **266
 better**, 174 worse, and the mean is a null. That is the mass-concentration finding in one
 line, and it is why the citation rule for P2-BG exists.
+
+## 2026-09-01 — P2-ROOT result: contact recovered, but the hip seam is broken
+
+Run `p2-mixer-rootsplit-p15-p17oc-s42-20260831` completed on `node01`: all four
+shards and the merge exited 0, and all 469 preregistered episodes are present. The
+worker ran the clean, manifest-pinned commit `60e3bd1`; the worker-initiated recovery
+landed 22 files, and one SHA-256 pass found the worker and authority trees identical.
+The compact result is
+`experiments/results/p2_mixer_rootsplit_p15_p17oc_s42_20260831.json`.
+
+### Gate result: FAIL
+
+| criterion | P2-ROOT | gate | result |
+|---|---:|---:|---|
+| `contact_percent` | **0.68659** | ≥ 0.58780 | PASS |
+| completion | **0.75480** | ≥ 0.74330 | PASS |
+| scene-human `s_mean` | **7.16626** | ≤ 6.28801 | **FAIL** |
+| scene-object `s_mean` | 30.77058 | report only | — |
+
+The main `s_mean` delta against G=0 is +2.6%, CI [−0.4272, +0.8817] in absolute
+units: unresolved by the mean, and not a penetration improvement. The more stable
+bounded prevalence metric is decisive in the harmful direction:
+`scene_human_penetration_frame_ratio` rises from 0.30995 to **0.36270**, +17.0%,
+95% CI [+0.0363, +0.0692]. Its sign is broad (270 worse, 157 better, 42 tied;
+non-tied sign-test p=5.0e-8), and the largest episode is only 2.9% of the absolute
+total delta. The regression is concentrated in S1 (+37.6%, n=182) and S2 (+14.8%,
+n=159); S3 and S4 are null.
+
+### The preregistered decomposition answered both halves
+
+The contact prediction was right. P2-BG fell from G=0's 0.69147 to 0.60395;
+P2-ROOT reaches **0.68659**, recovering **94.4%** of that loss. Against P2-BG the
+paired increase is +0.08265, CI [+0.06769, +0.09739], with 310 positive, 130
+negative and 29 tied episodes. Root disagreement was therefore the mechanism of
+almost all P2-BG's contact cost.
+
+That does not make this a usable split. `foot_sliding` rises from 0.16506 to
+**0.25289** against G=0: **+53.2%**, CI [+0.06733, +0.10887], with 340 of 469
+episodes worse and non-tied sign-test p=5.6e-23. Against P2-BG it is +112.1%.
+`feet_height` still improves 10.8%, so HSI's legs retain one benefit while their
+motion becomes incompatible with HOI's pelvis. This is exactly the preregistered
+"hip seam is broken" cell: the split now crosses at both hips and its penetration
+column cannot be credited to root placement alone. The pelvis-centred ±0.6 m HSI
+scene window is an additional confound, not an alternative success reading.
+
+**Decision:** reject the raw-channel root/lower-body split. Do not tune its weights.
+The next mixer proposal must preserve kinematic coherence and separately specify
+which pelvis centres HSI's scene query; it needs a new dated preregistration and user
+approval before any GPU work. P17-OC remains non-promoted, so this row is an immutable
+operator diagnostic, not a main-table result, and a settled HSIPrior will require a
+fresh row rather than rewriting this one.
+
+### Governance deviations retained, not repaired after the fact
+
+The scientific hypothesis and discriminator were committed before launch in this
+file at `60e3bd1`, but the matching registry hypothesis row was omitted. A post-result
+row is not being backdated or represented as preregistered; the completion row records
+the omission and points to the real timestamped evidence. The run also lacks a
+separate pre-launch fully resolved Hydra config and machine-preflight file beside its
+manifest. The start manifest does retain the base config content, exact overrides,
+hardware snapshot, clean pinned Git state and both checkpoint hashes, which is enough
+to audit this one-key diagnostic but does not retroactively satisfy those lifecycle
+gates.
