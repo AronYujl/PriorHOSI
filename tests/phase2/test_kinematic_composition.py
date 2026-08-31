@@ -235,7 +235,7 @@ class KinematicBodyComposerTests(unittest.TestCase):
                 rest_human_offsets=torch.zeros(23, 3), fixed_points=self.fixed,
             )
 
-    def test_the_production_dataset_ik_fk_return_contract_is_exercised(self):
+    def test_vectorized_kinematics_match_the_production_dataset(self):
         from datasets.infbagel import InfBaGelDataset
         from datasets.utils import get_smpl_parents
 
@@ -251,6 +251,42 @@ class KinematicBodyComposerTests(unittest.TestCase):
         )
         self.assertEqual(output.shape, self.hoi.shape)
         self.assertTrue(torch.isfinite(output).all().item())
+
+        hoi_global = transforms.rotation_6d_to_matrix(
+            self.hoi[..., 84:216].reshape(2, 16, 22, 6)
+        )
+        hsi_global = transforms.rotation_6d_to_matrix(
+            self.hsi[..., 84:216].reshape(2, 16, 22, 6)
+        )
+        local = dataset.quat_ik_torch(hoi_global.reshape(-1, 22, 3, 3))
+        hsi_local = dataset.quat_ik_torch(hsi_global.reshape(-1, 22, 3, 3))
+        local[:, LOWER] = hsi_local[:, LOWER]
+        offsets = self.offsets.reshape(-1, 24, 3).clone()
+        offsets[:, 0] = self.hoi[..., :3].reshape(-1, 3)
+        reference_quaternion, reference_position = dataset.quat_fk_torch(
+            local, offsets,
+        )
+        reference_global = transforms.quaternion_to_matrix(
+            reference_quaternion
+        ).reshape(2, 16, 22, 3, 3)
+        actual_global = transforms.rotation_6d_to_matrix(
+            output[..., 84:216].reshape(2, 16, 22, 6)
+        )
+        rotation_error = rotation_geodesic(
+            actual_global[:, 2:], reference_global[:, 2:],
+        )
+        self.assertLess(float(rotation_error.max()), 1e-5)
+
+        actual_position = output[..., :84].reshape(2, 16, 28, 3)
+        reference_position = reference_position.reshape(2, 16, 24, 3)
+        self.assertLess(float((
+            actual_position[:, 2:, :22] - reference_position[:, 2:, :22]
+        ).abs().max()), 1e-5)
+        for offset_index, position_index in ((22, 25), (23, 27)):
+            self.assertLess(float((
+                actual_position[:, 2:, position_index]
+                - reference_position[:, 2:, offset_index]
+            ).abs().max()), 1e-5)
 
 
 class KinematicConfigTests(unittest.TestCase):

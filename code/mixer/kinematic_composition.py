@@ -28,6 +28,22 @@ from .composition import ExpertOutputs, OBJECT_CHANNEL_START
 # frame of their HOI parent rather than independently blended.
 _FK_EXTRA_TO_POSITION = {22: 25, 23: 27}
 _ATTACHED_MARKER_PARENTS = {22: 15, 23: 15, 24: 20, 26: 21}
+_PARENTS_22 = (-1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9,
+               12, 13, 14, 16, 17, 18, 19)
+_PARENTS_24 = _PARENTS_22 + (20, 21)
+# Grouping independent branches at the same depth avoids the production
+# dataset's one-small-CUDA-kernel-per-joint Python loop. The arithmetic is the
+# same parent-to-child matrix FK, just issued in eight level batches.
+_ROTATION_LEVELS = (
+    (1, 2, 3),
+    (4, 5, 6),
+    (7, 8, 9),
+    (10, 11, 12, 13, 14),
+    (15, 16, 17),
+    (18, 19),
+    (20, 21),
+)
+_POSITION_ONLY_LEVEL = (22, 23)
 
 
 def _expand_rest_offsets(value: torch.Tensor, batch: int, frames: int,
@@ -59,12 +75,64 @@ def _apply_rotation(rotation: torch.Tensor, vector: torch.Tensor) -> torch.Tenso
     return torch.matmul(rotation, vector.unsqueeze(-1)).squeeze(-1)
 
 
+def _validate_parent_tree(dataset) -> None:
+    for name, expected in (('parents_22', _PARENTS_22),
+                           ('parents_24', _PARENTS_24)):
+        if not hasattr(dataset, name):
+            raise TypeError(f'dataset lacks required kinematic attribute {name}')
+        actual = tuple(int(value) for value in getattr(dataset, name))
+        if actual != expected:
+            raise ValueError(
+                f'{name} does not match the fixed 232-channel skeleton: {actual}'
+            )
+
+
+def _local_from_global(global_rotation: torch.Tensor) -> torch.Tensor:
+    """Matrix IK equivalent to the dataset quaternion implementation."""
+    local = global_rotation.clone()
+    local[..., 1:, :, :] = (
+        global_rotation[..., _PARENTS_22[1:], :, :].transpose(-1, -2)
+        @ global_rotation[..., 1:, :, :]
+    )
+    return local
+
+
+def _forward_kinematics(local_rotation: torch.Tensor,
+                        local_position: torch.Tensor):
+    """Level-vectorized matrix FK for the fixed 22/24-joint skeleton."""
+    global_rotation = torch.empty_like(local_rotation)
+    global_position = torch.empty_like(local_position)
+    global_rotation[..., 0, :, :] = local_rotation[..., 0, :, :]
+    global_position[..., 0, :] = local_position[..., 0, :]
+    for joints in _ROTATION_LEVELS:
+        parents = tuple(_PARENTS_24[joint] for joint in joints)
+        parent_rotation = global_rotation[..., parents, :, :]
+        global_rotation[..., joints, :, :] = (
+            parent_rotation @ local_rotation[..., joints, :, :]
+        )
+        global_position[..., joints, :] = (
+            _apply_rotation(parent_rotation, local_position[..., joints, :])
+            + global_position[..., parents, :]
+        )
+    parents = tuple(_PARENTS_24[joint] for joint in _POSITION_ONLY_LEVEL)
+    parent_rotation = global_rotation[..., parents, :, :]
+    global_position[..., _POSITION_ONLY_LEVEL, :] = (
+        _apply_rotation(
+            parent_rotation, local_position[..., _POSITION_ONLY_LEVEL, :],
+        )
+        + global_position[..., parents, :]
+    )
+    return global_rotation, global_position
+
+
 class KinematicBodyComposer:
     """Attach HSI-local legs to an HOI carrier and rebuild the body by FK.
 
-    The dataset supplies the same IK/FK implementation and rest offsets used by
-    the evaluator.  Its normalization is also used directly: this module never
-    duplicates min/max values and therefore cannot become checkpoint-specific.
+    The dataset supplies the rest offsets and normalization used by the evaluator,
+    and its parent tree is checked against the fixed representation. Matrix IK and
+    level-vectorized FK are algebraically equivalent to the dataset's quaternion
+    implementation without its per-joint CUDA launch overhead. No min/max value is
+    duplicated here, so the operator cannot become checkpoint-specific.
     """
 
     lower_body_joints = tuple(ROTATION_GROUPS['lower_body'])
@@ -114,10 +182,10 @@ class KinematicBodyComposer:
                 f'[{batch},{REPRESENTATION.history_frames},{REPRESENTATION.dimension}], '
                 f'got {tuple(fixed_points.shape)}'
             )
-        for name in ('normalize_torch', 'denormalize_torch',
-                     'quat_ik_torch', 'quat_fk_torch'):
+        for name in ('normalize_torch', 'denormalize_torch'):
             if not hasattr(dataset, name):
                 raise TypeError(f'dataset lacks required kinematic method {name}')
+        _validate_parent_tree(dataset)
 
         hoi_positions = dataset.denormalize_torch(
             hoi[..., :84].reshape(batch, frames, 28, 3)
@@ -129,10 +197,8 @@ class KinematicBodyComposer:
             hsi[..., 84:216].reshape(batch, frames, 22, 6)
         )
 
-        hoi_local = dataset.quat_ik_torch(hoi_global.reshape(-1, 22, 3, 3))
-        hsi_local = dataset.quat_ik_torch(hsi_global.reshape(-1, 22, 3, 3))
-        local = hoi_local.reshape(batch, frames, 22, 3, 3).clone()
-        hsi_local = hsi_local.reshape(batch, frames, 22, 3, 3)
+        local = _local_from_global(hoi_global)
+        hsi_local = _local_from_global(hsi_global)
         local[..., self.lower_body_joints, :, :] = hsi_local[
             ..., self.lower_body_joints, :, :
         ]
@@ -143,25 +209,7 @@ class KinematicBodyComposer:
         # quat_fk_torch defines lpos[:,0] in global/window coordinates and every
         # other entry as a parent-relative rest offset.
         offsets[..., 0, :] = hoi_positions[..., 0, :]
-        composed_global_quat_flat, fk_positions_flat = dataset.quat_fk_torch(
-            local.reshape(-1, 22, 3, 3), offsets.reshape(-1, 24, 3),
-        )
-        expected_rotations = (batch * frames, 22, 4)
-        expected_positions = (batch * frames, 24, 3)
-        if tuple(composed_global_quat_flat.shape) != expected_rotations:
-            raise ValueError(
-                'quat_fk_torch must return global quaternions shaped '
-                f'{expected_rotations}, got {tuple(composed_global_quat_flat.shape)}'
-            )
-        if tuple(fk_positions_flat.shape) != expected_positions:
-            raise ValueError(
-                'quat_fk_torch must return positions shaped '
-                f'{expected_positions}, got {tuple(fk_positions_flat.shape)}'
-            )
-        composed_global = transforms.quaternion_to_matrix(
-            composed_global_quat_flat
-        ).reshape(batch, frames, 22, 3, 3)
-        fk_positions = fk_positions_flat.reshape(batch, frames, 24, 3)
+        composed_global, fk_positions = _forward_kinematics(local, offsets)
 
         positions = torch.empty_like(hoi_positions)
         positions[..., :22, :] = fk_positions[..., :22, :]
