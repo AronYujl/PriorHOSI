@@ -65,7 +65,10 @@ class StubKinematicDataset:
                 global_rotation.append(
                     parent_rotation @ local_rotation[..., joint:joint + 1, :, :]
                 )
-        return torch.cat(global_rotation, dim=-3), torch.cat(global_position, dim=-2)
+        return (
+            transforms.matrix_to_quaternion(torch.cat(global_rotation, dim=-3)),
+            torch.cat(global_position, dim=-2),
+        )
 
 
 def _local_rotations(batch, frames, scale):
@@ -231,6 +234,23 @@ class KinematicBodyComposerTests(unittest.TestCase):
                 ExpertOutputs(hoi=self.hoi, hsi=self.hsi), dataset=self.dataset,
                 rest_human_offsets=torch.zeros(23, 3), fixed_points=self.fixed,
             )
+
+    def test_the_production_dataset_ik_fk_return_contract_is_exercised(self):
+        from datasets.infbagel import InfBaGelDataset
+        from datasets.utils import get_smpl_parents
+
+        dataset = object.__new__(InfBaGelDataset)
+        dataset.parents_22 = get_smpl_parents(use_joints24=False)
+        dataset.parents_24 = get_smpl_parents(use_joints24=True)
+        # This makes the production normalizer an identity, matching the fixture.
+        dataset.min_torch = -torch.ones(3)
+        dataset.max_torch = torch.ones(3)
+        output = KinematicBodyComposer()(
+            ExpertOutputs(hoi=self.hoi, hsi=self.hsi), dataset=dataset,
+            rest_human_offsets=self.offsets, fixed_points=self.fixed,
+        )
+        self.assertEqual(output.shape, self.hoi.shape)
+        self.assertTrue(torch.isfinite(output).all().item())
 
 
 class KinematicConfigTests(unittest.TestCase):

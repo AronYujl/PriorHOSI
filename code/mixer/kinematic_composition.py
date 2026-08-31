@@ -143,10 +143,24 @@ class KinematicBodyComposer:
         # quat_fk_torch defines lpos[:,0] in global/window coordinates and every
         # other entry as a parent-relative rest offset.
         offsets[..., 0, :] = hoi_positions[..., 0, :]
-        composed_global_flat, fk_positions_flat = dataset.quat_fk_torch(
+        composed_global_quat_flat, fk_positions_flat = dataset.quat_fk_torch(
             local.reshape(-1, 22, 3, 3), offsets.reshape(-1, 24, 3),
         )
-        composed_global = composed_global_flat.reshape(batch, frames, 22, 3, 3)
+        expected_rotations = (batch * frames, 22, 4)
+        expected_positions = (batch * frames, 24, 3)
+        if tuple(composed_global_quat_flat.shape) != expected_rotations:
+            raise ValueError(
+                'quat_fk_torch must return global quaternions shaped '
+                f'{expected_rotations}, got {tuple(composed_global_quat_flat.shape)}'
+            )
+        if tuple(fk_positions_flat.shape) != expected_positions:
+            raise ValueError(
+                'quat_fk_torch must return positions shaped '
+                f'{expected_positions}, got {tuple(fk_positions_flat.shape)}'
+            )
+        composed_global = transforms.quaternion_to_matrix(
+            composed_global_quat_flat
+        ).reshape(batch, frames, 22, 3, 3)
         fk_positions = fk_positions_flat.reshape(batch, frames, 24, 3)
 
         positions = torch.empty_like(hoi_positions)
