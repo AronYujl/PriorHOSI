@@ -67,7 +67,12 @@ RESUME_GEOMETRY_FIELDS = (
     'effective_batch_size',
     'steps_per_epoch',
     'warmup_updates',
+    'lr_decay_start_update',
+    'max_optimizer_updates',
     'lr',
+    'diffusion_ema_decay',
+    'export_final_checkpoint_only',
+    'geometry_loss_fp32',
     'grad_clip_max_norm',
     'seed',
     'sample_type',
@@ -116,8 +121,9 @@ def atomic_torch_save(payload, path):
         os.close(directory_fd)
 
 
-def build_lr_scheduler(optimizer, base_lr, warmup_updates, completed_updates):
-    """Linear warmup measured in OPTIMIZER UPDATES, never in micro-steps.
+def build_lr_scheduler(optimizer, base_lr, warmup_updates, completed_updates,
+                       decay_start_update=None, total_updates=None):
+    """Linear warmup and an optional cosine tail, measured in optimizer updates.
 
     `completed_updates` is the number of `optimizer.step()` calls already made.
     The same value always maps to the same learning rate, so the schedule is
@@ -130,10 +136,54 @@ def build_lr_scheduler(optimizer, base_lr, warmup_updates, completed_updates):
     # lr_scheduler.step(): the u-th update must already run at the warmed lr,
     # not at the value for u-1.  Without the offset the first update runs at lr
     # exactly 0 and is a no-op.
+    if (decay_start_update is None) != (total_updates is None):
+        raise ValueError('decay_start_update and total_updates must be set together')
+    if decay_start_update is not None:
+        decay_start_update = int(decay_start_update)
+        total_updates = int(total_updates)
+        if decay_start_update < warmup_updates or total_updates <= decay_start_update:
+            raise ValueError('cosine tail must start after warmup and before total_updates')
+
+    def lr_factor(update):
+        one_indexed_update = int(update) + 1
+        if warmup_updates > 0 and one_indexed_update <= warmup_updates:
+            return one_indexed_update / warmup_updates
+        if decay_start_update is None or one_indexed_update <= decay_start_update:
+            return 1.0
+        tail_updates = total_updates - decay_start_update
+        if tail_updates == 1:
+            return 0.0
+        progress = (one_indexed_update - decay_start_update - 1) / (tail_updates - 1)
+        progress = min(max(progress, 0.0), 1.0)
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
+
     return LambdaLR(
         optimizer,
-        lr_lambda=lambda update: 1.0 if warmup_updates == 0 else min((update + 1) / warmup_updates, 1.0),
+        lr_lambda=lr_factor,
         last_epoch=int(completed_updates) - 1,
+    )
+
+
+def initialize_parameter_ema(model):
+    return {
+        name: parameter.detach().clone()
+        for name, parameter in model.module.named_parameters()
+    }
+
+
+@torch.no_grad()
+def update_parameter_ema(ema_parameters, model, decay):
+    for name, parameter in model.module.named_parameters():
+        ema_parameters[name].mul_(decay).add_(parameter.detach(), alpha=1.0 - decay)
+
+
+def checkpoint_state_dict(model, ema_parameters=None):
+    state = model.module.state_dict()
+    if ema_parameters is None:
+        return state
+    return type(state)(
+        (name, ema_parameters.get(name, value))
+        for name, value in state.items()
     )
 
 
@@ -253,7 +303,21 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'effective_batch_size': int(cfg.effective_batch_size),
         'steps_per_epoch': int(steps_per_epoch),
         'warmup_updates': int(warmup_updates),
+        'lr_decay_start_update': (
+            None if cfg.get('lr_decay_start_update', None) is None
+            else int(cfg.get('lr_decay_start_update'))
+        ),
+        'max_optimizer_updates': (
+            None if cfg.get('max_optimizer_updates', None) is None
+            else int(cfg.get('max_optimizer_updates'))
+        ),
         'lr': float(cfg.lr),
+        'diffusion_ema_decay': (
+            None if cfg.get('diffusion_ema_decay', None) is None
+            else float(cfg.get('diffusion_ema_decay'))
+        ),
+        'export_final_checkpoint_only': bool(cfg.get('export_final_checkpoint_only', False)),
+        'geometry_loss_fp32': bool(cfg.get('geometry_loss_fp32', False)),
         'grad_clip_max_norm': (
             None if cfg.get('grad_clip_max_norm', None) is None
             else float(cfg.get('grad_clip_max_norm'))
@@ -313,7 +377,7 @@ def resolve_resume_path(cfg):
 
 def build_resume_state(geometry, epoch, epoch_completed, micro_steps, optimizer_updates,
                        model, optimizer, lr_scheduler, scaler, rng_states, pending_gradients,
-                       target_model=None):
+                       target_model=None, diffusion_ema=None):
     return {
         'schema_version': RESUME_STATE_VERSION,
         'geometry': geometry,
@@ -327,6 +391,7 @@ def build_resume_state(geometry, epoch, epoch_completed, micro_steps, optimizer_
         # so it is trained state, not a reconstructible constant.  The teacher is
         # frozen and is rebuilt identically from ckpt_path.
         'target_model': None if target_model is None else detach_to_cpu(target_model.module.state_dict()),
+        'diffusion_ema': None if diffusion_ema is None else detach_to_cpu(diffusion_ema),
         'optimizer': detach_to_cpu(optimizer.state_dict()),
         'lr_scheduler': lr_scheduler.state_dict(),
         'grad_scaler': scaler.state_dict() if scaler is not None else None,
@@ -420,6 +485,19 @@ def train_ddp(rank, world_size, cfg):
         model = init_model(list(cfg.model.values())[0], device=rank, eval=False, load_state_dict=cfg.load_state_dict)
         optimizer = Adam(model.parameters(), lr=cfg.lr)
 
+    diffusion_ema_decay = cfg.get('diffusion_ema_decay', None)
+    diffusion_ema_decay = (
+        None if diffusion_ema_decay is None else float(diffusion_ema_decay)
+    )
+    if diffusion_ema_decay is not None:
+        if is_consistency:
+            raise ValueError('diffusion_ema_decay is only valid for diffusion training')
+        if not 0.0 <= diffusion_ema_decay < 1.0:
+            raise ValueError('diffusion_ema_decay must be in [0, 1)')
+    diffusion_ema = (
+        None if diffusion_ema_decay is None else initialize_parameter_ema(model)
+    )
+
     infbagel_dataset = hydra.utils.instantiate(cfg.dataset)
 
     expected_effective_batch = int(cfg.batch_size) * world_size * int(cfg.gradient_accumulation_steps)
@@ -484,6 +562,12 @@ def train_ddp(rank, world_size, cfg):
             if resume_state.get('target_model') is None:
                 raise ValueError('resume state has no EMA target_model but this is a consistency run')
             target_model.module.load_state_dict(resume_state['target_model'], strict=True)
+        if diffusion_ema is not None:
+            saved_ema = resume_state.get('diffusion_ema')
+            if saved_ema is None:
+                raise ValueError('resume state has no diffusion EMA parameters')
+            for name, value in diffusion_ema.items():
+                value.copy_(saved_ema[name].to(device=value.device, dtype=value.dtype))
         optimizer.load_state_dict(resume_state['optimizer'])
         if resume_state['grad_scaler'] is not None and scaler is None:
             raise ValueError('resume state carries an AMP GradScaler but this run has no scaler')
@@ -505,7 +589,18 @@ def train_ddp(rank, world_size, cfg):
                 flush=True,
             )
 
-    lr_scheduler = build_lr_scheduler(optimizer, float(cfg.lr), warmup_updates, optimizer_updates)
+    lr_decay_start_update = cfg.get('lr_decay_start_update', None)
+    lr_scheduler = build_lr_scheduler(
+        optimizer,
+        float(cfg.lr),
+        warmup_updates,
+        optimizer_updates,
+        decay_start_update=lr_decay_start_update,
+        total_updates=(
+            cfg.get('max_optimizer_updates', None)
+            if lr_decay_start_update is not None else None
+        ),
+    )
     if resume_state is not None:
         saved_position = int(resume_state['lr_scheduler']['last_epoch'])
         if saved_position != int(lr_scheduler.last_epoch):
@@ -702,6 +797,8 @@ def train_ddp(rank, world_size, cfg):
                         parameter.detach().clone() for parameter in cfg_embedding_parameters
                     ]
                 optimizer.step()
+                if diffusion_ema is not None:
+                    update_parameter_ema(diffusion_ema, model, diffusion_ema_decay)
                 if log_cfg_diagnostics:
                     cfg_parameter_norm = torch.norm(torch.stack([
                         torch.norm(parameter.detach(), 2.0) for parameter in cfg_embedding_parameters
@@ -749,8 +846,9 @@ def train_ddp(rank, world_size, cfg):
         # Unchanged cadence and unchanged meaning of save_checkpoints /
         # ckpt_interval.  What is new is that every rank now takes part, because
         # the resume state has to gather the per-rank RNG before rank 0 writes.
+        final_export = stop_training or epoch == cfg.epochs - 1
         if cfg.save_checkpoints and (
-            epoch % cfg.ckpt_interval == 0 or epoch == cfg.epochs - 1
+            epoch % cfg.ckpt_interval == 0 or final_export
         ):
             rng_states = [None] * world_size
             torch.distributed.all_gather_object(rng_states, collect_rng_state(device))
@@ -758,10 +856,11 @@ def train_ddp(rank, world_size, cfg):
                 print(f'Saving checkpoint', flush=True)
                 ckpt_folder = os.path.join(cfg.exp_dir, 'checkpoints')
                 os.makedirs(ckpt_folder, exist_ok=True)
-                atomic_torch_save(
-                    model.module.state_dict(),
-                    os.path.join(ckpt_folder, f"{cfg.exp_name}_epoch{epoch:03d}.pth"),
-                )
+                if final_export or not bool(cfg.get('export_final_checkpoint_only', False)):
+                    atomic_torch_save(
+                        checkpoint_state_dict(model, diffusion_ema),
+                        os.path.join(ckpt_folder, f"{cfg.exp_name}_epoch{epoch:03d}.pth"),
+                    )
                 pending_gradients = (
                     collect_pending_gradients(model)
                     if micro_steps % int(cfg.gradient_accumulation_steps) != 0
@@ -772,6 +871,7 @@ def train_ddp(rank, world_size, cfg):
                         geometry, epoch, not stop_training, micro_steps, optimizer_updates,
                         model, optimizer, lr_scheduler, scaler, rng_states, pending_gradients,
                         target_model=target_model if is_consistency else None,
+                        diffusion_ema=diffusion_ema,
                     ),
                     resume_state_path(cfg.exp_dir, cfg.exp_name),
                 )

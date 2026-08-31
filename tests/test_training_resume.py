@@ -121,6 +121,11 @@ def _worker(rank, world_size, args):
         exp_dir=args.exp_dir,
         exp_name="resume_check",
         start_epoch=0,
+        lr_decay_start_update=None,
+        max_optimizer_updates=None,
+        diffusion_ema_decay=0.9,
+        export_final_checkpoint_only=True,
+        geometry_loss_fp32=True,
     )
     geometry = trainer.resume_geometry(
         config, world_size, len(dataloader), WARMUP_UPDATES
@@ -131,11 +136,14 @@ def _worker(rank, world_size, args):
     start_epoch = 0
     resume_state = None
     scaler = None
+    diffusion_ema = trainer.initialize_parameter_ema(model)
 
     if args.mode == "phase2":
         resume_state = torch.load(args.resume, map_location="cpu")
         trainer.check_resume_compatibility(resume_state, geometry)
         model.module.load_state_dict(resume_state["model"], strict=True)
+        for name, value in diffusion_ema.items():
+            value.copy_(resume_state["diffusion_ema"][name].to(device))
         optimizer.load_state_dict(resume_state["optimizer"])
         if resume_state["grad_scaler"] is not None:
             raise AssertionError("bf16 resume state unexpectedly contains a GradScaler")
@@ -177,6 +185,7 @@ def _worker(rank, world_size, args):
             if micro_steps % ACCUMULATION_STEPS == 0:
                 lr_used = float(optimizer.param_groups[0]["lr"])
                 optimizer.step()
+                trainer.update_parameter_ema(diffusion_ema, model, 0.9)
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_updates += 1
                 lr_scheduler.step()
@@ -214,6 +223,7 @@ def _worker(rank, world_size, args):
                         scaler,
                         rng_states,
                         pending_gradients,
+                        diffusion_ema=diffusion_ema,
                     ),
                     trainer.resume_state_path(args.exp_dir, "resume_check"),
                 )
@@ -239,6 +249,7 @@ def _worker(rank, world_size, args):
             args.out + ".params",
         )
         torch.save(trainer.detach_to_cpu(optimizer.state_dict()), args.out + ".optim")
+        torch.save(trainer.detach_to_cpu(diffusion_ema), args.out + ".ema")
 
     dist.barrier()
     if args.mode == "phase1":
@@ -291,6 +302,78 @@ def _adam_state_identical(left, right):
             elif left_value != right_value:
                 return False
     return True
+
+
+class SchedulerAndEmaUnitTests(unittest.TestCase):
+    def test_cosine_tail_uses_the_registered_update_boundaries(self):
+        parameter = nn.Parameter(torch.zeros(()))
+        optimizer = Adam([parameter], lr=BASE_LR)
+        scheduler = trainer.build_lr_scheduler(
+            optimizer,
+            BASE_LR,
+            warmup_updates=2000,
+            completed_updates=0,
+            decay_start_update=117004,
+            total_updates=146255,
+        )
+        expected = {
+            1: BASE_LR / 2000,
+            2000: BASE_LR,
+            2001: BASE_LR,
+            117004: BASE_LR,
+            117005: BASE_LR,
+            146255: 0.0,
+        }
+        for update, value in expected.items():
+            resumed_parameter = nn.Parameter(torch.zeros(()))
+            resumed_optimizer = Adam([resumed_parameter], lr=BASE_LR)
+            trainer.build_lr_scheduler(
+                resumed_optimizer,
+                BASE_LR,
+                warmup_updates=2000,
+                completed_updates=update - 1,
+                decay_start_update=117004,
+                total_updates=146255,
+            )
+            self.assertAlmostEqual(
+                resumed_optimizer.param_groups[0]["lr"], value, places=15
+            )
+        self.assertEqual(scheduler.last_epoch, 0)
+
+    def test_parameter_ema_is_saved_for_resume_and_selected_for_export(self):
+        wrapped = nn.Module()
+        wrapped.module = nn.Linear(3, 2)
+        wrapped.module.register_buffer("fixed", torch.tensor([7.0]))
+        ema = trainer.initialize_parameter_ema(wrapped)
+        before = {name: value.clone() for name, value in ema.items()}
+        with torch.no_grad():
+            for parameter in wrapped.module.parameters():
+                parameter.add_(2.0)
+        trainer.update_parameter_ema(ema, wrapped, 0.75)
+
+        for name, parameter in wrapped.module.named_parameters():
+            torch.testing.assert_close(
+                ema[name], before[name] * 0.75 + parameter * 0.25,
+                rtol=0.0, atol=0.0,
+            )
+        exported = trainer.checkpoint_state_dict(wrapped, ema)
+        for name in ema:
+            self.assertTrue(torch.equal(exported[name], ema[name]))
+            self.assertFalse(torch.equal(exported[name], wrapped.module.state_dict()[name]))
+        self.assertTrue(torch.equal(exported["fixed"], torch.tensor([7.0])))
+
+        optimizer = Adam(wrapped.parameters(), lr=BASE_LR)
+        scheduler = trainer.build_lr_scheduler(optimizer, BASE_LR, 2, 0)
+        geometry = {
+            field: None for field in trainer.RESUME_GEOMETRY_FIELDS
+        }
+        state = trainer.build_resume_state(
+            geometry, 0, True, 1, 1, wrapped, optimizer, scheduler, None,
+            [None], None, diffusion_ema=ema,
+        )
+        for name in ema:
+            self.assertEqual(state["diffusion_ema"][name].device.type, "cpu")
+            self.assertTrue(torch.equal(state["diffusion_ema"][name], ema[name]))
 
 
 class TrainingResumeTests(unittest.TestCase):
@@ -403,9 +486,16 @@ class TrainingResumeTests(unittest.TestCase):
                     torch.load(str(phase2_out) + ".optim"),
                 )
             )
+            self.assertTrue(
+                _tensors_identical(
+                    torch.load(str(straight_out) + ".ema"),
+                    torch.load(str(phase2_out) + ".ema"),
+                )
+            )
 
             state = torch.load(resume_path, map_location="cpu")
             self.assertIsNone(state["grad_scaler"])
+            self.assertIsNotNone(state["diffusion_ema"])
             self.assertEqual(state["geometry"]["precision"], PRECISION)
             for field, value in (
                 ("world_size", self.world_size + 1),

@@ -1,0 +1,30 @@
+# R1: one reliable diffusion-teacher endpoint, evaluated only at the final EMA.
+defaults: [config_train_hsi_b_lingo_full, _self_]
+
+exp_name: hsi_b_r1_reliable_teacher
+
+# Match B-v2/P17-OC's rank count, per-rank batch, seeding and data sharding.
+num_gpus: 4
+batch_size: 512
+gradient_accumulation_steps: 1
+effective_batch_size: 2048
+
+# E0 is the current source behavior; E1 must match training and inference.
+occ_permute_fix: true
+pen_loss_weight: 0.0
+seam_loss_weight: 0.0
+
+# Updates 1..2000 warm up, 2001..117004 stay at peak, and the final 29251
+# updates follow a cosine tail whose last optimizer step uses zero LR.
+lr: 0.0002
+warmup_updates: 2000
+lr_decay_start_update: 117004
+max_optimizer_updates: 146255
+
+diffusion_ema_decay: 0.9999
+export_final_checkpoint_only: true
+geometry_loss_fp32: true
+
+# This cadence writes only the rolling resume state until the final epoch; the
+# sole exported epoch checkpoint is the final EMA state dict.
+ckpt_interval: 20

@@ -11838,3 +11838,43 @@ R1 只有在以下条件**全部**满足时 PASS：
 `.claude/scratch/train2conv_20260901/unguided_thresholds.*` 把 B-v2 epoch222 与另一条 P17-OC
 轨迹的 epoch220 混作同轨迹噪声，**不得用于 R1 的 U 或阈值**；本节只使用 P17-OC 同轨迹
 epoch220↔222 的合法测量。
+
+### G. 2026-09-01 布局修订：正式 R1 改回 GPU 0–3 的 4×512
+
+用户在正式 run id 分配前明确修订：R1 不采用 8×256，恢复 B-v2/P17-OC 的 4×512，并固定在
+GPU 0–3；GPU 4–7 可供另一条独立、另行预注册的训练臂使用。本修订发生在任何 reportable
+manifest 或正式 update 之前，不改写预注册假设、预算、LR、EMA、精度或评估 gate，只替换布局与
+成本估计。
+
+修订理由不是机械沿用旧配置，而是控制比较：虽然 8×256 与 4×512 都是 effective batch 2,048，
+world size 会改变 rank-local seed、每 rank 数据分片和训练轨迹。R1 要把 rollout 变化归因于
+cosine/EMA/geometry precision 配方，故保持 B-v2 的 world size 与 per-rank batch 更重要。正式值改为：
+
+| 项 | 原预注册 | 正式修订 |
+|---|---:|---:|
+| GPU | 8（0–7） | **4（0–3）** |
+| micro-batch/GPU | 256 | **512** |
+| accumulation | 1 | **1** |
+| effective batch | 2,048 | **2,048（不变）** |
+| processed windows / updates | 299,530,240 / 146,255 | **不变** |
+| 训练估计 | 125.7 GPU-h / 15.7 h | **约 86.7 GPU-h / 21.7 h** |
+| 双格评测 | 66.02 GPU-h | **不变** |
+| 完整 teacher 读数 | 191.7 GPU-h | **约 152.7 GPU-h** |
+
+布局修订前的 8×256、128-update 满批预检不是 reportable 实验：无 run id、无 manifest、无 checkpoint，
+但它暴露了 update 40 的有限巨梯度 `6.11e8`。为判断是 fp32 FK 还是布局轨迹导致，修订后在两组
+互斥 GPU/CPU NUMA 上并行跑了同 seed 的 48-update 4×512 matched preflight：
+
+| 预检 | GPU | geometry | peak allocated / reserved | grad norm min / median / max | update 40 | 并发 s/update |
+|---|---|---|---|---|---:|---:|
+| R1 | 0–3 | fp32 | 12.47 / 12.75 GiB | 53.85 / 196.06 / 791.24 | 93.11 | 0.545 |
+| control | 4–7 | bf16 | 12.46 / 12.75 GiB | 53.90 / 196.06 / 791.34 | 92.97 | 0.551 |
+
+两条 48-update 轨迹的梯度与 loss 近乎重合，且 fp32 没有复现巨梯度；因此 `6.11e8` 归于 8×256
+轨迹而不是 geometry fp32。R1 保留局部 fp32。并发时相对历史单作业 4×512 的 0.522 s/update
+慢约 4–6%，显存仍有约 11 GiB/卡余量，说明两条 4-GPU 正式训练**技术上可以并行**；并发 timing
+只能用于 ETA/contension 记录，不能作为精度臂之间的性能结论。
+
+GPU 4–7 **尚未获准启动第二条正式训练**。48-update bf16 control 已否定“fp32 造成梯度尖峰”，
+完整重复它的预期信息增益很低；若并行第二臂，应另行预注册一个直接瞄准 rollout 指标的模型机制臂，
+而不是复制 R1 或把多个 EMA readout 当作 checkpoint 选择。

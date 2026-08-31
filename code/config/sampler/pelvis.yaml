@@ -31,3 +31,4 @@ pelvis:
   pen_floor_height: ${oc.select:pen_floor_height,0.02}
   pen_sdf_cache: ${oc.select:pen_sdf_cache,null}
   pen_sdf_dtype: ${oc.select:pen_sdf_dtype,float16}
+  geometry_loss_fp32: ${oc.select:geometry_loss_fp32,false}

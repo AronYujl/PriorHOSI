@@ -138,6 +138,7 @@ class Sampler:
         )
         self.pen_sdf_cache = kwargs.get('pen_sdf_cache', None) or None
         self.pen_sdf_dtype = resolve_sdf_dtype(kwargs.get('pen_sdf_dtype', torch.float16))
+        self.geometry_loss_fp32 = bool(kwargs.get('geometry_loss_fp32', False))
         self.pen_sdf_bank = None
         
     def set_dataset_and_model(self, dataset, student_model, teacher_model=None, target_model=None):
@@ -1051,13 +1052,25 @@ class Sampler:
             hand_idx_24 = [20, 21, 22, 23]
             foot_idx = [7, 8, 10, 11]
             
-            gt_global_jpos = transform_points(self.dataset.denormalize_torch(joints), mat).reshape(joints.shape[0], -1, 28, 3)
+            if self.geometry_loss_fp32:
+                with torch.autocast(device_type=predicted_noise.device.type, enabled=False):
+                    geometry_prediction = predicted_noise.float()
+                    geometry_joints = joints.float()
+                    geometry_mat = mat.float()
+                    geometry_offsets = rest_human_offsets.float()
+                    gt_global_jpos = transform_points(
+                        self.dataset.denormalize_torch(geometry_joints), geometry_mat
+                    ).reshape(joints.shape[0], -1, 28, 3)
+                    global_jpos, human_jnts = self._compute_human_joints(
+                        geometry_prediction, geometry_joints, geometry_mat, geometry_offsets
+                    )
+            else:
+                gt_global_jpos = transform_points(self.dataset.denormalize_torch(joints), mat).reshape(joints.shape[0], -1, 28, 3)
+                global_jpos, human_jnts = self._compute_human_joints(
+                    predicted_noise, joints, mat, rest_human_offsets
+                )
             gt_global_hand_jpos = gt_global_jpos[:, :, hand_idx_28, :]
             gt_global_foot_jpos = gt_global_jpos[:, :, foot_idx, :]
-
-            global_jpos, human_jnts = self._compute_human_joints(
-                predicted_noise, joints, mat, rest_human_offsets
-            )
 
             pred_global_hand_jpos = human_jnts[:, :, hand_idx_24, :]
             pred_global_foot_jpos = human_jnts[:, :, foot_idx, :] # [b, t, 4, 3]
@@ -1106,9 +1119,16 @@ class Sampler:
         loss_pen = None
         if self.pen_loss_weight > 0.0:
             if human_jnts is None:
-                _, human_jnts = self._compute_human_joints(
-                    predicted_noise, joints, mat, rest_human_offsets
-                )
+                if self.geometry_loss_fp32:
+                    with torch.autocast(device_type=predicted_noise.device.type, enabled=False):
+                        _, human_jnts = self._compute_human_joints(
+                            predicted_noise.float(), joints.float(), mat.float(),
+                            rest_human_offsets.float()
+                        )
+                else:
+                    _, human_jnts = self._compute_human_joints(
+                        predicted_noise, joints, mat, rest_human_offsets
+                    )
 
             pen_sdf_bank = self._get_pen_sdf_bank()
             sdf, m_out_of_bounds = pen_sdf_bank.signed_distance(human_jnts, scene_flag)

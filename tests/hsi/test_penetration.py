@@ -204,6 +204,11 @@ class _OffsetModel(nn.Module):
         return x + 0.25
 
 
+class _BFloatOffsetModel(nn.Module):
+    def forward(self, x, *args):
+        return (x + 0.25).to(torch.bfloat16)
+
+
 class _PenetrationDataset(_NoObjectDataset):
     def denormalize_torch(self, points, is_object=False):
         return points
@@ -338,6 +343,32 @@ class ObjectivePlumbingTests(unittest.TestCase):
         )
 
         torch.testing.assert_close(result["loss_fk"], expected, rtol=0.0, atol=0.0)
+
+    def test_geometry_fp32_escapes_bf16_autocast_and_keeps_gradients(self):
+        sampler = _sampler_for_loss(geometry_loss_fp32=True)
+        sampler.dataset = _FKDataset()
+        sampler.student_model = _BFloatOffsetModel()
+        inputs = _loss_inputs()
+        leaf = inputs["x_start"].clone().requires_grad_(True)
+        inputs["x_start"] = leaf * 1.0
+        inputs["joints"] = inputs["x_start"][:, :, :84]
+
+        seen = []
+        original = sampler._compute_human_joints
+
+        def record_dtype(predicted_noise, *args):
+            seen.append(predicted_noise.dtype)
+            return original(predicted_noise, *args)
+
+        sampler._compute_human_joints = record_dtype
+        with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+            result = sampler.p_losses(**inputs)
+
+        self.assertEqual(seen, [torch.float32])
+        self.assertEqual(result["loss_fk"].dtype, torch.float32)
+        result["loss_fk"].backward()
+        self.assertIsNotNone(leaf.grad)
+        self.assertTrue(bool(torch.isfinite(leaf.grad).all()))
 
     def test_non_object_rows_use_finite_tensor_zero_guards(self):
         sampler = _sampler_for_loss()
