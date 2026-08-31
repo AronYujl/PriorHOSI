@@ -1405,3 +1405,48 @@ No formal HOSI row runs in this subphase. Once HSIPrior settles, a new preregist
 must compare the kinematic operator against G=0 and the raw P2-ROOT ownership-matched
 row over all 469 episodes. Whether HSI-local legs improve scene compliance under an
 HOI carrier is deliberately unanswered here.
+
+## 2026-09-01 — P2-KIN-API completion: PASS for API, no quality claim
+
+The fixed operator is implemented at runtime commit `1cc4961a7240f8a9a5626fccf94e0e130949d4c2`.
+It converts both experts to parent-local rotations, assigns the two complete leg
+branches to HSI, rebuilds the fixed 22/24-joint tree by level-vectorized matrix FK,
+and transports the remaining four markers in their HOI-parent frames. HOI root and
+216:232 ownership remain exact, and HSI receives the shared `current` pelvis for the
+anchor occupancy query plus the previous composed x0 for temporal queries. There is
+no alternative private-HSI pelvis switch and no learned or tuned parameter.
+
+The first real production call caught an implementation defect before the smoke:
+`InfBaGelDataset.quat_fk_torch` returns global quaternions `[N,22,4]`, whereas the
+initial test stub returned matrices. Commit `d9be278` corrected that contract and a
+new test invokes the production dataset implementation directly. The synchronized
+benchmark then measured 25.546 ms per composer call because the dataset FK launches
+one small CUDA kernel per joint. Commit `1cc4961` replaced only that execution with
+algebraically equivalent, parent-tree-validated matrix IK and level-vectorized FK.
+The production parity test is within the preregistered `1e-5` rotation/position
+tolerances.
+
+### Validation record
+
+| check | result |
+|---|---|
+| focused structural/sampler suite | 60 passed |
+| final authority suite | 891 passed, 4 skipped in 339.65 s |
+| registry before completion row | 327 valid records |
+| synchronized RTX 3090 batch-1 × 16 benchmark | 4.088 ms/call median (4.074–4.133), 2.044 s per 500-step window |
+| pre-vectorization comparison | 25.546 ms/call; vectorized path 6.25× faster |
+| first canonical-scene smoke | exit 0; 1 scene, 7/7 episodes, 0 skipped, 23 windows |
+| smoke sampler audit | 11,500 compose calls; operator/query-pelvis fields exact; 0 sampler/guidance nonfinite values |
+| artifact recovery | 9 files; worker/authority SHA-256 lists identical; list digest `8c6073ab7705776ea744157d14cdc5d3b059d7b63a6d6591a4c299e5324276cc` |
+
+The worker's `infbagel` environment does not contain pytest, so no worker test pass is
+claimed; the same committed object passed the authority suite, while the worker
+proved the GPU/runtime/assets path and registry preflight. The compact record is
+`experiments/results/p2_mixer_kinematic_api_s42_20260901.json`; recovered smoke files
+remain untracked under `results/incoming/p2-kin-api-smoke-s42-20260901`.
+
+The seven-episode evaluator quality values are intentionally absent from the compact
+record and from this conclusion. They are non-reportable, may not select any mixer
+parameter, and say nothing about whether P17-OC's legs improve composition. P2-KIN-API
+therefore closes as an API PASS only. After HSIPrior settles, the exact next entry is
+a new preregistration for the complete 469-episode comparison specified above.
