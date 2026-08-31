@@ -911,3 +911,102 @@ P17-OC failed its own Phase 1C gate (`f58d2b6`, FAIL on both criteria, not promo
 Everything this row says about *penetration magnitude* is a statement about a
 non-promoted checkpoint and must be re-run when HSIPrior settles. What survives a
 checkpoint change is the contact-recovery structure and the seam reading.
+
+## 2026-08-31 — the tail, continued: border padding is dead, and length is the second cause
+
+Same zero-GPU sources as the section above, carried three steps further. **One claim in
+that section is now refuted by my own follow-up measurement and is corrected here.**
+
+### Correction: the border-padding mechanism does not hold
+
+The section above called the boundary-shell arithmetic "the right order for the
+mechanism" — 10,475 vertices × ~1 cm ≈ 105 units against the tail's 112.05. That was a
+magnitude coincidence and I never tested it. Testing it kills it.
+
+For each of the 67 scenes I located the floor by the lowest voxel on a 9-column grid
+whose value crosses into the positive interior, and computed how far a foot may sink
+before it leaves the grid entirely:
+
+| | rank correlation with the scene's mean human penetration | p |
+|---|--:|--:|
+| margin from floor to grid's lower face | **−0.031** | 0.80 |
+| most negative boundary voxel (cost of an exit) | +0.007 | 0.96 |
+| box max extent (a smaller box is easier to leave) | −0.035 | 0.78 |
+| vertical extent | +0.028 | 0.82 |
+| normalisation divisor | −0.035 | 0.78 |
+| box anisotropy | −0.098 | 0.43 |
+
+**Six nulls.** And the reason is arithmetic I should have done first: because the
+evaluator normalises all three axes by `extents.max()/2`, the grid covers a *cube* of
+side `extents.max()`, while the room occupies only its own bbox. The measured margin
+between the floor and the grid's lower face is **2.0–6.6 m**, not the 12 cm I inferred
+from the bbox. Feet do not sink metres. Nothing exits the box downward.
+
+So the tail's 112 units of depth per penetrating frame is **real geometry**: the model
+drives the body into something that is actually there. The earlier section's three
+binding conclusions are unaffected — they rest on the R² and ρ measurements, not on this
+mechanism.
+
+### The second cause: sequence length, independent of scene
+
+`penetration_counts`, the benchmark builder's own field, is **0 for all 469 episodes** —
+every episode was constructed collision-free, so the tail is not a specification defect.
+Of the episode-specification scalars, the predictor is travel distance (ρ +0.312,
+p 4.9e-12) — and travel is *length in disguise*: ρ(frames, travel) = **+0.971**, and at
+fixed frame count travel stops predicting (mean within-decile ρ = **−0.097**).
+
+Sequence length itself, from the 469 `frames: N` lines in the shard logs:
+
+| | ρ with `s_mean` | p |
+|---|--:|--:|
+| frames (= windows, since `⌈(N−2)/14⌉`) | **+0.353** | 3.5e-15 |
+
+| frame-count quartile | n | median `s_mean` | tail members |
+|---|--:|--:|--:|
+| Q1 90–132 | 118 | **0.033** | 11 |
+| Q2 132–174 | 117 | 0.095 | 8 |
+| Q3 174–258 | 117 | 0.537 | 8 |
+| Q4 258–468 | 117 | **1.707** | 20 |
+
+The medians are monotone across a **52× span**. (The quartile *means* are not monotone —
+Q1 is 4.412 against Q2's 1.914 — because 11 tail episodes sit in Q1: a short episode in
+a bad scene is still catastrophic. Read the medians for the length effect and the scene
+R² for the other.)
+
+Scene and length are **independent**, which is the useful part:
+
+| | R² on log1p(`s_mean`), n=469 |
+|---|--:|
+| scene identity alone (67 groups) | 0.271 |
+| scene identity **after** removing a cubic in log frames | **0.274** |
+| length alone (cubic in log frames) | 0.107 |
+| length **after** removing scene means | **0.091** |
+
+Scene identity loses nothing to length. And length holds *inside* a scene, where
+geometry is fixed: mean within-scene ρ = **+0.298**, positive in **52 of 67** scenes
+(two-sided sign test **p = 6.5e-06**). Between scenes, ρ(mean frames, mean log1p
+`s_mean`) = +0.393, p = 1.0e-03.
+
+### What this means for the gate
+
+Length predicting penetration at fixed geometry is autoregressive **drift**: the
+evaluator generates 16-frame windows with 2 frames of history, each window conditioned
+on the previous window's output, and error accumulates across that chain.
+
+Be precise about what this does and does not say about a gate. The gate acts at every
+denoising step of every window, so a better gate does slow the accumulation — that is
+exactly what P2-BG's 23.2% prevalence reduction looks like. What a per-step gate has no
+mechanism for is *correcting* error already accumulated: it sees the two experts' x̂₀ and
+the step index, and nothing that tells it the rollout has drifted into a wall.
+
+That points at two levers, neither of which is a body-split weight:
+
+1. **A window-boundary correction** — something with access to the accumulated state,
+   not just the per-step blend. This is where a scene-aware term can act on drift.
+2. **A length-stratified reading of every future row.** Q4 carries 20 of the 47 tail
+   episodes; a row evaluated only on short episodes will look far better than it is.
+
+And it explains the P2-BG null more completely than the mass-concentration argument
+alone did: the gate improved 90% of the benchmark by 12.6% while the two things that
+actually produce the tail — which scene it is, and how many windows the rollout runs —
+are both invariant to the gate.
