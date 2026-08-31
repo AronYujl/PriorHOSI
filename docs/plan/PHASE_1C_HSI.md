@@ -11878,3 +11878,99 @@ cosine/EMA/geometry precision 配方，故保持 B-v2 的 world size 与 per-ran
 GPU 4–7 **尚未获准启动第二条正式训练**。48-update bf16 control 已否定“fp32 造成梯度尖峰”，
 完整重复它的预期信息增益很低；若并行第二臂，应另行预注册一个直接瞄准 rollout 指标的模型机制臂，
 而不是复制 R1 或把多个 EMA readout 当作 checkpoint 选择。
+
+---
+
+## 2026-09-01（R2：fp32 24-joint full-body seam objective；已批准、待标定）
+
+### A. 为什么值得与 R1 并行
+
+用户批准 GPU 4–7 并行运行一个独立的四卡模型实验。R2 不等待 R1 结果，不是因为已经知道 R1 会失败，
+而是因为两条机制正交：R1 降低最终参数读出的优化噪声；R2 让训练目标第一次直接为跨窗口全身动力学
+付费。代价是 R2 在 R1 仍未知时提前消耗一条训练预算；收益是空闲的四卡把串行约 43 小时缩短为约
+22 小时 wall time。两条 run 使用独立 worktree、结果目录和 manifest，R1 的 checkout、进程和 provenance
+均不得被 R2 修改。
+
+位置重加权不是本臂的机制。生产 evaluator 的 2x2 head attribution 已测得 B-v2 的 pelvis translation
+带来 `boundary_jerk` +21.979（95% CI `[19.369,24.701]`），rotations 带来 +22.628
+（`[17.973,27.386]`）；旧 `loss_seam` 只碰 84 维位置块，其中只有 pelvis 三维进入最终 FK 指标，
+无法同时处理两半缺口。R2 必须从预测的 pelvis translation **和** 22-joint rotations 做 24-joint FK。
+
+### B. 唯一新增变量：full-body seam acceleration residual
+
+设 `n=2` 为 history 长度，`J*` 是由 GT translation/rotation 得到的 fp32 世界坐标 24-joint FK，
+`Jhat` 是 denoiser x0 预测得到的同口径 FK。构造四帧序列：
+
+```
+P_hat = [J*_(n-2), J*_(n-1), Jhat_n, Jhat_(n+1)]
+P_gt  = [J*_(n-2), J*_(n-1), J* _n, J*   _(n+1)]
+A(P)_k = P_(k+2) - 2 P_(k+1) + P_k,  k in {0,1}
+L_fullbody_seam = mean((A(P_hat) - A(P_gt))^2)
+```
+
+这是一个统一的 24-joint temporal residual，不拆分 translation/rotation 权重，也不另设 velocity、
+acceleration、jerk 三个权重。若前两个生成帧 FK 误差为 `e0,e1`，两个残差恰为 `e0` 与
+`e1-2e0`；所以损失同时约束首帧错位并耦合第二帧，而 evaluator 中跨 seam 的中心三阶差分误差
+`e1-3e0` 是两者之差。直接只罚三阶差分会留下 `e1=3e0` 的退化方向，本形式没有该自由度。
+
+全部 FK 与 loss arithmetic 强制 fp32；denoiser 主干仍为 bf16+TF32。24 个关节等权，loss 在 batch、
+两项二阶差分、joint、xyz 上取 element mean。旧 `seam_loss_weight` 固定为 0，`pen_loss_weight=0`，
+不改 `code/priors/core/`，不改 architecture、sampler 或 guidance。
+
+### C. 启动前唯一一次权重标定
+
+权重不得拍脑袋，也不得以 rollout 指标调参。实现后、正式 run id 分配前，在 GPU 4–7 用正式
+4x512、seed 42、random initialization 和各 rank 的首个真实 LINGO train batch 做一次无 optimizer
+step 的梯度标定；base 与 raw seam gradient 必须来自**同一次 forward graph**，从而共享 timestep、
+noise、dropout 和 batch。测量参数集固定为 `student_model.module.transformer.parameters()`：这是
+translation 与 rotation 共同经过的 shared trunk，且 base objective 的已测占比 92.61% 来自 rotation
+L1，故不是被无关 object output 头污染的比例。
+
+对每个 rank 分别计算 `G_base=||d L_base/d theta_trunk||_2` 与
+`G_seam=||d L_fullbody_seam/d theta_trunk||_2`，先在 rank 间取 median，再冻结：
+
+```
+w = 0.10 * median(G_base) / median(G_seam)
+```
+
+0.10 是预先固定的目标梯度份额，不作 sweep：seam 只覆盖 14 个生成帧中的前 2 帧（14.3% temporal
+support），10% 低于该份额并把三角不等式下的单步 shared-trunk 梯度增幅限制在约 10%，足以摆脱旧
+位置项仅占总目标 0.247% 的量级，同时不让一个局部约束主导整窗语义。记录四 rank 的 loss magnitude、
+两种 raw gradient norm、ratio、冻结权重及有限性；若任一非有限则标定失败、禁止正式启动。标定只决定
+这个预注册公式中的数值，不查看 rollout 指标，也不创建候选 checkpoint。
+
+### D. 正式训练与控制变量
+
+| 项 | R2 冻结值 |
+|---|---|
+| training run id | `p1-hsi-b-r2-fullbody-seam-s42-20260901` |
+| branch / worktree | `phase/01c-hsi-r2-fullbody-seam` / `/data/yujinlun/InfBaGel-hsi-r2` |
+| GPU / layout | physical GPU 4–7；4x512；accumulation 1；effective batch 2,048 |
+| 初始化 / seed | random；seed 42；禁止 released 或 R1 checkpoint 初始化 |
+| 数据与预算 | 与 R1 相同；299,530,240 windows = 146,255 optimizer updates x 2,048 |
+| optimizer / LR | Adam；2e-4；warmup 2,000；through 117,004 constant；117,005–146,255 cosine 到 0 |
+| precision | bf16+TF32 trunk；fp32 FK/base geometry/full-body seam |
+| readout | diffusion EMA 0.9999 from initialization；唯一 final EMA 可评测；online 仅 rolling resume |
+| 唯一方法差异 | `fullbody_seam_loss_weight=w`（按 §C 一次标定）；R1 中其值为 0/不存在 |
+| 旧目标 | `seam_loss_weight=0`、`pen_loss_weight=0`、`loss_w_fk=3` |
+
+并发训练的 4–6% throughput 下降只进入 ETA，不作为方法结果。正式训练前仍需 component tests、真实
+LINGO functional smoke、4x512 满批显存/吞吐 preflight、clean worktree、`tools/experiment.py start`、
+无未解析插值的 resolved config 与同一 workload context 的 machine preflight。正式启动使用独立
+`nohup+setsid` 持久进程；先证明有限 loss/required gradients、显存余量与 epoch-0 rolling resume 可恢复。
+
+### E. 唯一 final EMA 的双协议 gate
+
+R2 使用与 R1 **完全相同**的唯一 checkpoint、unguided/guided 两格、full375/holdout355、canonical
+ordering、10,000 次 episode-paired bootstrap seed 42 和判据：
+
+1. unguided `boundary_jerk <=116.66`，相对 B-v2 126.050 显著改善，点改善 >9.3937；
+2. guided `boundary_jerk <=158.66`，相对 B-v2 184.064 显著改善，点改善 >25.3998；
+3. unguided `pen_ratio <=0.03025` 且相对 B-v2 0.03241 显著改善；
+4. guided `pen_ratio <= GT 0.02653`，且 `contact_count` 不得相对 B-v2 guided 显著下降；
+5. 两格的 `interior_jerk`、`fs_nemf`、`goal_planar_err_m`、penetration depth、engagement/contact
+   均不得相对对应 B-v2 格显著退化。
+
+若 jerk 降而 interior jerk / goal / engagement 退化，判为局部平滑或少运动，不晋级。只有全部主判据
+和守卫通过，R2 final EMA 才能作为可靠 diffusion teacher；R1 与 R2 都完成后按同一 gate 判读，禁止
+在两个 final checkpoint 中事后择优或把一格协议的胜利替代另一格。
