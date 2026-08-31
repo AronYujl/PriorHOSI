@@ -1339,3 +1339,69 @@ manifest. The start manifest does retain the base config content, exact override
 hardware snapshot, clean pinned Git state and both checkpoint hashes, which is enough
 to audit this one-key diagnostic but does not retroactively satisfy those lifecycle
 gates.
+
+## 2026-09-01 — P2-KIN-API: kinematically coherent composition, preregistered
+
+**Approved by the user 2026-09-01.** This is an implementation/API subphase, not a
+checkpoint-selection experiment and not a 469-episode quality row. HSIPrior is still
+improving; P17-OC may be loaded only to prove that the runtime interface works on real
+data. No metric observed from it may select a weight, threshold, schedule, joint group
+or future HSIPrior checkpoint.
+
+### One manipulated factor
+
+Hold P2-ROOT's ownership fixed: HOI owns the pelvis/root, torso, arms, hand markers,
+object and contact; HSI owns the complete left and right leg rotation branches. Change
+only the coordinate in which ownership is applied:
+
+| | P2-ROOT | P2-KIN-API |
+|---|---|---|
+| rotation composition | select predicted **global** rotations, then run IK | convert each expert to its own **local** rotations, select branches, then run FK |
+| position composition | independently select 28 predicted positions | reconstruct the articulated body; rigidly attach the six extra eye/hand markers |
+| root | HOI | HOI, exact channel ownership |
+| object/contact 216:232 | HOI | HOI, bitwise unchanged |
+| HSI scene-query pelvis | shared chain state / previous composed prediction | the same; explicitly the actual composed pelvis, never HSI's private pelvis |
+
+The 22-joint FK tree does not contain all 28 position markers. Slots 22/23 (eyes) are
+attached to the composed head frame; slots 24/26 (index markers) to the corresponding
+composed wrist; slots 25/27 use the two hand endpoints already present in the 24-joint
+FK offsets. The attached local vectors come from HOI. This is fixed representation
+plumbing, not a learned or tuned rule.
+
+### Structural hypothesis and falsification
+
+P2-ROOT's hip seam was created by differencing an HSI global hip rotation against an
+HOI global pelvis rotation. Selecting HSI's hip-to-foot **local** rotations and running
+FK below an HOI root removes that artificial disagreement while leaving the expert
+roles unchanged. The implementation passes only if all of the following hold:
+
+1. HOI root position, object pose and contact are exact invariants; history frames are
+   restored exactly from `fixed_points`.
+2. The composed local rotations equal HSI on joints `{1,2,4,5,7,8,10,11}` and HOI on
+   every other rotation joint, within `1e-5` rad geodesic error.
+3. FK bone lengths match the supplied rest offsets within `1e-5` m, every output is
+   finite, and no one of the 84 position channels is independently averaged.
+4. The six extra markers move rigidly with their declared HOI parent frame; 216:232
+   remain bitwise equal to HOI.
+5. The existing raw composer and the `G=0` bitwise anchor remain unchanged.
+6. HSI occupancy receives `current` for its anchor query and the previous **composed**
+   prediction for temporal queries. There is no private-HSI-pelvis configuration.
+
+Any failed invariant blocks the subphase. Repairs may correct implementation defects
+only; changing ownership, adding a blend weight or choosing a different scene-query
+pelvis is a new direction requiring new approval.
+
+### Validation and explicit non-claims
+
+Run registry/config validation, the complete authority suite, and a full-window
+batch-1 benchmark of the composer with CUDA synchronization because it adds IK/FK to
+every reverse step. A real-data functional smoke uses the first canonical HOSI scene
+(`hosi_scene_limit=1`, seven episodes) on the idle 4-GPU worker with one GPU, no run id,
+`hosi_expected_episodes=null`, and the existing P15/P17-OC pair. It checks only finite
+execution, all seven outputs, audit fields and the absence of API/shape failures. Its
+quality metrics are non-reportable and forbidden as tuning evidence.
+
+No formal HOSI row runs in this subphase. Once HSIPrior settles, a new preregistration
+must compare the kinematic operator against G=0 and the raw P2-ROOT ownership-matched
+row over all 469 episodes. Whether HSI-local legs improve scene compliance under an
+HOI carrier is deliberately unanswered here.
