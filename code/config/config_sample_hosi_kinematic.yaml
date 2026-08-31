@@ -1,0 +1,11 @@
+# P2-KIN-API: structural/runtime validation only, not a reportable quality row.
+#
+# This fragment changes one thing relative to config_sample_hosi_composed: expert
+# ownership is applied to local joint rotations and positions are rebuilt by FK.
+# No checkpoint-dependent weight, threshold or schedule is introduced here.
+defaults:
+  - config_sample_hosi_composed
+  - _self_
+
+mixer_body_composer:
+  _target_: mixer.kinematic_composition.KinematicBodyComposer

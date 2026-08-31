@@ -325,9 +325,33 @@ class RecordingHSIModel(torch.nn.Module):
         return torch.full_like(current, value)
 
 
+class RecordingBodyComposer:
+    """A cheap operator spy for the sampler/composer protocol."""
+
+    def __init__(self, body_value=4.25):
+        self.body_value = body_value
+        self.calls = []
+        self.outputs = []
+
+    def describe(self):
+        return {
+            'kind': 'recording_body_composer',
+            'scene_query_pelvis': 'shared_current_and_previous_composed_x0',
+        }
+
+    def __call__(self, outputs, *, dataset, rest_human_offsets, fixed_points):
+        self.calls.append((outputs, dataset, rest_human_offsets, fixed_points))
+        result = outputs.hoi.clone()
+        result[..., :OBJECT_CHANNEL_START] = self.body_value
+        result[..., OBJECT_CHANNEL_START:] = outputs.hoi[..., OBJECT_CHANNEL_START:]
+        result[:, :REPRESENTATION.history_frames] = fixed_points
+        self.outputs.append(result.clone())
+        return result
+
+
 def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
                             channel_mask='human', object_voxels=0,
-                            hsi_object_voxel_mode='occupied'):
+                            hsi_object_voxel_mode='occupied', body_composer=None):
     from priors.hoi.diffusion import HOIPriorSampler  # noqa: F401
 
     from mixer.hoi_adapter import HOIExpertSamplerAdapter
@@ -340,6 +364,7 @@ def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
     composed = HOSIComposedSampler(
         adapter, hsi_sampler=hsi_sampler, gate=gate, channel_mask=channel_mask,
         hsi_object_voxel_mode=hsi_object_voxel_mode,
+        body_composer=body_composer,
     )
     composed.set_dataset_and_model(dataset, model, hsi_model=hsi_model)
     return composed, hsi_sampler, hsi_model, model
@@ -508,6 +533,73 @@ class HSIExpertCallTests(unittest.TestCase):
         self.assertTrue(audit['composition']['hsi_expert_loaded'])
         self.assertEqual(audit['composition']['channel_mask'], 'human')
         self.assertTrue(audit['composition']['object_channels_from_hoi'])
+
+
+class KinematicComposerProtocolTests(unittest.TestCase):
+    """The fixed FK operator replaces the raw gate without changing HSI sensing."""
+
+    def _arguments(self):
+        arguments = _evaluator_arguments(batch=1)
+        arguments['human_dict'] = {
+            'rest_human_offsets': torch.zeros(
+                1, REPRESENTATION.window_frames, 24, 3,
+            ),
+        }
+        return arguments
+
+    def test_gate_zero_still_calls_hsi_when_the_composer_needs_both_experts(self):
+        composer = RecordingBodyComposer()
+        composed, hsi_sampler, hsi_model, _ = _make_composed_with_hsi(
+            gate=0, body_composer=composer,
+        )
+        composed.p_sample_loop(**self._arguments())
+        self.assertEqual(hsi_model.cond_calls, 500)
+        self.assertEqual(hsi_model.uncond_calls, 500)
+        self.assertEqual(len(hsi_sampler.occ_calls), 500)
+        self.assertEqual(len(composer.calls), 500)
+        self.assertIsNotNone(composer.calls[0][0].hsi)
+
+    def test_constructor_rejects_a_composer_with_a_nonzero_raw_gate(self):
+        from mixer.hoi_adapter import HOIExpertSamplerAdapter
+
+        adapter = HOIExpertSamplerAdapter(device='cpu', timesteps=500)
+        with self.assertRaisesRegex(ValueError, 'body_composer replaces the raw gate'):
+            HOSIComposedSampler(
+                adapter, hsi_sampler=RecordingHSISampler(), gate=0.5,
+                body_composer=RecordingBodyComposer(),
+            )
+
+    def test_constructor_rejects_a_composer_without_hsi(self):
+        from mixer.hoi_adapter import HOIExpertSamplerAdapter
+
+        adapter = HOIExpertSamplerAdapter(device='cpu', timesteps=500)
+        with self.assertRaisesRegex(ValueError, 'needs both expert samplers'):
+            HOSIComposedSampler(
+                adapter, hsi_sampler=None, gate=0,
+                body_composer=RecordingBodyComposer(),
+            )
+
+    def test_temporal_occupancy_receives_the_previous_composer_output(self):
+        composer = RecordingBodyComposer()
+        composed, hsi_sampler, _, _ = _make_composed_with_hsi(
+            gate=0, body_composer=composer,
+        )
+        composed.p_sample_loop(**self._arguments())
+        self.assertTrue(torch.equal(hsi_sampler.occ_calls[1][1], composer.outputs[0]))
+
+    def test_audit_names_the_operator_and_shared_query_chain(self):
+        composer = RecordingBodyComposer()
+        composed, _, _, _ = _make_composed_with_hsi(
+            gate=0, body_composer=composer,
+        )
+        composed.p_sample_loop(**self._arguments())
+        composition = composed.audit_dict()['composition']
+        self.assertEqual(composition['operator']['kind'], 'recording_body_composer')
+        self.assertEqual(
+            composition['scene_query_pelvis'],
+            'shared_current_and_previous_composed_x0',
+        )
+        self.assertEqual(composition['compose_calls'], 500)
 
 
 class ChannelMaskIsMandatoryTests(unittest.TestCase):

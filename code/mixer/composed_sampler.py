@@ -69,7 +69,8 @@ class HOSIComposedSampler:
     """
 
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
-                 channel_mask='human', hsi_object_voxel_mode='occupied'):
+                 channel_mask='human', hsi_object_voxel_mode='occupied',
+                 body_composer=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -89,12 +90,20 @@ class HOSIComposedSampler:
         self.hoi_adapter = hoi_adapter
         self.hsi_sampler = hsi_sampler
         self.gate = 0 if gate is None else gate
+        self.body_composer = body_composer
         self.channel_mask = channel_mask
         self.hsi_object_voxel_mode = hsi_object_voxel_mode
         self.dataset = None
         self.student_model = None
         self.compose_calls = 0
         self.hsi_object_voxels_remapped = 0
+        if body_composer is not None and not gate_is_identity(self.gate, 0):
+            raise ValueError(
+                'body_composer replaces the raw gate, so gate must remain the '
+                'identity value 0; combining both operators is ambiguous'
+            )
+        if body_composer is not None and hsi_sampler is None:
+            raise ValueError('a body_composer needs both expert samplers')
         if hsi_sampler is None and not gate_is_identity(self.gate, 0):
             raise ValueError(
                 'a non-zero gate needs an HSI sampler; pass hsi_sampler or use '
@@ -134,6 +143,10 @@ class HOSIComposedSampler:
         audit = dict(self.inner_hoi.audit_dict())
         audit['composition'] = {
             'gate': self._describe_gate(),
+            'operator': (
+                self.body_composer.describe() if self.body_composer is not None
+                else {'kind': 'raw_channel_blend'}
+            ),
             'channel_mask': (
                 self.channel_mask if isinstance(self.channel_mask, str) else 'tensor'
             ),
@@ -146,6 +159,10 @@ class HOSIComposedSampler:
             'per_step_composition': True,
             'hsi_object_voxel_mode': self.hsi_object_voxel_mode,
             'hsi_object_voxels_remapped': self.hsi_object_voxels_remapped,
+            # Anchor occupancy reads the shared noisy chain (`current`); temporal
+            # occupancy reads the previous composed clean prediction.  There is
+            # deliberately no private-HSI-pelvis switch.
+            'scene_query_pelvis': 'shared_current_and_previous_composed_x0',
         }
         return audit
 
@@ -229,10 +246,10 @@ class HOSIComposedSampler:
         # `x0` list starts at the initial noise and `_compute_occ_sample` reads
         # `x0[:, :, :84]` to place the temporal occupancy queries.  Under
         # composition the chain's own best estimate of the finished motion is the
-        # BLEND, so that is what the occupancy sees -- feeding HSI's private
-        # prediction instead would let the scene queries follow a trajectory the
-        # chain is not taking.  Initialized to `current` to match the released
-        # `x0.append(points)`, which happens after the history fix.
+        # COMPOSED prediction, so that is what the occupancy sees. Feeding HSI's
+        # private prediction instead would let the scene queries follow a
+        # trajectory the chain is not taking. Initialized to `current` to match
+        # the released `x0.append(points)`, which happens after the history fix.
         previous_x0 = current
         imgs = []
         for step in reversed(range(diffusion.timesteps)):
@@ -265,11 +282,23 @@ class HOSIComposedSampler:
                     current, previous_x0, timesteps, hsi_context,
                 )
 
-            gate = self._gate_for_step(step, current, hoi_clean, hsi_clean)
-            clean = compose_x0(
-                ExpertOutputs(hoi=hoi_clean, hsi=hsi_clean), gate,
-                channel_mask=self.channel_mask,
-            )
+            outputs = ExpertOutputs(hoi=hoi_clean, hsi=hsi_clean)
+            if self.body_composer is None:
+                gate = self._gate_for_step(step, current, hoi_clean, hsi_clean)
+                clean = compose_x0(
+                    outputs, gate, channel_mask=self.channel_mask,
+                )
+            else:
+                if human_dict is None or 'rest_human_offsets' not in human_dict:
+                    raise ValueError(
+                        'kinematic body composition needs '
+                        'human_dict[rest_human_offsets]'
+                    )
+                clean = self.body_composer(
+                    outputs, dataset=self.dataset,
+                    rest_human_offsets=human_dict['rest_human_offsets'],
+                    fixed_points=fixed_points,
+                )
             self.compose_calls += 1
             previous_x0 = clean
 
@@ -456,6 +485,8 @@ class HOSIComposedSampler:
         cost what it looks like it costs rather than paying for a prediction the
         blend throws away.
         """
+        if self.body_composer is not None:
+            return False
         if callable(self.gate):
             decide = getattr(self.gate, 'is_identically_zero_at', None)
             if decide is None:

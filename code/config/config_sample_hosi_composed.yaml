@@ -108,6 +108,9 @@ mixer_hsi_object_voxel_mode: occupied
 #   ChannelBlockGate     positions (0:84) against rotations (84:216); a coarser cut
 #                        than BodyGroupGate and kept for that ablation only.
 mixer_gate: 0
+# Optional alternative to raw channel gating.  null preserves every sealed row;
+# the P2-KIN-API fragment installs the fixed, parameter-free FK composer.
+mixer_body_composer: null
 # THE CHANNEL CONTRACT -- a hard requirement, not an option (2026-08-30).
 # 'human' masks the gate to channels 0:216, so object translation, object rotation
 # and contact come from HOI at EVERY gate value, G == 1 included.  HSI is never

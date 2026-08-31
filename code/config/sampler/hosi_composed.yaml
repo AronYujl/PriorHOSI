@@ -39,6 +39,9 @@
 pelvis:
   _target_: mixer.composed_sampler.HOSIComposedSampler
   gate: ${mixer_gate}
+  # null keeps the historical raw channel gate byte-for-byte.  P2-KIN-API opts
+  # into a separate local-rotation/FK operator; it is never selected implicitly.
+  body_composer: ${oc.select:mixer_body_composer,null}
   channel_mask: ${mixer_channel_mask}
   hsi_object_voxel_mode: ${mixer_hsi_object_voxel_mode}
   hoi_adapter:

@@ -31,6 +31,7 @@ from .gates import (
     ScheduleGate,
 )
 from .hoi_adapter import HOIExpertSamplerAdapter, SceneBlindDatasetView
+from .kinematic_composition import KinematicBodyComposer
 
 __all__ = [
     'DEFAULT_BODY_GROUP_GATE',
@@ -44,6 +45,7 @@ __all__ = [
     'ExpertOutputs',
     'HOIExpertSamplerAdapter',
     'HOSIComposedSampler',
+    'KinematicBodyComposer',
     'ObjectConditionedGate',
     'SceneBlindDatasetView',
     'ScheduleGate',
