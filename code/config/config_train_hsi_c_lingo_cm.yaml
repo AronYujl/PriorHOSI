@@ -116,6 +116,10 @@ human_only_ratio: 0.4
 
 temp_voxel_num: 3
 
+# C-v4 was trained at 8ff078a before 589ac7f; keep E1 off for its
+# consistency-model checkpoint and any pre-E1 C recipe selected from this file.
+occ_permute_fix: false
+
 use_random_frame_bps: true
 use_object_keypoints: true
 add_object_voxel: true

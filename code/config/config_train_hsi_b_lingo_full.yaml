@@ -89,6 +89,10 @@ human_only_ratio: 0.4
 
 temp_voxel_num: 3
 
+# This B-v2 recipe was trained before 589ac7f; keep E1 off to reproduce its
+# training-time occ_list layout.  P17-OC sets this true in its own override.
+occ_permute_fix: false
+
 use_random_frame_bps: true
 use_object_keypoints: true
 add_object_voxel: true

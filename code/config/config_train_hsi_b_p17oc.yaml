@@ -2,6 +2,9 @@
 defaults: [config_train_hsi_b_lingo_full, _self_]
 
 exp_name: hsi_b_p17oc
+# This arm was trained by 589ac7f with E1 active; retain the fixed occ_list
+# layout for its checkpoint and for any continuation of this recipe.
+occ_permute_fix: true
 pen_loss_weight: 8.36
 pen_delta: 0.03
 pen_floor_height: 0.02

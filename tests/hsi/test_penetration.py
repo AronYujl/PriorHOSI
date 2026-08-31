@@ -454,7 +454,7 @@ class ObjectivePlumbingTests(unittest.TestCase):
 
         self.assertEqual(build.call_args.args[0], {10: "train", 12: "held_out"})
 
-    def test_p17oc_config_is_a_six_key_override_and_sampler_resolves_all_keys(self):
+    def test_p17oc_config_is_a_seven_key_override_and_sampler_resolves_all_keys(self):
         from omegaconf import OmegaConf
 
         config_path = REPO / "code" / "config" / "config_train_hsi_b_p17oc.yaml"
@@ -467,9 +467,10 @@ class ObjectivePlumbingTests(unittest.TestCase):
         self.assertEqual(raw.pen_sdf_dtype, "float16")
         self.assertEqual(
             sorted(raw.keys()),
-            ["defaults", "exp_name", "pen_delta", "pen_floor_height",
+            ["defaults", "exp_name", "occ_permute_fix", "pen_delta", "pen_floor_height",
              "pen_loss_weight", "pen_sdf_cache", "pen_sdf_dtype"],
         )
+        self.assertIs(raw.occ_permute_fix, True)
         sampler_config = (REPO / "code" / "config" / "sampler" / "pelvis.yaml").read_text()
         for key, default in (
             ("pen_loss_weight", "0.0"),

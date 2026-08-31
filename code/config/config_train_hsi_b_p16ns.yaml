@@ -68,3 +68,7 @@ exp_name: hsi_b_p16ns
 # every evaluation config, changes meaning.
 dataset:
   force_need_scene: true
+
+# P16-NS was trained at fc033a9 before 589ac7f; its checkpoint uses the
+# pre-E1 occ_list layout.
+occ_permute_fix: false

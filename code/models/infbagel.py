@@ -111,6 +111,9 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        # False by default reproduces pre-589ac7f / B-v2 / C-v4; True is for
+        # P17-OC and later checkpoints trained with the occ_list transpose fix.
+        self.occ_permute_fix = bool(kwargs.get('occ_permute_fix', False))
         # Training/inference input-distribution repair on the 16 object channels,
         # OFF by default (False = the released arithmetic, bitwise).  Diffusion path
         # only: cm_sample is the consistency path and C is neither modified nor
@@ -360,7 +363,10 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            if self.occ_permute_fix:
+                occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            else:
+                occ_list = torch.cat([occ_list, occ], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 object_points_temp = object_points.clone()
@@ -728,7 +734,10 @@ class Sampler:
             occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
                 
             occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            if self.occ_permute_fix:
+                occ_list = torch.cat([occ_list, occ.permute(0, 2, 1, 3)], dim=0)
+            else:
+                occ_list = torch.cat([occ_list, occ], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 if self.dataset.vis:

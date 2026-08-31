@@ -36,6 +36,10 @@ defaults:
 
 exp_name: hsi_b_seam_t0
 
+# T0 continued pre-E1 B-v2 weights and was trained at the pre-589ac7f
+# Stage-1 commit, so its checkpoint requires the legacy layout.
+occ_permute_fix: false
+
 # 223..242 inclusive.  start_epoch=223 sets micro_steps = optimizer_updates =
 # 223 * 656 = 146,288, which puts the lr schedule past its 2000-update warmup, so
 # the lr is a flat 2e-4 for the whole pilot.  20 * 656 = 13,120 more updates lands

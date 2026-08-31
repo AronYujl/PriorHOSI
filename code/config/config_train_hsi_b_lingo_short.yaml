@@ -88,6 +88,10 @@ human_only_ratio: 0.4
 
 temp_voxel_num: 3
 
+# This short arm predates 589ac7f, so its training-time layout is the default
+# pre-E1 branch.  Keep it explicit even though the shared sampler defaults false.
+occ_permute_fix: false
+
 use_random_frame_bps: true
 use_object_keypoints: true
 add_object_voxel: true

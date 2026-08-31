@@ -107,6 +107,12 @@ hsi_guidance_norm_cap: null
 hsi_guidance_dose_scale: null
 hsi_guidance_alpha_decay: false
 
+# occ_permute_fix: the E1 transpose of occ_list[0] added in 589ac7f.  false
+# (the default) reproduces pre-589ac7f checkpoints, including B-v2 and C-v4;
+# set true for P17-OC and any later checkpoint trained with E1.  This is a
+# checkpoint property, so an explicit CLI override wins for the selected model.
+occ_permute_fix: false
+
 # hsi_zero_object_x0: force the 16 object channels (216:232 -- com 216:219, rot
 # 219:228, contact 228:232) of the PREDICTED x0 to exactly 0 on scene-only rows,
 # applied in Sampler.p_sample after CFG and before the posterior mean.  false = off

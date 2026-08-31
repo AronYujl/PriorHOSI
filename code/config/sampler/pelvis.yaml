@@ -18,6 +18,8 @@ pelvis:
   hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}
   hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
   hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}
+  # Checkpoint-owned E1 layout mode; absent top-level keys stay pre-589ac7f.
+  occ_permute_fix: ${oc.select:occ_permute_fix,false}
   hsi_zero_object_x0: ${oc.select:hsi_zero_object_x0,false}
   # B-match seam weight, 0.0 = off.  Same oc.select pattern: model C's train
   # config and the sampling configs never define the top-level key, and they

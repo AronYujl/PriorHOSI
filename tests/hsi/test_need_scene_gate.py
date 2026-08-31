@@ -402,8 +402,11 @@ class NeedSceneGateInferenceInertnessTests(unittest.TestCase):
         self.assertEqual(list(raw.defaults), ["config_train_hsi_b_lingo_full", "_self_"])
         self.assertEqual(raw.dataset.force_need_scene, True)
         self.assertEqual(raw.exp_name, "hsi_b_p16ns")
-        # The delta is exactly these two keys plus the defaults list.
-        self.assertEqual(sorted(raw.keys()), ["dataset", "defaults", "exp_name"])
+        # The delta is exactly these three keys plus the defaults list.
+        self.assertEqual(
+            sorted(raw.keys()), ["dataset", "defaults", "exp_name", "occ_permute_fix"]
+        )
+        self.assertIs(raw.occ_permute_fix, False)
         self.assertEqual(list(raw.dataset.keys()), ["force_need_scene"])
 
 

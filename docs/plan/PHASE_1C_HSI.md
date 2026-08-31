@@ -11156,3 +11156,53 @@ HSI 推理逐位可复现，所以本格可精确重导出，**本节任何数�
 判读文件：`.claude/scratch/p0zo_tier1_read.json`（判定）、
 `.claude/scratch/p0zo_full_table.json`（全列，仅存档，判定在它之前已定）；
 metrics：`results/hsi_b_p0zo_eval_guided_shard8/metrics.json`。
+
+---
+
+## E1 布局开关 `occ_permute_fix` —— checkpoint 自带的受训配置
+
+**动机。** `589ac7f` 无条件加入了 `occ_list` 第 0 项的 `occ.permute(0,2,1,3)`
+转置（下称 **E1**，见 `occ-list-entry0-transpose` 缺陷）。该转置**同时**落在训练路径
+`_compute_occ` 和推理路径 `_compute_occ_sample` 上，且没有开关。后果是：`589ac7f`
+之后的任何 HEAD 都**无法**在 B-v2 / C-v4 各自的受训布局下评估它们 —— 每一次重评都会
+静默地换掉场景占据张量的轴序。E1 是**checkpoint 的属性**，不是代码的属性。
+
+**做法。** 加 `occ_permute_fix`，**默认 `false`**：
+
+- `false` 分支与 `589ac7f^` 的原行**逐位相同**，复现 B-v2 / C-v4 的受训配置；
+- `true` 复现 `589ac7f` 及之后的行为，P17-OC 是第一个需要它为 `true` 的 checkpoint。
+
+`code/models/infbagel.py:116` 读取该键，两个守卫点分别在 `:365-370`（训练）与
+`:736-741`（推理），形状相同。`code/config/sampler/pelvis.yaml` 以
+`${oc.select:occ_permute_fix,false}` 透出，因此**顶层键缺席时行为回到 `589ac7f` 之前**，
+旧的 resolved config 不需要改写即可正确复现。
+
+**每个 checkpoint 的取值写在它自己的 config 里。** 本树内唯一置 `true` 的是
+`config_train_hsi_b_p17oc.yaml:7`；`config_train_hsi_b_lingo_full.yaml:94`（B-v2）等
+其余训练 config 显式写 `false` 而不是依赖默认，以免下一次默认值变动再次静默改写受训布局。
+
+**未记录的 22 个 checkpoint**（`hsi_b_lingo_short`、`hsi_c_cand_precheck`、
+`hsi_c_cfgabl_*`、`hsi_c_cfglr_*`、`hsi_c_inert_*`）没有可判定的来源，其正确取值
+**未知**。它们不得在未先确定 E1 取值的情况下进入任何对照。完整 151 行映射见
+`.claude/scratch/hsi_e1_flag_report.md`。
+
+**B-v2 epoch222 可否按原配置重评：可以，且只靠配置。** 在 B-v2 评估提交 `ed763b2`
+与本 HEAD 之间，`code/test_infbagel_lingo_hsi.py` 与 `code/guidance_loss.py`
+**未改动**（不在 diffstat 中）；`infbagel.py` 变动的 309 行触及 8 个方法，其中只有
+`_compute_occ_sample` 与 `p_sample` 在推理路径上，两者都已被开关覆盖。E3 的 SDF 惩罚
+在推理侧不可达（`_get_pen_sdf_bank` 仅在 `:1113` 被调用，由 `:1107` 的
+`pen_loss_weight > 0.0` 门控，二者都在 `p_losses` 内），且
+`code/priors/hsi/penetration.py` **无任何 RNG 调用**，其 import 不会移动随机流。
+所需覆盖项：
+
+```
+occ_permute_fix=false hsi_zero_object_x0=false hsi_progress_fix=true \
+hsi_guidance_norm_cap=null hsi_guidance_dose_scale=null hsi_guidance_alpha_decay=false
+```
+
+**测试。** `tests/hsi/test_occ_layout.py` 调用真实的 `_compute_occ` /
+`_compute_occ_sample`，两个分支各自**绝对锚定**（`legacy_list[0] == raw`,
+`fixed_list[0] == raw.permute(1,0,2)`）而不是互相比较 —— 转置是对合，互比的断言在
+反转守卫后仍然通过，对开关方向是盲的。三处变异（翻默认、反转推理守卫、反转训练守卫）
+均按预期使对应用例失败。`pytest tests/hsi/ tests/core/test_contract_freeze.py`
+→ **270 passed**。
