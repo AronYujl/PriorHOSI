@@ -1226,3 +1226,53 @@ cells that survive this test in the stratified table are `frame_ratio` and
 `contact_percent` — both bounded in [0,1], both significant in all four strata, and
 neither zero-inflated. Those are the two columns the length finding actually rests on, and
 they are unaffected.
+
+### Refinement to the robustness rule — the median is the wrong third column
+
+The rule two sections above says a stratified cell needs "the sign test and the median
+beside the mean interval." The median half is wrong on this benchmark, and the reason is
+worth recording because it changes which column to read.
+
+Ties are pervasive. P2-BG against G=0, all 469 episodes:
+
+| metric | exactly tied | better | worse | median |
+|---|--:|--:|--:|--:|
+| `completed` | **446** | 14 | 9 | 0 |
+| `hand_pen_ratio` | 314 | 67 | 88 | 0 |
+| `human_pen_ratio` | 307 | 60 | 102 | 0 |
+| `feet_height` | **232** | 172 | 65 | 0 |
+| `scene_obj_penetration_frame_ratio` | 189 | 165 | 115 | 0 |
+| `scene_obj_penetration_s_max` | 167 | 147 | 155 | 0 |
+| `scene_obj_penetration_s_mean` | 151 | 172 | 146 | 0 |
+| `scene_human_penetration_s_max` | 90 | 233 | 146 | 0 |
+| `scene_human_penetration_frame_ratio` | 82 | 269 | 118 | −0.0232 |
+| `scene_human_penetration_s_mean` | 29 | 266 | 174 | −0.0050 |
+| `contact_percent` | 24 | 318 | 127 | −0.0648 |
+| `foot_sliding` / `xy_points_err` / `hand_pen_loss_omomo` / `end_obj_trans_err` | 0 | — | — | ≠0 |
+
+When half the episodes are exactly tied the median is 0 **mechanically**, whatever the
+effect is. `feet_height` is the clean case: 232 ties, and among the 237 episodes that move
+at all it is 172 better against 65 worse — a sign test at p ≈ 1e-12. Its −7.5% is broad
+and real, and its zero median says nothing against it.
+
+So the third column is the **sign test on the non-tied episodes**, reported with the tie
+count, plus the **top-episode share of the cell's delta**. Not the median.
+
+Re-checked against the two calls this rule was written to make, and both stand:
+
+* **The withdrawn S2 object cell is still withdrawn.** 54 tied, 50 worse, **55 better**,
+  sign test p = 0.696 — the sign is not merely unresolved, it points the *opposite* way
+  from the mean. That is not a tie artefact.
+* **`feet_height`'s overall −7.5% is not withdrawn**, and my earlier phrasing that its
+  median is zero "so most episodes don't change" was the wrong inference to draw.
+
+And one cell the sign test upgrades rather than demotes: **`foot_sliding` on S4 is not a
+"sign flip inside a null" — it is a broad worsening.** Mean interval [−0.0153, +0.1408]
+(null, one episode carrying 35.7%), but sign test **p = 0.003** with median **+0.0260**
+and zero ties. On the longest episodes most sequences slide *more* under the arm; the mean
+simply cannot resolve it. That strengthens the length reading rather than weakening it,
+and it is the one place where the arm is broadly harmful.
+
+For symmetry, the same test on `scene_human_penetration_s_mean` overall: 29 tied, **266
+better**, 174 worse, and the mean is a null. That is the mass-concentration finding in one
+line, and it is why the citation rule for P2-BG exists.
