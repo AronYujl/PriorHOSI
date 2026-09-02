@@ -39,6 +39,7 @@ class DefaultsAreInertTests(unittest.TestCase):
         self.assertIsNone(sampler.hsi_guidance_dose_scale)
         self.assertIs(sampler.hsi_guidance_alpha_decay, False)
         self.assertIsNone(sampler.hsi_guidance_norm_cap)
+        self.assertIs(sampler.hsi_guidance_posterior_coef1, False)
 
     def test_knobs_are_independent(self):
         only_dose = _sampler(hsi_guidance_dose_scale=0.5)
@@ -47,6 +48,8 @@ class DefaultsAreInertTests(unittest.TestCase):
         only_decay = _sampler(hsi_guidance_alpha_decay=True)
         self.assertIsNone(only_decay.hsi_guidance_dose_scale)
         self.assertIs(only_decay.hsi_guidance_alpha_decay, True)
+        only_coef = _sampler(hsi_guidance_posterior_coef1=True)
+        self.assertIs(only_coef.hsi_guidance_posterior_coef1, True)
 
     def test_dose_scale_is_coerced_to_float(self):
         # a YAML string must not silently make the branch a no-op or a type error
@@ -97,10 +100,11 @@ class DoseCallSiteTests(unittest.TestCase):
     def test_p_sample_applies_both_knobs(self):
         self.assertTrue(self._mentions("p_sample", "hsi_guidance_dose_scale"))
         self.assertTrue(self._mentions("p_sample", "hsi_guidance_alpha_decay"))
+        self.assertTrue(self._mentions("p_sample", "hsi_guidance_posterior_coef1"))
 
     def test_cm_sample_applies_neither(self):
         for attribute in ("hsi_guidance_dose_scale", "hsi_guidance_alpha_decay",
-                          "hsi_guidance_norm_cap"):
+                          "hsi_guidance_norm_cap", "hsi_guidance_posterior_coef1"):
             self.assertFalse(
                 self._mentions("cm_sample", attribute),
                 "%s must not reach the consistency path: C is neither modified nor retrained"
@@ -110,7 +114,7 @@ class DoseCallSiteTests(unittest.TestCase):
     def test_no_training_method_reads_the_knobs(self):
         for method in ("p_losses", "consistency_loss"):
             for attribute in ("hsi_guidance_dose_scale", "hsi_guidance_alpha_decay",
-                              "hsi_guidance_norm_cap"):
+                              "hsi_guidance_norm_cap", "hsi_guidance_posterior_coef1"):
                 self.assertFalse(self._mentions(method, attribute), (method, attribute))
 
 

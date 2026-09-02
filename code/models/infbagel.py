@@ -111,6 +111,7 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        self.hsi_guidance_posterior_coef1 = bool(kwargs.get('hsi_guidance_posterior_coef1', False))
         # False by default reproduces pre-589ac7f / B-v2 / C-v4; True is for
         # P17-OC and later checkpoints trained with the occ_list transpose fix.
         self.occ_permute_fix = bool(kwargs.get('occ_permute_fix', False))
@@ -1289,6 +1290,8 @@ class Sampler:
                     loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
+                if self.hsi_guidance_posterior_coef1:
+                    gradient = gradient * extract(self.posterior_mean_coef1, t, x.shape)
                 # Per-step trust region on the guidance increment, per sample so the
                 # branch cannot key on sample 0 and break layout neutrality.  Off by
                 # default; the released path adds the increment unnormalised 499 times

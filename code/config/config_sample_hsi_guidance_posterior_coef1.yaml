@@ -1,0 +1,15 @@
+# R2-CG: one inference-only change to the R2 final EMA guided diffusion cell.
+# The sampler multiplies the x0-space guidance increment by the DDPM
+# posterior_mean_coef1(t) before adding it to x_{t-1}.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+hsi_guidance_posterior_coef1: true
+use_guidance: true
+sample_type: diffusion
+export_motion: true
+hsi_progress_fix: true
+occ_permute_fix: true
+seed: 42
+shard_count: 8
