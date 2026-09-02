@@ -11917,3 +11917,34 @@ checkpoint、训练目标、sampler steps、seed、数据或 unguided 路径。�
 本节对应唯一配置片段 `config_sample_hsi_guidance_posterior_coef1.yaml` 与 registry
 `p1-hsi-b-r2-cg-guidance-coef1-s42-20260902`。启动前先完成定向测试、真实数据 smoke、resolved
 config 与 clean-worktree manifest；评估只在用户已明确推进本方向的前提下启动。
+
+### E. 完成与判定（2026-09-03）
+
+8 个 canonical shard 已在 GPU0–7 完成，`SHARDS_DONE fail=0`，merge 返回码为 0；每个协议均为
+375 episodes / 2271 windows，候选输出为 R2 final EMA 加唯一的
+`hsi_guidance_posterior_coef1=true`。固定 R2 guided 对照、seed 42、10,000 次 episode-paired
+bootstrap 的结果如下：
+
+| 指标 | full375 delta（CG−R2 guided） | holdout355 delta（CG−R2 guided） | 判定 |
+|---|---:|---:|---|
+| `boundary_jerk` | −27.7088，CI [−49.6572, −10.3986] | **−17.6754，CI [−33.8874, −4.8912]** | 主门槛通过；holdout 点估计 154.477 ≤ 158.66，CI 严格低于 0 |
+| `pen_ratio` | −0.0009509，CI [−0.0018231, +0.0000124] | −0.0010035，CI [−0.0018240, −0.0001565] | 未升高，holdout 显著改善 |
+| `pene_pct_scene` | +0.0006940，CI [−0.0004892, +0.0020316] | +0.0004018，CI [−0.0006122, +0.0015310] | 未显著升高 |
+| `pen_depth_max` | −0.0033292，CI [−0.0062718, −0.0007824] | −0.0031839，CI [−0.0061472, −0.0006421] | 显著改善 |
+| `contact_count` | +25.3839，CI [+7.6596, +45.9171] | +18.4526，CI [+2.3775, +36.9887] | 未下降，显著增加 |
+| `interior_jerk` | −1.5984，CI [−3.7836, +0.4192] | −0.6974，CI [−2.8236, +1.1668] | 未显著退化 |
+| `fs_nemf` | −0.0045220，CI [−0.0120377, +0.0024374] | −0.0034875，CI [−0.0105185, +0.0031775] | 未显著退化 |
+| `goal_planar_err_m` | +0.0003995，CI [−0.0035085, +0.0040776] | +0.0016915，CI [−0.0023157, +0.0052579] | 未显著退化 |
+
+因此本臂 **PASS**。posterior-coefficient 修正将 guided holdout boundary jerk 从 R2 guided 的
+172.152 降至 154.477，跨过冻结阈值，同时没有以减少 contact 或增加 penetration 换取 jerk 改善。
+这支持“残余 guided jerk 缺口主要来自 x0-space guidance 到 DDPM posterior state 的映射错误”，而
+不是继续训练或简单改变 guidance 剂量。R2 final EMA 保留为 teacher checkpoint，guided 推理采用
+`hsi_guidance_posterior_coef1=true`；本 guidance-structure 分支按预注册规则收止，不追加 dose/
+scale sweep，也不重新训练 checkpoint。
+
+工件：正式 manifest 为
+`results/experiments/p1-hsi-b-r2-cg-guidance-coef1-s42-20260902/manifest.json`，完成 registry
+行使用 `p1-hsi-b-r2-cg-guidance-coef1-completion-s42-20260903`；paired bootstrap、候选 merged
+payload 与 checkpoint 哈希均记录在 manifest 的 metrics 中。候选 checkpoint SHA256 为
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`。
