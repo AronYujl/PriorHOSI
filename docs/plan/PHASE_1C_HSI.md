@@ -11878,3 +11878,42 @@ cosine/EMA/geometry precision 配方，故保持 B-v2 的 world size 与 per-ran
 GPU 4–7 **尚未获准启动第二条正式训练**。48-update bf16 control 已否定“fp32 造成梯度尖峰”，
 完整重复它的预期信息增益很低；若并行第二臂，应另行预注册一个直接瞄准 rollout 指标的模型机制臂，
 而不是复制 R1 或把多个 EMA readout 当作 checkpoint 选择。
+
+## 2026-09-02（R2-CG：posterior-coefficient-consistent guidance；纯推理）
+
+### A. 第一性原理与现状
+
+R1 的 cosine+EMA 终点配方未改善 jerk；R2 的 full-body seam 项相对 R1 在 holdout355 上显著降低
+`boundary_jerk` 10.39、`pen_ratio` 0.0043、`fs_nemf` 0.0440，但 R2 仍未达到最终 jerk gate
+（unguided 123.42、guided 172.15，目标分别为 116.66、158.66）。因此继续训练另一条 teacher
+不能先回答当前最大缺口：训练侧已经能把模型侧连续性向下推，残余 guided 超出量仍由推理时 guidance
+更新规则决定。R2 guided 的同一 checkpoint 是 clean paired baseline，避免再次把跨随机训练轨迹
+误当作 checkpoint 噪声。
+
+### B. 唯一变量与机制
+
+当前 `p_sample` 对 `x0` 求得 guidance gradient 后，直接执行 `x_prev = x_prev + gradient`；但
+`x_prev` 的 posterior mean 对 `x0` 的线性系数本来是 `posterior_mean_coef1(t)`。本臂只打开
+`hsi_guidance_posterior_coef1=true`，把 raw gradient 乘以该系数，再保留现有 cap/decay/dose
+均关闭。这样不改变 guidance 的空间方向，只修正从 x0-space 到 posterior state 的时间尺度；不改
+checkpoint、训练目标、sampler steps、seed、数据或 unguided 路径。按冻结扩散表，累计 guidance
+剂量约为 `9.6/499=0.019` 的量级，低于已测 dose1 的 0.042；若 jerk 下降而穿透/接触不掉，
+说明问题是 posterior 系数缺失而非单纯剂量；若仍失败，则 guidance 结构路线可停止。
+
+### C. 评估与门槛（启动前冻结）
+
+- checkpoint：R2 final EMA `hsi_b_r2_fullbody_seam_epoch222.pth`，唯一读出；不重训。
+- 协议：guided native diffusion，full375 与 holdout355，canonical 8-shard，seed 42，10,000
+  次 episode-paired bootstrap。对照为同 checkpoint、同配置、仅 `hsi_guidance_posterior_coef1=false`
+  的 R2 guided cell；B-v2 仅作表格参照，不作为本臂唯一判定依据。
+- 必要主判据：holdout `boundary_jerk <=158.66`，且相对 R2 guided 显著下降（CI 严格低于 0）。
+- 守卫：`pen_ratio`、`pene_pct_scene`、`pen_depth_max` 不得显著升高；`contact_count` 不得显著
+  下降；`interior_jerk`、`fs_nemf`、`goal_planar_err_m` 不得显著退化。full375 同表报告。
+- 预算：8×RTX 3090、8 shard 并行，约 44 GPU-h；无训练 GPU-h。失败即停止 guidance 结构线，
+  不追加缩放系数或事后择优。
+
+### D. 注册
+
+本节对应唯一配置片段 `config_sample_hsi_guidance_posterior_coef1.yaml` 与 registry
+`p1-hsi-b-r2-cg-guidance-coef1-s42-20260902`。启动前先完成定向测试、真实数据 smoke、resolved
+config 与 clean-worktree manifest；评估只在用户已明确推进本方向的前提下启动。
