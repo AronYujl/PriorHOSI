@@ -12615,3 +12615,71 @@ row 都填写了各自的非空顶层 `manifest_sha256`。统计共享 resample-
 
 D5 在此停止。没有授权 soft/decayed c3、c1/c2 rollout、guidance/SDF sweep、R3 训练、C 修改或
 production default 变更；任何下一方向必须重新形成 dated preregistration 并由用户明确批准。
+
+## 2026-09-03（D6：high-noise phase-limited c3 rebase；用户已批准）
+
+### A. 机制与唯一变量
+
+用户于 2026-09-03 批准按 Claude Code session
+`99a3a9cf-4120-43ec-8b08-099ae21dd2c1` 的最终 D6 方案推进。D5 证明全程 c3 能显著降低 seam jerk，
+但 U/G 两格的 `pen_depth_mean` 都显著升高，G 格 `pen_ratio` 也显著增加。工作假设是：seam 偏置在
+高噪声首步已经形成，而 scene guidance 与网络自身避障主要在低噪声阶段细化；只在 high-noise
+layout phase 固定 history 锚点，随后释放刚性平移自由度，可以保留 seam 收益而消除 penetration
+代价。
+
+唯一新机制变量为 `hsi_chain_rebase_min_timestep`。默认值 **0** 表示现有 c3 在全部 500 步施加，
+必须与 D5 算术逐位等价；D6 固定为 **184**，即当前线性 beta 表的 SNR=1、`alpha_bar=0.5`
+交点。rebase 仅在 `t >= 184` 施加，不做阈值 sweep、软系数或衰减长度实验。
+
+### B. D6-A：单窗保真门
+
+对象与 D4-B 相同：R2 final EMA epoch222，checkpoint SHA256
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`；复用 352 个 holdout
+GT-history 窗、同一 seed 42、500-step production `p_sample_loop`、w=1、无 guidance，并以封存 D3
+c0 为对照。新臂为 c3 + `min_timestep=184`，结果目录由
+`code/config/config_sample_hsi_d6_phase_rebase.yaml` 隔离。
+
+主量是 10 Hz 跨 seam 三阶差分 excess 保留比
+`(c3-hi - GT) / (c0 - GT)`：`<=0.40` 判 `PROCEED`，`>=0.60` 判 `DEPRIORITIZED`，中间判
+`INCONCLUSIVE`；后两种判定均须如实记录，其中 `INCONCLUSIVE` 仍进入 D6-B。并列报告 a1、a2、
+frame 2--6 FK error 与 frame 3--8 internal acceleration。D6-A 预算 `<=2.5 GPU-h`，一张卡；正式
+run id 使用实际 host-local 日期：
+`p1-hsi-b-r2-d6-rebase-single-window-s42-20260904`。
+
+### C. D6-B：frozen-60 rollout
+
+D6-B 与 D5 完全同协议，只把 c3 改为 c3 + `min_timestep=184`。固定 frozen 60 episodes / 364
+windows，cohort SHA256 `d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`，
+canonical 8-shard、500-step diffusion、w=1、predicted future occupancy、progress/occ permutation fix、
+motion export、seed 42；两格顺序执行：
+
+- D6-B-U：unguided，run id
+  `p1-hsi-b-r2-d6-rebase-unguided-s42-20260904`，复用封存 R2-U control payload SHA256
+  `67e48a387886729aacacbdfe100a5d2d970c62ce63ee9258bd0fce759575a150`；
+- D6-B-G：production voxel guidance + posterior coef1，run id
+  `p1-hsi-b-r2-d6-rebase-guided-s42-20260904`，复用封存 R2-CG control payload SHA256
+  `1084f10945224075d996ec2d33f4b181653e293a0f4a0fa2e92d0acc95fd09f2`。
+
+五层总体权重 `{31,46,195,58,45}/375`，episode-paired bootstrap 10,000 次、seed 42。30 Hz
+`boundary_jerk` 主判据沿用 D5：U/G 的 excess reduction 分别 `>=50%/40%`，且 candidate-control
+paired CI 上界 `<0`；reduction `<25%` 判 `DEPRIORITIZED`，其余 `INCONCLUSIVE`。
+
+adoption guards 修订为：G 的 `pen_ratio <=0.02805` 且不得相对 R2-CG 显著升高；U 不使用对照自身
+已经违反的绝对阈值，只要求不得相对 R2-U 显著升高；两格 `pen_depth_mean` 均不得显著升高；
+`fs_nemf`、`goal_planar_err_m`、`interior_jerk` 不得显著升高，`contact_count` 不得显著下降；任何
+nonfinite 硬失败。结果必须并列 30 Hz gate 量与 10 Hz a1/a2/third，并报告同 cohort GT
+`interior_jerk`，不得只用 30 Hz boundary jerk 下结论。
+
+### D. 生命周期、预算与停止
+
+一个 override fragment、一条预注册 row 与本 dated section 组成 D6 预注册；不新增实验脚本，不改
+`code/priors/core/`。预注册提交后才实现 key、component test 与 D6-A decision summary；运行
+targeted tests、一次 authority full suite 和真实 LINGO 前台 smoke，再启动正式工作。报告运行使用
+同一可见 GPU 上下文中的 `tools/experiment.py start`，resolved config 不得含未解析 interpolation，
+已有 run id 不覆盖、不复用。主机当前时钟已进入 2026-09-04，因此上述正式 run id 按 host-local
+日期命名；这不改变本 dated plan 的 2026-09-03 授权日期。
+
+D6-A/U/G 总预算 `<=14 GPU-h`，Phase 1C 累计上限由 428 修订为 **440 GPU-h**。若 D6-B-G 主判据
+与全部守卫通过，仅说明 B sampler 机制成立，是否进入 C/gate 仍需用户另行裁决。若 D6-A
+`DEPRIORITIZED` 或 D6-B 任一关键 adoption guard 失败，关闭推理侧 hard-anchor 路线；R3 训练仅可
+作为下一轮新预注册提出，不在本节执行。三格完成后停止，不运行其他 GPU 实验。

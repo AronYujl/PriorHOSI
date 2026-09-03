@@ -1,0 +1,21 @@
+# D6: apply rotation-aware c3 rebase only during the high-noise layout phase.
+# The default cell is D6-A single-window; D6-B switches to sample mode at launch.
+defaults:
+  - config_sample_hsi_chain_rebase
+  - _self_
+
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_d6_phase_rebase
+hsi_chain_rebase_mode: c3
+hsi_chain_rebase_min_timestep: 184
+d4_chain_smoke_windows_per_stratum: null
+hsi_chain_rebase_rollout_telemetry: true
+sample_type: diffusion
+use_guidance: false
+hsi_guidance_posterior_coef1: false
+hsi_progress_fix: true
+occ_permute_fix: true
+hsi_future_occ_mode: predicted
+w: 1
+batch_size: 1
+export_motion: false
+seed: 42
