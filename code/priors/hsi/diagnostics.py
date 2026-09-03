@@ -294,6 +294,128 @@ def single_window_chain_metrics(
     }
 
 
+def d4_offline_decomp_metrics(
+    target_joints: torch.Tensor,
+    full_joints: torch.Tensor,
+    root_joints: torch.Tensor,
+    pose_joints: torch.Tensor,
+    predicted_positions: torch.Tensor,
+    target_positions: torch.Tensor,
+    *,
+    fps: float,
+) -> Dict[str, torch.Tensor]:
+    """Decompose one predicted window into root, pose, and interaction terms."""
+    if not fps > 0:
+        raise ValueError("fps must be positive")
+    expected = tuple(target_joints.shape)
+    if any(tuple(value.shape) != expected for value in (full_joints, root_joints, pose_joints)):
+        raise ValueError("all joint tensors must share shape")
+
+    def first_two(value):
+        clamped = torch.cat((target_joints[:, :2], value[:, 2:4]), dim=1)
+        acceleration = (clamped[:, 2:4] - 2.0 * clamped[:, 1:3] + clamped[:, :2])
+        return torch.linalg.vector_norm(acceleration * float(fps) ** 2, dim=-1).mean(dim=(1, 2))
+
+    gt = first_two(target_joints)
+    full = first_two(full_joints)
+    root = first_two(root_joints)
+    pose = first_two(pose_joints)
+
+    predicted_root = predicted_positions[:, 2, :3]
+    target_root = target_positions[:, :3, :3]
+    error = predicted_root - target_root[:, 2]
+    history_velocity = target_root[:, 1] - target_root[:, 0]
+    horizontal_velocity = history_velocity[:, (0, 2)]
+    horizontal_norm = torch.linalg.vector_norm(horizontal_velocity, dim=-1, keepdim=True)
+    direction = horizontal_velocity / horizontal_norm.clamp_min(1e-12)
+    perpendicular = torch.stack((-direction[:, 1], direction[:, 0]), dim=-1)
+    horizontal_error = error[:, (0, 2)]
+    predicted_velocity = predicted_root - target_root[:, 1]
+    cross = torch.linalg.vector_norm(
+        torch.linalg.cross(predicted_velocity, target_root[:, 2] - target_root[:, 1], dim=-1),
+        dim=-1,
+    )
+    dot = (predicted_velocity * (target_root[:, 2] - target_root[:, 1])).sum(dim=-1)
+
+    return {
+        "gt_first2_fk_acc_mps2": gt,
+        "full_first2_fk_acc_mps2": full,
+        "root_first2_fk_acc_mps2": root,
+        "pose_first2_fk_acc_mps2": pose,
+        "full_excess_mps2": full - gt,
+        "root_excess_mps2": root - gt,
+        "pose_excess_mps2": pose - gt,
+        "interaction_excess_mps2": full - root - pose + gt,
+        "frame2_root_error_parallel_m": (horizontal_error * direction).sum(dim=-1),
+        "frame2_root_error_horizontal_orthogonal_m": (horizontal_error * perpendicular).sum(dim=-1),
+        "frame2_root_error_vertical_m": error[:, 1],
+        "frame2_root_error_m": torch.linalg.vector_norm(error, dim=-1),
+        "history_horizontal_speed_m_per_frame": horizontal_norm[:, 0],
+        "frame2_velocity_angle_deg": torch.rad2deg(torch.atan2(cross, dot)),
+    }
+
+
+def summarize_d4_offline_decomp(
+    holdout_records: Sequence[Mapping[str, object]],
+    train_records: Sequence[Mapping[str, object]],
+    stratum_weights: Mapping[str, float],
+    *,
+    seed: int = 42,
+    replicates: int = 10000,
+) -> Dict[str, object]:
+    """Summarize D4-A and apply the conditional rotation-arm gate."""
+    metric_names, point, boot, digest, episode_count = _episode_weighted_bootstrap(
+        holdout_records, stratum_weights, seed=seed, replicates=replicates
+    )
+    train_names = tuple(sorted(str(name) for name in train_records[0]["metrics"]))
+    train_point, train_boot = _ordinary_window_bootstrap(
+        train_records, seed=seed, replicates=replicates, metric_names=train_names
+    )
+    index = {name: position for position, name in enumerate(metric_names)}
+
+    arms = ("d2_conditional", "d3_trace", "d3_final")
+    decomposition = {}
+    for arm in arms:
+        full = point[index[arm + "_full_excess_mps2"]]
+        values = {}
+        for component in ("root", "pose", "interaction"):
+            value = point[index[arm + "_" + component + "_excess_mps2"]]
+            samples = (
+                boot[:, index[arm + "_" + component + "_excess_mps2"]]
+                / boot[:, index[arm + "_full_excess_mps2"]]
+            )
+            values[component + "_share"] = {
+                "value": float(value / full),
+                "ci": [float(np.quantile(samples, 0.025)), float(np.quantile(samples, 0.975))],
+            }
+        decomposition[arm] = values
+
+    pose_share = decomposition["d3_final"]["pose_share"]["value"]
+    return {
+        "holdout": {
+            "window_count": len(holdout_records),
+            "episode_count": episode_count,
+            "metrics": _metric_summary(metric_names, point, boot),
+        },
+        "train": {
+            "window_count": len(train_records),
+            "metrics": _metric_summary(train_names, train_point, train_boot),
+        },
+        "bootstrap": {
+            "seed": int(seed),
+            "replicates": int(replicates),
+            "holdout_resample_index_sha256": digest,
+        },
+        "decomposition": decomposition,
+        "decision": {
+            "c3_rotation_rebase_authorized": bool(pose_share >= 0.40),
+            "gate_arm": "d3_final_holdout",
+            "pose_share_threshold": 0.40,
+            "pose_share": float(pose_share),
+        },
+    }
+
+
 def _episode_weighted_bootstrap(
     records: Sequence[Mapping[str, object]],
     stratum_weights: Mapping[str, float],

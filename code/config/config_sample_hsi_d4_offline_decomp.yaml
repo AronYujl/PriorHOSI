@@ -1,0 +1,15 @@
+# D4-A: offline decomposition of sealed D2 and D3 arrays.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+lingo_hsi_mode: d4_offline_decomp
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_d4_offline_decomp
+d4_d2_payload: ${oc.env:ROOT_DIR}/results/hsi_predictor_decomp/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json
+d4_d3_payload: ${oc.env:ROOT_DIR}/results/hsi_single_window_chain/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279-w1/evaluation/per_sequence_metrics.json
+d4_bootstrap_replicates: 10000
+d4_smoke_windows_per_stratum: null
+d4_train_limit: null
+device: cpu
+batch_size: 1
+seed: 42

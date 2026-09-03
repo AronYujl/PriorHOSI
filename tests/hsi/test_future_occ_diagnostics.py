@@ -10,11 +10,13 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from priors.hsi.diagnostics import (
+    d4_offline_decomp_metrics,
     future_occ_motion_diagnostics,
     predictor_decomp_metrics,
     single_window_chain_metrics,
     summarize_predictor_decomp,
     summarize_single_window_chain,
+    summarize_d4_offline_decomp,
     summarize_teacher_forced_boundary,
     teacher_forced_boundary_metrics,
 )
@@ -229,6 +231,68 @@ class SingleWindowChainDiagnosticsTests(unittest.TestCase):
 
         self.assertGreater(float(result["trace_t498_first2_fk_acc_mps2"]), 0.0)
         self.assertGreater(float(result["final_first2_fk_acc_mps2"]), 0.0)
+
+
+class D4OfflineDecompositionTests(unittest.TestCase):
+    def test_component_identity_and_root_projection(self):
+        target = torch.zeros(1, 4, 2, 3)
+        target[:, :, :, 0] = torch.tensor([0.0, 1.0, 2.0, 3.0])[None, :, None]
+        root = target.clone()
+        pose = target.clone()
+        full = target.clone()
+        root[:, 2:, :, 0] += 1.0
+        pose[:, 2:, :, 1] += 2.0
+        full[:, 2:] = root[:, 2:] + (pose[:, 2:] - target[:, 2:])
+        target_pos = torch.zeros(1, 4, 84)
+        target_pos[:, 1, :3] = torch.tensor([1.0, 0.0, 0.0])
+        target_pos[:, 2, :3] = torch.tensor([2.0, 0.0, 0.0])
+        predicted_pos = target_pos.clone()
+        predicted_pos[:, 2, :3] += torch.tensor([0.5, 0.25, 0.75])
+
+        result = d4_offline_decomp_metrics(
+            target, full, root, pose, predicted_pos, target_pos, fps=1.0
+        )
+
+        reconstructed = (
+            result["root_excess_mps2"]
+            + result["pose_excess_mps2"]
+            + result["interaction_excess_mps2"]
+        )
+        self.assertTrue(torch.allclose(reconstructed, result["full_excess_mps2"]))
+        self.assertAlmostEqual(float(result["frame2_root_error_parallel_m"]), 0.5)
+        self.assertAlmostEqual(float(result["frame2_root_error_vertical_m"]), 0.25)
+
+    def test_c3_gate_uses_d3_final_pose_share(self):
+        holdout = []
+        for episode, stratum in (("a", "s1"), ("b", "s2")):
+            metrics = {}
+            for arm in ("d2_conditional", "d3_trace", "d3_final"):
+                metrics.update(
+                    {
+                        arm + "_full_excess_mps2": 10.0,
+                        arm + "_root_excess_mps2": 4.0,
+                        arm + "_pose_excess_mps2": 5.0 if arm == "d3_final" else 2.0,
+                        arm + "_interaction_excess_mps2": 1.0 if arm == "d3_final" else 4.0,
+                    }
+                )
+            holdout.append({"episode_id": episode, "stratum": stratum, "metrics": metrics})
+        train = [
+            {
+                "episode_id": "t",
+                "stratum": "train",
+                "metrics": {
+                    "d2_conditional_full_excess_mps2": 1.0,
+                    "d2_conditional_root_excess_mps2": 1.0,
+                    "d2_conditional_pose_excess_mps2": 0.0,
+                    "d2_conditional_interaction_excess_mps2": 0.0,
+                },
+            }
+        ]
+        result = summarize_d4_offline_decomp(
+            holdout, train, {"s1": 0.5, "s2": 0.5}, seed=42, replicates=20
+        )
+        self.assertTrue(result["decision"]["c3_rotation_rebase_authorized"])
+        self.assertEqual(result["decision"]["gate_arm"], "d3_final_holdout")
 
 
 if __name__ == "__main__":

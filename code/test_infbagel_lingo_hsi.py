@@ -2690,6 +2690,152 @@ def evaluate_single_window_chain(cfg: DictConfig) -> Path:
     )
 
 
+def _d4_decompose_arm(cfg, dataset, inputs, predicted, target_joints, smplx_cache):
+    target = inputs["x_start"]
+    root_only = target.clone()
+    root_only[:, :, :84] = predicted[:, :, :84]
+    pose_only = target.clone()
+    pose_only[:, :, 84:216] = predicted[:, :, 84:216]
+
+    def joints(value):
+        return _teacher_forced_smplx_joints(
+            value,
+            dataset,
+            inputs["mat"],
+            inputs["translation_offset"],
+            inputs["betas"],
+            inputs["gender"],
+            smplx_cache,
+            int(cfg.smplx_batch_size),
+        )
+
+    return hsi_diagnostics.d4_offline_decomp_metrics(
+        target_joints,
+        joints(predicted),
+        joints(root_only),
+        joints(pose_only),
+        dataset.denormalize_torch(predicted[:, :, :84]),
+        dataset.denormalize_torch(target[:, :, :84]),
+        fps=float(cfg.fps) / float(DATA_STEP),
+    )
+
+
+def evaluate_d4_offline_decomp(cfg: DictConfig) -> Path:
+    d2_path = Path(str(cfg.d4_d2_payload))
+    d3_path = Path(str(cfg.d4_d3_payload))
+    d2 = json.loads(d2_path.read_text(encoding="utf-8"))
+    d3 = json.loads(d3_path.read_text(encoding="utf-8"))
+    d2_npz = np.load(Path(d2["array_archive"]["path"]), allow_pickle=False)
+    d3_npz = np.load(Path(d3["array_archive"]["path"]), allow_pickle=False)
+    holdout_source = d2["records"]["holdout"]
+    train_source = d2["records"]["train"]
+    d3_source = d3["records"]
+    if [row["data_idx"] for row in holdout_source] != [row["data_idx"] for row in d3_source]:
+        raise ValueError("D2 holdout and D3 rows are not aligned")
+    if cfg.get("d4_smoke_windows_per_stratum") is not None:
+        limit = int(cfg.d4_smoke_windows_per_stratum)
+        selected_rows = []
+        counts = defaultdict(int)
+        for row in holdout_source:
+            stratum = str(row["stratum"])
+            if counts[stratum] < limit:
+                selected_rows.append(row)
+                counts[stratum] += 1
+        selected_indices = [int(row["array_row"]) for row in selected_rows]
+        holdout_source = selected_rows
+        d3_source = [d3_source[index] for index in selected_indices]
+    if cfg.get("d4_train_limit") is not None:
+        train_source = train_source[: int(cfg.d4_train_limit)]
+
+    smplx_cache: Dict[str, torch.nn.Module] = {}
+
+    def evaluate_partition(dataset, source_records, arrays_by_arm, partition):
+        records = []
+        for position, source_record in enumerate(source_records, start=1):
+            inputs = _diagnostic_window_inputs(cfg, dataset, source_record)
+            target_joints = _teacher_forced_smplx_joints(
+                inputs["x_start"],
+                dataset,
+                inputs["mat"],
+                inputs["translation_offset"],
+                inputs["betas"],
+                inputs["gender"],
+                smplx_cache,
+                int(cfg.smplx_batch_size),
+            )
+            metrics = {}
+            for arm, array in arrays_by_arm.items():
+                predicted = torch.from_numpy(array[int(source_record["array_row"])]).to(
+                    device=torch.device(str(cfg.device)), dtype=torch.float32
+                )[None]
+                arm_values = _d4_decompose_arm(
+                    cfg, dataset, inputs, predicted, target_joints, smplx_cache
+                )
+                metrics.update(
+                    {arm + "_" + name: float(value[0].cpu()) for name, value in arm_values.items()}
+                )
+            records.append(
+                {
+                    "episode_id": str(source_record["episode_id"]),
+                    "stratum": str(source_record["stratum"]),
+                    "window_index": int(source_record["window_index"]),
+                    "data_idx": int(source_record["data_idx"]),
+                    "metrics": metrics,
+                }
+            )
+            if position % 25 == 0 or position == len(source_records):
+                print("D4_OFFLINE %s %d/%d" % (partition, position, len(source_records)), flush=True)
+        return records
+
+    holdout_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    holdout_cfg.dataset.split_partition = "test"
+    holdout_dataset = _scene_only_dataset(holdout_cfg)
+    holdout_records = evaluate_partition(
+        holdout_dataset,
+        holdout_source,
+        {
+            "d2_conditional": d2_npz["conditional"],
+            "d3_trace": d3_npz["t498_model_output"],
+            "d3_final": d3_npz["final_sample"],
+        },
+        "holdout",
+    )
+    del holdout_dataset
+
+    train_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    train_cfg.dataset.split_partition = "train"
+    train_dataset = _scene_only_dataset(train_cfg)
+    train_records = evaluate_partition(
+        train_dataset,
+        train_source,
+        {"d2_conditional": d2_npz["conditional"][len(holdout_source):]},
+        "train",
+    )
+    summary = hsi_diagnostics.summarize_d4_offline_decomp(
+        holdout_records,
+        train_records,
+        d2["stratum_weights"],
+        seed=int(cfg.seed),
+        replicates=int(cfg.d4_bootstrap_replicates),
+    )
+    payload = {
+        "schema_version": 1,
+        "mode": "d4_offline_decomp",
+        "seed": int(cfg.seed),
+        "inputs": {
+            "d2_payload": str(d2_path),
+            "d2_array_sha256": d2["array_archive"]["sha256"],
+            "d3_payload": str(d3_path),
+            "d3_array_sha256": d3["array_archive"]["sha256"],
+        },
+        "stratum_weights": d2["stratum_weights"],
+        "summary": summary,
+        "records": {"holdout": holdout_records, "train": train_records},
+    }
+    output_dir = Path(str(cfg.lingo_output_dir)) / "d4-offline-decomp"
+    return _write_payload(output_dir, payload)
+
+
 def evaluate_model(cfg: DictConfig) -> Path:
     if int(cfg.batch_size) != 1:
         raise ValueError("LINGO HSI timing protocol requires batch_size=1")
@@ -3088,10 +3234,13 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_predictor_decomp(cfg)
     elif mode == "single_window_chain":
         path = evaluate_single_window_chain(cfg)
+    elif mode == "d4_offline_decomp":
+        path = evaluate_d4_offline_decomp(cfg)
     else:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
-            "teacher_forced_boundary, predictor_decomp or single_window_chain, got %s"
+            "teacher_forced_boundary, predictor_decomp, single_window_chain or "
+            "d4_offline_decomp, got %s"
             % mode
         )
     print("Wrote %s" % path)
