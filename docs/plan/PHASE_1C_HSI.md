@@ -12455,3 +12455,92 @@ workload completion log mtime 计，三个正式 cell 合计 **7.43 GPU-h**，�
 
 本轮在此停止。没有授权生产 rebase、完整 rollout、R3 训练、额外 guidance/SDF sweep 或其他 GPU
 workload；任何下一方向都必须先形成新的 dated preregistration 并获得用户明确批准。
+
+## 2026-09-03（D5：rotation-aware chain rebase 的 frozen-60 真实 rollout；用户已批准）
+
+### A. D4 结果勘误与本节地位
+
+用户于 2026-09-03 批准按 Claude Code session
+`99a3a9cf-4120-43ec-8b08-099ae21dd2c1` 的最终方案推进 D5。本节覆盖上一节“没有授权完整
+rollout”的停止语句，但不授权 R3 训练、不改 consistency/C 路径，也不把 rebase 设为生产默认。
+
+D4-B 的 `c3` completion 对 `first2` excess 的“几乎消除”表述不成立。分层 holdout 的
+`a1/a2` 为 GT `1.20/1.11`、c0 `3.03/2.23`、c3 `0.27/1.92 m/s²`：c3 把 `a1` 压到 GT
+以下，而 `a2` 仍为 GT 的 **1.73 倍**，两者平均会产生抵消。更稳健的 10 Hz 跨 seam 三阶差分
+从 c0 `46.8` 降至 c3 `19.5 m/s³`，相对 GT `11.6` 的 excess 下降 **77.5%**；本节将机制结论
+修订为“消除起点偏置、仍留速度失配”。D4 的 `VELOCITY_DIRECTION_DOMINATED` 标签也不再作机制
+结论：D4-A 已测姿态份额 `0.807`，c2 的残留主要是未处理的 rotation，而不是已被证明的速度方向
+错误。`55.71°` 的全体均角由低速窗放大；history 水平速度至少 `0.01/0.03 m/frame` 时，holdout
+均角降为 `28.7°/12.7°`，根误差是约 1 cm 的近各向同性噪声。
+
+上一节 D4-B completion row 的顶层 `manifest_sha256` 为空，但三格各自的 manifest SHA256 已写入
+`results.cells`；append-only registry 不回写旧行。D5 completion 必须填写每个正式 run 的顶层
+manifest SHA256。
+
+### B. 假设、对象与两格
+
+假设：D4 的 rotation-aware `c3` rebase 若在每个 DDPM reverse step 中把预测 future 刚性对齐到
+两帧生成 history，则在完整 autoregressive rollout 中仍能显著关闭 30 Hz `boundary_jerk` excess，
+且不会用目标偏移、foot sliding、内部过度平滑、接触下降或 penetration 上升换取该改善。
+
+两格都固定 R2 final EMA epoch222：
+`/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/`
+`hsi_b_r2_fullbody_seam_epoch222.pth`，SHA256
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`；cohort 固定为
+`.claude/scratch/hetero_20260823/smoke60.json` 的 60 episodes / 364 windows，SHA256
+`d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`；seed 42、500-step
+diffusion、`w=1`、predicted future occupancy、`hsi_progress_fix=true`、`occ_permute_fix=true`、
+`hsi_chain_rebase_mode=c3`、motion export 开启。两格均用 canonical 8-shard，在空闲 GPU0--7 上
+顺序执行，避免两臂互相争用 CPU、磁盘与 GPU。
+
+- **D5-U**：unguided。run id
+  `p1-hsi-b-r2-d5-rebase-unguided-s42-20260903`；对照复用封存 R2 unguided merged payload，
+  SHA256 `67e48a387886729aacacbdfe100a5d2d970c62ce63ee9258bd0fce759575a150`。
+- **D5-G**：生产 voxel guidance，且 `hsi_guidance_posterior_coef1=true`。run id
+  `p1-hsi-b-r2-d5-rebase-guided-s42-20260903`；对照复用 R2-CG a00 merged payload，SHA256
+  `1084f10945224075d996ec2d33f4b181653e293a0f4a0fa2e92d0acc95fd09f2`。
+
+GT 参照固定为 `results/lingo_hsi/ground-truth-v3/evaluation/per_sequence_metrics.json`，SHA256
+`f3e2ec711fb07487d4834a17ce66111c20f9e58b512601b83570bc2076640f25`。对照不重跑：rebase 默认
+关闭时返回原对象且不改变随机数调用，已有 component test 机械保证；这沿用 R2-FC 与 guidance
+factorial 复用封存 control 的先例。
+
+### C. 冻结判据与遥测
+
+所有点估计和 CI 使用 frozen-60 五层总体权重 `{31,46,195,58,45}/375`，层内 episode-paired
+bootstrap 10,000 次、seed 42。主量是 evaluator 自己的 30 Hz `boundary_jerk` 相对同 cohort GT
+的 excess：
+
+- D5-U 相对 R2 unguided 的 excess 下降至少 **50%**，且 D5-U − control 的 paired 95% CI 上界
+  `<0`，判 `SUPPORTED`；
+- D5-G 相对 R2-CG a00 的 excess 下降至少 **40%**，且 D5-G − control 的 paired 95% CI 上界
+  `<0`，判 `SUPPORTED`；
+- 任一格 excess 下降 `<25%` 判 `DEPRIORITIZED`；其余判 `INCONCLUSIVE`。10 Hz 单窗的 77.5%
+  只用于说明 50%/40% 的折扣来源，不作为 rollout 结果。
+
+守卫逐项使用 candidate − control 的配对 CI：`goal_planar_err_m`、`fs_nemf`、`interior_jerk`
+显著升高即失败；`contact_count` 显著降低即失败；`pen_ratio` 必须 `<=0.02805` 且不得显著升高；
+任何 nonfinite 是硬失败。任一守卫失败时，即使主量达到阈值，也只记机制支持、不得采用。
+
+非门控遥测：
+
+1. 10 Hz coarse FK 上逐 seam 分开报告 `a1`（中心 `s-1`）、`a2`（中心 `s`）与跨 seam 三阶
+   差分；不得使用现有 `future_occ_motion_diagnostics` 中 `(s,s+1)` 的 legacy 合并量冒充 a1/a2。
+2. 同表报告 `pelvis_net_displacement_m` 与终点 `goal_planar_err_m` 的 paired 变化，检查刚性位移是否
+   跨窗保留到 episode goal。
+3. rotation 通道不经过 dataset normalization；因此在生成的 world-frame 6D 上报告 Gram--Schmidt
+   投影前两向量的单位范数偏差与绝对余弦，并报告投影后 rotation matrix 的最大正交误差。
+
+### D. 生命周期、预算与停止
+
+唯一 override fragment 为 `code/config/config_sample_hsi_d5_rollout_rebase.yaml`。预注册提交后才实现
+上述遥测与 config；不新增实验脚本，不改 `code/priors/core/`。运行 targeted tests、registry
+validation、一次 authority full suite；sampler/evaluator runtime 改动还必须做一个真实 LINGO 单窗
+前台 smoke，确认 c3 生产 rollout 完整退出后再启动 detached workload。每格 fully resolved config
+不得含未解析 interpolation，且 manifest 必须由 workload 同一可见 GPU 上下文中的
+`tools/experiment.py start` 创建。
+
+D5-U 子预算 `<=3 GPU-h`，D5-G 子预算 `<=8 GPU-h`，合计 `<=11 GPU-h`；用户本次批准将 Phase 1C
+累计上限从 416 修订到 **428 GPU-h**。两个正式格都完成并按冻结判据分析后，本轮停止：不做 c3
+软化系数、衰减长度、c1/c2 rollout、guidance/SDF sweep 或训练。D5 只评 B；是否允许 sampler
+rebase 进入 C/gate 留待 D5 结果后的用户裁决。
