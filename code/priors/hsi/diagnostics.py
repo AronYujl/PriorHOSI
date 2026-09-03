@@ -294,6 +294,177 @@ def single_window_chain_metrics(
     }
 
 
+def chain_rebase_metrics(
+    final_joints: torch.Tensor,
+    target_joints: torch.Tensor,
+    *,
+    fps: float,
+) -> Dict[str, torch.Tensor]:
+    """Per-window D4-B seam, FK-error, and internal-motion terms."""
+    clamped = final_joints.clone()
+    clamped[:, :2] = target_joints[:, :2]
+
+    def acceleration(value, centre):
+        term = value[:, centre + 1] - 2.0 * value[:, centre] + value[:, centre - 1]
+        return torch.linalg.vector_norm(term * float(fps) ** 2, dim=-1).mean(dim=1)
+
+    result = {}
+    for label, centre in (("a1", 1), ("a2", 2)):
+        result["gt_%s_fk_acc_mps2" % label] = acceleration(target_joints, centre)
+        result["final_%s_fk_acc_mps2" % label] = acceleration(clamped, centre)
+    result["gt_first2_fk_acc_mps2"] = 0.5 * (
+        result["gt_a1_fk_acc_mps2"] + result["gt_a2_fk_acc_mps2"]
+    )
+    result["final_first2_fk_acc_mps2"] = 0.5 * (
+        result["final_a1_fk_acc_mps2"] + result["final_a2_fk_acc_mps2"]
+    )
+
+    frame_errors = []
+    for frame in range(2, 7):
+        error = torch.linalg.vector_norm(
+            clamped[:, frame] - target_joints[:, frame], dim=-1
+        ).mean(dim=1)
+        result["final_frame%d_fk_error_m" % frame] = error
+        if frame >= 3:
+            frame_errors.append(error)
+    result["final_frame3_6_fk_error_m"] = torch.stack(frame_errors).mean(dim=0)
+
+    gt_internal = []
+    final_internal = []
+    for frame in range(3, 9):
+        gt_value = acceleration(target_joints, frame)
+        final_value = acceleration(clamped, frame)
+        result["gt_internal_frame%d_fk_acc_mps2" % frame] = gt_value
+        result["final_internal_frame%d_fk_acc_mps2" % frame] = final_value
+        gt_internal.append(gt_value)
+        final_internal.append(final_value)
+    result["gt_internal_frame3_8_fk_acc_mps2"] = torch.stack(gt_internal).mean(dim=0)
+    result["final_internal_frame3_8_fk_acc_mps2"] = torch.stack(final_internal).mean(dim=0)
+
+    def third_difference(value):
+        term = value[:, 3] - 3.0 * value[:, 2] + 3.0 * value[:, 1] - value[:, 0]
+        return torch.linalg.vector_norm(term * float(fps) ** 3, dim=-1).mean(dim=1)
+
+    result["gt_cross_seam_third_difference_mps3"] = third_difference(target_joints)
+    result["final_cross_seam_third_difference_mps3"] = third_difference(clamped)
+    return result
+
+
+def summarize_chain_rebase(
+    c0_records: Sequence[Mapping[str, object]],
+    arm_records: Sequence[Mapping[str, object]],
+    stratum_weights: Mapping[str, float],
+    *,
+    arm: str,
+    seed: int = 42,
+    replicates: int = 10000,
+) -> Dict[str, object]:
+    """Run the paired D4-B bootstrap and apply the arm-specific decision."""
+    paired = []
+    for c0, candidate in zip(c0_records, arm_records):
+        if int(c0["data_idx"]) != int(candidate["data_idx"]):
+            raise ValueError("D4-B c0 and candidate rows are not aligned")
+        metrics = {}
+        for name, value in c0["metrics"].items():
+            metrics["c0_" + str(name)] = float(value)
+        for name, value in candidate["metrics"].items():
+            metrics["arm_" + str(name)] = float(value)
+            if name.startswith("final_"):
+                metrics["difference_" + str(name)] = float(value) - float(
+                    c0["metrics"][name]
+                )
+        paired.append(
+            {
+                "episode_id": str(candidate["episode_id"]),
+                "stratum": str(candidate["stratum"]),
+                "metrics": metrics,
+            }
+        )
+
+    names, point, boot, digest, episode_count = _episode_weighted_bootstrap(
+        paired, stratum_weights, seed=seed, replicates=replicates
+    )
+    index = {name: position for position, name in enumerate(names)}
+    denominator = (
+        point[index["c0_final_first2_fk_acc_mps2"]]
+        - point[index["c0_gt_first2_fk_acc_mps2"]]
+    )
+    numerator = (
+        point[index["arm_final_first2_fk_acc_mps2"]]
+        - point[index["arm_gt_first2_fk_acc_mps2"]]
+    )
+    ratio = float(numerator / denominator)
+    boot_denominator = (
+        boot[:, index["c0_final_first2_fk_acc_mps2"]]
+        - boot[:, index["c0_gt_first2_fk_acc_mps2"]]
+    )
+    boot_numerator = (
+        boot[:, index["arm_final_first2_fk_acc_mps2"]]
+        - boot[:, index["arm_gt_first2_fk_acc_mps2"]]
+    )
+    valid = boot_denominator > 0.0
+    ratio_samples = boot_numerator[valid] / boot_denominator[valid]
+
+    guard_names = (
+        "final_a2_fk_acc_mps2",
+        "final_frame3_6_fk_error_m",
+        "final_internal_frame3_8_fk_acc_mps2",
+    )
+    guards = {}
+    for name in guard_names:
+        key = "difference_" + name
+        samples = boot[:, index[key]]
+        ci = np.quantile(samples, (0.025, 0.975))
+        guards[name] = {
+            "difference": float(point[index[key]]),
+            "ci": [float(ci[0]), float(ci[1])],
+            "significantly_worse": bool(ci[0] > 0.0),
+        }
+    guards_pass = not any(value["significantly_worse"] for value in guards.values())
+
+    if arm == "c1":
+        if ratio <= 0.5 and guards_pass:
+            decision = "SUPPORTED"
+        elif ratio >= 0.8:
+            decision = "DEPRIORITIZED"
+        elif ratio <= 0.5:
+            decision = "GUARD_FAILED"
+        else:
+            decision = "INCONCLUSIVE"
+    elif arm == "c2":
+        if ratio <= 0.4:
+            decision = "POSITION_DOMINATED"
+        elif ratio >= 0.7:
+            decision = "VELOCITY_DIRECTION_DOMINATED"
+        else:
+            decision = "INCONCLUSIVE"
+    else:
+        decision = "DESCRIPTIVE"
+
+    return {
+        "arm": str(arm),
+        "window_count": len(arm_records),
+        "episode_count": episode_count,
+        "metrics": _metric_summary(names, point, boot),
+        "bootstrap": {
+            "seed": int(seed),
+            "replicates": int(replicates),
+            "paired_holdout_resample_index_sha256": digest,
+        },
+        "derived": {
+            "seam_excess_ratio": ratio,
+            "seam_excess_ratio_ci_over_positive_denominator_replicates": [
+                float(np.quantile(ratio_samples, 0.025)),
+                float(np.quantile(ratio_samples, 0.975)),
+            ],
+            "c0_excess_mps2": float(denominator),
+            "arm_excess_mps2": float(numerator),
+        },
+        "guards": guards,
+        "decision": decision,
+    }
+
+
 def d4_offline_decomp_metrics(
     target_joints: torch.Tensor,
     full_joints: torch.Tensor,

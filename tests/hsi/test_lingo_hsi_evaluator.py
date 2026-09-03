@@ -234,6 +234,7 @@ class TeacherForcedBoundaryConfigTests(unittest.TestCase):
         ):
             d2 = compose(config_name="config_sample_hsi_predictor_decomp")
             d3 = compose(config_name="config_sample_hsi_single_window_chain")
+            d4b = compose(config_name="config_sample_hsi_chain_rebase")
             factorial = compose(
                 config_name="config_sample_hsi_guidance_structure_factorial"
             )
@@ -242,6 +243,9 @@ class TeacherForcedBoundaryConfigTests(unittest.TestCase):
         self.assertEqual(d2.predictor_decomp_holdout_windows, 352)
         self.assertEqual(d3.lingo_hsi_mode, "single_window_chain")
         self.assertEqual(d3.single_window_chain_trace_timestep, 498)
+        self.assertEqual(d4b.lingo_hsi_mode, "chain_rebase")
+        self.assertEqual(d4b.hsi_chain_rebase_mode, "c1")
+        self.assertEqual(d4b.sampler.pelvis.hsi_chain_rebase_mode, "c1")
         self.assertIs(factorial.sampler.pelvis.hsi_guidance_frame_ramp, False)
         self.assertEqual(factorial.sampler.pelvis.hsi_guidance_energy, "voxel")
         self.assertEqual(factorial.sampler.pelvis.hsi_guidance_sdf_weight, 20000.0)

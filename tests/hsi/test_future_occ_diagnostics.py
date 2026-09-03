@@ -10,6 +10,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from priors.hsi.diagnostics import (
+    chain_rebase_metrics,
     d4_offline_decomp_metrics,
     future_occ_motion_diagnostics,
     predictor_decomp_metrics,
@@ -17,6 +18,7 @@ from priors.hsi.diagnostics import (
     summarize_predictor_decomp,
     summarize_single_window_chain,
     summarize_d4_offline_decomp,
+    summarize_chain_rebase,
     summarize_teacher_forced_boundary,
     teacher_forced_boundary_metrics,
 )
@@ -293,6 +295,49 @@ class D4OfflineDecompositionTests(unittest.TestCase):
         )
         self.assertTrue(result["decision"]["c3_rotation_rebase_authorized"])
         self.assertEqual(result["decision"]["gate_arm"], "d3_final_holdout")
+
+
+class D4ChainRebaseDiagnosticsTests(unittest.TestCase):
+    def test_window_metrics_report_registered_ranges(self):
+        target = torch.zeros(1, 10, 2, 3)
+        target[:, :, :, 0] = torch.arange(10)[None, :, None]
+        final = target.clone()
+        final[:, 2:, :, 0] += 0.5
+
+        result = chain_rebase_metrics(final, target, fps=10.0)
+
+        self.assertIn("final_a1_fk_acc_mps2", result)
+        self.assertIn("final_a2_fk_acc_mps2", result)
+        self.assertIn("final_frame6_fk_error_m", result)
+        self.assertIn("final_internal_frame8_fk_acc_mps2", result)
+        self.assertIn("final_cross_seam_third_difference_mps3", result)
+        self.assertAlmostEqual(float(result["final_frame2_fk_error_m"]), 0.5)
+
+    def test_c1_support_requires_ratio_and_guards(self):
+        c0, c1 = [], []
+        for episode, stratum in (("a", "s1"), ("b", "s2")):
+            base = {
+                "gt_first2_fk_acc_mps2": 1.0,
+                "final_first2_fk_acc_mps2": 3.0,
+                "final_a2_fk_acc_mps2": 2.0,
+                "final_frame3_6_fk_error_m": 0.4,
+                "final_internal_frame3_8_fk_acc_mps2": 2.0,
+            }
+            candidate = dict(base)
+            candidate["final_first2_fk_acc_mps2"] = 1.8
+            candidate["final_a2_fk_acc_mps2"] = 1.9
+            candidate["final_frame3_6_fk_error_m"] = 0.3
+            candidate["final_internal_frame3_8_fk_acc_mps2"] = 1.8
+            row = {"episode_id": episode, "stratum": stratum, "data_idx": len(c0)}
+            c0.append({**row, "metrics": base})
+            c1.append({**row, "metrics": candidate})
+
+        result = summarize_chain_rebase(
+            c0, c1, {"s1": 0.5, "s2": 0.5}, arm="c1", seed=42, replicates=50
+        )
+
+        self.assertAlmostEqual(result["derived"]["seam_excess_ratio"], 0.4)
+        self.assertEqual(result["decision"], "SUPPORTED")
 
 
 if __name__ == "__main__":

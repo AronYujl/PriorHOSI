@@ -1,0 +1,23 @@
+# D4-B: one production reverse chain with a frozen chain-history rebase arm.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+lingo_hsi_mode: chain_rebase
+lingo_episode_subset: /data/yujinlun/InfBaGel-hsi/.claude/scratch/hetero_20260823/smoke60.json
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_d4_chain_rebase
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+d4_chain_c0_payload: /data/yujinlun/InfBaGel-hsi/results/hsi_single_window_chain/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279-w1/evaluation/per_sequence_metrics.json
+d4_chain_holdout_windows: 352
+d4_chain_terminal_padded_windows: 12
+d4_chain_bootstrap_replicates: 10000
+d4_chain_smoke_windows_per_stratum: null
+hsi_chain_rebase_mode: c1
+sample_type: diffusion
+use_guidance: false
+occ_permute_fix: true
+hsi_future_occ_mode: predicted
+w: 1
+batch_size: 1
+export_motion: false
+seed: 42

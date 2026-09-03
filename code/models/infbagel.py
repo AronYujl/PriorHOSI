@@ -93,6 +93,7 @@ def apply_hsi_sdf_guidance_loss(
 
 
 OBJECT_CHANNEL_SLICE = slice(216, 232)
+HSI_CHAIN_REBASE_MODES = ("off", "c1", "c2", "c3")
 
 
 def zero_object_x0(model_output, is_object, enabled):
@@ -132,6 +133,31 @@ def zero_object_x0(model_output, is_object, enabled):
     keep = flags.to(model_output.dtype).view(-1, *([1] * (model_output.ndim - 1)))
     out = model_output.clone()
     out[..., OBJECT_CHANNEL_SLICE] = out[..., OBJECT_CHANNEL_SLICE] * keep
+    return out
+
+
+def rebase_model_output(model_output, x, mode, oracle_frame2=None):
+    """Rigidly align predicted future channels to the fixed two-frame history."""
+    mode = str(mode)
+    if mode == "off":
+        return model_output
+    if mode not in HSI_CHAIN_REBASE_MODES:
+        raise ValueError("unknown HSI chain rebase mode %r" % mode)
+
+    out = model_output.clone()
+    if mode == "c2":
+        if oracle_frame2 is None:
+            raise RuntimeError("c2 requires an oracle frame-2 position")
+        position_base = oracle_frame2
+    else:
+        position_base = 2.0 * x[:, 1, :84] - x[:, 0, :84]
+    position_delta = position_base - model_output[:, 2, :84]
+    out[:, 2:, :84] += position_delta[:, None]
+
+    if mode == "c3":
+        rotation_base = 2.0 * x[:, 1, 84:216] - x[:, 0, 84:216]
+        rotation_delta = rotation_base - model_output[:, 2, 84:216]
+        out[:, 2:, 84:216] += rotation_delta[:, None]
     return out
 
 
@@ -186,6 +212,13 @@ class Sampler:
         # retrained.  See zero_object_x0 and
         # config_sample_infbagel_lingo_hsi.yaml: hsi_zero_object_x0.
         self.hsi_zero_object_x0 = bool(kwargs.get('hsi_zero_object_x0', False))
+        self.hsi_chain_rebase_mode = str(kwargs.get('hsi_chain_rebase_mode', 'off'))
+        if self.hsi_chain_rebase_mode not in HSI_CHAIN_REBASE_MODES:
+            raise ValueError(
+                "hsi_chain_rebase_mode must be one of %s"
+                % ", ".join(HSI_CHAIN_REBASE_MODES)
+            )
+        self._hsi_chain_rebase_oracle_frame2 = None
         self.hsi_future_occ_mode = validate_future_occ_mode(
             kwargs.get('hsi_future_occ_mode', 'predicted')
         )
@@ -256,6 +289,12 @@ class Sampler:
     def abort_hsi_future_occ_episode(self):
         self._hsi_future_occ_oracle_local = None
         self._hsi_future_occ_telemetry = None
+
+    def set_hsi_chain_rebase_oracle(self, frame2):
+        self._hsi_chain_rebase_oracle_frame2 = frame2
+
+    def clear_hsi_chain_rebase_oracle(self):
+        self._hsi_chain_rebase_oracle_frame2 = None
 
     def begin_p_sample_trace(self, timestep):
         if self._p_sample_trace_timestep is not None:
@@ -1399,6 +1438,12 @@ class Sampler:
         # differs only in the arithmetic on those 16 channels and in whatever the
         # trunk then makes of them at the next step.
         model_output = zero_object_x0(model_output, is_object, self.hsi_zero_object_x0)
+        model_output = rebase_model_output(
+            model_output,
+            x,
+            self.hsi_chain_rebase_mode,
+            self._hsi_chain_rebase_oracle_frame2,
+        )
         if self._p_sample_trace_timestep == int(t_index):
             if self._p_sample_trace is not None:
                 raise RuntimeError("p-sample trace timestep was visited more than once")

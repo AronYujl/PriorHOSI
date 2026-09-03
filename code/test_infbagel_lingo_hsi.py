@@ -2690,6 +2690,212 @@ def evaluate_single_window_chain(cfg: DictConfig) -> Path:
     )
 
 
+def _chain_rebase_record(
+    cfg,
+    dataset,
+    sampler,
+    selection,
+    c0_final,
+    smplx_cache,
+):
+    from test_infbagel_hosi import seed_everything
+
+    inputs = _diagnostic_window_inputs(cfg, dataset, selection)
+    seed_everything(int(cfg.seed) + inputs["data_idx"])
+    human_dict = {
+        "rest_human_offsets": inputs["rest_offsets"][:, None].repeat(
+            1, WINDOW_FRAMES, 1, 1
+        ),
+        "betas": inputs["betas"],
+        "transl": inputs["translation_offset"],
+        "gender": inputs["gender"],
+    }
+    if str(cfg.hsi_chain_rebase_mode) == "c2":
+        sampler.set_hsi_chain_rebase_oracle(inputs["x_start"][:, 2, :84])
+    try:
+        samples, _ = sampler.p_sample_loop(
+            inputs["x_start"][:, :HISTORY_FRAMES],
+            inputs["mat"],
+            inputs["scene_flag"],
+            inputs["text_emb"],
+            inputs["pelvis_goal"],
+            inputs["scene_goal"],
+            inputs["object_goal"],
+            inputs["need_scene"],
+            inputs["need_pelvis_dir"],
+            inputs["pi"],
+            inputs["end_pi"],
+            inputs["seq_length"],
+            inputs["need_pi"],
+            inputs["is_loco"],
+            inputs["is_object"],
+            inputs["object_bps"],
+            inputs["object_points"],
+            inputs["object_rotation_ref"],
+            {},
+            {},
+            inputs["seq_name_dict"],
+            human_dict,
+            None,
+            float(cfg.guidance_weight),
+        )
+    finally:
+        sampler.clear_hsi_chain_rebase_oracle()
+    final = samples[-1]
+    target_joints = _teacher_forced_smplx_joints(
+        inputs["x_start"],
+        dataset,
+        inputs["mat"],
+        inputs["translation_offset"],
+        inputs["betas"],
+        inputs["gender"],
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+        frame_count=10,
+    )
+
+    def joints(value):
+        return _teacher_forced_smplx_joints(
+            value,
+            dataset,
+            inputs["mat"],
+            inputs["translation_offset"],
+            inputs["betas"],
+            inputs["gender"],
+            smplx_cache,
+            int(cfg.smplx_batch_size),
+            frame_count=10,
+        )
+
+    fps = float(cfg.fps) / float(DATA_STEP)
+    candidate_values = hsi_diagnostics.chain_rebase_metrics(
+        joints(final), target_joints, fps=fps
+    )
+    c0_values = hsi_diagnostics.chain_rebase_metrics(
+        joints(c0_final), target_joints, fps=fps
+    )
+
+    def record(values):
+        return {
+            "episode_id": str(selection["episode_id"]),
+            "stratum": str(selection["stratum"]),
+            "window_index": int(selection["window_index"]),
+            "data_idx": inputs["data_idx"],
+            "metrics": {name: float(value[0].cpu()) for name, value in values.items()},
+        }
+
+    return record(c0_values), record(candidate_values), final[0].float().cpu().numpy()
+
+
+def evaluate_chain_rebase(cfg: DictConfig) -> Path:
+    if int(cfg.batch_size) != 1:
+        raise ValueError("D4-B chain rebase requires batch_size=1")
+    arm = str(cfg.hsi_chain_rebase_mode)
+    if arm not in ("c1", "c2", "c3"):
+        raise ValueError("D4-B reportable arm must be c1, c2, or c3")
+
+    c0_path = Path(str(cfg.d4_chain_c0_payload))
+    c0_payload = json.loads(c0_path.read_text(encoding="utf-8"))
+    c0_npz = np.load(Path(c0_payload["array_archive"]["path"]), allow_pickle=False)
+    c0_source = c0_payload["records"]
+
+    model, checkpoint_provenance = _load_strict_checkpoint(cfg)
+    source = GroundTruthSource(DATASET_ROOT)
+    dataset = _scene_only_dataset(cfg)
+    selection, subset, stratum_weights = _exact_holdout_windows(
+        dataset,
+        source,
+        cfg.lingo_episode_dir,
+        cfg.lingo_episode_subset,
+        int(cfg.d4_chain_holdout_windows),
+        int(cfg.d4_chain_terminal_padded_windows),
+    )
+    if [int(row["data_idx"]) for row in selection] != [
+        int(row["data_idx"]) for row in c0_source
+    ]:
+        raise ValueError("D4-B selection is not aligned with sealed D3 c0")
+    if cfg.get("d4_chain_smoke_windows_per_stratum") is not None:
+        limit = int(cfg.d4_chain_smoke_windows_per_stratum)
+        selected, selected_c0, counts = [], [], defaultdict(int)
+        for item, c0_row in zip(selection, c0_source):
+            stratum = str(item["stratum"])
+            if counts[stratum] < limit:
+                selected.append(item)
+                selected_c0.append(c0_row)
+                counts[stratum] += 1
+        selection, c0_source = selected, selected_c0
+
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, model)
+    smplx_cache: Dict[str, torch.nn.Module] = {}
+    c0_records, arm_records, finals = [], [], []
+    for position, (item, c0_row) in enumerate(zip(selection, c0_source), start=1):
+        c0_final = torch.from_numpy(
+            c0_npz["final_sample"][int(c0_row["array_row"])]
+        ).to(device=str(cfg.device), dtype=torch.float32)[None]
+        c0_record, arm_record, final = _chain_rebase_record(
+            cfg, dataset, sampler, item, c0_final, smplx_cache
+        )
+        arm_record["array_row"] = len(arm_records)
+        c0_records.append(c0_record)
+        arm_records.append(arm_record)
+        finals.append(final)
+        if position % 10 == 0 or position == len(selection):
+            print("CHAIN_REBASE %s %d/%d" % (arm, position, len(selection)), flush=True)
+
+    summary = hsi_diagnostics.summarize_chain_rebase(
+        c0_records,
+        arm_records,
+        stratum_weights,
+        arm=arm,
+        seed=int(cfg.seed),
+        replicates=int(cfg.d4_chain_bootstrap_replicates),
+    )
+    payload = {
+        "schema_version": 1,
+        "mode": "chain_rebase",
+        "arm": arm,
+        "checkpoint": checkpoint_provenance,
+        "seed": int(cfg.seed),
+        "w": float(cfg.w),
+        "protocol": {
+            "sampler": "Sampler.p_sample_loop",
+            "timesteps": int(sampler.timesteps),
+            "history_frames": HISTORY_FRAMES,
+            "rebase_location": "after_cfg_and_object_zero_before_posterior_mean",
+            "rebase_base": "fixed_x_history",
+            "guidance": False,
+        },
+        "c0_input": {
+            "payload": str(c0_path),
+            "array_sha256": c0_payload["array_archive"]["sha256"],
+        },
+        "holdout_selection": subset,
+        "smoke_windows_per_stratum": (
+            None
+            if cfg.get("d4_chain_smoke_windows_per_stratum") is None
+            else int(cfg.d4_chain_smoke_windows_per_stratum)
+        ),
+        "stratum_weights": stratum_weights,
+        "summary": summary,
+        "records": {"c0": c0_records, arm: arm_records},
+    }
+    output_dir = Path(cfg.lingo_output_dir) / (
+        "%s-%s-%s"
+        % (
+            Path(str(cfg.ckpt_path)).stem,
+            checkpoint_provenance["checkpoint_sha256"][:12],
+            arm,
+        )
+    )
+    return _write_array_payload(
+        output_dir,
+        payload,
+        {"final_sample": np.stack(finals)},
+        file_name="chain_rebase_%s_samples.npz" % arm,
+    )
+
+
 def _d4_decompose_arm(cfg, dataset, inputs, predicted, target_joints, smplx_cache):
     target = inputs["x_start"]
     root_only = target.clone()
@@ -3236,11 +3442,13 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_single_window_chain(cfg)
     elif mode == "d4_offline_decomp":
         path = evaluate_d4_offline_decomp(cfg)
+    elif mode == "chain_rebase":
+        path = evaluate_chain_rebase(cfg)
     else:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
-            "d4_offline_decomp, got %s"
+            "d4_offline_decomp or chain_rebase, got %s"
             % mode
         )
     print("Wrote %s" % path)
