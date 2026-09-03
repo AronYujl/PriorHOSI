@@ -130,6 +130,9 @@ class Sampler:
         self.hsi_future_occ_mode = validate_future_occ_mode(
             kwargs.get('hsi_future_occ_mode', 'predicted')
         )
+        self.hsi_future_occ_jitter_scale = float(
+            kwargs.get('hsi_future_occ_jitter_scale', 0.2)
+        )
         self._hsi_future_occ_oracle_local = None
         self._hsi_future_occ_telemetry = None
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
@@ -436,7 +439,9 @@ class Sampler:
                 object_points_temp = torch.matmul(pred_obj_rot_mat, object_points_temp.transpose(-2,-1)).transpose(-2,-1) + pred_obj_trans.unsqueeze(-2) # [b, t, 1024, 3]
 
                 x_denorm = self.dataset.denormalize_torch(x_start[:, :, :joints.shape[-1]])
-                perturb = (torch.rand_like(x_denorm) - 0.5) * 0.2  # ∈ [-0.1, 0.1]
+                perturb = (
+                    torch.rand_like(x_denorm) - 0.5
+                ) * self.hsi_future_occ_jitter_scale
                 x_denorm = x_denorm + perturb
 
                 # dynamically obtain temporal frame indices

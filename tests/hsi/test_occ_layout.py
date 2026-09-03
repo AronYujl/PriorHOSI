@@ -138,6 +138,13 @@ def _inference_occ(sampler, dataset, inputs):
 
 
 class OccLayoutTests(unittest.TestCase):
+    def test_future_crop_jitter_defaults_to_training_value_and_can_be_disabled(self):
+        self.assertEqual(_sampler().hsi_future_occ_jitter_scale, 0.2)
+        self.assertEqual(
+            _sampler(hsi_future_occ_jitter_scale=0.0).hsi_future_occ_jitter_scale,
+            0.0,
+        )
+
     def _assert_path(self, path):
         inputs = _inputs()
         dataset = AsymmetricOccupancyDataset()

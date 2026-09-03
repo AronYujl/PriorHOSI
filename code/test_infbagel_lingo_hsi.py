@@ -17,7 +17,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Mapping, MutableMapping,
 import hydra
 import numpy as np
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from scipy.spatial.transform import Rotation as Rotation
 
 import pytorch3d.transforms as transforms
@@ -1781,6 +1781,363 @@ def sampled_motion(
     )
 
 
+def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTruthSource):
+    episodes = _load_episodes(Path(cfg.lingo_episode_dir), None)
+    window_counts = [int(episode[2]["episode_num"]) for episode in episodes]
+    subset = _load_episode_subset(cfg.lingo_episode_subset, episodes, window_counts)
+    cohort_payload = json.loads(Path(subset["path"]).read_text(encoding="utf-8"))
+    cohort_rows = {
+        int(row["canonical_ordinal"]): row for row in cohort_payload["episodes"]
+    }
+
+    valid_indices = sorted(int(sample_idx) for dataset_id, sample_idx in dataset.indices if dataset_id == 1)
+    lookup = {}
+    for data_idx in valid_indices:
+        key = (int(source.window_sequence[data_idx]), int(source.window_start[data_idx]))
+        lookup.setdefault(key, data_idx)
+
+    selected = []
+    for ordinal in subset["canonical_ordinals"]:
+        _scene_name, _scene_index, episode = episodes[int(ordinal)]
+        sequence_index = int(source.window_sequence[int(episode["data_idx"])])
+        start = int(source.window_start[int(episode["data_idx"])])
+        cohort_row = cohort_rows[int(ordinal)]
+        for window_index in range(int(episode["episode_num"])):
+            key = (sequence_index, start + window_index * WINDOW_STRIDE_RAW)
+            if key not in lookup:
+                raise ValueError("no valid test window for source/start %s" % (key,))
+            selected.append(
+                {
+                    "data_idx": lookup[key],
+                    "episode_id": str(cohort_row["sequence_id"]),
+                    "stratum": str(cohort_row["stratum"]),
+                    "window_index": window_index,
+                }
+            )
+    if len(selected) != int(subset["window_count"]):
+        raise ValueError(
+            "teacher-forced holdout mapped %d windows, expected %d"
+            % (len(selected), int(subset["window_count"]))
+        )
+    stratum_weights = {}
+    for row in cohort_payload["episodes"]:
+        stratum_weights[str(row["stratum"])] = float(row["stratum_weight"])
+    return selected, subset, stratum_weights
+
+
+def _teacher_forced_train_windows(dataset, count: int, seed: int):
+    valid_indices = np.asarray(
+        sorted(int(sample_idx) for dataset_id, sample_idx in dataset.indices if dataset_id == 1),
+        dtype=np.int64,
+    )
+    if int(count) > len(valid_indices):
+        raise ValueError("requested more teacher-forced train windows than are available")
+    rng = np.random.default_rng(int(seed))
+    chosen = np.sort(rng.choice(valid_indices, size=int(count), replace=False))
+    return [
+        {
+            "data_idx": int(data_idx),
+            "episode_id": "train:%07d" % int(data_idx),
+            "stratum": "train",
+            "window_index": 0,
+        }
+        for data_idx in chosen
+    ]
+
+
+def _teacher_forced_smplx_joints(
+    representation: torch.Tensor,
+    dataset,
+    mat: torch.Tensor,
+    translation_offset: torch.Tensor,
+    betas: torch.Tensor,
+    gender: str,
+    smplx_cache: MutableMapping[str, torch.nn.Module],
+    smplx_batch_size: int,
+) -> torch.Tensor:
+    representation = representation[:, :4].float()
+    global_jpos = project_utils.transform_points(
+        dataset.denormalize_torch(representation[:, :, :84]), mat
+    ).reshape(1, 4, 28, 3)
+    global_rotation = transforms.rotation_6d_to_matrix(
+        representation[:, :, 84:216].reshape(-1, 22, 6)
+    ).reshape(1, 4, 22, 3, 3)
+    global_rotation = mat[:, None, None, :3, :3] @ global_rotation
+    local_rotation = dataset.quat_ik_torch(global_rotation.reshape(-1, 22, 3, 3))
+    local_axis = transforms.matrix_to_axis_angle(local_rotation).reshape(-1, 22, 3)
+    smpl_translation = global_jpos[:, :, 0].reshape(-1, 3) + translation_offset
+    _, joints = _run_smplx_chunks(
+        local_axis,
+        smpl_translation,
+        betas,
+        gender,
+        representation.device,
+        int(smplx_batch_size),
+        smplx_cache,
+    )
+    return joints.reshape(1, 4, -1, 3)
+
+
+def _teacher_forced_window_record(
+    cfg: DictConfig,
+    dataset,
+    sampler,
+    selection: Mapping[str, object],
+    timesteps: Sequence[int],
+    smplx_cache: MutableMapping[str, torch.nn.Module],
+) -> Dict[str, object]:
+    from torch.utils.data._utils.collate import default_collate
+
+    device = torch.device(str(cfg.device))
+    data_idx = int(selection["data_idx"])
+    data = _lingo_item(dataset, data_idx)
+    batch = default_collate([data])
+
+    def tensor(name, dtype=None):
+        value = batch[name]
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value)
+        return value.to(device=device, dtype=dtype)
+
+    joints = tensor("joints", torch.float32).reshape(1, WINDOW_FRAMES, 84)
+    global_rotation = tensor("global_rot_6d", torch.float32).reshape(1, WINDOW_FRAMES, 132)
+    object_trans = tensor("object_trans", torch.float32).reshape(1, WINDOW_FRAMES, 3)
+    object_rotation = tensor("object_rot_mat", torch.float32).reshape(1, WINDOW_FRAMES, 9)
+    contact = tensor("contact_label", torch.float32).reshape(1, WINDOW_FRAMES, 4)
+    x_start = torch.cat((joints, global_rotation, object_trans, object_rotation, contact), dim=-1)
+    mat = tensor("mat", torch.float32).reshape(1, 4, 4)
+    scene_flag = tensor("scene_flag", torch.long).reshape(1)
+    text_emb = tensor("text_clip_embedding", torch.float32)
+    pelvis_goal = tensor("pelvis_goal", torch.float32).reshape(1, 3)
+    scene_goal = tensor("scene_goal", torch.float32).reshape(1, 3)
+    object_goal = tensor("object_goal", torch.float32).reshape(1, 3)
+    need_scene = tensor("need_scene", torch.bool).reshape(1)
+    need_pelvis_dir = tensor("need_pelvis_dir", torch.bool).reshape(1)
+    pi = tensor("pi", torch.long).reshape(1)
+    end_pi = tensor("end_pi", torch.long).reshape(1)
+    seq_length = tensor("seg_len", torch.long).reshape(1)
+    need_pi = tensor("need_pi", torch.bool).reshape(1)
+    is_loco = tensor("is_loco", torch.bool).reshape(1)
+    is_object = tensor("is_object", torch.bool).reshape(1)
+    object_bps = tensor("obj_bps_data", torch.float32)
+    object_points = tensor("object_points", torch.float32).reshape(1, -1, 3)
+    object_rotation_ref = tensor("obj_rot_mat_ref", torch.float32).reshape(1, 3, 3)
+    betas = tensor("betas", torch.float32).reshape(-1)
+    gender = str(batch["gender"][0])
+
+    start_idx = int(dataset.lingo_dataset.start_ind[data_idx])
+    translation_offset = torch.from_numpy(
+        np.asarray(
+            dataset.lingo_dataset.transl[start_idx]
+            - dataset.lingo_dataset.joints[start_idx, 0]
+        ).copy()
+    ).to(device=device, dtype=torch.float32)
+
+    generator = torch.Generator(device="cpu")
+    generator.manual_seed(int(cfg.seed) + data_idx)
+    noise = torch.randn(x_start.shape, generator=generator, dtype=torch.float32).to(device)
+    noise[:, :HISTORY_FRAMES] = 0.0
+    target_joints = _teacher_forced_smplx_joints(
+        x_start,
+        dataset,
+        mat,
+        translation_offset,
+        betas,
+        gender,
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+    )
+
+    metrics = {}
+    with torch.no_grad():
+        for timestep in timesteps:
+            t = torch.full((1,), int(timestep), device=device, dtype=torch.long)
+            x_noisy = sampler.q_sample(x_start=x_start, t=t, noise=noise)
+            x_noisy[:, :HISTORY_FRAMES] = x_start[:, :HISTORY_FRAMES]
+            occ, occ_list, occ_pos = sampler._compute_occ(
+                x_noisy,
+                x_start,
+                joints,
+                mat,
+                scene_flag,
+                object_points,
+                pelvis_goal,
+                scene_goal,
+                object_goal,
+                is_loco,
+                is_object,
+                need_pelvis_dir,
+                object_rotation_ref,
+            )
+            predicted = sampler.student_model(
+                x_noisy,
+                occ,
+                t,
+                text_emb,
+                pelvis_goal,
+                scene_goal,
+                is_loco,
+                need_scene,
+                need_pelvis_dir,
+                pi,
+                end_pi,
+                seq_length,
+                need_pi,
+                object_goal,
+                is_object,
+                object_bps,
+                occ_list,
+                occ_pos,
+            )
+            predicted_joints = _teacher_forced_smplx_joints(
+                predicted,
+                dataset,
+                mat,
+                translation_offset,
+                betas,
+                gender,
+                smplx_cache,
+                int(cfg.smplx_batch_size),
+            )
+            values = hsi_diagnostics.teacher_forced_boundary_metrics(
+                predicted_joints,
+                target_joints,
+                predicted,
+                x_start,
+                fps=float(cfg.fps) / float(dataset.lingo_dataset.step),
+            )
+            metrics[str(int(timestep))] = {
+                name: float(value[0].cpu()) for name, value in values.items()
+            }
+
+    return {
+        "episode_id": str(selection["episode_id"]),
+        "stratum": str(selection["stratum"]),
+        "window_index": int(selection["window_index"]),
+        "data_idx": data_idx,
+        "metrics": metrics,
+    }
+
+
+def _evaluate_teacher_forced_cohort(
+    cfg: DictConfig,
+    dataset,
+    model: torch.nn.Module,
+    selections: Sequence[Mapping[str, object]],
+    split_partition: str,
+    timesteps: Sequence[int],
+    smplx_cache: MutableMapping[str, torch.nn.Module],
+):
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, model)
+    records = []
+    for position, selection in enumerate(selections, start=1):
+        records.append(
+            _teacher_forced_window_record(
+                cfg, dataset, sampler, selection, timesteps, smplx_cache
+            )
+        )
+        if position % 25 == 0 or position == len(selections):
+            print(
+                "TEACHER_FORCED %s %d/%d" % (split_partition, position, len(selections)),
+                flush=True,
+            )
+    return records
+
+
+def evaluate_teacher_forced_boundary(cfg: DictConfig) -> Path:
+    if int(cfg.batch_size) != 1:
+        raise ValueError("teacher-forced boundary diagnostic requires batch_size=1")
+    timesteps = tuple(int(value) for value in cfg.teacher_forced_timesteps)
+    if timesteps != hsi_diagnostics.TEACHER_FORCED_TIMESTEPS:
+        raise ValueError(
+            "teacher_forced_timesteps must be %s" % (hsi_diagnostics.TEACHER_FORCED_TIMESTEPS,)
+        )
+
+    model, checkpoint_provenance = _load_strict_checkpoint(cfg)
+    source = GroundTruthSource(DATASET_ROOT)
+    smplx_cache: Dict[str, torch.nn.Module] = {}
+
+    holdout_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    holdout_cfg.dataset.split_partition = "test"
+    holdout_dataset = _scene_only_dataset(holdout_cfg)
+    holdout_selection, subset, stratum_weights = _teacher_forced_holdout_windows(
+        holdout_cfg, holdout_dataset, source
+    )
+    holdout_records = _evaluate_teacher_forced_cohort(
+        holdout_cfg,
+        holdout_dataset,
+        model,
+        holdout_selection,
+        "test",
+        timesteps,
+        smplx_cache,
+    )
+    del holdout_dataset
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    train_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    train_cfg.dataset.split_partition = "train"
+    train_dataset = _scene_only_dataset(train_cfg)
+    train_selection = _teacher_forced_train_windows(
+        train_dataset, int(cfg.teacher_forced_train_windows), int(cfg.seed)
+    )
+    train_records = _evaluate_teacher_forced_cohort(
+        train_cfg,
+        train_dataset,
+        model,
+        train_selection,
+        "train",
+        timesteps,
+        smplx_cache,
+    )
+    del train_dataset
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    summary = hsi_diagnostics.summarize_teacher_forced_boundary(
+        holdout_records,
+        train_records,
+        stratum_weights,
+        timesteps=timesteps,
+        seed=int(cfg.seed),
+        replicates=int(cfg.teacher_forced_bootstrap_replicates),
+    )
+
+    selection_bytes = json.dumps(
+        [item["data_idx"] for item in train_selection], separators=(",", ":")
+    ).encode("utf-8")
+    payload = {
+        "schema_version": 1,
+        "mode": "teacher_forced_boundary",
+        "checkpoint": checkpoint_provenance,
+        "seed": int(cfg.seed),
+        "timesteps": list(timesteps),
+        "protocol": {
+            "model_mode": "eval_fp32",
+            "history_frames": HISTORY_FRAMES,
+            "window_fps": float(cfg.fps) / float(DATA_STEP),
+            "future_occ_jitter_scale": float(cfg.hsi_future_occ_jitter_scale),
+            "cfg": False,
+            "guidance": False,
+            "rollout": False,
+        },
+        "holdout_selection": subset,
+        "stratum_weights": stratum_weights,
+        "train_selection": {
+            "window_count": len(train_selection),
+            "rule": "default_rng(seed).choice(sorted_valid_underlying_indices, replace=False)",
+            "data_index_sha256": hashlib.sha256(selection_bytes).hexdigest(),
+        },
+        "summary": summary,
+        "records": {"holdout": holdout_records, "train": train_records},
+    }
+    output_dir = Path(cfg.lingo_output_dir) / (
+        "%s-%s" % (Path(str(cfg.ckpt_path)).stem, checkpoint_provenance["checkpoint_sha256"][:12])
+    )
+    return _write_payload(output_dir, payload)
+
+
 def evaluate_model(cfg: DictConfig) -> Path:
     if int(cfg.batch_size) != 1:
         raise ValueError("LINGO HSI timing protocol requires batch_size=1")
@@ -2173,9 +2530,12 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_model(cfg)
     elif mode == "merge_shards":
         path = _merge_shards(cfg)
+    elif mode == "teacher_forced_boundary":
+        path = evaluate_teacher_forced_boundary(cfg)
     else:
         raise ValueError(
-            "lingo_hsi_mode must be ground_truth, sample or merge_shards, got %s" % mode
+            "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
+            "teacher_forced_boundary, got %s" % mode
         )
     print("Wrote %s" % path)
 
