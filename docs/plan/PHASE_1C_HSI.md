@@ -12544,3 +12544,16 @@ D5-U 子预算 `<=3 GPU-h`，D5-G 子预算 `<=8 GPU-h`，合计 `<=11 GPU-h`；
 累计上限从 416 修订到 **428 GPU-h**。两个正式格都完成并按冻结判据分析后，本轮停止：不做 c3
 软化系数、衰减长度、c1/c2 rollout、guidance/SDF sweep 或训练。D5 只评 B；是否允许 sampler
 rebase 进入 C/gate 留待 D5 结果后的用户裁决。
+
+### E. 2026-09-04 D5-U r0 操作失败与 r1 执行修订
+
+首次 D5-U run `p1-hsi-b-r2-d5-rebase-unguided-s42-20260903` 在任何 Python 模型进程启动前随
+detached 执行上下文退出。launcher 记录了 8 个 child PID，但 8 份 shard log 均为零字节；GPU
+始终为 18 MiB / 0%，没有模型前向、payload、motion、`SHARDS_DONE` 或 merge。该 manifest 已以
+`failed` 封存并写入 append-only registry，不产生科学读数，也不复用该 run id。
+
+科学定义、checkpoint、cohort、seed、8-shard 布局、预算、统计与判据均不变。D5-U 重试只改执行
+承载方式：使用可持续的 foreground-controlled PTY session，而不是被调用端回收的 detached child
+context。新 run id 为 `p1-hsi-b-r2-d5-rebase-unguided-r1-s42-20260904`。D5-G 尚未创建 manifest，
+仍使用原预注册 id `p1-hsi-b-r2-d5-rebase-guided-s42-20260903`。两格仍须顺序执行；本修订不增加
+实验格或 GPU 预算。
