@@ -136,10 +136,20 @@ def zero_object_x0(model_output, is_object, enabled):
     return out
 
 
-def rebase_model_output(model_output, x, mode, oracle_frame2=None):
+def rebase_model_output(
+    model_output,
+    x,
+    mode,
+    oracle_frame2=None,
+    *,
+    timestep=None,
+    min_timestep=0,
+):
     """Rigidly align predicted future channels to the fixed two-frame history."""
     mode = str(mode)
-    if mode == "off":
+    if mode == "off" or (
+        timestep is not None and int(timestep) < int(min_timestep)
+    ):
         return model_output
     if mode not in HSI_CHAIN_REBASE_MODES:
         raise ValueError("unknown HSI chain rebase mode %r" % mode)
@@ -218,6 +228,9 @@ class Sampler:
                 "hsi_chain_rebase_mode must be one of %s"
                 % ", ".join(HSI_CHAIN_REBASE_MODES)
             )
+        self.hsi_chain_rebase_min_timestep = int(
+            kwargs.get('hsi_chain_rebase_min_timestep', 0)
+        )
         self._hsi_chain_rebase_oracle_frame2 = None
         self.hsi_future_occ_mode = validate_future_occ_mode(
             kwargs.get('hsi_future_occ_mode', 'predicted')
@@ -1443,6 +1456,8 @@ class Sampler:
             x,
             self.hsi_chain_rebase_mode,
             self._hsi_chain_rebase_oracle_frame2,
+            timestep=t_index,
+            min_timestep=self.hsi_chain_rebase_min_timestep,
         )
         if self._p_sample_trace_timestep == int(t_index):
             if self._p_sample_trace is not None:

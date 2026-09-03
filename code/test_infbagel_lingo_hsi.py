@@ -2863,6 +2863,7 @@ def evaluate_chain_rebase(cfg: DictConfig) -> Path:
         arm_records,
         stratum_weights,
         arm=arm,
+        min_timestep=int(sampler.hsi_chain_rebase_min_timestep),
         seed=int(cfg.seed),
         replicates=int(cfg.d4_chain_bootstrap_replicates),
     )
@@ -2879,6 +2880,7 @@ def evaluate_chain_rebase(cfg: DictConfig) -> Path:
             "history_frames": HISTORY_FRAMES,
             "rebase_location": "after_cfg_and_object_zero_before_posterior_mean",
             "rebase_base": "fixed_x_history",
+            "rebase_min_timestep": int(sampler.hsi_chain_rebase_min_timestep),
             "guidance": False,
         },
         "c0_input": {

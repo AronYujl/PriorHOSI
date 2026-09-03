@@ -28,6 +28,7 @@ pelvis:
   occ_permute_fix: ${oc.select:occ_permute_fix,false}
   hsi_zero_object_x0: ${oc.select:hsi_zero_object_x0,false}
   hsi_chain_rebase_mode: ${oc.select:hsi_chain_rebase_mode,off}
+  hsi_chain_rebase_min_timestep: ${oc.select:hsi_chain_rebase_min_timestep,0}
   hsi_future_occ_mode: ${oc.select:hsi_future_occ_mode,predicted}
   hsi_future_occ_jitter_scale: ${oc.select:hsi_future_occ_jitter_scale,0.2}
   # B-match seam weight, 0.0 = off.  Same oc.select pattern: model C's train

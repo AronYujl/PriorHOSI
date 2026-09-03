@@ -319,6 +319,8 @@ class D4ChainRebaseDiagnosticsTests(unittest.TestCase):
             base = {
                 "gt_first2_fk_acc_mps2": 1.0,
                 "final_first2_fk_acc_mps2": 3.0,
+                "gt_cross_seam_third_difference_mps3": 10.0,
+                "final_cross_seam_third_difference_mps3": 30.0,
                 "final_a2_fk_acc_mps2": 2.0,
                 "final_frame3_6_fk_error_m": 0.4,
                 "final_internal_frame3_8_fk_acc_mps2": 2.0,

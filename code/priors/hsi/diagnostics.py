@@ -416,6 +416,7 @@ def summarize_chain_rebase(
     stratum_weights: Mapping[str, float],
     *,
     arm: str,
+    min_timestep: int = 0,
     seed: int = 42,
     replicates: int = 10000,
 ) -> Dict[str, object]:
@@ -465,6 +466,28 @@ def summarize_chain_rebase(
     valid = boot_denominator > 0.0
     ratio_samples = boot_numerator[valid] / boot_denominator[valid]
 
+    third_denominator = (
+        point[index["c0_final_cross_seam_third_difference_mps3"]]
+        - point[index["c0_gt_cross_seam_third_difference_mps3"]]
+    )
+    third_numerator = (
+        point[index["arm_final_cross_seam_third_difference_mps3"]]
+        - point[index["arm_gt_cross_seam_third_difference_mps3"]]
+    )
+    third_ratio = float(third_numerator / third_denominator)
+    boot_third_denominator = (
+        boot[:, index["c0_final_cross_seam_third_difference_mps3"]]
+        - boot[:, index["c0_gt_cross_seam_third_difference_mps3"]]
+    )
+    boot_third_numerator = (
+        boot[:, index["arm_final_cross_seam_third_difference_mps3"]]
+        - boot[:, index["arm_gt_cross_seam_third_difference_mps3"]]
+    )
+    third_valid = boot_third_denominator > 0.0
+    third_ratio_samples = (
+        boot_third_numerator[third_valid] / boot_third_denominator[third_valid]
+    )
+
     guard_names = (
         "final_a2_fk_acc_mps2",
         "final_frame3_6_fk_error_m",
@@ -482,7 +505,14 @@ def summarize_chain_rebase(
         }
     guards_pass = not any(value["significantly_worse"] for value in guards.values())
 
-    if arm == "c1":
+    if arm == "c3" and int(min_timestep) > 0:
+        if third_ratio <= 0.4:
+            decision = "PROCEED"
+        elif third_ratio >= 0.6:
+            decision = "DEPRIORITIZED"
+        else:
+            decision = "INCONCLUSIVE"
+    elif arm == "c1":
         if ratio <= 0.5 and guards_pass:
             decision = "SUPPORTED"
         elif ratio >= 0.8:
@@ -503,6 +533,7 @@ def summarize_chain_rebase(
 
     return {
         "arm": str(arm),
+        "rebase_min_timestep": int(min_timestep),
         "window_count": len(arm_records),
         "episode_count": episode_count,
         "metrics": _metric_summary(names, point, boot),
@@ -519,6 +550,13 @@ def summarize_chain_rebase(
             ],
             "c0_excess_mps2": float(denominator),
             "arm_excess_mps2": float(numerator),
+            "third_difference_excess_ratio": third_ratio,
+            "third_difference_excess_ratio_ci_over_positive_denominator_replicates": [
+                float(np.quantile(third_ratio_samples, 0.025)),
+                float(np.quantile(third_ratio_samples, 0.975)),
+            ],
+            "c0_third_difference_excess_mps3": float(third_denominator),
+            "arm_third_difference_excess_mps3": float(third_numerator),
         },
         "guards": guards,
         "decision": decision,

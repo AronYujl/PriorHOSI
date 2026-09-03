@@ -11,7 +11,10 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from models.infbagel import rebase_model_output
-from priors.hsi.diagnostics import chain_rebase_rollout_telemetry
+from priors.hsi.diagnostics import (
+    chain_rebase_rollout_telemetry,
+    summarize_chain_rebase,
+)
 from priors.hsi.metrics import StitchedSequence
 
 
@@ -51,6 +54,23 @@ class ChainRebaseArithmeticTests(unittest.TestCase):
             torch.allclose(result[:, 2, 84:216], torch.full((1, 132), 8.0), atol=1e-6)
         )
         self.assertTrue(torch.equal(result[:, :, 216:], self.output[:, :, 216:]))
+
+    def test_min_timestep_zero_is_identical_to_the_existing_c3_path(self):
+        existing = rebase_model_output(self.output, self.x, "c3")
+        default = rebase_model_output(
+            self.output, self.x, "c3", timestep=0, min_timestep=0
+        )
+        self.assertTrue(torch.equal(default, existing))
+
+    def test_rebase_runs_only_at_or_above_the_minimum_timestep(self):
+        below = rebase_model_output(
+            self.output, self.x, "c3", timestep=183, min_timestep=184
+        )
+        at_threshold = rebase_model_output(
+            self.output, self.x, "c3", timestep=184, min_timestep=184
+        )
+        self.assertIs(below, self.output)
+        self.assertTrue(torch.equal(at_threshold, rebase_model_output(self.output, self.x, "c3")))
 
 
 class ChainRebaseCallSiteTests(unittest.TestCase):
@@ -107,6 +127,45 @@ class ChainRebaseRolloutTelemetryTests(unittest.TestCase):
         self.assertEqual(result["coarse_seam_count"], 1.0)
         self.assertAlmostEqual(result["rotation6d_abs_cosine_max"], 0.0)
         self.assertLess(result["rotation_matrix_orthogonality_max"], 1e-12)
+
+
+class PhaseLimitedRebaseDecisionTests(unittest.TestCase):
+    def test_third_difference_ratio_controls_the_d6_a_decision(self):
+        c0, candidate = [], []
+        for index, stratum in enumerate(("s1", "s1", "s2", "s2")):
+            base = {
+                "gt_first2_fk_acc_mps2": 1.0,
+                "final_first2_fk_acc_mps2": 3.0,
+                "gt_cross_seam_third_difference_mps3": 10.0,
+                "final_cross_seam_third_difference_mps3": 30.0,
+                "final_a2_fk_acc_mps2": 2.0,
+                "final_frame3_6_fk_error_m": 0.4,
+                "final_internal_frame3_8_fk_acc_mps2": 2.0,
+            }
+            phase_limited = dict(base)
+            phase_limited["final_first2_fk_acc_mps2"] = 2.0
+            phase_limited["final_cross_seam_third_difference_mps3"] = 18.0
+            phase_limited["final_a2_fk_acc_mps2"] = 1.9
+            phase_limited["final_frame3_6_fk_error_m"] = 0.3
+            phase_limited["final_internal_frame3_8_fk_acc_mps2"] = 1.8
+            row = {"episode_id": "e%d" % index, "stratum": stratum, "data_idx": index}
+            c0.append({**row, "metrics": base})
+            candidate.append({**row, "metrics": phase_limited})
+
+        result = summarize_chain_rebase(
+            c0,
+            candidate,
+            {"s1": 0.5, "s2": 0.5},
+            arm="c3",
+            min_timestep=184,
+            seed=42,
+            replicates=50,
+        )
+
+        self.assertAlmostEqual(
+            result["derived"]["third_difference_excess_ratio"], 0.4
+        )
+        self.assertEqual(result["decision"], "PROCEED")
 
     def test_raw_6d_deviation_is_visible_before_projection(self):
         joints = StitchedSequence(
