@@ -12557,3 +12557,10 @@ detached 执行上下文退出。launcher 记录了 8 个 child PID，但 8 份 
 context。新 run id 为 `p1-hsi-b-r2-d5-rebase-unguided-r1-s42-20260904`。D5-G 尚未创建 manifest，
 仍使用原预注册 id `p1-hsi-b-r2-d5-rebase-guided-s42-20260903`。两格仍须顺序执行；本修订不增加
 实验格或 GPU 预算。
+
+### F. D5-U r1 日期勘误
+
+`p1-hsi-b-r2-d5-rebase-unguided-r1-s42-20260904` 只创建了 manifest，没有启动 workload；该 id
+误用了已进入 9 月 4 日的 host-local clock，而本会话适用日期仍为 2026-09-03。它已以 `aborted`
+封存，模型前向与 GPU 消耗均为 0，不产生科学结果且不复用。持久 PTY 重试 id 修正为
+`p1-hsi-b-r2-d5-rebase-unguided-r2-s42-20260903`。本勘误不改变 D5-U 的任何科学或成本定义。
