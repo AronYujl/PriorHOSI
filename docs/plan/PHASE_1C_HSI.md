@@ -12083,3 +12083,78 @@ main effect 不显著且只有 `−0.5268`，不能据此单独晋级 coordinate
 为 `9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821`。四个 finished manifests
 分别保存在上述四个 run id 下；completion registry id 为
 `p1-hsi-b-r2-future-crop-factorial-completion-s42-20260903`。
+
+## 2026-09-03（D1：teacher-forced x0 历史边界自洽诊断；无训练）
+
+### A. 动机与对上一诊断的约束
+
+R2-FC 的 full-oracle `a11` 只把 `boundary_jerk` 从 126.5253 降到 123.2728，主 contrast
+`-3.2525` 的 95% CI 为 `[-9.6402,+2.8387]`。因此 future occupancy 错配不能作为下一次训练的
+已证实主因，也不授权 R3。该诊断的 timestep 遥测同时显示，future-center error 在第一步去噪后
+已经大幅收敛，此后变化很小；结合 B/C unguided seam 近似相同，下一项高价值问题是：边界瞬变是否
+已经存在于一次 teacher-forced `x0` 前向，而不是由 500 步反向链累积产生。
+
+训练中两帧 clean history 被 `mask_inv` 从人体位置、旋转与 FK loss 全部排除；采样中
+`set_fixed_points` 钉住的是 `x_prev`，并不约束网络本次返回的 history `x0`。因此网络可能输出一个与
+**自身 history head** 连续的未来，但该未来与采样器实际钉住的 GT history 不连续。只测 history 输出
+偏差与第 2 帧误差的相关性不能识别这个机制；本诊断直接比较同一前向的两种边界：
+
+- `clamped-history`：GT 帧 0/1 + 预测帧 2/3，等价于采样器实际拼接；
+- `internal-history`：预测帧 0/1/2/3，表示网络自身输出的边界。
+
+二者唯一差异是 history 来源，因而可直接量化硬钉 history 引入了多少 acceleration excess。
+
+### B. 冻结对象、窗口与前向协议
+
+- checkpoint 固定为 R2 final EMA
+  `/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth`，
+  SHA256 `7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`；不读其他 checkpoint。
+- holdout 主 cohort 固定为 R2-FC 的 `B_n60`：60 episodes / 364 个精确 GT window，
+  `.claude/scratch/hetero_20260823/smoke60.json`，SHA256
+  `d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`。每个 episode 的 raw
+  window 通过 `(source_sequence,start_idx)` 映射回 test split 的合法 no-hand LINGO item。
+- 泛化对照为 train split 中全部合法 no-hand LINGO data index 排序后，用
+  `numpy.random.default_rng(42)` 无放回抽取 364 个 index，再按 index 排序执行；它只回答 train/test
+  差异，不参与主机制 gate。
+- timestep 固定为 `{498,250,50}`。每个 window 生成一份 seed-42、按稳定 window identity 派生的
+  Gaussian epsilon，三种 timestep 共享该 epsilon；history 两帧的 epsilon 置零，并在 `q_sample` 后
+  恢复 clean GT。模型为 `eval()`、fp32、无 CFG、无 guidance、单次前向。
+- 条件使用训练路径 `_compute_occ`，但 future-crop jitter 固定为 0，避免三种 timestep 被不同随机
+  crop 混淆；`occ_permute_fix=true`，其余 checkpoint contract 不变。window rate 为 10 Hz
+  (`30 / step=3`)，所有 acceleration 乘 `10^2`。
+
+### C. 冻结输出与统计
+
+每个 window/timestep 在 production FK 的 28 joints 上报告：GT、`clamped-history`、
+`internal-history` 的前两个二阶差分 mean-L2；骨盆帧 2/3 的位置误差；预测 history 帧 0/1 相对输入
+的骨盆与 28-joint FK 误差；84 位置通道和 132 旋转通道的 history 误差。另报告
+`a1` 与 `a2` 的逐窗相关，但它不是晋级判据。
+
+holdout 先对 episode 内 window 取均值，再按冻结五层总体权重
+`{31,46,195,58,45}/375` 汇总；10,000 次 seed-42 paired bootstrap 在层内重采样 episode，所有
+ratio 与 contrast 共享 resample indices。train 对照只报告 364-window mean 与普通 bootstrap CI。
+
+主判读只看 `t=498`：
+
+1. **J1 single-forward seam**：`clamped-history / GT >=2.5` 为 SUPPORTED；`<=1.3` 为
+   DEPRIORITIZED；中间为 INCONCLUSIVE。
+2. **J2 history-clamp mechanism**：定义
+   `closure=(clamped-history - internal-history)/(clamped-history - GT)`。只有
+   `internal-history / GT <=1.5`、closure 点估计 `>=0.50` 且 closure 95% CI 下界 `>0` 时为
+   SUPPORTED；若 closure CI 上界 `<0.25` 则 DEPRIORITIZED；其余为 INCONCLUSIVE。
+3. **J3 generalization（次要）**：train/test 的 pelvis frame-2 error ratio `<0.77` 记为 holdout
+   至少高 30%；不单独授权训练。
+
+任何 nonfinite 是硬失败。只有 J1 与 J2 同时 SUPPORTED，才允许下一轮**提出** history-output
+supervision（R3-HS）并先做 loss-scale audit；本诊断本身不授权训练。J1 支持但 J2 不支持时，不得
+因为相关性转而训练 R3-HS，应重新定位 future residual parameterization 或 sampler 拼接。J1 不支持
+则关闭单步回归器解释，返回反向链／拼接诊断。
+
+### D. 生命周期、预算与停止
+
+唯一 override fragment 为 `code/config/config_sample_hsi_teacher_forced_boundary.yaml`，唯一 reportable
+run id 为 `p1-hsi-b-r2-teacher-forced-boundary-s42-20260903`。使用一张 RTX 3090，预算上限 2 GPU-h，
+不训练、不写 checkpoint、不运行 native rollout。先运行 component tests、真实 LINGO smoke，并因
+新增 evaluator mode 运行一次 authority full suite；随后在 clean worktree 上生成 fully resolved config
+和 `tools/experiment.py start` manifest。完成后只写冻结统计与 completion；不启动 R3、guidance 2x2、
+SDF 或蒸馏。
