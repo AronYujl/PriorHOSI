@@ -11,6 +11,8 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from models.infbagel import rebase_model_output
+from priors.hsi.diagnostics import chain_rebase_rollout_telemetry
+from priors.hsi.metrics import StitchedSequence
 
 
 class ChainRebaseArithmeticTests(unittest.TestCase):
@@ -76,6 +78,56 @@ class ChainRebaseCallSiteTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertLess(calls[0], posterior[0])
         self.assertNotIn("rebase_model_output", ast.dump(methods["cm_sample"]))
+
+
+class ChainRebaseRolloutTelemetryTests(unittest.TestCase):
+    def test_a1_a2_use_the_two_accelerations_that_straddle_the_seam(self):
+        x = torch.tensor([0.0, 1.0, 2.0, 3.0, 10.0, 12.0, 15.0, 19.0])
+        frames = torch.zeros(8, 28, 3)
+        frames[:, :, 0] = x[:, None]
+        joints = StitchedSequence(
+            frames=frames,
+            seams=(4,),
+            window_lengths=(4, 4),
+            history_frames=2,
+        )
+        identity_6d = torch.tensor([1.0, 0.0, 0.0, 0.0, 1.0, 0.0])
+        rotations = StitchedSequence(
+            frames=identity_6d.reshape(1, 1, 6).repeat(8, 22, 1),
+            seams=(4,),
+            window_lengths=(4, 4),
+            history_frames=2,
+        )
+
+        result = chain_rebase_rollout_telemetry(joints, rotations, fps=1.0)
+
+        self.assertAlmostEqual(result["coarse_seam_a1_fk_acc_mps2"], 6.0)
+        self.assertAlmostEqual(result["coarse_seam_a2_fk_acc_mps2"], 5.0)
+        self.assertAlmostEqual(result["coarse_cross_seam_third_difference_mps3"], 11.0)
+        self.assertEqual(result["coarse_seam_count"], 1.0)
+        self.assertAlmostEqual(result["rotation6d_abs_cosine_max"], 0.0)
+        self.assertLess(result["rotation_matrix_orthogonality_max"], 1e-12)
+
+    def test_raw_6d_deviation_is_visible_before_projection(self):
+        joints = StitchedSequence(
+            frames=torch.zeros(6, 28, 3),
+            seams=(3,),
+            window_lengths=(3, 3),
+            history_frames=2,
+        )
+        raw = torch.tensor([2.0, 0.0, 0.0, 1.0, 1.0, 0.0])
+        rotations = StitchedSequence(
+            frames=raw.reshape(1, 1, 6).repeat(6, 22, 1),
+            seams=(3,),
+            window_lengths=(3, 3),
+            history_frames=2,
+        )
+
+        result = chain_rebase_rollout_telemetry(joints, rotations, fps=10.0)
+
+        self.assertGreater(result["rotation6d_first_axis_norm_mae"], 0.0)
+        self.assertGreater(result["rotation6d_abs_cosine_mean"], 0.0)
+        self.assertLess(result["rotation_matrix_orthogonality_max"], 1e-12)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,26 @@
+# D5: rotation-aware c3 rebase in the frozen-60 production rollout.
+# The default cell is D5-U; D5-G changes only use_guidance,
+# hsi_guidance_posterior_coef1 and lingo_output_dir at launch.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+lingo_hsi_mode: sample
+lingo_episode_subset: ${oc.env:ROOT_DIR}/.claude/scratch/hetero_20260823/smoke60.json
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_d5_rebase_unguided
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+hsi_chain_rebase_mode: c3
+hsi_chain_rebase_rollout_telemetry: true
+sample_type: diffusion
+use_guidance: false
+hsi_guidance_posterior_coef1: false
+hsi_progress_fix: true
+occ_permute_fix: true
+hsi_future_occ_mode: predicted
+w: 1
+batch_size: 1
+export_motion: true
+shard_count: 8
+merge_expected_episodes: 60
+merge_expected_windows: 364
+seed: 42

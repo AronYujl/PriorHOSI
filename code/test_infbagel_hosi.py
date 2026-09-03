@@ -149,6 +149,7 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
     points_orig = transform_points(sampler.dataset.denormalize_torch(points), mat)
 
     global_rot_6d = points_gene[:, :, 84:216].reshape(cfg.batch_size, cfg.max_window_size, 22*6)
+    raw_global_rot_6d = global_rot_6d.clone()
 
     obj_trans = points_gene[:, :, 216:219].reshape(cfg.batch_size, cfg.max_window_size, 3)
     obj_rot = points_gene[:, :, 219:228].reshape(cfg.batch_size, cfg.max_window_size, 3, 3)
@@ -174,6 +175,7 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
         'object_rot_mat': obj_rot.reshape(cfg.batch_size, cfg.max_window_size, 9),
         'contact_label': contact_label,
         'global_rot_6d': global_rot_6d,
+        'raw_global_rot_6d': raw_global_rot_6d,
     }
 
     return info_dict

@@ -350,6 +350,66 @@ def chain_rebase_metrics(
     return result
 
 
+def chain_rebase_rollout_telemetry(
+    joints: StitchedSequence,
+    rotations_6d: StitchedSequence,
+    *,
+    fps: float,
+) -> Dict[str, float]:
+    """D5 coarse-rollout seam and raw-6D diagnostics."""
+    if joints.seams != rotations_6d.seams or len(joints) != len(rotations_6d):
+        raise ValueError("joint and rotation rollout seams must match")
+
+    positions = joints.frames
+    a1, a2, third = [], [], []
+    for seam in joints.seams:
+        a1_term = positions[seam] - 2.0 * positions[seam - 1] + positions[seam - 2]
+        a2_term = positions[seam + 1] - 2.0 * positions[seam] + positions[seam - 1]
+        third_term = (
+            positions[seam + 1]
+            - 3.0 * positions[seam]
+            + 3.0 * positions[seam - 1]
+            - positions[seam - 2]
+        )
+        a1.append(torch.linalg.vector_norm(a1_term * float(fps) ** 2, dim=-1).mean())
+        a2.append(torch.linalg.vector_norm(a2_term * float(fps) ** 2, dim=-1).mean())
+        third.append(
+            torch.linalg.vector_norm(third_term * float(fps) ** 3, dim=-1).mean()
+        )
+
+    rotation = rotations_6d.frames.reshape(-1, 6).to(torch.float64)
+    first, second = rotation[:, :3], rotation[:, 3:]
+    first_norm = torch.linalg.vector_norm(first, dim=-1)
+    second_norm = torch.linalg.vector_norm(second, dim=-1)
+    first_unit = first / first_norm.clamp_min(1e-12)[:, None]
+    second_unit = second / second_norm.clamp_min(1e-12)[:, None]
+    cosine = (first_unit * second_unit).sum(dim=-1).abs()
+
+    projected_second = second - (first_unit * second).sum(dim=-1)[:, None] * first_unit
+    second_orthogonal = projected_second / torch.linalg.vector_norm(
+        projected_second, dim=-1
+    ).clamp_min(1e-12)[:, None]
+    third_orthogonal = torch.linalg.cross(first_unit, second_orthogonal, dim=-1)
+    matrix = torch.stack((first_unit, second_orthogonal, third_orthogonal), dim=-2)
+    identity = torch.eye(3, dtype=matrix.dtype, device=matrix.device)
+    orthogonality = (matrix @ matrix.transpose(-1, -2) - identity).abs()
+
+    def mean(values):
+        return float(torch.stack(values).mean()) if values else float("nan")
+
+    return {
+        "coarse_seam_a1_fk_acc_mps2": mean(a1),
+        "coarse_seam_a2_fk_acc_mps2": mean(a2),
+        "coarse_cross_seam_third_difference_mps3": mean(third),
+        "coarse_seam_count": float(len(joints.seams)),
+        "rotation6d_first_axis_norm_mae": float((first_norm - 1.0).abs().mean()),
+        "rotation6d_second_axis_norm_mae": float((second_norm - 1.0).abs().mean()),
+        "rotation6d_abs_cosine_mean": float(cosine.mean()),
+        "rotation6d_abs_cosine_max": float(cosine.max()),
+        "rotation_matrix_orthogonality_max": float(orthogonality.max()),
+    }
+
+
 def summarize_chain_rebase(
     c0_records: Sequence[Mapping[str, object]],
     arm_records: Sequence[Mapping[str, object]],

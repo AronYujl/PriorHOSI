@@ -1524,6 +1524,7 @@ def sampled_motion(
     call_counter: _ForwardCallCounter,
     need_scene: bool = True,
     export_sink: Optional[MutableMapping[str, Any]] = None,
+    telemetry_sink: Optional[MutableMapping[str, Any]] = None,
 ):
     # Importing here keeps the GT-first path independent of model sampling while
     # reusing the established autoregressive helpers verbatim.
@@ -1590,7 +1591,7 @@ def sampled_motion(
     oracle_pelvis_world = oracle_pelvis_world @ desired_rotation.T
     oracle_pelvis_world = oracle_pelvis_world - translation_shift[0, 0]
 
-    point_windows, rotation_windows = [], []
+    point_windows, rotation_windows, raw_rotation_windows = [], [], []
     sampling_seconds = []
     denoiser_call_counts = []
     points = points_world
@@ -1739,6 +1740,9 @@ def sampled_motion(
         generated_global = generated["global_rot_6d"].clone()
         point_windows.append(points[0].reshape(WINDOW_FRAMES, 28, 3).cpu())
         rotation_windows.append(generated_global[0].reshape(WINDOW_FRAMES, 22, 6).cpu())
+        raw_rotation_windows.append(
+            generated["raw_global_rot_6d"][0].reshape(WINDOW_FRAMES, 22, 6).cpu()
+        )
 
     future_occ_center_error = sampler.finish_hsi_future_occ_episode()
     coarse_points = hsi_metrics.stitch_windows(
@@ -1747,6 +1751,17 @@ def sampled_motion(
     coarse_rotation = hsi_metrics.stitch_windows(
         rotation_windows, history_frames=HISTORY_FRAMES, overlap_atol=2e-4
     )
+    coarse_raw_rotation = hsi_metrics.stitch_windows(
+        raw_rotation_windows, history_frames=HISTORY_FRAMES
+    )
+    if telemetry_sink is not None:
+        telemetry_sink.update(
+            hsi_diagnostics.chain_rebase_rollout_telemetry(
+                coarse_points,
+                coarse_raw_rotation,
+                fps=float(cfg.fps) / float(cfg.interp_s),
+            )
+        )
     interpolated_points = interpolate_joints(
         coarse_points.frames.reshape(-1, 84).to(device), scale=int(cfg.interp_s)
     ).reshape(-1, 28, 3)
@@ -3185,6 +3200,9 @@ def evaluate_model(cfg: DictConfig) -> Path:
         seed_everything(int(cfg.seed) + int(canonical_ordinal))
         pre_rng_state = _capture_rng_state()
         export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
+        telemetry_sink: Optional[Dict[str, Any]] = (
+            {} if bool(cfg.get("hsi_chain_rebase_rollout_telemetry", False)) else None
+        )
         episode_start = time.perf_counter()
         vertices, joints, sequence_index, window_seconds, window_call_counts, future_occ_error = (
             sampled_motion(
@@ -3197,6 +3215,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
                 call_counter,
                 need_scene=True,
                 export_sink=export_sink,
+                telemetry_sink=telemetry_sink,
             )
         )
         synchronize_cuda(cfg.device)
@@ -3235,6 +3254,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
         )
         metric.update(hsi_diagnostics.future_occ_motion_diagnostics(joints, fps=float(cfg.fps)))
+        if telemetry_sink is not None:
+            metric.update(telemetry_sink)
         metric["future_occ_center_error"] = future_occ_error
         metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null)
                       if rds_available else {"rds": None, "rds_max": None})

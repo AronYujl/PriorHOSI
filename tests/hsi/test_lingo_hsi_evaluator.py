@@ -235,6 +235,7 @@ class TeacherForcedBoundaryConfigTests(unittest.TestCase):
             d2 = compose(config_name="config_sample_hsi_predictor_decomp")
             d3 = compose(config_name="config_sample_hsi_single_window_chain")
             d4b = compose(config_name="config_sample_hsi_chain_rebase")
+            d5 = compose(config_name="config_sample_hsi_d5_rollout_rebase")
             factorial = compose(
                 config_name="config_sample_hsi_guidance_structure_factorial"
             )
@@ -246,6 +247,14 @@ class TeacherForcedBoundaryConfigTests(unittest.TestCase):
         self.assertEqual(d4b.lingo_hsi_mode, "chain_rebase")
         self.assertEqual(d4b.hsi_chain_rebase_mode, "c1")
         self.assertEqual(d4b.sampler.pelvis.hsi_chain_rebase_mode, "c1")
+        self.assertEqual(d5.lingo_hsi_mode, "sample")
+        self.assertEqual(d5.hsi_chain_rebase_mode, "c3")
+        self.assertEqual(d5.sampler.pelvis.hsi_chain_rebase_mode, "c3")
+        self.assertTrue(d5.hsi_chain_rebase_rollout_telemetry)
+        self.assertEqual(d5.shard_count, 8)
+        self.assertEqual(d5.merge_expected_episodes, 60)
+        self.assertEqual(d5.merge_expected_windows, 364)
+        self.assertFalse(d5.use_guidance)
         self.assertIs(factorial.sampler.pelvis.hsi_guidance_frame_ramp, False)
         self.assertEqual(factorial.sampler.pelvis.hsi_guidance_energy, "voxel")
         self.assertEqual(factorial.sampler.pelvis.hsi_guidance_sdf_weight, 20000.0)
