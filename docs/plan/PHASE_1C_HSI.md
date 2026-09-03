@@ -12347,6 +12347,32 @@ D3 `p1-hsi-b-r2-single-window-chain-w1-s42-20260903` 完成 352/352 个窗。生
 export 的组合成本；在结果完成前将三格子预算修订为 **不超过 25.0 GPU-h**。本轮累计总上限仍为
 **416 GPU-h**，不增加实验格、不改变判据，也不重跑 a00。
 
+### H. guidance 2×2 完成结果
+
+三个新格均完成 60 episode / 364 window，全部 motion 与数值有限。五层 factorial 的 ramp 主效应为
+`+1.85626`，95% CI `[-2.19731, +6.04743]`；CI 下界高于冻结阈值 `-15.53`，因此判为
+**DEPRIORITIZED**。voxel 与 SDF 下的 simple ramp effect 分别为
+`-0.99312 [-6.43002, +4.28097]` 和 `+4.70564 [-1.19034, +11.13671]`；SDF 主效应为
+`-2.46110 [-22.25759, +27.51030]`，interaction 为 `+5.69876 [-1.87053, +14.44655]`。
+
+ramp+voxel 的分层 `pen_ratio=0.0249733`，低于 0.02805 门槛，且相对 R2 unguided 为
+`-0.008394 [-0.011267, -0.005640]`；contact 相对 flat+voxel 为
+`+12.016 [-15.951, +47.900]`。ramp+SDF 相对 R2 unguided 的 penetration 也显著更低，但其
+`pen_ratio=0.0301598` 超过绝对门槛，因此该 cell 守卫失败；contact 相对 flat+SDF 为
+`-16.725 [-37.980, +0.750]`，未显著降低。两个 ramp simple effect 在 `interior_jerk`、
+`fs_nemf`、`goal_planar_err_m`、`pen_depth_max` 上均无显著回归。主判据已 DEPRIORITIZED，且
+a11 另有守卫失败，所以不采用 ramp 或 SDF，不改生产默认，也不追加 sweep。
+
+权威 factorial 工件为 `results/r2_guidance_structure_factorial_eval/factorial_bootstrap.json`，SHA256
+`2f61f631246b3e1ef85872a6106d7da2097c3a8f5053bbbc3672316ad42303f4`。a10/a01/a11 payload SHA256
+分别为 `fbfb2642fd5d063156b25f73c5ec5aceb6cc5c159bbf3c4d98f3860a8212729d`、
+`b6a9c27cc91b5ec023da6a03eda339d724ad3876023b87dfb50a94157f7fc276`、
+`7b675fae76d194ba1720ec11ba54debc1cd1ed35918daa7a6bff7f389e452fc9`；manifest SHA256 分别为
+`8312fcc5e173f29cd0ac9b6cb519d9e1163c63e43b1e7ba3946450f2b4232d43`、
+`8930047027b3ab10405e74f47521209ff18585f14a2d91d0561a36c05a669436`、
+`af17feda0a820cbbfab5752c6c501c6608eb09438df8e6526fc4efe212bee6c6`。按 payload 的
+`total_generation_seconds`，三格合计 **23.71 GPU-h**，落在运行前修订的 25.0 GPU-h 子预算内。
+
 ## 2026-09-03（D4 离线分解与链内 history 一致性 rebase；用户要求继续）
 
 ### A. D4-A：离线误差分解
@@ -12387,3 +12413,45 @@ rebase；否则 c3 不执行。
 D4-B 诊断本身不依赖 B/C 共享采样器裁决。用户尚未授权把 rebase 作为 B 与 C 的共同生产机制，
 因此即使 M2 SUPPORTED，本节也只允许提出 frozen-60 完整 rollout，不自动部署、不改 C、不训练。
 D4-A 加 D4-B 新格预算不超过 6.3 GPU-h，仍落在 416 GPU-h 累计上限内。
+
+### C. D4 完成结果
+
+D4-A 初始 run `p1-hsi-b-r2-d4-offline-decomp-s42-20260903` 在 dataset 初始化前随 detached
+执行上下文退出，0 次模型前向，不产生科学结果。其封存 manifest SHA256 为
+`5b1b8581e9d2a91a7260aa1c0773bc7552d79f4e0489e3f0f4a5e452da3ffdc9`。该 run 的
+`metrics.json` 错写 `git_commit=eba34c6cb820bd2ed97a481a96e0c1a5947453bb`；正确起始提交是
+manifest 已保存的 `eba34c6b1d5f85711b6a3d3cbf738e8f0a418ca8`。封存文件不追改，本段与 completion
+registry row 构成勘误。
+
+D4-A r1 在 CPU 完成。D3-final holdout 的姿态超出份额为 **0.80741**，95% CI
+`[0.75393, 0.85248]`，高于 0.40 门槛，因而按预注册授权 c3。对应根平移份额为 0.50262、交互余项
+为 -0.31003；frame-2 预测速度与 GT 的夹角为 55.71 度。输出 SHA256 为
+`7a2e186e9510f2c3e9987198223d0780112782373760195dc18d57ab0657966b`，manifest SHA256 为
+`8621fb6881e99b602f0a0d3b3e190f7897c018b96588a0e30aaf2da2d0f0f097`。
+
+D4-B 三格均完成 352 window / 60 episode，nonfinite 为 0：
+
+| arm | excess ratio 与 95% CI | 冻结判定 | 关键守卫相对 c0 |
+|---|---:|---|---|
+| c1 constant-velocity position | `0.85379 [0.80151, 0.90512]` | **DEPRIORITIZED** | a2 `+0.15082 [ +0.01300, +0.28857 ]`，显著变差 |
+| c2 oracle position | `0.82326 [0.77796, 0.86338]` | **VELOCITY_DIRECTION_DOMINATED** | a2、frame3--6 FK、frame3--8 acceleration 均显著改善 |
+| c3 position + rotation | `-0.03996 [-0.08546, -0.00197]` | DESCRIPTIVE | 三项守卫均显著改善 |
+
+c2 即使使用 oracle frame-2 position 仍保留 82.3% seam excess，满足 M1 的 `>=0.7` 规则，故
+**位置-only c1 与位置-only R3-RES 均被降级**。c3 几乎消除 excess，且 frame3--6 FK 误差为
+`-0.01640 [-0.01937, -0.01360]`、frame3--8 acceleration 为
+`-0.01822 [-0.03865, -0.00368]`，这把主要机制指向 rotation-history 不一致；但 c3 没有预注册的
+晋级阈值，只能作诊断证据，不能据此部署、做 full rollout 或训练。
+
+c1/c2/c3 payload SHA256 分别为
+`8525545f1250b45a45efa4ba786643b571f22aa14d9b3bb93c492cdd0412ad5b`、
+`de165f218361c61b02787a79c6b065a2fbcac761ad998ec6ad0023991d44141a`、
+`e473132bedc9cb5d195cd0f6e25e366eedb49bb75aa1537fba4c1517335886c4`；manifest SHA256 分别为
+`6b1e919ac4c177de6f31cf0840c63a43e8baadd0ebca6dc842749ba9dc30150d`、
+`bb04d703d7e54cab38df8e232147e53111b97b18676621d16243544271961e50`、
+`9ef3a63c5c71bd554e80a31a7d148be259e861f8cd4694a439553aa0803db4d9`。由 manifest start 到
+workload completion log mtime 计，三个正式 cell 合计 **7.43 GPU-h**，超过预注册 6.3 GPU-h
+子预算 1.13 GPU-h；这是完成时成本勘误，不增加实验格，416 GPU-h 总上限不随之上调。
+
+本轮在此停止。没有授权生产 rebase、完整 rollout、R3 训练、额外 guidance/SDF sweep 或其他 GPU
+workload；任何下一方向都必须先形成新的 dated preregistration 并获得用户明确批准。
