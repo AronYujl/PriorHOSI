@@ -24,6 +24,7 @@ import pytorch3d.transforms as transforms
 
 import utils as project_utils
 from priors.hsi import metrics as hsi_metrics
+from priors.hsi import diagnostics as hsi_diagnostics
 from priors.hsi.scene_field import SceneGeometry, default_cache_dir
 from utils import SMPLX_JOINTS_28, create_smplx_model, interp_jrot, interpolate_joints, run_smplx_model
 
@@ -156,6 +157,54 @@ def _load_episodes(episode_dir: Path, limit: Optional[int] = None):
     if not episodes:
         raise ValueError("no episodes found under %s" % episode_dir)
     return episodes
+
+
+def _load_episode_subset(path_value, episodes, window_counts):
+    if path_value is None:
+        return {
+            "enabled": False,
+            "canonical_ordinals": list(range(len(episodes))),
+            "episode_count": len(episodes),
+            "window_count": int(sum(window_counts)),
+        }
+    path = Path(str(path_value)).resolve()
+    raw = path.read_bytes()
+    payload = json.loads(raw.decode("utf-8"))
+    rows = payload.get("episodes")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("episode subset %s has no non-empty episodes list" % path)
+    ordinals = [int(row["canonical_ordinal"]) for row in rows]
+    if len(ordinals) != len(set(ordinals)):
+        raise ValueError("episode subset contains duplicate canonical ordinals")
+    for row, ordinal in zip(rows, ordinals):
+        if not 0 <= ordinal < len(episodes):
+            raise ValueError("episode subset ordinal %d is out of range" % ordinal)
+        scene_name, _scene_index, episode = episodes[ordinal]
+        expected_id = "%s:%06d" % (scene_name, int(episode["source_sequence_idx"]))
+        if str(row["sequence_id"]) != expected_id:
+            raise ValueError(
+                "episode subset ordinal %d names %s, evaluator enumerates %s"
+                % (ordinal, row["sequence_id"], expected_id)
+            )
+        if int(row["window_count"]) != int(window_counts[ordinal]):
+            raise ValueError("episode subset window count mismatch for %s" % expected_id)
+    window_count = int(sum(window_counts[ordinal] for ordinal in ordinals))
+    declared_windows = payload.get("total_windows")
+    if declared_windows is not None and int(declared_windows) != window_count:
+        raise ValueError(
+            "episode subset declares %d windows, enumerated %d"
+            % (int(declared_windows), window_count)
+        )
+    return {
+        "enabled": True,
+        "path": str(path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "design": payload.get("design"),
+        "canonical_ordinals": ordinals,
+        "sequence_ids": [str(row["sequence_id"]) for row in rows],
+        "episode_count": len(ordinals),
+        "window_count": window_count,
+    }
 
 
 class GroundTruthSource:
@@ -673,7 +722,10 @@ def merge_shard_payloads(
 
     # Merging shards produced by different checkpoints, seeds, samplers or
     # guidance settings would fabricate a result that no run ever produced.
-    agreement_keys = ("seed", "sample_type", "guided", "fps", "sampling_body", "model_name")
+    agreement_keys = (
+        "seed", "sample_type", "guided", "fps", "sampling_body", "model_name",
+        "episode_subset", "future_occ_diagnostic",
+    )
     reference = by_index[0]
     for index in range(1, shard_count):
         candidate = by_index[index]
@@ -701,16 +753,25 @@ def merge_shard_payloads(
 
     canonical_episodes = int(reference["sharding"]["canonical_episode_total"])
     canonical_windows = int(reference["sharding"]["canonical_window_total"])
-    if canonical_episodes != expected_episodes:
-        raise ValueError(
-            "shards enumerate %d canonical episodes, protocol expects %d"
-            % (canonical_episodes, expected_episodes)
-        )
-    if canonical_windows != expected_windows:
-        raise ValueError(
-            "shards enumerate %d canonical windows, protocol expects %d"
-            % (canonical_windows, expected_windows)
-        )
+    subset = reference.get("episode_subset", {"enabled": False})
+    if subset.get("enabled", False):
+        expected_ordinals = set(int(value) for value in subset["canonical_ordinals"])
+        if int(subset["episode_count"]) != expected_episodes:
+            raise ValueError("episode subset count disagrees with merge expectation")
+        if int(subset["window_count"]) != expected_windows:
+            raise ValueError("episode subset window count disagrees with merge expectation")
+    else:
+        if canonical_episodes != expected_episodes:
+            raise ValueError(
+                "shards enumerate %d canonical episodes, protocol expects %d"
+                % (canonical_episodes, expected_episodes)
+            )
+        if canonical_windows != expected_windows:
+            raise ValueError(
+                "shards enumerate %d canonical windows, protocol expects %d"
+                % (canonical_windows, expected_windows)
+            )
+        expected_ordinals = set(range(expected_episodes))
 
     records: Dict[str, Mapping[str, Any]] = {}
     ordinals: List[int] = []
@@ -749,7 +810,10 @@ def merge_shard_payloads(
     )
     if duplicate_ordinals:
         raise ValueError("canonical ordinals appear in more than one shard: %s" % duplicate_ordinals[:10])
-    absent = sorted(set(range(expected_episodes)) - set(ordinals))
+    unexpected = sorted(set(ordinals) - expected_ordinals)
+    if unexpected:
+        raise ValueError("canonical ordinals outside the registered cohort: %s" % unexpected[:10])
+    absent = sorted(expected_ordinals - set(ordinals))
     if absent:
         raise ValueError(
             "canonical ordinals missing from the merge: %d of %d, first %s"
@@ -800,6 +864,8 @@ def merge_shard_payloads(
                 "merged_shard_count": shard_count,
                 "canonical_episode_total": canonical_episodes,
                 "canonical_window_total": canonical_windows,
+                "eligible_episode_count": int(subset.get("episode_count", canonical_episodes)),
+                "eligible_window_total": int(subset.get("window_count", canonical_windows)),
                 "shard_window_totals": [
                     int(by_index[index]["timing"]["window_count"]) for index in range(shard_count)
                 ],
@@ -1423,7 +1489,9 @@ def sampled_motion(
     device = torch.device(str(cfg.device))
     data_idx = int(episode["data_idx"])
     data = _lingo_item(dataset, data_idx)
-    sequence_index, _ = source.episode_indices(data_idx, int(episode["episode_num"]))
+    sequence_index, episode_indices = source.episode_indices(
+        data_idx, int(episode["episode_num"])
+    )
     source_start = int(source.sequence_start[sequence_index])
 
     cond = _scene_condition(cfg, episode, need_scene=need_scene)
@@ -1472,6 +1540,11 @@ def sampled_motion(
     global_matrices = transforms.rotation_6d_to_matrix(global_rotation_6d)
     global_matrices = desired_rotation @ global_matrices
     global_rotation_6d = transforms.matrix_to_rotation_6d(global_matrices)
+    oracle_pelvis_world = torch.from_numpy(
+        np.asarray(source.joints[episode_indices][..., 0, :]).copy()
+    ).to(device=device, dtype=torch.float32)
+    oracle_pelvis_world = oracle_pelvis_world @ desired_rotation.T
+    oracle_pelvis_world = oracle_pelvis_world - translation_shift[0, 0]
 
     point_windows, rotation_windows = [], []
     sampling_seconds = []
@@ -1481,6 +1554,7 @@ def sampled_motion(
     generated_object_rotation = object_rotation.reshape(1, WINDOW_FRAMES, 9)
     generated_contact = contact
 
+    sampler.begin_hsi_future_occ_episode()
     for step in range(int(episode["episode_num"])):
         if step == 0:
             mat_step = get_mat(cfg, points_world, 0)
@@ -1579,26 +1653,37 @@ def sampled_motion(
         call_counter.reset()
         synchronize_cuda(device)
         begin = time.perf_counter()
-        generated = sample_step(
-            cfg,
-            step,
-            mat_step,
-            fixed_points,
-            sampler,
-            cond,
-            trajectory,
-            pi,
-            end_pi,
-            sequence_length,
-            object_bps,
-            object_points,
-            {},
-            {},
-            seq_name_dict,
-            object_rotation_ref,
-            human_dict,
-            desired_rotation @ mat_rotation_transpose,
+        oracle_local = transform_points(
+            oracle_pelvis_world[step, list(hsi_diagnostics.FUTURE_OCC_OFFSETS)].unsqueeze(0),
+            torch.inverse(mat_step),
         )
+        sampler.set_hsi_future_occ_oracle(oracle_local)
+        try:
+            generated = sample_step(
+                cfg,
+                step,
+                mat_step,
+                fixed_points,
+                sampler,
+                cond,
+                trajectory,
+                pi,
+                end_pi,
+                sequence_length,
+                object_bps,
+                object_points,
+                {},
+                {},
+                seq_name_dict,
+                object_rotation_ref,
+                human_dict,
+                desired_rotation @ mat_rotation_transpose,
+            )
+        except Exception:
+            sampler.abort_hsi_future_occ_episode()
+            raise
+        finally:
+            sampler.clear_hsi_future_occ_oracle()
         synchronize_cuda(device)
         sampling_seconds.append(time.perf_counter() - begin)
         denoiser_call_counts.append(call_counter.count)
@@ -1611,6 +1696,7 @@ def sampled_motion(
         point_windows.append(points[0].reshape(WINDOW_FRAMES, 28, 3).cpu())
         rotation_windows.append(generated_global[0].reshape(WINDOW_FRAMES, 22, 6).cpu())
 
+    future_occ_center_error = sampler.finish_hsi_future_occ_episode()
     coarse_points = hsi_metrics.stitch_windows(
         point_windows, history_frames=HISTORY_FRAMES, overlap_atol=2e-4
     )
@@ -1691,6 +1777,7 @@ def sampled_motion(
         sequence_index,
         sampling_seconds,
         denoiser_call_counts,
+        future_occ_center_error,
     )
 
 
@@ -1711,7 +1798,10 @@ def evaluate_model(cfg: DictConfig) -> Path:
     # guided cell cost.  The unguided path is the gate column and is untouched:
     # the null pass runs inside _rng_rewound, which restores the post-pass RNG
     # state on exit, so omitting it leaves the next episode's RNG identical.
-    rds_available = not guided
+    rds_requested = bool(cfg.get("hsi_compute_rds", True))
+    rds_available = not guided and rds_requested
+    if cfg.get("lingo_episode_subset", None) is not None and cfg.lingo_sequence_limit is not None:
+        raise ValueError("lingo_episode_subset and lingo_sequence_limit are mutually exclusive")
     episodes = _load_episodes(
         Path(cfg.lingo_episode_dir),
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
@@ -1719,6 +1809,10 @@ def evaluate_model(cfg: DictConfig) -> Path:
     window_counts = [int(episode["episode_num"]) for _, _, episode in episodes]
     canonical_episode_total = len(episodes)
     canonical_window_total = int(sum(window_counts))
+    episode_subset = _load_episode_subset(
+        cfg.get("lingo_episode_subset", None), episodes, window_counts
+    )
+    eligible_ordinals = tuple(int(value) for value in episode_subset["canonical_ordinals"])
     shard_count = int(cfg.shard_count)
     shard_index = int(cfg.shard_index)
     if not 0 <= shard_index < shard_count:
@@ -1735,11 +1829,23 @@ def evaluate_model(cfg: DictConfig) -> Path:
         selected = select_latency_subset(episodes, int(cfg.latency_target_windows))
         partition_rule = "latency_subset_two_phase_coverage_then_fill"
     elif sharded:
-        selected = plan_episode_shards(window_counts, shard_count)[shard_index]
-        partition_rule = "greedy_longest_first_bin_packing_by_window_count"
+        local_counts = [window_counts[ordinal] for ordinal in eligible_ordinals]
+        selected = tuple(
+            eligible_ordinals[position]
+            for position in plan_episode_shards(local_counts, shard_count)[shard_index]
+        )
+        partition_rule = (
+            "episode_subset_greedy_longest_first_bin_packing_by_window_count"
+            if episode_subset["enabled"]
+            else "greedy_longest_first_bin_packing_by_window_count"
+        )
     else:
-        selected = tuple(range(canonical_episode_total))
-        partition_rule = "serial_full_enumeration"
+        selected = eligible_ordinals
+        partition_rule = (
+            "episode_subset_serial_canonical_order"
+            if episode_subset["enabled"]
+            else "serial_full_enumeration"
+        )
     # (canonical ordinal, scene name, scene-local index, episode).  The ordinal is
     # the episode's index in the FULL enumeration, never its index in this shard:
     # it is what makes the per-episode seed, and therefore every per-episode
@@ -1819,7 +1925,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         pre_rng_state = _capture_rng_state()
         export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
         episode_start = time.perf_counter()
-        vertices, joints, sequence_index, window_seconds, window_call_counts = (
+        vertices, joints, sequence_index, window_seconds, window_call_counts, future_occ_error = (
             sampled_motion(
                 cfg,
                 dataset,
@@ -1837,7 +1943,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         joints_null = None
         if rds_available:
             with _rng_rewound(pre_rng_state):
-                _, joints_null, _, _, _ = sampled_motion(
+                _, joints_null, _, _, _, _ = sampled_motion(
                     cfg,
                     dataset,
                     sampler,
@@ -1867,6 +1973,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
         metric = compute_metric_record(
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
         )
+        metric.update(hsi_diagnostics.future_occ_motion_diagnostics(joints, fps=float(cfg.fps)))
+        metric["future_occ_center_error"] = future_occ_error
         metric.update(hsi_metrics.reaction_divergence_score(joints, joints_null)
                       if rds_available else {"rds": None, "rds_max": None})
         # Canonical, not shard-local: eight shards must flag the same five
@@ -1996,7 +2104,9 @@ def evaluate_model(cfg: DictConfig) -> Path:
         rds_block["rds"] = None
         rds_block["rds_max"] = None
         rds_block["skipped_reason"] = (
-            "guidance pulls joints toward free voxels regardless of need_scene, so a "
+            "disabled by hsi_compute_rds=false for this registered diagnostic"
+            if not rds_requested
+            else "guidance pulls joints toward free voxels regardless of need_scene, so a "
             "guided null-scene rollout is confounded; RDS is scoped to unguided cells"
         )
     payload = {
@@ -2007,6 +2117,11 @@ def evaluate_model(cfg: DictConfig) -> Path:
         "seed": int(cfg.seed),
         "sample_type": str(cfg.sample_type),
         "guided": guided,
+        "future_occ_diagnostic": {
+            "mode": str(cfg.get("hsi_future_occ_mode", "predicted")),
+            "offsets": list(hsi_diagnostics.FUTURE_OCC_OFFSETS),
+        },
+        "episode_subset": episode_subset,
         "rds": rds_block,
         "sampling_body": "smplx_vertices_10475",
         "fps": float(cfg.fps),
@@ -2019,6 +2134,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
             "shard_count": shard_count,
             "canonical_episode_total": canonical_episode_total,
             "canonical_window_total": canonical_window_total,
+            "eligible_episode_count": int(episode_subset["episode_count"]),
+            "eligible_window_total": int(episode_subset["window_count"]),
             "shard_episode_ordinals": list(selected),
             "shard_window_total": shard_window_total,
             "partition_rule": partition_rule,

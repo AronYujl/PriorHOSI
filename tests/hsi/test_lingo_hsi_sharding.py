@@ -8,6 +8,7 @@ input rather than asserted to exist.
 import copy
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -158,6 +159,33 @@ class ShardPlanningTests(unittest.TestCase):
         loads = [sum(counts[ordinal] for ordinal in shard) for shard in bins]
         self.assertEqual(sum(loads), FULL_WINDOWS)
         self.assertLess(max(loads) / (FULL_WINDOWS / 8.0), 1.01)
+
+
+class EpisodeSubsetTests(unittest.TestCase):
+    def test_subset_maps_sequence_and_windows_by_canonical_ordinal(self):
+        episodes = [
+            ("010", 0, {"source_sequence_idx": 100, "episode_num": 2}),
+            ("015", 0, {"source_sequence_idx": 200, "episode_num": 3}),
+            ("024", 0, {"source_sequence_idx": 300, "episode_num": 4}),
+            ("031", 0, {"source_sequence_idx": 400, "episode_num": 5}),
+        ]
+        payload = {
+            "design": "unit",
+            "total_windows": 8,
+            "episodes": [
+                {"canonical_ordinal": 3, "sequence_id": "031:000400", "window_count": 5},
+                {"canonical_ordinal": 1, "sequence_id": "015:000200", "window_count": 3},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "subset.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            subset = evaluator._load_episode_subset(path, episodes, [2, 3, 4, 5])
+
+        self.assertEqual(subset["canonical_ordinals"], [3, 1])
+        self.assertEqual(subset["sequence_ids"], ["031:000400", "015:000200"])
+        self.assertEqual(subset["episode_count"], 2)
+        self.assertEqual(subset["window_count"], 8)
 
 
 class LatencySubsetTests(unittest.TestCase):
@@ -318,6 +346,43 @@ class MergeTests(unittest.TestCase):
             evaluator._sanitize_json(self.merge()), allow_nan=False, default=evaluator._json_value
         )
         self.assertIn('"timing_valid": false', text)
+
+    def test_subset_merge_accepts_non_contiguous_canonical_ordinals(self):
+        ordinals = (1, 4, 7)
+        subset = {
+            "enabled": True,
+            "path": "/tmp/unit-subset.json",
+            "sha256": "b" * 64,
+            "design": "unit",
+            "canonical_ordinals": list(ordinals),
+            "sequence_ids": ["scene1:000001", "scene1:000004", "scene1:000007"],
+            "episode_count": len(ordinals),
+            "window_count": sum(WINDOW_COUNTS[index] for index in ordinals),
+        }
+        payloads = [
+            _shard_payload(0, 2, (1, 7), WINDOW_COUNTS),
+            _shard_payload(1, 2, (4,), WINDOW_COUNTS),
+        ]
+        for payload in payloads:
+            payload["episode_subset"] = subset
+            payload["future_occ_diagnostic"] = {
+                "mode": "predicted",
+                "offsets": [5, 10, 15],
+            }
+
+        merged = evaluator.merge_shard_payloads(
+            payloads,
+            expected_episodes=len(ordinals),
+            expected_windows=subset["window_count"],
+        )
+
+        self.assertEqual(
+            [record["canonical_ordinal"] for record in merged["metrics"].values()],
+            list(ordinals),
+        )
+        self.assertEqual(merged["sharding"]["canonical_episode_total"], len(WINDOW_COUNTS))
+        self.assertEqual(merged["sharding"]["eligible_episode_count"], len(ordinals))
+        self.assertEqual(merged["sharding"]["eligible_window_total"], subset["window_count"])
 
     # --- guards, each fired on a deliberately broken input -----------------
     def test_no_payloads_is_rejected(self):

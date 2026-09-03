@@ -36,6 +36,7 @@ from tools.paired_bootstrap import (  # noqa: E402
     format_factorial_table,
     format_table,
     load_per_sequence,
+    load_strata_spec,
     main,
     pair_sequence_names,
     pair_sequence_names_across,
@@ -817,6 +818,41 @@ class FactorialPlantedEffectTest(unittest.TestCase):
         self.assertAlmostEqual(entry["difference"], -0.9, places=9)
         self.assertEqual(entry["direction"], "negative")
         self.assertLess(entry["ci"][1], 0.0)
+
+    def test_stratified_factorial_uses_population_not_sample_weights(self):
+        cells = {
+            key: {
+                "major": {"value": 0.0},
+                "minor0": {"value": 0.0},
+                "minor1": {"value": 0.0},
+                "minor2": {"value": 0.0},
+            }
+            for key in CELL_KEYS
+        }
+        cells["a11"]["major"]["value"] = 10.0
+        for name in ("minor0", "minor1", "minor2"):
+            cells["a11"][name]["value"] = -10.0
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_path = Path(tmp) / "strata.json"
+            spec_path.write_text(json.dumps({
+                "design": "planted",
+                "episodes": [
+                    {"sequence_id": "major", "stratum": "major"},
+                    {"sequence_id": "minor0", "stratum": "minor"},
+                    {"sequence_id": "minor1", "stratum": "minor"},
+                    {"sequence_id": "minor2", "stratum": "minor"},
+                ],
+                "strata_pop": {"major": 90, "minor": 10},
+            }), encoding="utf-8")
+            names = sorted(cells["a00"])
+            strata = load_strata_spec(spec_path, names)
+            contrasts = factorial_bootstrap(
+                cells, names, replicates=200, factor1_name=FACTOR1,
+                factor2_name=FACTOR2, strata=strata,
+            )[0]
+        weighted = contrasts["a11_minus_a00"]["metrics"]["value"]["difference"]
+        self.assertAlmostEqual(weighted, 8.0)
+        self.assertLess(np.mean([10.0, -10.0, -10.0, -10.0]), 0.0)
 
     def test_main_effects_are_not_just_the_simple_effects(self):
         # With a real interaction the main effect is offset from the simple

@@ -22,6 +22,7 @@ pelvis:
   # Checkpoint-owned E1 layout mode; absent top-level keys stay pre-589ac7f.
   occ_permute_fix: ${oc.select:occ_permute_fix,false}
   hsi_zero_object_x0: ${oc.select:hsi_zero_object_x0,false}
+  hsi_future_occ_mode: ${oc.select:hsi_future_occ_mode,predicted}
   # B-match seam weight, 0.0 = off.  Same oc.select pattern: model C's train
   # config and the sampling configs never define the top-level key, and they
   # must still resolve.  consistency_loss ignores it -- C is not in scope.

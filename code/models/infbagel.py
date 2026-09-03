@@ -13,6 +13,12 @@ from priors.hsi.penetration import (
     SceneSDFBank,
     resolve_sdf_dtype,
 )
+from priors.hsi.diagnostics import (
+    FUTURE_OCC_OFFSETS,
+    FutureOccCenterTelemetry,
+    select_future_occ_centers,
+    validate_future_occ_mode,
+)
 
 @torch.no_grad()
 def update_ema(target_params, source_params, rate=0.99):
@@ -121,6 +127,11 @@ class Sampler:
         # retrained.  See zero_object_x0 and
         # config_sample_infbagel_lingo_hsi.yaml: hsi_zero_object_x0.
         self.hsi_zero_object_x0 = bool(kwargs.get('hsi_zero_object_x0', False))
+        self.hsi_future_occ_mode = validate_future_occ_mode(
+            kwargs.get('hsi_future_occ_mode', 'predicted')
+        )
+        self._hsi_future_occ_oracle_local = None
+        self._hsi_future_occ_telemetry = None
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
         # p_losses then takes a branch it cannot distinguish from the old code).
         # When > 0 it reweights the first two GENERATED frames of the position
@@ -151,6 +162,36 @@ class Sampler:
         self.target_model = target_model
         nb_voxels = dataset.nb_voxels
         self.occ_idx = torch.arange(0, nb_voxels[1], 1).to(self.device)
+
+    def begin_hsi_future_occ_episode(self):
+        if self._hsi_future_occ_telemetry is not None:
+            raise RuntimeError("future-occ telemetry episode already active")
+        device = next(self.student_model.parameters()).device
+        self._hsi_future_occ_telemetry = FutureOccCenterTelemetry(self.timesteps, device)
+
+    def set_hsi_future_occ_oracle(self, oracle_local):
+        expected = (self.batch_size, len(FUTURE_OCC_OFFSETS), 3)
+        if tuple(oracle_local.shape) != expected:
+            raise ValueError("future-occ oracle must have shape %s" % (expected,))
+        if self._hsi_future_occ_oracle_local is not None:
+            raise RuntimeError("future-occ oracle was not cleared after the previous window")
+        self._hsi_future_occ_oracle_local = oracle_local
+
+    def clear_hsi_future_occ_oracle(self):
+        self._hsi_future_occ_oracle_local = None
+
+    def finish_hsi_future_occ_episode(self):
+        if self._hsi_future_occ_oracle_local is not None:
+            raise RuntimeError("cannot finish future-occ episode with a live window oracle")
+        if self._hsi_future_occ_telemetry is None:
+            raise RuntimeError("future-occ telemetry episode is not active")
+        report = self._hsi_future_occ_telemetry.report()
+        self._hsi_future_occ_telemetry = None
+        return report
+
+    def abort_hsi_future_occ_episode(self):
+        self._hsi_future_occ_oracle_local = None
+        self._hsi_future_occ_telemetry = None
 
     def _compute_human_joints(self, predicted_noise, joints, mat, rest_human_offsets):
         global_jpos = transform_points(
@@ -672,7 +713,8 @@ class Sampler:
     def _compute_occ_sample(self, x, x0, mat, scene_flag, object_points,
                             pelvis_goal, scene_goal, object_goal,
                             is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref,
-                            object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix):
+                            object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix,
+                            diffusion_timestep=None):
         if self.dataset.load_scene:
             x_orig = transform_points(self.dataset.denormalize_torch(x[:, :, :84]), mat)
             mat_for_query = mat.clone()
@@ -774,17 +816,55 @@ class Sampler:
                     
                 # dynamically obtain temporal frame indices
                 temp_indices = self._get_temp_frame_indices(self.temp_voxel_num)
+                if tuple(temp_indices) != FUTURE_OCC_OFFSETS:
+                    if self.hsi_future_occ_mode != 'predicted':
+                        raise ValueError(
+                            "future-occ GT modes require offsets %s, sampler produced %s"
+                            % (FUTURE_OCC_OFFSETS, tuple(temp_indices))
+                        )
+                target_ind = self.mask_ind if self.mask_ind != -1 else 0
+                predicted_centers_local = x_denorm[
+                    :, list(temp_indices), target_ind * 3: target_ind * 3 + 3
+                ]
+                oracle_local = self._hsi_future_occ_oracle_local
+                if oracle_local is None:
+                    if self.hsi_future_occ_mode != 'predicted':
+                        raise RuntimeError(
+                            "hsi_future_occ_mode=%s requires a window-scoped oracle"
+                            % self.hsi_future_occ_mode
+                        )
+                    crop_centers_local = predicted_centers_local
+                    coordinate_centers_local = predicted_centers_local
+                else:
+                    crop_centers_local, coordinate_centers_local = select_future_occ_centers(
+                        predicted_centers_local, oracle_local, self.hsi_future_occ_mode
+                    )
+                    if diffusion_timestep is not None and self._hsi_future_occ_telemetry is not None:
+                        self._hsi_future_occ_telemetry.record(
+                            diffusion_timestep, predicted_centers_local, oracle_local
+                        )
                 
                 # only loop when temporal voxels exist
-                for i in temp_indices:
-                    x0_orig = transform_points(x_denorm, mat)
+                for temp_position, i in enumerate(temp_indices):
                     mat_for_query = mat.clone()
-                    target_ind = self.mask_ind if self.mask_ind != -1 else 0
-                    mat_for_query[:, :3, 3] = x0_orig[:, i, target_ind * 3: target_ind * 3 + 3]
+                    if self.hsi_future_occ_mode in ('gt_crop', 'gt_both'):
+                        crop_center_orig = transform_points(
+                            crop_centers_local[:, temp_position:temp_position + 1], mat
+                        ).squeeze(1)
+                        mat_for_query[:, :3, 3] = crop_center_orig
+                    else:
+                        x0_orig = transform_points(x_denorm, mat)
+                        mat_for_query[:, :3, 3] = x0_orig[
+                            :, i, target_ind * 3: target_ind * 3 + 3
+                        ]
                     mat_for_query[:, 1, 3] = 0
                     query_points = transform_points(self.grid, mat_for_query)
-                    
-                    occ_pos = torch.cat([occ_pos, x_denorm[:, i, [0, 2]][None]], dim=0)
+
+                    if self.hsi_future_occ_mode in ('gt_coordinate', 'gt_both'):
+                        coordinate = coordinate_centers_local[:, temp_position, [0, 2]]
+                    else:
+                        coordinate = x_denorm[:, i, [0, 2]]
+                    occ_pos = torch.cat([occ_pos, coordinate[None]], dim=0)
 
                     occ_temp = self.dataset.get_occ_for_points(query_points, object_points_temp[:, i, :, :], scene_flag)
                     
@@ -829,7 +909,7 @@ class Sampler:
     def cm_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
                  need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, obj_rot_mat_prefix, guidance_fn, guidance_scale, object_only=False, w=None):
-        occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix)
+        occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix, t_index)
 
         # if w is None, set the w value based on t_index
         if w is None:
@@ -1196,7 +1276,7 @@ class Sampler:
     def p_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
                  need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
-        occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix)
+        occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix, t_index)
 
         cond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True)
 

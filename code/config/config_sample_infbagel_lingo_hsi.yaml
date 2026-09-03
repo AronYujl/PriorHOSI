@@ -137,6 +137,13 @@ occ_permute_fix: false
 # Evidence and preregistration: docs/plan/PHASE_1C_HSI.md 2026-08-30 SS-P0.
 hsi_zero_object_x0: false
 
+# Four-cell causal diagnostic for the three future occ_temp crops.  The default
+# keeps the released predicted-center path; GT modes require a window-scoped
+# oracle supplied by the LINGO evaluator.
+hsi_future_occ_mode: predicted
+hsi_compute_rds: true
+lingo_episode_subset: null
+
 # 2026-08-20 diagnostic gates on the per-window pelvis goal, both default to the
 # CURRENT behaviour so every sealed cell stays bitwise reproducible.
 #

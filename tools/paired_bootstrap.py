@@ -393,6 +393,116 @@ def _draw_index(names, seed, replicates):
     return index, digest
 
 
+def load_strata_spec(path, names):
+    """Load a frozen episode-strata design and align it to paired names."""
+    path = Path(path).resolve()
+    raw = path.read_bytes()
+    payload = json.loads(raw.decode("utf-8"))
+    rows = payload.get("episodes")
+    populations = payload.get("strata_pop")
+    if not isinstance(rows, list) or not rows or not isinstance(populations, dict):
+        raise PairedBootstrapError(
+            "strata spec must contain non-empty episodes and strata_pop: {0}".format(path)
+        )
+    assignment = {}
+    order = []
+    for row in rows:
+        name = str(row["sequence_id"])
+        stratum = str(row["stratum"])
+        if name in assignment:
+            raise PairedBootstrapError("strata spec repeats sequence {0!r}".format(name))
+        assignment[name] = stratum
+        if stratum not in order:
+            order.append(stratum)
+    if set(assignment) != set(names):
+        missing = sorted(set(names) - set(assignment))
+        extra = sorted(set(assignment) - set(names))
+        raise PairedBootstrapError(
+            "strata spec sequence set differs from paired inputs; missing {0}, extra {1}".format(
+                _preview(missing), _preview(extra)
+            )
+        )
+    total_population = float(sum(int(populations[key]) for key in order))
+    if total_population <= 0:
+        raise PairedBootstrapError("strata population total must be positive")
+    groups = {}
+    for stratum in order:
+        positions = [index for index, name in enumerate(names) if assignment[name] == stratum]
+        if not positions:
+            raise PairedBootstrapError("stratum {0!r} has no paired sequences".format(stratum))
+        groups[stratum] = {
+            "positions": np.asarray(positions, dtype=np.int64),
+            "sample_count": len(positions),
+            "population_count": int(populations[stratum]),
+            "weight": float(int(populations[stratum]) / total_population),
+        }
+    return {
+        "path": str(path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "design": payload.get("design"),
+        "population_total": int(total_population),
+        "order": order,
+        "groups": groups,
+    }
+
+
+def _draw_stratified_index(strata, seed, replicates):
+    if replicates < 1:
+        raise PairedBootstrapError("replicates must be >= 1, got {0}".format(replicates))
+    rng = np.random.default_rng(seed)
+    drawn = {}
+    digest = hashlib.sha256()
+    for stratum in strata["order"]:
+        positions = strata["groups"][stratum]["positions"]
+        local = rng.integers(0, len(positions), size=(replicates, len(positions)))
+        drawn[stratum] = positions[local]
+        digest.update(stratum.encode("utf-8") + b"\0")
+        digest.update(np.ascontiguousarray(drawn[stratum], dtype=np.int64).tobytes())
+    return drawn, digest.hexdigest()
+
+
+def _summarize_stratified_column(delta, index, strata):
+    delta = np.asarray(delta, dtype=np.float64).copy()
+    delta[~np.isfinite(delta)] = np.nan
+    draws = np.zeros(next(iter(index.values())).shape[0], dtype=np.float64)
+    base = 0.0
+    used = 0
+    for stratum in strata["order"]:
+        positions = strata["groups"][stratum]["positions"]
+        weight = strata["groups"][stratum]["weight"]
+        values = delta[positions]
+        finite = np.isfinite(values)
+        used += int(finite.sum())
+        if not finite.any():
+            return {
+                "n": len(delta), "n_used": used, "n_dropped_nonfinite": len(delta) - used,
+                "difference": None, "ci_low": None, "ci_high": None,
+                "crosses_zero": None, "nan_replicates": len(draws), "defined": False,
+            }
+        base += weight * float(np.nanmean(values))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            draws += weight * np.nanmean(delta[index[stratum]], axis=1)
+    low, high = np.nanpercentile(draws, [LOWER_PERCENTILE, UPPER_PERCENTILE])
+    return {
+        "n": len(delta), "n_used": used, "n_dropped_nonfinite": len(delta) - used,
+        "difference": float(base), "ci_low": float(low), "ci_high": float(high),
+        "crosses_zero": not bool(low > 0.0 or high < 0.0),
+        "nan_replicates": int(np.isnan(draws).sum()), "defined": True,
+    }
+
+
+def _stratified_mean(column, strata):
+    total = 0.0
+    for stratum in strata["order"]:
+        positions = strata["groups"][stratum]["positions"]
+        finite = column[positions][np.isfinite(column[positions])]
+        if not finite.size:
+            return None
+        total += strata["groups"][stratum]["weight"] * float(np.mean(finite))
+    return total
+
+
 def paired_bootstrap(metrics_a, metrics_b, names, seed=DEFAULT_SEED,
                      replicates=DEFAULT_REPLICATES):
     """Bootstrap ``b - a`` for every analysable metric on one shared index matrix.
@@ -627,7 +737,7 @@ def _identity_gap(first, second):
 def factorial_bootstrap(cells, names, seed=DEFAULT_SEED,
                         replicates=DEFAULT_REPLICATES,
                         factor1_name=DEFAULT_FACTOR1_NAME,
-                        factor2_name=DEFAULT_FACTOR2_NAME):
+                        factor2_name=DEFAULT_FACTOR2_NAME, strata=None):
     """Bootstrap the full 2x2 on one shared resample index matrix.
 
     ``cells`` maps ``a00``/``a10``/``a01``/``a11`` to that cell's per-sequence
@@ -653,7 +763,12 @@ def factorial_bootstrap(cells, names, seed=DEFAULT_SEED,
     coverage = discover_metrics_across(
         {key: cells[key] for key in CELL_KEYS}, names
     )
-    index, index_digest = _draw_index(names, seed, replicates)
+    if strata is None:
+        index, index_digest = _draw_index(names, seed, replicates)
+        summarize = lambda column: _summarize_column(column, index)
+    else:
+        index, index_digest = _draw_stratified_index(strata, seed, replicates)
+        summarize = lambda column: _summarize_stratified_column(column, index, strata)
     specs = _contrast_specs(factor1_name, factor2_name)
     contrasts = {}
     for key, form, required, positive_means, null_hypothesis in specs:
@@ -678,19 +793,20 @@ def factorial_bootstrap(cells, names, seed=DEFAULT_SEED,
             for key in CELL_KEYS:
                 finite = columns[key][np.isfinite(columns[key])]
                 summary[key] = {
-                    "mean": float(np.mean(finite)) if finite.size else None,
+                    "mean": (_stratified_mean(columns[key], strata) if strata is not None
+                             else float(np.mean(finite)) if finite.size else None),
                     "n_observed": int(finite.size),
                 }
         cell_summaries[metric] = summary
         for key, column in built.items():
             contrasts[key]["metrics"][metric] = _p3_entry(
-                _summarize_column(column, index), replicates
+                summarize(column), replicates
             )
         gap = _identity_gap(form_1, form_2)
         tolerance = IDENTITY_ATOL + IDENTITY_RTOL * _finite_max_abs(
             *(columns[key] for key in CELL_KEYS)
         )
-        second = _p3_entry(_summarize_column(form_2, index), replicates)
+        second = _p3_entry(summarize(form_2), replicates)
         first = contrasts["interaction_{0}_x_{1}".format(
             factor1_name, factor2_name)]["metrics"][metric]
         ci_gap = 0.0
@@ -861,7 +977,7 @@ def run_factorial(targets, results_root=DEFAULT_RESULTS_ROOT, seed=DEFAULT_SEED,
                   replicates=DEFAULT_REPLICATES,
                   expected_sequences=DEFAULT_EXPECTED_SEQUENCES,
                   labels=None, factor1_name=DEFAULT_FACTOR1_NAME,
-                  factor2_name=DEFAULT_FACTOR2_NAME, warn=None):
+                  factor2_name=DEFAULT_FACTOR2_NAME, warn=None, strata_spec=None):
     """Resolve, pair across four cells, bootstrap the 2x2 and package the report.
 
     ``targets`` maps ``a00``/``a10``/``a01``/``a11`` to a run id, run directory
@@ -899,6 +1015,7 @@ def run_factorial(targets, results_root=DEFAULT_RESULTS_ROOT, seed=DEFAULT_SEED,
         provenance[key]["label"] = labels[key]
         provenance[key]["cell"] = key
     names = pair_sequence_names_across(cells, labels)
+    strata = load_strata_spec(strata_spec, names) if strata_spec is not None else None
     matches_expected = None
     if expected_sequences is not None and expected_sequences > 0:
         matches_expected = len(names) == expected_sequences
@@ -908,6 +1025,7 @@ def run_factorial(targets, results_root=DEFAULT_RESULTS_ROOT, seed=DEFAULT_SEED,
     contrasts, cell_summaries, coverage, index_digest, identity = factorial_bootstrap(
         cells, names, seed=seed, replicates=replicates,
         factor1_name=factor1_name, factor2_name=factor2_name,
+        strata=strata,
     )
     for metric, record in sorted(coverage["excluded_not_in_every_cell"].items()):
         warn("metric {0!r} is not present in every cell (missing from {1}); "
@@ -960,6 +1078,15 @@ def run_factorial(targets, results_root=DEFAULT_RESULTS_ROOT, seed=DEFAULT_SEED,
             "percentiles": [LOWER_PERCENTILE, UPPER_PERCENTILE],
             "percentile_method": "linear",
             "shared_resample_index_matrix": True,
+            "stratified": strata is not None,
+            "strata_spec": None if strata is None else {
+                "path": strata["path"], "sha256": strata["sha256"],
+                "design": strata["design"], "population_total": strata["population_total"],
+                "groups": {
+                    key: {field: value for field, value in record.items() if field != "positions"}
+                    for key, record in strata["groups"].items()
+                },
+            },
             "shared_across": "all four cells, all contrasts and all metrics",
             "resample_index_sha256": index_digest,
             "per_replicate_contrasts": True,
@@ -1159,6 +1286,9 @@ def build_parser():
     parser.add_argument("--factor2-name", default=DEFAULT_FACTOR2_NAME,
                         help="factorial mode: name of the second factor "
                              "(default: %(default)s)")
+    parser.add_argument("--strata-spec", default=None,
+                        help="factorial mode: frozen JSON with episodes[].{sequence_id,stratum} "
+                             "and strata_pop; resample within strata using population weights")
     parser.add_argument("--results-root", default=str(DEFAULT_RESULTS_ROOT),
                         help="root holding <run-id>/evaluation directories")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
@@ -1225,6 +1355,7 @@ def _dispatch(args, warn):
         labels=_parse_cell_assignments(args.cell_label, "--cell-label"),
         factor1_name=args.factor1_name,
         factor2_name=args.factor2_name,
+        strata_spec=args.strata_spec,
         warn=warn,
     )
     return report, format_factorial_table
