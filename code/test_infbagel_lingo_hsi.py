@@ -1797,6 +1797,7 @@ def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTrut
         lookup.setdefault(key, data_idx)
 
     selected = []
+    missing = []
     for ordinal in subset["canonical_ordinals"]:
         _scene_name, _scene_index, episode = episodes[int(ordinal)]
         sequence_index = int(source.window_sequence[int(episode["data_idx"])])
@@ -1805,7 +1806,20 @@ def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTrut
         for window_index in range(int(episode["episode_num"])):
             key = (sequence_index, start + window_index * WINDOW_STRIDE_RAW)
             if key not in lookup:
-                raise ValueError("no valid test window for source/start %s" % (key,))
+                if window_index != int(episode["episode_num"]) - 1:
+                    raise ValueError(
+                        "non-terminal test window has no language item for source/start %s"
+                        % (key,)
+                    )
+                missing.append(
+                    {
+                        "episode_id": str(cohort_row["sequence_id"]),
+                        "window_index": window_index,
+                        "source_sequence_index": sequence_index,
+                        "source_start": key[1],
+                    }
+                )
+                continue
             selected.append(
                 {
                     "data_idx": lookup[key],
@@ -1814,14 +1828,21 @@ def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTrut
                     "window_index": window_index,
                 }
             )
-    if len(selected) != int(subset["window_count"]):
+    expected_selected = int(cfg.teacher_forced_holdout_windows)
+    expected_missing = int(cfg.teacher_forced_terminal_padded_windows)
+    if len(selected) != expected_selected or len(missing) != expected_missing:
         raise ValueError(
-            "teacher-forced holdout mapped %d windows, expected %d"
-            % (len(selected), int(subset["window_count"]))
+            "teacher-forced holdout mapped %d exact windows and %d terminal padded "
+            "windows, expected %d and %d"
+            % (len(selected), len(missing), expected_selected, expected_missing)
         )
     stratum_weights = {}
     for row in cohort_payload["episodes"]:
         stratum_weights[str(row["stratum"])] = float(row["stratum_weight"])
+    subset = dict(subset)
+    subset["exact_valid_window_count"] = len(selected)
+    subset["terminal_padded_window_count"] = len(missing)
+    subset["terminal_padded_windows"] = missing
     return selected, subset, stratum_weights
 
 

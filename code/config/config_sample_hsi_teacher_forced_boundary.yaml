@@ -5,13 +5,15 @@ defaults:
 
 lingo_hsi_mode: teacher_forced_boundary
 lingo_episode_subset: ${oc.env:ROOT_DIR}/.claude/scratch/hetero_20260823/smoke60.json
-lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_teacher_forced_boundary
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_teacher_forced_boundary_r1
 
 ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
 occ_permute_fix: true
 hsi_future_occ_jitter_scale: 0.0
 
 teacher_forced_timesteps: [498, 250, 50]
+teacher_forced_holdout_windows: 352
+teacher_forced_terminal_padded_windows: 12
 teacher_forced_train_windows: 364
 teacher_forced_bootstrap_replicates: 10000
 

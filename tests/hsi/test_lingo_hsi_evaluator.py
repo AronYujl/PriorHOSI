@@ -211,6 +211,22 @@ class StrictKeySetTests(unittest.TestCase):
             )
 
 
+class TeacherForcedBoundaryConfigTests(unittest.TestCase):
+    def test_r1_config_freezes_exact_and_terminal_window_counts(self):
+        os.environ["ROOT_DIR"] = str(REPO)
+        with initialize_config_dir(
+            version_base=None, config_dir=str(REPO / "code" / "config")
+        ):
+            cfg = compose(config_name="config_sample_hsi_teacher_forced_boundary")
+
+        self.assertEqual(cfg.lingo_hsi_mode, "teacher_forced_boundary")
+        self.assertEqual(list(cfg.teacher_forced_timesteps), [498, 250, 50])
+        self.assertEqual(cfg.teacher_forced_holdout_windows, 352)
+        self.assertEqual(cfg.teacher_forced_terminal_padded_windows, 12)
+        self.assertEqual(cfg.teacher_forced_train_windows, 364)
+        self.assertEqual(cfg.hsi_future_occ_jitter_scale, 0.0)
+
+
 @unittest.skipUnless(
     RELEASED_CHECKPOINT.is_file() and RUN_B_CHECKPOINT.is_file(),
     "both real evaluator checkpoints are required",
