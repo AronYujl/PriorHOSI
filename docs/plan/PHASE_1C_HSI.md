@@ -12177,3 +12177,49 @@ episode、stratum、总体权重、checkpoint、timestep、noise sharing、J1/J2
 
 r1 run id 为 `p1-hsi-b-r2-teacher-forced-boundary-r1-s42-20260903`。该修订只修复无法实现的输入
 定义，不改变机制或判据；仍不授权任何训练或额外 GPU 方向。
+
+### F. D1-r1 完成与判定
+
+r1 在 GPU 0 完成，manifest 生命周期为 194 秒，远低于 2 GPU-h 上限。60 个 frozen episode 中
+352 个精确合法 holdout window 与固定 364 个 train window 均完成 `{498,250,50}` 三个 timestep
+的单次前向；23,628 个记录值全部 finite。checkpoint SHA256 仍为
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`。
+
+冻结的 `t=498` 主结果为：
+
+| 量 | 点估计 | 95% CI / 说明 |
+|---|---:|---|
+| GT first-two FK acceleration | 1.15548 m/s² | [1.01261, 1.30126] |
+| clamped-history acceleration | 2.39638 m/s² | [2.15976, 2.63816] |
+| `clamped / GT` | **2.07393×** | [1.86233, 2.34304] |
+| internal-history acceleration | 3.80466 m/s² | [3.54487, 4.06975] |
+| `internal / GT` | **3.29271×** | [2.97737, 3.68975] |
+| history-clamp closure | **−1.13488** | **[−1.53542, −0.81253]** |
+| holdout pelvis frame-2 error | 0.014045 m | [0.012282, 0.015883] |
+| train pelvis frame-2 error | 0.006644 m | [0.006239, 0.007070] |
+
+因此：
+
+- **J1 INCONCLUSIVE**：单次 teacher-forced 前向已经有 2.074× GT 的瞬变，说明回归器贡献了明显
+  excess；但点估计未达到冻结的 `>=2.5×` 支持线，也未低到 `<=1.3×` 排除线。三个 timestep
+  的 clamped ratio 分别为 2.074/2.065/1.969，进一步说明它不是 500 步链逐步累积出来的，但现有
+  诊断不能声称它解释了 rollout 的全部地板。
+- **J2 DEPRIORITIZED**：网络自身 history 不是一个更平滑的隐式参考；它的 acceleration 反而是
+  3.293× GT。把 history 换成真实 clamped history 将 acceleration 从 3.805 降到 2.396，closure
+  显著为负。因此 hard clamp 在**缓解**瞬变，不是在制造瞬变；不得训练 R3-HS，也不得用 history
+  输出与 future error 的相关性推翻这个直接干预。
+- **J3 显示泛化差距**：train/holdout pelvis frame-2 error ratio 为 0.473，即 holdout 误差约为
+  train 的 2.11×。这只把 live clue 移到泛化：两 cohort 尚未在 caption/action、运动速度、场景几何、
+  window phase 与条件不确定度上匹配，不能据此判断“更多预算”“特定场景覆盖”或“容量”哪一个成立。
+
+本诊断不授权 R3-HS、R3-RES、guidance 2×2、SDF、蒸馏或其他 GPU workload。下一方向若继续，应先
+提出一个 matched train/holdout attribution：固定动作/速度/window phase 等可观测量后检查 frame-2
+误差差距是否仍存在，并用既有 checkpoint 的单步前向完成；只有差距在匹配后仍稳定，才有理由讨论
+预算或表示机制。
+
+权威输出为
+`results/hsi_teacher_forced_boundary_r1/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json`，
+SHA256 `5ca27b1dff71a1ebc94b8b8419325bc14a001d0df861520a6bbbf88dbc70af3a`；manifest SHA256 为
+`a79bbb99ecee0483153320b0ef31bd47f8fb16bd20253d3ecf617a1e9223937c`，bootstrap resample-index
+SHA256 为 `c2e924964a5c37bd860eaf929d946b4f4374570017d2054e3f0ea4a39a692a59`。completion registry id
+为 `p1-hsi-b-r2-teacher-forced-boundary-r1-s42-20260903`。
