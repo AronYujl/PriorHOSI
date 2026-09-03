@@ -11948,3 +11948,98 @@ scale sweep，也不重新训练 checkpoint。
 行使用 `p1-hsi-b-r2-cg-guidance-coef1-completion-s42-20260903`；paired bootstrap、候选 merged
 payload 与 checkpoint 哈希均记录在 manifest 的 metrics 中。候选 checkpoint SHA256 为
 `7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`。
+
+## 2026-09-03（R2-FC：future occupancy crop 训练／推理错配四格诊断）
+
+### A. 假设、范围与为什么不是直接训练 R3
+
+`Sampler._compute_occ` 在训练时以 GT pelvis 的 window offsets 5/10/15 为三个未来 occupancy
+crop 中心，并先对 GT 坐标加入逐维 `[-0.1,0.1] m` jitter；`_compute_occ_sample` 在 native
+diffusion 推理时却以反向链上一轮预测的 `x0` 为中心，首轮因此来自随机噪声，且没有训练 jitter。
+同一三个局部 xz 坐标还通过 `occ_pos[1:4]` 直接加入 temporal scene embedding。于是“crop 中的
+voxel 内容错了”和“显式坐标编码错了”是两个不同机制，必须独立操纵；只把两者一起改掉无法归因。
+
+本节只对固定 R2 final EMA 做**无训练、无 guidance** 的 causal diagnostic，不启动 R3，不加入 SDF
+guidance，也不选择 checkpoint。原因是一个用 GT crop 训练过的 checkpoint 在 GT-recentered 推理下
+失败，并不能单独否定 train/inference mismatch：失败也可能只是另一种 OOD。只有四格中 full-GT
+条件相对原生 predicted 条件的方向、幅度和 crop/coordinate 分解，才足以决定该机制是否值得下一次
+训练预算。无论结果如何，本节都不会自动授权 R3；任何训练仍需用户另行批准并修订 400 GPU-h 上限。
+
+### B. 冻结对象、四格与坐标契约
+
+- checkpoint 唯一固定为 R2 final EMA
+  `/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth`，
+  SHA256 `7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`。
+- 协议固定为 native diffusion 500 steps、unguided、seed 42、`occ_permute_fix=true`、
+  `hsi_progress_fix=true`、相同 canonical episode order 与 `seed + canonical_ordinal` 逐 episode RNG。
+- 因子 1 是 **GT crop content**，因子 2 是 **GT coordinate encoding**：
+
+| factorial cell | `hsi_future_occ_mode` | crop query center | `occ_pos[1:4]` |
+|---|---|---|---|
+| `a00` | `predicted` | previous predicted `x0` | previous predicted `x0` |
+| `a10` | `gt_crop` | aligned GT | previous predicted `x0` |
+| `a01` | `gt_coordinate` | previous predicted `x0` | aligned GT |
+| `a11` | `gt_both` | aligned GT | aligned GT |
+
+GT 中心不是 raw source 坐标。对每个 rollout window `w`，先取
+`GroundTruthSource.episode_indices(...)[w, {5,10,15}]` 的 pelvis；应用该 episode 与生成臂完全相同的
+`desired_rotation` 和 `translation_shift` 得到 aligned world pelvis，再经 `inverse(mat_step)` 得到当前
+window local 坐标。crop 操纵把所选 local center 经 `mat_step` 送回 world query；coordinate 操纵只取
+所选 local center 的 xz。形状固定为 `[batch,3,3]`，offset 顺序固定 5/10/15；缺失、错形或未清理的
+window oracle 都必须报错。`predicted` 必须保持原生输出 bitwise 不变且不改变任何 RNG draw。
+
+### C. cohort、统计量与遥测（结果前冻结）
+
+cohort 是历史冻结的分层 `B_n60`：60 episodes / 364 windows，文件
+`.claude/scratch/hetero_20260823/smoke60.json`，SHA256
+`d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`。它不是 prevalence sample。
+点估计按五层总体占比 `N_s/375 = {31,46,195,58,45}/375`：层内 episode mean 后再加权；10,000
+次 paired bootstrap、seed 42，必须在每层内成对重采样并以同一总体权重重组。四格所有指标和
+contrast 共享同一组分层 resample indices；禁止用普通 60-episode 等权 bootstrap。factorial 编码为
+`a00=predicted, a10=gt_crop, a01=gt_coordinate, a11=gt_both`，报告两个 main effects、interaction、
+四格 cell means 与全部 simple effects。
+
+主 contrast 是加权 `a11-a00` 的 `boundary_jerk`。R2 unguided holdout355 为 123.42，冻结目标 116.66，
+剩余缺口 6.76；本诊断把“有意义”预先定义为至少关闭一半，即改善 `>=3.38`：
+
+- **SUPPORTED：** `a11-a00` 的 paired 95% CI 严格低于 0，且点估计 `<=-3.38`。
+- **DEPRIORITIZED AS JERK CAUSE：** CI 下界 `>-3.38`，即数据已排除关闭一半缺口的效果。
+- 其余为 **INCONCLUSIVE**。crop/coordinate main effect 与 interaction 只作机制归因，不另设晋级门。
+
+每格还必须报告 `interior_jerk`、`fs_nemf`、`goal_planar_err_m`、`pen_ratio`、
+`pene_pct_scene`、`pen_depth_max`、`contact_count` 与 `finite_motion` 的分层点估计和 paired CI。
+任何 nonfinite 是硬失败；其余 guard 若显著向坏方向变化，则即使主 contrast SUPPORTED，也只记为
+“支持 jerk 因果机制但不支持直接采用／训练”，不得据此推荐 R3。frozen-60 对 penetration/contact 的
+历史半宽不足以作等价性判定，因此未显著不等于安全，也不作事后放宽。
+
+预注册诊断函数位于 `code/priors/hsi/diagnostics.py`，并固定输出：
+
+1. 每格按 diffusion timestep 0..499 和 future offset 5/10/15 的 predicted-to-GT center L2 error
+   （metres；count/mean/max），不使用 `d xhat0 / d occ_pos approximately 1` 或任何事后导数阈值；
+2. production SMPL-X FK joints、30 Hz 上的
+   `first_window_first2_fk_acc_mps2`、`seam_first2_fk_acc_mps2`、
+   `all_window_first2_fk_acc_mps2`：二阶差分乘 `fps^2`，每个中心先对 28 joints 取 L2 后平均；
+3. FK pelvis 的 `pelvis_path_length_m` 与 `pelvis_net_displacement_m`，以及 motion export，供四格输出
+   位移检查；所有定义均为 per episode 后再走上述分层估计器。
+
+### D. 运行、成本与停止规则
+
+唯一 override fragment 是 `code/config/config_sample_hsi_future_crop_factorial.yaml`；四个 reportable
+cell 各用独立、永不复用的 run id：
+
+- `p1-hsi-b-r2-future-crop-predicted-s42-20260903`
+- `p1-hsi-b-r2-future-crop-gt-crop-s42-20260903`
+- `p1-hsi-b-r2-future-crop-gt-coordinate-s42-20260903`
+- `p1-hsi-b-r2-future-crop-gt-both-s42-20260903`
+
+配置显式 `hsi_compute_rds=false`：RDS 不在假设或 gate 内，且当前 unguided evaluator 的 paired
+null-scene pass 会把每格 scene-conditioned rollout 再跑一遍。该 pass 位于 `_rng_rewound` 内，关闭它
+不改变主 rollout 或下一 episode 的 RNG；四格一致关闭。每格以冻结 364 windows 的历史上界计
+`<=6.71 GPU-h`，四格合计 `<=26.84 GPU-h`，使 2026-08-31 起累计预算从约 353.3 增至
+`<=380.14/400 GPU-h`。无训练 GPU-h。
+
+实现后先运行 component tests、统计工具测试、真实 LINGO functional smoke，以及因 sampler/evaluator
+变化所需的一次 authority full suite；随后 clean worktree、同一 escalated GPU context 下生成四格
+fully resolved configs 和 `tools/experiment.py start` manifests。任何 resolved interpolation、checkpoint
+hash、cohort hash、cell set、finite 或完整性失败都停止，不补跑成另一个定义。四格完成后只执行本节
+冻结的分层 factorial 分析并写 completion；不启动 R3、SDF arm 或额外 recentering sweep。

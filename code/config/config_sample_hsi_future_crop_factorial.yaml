@@ -1,0 +1,20 @@
+# R2 future-occupancy 2x2 diagnostic. The four cells override only
+# hsi_future_occ_mode: predicted, gt_crop, gt_coordinate, or gt_both.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+hsi_future_occ_mode: predicted
+hsi_compute_rds: false
+lingo_episode_subset: ${oc.env:ROOT_DIR}/.claude/scratch/hetero_20260823/smoke60.json
+
+use_guidance: false
+sample_type: diffusion
+lingo_hsi_mode: sample
+export_motion: true
+hsi_progress_fix: true
+occ_permute_fix: true
+seed: 42
+shard_count: 8
+merge_expected_episodes: 60
+merge_expected_windows: 364
