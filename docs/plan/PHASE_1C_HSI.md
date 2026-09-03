@@ -12326,3 +12326,64 @@ component tests；不新增实验脚本，不改 `code/priors/core/`。预注册
 一次 full authority suite、真实 LINGO smoke 和必要的性能 smoke；resolved config 无 `${` 后，才在
 clean worktree 中由 `tools/experiment.py start` 创建 manifest。完成后追加 completion row 与本节结果，
 本轮到此停止。
+
+### F. D2 / D3 完成结果
+
+D2 `p1-hsi-b-r2-predictor-decomp-s42-20260903` 完成 352 个 holdout 窗与 364 个 train
+对照窗，全部 14,320 个指标有限。K1 CFG 为 DEPRIORITIZED：w=1 相对 w=0 的首两帧 FK
+加速度只增加 `0.01028 [0.00416, 0.01694] m/s²`，因此不创建 D3-w0。K2 匀速外推为
+SUPPORTED：holdout frame-2 网络 FK 误差是匀速外推的 `1.99495x`。K3 history 速度利用不足为
+SUPPORTED：增益 `0.13626`。K4 不需要 D1 erratum。K2 与 K3 只允许下一轮提出 R3-RES，
+本轮不训练。
+
+D3 `p1-hsi-b-r2-single-window-chain-w1-s42-20260903` 完成 352/352 个窗。生产 500-step
+链的 `rho=(final-GT)/(xhat498-GT)` 为 **1.17018**，95% CI
+`[1.11741, 1.22816]`，判为 SUPPORTED：链条保留并放大单步 seam 瞬态，不触发暂停回归器训练线。
+
+### G. guidance 成本修订
+
+三个 guidance 新格在前 26--29 个 episode 的实测累计速率为约 72--89 秒/窗，对应总成本预计
+约 **24.4 GPU-h**。原 `20.13 GPU-h` 子预算来自 unguided 速率，未覆盖 guided、SDF 与 motion
+export 的组合成本；在结果完成前将三格子预算修订为 **不超过 25.0 GPU-h**。本轮累计总上限仍为
+**416 GPU-h**，不增加实验格、不改变判据，也不重跑 a00。
+
+## 2026-09-03（D4 离线分解与链内 history 一致性 rebase；用户要求继续）
+
+### A. D4-A：离线误差分解
+
+读取已封存 D2 的 716-window predictor NPZ 与 D3 的 352-window trace/final NPZ，不重新运行模型。
+复用 evaluator 的反归一化与 SMPL-X FK 路径，分别报告 holdout 与 train：
+
+1. 首两帧 FK 加速度超出量的根平移分量（预测根 + GT rotation）、姿态分量（GT 根 + 预测
+   rotation）和交互余项及其份额。
+2. frame-2 根误差沿 history 水平速度方向、水平正交方向和竖直方向的分量，以及预测与 GT
+   `(f2-f1)` 的夹角。
+
+所有统计沿用五层 episode bootstrap 10,000 次、seed 42。唯一门控是 holdout 姿态分量份额
+`>=0.40` 时授权 D4-B 的 c3；否则不创建 c3。主路径为 CPU；仅在 SMPL-X CPU 路径不可用时允许
+GPU7 不超过 0.1 GPU-h。
+
+### B. D4-B：生产链内 rebase
+
+完全复用 D3 的 352 个窗、GT history 固定点、生产 `p_sample_loop`、500-step diffusion、w=1、
+无 guidance 和逐窗 seed。c0 直接复用 D3-w1。rebase 位于 `model_output` 形成后、posterior mean
+之前；默认关闭，关闭时逐位等价。
+
+base 只允许取被固定的 `x[:, :2, :84]`，不得取无监督的 `model_output` history。令
+`base2=2*f1-f0`，c1 的 `delta=base2-xhat0[:,2,:84]`；c2 的
+`delta=GT2-xhat0[:,2,:84]`。delta 刚性加到 frame 2--15 的全部 84 个位置通道，保持未来段内部
+差分不变。若 D4-A 姿态份额达到 0.40，c3 在 c1 基础上加入 132 个 6D rotation 通道的一致
+rebase；否则 c3 不执行。
+
+每个新格保存 final `[352,16,232]` 样本，并报告 a1、a2、frame 2--6 FK 误差、frame 3--8
+内部加速度与 10 Hz 跨 seam 三阶差分。分层 paired bootstrap 为 10,000 次、seed 42。
+
+- **M1**：`r2=(c2_final-GT)/(c0_final-GT)`。`r2<=0.4` 表示位置偏移主导；`r2>=0.7`
+  表示速度/方向错误主导，并 DEPRIORITIZE c1 与只改位置的 R3-RES。
+- **M2**：`r1=(c1_final-GT)/(c0_final-GT)`。`r1<=0.5` 且 c1 的 a2、frame 3--6 FK
+  误差、frame 3--8 内部加速度均不显著变差时为 SUPPORTED；`r1>=0.8` 为 DEPRIORITIZED。
+- 任何 nonfinite 为硬失败；不追加衰减长度、混合系数或其他 sweep。
+
+D4-B 诊断本身不依赖 B/C 共享采样器裁决。用户尚未授权把 rebase 作为 B 与 C 的共同生产机制，
+因此即使 M2 SUPPORTED，本节也只允许提出 frozen-60 完整 rollout，不自动部署、不改 C、不训练。
+D4-A 加 D4-B 新格预算不超过 6.3 GPU-h，仍落在 416 GPU-h 累计上限内。
