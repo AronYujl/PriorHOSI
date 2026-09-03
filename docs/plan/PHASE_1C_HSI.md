@@ -12158,3 +12158,22 @@ run id 为 `p1-hsi-b-r2-teacher-forced-boundary-s42-20260903`。使用一张 RTX
 新增 evaluator mode 运行一次 authority full suite；随后在 clean worktree 上生成 fully resolved config
 和 `tools/experiment.py start` manifest。完成后只写冻结统计与 completion；不启动 R3、guidance 2x2、
 SDF 或蒸馏。
+
+### E. 2026-09-03 r0 操作失败与 r1 cohort 修订
+
+首次 reportable run `p1-hsi-b-r2-teacher-forced-boundary-s42-20260903` 在第一个模型前向之前停止。
+原因不是数据损坏：frozen-60 的 364 个 rollout window 中，352 个有精确的合法 LINGO
+language-window item；其余 12 个分别位于 12 个 episode 的最后一个 window，是 rollout 通过
+`minimum(raw,end-1)` clamp 形成的末尾 padding。它们的 start 已超过训练索引允许的最后一个
+48-source-frame window，因此不存在可走训练 `_compute_occ`/goal/progress 条件的 item。r0 manifest
+已以 `failed` 封存；没有模型前向、没有科学读数，不复用该 id。
+
+r1 只把 holdout cohort 修订为同一 frozen-60 episode 内上述 **352 个精确合法 no-hand window**；
+episode、stratum、总体权重、checkpoint、timestep、noise sharing、J1/J2/J3、bootstrap 和 2 GPU-h
+上限均不变。selector 对每个 episode 按 rollout stride 枚举，只保留存在于 test split 合法 index 的
+`(source_sequence,start_idx)`；审计固定要求总数 352、缺失数 12、每个缺失均是该 episode 的最后
+一个 window，其他缺失模式立即失败。train control 仍为 364 个合法 train window，不随 holdout 数量
+缩减，因为它是独立固定精度对照而不是配对样本。
+
+r1 run id 为 `p1-hsi-b-r2-teacher-forced-boundary-r1-s42-20260903`。该修订只修复无法实现的输入
+定义，不改变机制或判据；仍不授权任何训练或额外 GPU 方向。
