@@ -20,7 +20,11 @@ import torch
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
-from models.infbagel import Sampler
+from models.infbagel import (
+    Sampler,
+    apply_hsi_sdf_guidance_loss,
+    hsi_guidance_frame_weights,
+)
 from utils import extract
 
 SOURCE = (REPO / "code" / "models" / "infbagel.py").read_text()
@@ -40,6 +44,8 @@ class DefaultsAreInertTests(unittest.TestCase):
         self.assertIs(sampler.hsi_guidance_alpha_decay, False)
         self.assertIsNone(sampler.hsi_guidance_norm_cap)
         self.assertIs(sampler.hsi_guidance_posterior_coef1, False)
+        self.assertIs(sampler.hsi_guidance_frame_ramp, False)
+        self.assertEqual(sampler.hsi_guidance_energy, "voxel")
 
     def test_knobs_are_independent(self):
         only_dose = _sampler(hsi_guidance_dose_scale=0.5)
@@ -82,6 +88,59 @@ class DecayDirectionTests(unittest.TestCase):
             self.assertLessEqual(self._factor(t), 1.0)
 
 
+class GuidanceStructureTests(unittest.TestCase):
+    def test_frozen_frame_ramp(self):
+        weights = hsi_guidance_frame_weights(
+            16, device="cpu", dtype=torch.float32, enabled=True
+        )
+        torch.testing.assert_close(
+            weights,
+            torch.tensor([0, 0, 0, 0, 1 / 3, 2 / 3] + [1] * 10),
+            rtol=0.0,
+            atol=0.0,
+        )
+        self.assertIsNone(
+            hsi_guidance_frame_weights(
+                16, device="cpu", dtype=torch.float32, enabled=False
+            )
+        )
+
+    def test_sdf_hinge_excludes_history_floor_oob_and_nonfinite(self):
+        class Bank:
+            def signed_distance(self, points, scene_flag):
+                sdf = points[..., 0] - 0.05
+                sdf = sdf.clone()
+                sdf[:, 2, 1] = float("nan")
+                oob = torch.zeros_like(sdf, dtype=torch.bool)
+                oob[:, 2, 0] = True
+                return sdf, oob
+
+        joints = torch.zeros(1, 3, 2, 3, requires_grad=True)
+        joints.data[..., 1] = 0.1
+        joints.data[:, 1, 1, 0] = 0.04
+        loss = apply_hsi_sdf_guidance_loss(
+            joints,
+            torch.tensor([0]),
+            Bank(),
+            weight=20000.0,
+            margin=0.03,
+            floor_height=0.02,
+            history_frames=1,
+        )
+
+        self.assertAlmostEqual(float(loss), 4.0, places=6)
+        loss.backward()
+        self.assertIsNotNone(joints.grad)
+
+    def test_trace_hook_is_consumed_once(self):
+        sampler = _sampler()
+        sampler.begin_p_sample_trace(498)
+        expected = torch.ones(1, 16, 232)
+        sampler._p_sample_trace = expected
+        self.assertIs(sampler.consume_p_sample_trace(), expected)
+        self.assertIsNone(sampler._p_sample_trace_timestep)
+
+
 class DoseCallSiteTests(unittest.TestCase):
     """Static guard: both knobs live in p_sample only, so C stays untouched."""
 
@@ -101,6 +160,7 @@ class DoseCallSiteTests(unittest.TestCase):
         self.assertTrue(self._mentions("p_sample", "hsi_guidance_dose_scale"))
         self.assertTrue(self._mentions("p_sample", "hsi_guidance_alpha_decay"))
         self.assertTrue(self._mentions("p_sample", "hsi_guidance_posterior_coef1"))
+        self.assertTrue(self._mentions("p_sample", "hsi_guidance_frame_ramp"))
 
     def test_cm_sample_applies_neither(self):
         for attribute in ("hsi_guidance_dose_scale", "hsi_guidance_alpha_decay",

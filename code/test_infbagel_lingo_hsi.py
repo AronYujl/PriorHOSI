@@ -1146,6 +1146,50 @@ def _write_payload(
     return output_path
 
 
+def _write_array_payload(
+    output_dir: Path,
+    payload: MutableMapping[str, Any],
+    arrays: Mapping[str, np.ndarray],
+    *,
+    file_name: str,
+) -> Path:
+    """Persist diagnostic arrays before their JSON metadata, without overwrite."""
+    if output_dir.exists():
+        raise FileExistsError("refusing to overwrite LINGO HSI output: %s" % output_dir)
+    evaluation_dir = output_dir / "evaluation"
+    evaluation_dir.mkdir(parents=True, exist_ok=False)
+    array_path = evaluation_dir / file_name
+    normalized = {}
+    for name, value in arrays.items():
+        array = np.ascontiguousarray(np.asarray(value, dtype=np.float32))
+        if not np.isfinite(array).all():
+            raise ValueError("diagnostic array %s contains non-finite values" % name)
+        normalized[str(name)] = array
+    with array_path.open("xb") as handle:
+        np.savez_compressed(handle, **normalized)
+    raw = array_path.read_bytes()
+    payload["array_archive"] = {
+        "path": str(array_path),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "size_bytes": len(raw),
+        "arrays": {
+            name: {"shape": list(value.shape), "dtype": str(value.dtype)}
+            for name, value in normalized.items()
+        },
+    }
+    output_path = evaluation_dir / "per_sequence_metrics.json"
+    with output_path.open("x", encoding="utf-8") as handle:
+        json.dump(
+            _sanitize_json(payload),
+            handle,
+            indent=2,
+            allow_nan=False,
+            default=_json_value,
+        )
+        handle.write("\n")
+    return output_path
+
+
 def evaluate_ground_truth(cfg: DictConfig) -> Path:
     device = torch.device(str(cfg.device))
     export_motion = bool(cfg.get("export_motion", False))
@@ -1781,10 +1825,17 @@ def sampled_motion(
     )
 
 
-def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTruthSource):
-    episodes = _load_episodes(Path(cfg.lingo_episode_dir), None)
+def _exact_holdout_windows(
+    dataset,
+    source: GroundTruthSource,
+    episode_dir,
+    subset_path,
+    expected_selected: int,
+    expected_missing: int,
+):
+    episodes = _load_episodes(Path(episode_dir), None)
     window_counts = [int(episode[2]["episode_num"]) for episode in episodes]
-    subset = _load_episode_subset(cfg.lingo_episode_subset, episodes, window_counts)
+    subset = _load_episode_subset(subset_path, episodes, window_counts)
     cohort_payload = json.loads(Path(subset["path"]).read_text(encoding="utf-8"))
     cohort_rows = {
         int(row["canonical_ordinal"]): row for row in cohort_payload["episodes"]
@@ -1828,8 +1879,8 @@ def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTrut
                     "window_index": window_index,
                 }
             )
-    expected_selected = int(cfg.teacher_forced_holdout_windows)
-    expected_missing = int(cfg.teacher_forced_terminal_padded_windows)
+    expected_selected = int(expected_selected)
+    expected_missing = int(expected_missing)
     if len(selected) != expected_selected or len(missing) != expected_missing:
         raise ValueError(
             "teacher-forced holdout mapped %d exact windows and %d terminal padded "
@@ -1844,6 +1895,17 @@ def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTrut
     subset["terminal_padded_window_count"] = len(missing)
     subset["terminal_padded_windows"] = missing
     return selected, subset, stratum_weights
+
+
+def _teacher_forced_holdout_windows(cfg: DictConfig, dataset, source: GroundTruthSource):
+    return _exact_holdout_windows(
+        dataset,
+        source,
+        cfg.lingo_episode_dir,
+        cfg.lingo_episode_subset,
+        int(cfg.teacher_forced_holdout_windows),
+        int(cfg.teacher_forced_terminal_padded_windows),
+    )
 
 
 def _teacher_forced_train_windows(dataset, count: int, seed: int):
@@ -1875,14 +1937,16 @@ def _teacher_forced_smplx_joints(
     gender: str,
     smplx_cache: MutableMapping[str, torch.nn.Module],
     smplx_batch_size: int,
+    frame_count: int = 4,
 ) -> torch.Tensor:
-    representation = representation[:, :4].float()
+    frame_count = int(frame_count)
+    representation = representation[:, :frame_count].float()
     global_jpos = project_utils.transform_points(
         dataset.denormalize_torch(representation[:, :, :84]), mat
-    ).reshape(1, 4, 28, 3)
+    ).reshape(1, frame_count, 28, 3)
     global_rotation = transforms.rotation_6d_to_matrix(
         representation[:, :, 84:216].reshape(-1, 22, 6)
-    ).reshape(1, 4, 22, 3, 3)
+    ).reshape(1, frame_count, 22, 3, 3)
     global_rotation = mat[:, None, None, :3, :3] @ global_rotation
     local_rotation = dataset.quat_ik_torch(global_rotation.reshape(-1, 22, 3, 3))
     local_axis = transforms.matrix_to_axis_angle(local_rotation).reshape(-1, 22, 3)
@@ -1896,7 +1960,86 @@ def _teacher_forced_smplx_joints(
         int(smplx_batch_size),
         smplx_cache,
     )
-    return joints.reshape(1, 4, -1, 3)
+    return joints.reshape(1, frame_count, -1, 3)
+
+
+def _diagnostic_window_inputs(cfg: DictConfig, dataset, selection: Mapping[str, object]):
+    from torch.utils.data._utils.collate import default_collate
+
+    device = torch.device(str(cfg.device))
+    data_idx = int(selection["data_idx"])
+    batch = default_collate([_lingo_item(dataset, data_idx)])
+
+    def tensor(name, dtype=None):
+        value = batch[name]
+        if not torch.is_tensor(value):
+            value = torch.as_tensor(value)
+        return value.to(device=device, dtype=dtype)
+
+    joints = tensor("joints", torch.float32).reshape(1, WINDOW_FRAMES, 84)
+    global_rotation = tensor("global_rot_6d", torch.float32).reshape(
+        1, WINDOW_FRAMES, 132
+    )
+    object_trans = tensor("object_trans", torch.float32).reshape(1, WINDOW_FRAMES, 3)
+    object_rotation = tensor("object_rot_mat", torch.float32).reshape(
+        1, WINDOW_FRAMES, 9
+    )
+    contact = tensor("contact_label", torch.float32).reshape(1, WINDOW_FRAMES, 4)
+    x_start = torch.cat(
+        (joints, global_rotation, object_trans, object_rotation, contact), dim=-1
+    )
+    start_idx = int(dataset.lingo_dataset.start_ind[data_idx])
+    translation_offset = torch.from_numpy(
+        np.asarray(
+            dataset.lingo_dataset.transl[start_idx]
+            - dataset.lingo_dataset.joints[start_idx, 0]
+        ).copy()
+    ).to(device=device, dtype=torch.float32)
+    return {
+        "data_idx": data_idx,
+        "x_start": x_start,
+        "joints": joints,
+        "mat": tensor("mat", torch.float32).reshape(1, 4, 4),
+        "scene_flag": tensor("scene_flag", torch.long).reshape(1),
+        "text_emb": tensor("text_clip_embedding", torch.float32),
+        "pelvis_goal": tensor("pelvis_goal", torch.float32).reshape(1, 3),
+        "scene_goal": tensor("scene_goal", torch.float32).reshape(1, 3),
+        "object_goal": tensor("object_goal", torch.float32).reshape(1, 3),
+        "need_scene": tensor("need_scene", torch.bool).reshape(1),
+        "need_pelvis_dir": tensor("need_pelvis_dir", torch.bool).reshape(1),
+        "pi": tensor("pi", torch.long).reshape(1),
+        "end_pi": tensor("end_pi", torch.long).reshape(1),
+        "seq_length": tensor("seg_len", torch.long).reshape(1),
+        "need_pi": tensor("need_pi", torch.bool).reshape(1),
+        "is_loco": tensor("is_loco", torch.bool).reshape(1),
+        "is_object": tensor("is_object", torch.bool).reshape(1),
+        "object_bps": tensor("obj_bps_data", torch.float32),
+        "object_points": tensor("object_points", torch.float32).reshape(1, -1, 3),
+        "object_rotation_ref": tensor("obj_rot_mat_ref", torch.float32).reshape(1, 3, 3),
+        "rest_offsets": tensor("rest_human_offsets", torch.float32).reshape(1, 24, 3),
+        "betas": tensor("betas", torch.float32).reshape(-1),
+        "gender": str(batch["gender"][0]),
+        "seq_name_dict": {0: str(batch["seq_name"][0])},
+        "translation_offset": translation_offset,
+    }
+
+
+def _diagnostic_model_args(inputs):
+    return (
+        inputs["text_emb"],
+        inputs["pelvis_goal"],
+        inputs["scene_goal"],
+        inputs["is_loco"],
+        inputs["need_scene"],
+        inputs["need_pelvis_dir"],
+        inputs["pi"],
+        inputs["end_pi"],
+        inputs["seq_length"],
+        inputs["need_pi"],
+        inputs["object_goal"],
+        inputs["is_object"],
+        inputs["object_bps"],
+    )
 
 
 def _teacher_forced_window_record(
@@ -2157,6 +2300,394 @@ def evaluate_teacher_forced_boundary(cfg: DictConfig) -> Path:
         "%s-%s" % (Path(str(cfg.ckpt_path)).stem, checkpoint_provenance["checkpoint_sha256"][:12])
     )
     return _write_payload(output_dir, payload)
+
+
+def _predictor_decomp_window_record(
+    cfg,
+    dataset,
+    sampler,
+    selection,
+    smplx_cache,
+):
+    inputs = _diagnostic_window_inputs(cfg, dataset, selection)
+    timestep = int(cfg.predictor_decomp_timestep)
+    t = torch.full((1,), timestep, device=str(cfg.device), dtype=torch.long)
+    generator = torch.Generator(device="cpu").manual_seed(
+        int(cfg.seed) + inputs["data_idx"]
+    )
+    noise = torch.randn(
+        inputs["x_start"].shape, generator=generator, dtype=torch.float32
+    ).to(str(cfg.device))
+    noise[:, :HISTORY_FRAMES] = 0.0
+    x_noisy = sampler.q_sample(inputs["x_start"], t, noise)
+    x_noisy[:, :HISTORY_FRAMES] = inputs["x_start"][:, :HISTORY_FRAMES]
+    occ, occ_list, occ_pos = sampler._compute_occ(
+        x_noisy,
+        inputs["x_start"],
+        inputs["joints"],
+        inputs["mat"],
+        inputs["scene_flag"],
+        inputs["object_points"],
+        inputs["pelvis_goal"],
+        inputs["scene_goal"],
+        inputs["object_goal"],
+        inputs["is_loco"],
+        inputs["is_object"],
+        inputs["need_pelvis_dir"],
+        inputs["object_rotation_ref"],
+    )
+    model_args = _diagnostic_model_args(inputs)
+    with torch.no_grad():
+        conditional = sampler.student_model(
+            x_noisy, occ, t, *model_args, occ_list, occ_pos, is_sample=True
+        )
+        unconditional = sampler.student_model(
+            x_noisy,
+            occ,
+            t,
+            *model_args,
+            occ_list,
+            occ_pos,
+            is_sample=True,
+            is_uncondition=True,
+        )
+        zero_velocity_input = x_noisy.clone()
+        zero_velocity_input[:, 1, :84] = zero_velocity_input[:, 0, :84]
+        zero_velocity = sampler.student_model(
+            zero_velocity_input,
+            occ,
+            t,
+            *model_args,
+            occ_list,
+            occ_pos,
+            is_sample=True,
+        )
+
+    predictions = {
+        "conditional": conditional,
+        "unconditional": unconditional,
+        "cfg_w0": conditional,
+        "cfg_w0.5": conditional + 0.5 * (conditional - unconditional),
+        "cfg_w1": conditional + (conditional - unconditional),
+        "zero_velocity_history": zero_velocity,
+    }
+    target_joints = _teacher_forced_smplx_joints(
+        inputs["x_start"],
+        dataset,
+        inputs["mat"],
+        inputs["translation_offset"],
+        inputs["betas"],
+        inputs["gender"],
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+        frame_count=6,
+    )
+    predicted_joints = {
+        name: _teacher_forced_smplx_joints(
+            value,
+            dataset,
+            inputs["mat"],
+            inputs["translation_offset"],
+            inputs["betas"],
+            inputs["gender"],
+            smplx_cache,
+            int(cfg.smplx_batch_size),
+            frame_count=6,
+        )
+        for name, value in predictions.items()
+    }
+    positions = {
+        name: dataset.denormalize_torch(value[:, :, :84])
+        for name, value in predictions.items()
+    }
+    target_positions = dataset.denormalize_torch(inputs["x_start"][:, :, :84])
+    values = hsi_diagnostics.predictor_decomp_metrics(
+        predicted_joints,
+        target_joints,
+        positions,
+        target_positions,
+        fps=float(cfg.fps) / float(DATA_STEP),
+    )
+    record = {
+        "episode_id": str(selection["episode_id"]),
+        "stratum": str(selection["stratum"]),
+        "window_index": int(selection["window_index"]),
+        "data_idx": inputs["data_idx"],
+        "metrics": {name: float(value[0].cpu()) for name, value in values.items()},
+    }
+    arrays = {
+        name: value[0].detach().to(torch.float32).cpu().numpy()
+        for name, value in predictions.items()
+    }
+    return record, arrays
+
+
+def _evaluate_predictor_decomp_cohort(
+    cfg, dataset, model, selections, partition, smplx_cache
+):
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, model)
+    records = []
+    arrays = {name: [] for name in hsi_diagnostics.PREDICTOR_DECOMP_ARMS}
+    for position, selection in enumerate(selections, start=1):
+        record, window_arrays = _predictor_decomp_window_record(
+            cfg, dataset, sampler, selection, smplx_cache
+        )
+        record["array_row"] = len(records)
+        records.append(record)
+        for name in arrays:
+            arrays[name].append(window_arrays[name])
+        if position % 25 == 0 or position == len(selections):
+            print("PREDICTOR_DECOMP %s %d/%d" % (partition, position, len(selections)), flush=True)
+    return records, {name: np.stack(values) for name, values in arrays.items()}
+
+
+def evaluate_predictor_decomp(cfg: DictConfig) -> Path:
+    if int(cfg.batch_size) != 1 or int(cfg.predictor_decomp_timestep) != 498:
+        raise ValueError("predictor decomposition requires batch_size=1 and timestep=498")
+    model, checkpoint_provenance = _load_strict_checkpoint(cfg)
+    source = GroundTruthSource(DATASET_ROOT)
+    smplx_cache: Dict[str, torch.nn.Module] = {}
+
+    holdout_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    holdout_cfg.dataset.split_partition = "test"
+    holdout_dataset = _scene_only_dataset(holdout_cfg)
+    holdout_selection, subset, stratum_weights = _exact_holdout_windows(
+        holdout_dataset,
+        source,
+        cfg.lingo_episode_dir,
+        cfg.lingo_episode_subset,
+        int(cfg.predictor_decomp_holdout_windows),
+        int(cfg.predictor_decomp_terminal_padded_windows),
+    )
+    holdout_records, holdout_arrays = _evaluate_predictor_decomp_cohort(
+        holdout_cfg,
+        holdout_dataset,
+        model,
+        holdout_selection,
+        "test",
+        smplx_cache,
+    )
+    del holdout_dataset
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    train_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    train_cfg.dataset.split_partition = "train"
+    train_dataset = _scene_only_dataset(train_cfg)
+    train_selection = _teacher_forced_train_windows(
+        train_dataset, int(cfg.predictor_decomp_train_windows), int(cfg.seed)
+    )
+    train_records, train_arrays = _evaluate_predictor_decomp_cohort(
+        train_cfg, train_dataset, model, train_selection, "train", smplx_cache
+    )
+    summary = hsi_diagnostics.summarize_predictor_decomp(
+        holdout_records,
+        train_records,
+        stratum_weights,
+        seed=int(cfg.seed),
+        replicates=int(cfg.predictor_decomp_bootstrap_replicates),
+    )
+    arrays = {
+        name: np.concatenate((holdout_arrays[name], train_arrays[name]), axis=0)
+        for name in hsi_diagnostics.PREDICTOR_DECOMP_ARMS
+    }
+    payload = {
+        "schema_version": 1,
+        "mode": "predictor_decomp",
+        "checkpoint": checkpoint_provenance,
+        "seed": int(cfg.seed),
+        "timestep": 498,
+        "protocol": {
+            "model_mode": "eval_fp32",
+            "all_model_forwards_is_sample": True,
+            "conditional_forwards": 2,
+            "cfg_combination": "offline conditional + w*(conditional-unconditional)",
+            "guidance": False,
+            "rollout": False,
+        },
+        "holdout_selection": subset,
+        "stratum_weights": stratum_weights,
+        "array_row_order": {
+            "holdout_rows": [record["data_idx"] for record in holdout_records],
+            "train_rows": [record["data_idx"] for record in train_records],
+        },
+        "summary": summary,
+        "records": {"holdout": holdout_records, "train": train_records},
+    }
+    output_dir = Path(cfg.lingo_output_dir) / (
+        "%s-%s" % (Path(str(cfg.ckpt_path)).stem, checkpoint_provenance["checkpoint_sha256"][:12])
+    )
+    return _write_array_payload(
+        output_dir, payload, arrays, file_name="predictor_decomp_xhat0.npz"
+    )
+
+
+def _single_window_chain_record(cfg, dataset, sampler, selection, smplx_cache):
+    from test_infbagel_hosi import seed_everything
+
+    inputs = _diagnostic_window_inputs(cfg, dataset, selection)
+    seed_everything(int(cfg.seed) + inputs["data_idx"])
+    human_dict = {
+        "rest_human_offsets": inputs["rest_offsets"][:, None].repeat(
+            1, WINDOW_FRAMES, 1, 1
+        ),
+        "betas": inputs["betas"],
+        "transl": inputs["translation_offset"],
+        "gender": inputs["gender"],
+    }
+    sampler.begin_p_sample_trace(int(cfg.single_window_chain_trace_timestep))
+    try:
+        samples, _ = sampler.p_sample_loop(
+            inputs["x_start"][:, :HISTORY_FRAMES],
+            inputs["mat"],
+            inputs["scene_flag"],
+            inputs["text_emb"],
+            inputs["pelvis_goal"],
+            inputs["scene_goal"],
+            inputs["object_goal"],
+            inputs["need_scene"],
+            inputs["need_pelvis_dir"],
+            inputs["pi"],
+            inputs["end_pi"],
+            inputs["seq_length"],
+            inputs["need_pi"],
+            inputs["is_loco"],
+            inputs["is_object"],
+            inputs["object_bps"],
+            inputs["object_points"],
+            inputs["object_rotation_ref"],
+            {},
+            {},
+            inputs["seq_name_dict"],
+            human_dict,
+            None,
+            float(cfg.guidance_weight),
+        )
+        trace = sampler.consume_p_sample_trace()
+    except Exception:
+        sampler.abort_p_sample_trace()
+        raise
+    final = samples[-1]
+    target_joints = _teacher_forced_smplx_joints(
+        inputs["x_start"],
+        dataset,
+        inputs["mat"],
+        inputs["translation_offset"],
+        inputs["betas"],
+        inputs["gender"],
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+    )
+    trace_joints = _teacher_forced_smplx_joints(
+        trace,
+        dataset,
+        inputs["mat"],
+        inputs["translation_offset"],
+        inputs["betas"],
+        inputs["gender"],
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+    )
+    final_joints = _teacher_forced_smplx_joints(
+        final,
+        dataset,
+        inputs["mat"],
+        inputs["translation_offset"],
+        inputs["betas"],
+        inputs["gender"],
+        smplx_cache,
+        int(cfg.smplx_batch_size),
+    )
+    values = hsi_diagnostics.single_window_chain_metrics(
+        trace_joints,
+        final_joints,
+        target_joints,
+        fps=float(cfg.fps) / float(DATA_STEP),
+    )
+    return (
+        {
+            "episode_id": str(selection["episode_id"]),
+            "stratum": str(selection["stratum"]),
+            "window_index": int(selection["window_index"]),
+            "data_idx": inputs["data_idx"],
+            "metrics": {name: float(value[0].cpu()) for name, value in values.items()},
+        },
+        trace[0].detach().to(torch.float32).cpu().numpy(),
+        final[0].detach().to(torch.float32).cpu().numpy(),
+    )
+
+
+def evaluate_single_window_chain(cfg: DictConfig) -> Path:
+    if int(cfg.batch_size) != 1 or int(cfg.single_window_chain_trace_timestep) != 498:
+        raise ValueError("single-window chain requires batch_size=1 and trace timestep=498")
+    model, checkpoint_provenance = _load_strict_checkpoint(cfg)
+    source = GroundTruthSource(DATASET_ROOT)
+    dataset = _scene_only_dataset(cfg)
+    selection, subset, stratum_weights = _exact_holdout_windows(
+        dataset,
+        source,
+        cfg.lingo_episode_dir,
+        cfg.lingo_episode_subset,
+        int(cfg.single_window_chain_holdout_windows),
+        int(cfg.single_window_chain_terminal_padded_windows),
+    )
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, model)
+    smplx_cache: Dict[str, torch.nn.Module] = {}
+    records, traces, finals = [], [], []
+    for position, item in enumerate(selection, start=1):
+        record, trace, final = _single_window_chain_record(
+            cfg, dataset, sampler, item, smplx_cache
+        )
+        record["array_row"] = len(records)
+        records.append(record)
+        traces.append(trace)
+        finals.append(final)
+        if position % 10 == 0 or position == len(selection):
+            print("SINGLE_WINDOW_CHAIN %d/%d" % (position, len(selection)), flush=True)
+    summary = hsi_diagnostics.summarize_single_window_chain(
+        records,
+        stratum_weights,
+        seed=int(cfg.seed),
+        replicates=int(cfg.single_window_chain_bootstrap_replicates),
+    )
+    payload = {
+        "schema_version": 1,
+        "mode": "single_window_chain",
+        "checkpoint": checkpoint_provenance,
+        "seed": int(cfg.seed),
+        "w": float(cfg.w),
+        "protocol": {
+            "sampler": "Sampler.p_sample_loop",
+            "timesteps": int(sampler.timesteps),
+            "history_frames": HISTORY_FRAMES,
+            "trace_timestep": int(cfg.single_window_chain_trace_timestep),
+            "future_occupancy": "Sampler._compute_occ_sample",
+            "guidance": False,
+        },
+        "holdout_selection": subset,
+        "stratum_weights": stratum_weights,
+        "summary": summary,
+        "records": records,
+    }
+    output_dir = Path(cfg.lingo_output_dir) / (
+        "%s-%s-w%s"
+        % (
+            Path(str(cfg.ckpt_path)).stem,
+            checkpoint_provenance["checkpoint_sha256"][:12],
+            str(cfg.w).replace(".", "p"),
+        )
+    )
+    return _write_array_payload(
+        output_dir,
+        payload,
+        {
+            "t498_model_output": np.stack(traces),
+            "final_sample": np.stack(finals),
+        },
+        file_name="single_window_chain_samples.npz",
+    )
 
 
 def evaluate_model(cfg: DictConfig) -> Path:
@@ -2553,10 +3084,15 @@ def main(cfg: DictConfig) -> None:
         path = _merge_shards(cfg)
     elif mode == "teacher_forced_boundary":
         path = evaluate_teacher_forced_boundary(cfg)
+    elif mode == "predictor_decomp":
+        path = evaluate_predictor_decomp(cfg)
+    elif mode == "single_window_chain":
+        path = evaluate_single_window_chain(cfg)
     else:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
-            "teacher_forced_boundary, got %s" % mode
+            "teacher_forced_boundary, predictor_decomp or single_window_chain, got %s"
+            % mode
         )
     print("Wrote %s" % path)
 

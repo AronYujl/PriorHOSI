@@ -19,6 +19,11 @@ pelvis:
   hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
   hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}
   hsi_guidance_posterior_coef1: ${oc.select:hsi_guidance_posterior_coef1,false}
+  hsi_guidance_frame_ramp: ${oc.select:hsi_guidance_frame_ramp,false}
+  hsi_guidance_energy: ${oc.select:hsi_guidance_energy,voxel}
+  hsi_guidance_sdf_weight: ${oc.select:hsi_guidance_sdf_weight,20000.0}
+  hsi_guidance_sdf_margin: ${oc.select:hsi_guidance_sdf_margin,0.03}
+  hsi_guidance_sdf_floor_height: ${oc.select:hsi_guidance_sdf_floor_height,0.02}
   # Checkpoint-owned E1 layout mode; absent top-level keys stay pre-589ac7f.
   occ_permute_fix: ${oc.select:occ_permute_fix,false}
   hsi_zero_object_x0: ${oc.select:hsi_zero_object_x0,false}

@@ -19,6 +19,14 @@ FUTURE_OCC_MODES: Tuple[str, ...] = (
     "gt_both",
 )
 TEACHER_FORCED_TIMESTEPS: Tuple[int, ...] = (498, 250, 50)
+PREDICTOR_DECOMP_ARMS: Tuple[str, ...] = (
+    "conditional",
+    "unconditional",
+    "cfg_w0",
+    "cfg_w0.5",
+    "cfg_w1",
+    "zero_velocity_history",
+)
 
 
 def validate_future_occ_mode(mode: str) -> str:
@@ -194,6 +202,354 @@ def teacher_forced_boundary_metrics(
             history_position, dim=-1
         ).mean(dim=(1, 2)),
         "history_rotation_channel_mae": history_rotation.abs().mean(dim=(1, 2)),
+    }
+
+
+def _first_two_fk_acceleration(
+    predicted_joints: torch.Tensor,
+    target_joints: torch.Tensor,
+    fps: float,
+) -> torch.Tensor:
+    clamped = torch.cat((target_joints[:, :2], predicted_joints[:, 2:4]), dim=1)
+    acceleration = (clamped[:, 2:4] - 2.0 * clamped[:, 1:3] + clamped[:, :2])
+    acceleration = acceleration * float(fps) ** 2
+    return torch.linalg.vector_norm(acceleration, dim=-1).mean(dim=(1, 2))
+
+
+def predictor_decomp_metrics(
+    predicted_joints: Mapping[str, torch.Tensor],
+    target_joints: torch.Tensor,
+    predicted_positions_m: Mapping[str, torch.Tensor],
+    target_positions_m: torch.Tensor,
+    *,
+    fps: float,
+) -> Dict[str, torch.Tensor]:
+    """Per-window D2 metrics for the frozen predictor decomposition."""
+    if tuple(sorted(predicted_joints)) != tuple(sorted(PREDICTOR_DECOMP_ARMS)):
+        raise ValueError("predictor-decomp joint arms do not match the frozen contract")
+    if tuple(sorted(predicted_positions_m)) != tuple(sorted(PREDICTOR_DECOMP_ARMS)):
+        raise ValueError("predictor-decomp position arms do not match the frozen contract")
+
+    result = {}
+    gt_acc = _first_two_fk_acceleration(target_joints, target_joints, fps)
+    result["gt_first2_fk_acc_mps2"] = gt_acc
+    for arm in PREDICTOR_DECOMP_ARMS:
+        joints = predicted_joints[arm]
+        result["%s_first2_fk_acc_mps2" % arm] = _first_two_fk_acceleration(
+            joints, target_joints, fps
+        )
+
+    history_velocity = target_joints[:, 1] - target_joints[:, 0]
+    for frame in range(2, 6):
+        multiplier = float(frame)
+        constant_position = target_joints[:, 1]
+        constant_velocity = target_joints[:, 0] + multiplier * history_velocity
+        conditional_error = torch.linalg.vector_norm(
+            predicted_joints["conditional"][:, frame] - target_joints[:, frame], dim=-1
+        ).mean(dim=1)
+        constant_position_error = torch.linalg.vector_norm(
+            constant_position - target_joints[:, frame], dim=-1
+        ).mean(dim=1)
+        constant_velocity_error = torch.linalg.vector_norm(
+            constant_velocity - target_joints[:, frame], dim=-1
+        ).mean(dim=1)
+        result["conditional_frame%d_fk_error_m" % frame] = conditional_error
+        result["constant_position_frame%d_fk_error_m" % frame] = constant_position_error
+        result["constant_velocity_frame%d_fk_error_m" % frame] = constant_velocity_error
+
+    velocity = target_positions_m[:, 1] - target_positions_m[:, 0]
+    response = (
+        predicted_positions_m["zero_velocity_history"][:, 2]
+        - predicted_positions_m["conditional"][:, 2]
+    )
+    direction = -2.0 * velocity
+    denominator = direction.square().sum(dim=1)
+    numerator = (response * direction).sum(dim=1)
+    result["history_velocity_gain"] = torch.where(
+        denominator > 0.0,
+        numerator / denominator,
+        torch.full_like(denominator, float("nan")),
+    )
+    return result
+
+
+def single_window_chain_metrics(
+    trace_joints: torch.Tensor,
+    final_joints: torch.Tensor,
+    target_joints: torch.Tensor,
+    *,
+    fps: float,
+) -> Dict[str, torch.Tensor]:
+    """Per-window D3 acceleration terms for the production reverse chain."""
+    return {
+        "gt_first2_fk_acc_mps2": _first_two_fk_acceleration(
+            target_joints, target_joints, fps
+        ),
+        "trace_t498_first2_fk_acc_mps2": _first_two_fk_acceleration(
+            trace_joints, target_joints, fps
+        ),
+        "final_first2_fk_acc_mps2": _first_two_fk_acceleration(
+            final_joints, target_joints, fps
+        ),
+    }
+
+
+def _episode_weighted_bootstrap(
+    records: Sequence[Mapping[str, object]],
+    stratum_weights: Mapping[str, float],
+    *,
+    seed: int,
+    replicates: int,
+):
+    if not records:
+        raise ValueError("diagnostic records must be non-empty")
+    metric_names = tuple(sorted(str(name) for name in records[0]["metrics"]))
+    by_episode = defaultdict(list)
+    episode_stratum = {}
+    for record in records:
+        values = np.asarray(
+            [float(record["metrics"][name]) for name in metric_names], dtype=np.float64
+        )
+        if not np.isfinite(values).all():
+            raise ValueError("diagnostic record contains non-finite metrics")
+        episode_id = str(record["episode_id"])
+        stratum = str(record["stratum"])
+        by_episode[episode_id].append(values)
+        episode_stratum[episode_id] = stratum
+    episode_vectors = {
+        episode_id: np.stack(values).mean(axis=0)
+        for episode_id, values in by_episode.items()
+    }
+    strata = defaultdict(list)
+    for episode_id in sorted(episode_vectors):
+        strata[episode_stratum[episode_id]].append(episode_id)
+    if set(strata) != set(stratum_weights):
+        raise ValueError("diagnostic strata do not match the registered weights")
+    weights = {str(key): float(value) for key, value in stratum_weights.items()}
+
+    def combine(selected):
+        total = np.zeros(len(metric_names), dtype=np.float64)
+        for stratum, episode_ids in selected.items():
+            total += weights[stratum] * np.stack(
+                [episode_vectors[episode_id] for episode_id in episode_ids]
+            ).mean(axis=0)
+        return total
+
+    point = combine({stratum: tuple(ids) for stratum, ids in strata.items()})
+    boot = np.empty((int(replicates), len(metric_names)), dtype=np.float64)
+    rng = np.random.default_rng(int(seed))
+    digest = hashlib.sha256()
+    for replicate in range(int(replicates)):
+        selected = {}
+        for stratum in sorted(strata):
+            episode_ids = strata[stratum]
+            indices = rng.integers(0, len(episode_ids), size=len(episode_ids), dtype=np.int64)
+            digest.update(indices.tobytes())
+            selected[stratum] = [episode_ids[index] for index in indices]
+        boot[replicate] = combine(selected)
+    return metric_names, point, boot, digest.hexdigest(), len(by_episode)
+
+
+def _ordinary_window_bootstrap(records, *, seed, replicates, metric_names):
+    matrix = np.stack(
+        [
+            np.asarray([float(record["metrics"][name]) for name in metric_names])
+            for record in records
+        ]
+    )
+    if not np.isfinite(matrix).all():
+        raise ValueError("diagnostic train records contain non-finite metrics")
+    point = matrix.mean(axis=0)
+    boot = np.empty((int(replicates), len(metric_names)), dtype=np.float64)
+    rng = np.random.default_rng(int(seed))
+    for replicate in range(int(replicates)):
+        indices = rng.integers(0, len(matrix), size=len(matrix), dtype=np.int64)
+        boot[replicate] = matrix[indices].mean(axis=0)
+    return point, boot
+
+
+def _metric_summary(metric_names, point, boot):
+    return {
+        name: {
+            "mean": float(point[index]),
+            "ci": [
+                float(np.quantile(boot[:, index], 0.025)),
+                float(np.quantile(boot[:, index], 0.975)),
+            ],
+        }
+        for index, name in enumerate(metric_names)
+    }
+
+
+def summarize_predictor_decomp(
+    holdout_records: Sequence[Mapping[str, object]],
+    train_records: Sequence[Mapping[str, object]],
+    stratum_weights: Mapping[str, float],
+    *,
+    seed: int = 42,
+    replicates: int = 10000,
+) -> Dict[str, object]:
+    """Apply the preregistered D2 K1-K4 decisions."""
+    metric_names, point, boot, digest, episode_count = _episode_weighted_bootstrap(
+        holdout_records, stratum_weights, seed=seed, replicates=replicates
+    )
+    train_point, train_boot = _ordinary_window_bootstrap(
+        train_records,
+        seed=seed,
+        replicates=replicates,
+        metric_names=metric_names,
+    )
+    index = {name: position for position, name in enumerate(metric_names)}
+
+    cfg_delta = (
+        point[index["cfg_w1_first2_fk_acc_mps2"]]
+        - point[index["cfg_w0_first2_fk_acc_mps2"]]
+    )
+    cfg_delta_boot = (
+        boot[:, index["cfg_w1_first2_fk_acc_mps2"]]
+        - boot[:, index["cfg_w0_first2_fk_acc_mps2"]]
+    )
+    cfg_delta_ci = np.quantile(cfg_delta_boot, (0.025, 0.975))
+    if cfg_delta_ci[1] < 0.0:
+        k1 = "CFG_COMPRESSES_SEAM"
+    elif cfg_delta_ci[0] > 0.0 and cfg_delta >= 0.12:
+        k1 = "SUPPORTED"
+    elif cfg_delta_ci[1] < 0.12:
+        k1 = "DEPRIORITIZED"
+    else:
+        k1 = "INCONCLUSIVE"
+
+    k2_ratio = (
+        point[index["conditional_frame2_fk_error_m"]]
+        / point[index["constant_velocity_frame2_fk_error_m"]]
+    )
+    if k2_ratio >= 1.0:
+        k2 = "SUPPORTED"
+    elif k2_ratio <= 0.7:
+        k2 = "DEPRIORITIZED"
+    else:
+        k2 = "INCONCLUSIVE"
+
+    velocity_gain = point[index["history_velocity_gain"]]
+    if velocity_gain < 0.5:
+        k3 = "SUPPORTED"
+    elif velocity_gain > 0.8:
+        k3 = "DEPRIORITIZED"
+    else:
+        k3 = "INCONCLUSIVE"
+
+    deterministic_ratio = (
+        point[index["conditional_first2_fk_acc_mps2"]]
+        / point[index["gt_first2_fk_acc_mps2"]]
+    )
+    d1_ratio = 2.0739302919402602
+    k4_erratum = abs(deterministic_ratio - d1_ratio) > 0.05
+    return {
+        "holdout": {
+            "window_count": len(holdout_records),
+            "episode_count": episode_count,
+            "metrics": _metric_summary(metric_names, point, boot),
+        },
+        "train": {
+            "window_count": len(train_records),
+            "metrics": _metric_summary(metric_names, train_point, train_boot),
+        },
+        "bootstrap": {
+            "seed": int(seed),
+            "replicates": int(replicates),
+            "holdout_resample_index_sha256": digest,
+        },
+        "derived": {
+            "cfg_w1_minus_w0_first2_fk_acc_mps2": {
+                "value": float(cfg_delta),
+                "ci": [float(cfg_delta_ci[0]), float(cfg_delta_ci[1])],
+            },
+            "conditional_over_constant_velocity_frame2_fk_error": float(k2_ratio),
+            "history_velocity_gain": float(velocity_gain),
+            "deterministic_conditional_over_gt": float(deterministic_ratio),
+            "d1_stochastic_clamped_over_gt": d1_ratio,
+            "d1_ratio_absolute_difference": float(abs(deterministic_ratio - d1_ratio)),
+        },
+        "decisions": {
+            "k1_cfg": k1,
+            "k2_constant_velocity": k2,
+            "k3_history_velocity_use": k3,
+            "k4_d1_erratum_required": bool(k4_erratum),
+            "d3_w0_authorized": k1 == "SUPPORTED",
+            "r3_res_may_be_proposed": k2 == "SUPPORTED" and k3 == "SUPPORTED",
+        },
+    }
+
+
+def summarize_single_window_chain(
+    records: Sequence[Mapping[str, object]],
+    stratum_weights: Mapping[str, float],
+    *,
+    seed: int = 42,
+    replicates: int = 10000,
+) -> Dict[str, object]:
+    """Apply the preregistered D3 chain-retention decision."""
+    metric_names, point, boot, digest, episode_count = _episode_weighted_bootstrap(
+        records, stratum_weights, seed=seed, replicates=replicates
+    )
+    index = {name: position for position, name in enumerate(metric_names)}
+    denominator = (
+        point[index["trace_t498_first2_fk_acc_mps2"]]
+        - point[index["gt_first2_fk_acc_mps2"]]
+    )
+    numerator = (
+        point[index["final_first2_fk_acc_mps2"]]
+        - point[index["gt_first2_fk_acc_mps2"]]
+    )
+    if denominator <= 0.0:
+        rho = None
+        rho_ci = None
+        decision = "INCONCLUSIVE"
+    else:
+        rho = float(numerator / denominator)
+        boot_denominator = (
+            boot[:, index["trace_t498_first2_fk_acc_mps2"]]
+            - boot[:, index["gt_first2_fk_acc_mps2"]]
+        )
+        boot_numerator = (
+            boot[:, index["final_first2_fk_acc_mps2"]]
+            - boot[:, index["gt_first2_fk_acc_mps2"]]
+        )
+        valid = boot_denominator > 0.0
+        rho_samples = boot_numerator[valid] / boot_denominator[valid]
+        rho_ci = (
+            None
+            if not len(rho_samples)
+            else [
+                float(np.quantile(rho_samples, 0.025)),
+                float(np.quantile(rho_samples, 0.975)),
+            ]
+        )
+        if rho >= 0.8:
+            decision = "SUPPORTED"
+        elif rho <= 0.5:
+            decision = "CHAIN_REPAIRS"
+        else:
+            decision = "INCONCLUSIVE"
+    return {
+        "window_count": len(records),
+        "episode_count": episode_count,
+        "metrics": _metric_summary(metric_names, point, boot),
+        "bootstrap": {
+            "seed": int(seed),
+            "replicates": int(replicates),
+            "holdout_resample_index_sha256": digest,
+        },
+        "derived": {
+            "rho": rho,
+            "rho_ci_over_positive_denominator_replicates": rho_ci,
+            "point_denominator_mps2": float(denominator),
+            "point_numerator_mps2": float(numerator),
+        },
+        "decision": {
+            "chain_retains_predictor_seam": decision,
+            "pause_regressor_training_line": decision == "CHAIN_REPAIRS",
+        },
     }
 
 

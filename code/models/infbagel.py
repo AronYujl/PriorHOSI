@@ -46,6 +46,52 @@ def cap_guidance_increment(gradient, cap):
     return gradient * torch.clamp(float(cap) / (norm + 1e-12), max=1.0)
 
 
+HSI_GUIDANCE_ENERGIES = ("voxel", "sdf")
+
+
+def validate_hsi_guidance_energy(value):
+    value = str(value)
+    if value not in HSI_GUIDANCE_ENERGIES:
+        raise ValueError(
+            "hsi_guidance_energy must be one of %s, got %r"
+            % (", ".join(HSI_GUIDANCE_ENERGIES), value)
+        )
+    return value
+
+
+def hsi_guidance_frame_weights(length, *, device, dtype, enabled):
+    """Return the frozen flat-to-ramp guidance schedule, or ``None`` when off."""
+    if not enabled:
+        return None
+    length = int(length)
+    weights = torch.ones(length, device=device, dtype=dtype)
+    weights[:4] = 0.0
+    weights[4] = 1.0 / 3.0
+    weights[5] = 2.0 / 3.0
+    return weights
+
+
+def apply_hsi_sdf_guidance_loss(
+    human_jnts,
+    scene_flag,
+    sdf_bank,
+    *,
+    weight=20000.0,
+    margin=0.03,
+    floor_height=0.02,
+    history_frames=2,
+):
+    """Mesh-SDF hinge energy on finite, in-bounds generated FK joints."""
+    sdf, out_of_bounds = sdf_bank.signed_distance(human_jnts, scene_flag)
+    scorable = torch.isfinite(sdf) & ~out_of_bounds
+    scorable &= human_jnts[..., 1] >= float(floor_height)
+    scorable[:, : int(history_frames)] = False
+    depth = torch.clamp(-(sdf + float(margin)), min=0.0)
+    if bool(scorable.any()):
+        return float(weight) * (depth.square()[scorable]).mean()
+    return human_jnts.sum() * 0.0
+
+
 OBJECT_CHANNEL_SLICE = slice(216, 232)
 
 
@@ -118,6 +164,19 @@ class Sampler:
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
         self.hsi_guidance_posterior_coef1 = bool(kwargs.get('hsi_guidance_posterior_coef1', False))
+        self.hsi_guidance_frame_ramp = bool(kwargs.get('hsi_guidance_frame_ramp', False))
+        self.hsi_guidance_energy = validate_hsi_guidance_energy(
+            kwargs.get('hsi_guidance_energy', 'voxel')
+        )
+        self.hsi_guidance_sdf_weight = float(
+            kwargs.get('hsi_guidance_sdf_weight', 20000.0)
+        )
+        self.hsi_guidance_sdf_margin = float(
+            kwargs.get('hsi_guidance_sdf_margin', 0.03)
+        )
+        self.hsi_guidance_sdf_floor_height = float(
+            kwargs.get('hsi_guidance_sdf_floor_height', 0.02)
+        )
         # False by default reproduces pre-589ac7f / B-v2 / C-v4; True is for
         # P17-OC and later checkpoints trained with the occ_list transpose fix.
         self.occ_permute_fix = bool(kwargs.get('occ_permute_fix', False))
@@ -135,6 +194,8 @@ class Sampler:
         )
         self._hsi_future_occ_oracle_local = None
         self._hsi_future_occ_telemetry = None
+        self._p_sample_trace_timestep = None
+        self._p_sample_trace = None
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
         # p_losses then takes a branch it cannot distinguish from the old code).
         # When > 0 it reweights the first two GENERATED frames of the position
@@ -195,6 +256,47 @@ class Sampler:
     def abort_hsi_future_occ_episode(self):
         self._hsi_future_occ_oracle_local = None
         self._hsi_future_occ_telemetry = None
+
+    def begin_p_sample_trace(self, timestep):
+        if self._p_sample_trace_timestep is not None:
+            raise RuntimeError("p-sample trace already active")
+        timestep = int(timestep)
+        if not 0 <= timestep < int(self.timesteps):
+            raise ValueError("p-sample trace timestep is out of range")
+        self._p_sample_trace_timestep = timestep
+        self._p_sample_trace = None
+
+    def consume_p_sample_trace(self):
+        if self._p_sample_trace_timestep is None:
+            raise RuntimeError("p-sample trace is not active")
+        if self._p_sample_trace is None:
+            raise RuntimeError(
+                "p-sample loop did not visit trace timestep %d"
+                % self._p_sample_trace_timestep
+            )
+        trace = self._p_sample_trace
+        self._p_sample_trace_timestep = None
+        self._p_sample_trace = None
+        return trace
+
+    def abort_p_sample_trace(self):
+        self._p_sample_trace_timestep = None
+        self._p_sample_trace = None
+
+    def _hsi_guidance_loss(self, human_jnts, scene_flag):
+        if self.hsi_guidance_energy == 'voxel':
+            return apply_hsi_guidance_loss(
+                human_jnts, scene_flag, self.dataset.get_nearest_free_voxel
+            )
+        return apply_hsi_sdf_guidance_loss(
+            human_jnts,
+            scene_flag,
+            self._get_pen_sdf_bank(),
+            weight=self.hsi_guidance_sdf_weight,
+            margin=self.hsi_guidance_sdf_margin,
+            floor_height=self.hsi_guidance_sdf_floor_height,
+            history_frames=self.auto_regre_num,
+        )
 
     def _compute_human_joints(self, predicted_noise, joints, mat, rest_human_offsets):
         global_jpos = transform_points(
@@ -1297,6 +1399,10 @@ class Sampler:
         # differs only in the arithmetic on those 16 channels and in whatever the
         # trunk then makes of them at the next step.
         model_output = zero_object_x0(model_output, is_object, self.hsi_zero_object_x0)
+        if self._p_sample_trace_timestep == int(t_index):
+            if self._p_sample_trace is not None:
+                raise RuntimeError("p-sample trace timestep was visited more than once")
+            self._p_sample_trace = model_output.detach().clone()
 
         model_mean = (
             extract(self.posterior_mean_coef1, t, x.shape) * model_output +
@@ -1337,7 +1443,7 @@ class Sampler:
 
                 if not is_object.any():
                     # scene-only batch: human-scene penetration guidance (no object geometry)
-                    loss = apply_hsi_guidance_loss(human_jnts, scene_flag, self.dataset.get_nearest_free_voxel)
+                    loss = self._hsi_guidance_loss(human_jnts, scene_flag)
                 else:
                     pred_seq_com_pos = x_start[:, :, 216:219].reshape(self.batch_size, self.dataset.max_window_size, 3)
                     pred_seq_com_pos = transform_points(self.dataset.denormalize_torch(pred_seq_com_pos, is_object=True), mat)
@@ -1377,6 +1483,14 @@ class Sampler:
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
                 if self.hsi_guidance_posterior_coef1:
                     gradient = gradient * extract(self.posterior_mean_coef1, t, x.shape)
+                frame_weights = hsi_guidance_frame_weights(
+                    gradient.shape[1],
+                    device=gradient.device,
+                    dtype=gradient.dtype,
+                    enabled=self.hsi_guidance_frame_ramp,
+                )
+                if frame_weights is not None:
+                    gradient = gradient * frame_weights.view(1, -1, 1)
                 # Per-step trust region on the guidance increment, per sample so the
                 # branch cannot key on sample 0 and break layout neutrality.  Off by
                 # default; the released path adds the increment unnormalised 499 times

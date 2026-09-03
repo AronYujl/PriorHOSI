@@ -5,6 +5,7 @@ import ast
 import os
 import random
 import sys
+import tempfile
 import unittest
 from collections import OrderedDict
 from pathlib import Path
@@ -225,6 +226,49 @@ class TeacherForcedBoundaryConfigTests(unittest.TestCase):
         self.assertEqual(cfg.teacher_forced_terminal_padded_windows, 12)
         self.assertEqual(cfg.teacher_forced_train_windows, 364)
         self.assertEqual(cfg.hsi_future_occ_jitter_scale, 0.0)
+
+    def test_new_diagnostic_and_factorial_configs_compose(self):
+        os.environ["ROOT_DIR"] = str(REPO)
+        with initialize_config_dir(
+            version_base=None, config_dir=str(REPO / "code" / "config")
+        ):
+            d2 = compose(config_name="config_sample_hsi_predictor_decomp")
+            d3 = compose(config_name="config_sample_hsi_single_window_chain")
+            factorial = compose(
+                config_name="config_sample_hsi_guidance_structure_factorial"
+            )
+
+        self.assertEqual(d2.lingo_hsi_mode, "predictor_decomp")
+        self.assertEqual(d2.predictor_decomp_holdout_windows, 352)
+        self.assertEqual(d3.lingo_hsi_mode, "single_window_chain")
+        self.assertEqual(d3.single_window_chain_trace_timestep, 498)
+        self.assertIs(factorial.sampler.pelvis.hsi_guidance_frame_ramp, False)
+        self.assertEqual(factorial.sampler.pelvis.hsi_guidance_energy, "voxel")
+        self.assertEqual(factorial.sampler.pelvis.hsi_guidance_sdf_weight, 20000.0)
+
+
+class DiagnosticArrayWriterTests(unittest.TestCase):
+    def test_npz_is_written_and_second_write_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output_dir = Path(directory) / "run"
+            payload = {"mode": "test"}
+            path = evaluator._write_array_payload(
+                output_dir,
+                payload,
+                {"sample": np.ones((2, 16, 232), dtype=np.float32)},
+                file_name="sample.npz",
+            )
+
+            self.assertTrue(path.is_file())
+            self.assertTrue((output_dir / "evaluation" / "sample.npz").is_file())
+            self.assertEqual(payload["array_archive"]["arrays"]["sample"]["dtype"], "float32")
+            with self.assertRaises(FileExistsError):
+                evaluator._write_array_payload(
+                    output_dir,
+                    {"mode": "test"},
+                    {"sample": np.ones((1,), dtype=np.float32)},
+                    file_name="sample.npz",
+                )
 
 
 @unittest.skipUnless(
