@@ -12545,7 +12545,7 @@ D5-U 子预算 `<=3 GPU-h`，D5-G 子预算 `<=8 GPU-h`，合计 `<=11 GPU-h`；
 软化系数、衰减长度、c1/c2 rollout、guidance/SDF sweep 或训练。D5 只评 B；是否允许 sampler
 rebase 进入 C/gate 留待 D5 结果后的用户裁决。
 
-### E. 2026-09-04 D5-U r0 操作失败与 r1 执行修订
+### E. 2026-09-03 D5-U r0 操作失败与 r1 执行修订
 
 首次 D5-U run `p1-hsi-b-r2-d5-rebase-unguided-s42-20260903` 在任何 Python 模型进程启动前随
 detached 执行上下文退出。launcher 记录了 8 个 child PID，但 8 份 shard log 均为零字节；GPU
@@ -12564,3 +12564,54 @@ context。新 run id 为 `p1-hsi-b-r2-d5-rebase-unguided-r1-s42-20260904`。D5-G
 误用了已进入 9 月 4 日的 host-local clock，而本会话适用日期仍为 2026-09-03。它已以 `aborted`
 封存，模型前向与 GPU 消耗均为 0，不产生科学结果且不复用。持久 PTY 重试 id 修正为
 `p1-hsi-b-r2-d5-rebase-unguided-r2-s42-20260903`。本勘误不改变 D5-U 的任何科学或成本定义。
+
+### G. D5 完成与判定（2026-09-03）
+
+D5-U-r2 与 D5-G 均在同一提交 `a08306cc9926b0f1b7ee21f44ad3115ddf421198` 上完成 canonical
+8-shard：每格 60 episodes / 364 windows、60 个 motion、全部 finite、每窗口 500 个 diffusion
+step / 1000 次 denoiser call，merge 均返回 0。主机原始日志带未来日期 2026-09-04；实验日期、run
+id 与本节日期均按本会话适用日期 **2026-09-03**，原始时间戳只保留为机器 provenance。
+
+五层内 episode 配对重采样、总体权重固定为 `{31,46,195,58,45}/375`、10,000 replicates、seed
+42 的主结果为：
+
+| cell | GT / control / candidate `boundary_jerk` | candidate − control，95% CI | excess reduction | 主机制 |
+|---|---:|---:|---:|---|
+| D5-U-r2 | 90.5412 / 126.5253 / **87.3206** | **−39.2046** `[−49.8618,−28.7103]` | **108.95%** | `SUPPORTED`（门槛 50%） |
+| D5-G | 90.5412 / 154.4627 / **107.6036** | **−46.8590** `[−59.9069,−34.3226]` | **73.31%** | `SUPPORTED`（门槛 40%） |
+
+两格的 `goal_planar_err_m`、`fs_nemf` 与 `contact_count` 均未显著恶化；`interior_jerk` 分别显著
+改善 `−8.2991 [−9.8834,−6.7974]` 与 `−10.0290 [−12.5838,−7.3956]`。但是 adoption guard
+在两格都失败：
+
+- D5-U-r2 `pen_ratio=0.0352912`，高于冻结绝对上限 0.02805；相对 control 的
+  `+0.0019239 [−0.0000644,+0.0039500]` 不显著，但绝对门槛已经足以判失败。
+- D5-G `pen_ratio=0.0295250`，高于 0.02805，并相对 R2-CG 显著增加
+  `+0.0064359 [+0.0037390,+0.0094597]`。
+
+因此 D5 总判定是 **MECHANISM SUPPORTED, ADOPTION GUARD FAILED**：rotation-aware c3 确实把
+rollout boundary jerk 大幅压低，但不是一个可直接采用的机制，因为它把人体移动到更多 scene
+penetration 中。不得因 jerk 通过而改 B/C production default 或把 c3 带入 C/gate。
+
+10 Hz 非门控遥测进一步说明 rebase 的形状：U 的 `a1/a2/third` 为
+`0.01836 / 1.76964 / 17.72316`，G 为 `0.01836 / 2.26209 / 22.64565`；c3 几乎钉死 seam 前侧
+加速度，但 seam 后侧速度失配仍在。U/G 的 raw 6D 第一轴 norm MAE 为 `0.01037/0.01188`、第二轴
+为 `0.00738/0.00873`、absolute cosine mean 为 `0.01264/0.01414`，投影后 matrix 最大正交误差
+均约 `7e-16`，没有发现 rotation 表示数值失效。骨盆净位移相对对应 sealed rollout 参照分别增加
+`+0.00976 [+0.00070,+0.01918] m` 与 `+0.03475 [+0.00443,+0.07320] m`，而终点 goal error 未显著
+变化；这与 penetration 上升一致，不能解释为简单的 episode goal 丢失。
+
+成本按各 shard log 生命周期求和：D5-U-r2 `3.395 GPU-h`，超过 3 h 子预算 `0.395 GPU-h`；D5-G
+`6.359 GPU-h`，低于 8 h 子预算；两格合计 **9.754 GPU-h**，仍低于 D5 总上限 11 GPU-h。r0
+失败与 r1 日期 abort 均为 0 model forward / 0 GPU-h。
+
+权威 payload SHA256：U
+`a0766617e47d5efee70652e34b4dce38ec6a4d2a44dd822d70022d22e27a2777`，G
+`002a3479c0944bfa720a471071779af892d0863491f7b807b3e0d6b792ca15b8`。terminal manifest SHA256：
+U-r2 `57e2eebddf9fe439c42005946e55b966db10f9ff5d054227e22dccf96ce8c9dc`，G
+`8b63e0c9dc2160e5d34db9300704853d0a2060f5c775f0e2a94c22a5b3c060a7`；两条 completion registry
+row 都填写了各自的非空顶层 `manifest_sha256`。统计共享 resample-index SHA256 为
+`9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821`。
+
+D5 在此停止。没有授权 soft/decayed c3、c1/c2 rollout、guidance/SDF sweep、R3 训练、C 修改或
+production default 变更；任何下一方向必须重新形成 dated preregistration 并由用户明确批准。
