@@ -12223,3 +12223,106 @@ SHA256 `5ca27b1dff71a1ebc94b8b8419325bc14a001d0df861520a6bbbf88dbc70af3a`；mani
 `a79bbb99ecee0483153320b0ef31bd47f8fb16bd20253d3ecf617a1e9223937c`，bootstrap resample-index
 SHA256 为 `c2e924964a5c37bd860eaf929d946b4f4374570017d2054e3f0ea4a39a692a59`。completion registry id
 为 `p1-hsi-b-r2-teacher-forced-boundary-r1-s42-20260903`。
+
+## 2026-09-03（D2 + D3 与 guidance 结构 2×2 重开；用户已批准）
+
+### A. 授权、范围与预算修订
+
+用户明确批准 D2、D3，并批准在 GPU 4–7 重开 guidance 分支。本节覆盖 D1 收尾中“不授权
+guidance 2×2”和 R2-CG 收尾中“guidance-structure 分支收止”的停止语句；历史判定与工件不改写。
+本轮仍是零训练，不授权 R3-RES、R3-HS、蒸馏或 checkpoint 选择。
+
+Claude 方案的 D3 `~1 GPU-h / w` 不足以支撑 352 个 500-step 窗口；本节按已测 364-window
+frozen-60 cell 修订为 **<=4 GPU-h / w**，不改科学协议。guidance 2×2 的 `flat + voxel` 控制格
+已经由封存 R2-CG full375 提供，按规则复用而不重复运行。新增上限：D2 0.5 GPU-h、D3 两个条件臂
+最多 8 GPU-h、guidance 三个新格最多 20.13 GPU-h。本次明确批准同时把累计上限从 400 修订到
+**416 GPU-h**；这只修正可执行成本，不增加实验臂。
+
+共同 checkpoint 固定为 R2 final EMA，SHA256
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`。共同 holdout 为 D1 已审计的
+352 个 exact-valid no-hand 窗口，来自 frozen `B_n60` 60 episode cohort；12 个 terminal padded 窗口
+继续排除。cohort SHA256 为 `d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`。
+
+### B. D2：t=498 预测器分解
+
+config 为 `code/config/config_sample_hsi_predictor_decomp.yaml`，run id 为
+`p1-hsi-b-r2-predictor-decomp-s42-20260903`。holdout 352 窗与 train 364 窗沿用 D1 选择规则、
+窗口身份噪声与五层总体权重；只跑 t=498。所有前向必须显式 `is_sample=true`。
+
+| arm | 定义 |
+|---|---|
+| P0 | conditional x-hat-0 |
+| P2 | unconditional x-hat-0，`is_uncondition=true` |
+| P1 | 离线 `P0 + w(P0-P2)`，`w in {0,0.5,1}` |
+| P3 | 只把 noisy input 的 frame 1 人体位置 84 通道改成 frame 0 |
+| K | 常位置与两帧匀速外推，无模型前向 |
+
+P0、P2、P3 和三个 P1 的完整 `[16,232]` float32 x-hat-0 写入压缩 NPZ；JSON 只保存路径、SHA256、
+shape、dtype、选择身份与冻结统计。holdout 先按 episode 取 window mean，再在五层内成对重采样并按
+`N_s/375` 重组；10,000 次，seed 42。
+
+1. **K1 CFG**：`delta=acceleration(w=1)-acceleration(w=0)`。CI 下界 `>0` 且点估计
+   `>=0.12 m/s^2` 为 SUPPORTED，D3 加 w=0；CI 上界 `<0.12` 为 DEPRIORITIZED。显著为负时记录
+   CFG 在压 seam，不加 w=0。
+2. **K2 基线**：网络 frame-2 的 SMPL-X 28-joint FK error / 匀速外推 error。`>=1.0` SUPPORTED，
+   `<=0.7` DEPRIORITIZED；frame 3/4/5 只报告。
+3. **K3 history 敏感度**：反归一化 84 位置通道上的
+   `g_v=<P3_f2-P0_f2,-2(f1-f0)>/||-2(f1-f0)||^2`；`<0.5` 为利用不足 SUPPORTED，
+   `>0.8` DEPRIORITIZED。
+4. **K4 D1 校正**：确定性 P0 的 `clamped/GT` 与 2.07393 相差 `>0.05` 时，在 D1 节追加
+   erratum，不追改旧 registry 或 payload。
+
+只有 K2 与 K3 同时 SUPPORTED，R3-RES 才可在下一轮被提出；本节不自动授权训练。
+
+### C. D3：GT history 起跑的单窗真实反向链
+
+config 为 `code/config/config_sample_hsi_single_window_chain.yaml`。w=1 run id 为
+`p1-hsi-b-r2-single-window-chain-w1-s42-20260903`；只有 K1 SUPPORTED 时才创建
+`p1-hsi-b-r2-single-window-chain-w0-s42-20260903`。每窗直接调用生产 `Sampler.p_sample_loop`，
+`set_fixed_points` 钉 GT frame 0/1，500-step diffusion，走 `_compute_occ_sample`，无外部 guidance；
+不得以 D1 的 `_compute_occ` 或 teacher-forced q-sample 代替。两 w 共享窗口身份 seed。
+
+每窗保存链内 t=498 model output 和最终 `[16,232]` 样本到 NPZ。主判据在分层总体均值上定义：
+`rho=(final_acc-GT_acc)/(xhat498_acc-GT_acc)`。分母不为正则 INCONCLUSIVE；`rho>=0.8` 为链条保留
+单步 seam SUPPORTED；`rho<=0.5` 为链条修复并暂停回归器训练线；其余 INCONCLUSIVE。若 w=0 存在，
+并列报告 final(w=0)-final(w=1) 的 paired CI，但不自动授权 full rollout。
+
+### D. guidance 结构 2×2
+
+固定 R2 final EMA、`hsi_guidance_posterior_coef1=true`、guided 500-step diffusion、frozen-60、seed 42。
+因子 A 为 frame flat/ramp；ramp 固定 `[0,0,0,0,1/3,2/3,1,1,...]`，即 history 与首两个 generated
+frame 为 0，frame 6 起为 1。因子 B 为现有 occupancy 最近自由体素 MSE，或 mesh-SDF hinge bundle。
+
+SDF 格使用三线性 `SceneSDFBank`、24 个 FK joint、`d=relu(-(sdf+0.03))`，排除 history、`y<0.02`、
+out-of-bounds 与 nonfinite，loss=`20000*mean(d^2)`。因几何源也从 occupancy/reachability grid 改为
+mesh SDF，factor B 只能解释为“能量/几何表示组合”，不得声称纯能量因果效应。
+
+| cell | frame | energy | execution |
+|---|---|---|---|
+| a00 | flat | voxel MSE | 复用封存 R2-CG payload SHA256 `1084f109...fd09f2` |
+| a10 | ramp | voxel MSE | GPU4，新 run |
+| a01 | flat | mesh SDF hinge | GPU5，新 run |
+| a11 | ramp | mesh SDF hinge | GPU6，新 run |
+
+三个新 run id 分别为 `p1-hsi-b-r2-cg-guidance-ramp-voxel-s42-20260903`、
+`p1-hsi-b-r2-cg-guidance-flat-sdf-s42-20260903`、
+`p1-hsi-b-r2-cg-guidance-ramp-sdf-s42-20260903`。GPU7 留给 D3 条件臂或恢复，不为占满设备重跑 a00。
+唯一 fragment 为 `code/config/config_sample_hsi_guidance_structure_factorial.yaml`。
+
+五层 paired bootstrap 10,000 次、seed 42，共享 resample index。主量是 ramp main effect：
+`0.5*(a10+a11)-0.5*(a00+a01)` 的 `boundary_jerk`。点估计 `<=-15.53` 且 CI 严格低于 0 为
+SUPPORTED；CI 下界 `>-15.53` 为 DEPRIORITIZED；其余 INCONCLUSIVE。两个 simple ramp effects、
+SDF main effect与 interaction 同表报告。
+
+任何 nonfinite 为硬失败。每个 ramp cell 的 `pen_ratio<=0.02805`，且不得相对同 episode 的 R2
+unguided 显著升高；`contact_count` 不得相对同 energy 的 flat cell 显著下降；`interior_jerk`、
+`fs_nemf`、`goal_planar_err_m`、`pen_depth_max` 不得显著退化。主判据过而守卫失败，只记机制支持、
+不可采用。不改生产默认；无论结果如何不追加 ramp 长度、SDF margin 或权重 sweep。
+
+### E. 生命周期
+
+三个实验各一条 preregistration row 和一个 override fragment，共用现有 evaluator、diagnostic module 与
+component tests；不新增实验脚本，不改 `code/priors/core/`。预注册提交后再实现；运行 targeted tests、
+一次 full authority suite、真实 LINGO smoke 和必要的性能 smoke；resolved config 无 `${` 后，才在
+clean worktree 中由 `tools/experiment.py start` 创建 manifest。完成后追加 completion row 与本节结果，
+本轮到此停止。

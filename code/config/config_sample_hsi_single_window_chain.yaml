@@ -1,0 +1,21 @@
+# D3: one production 500-step reverse chain per exact D1 holdout window.
+defaults:
+  - config_sample_infbagel_lingo_hsi
+  - _self_
+
+lingo_hsi_mode: single_window_chain
+lingo_episode_subset: ${oc.env:ROOT_DIR}/.claude/scratch/hetero_20260823/smoke60.json
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_single_window_chain
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+sample_type: diffusion
+use_guidance: false
+occ_permute_fix: true
+hsi_future_occ_mode: predicted
+single_window_chain_holdout_windows: 352
+single_window_chain_terminal_padded_windows: 12
+single_window_chain_trace_timestep: 498
+single_window_chain_bootstrap_replicates: 10000
+w: 1
+batch_size: 1
+export_motion: false
+seed: 42
