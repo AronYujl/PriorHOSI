@@ -12043,3 +12043,43 @@ null-scene pass 会把每格 scene-conditioned rollout 再跑一遍。该 pass �
 fully resolved configs 和 `tools/experiment.py start` manifests。任何 resolved interpolation、checkpoint
 hash、cohort hash、cell set、finite 或完整性失败都停止，不补跑成另一个定义。四格完成后只执行本节
 冻结的分层 factorial 分析并写 completion；不启动 R3、SDF arm 或额外 recentering sweep。
+
+### E. 完成与判定（2026-09-03）
+
+四格已在 8×RTX 3090 上完成：32/32 shards 成功，四次 merge 均返回 0；每格均为冻结的 60 episodes /
+364 windows、60 个有限 motion，并共享 checkpoint、cohort 与 paired sequence set。`a00=predicted`
+还逐数组复现了历史 R2 的 22 个 motion NPZ 数组，说明默认路径未被诊断开关改变。
+
+五层内 paired 重采样、总体权重固定为 `{31,46,195,58,45}/375`、seed 42、10,000 replicates 的结果为：
+
+| contrast / cell | `boundary_jerk` | 95% CI | 判定 |
+|---|---:|---:|---|
+| `a00` predicted | 126.5253 | n/a | reference |
+| `a10` GT crop | 123.0261 | n/a | n/a |
+| `a01` GT coordinate | 125.2249 | n/a | n/a |
+| `a11` GT both | 123.2728 | n/a | n/a |
+| `a10-a00` | −3.4992 | [−9.7555, +2.5229] | crop-only 不显著 |
+| `a01-a00` | −1.3004 | [−2.6344, −0.1961] | coordinate-only 显著但幅度小 |
+| crop main effect | −2.7257 | [−9.1054, +3.2324] | 不显著 |
+| coordinate main effect | −0.5268 | [−1.6415, +0.5686] | 不显著 |
+| interaction | +1.5471 | [−0.3527, +3.6024] | 不显著 |
+| **`a11-a00` primary** | **−3.2525** | **[−9.6402, +2.8387]** | **INCONCLUSIVE** |
+
+primary 不是 SUPPORTED：CI 跨 0，且点估计没有达到冻结的 `<=−3.38`；也不是 DEPRIORITIZED：CI 下界
+`−9.6402` 没有高于 `−3.38`。因此数据没有证明 future occupancy mismatch 是足以关闭一半残余 jerk
+缺口的稳定原因，也没有排除该幅度。coordinate-only simple effect 虽显著，但 factorial coordinate
+main effect 不显著且只有 `−0.5268`，不能据此单独晋级 coordinate 路线。
+
+`a11-a00` 的 `interior_jerk` 改善 `−2.1089`，CI `[−4.2529,−0.1838]`；`fs_nemf`、
+`goal_planar_err_m`、`pen_ratio`、`pene_pct_scene`、`pen_depth_max`、`contact_count` 均无显著恶化，
+`finite_motion` 保持 1.0。守卫通过只说明本次 oracle 操纵没有发现显著副作用，不把不确定的主机制变成
+训练依据。
+
+本诊断按冻结规则以 **INCONCLUSIVE** 收止；不批准 R3、SDF、guidance、额外 recentering sweep 或任何
+新 GPU workload。下一方向必须重新提出可检验机制、更新本计划与 registry，并由用户明确批准。
+
+权威统计工件为 `results/r2_future_crop_factorial_eval/factorial_bootstrap.json`，SHA256
+`463ef6ef903dc48ee9ea4f08d363247f8c4532ec434e1e5f0dd7d6ae78f2a200`；共享 resample index SHA256
+为 `9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821`。四个 finished manifests
+分别保存在上述四个 run id 下；completion registry id 为
+`p1-hsi-b-r2-future-crop-factorial-completion-s42-20260903`。
