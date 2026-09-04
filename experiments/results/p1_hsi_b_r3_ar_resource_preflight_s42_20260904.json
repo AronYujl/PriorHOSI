@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hsi-b-r3-ar-resource-preflight-s42-20260904",
+  "created_at": "2026-09-04T11:55:00+08:00",
+  "git_commit": "04436a4c0c156dd052414977cad43cf5b6e74906",
+  "hardware": {
+    "physical_gpus": [0, 1, 2, 3],
+    "gpu_name": "NVIDIA GeForce RTX 3090",
+    "micro_batch_per_gpu": 512,
+    "gradient_accumulation_steps": 1,
+    "effective_batch_size": 2048
+  },
+  "memory": {
+    "max_peak_allocated_bytes": 13405228032,
+    "max_peak_reserved_bytes": 13700694016
+  },
+  "instrumented_epoch0": {
+    "optimizer_updates": 656,
+    "all_rank_gradient_records": 656,
+    "all_gradients_finite": true,
+    "gradient_norm_min": 0.30689275,
+    "gradient_norm_median": 0.74676198,
+    "gradient_norm_max": 44.10889816,
+    "seconds_per_update_post128_mean": 0.5396168,
+    "projected_wall_hours": 21.9227,
+    "projected_gpu_hours": 87.6907,
+    "returncode": 0
+  },
+  "formal_path_no_grad_instrumentation": {
+    "optimizer_updates": 256,
+    "timing_interval": "step 10 to step 250",
+    "seconds_per_update": 0.544023472458745,
+    "projected_wall_hours": 22.101709156792708,
+    "projected_gpu_hours": 88.40683662717083,
+    "last_loss": 0.5667744874954224,
+    "status": "stable",
+    "returncode": 0
+  },
+  "budget_amendment": {
+    "previous_training_gpu_hours_max": 86.7,
+    "revised_training_gpu_hours_max": 90.0,
+    "previous_increment_gpu_hours_max": 153.3,
+    "revised_increment_gpu_hours_max": 156.6,
+    "approved_by_user": true,
+    "scientific_protocol_changed": false
+  }
+}

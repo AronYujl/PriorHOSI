@@ -12845,3 +12845,20 @@ R3 fragment 添加 checkpoint override。单卡实测 15.264 秒，即 0.00424 G
 上限。完整记录为
 `experiments/results/p1_hsi_b_r3_ar_t0_preflight_s42_20260904.json`。这个 operational branch
 不构成 cold-start 优于 warm-start 的因果证据。
+
+### G. 2026-09-04 训练预算修订（用户已批准）
+
+4×512 完整 epoch-0 资源预检完成 656/656 updates，四个 rank 的梯度记录均有限；峰值显存为
+13,405,228,032 bytes allocated、13,700,694,016 bytes reserved。带全模型梯度范数仪器的 post-128
+均值为 0.539617 秒/update，对完整 146,255 updates 外推 87.6907 GPU-h。随后按正式默认关闭该
+仪器，独立运行 256 updates；step 10--250 实测 0.544023 秒/update，对正式训练外推
+**88.4068 GPU-h**。两次 workload 均退出码 0，清理期 CUDA IPC warning 不影响已写出的 stable
+metrics。
+
+原训练上限 86.7 GPU-h 对应 0.533519 秒/update，低于无仪器实测吞吐 1.97%，因此未创建正式
+manifest、未分配 run id、未启动训练。用户在看到上述实测值后明确批准只修订成本上限：R3-AR
+训练预算由 **86.7 调整为 90.0 GPU-h**，总增量上限由 **153.3 调整为 156.6 GPU-h**；零训练
+检查 0.5 GPU-h、full375 双格评测 66.1 GPU-h 和 Phase 1C 累计 600 GPU-h 上限均不变。模型、
+random 初始化、数据、4×512 布局、146,255 updates、LR schedule、EMA、评估、统计、判据和禁止项
+全部不变。紧凑资源记录为
+`experiments/results/p1_hsi_b_r3_ar_resource_preflight_s42_20260904.json`。
