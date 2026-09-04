@@ -11,4 +11,3 @@ occ_list_layout_repaired: true
 use_guidance: false
 hsi_guidance_posterior_coef1: true
 hsi_guidance_scale: 1.0
-mixer_inference_engineering: true

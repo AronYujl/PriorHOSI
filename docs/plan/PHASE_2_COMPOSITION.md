@@ -1627,3 +1627,64 @@ If both gates pass, rerun the already frozen raw-versus-kinematic comparison und
 ids `p2-mixer-rootsplit-r2cg-eng1-s42-20260904` and
 `p2-mixer-kinematic-r2cg-eng1-s42-20260904`; all scientific gates and pairings from
 P2-KIN-R2CG remain unchanged. The aborted id is never aliased to either row.
+
+## 2026-09-04 — P2-R2CG-ENG1 completion: equivalent, throughput gate failed
+
+Implementation commit `fcfe3cb` added the default-off engineering path and repaired
+the sharded launcher's final-override continuation. The authority suite collected 903
+tests: 897 passed and 6 skipped in 158.64 seconds. The contract-freeze test passed and
+no file under `code/priors/core/` changed.
+
+The fixed real-window gate ran on `infbagel-4gpu`, RTX 3090 GPU 0, at that exact commit.
+After one warm-up per mode, three interleaved baseline/candidate pairs measured:
+
+| mode | synchronized seconds/window | median | peak sampling allocation |
+|---|---:|---:|---:|
+| baseline | 64.589, 64.887, 65.796 | 64.887 | 426.014 MiB |
+| ENG1 | 62.377, 65.503, 62.524 | 62.524 | 425.389 MiB |
+
+The speedup is 1.0378x, or 3.64%, against the preregistered 1.15x promotion threshold.
+The numerical gate passed completely: all 500 retained posterior states and the final
+232x16 tensor were bitwise equal; final tensor SHA-256 was
+`1631afb61598ece7c421671493003edebcfd9bc19e8f0028bed03793f865b980`; sampler audits,
+CPU RNG and CUDA RNG were exactly equal; R2 guidance ran 499 times; peak allocation did
+not increase. A supporting real-geometry occupancy-only probe was also bitwise/RNG
+equal and improved 100 calls from 0.941 to 0.595 seconds (1.582x), proving that the
+transformation works but that occupancy is not the dominant full-chain cost.
+
+**Verdict: equivalence PASS, performance FAIL; engineering null.** Keep the reusable
+default-off implementation and the launcher correctness fix, but remove the opt-in from
+both R2-CG formal configs. Do not launch either `eng1` 469-episode id.
+
+A follow-up read-only CUDA-event profile on the same real window measured 65.996 seconds
+total: HOI x0 2.374 seconds, HSI x0 20.557 seconds (6.413 occupancy and 13.937 across
+the 1,000 conditional/unconditional forwards), and R2 guidance 42.494 seconds. Perfect
+same-step overlap of HOI and HSI prediction could save at most 2.374 seconds, yielding
+63.622 seconds or 1.0373x. A two-GPU shard would therefore halve four-way shard
+concurrency for at most 3.60% lower per-window latency; its ideal whole-worker throughput
+is only about 0.519x the current one. Single-GPU dual streams have the same upper bound
+before contention. Reject both as the next primary optimization. The next proposal must
+profile and optimize the 42.494-second R2 human-scene guidance path while preserving the
+frozen 499-call posterior recipe and its exact gradient.
+
+## 2026-09-04 — P2-KIN-R2CG-r1: resume original inference after ENG1 null
+
+**Approved by the user 2026-09-04.** Further inference engineering is deferred because
+the current HSIPrior will later be distilled. Resume the already frozen P2-KIN-R2CG
+scientific comparison on the original numerical path with
+`mixer_inference_engineering=false`. This is not a new mixer direction and changes no
+checkpoint, guidance rule, operator, pelvis, RNG, sharding, metric or gate.
+
+The aborted raw id and the unpromoted `eng1` ids remain unavailable. Allocate fresh
+identities:
+
+| cell | fresh run id | inference path |
+|---|---|---|
+| raw control | `p2-mixer-rootsplit-r2cg-r1-s42-20260904` | original P2-ROOT + R2-CG |
+| candidate | `p2-mixer-kinematic-r2cg-r1-s42-20260904` | original P2-KIN + R2-CG |
+
+Run the raw control first on four one-GPU scene-level shards. Only after it completes,
+returns and merges with four zero exit codes may the kinematic row start. Partial output
+from the aborted lifecycle is neither an input nor a baseline. The expected latency is
+about 65 seconds/window, so the campaign is intentionally accepted as slow; no further
+optimization or parallel topology change is authorized in this lifecycle.

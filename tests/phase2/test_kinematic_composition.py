@@ -333,8 +333,7 @@ class KinematicConfigTests(unittest.TestCase):
             self.assertEqual(cfg.mixer_hsi_w, 1)
             self.assertEqual(cfg.mixer_hsi_object_voxel_mode, 'occupied')
             self.assertTrue(cfg.occ_list_layout_repaired)
-            self.assertTrue(cfg.mixer_inference_engineering)
-            self.assertTrue(cfg.sampler.pelvis.inference_engineering)
+            self.assertFalse(cfg.sampler.pelvis.inference_engineering)
 
         self.assertIsNone(raw.sampler.pelvis.body_composer)
         self.assertEqual(

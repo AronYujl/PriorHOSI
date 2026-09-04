@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p2-mixer-r2cg-inference-engineering-s42-20260904",
+  "classification": "equivalent_but_throughput_gate_failed",
+  "implementation_commit": "fcfe3cb30315acd15f40f34e912a17db041b36a6",
+  "worker": "infbagel-4gpu",
+  "gpu": "RTX 3090 GPU 0",
+  "fixed_real_window": "first canonical scene/item, first generated window",
+  "warmup_seconds": {
+    "baseline": 64.9334446778521,
+    "optimized": 63.098072121851146
+  },
+  "baseline_seconds": [
+    64.5891645560041,
+    64.88697464810684,
+    65.796237683855
+  ],
+  "optimized_seconds": [
+    62.37654425390065,
+    65.5029878928326,
+    62.524424818810076
+  ],
+  "baseline_median_seconds": 64.88697464810684,
+  "optimized_median_seconds": 62.524424818810076,
+  "speedup": 1.037786030597534,
+  "required_speedup": 1.15,
+  "baseline_peak_mib": 426.013671875,
+  "optimized_peak_mib": 425.38916015625,
+  "equivalence": {
+    "retained_states": 500,
+    "all_states_bitwise_equal": true,
+    "final_output_bitwise_equal": true,
+    "final_output_sha256": "1631afb61598ece7c421671493003edebcfd9bc19e8f0028bed03793f865b980",
+    "sampler_audit_exactly_equal": true,
+    "cpu_rng_equal": true,
+    "cuda_rng_equal": true,
+    "guidance_calls": 499,
+    "peak_memory_not_increased": true
+  },
+  "occupancy_probe": {
+    "calls": 100,
+    "baseline_seconds": 0.9407763187773526,
+    "optimized_seconds": 0.5947571638971567,
+    "speedup": 1.5817822396840069,
+    "bitwise_equal": true,
+    "rng_equal": true
+  },
+  "parallelism_profile": {
+    "wall_seconds": 65.99578047683463,
+    "hoi_x0_seconds": 2.373857024431226,
+    "hsi_x0_seconds": 20.55746451950074,
+    "hsi_occupancy_seconds": 6.41270866775512,
+    "hsi_cond_uncond_forward_seconds": 13.937482664108268,
+    "r2_guidance_seconds": 42.49430628967288,
+    "ideal_hoi_hsi_overlap_saved_seconds": 2.373857024431226,
+    "ideal_overlap_speedup": 1.037311934245546,
+    "ideal_overlap_percent": 3.5969830302476393,
+    "ideal_two_gpu_worker_throughput_ratio": 0.518655967122773
+  },
+  "formal_quality_metrics_computed": false,
+  "formal_campaigns_started": false,
+  "next_target": "bitwise-equivalent engineering reduction of the R2 guidance path"
+}
