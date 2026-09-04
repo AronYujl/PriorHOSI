@@ -12862,3 +12862,25 @@ manifest、未分配 run id、未启动训练。用户在看到上述实测值�
 random 初始化、数据、4×512 布局、146,255 updates、LR schedule、EMA、评估、统计、判据和禁止项
 全部不变。紧凑资源记录为
 `experiments/results/p1_hsi_b_r3_ar_resource_preflight_s42_20260904.json`。
+
+### H. 2026-09-04 operational interruption 与 from-random r1 retry（用户已批准）
+
+首个正式 run `p1-hsi-b-r3-ar-s42-20260904` 从 random initialization 正常训练至 global update
+8472，最后 rank-0 loss 为 0.07643247；全部已记录 loss 有限，主机没有 OOM、NVIDIA Xid、Python
+traceback 或 core dump。承载 workload 的前台 PTY 于 13:17:33 关闭，进程随之终止；最近的 durable
+rolling state 仅为 epoch 0 / update 656。一次同 run resume 实际成功恢复 model、Adam、scheduler、
+EMA、四 rank RNG 与 `c3` geometry，LR 和 loss 均有限；但这是本项目首次正式走 resume，用户选择
+不以它作为候选训练路径。该 run 在 epoch 1 step 290 停止，未产生 final EMA 或任何科学结果，已由
+`tools/experiment.py finish/register` 以 operational failure 封存，run id 不复用。
+
+获批 retry 为 `p1-hsi-b-r3-ar-r1-s42-20260904`。它继续使用同一已提交源码和
+`code/config/config_train_hsi_b_r3_ar.yaml`，唯一 operational override 是
+`exp_name=hsi_b_r3_ar_r1`，只为隔离新输出目录和 checkpoint 名；`load_state_dict=false`、
+`ckpt_path=""`、`resume_from=""`、seed 42、4×512、146,255 updates、objective、LR schedule、EMA、
+评估与判据全部不变。训练由 detached GNU screen `hsi-r3-ar-r1` 的 `-dmS` fork 模式承载，screen
+server 必须 PPID 1；日志和 terminal exit status 写入新 run 目录，Codex PTY 不承载 workload。
+
+失败 run 与短 resume 尝试按正式稳态吞吐折算共 5.2678 GPU-h；新完整训练外推 87.8303 GPU-h，
+合计 93.0982 GPU-h。用户据此批准训练成本上限由 **90.0 调整为 94.0 GPU-h**，R3-AR 总增量
+上限由 **156.6 调整为 160.6 GPU-h**。零训练检查 0.5 GPU-h、full375 双格评测 66.1 GPU-h、
+Phase 1C 累计 600 GPU-h 及所有科学停止规则不变。
