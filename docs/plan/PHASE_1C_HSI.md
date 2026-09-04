@@ -12683,3 +12683,43 @@ D6-A/U/G 总预算 `<=14 GPU-h`，Phase 1C 累计上限由 428 修订为 **440 G
 与全部守卫通过，仅说明 B sampler 机制成立，是否进入 C/gate 仍需用户另行裁决。若 D6-A
 `DEPRIORITIZED` 或 D6-B 任一关键 adoption guard 失败，关闭推理侧 hard-anchor 路线；R3 训练仅可
 作为下一轮新预注册提出，不在本节执行。三格完成后停止，不运行其他 GPU 实验。
+
+### E. 2026-09-04 结果与停止判定
+
+D6-A 正式运行 `p1-hsi-b-r2-d6-rebase-single-window-s42-20260904` 正常完成全部 **352/352** 个
+GT-history 窗，覆盖 frozen 60 episodes；500-step production reverse chain、w=1、无 guidance、
+`c3 + min_timestep=184` 与预注册一致，所有统计量 finite。10,000 次 seed-42 配对 bootstrap 的
+resample-index SHA256 为
+`c2e924964a5c37bd860eaf929d946b4f4374570017d2054e3f0ea4a39a692a59`。
+
+冻结主量给出：GT / c0 / D6-A 的 10 Hz cross-seam third difference 分别为
+`11.55829 / 46.77835 / 46.75229 m/s^3`；对应 c0 excess `35.22006`、D6-A excess `35.19400`，
+excess 保留比为 **0.999260**，95% CI **[0.998968, 0.999523]**。该值远高于冻结的
+`>=0.60` 停止阈值，因此正式判定为 **DEPRIORITIZED**。仅在 `t>=184` 施加 c3 到最终样本时几乎
+完全退化回 c0，并未保留 D4 全程 c3 的 seam 收益。
+
+并列 10 Hz 遥测也显示两者近乎相同：a1 的 GT / c0 / D6-A 为
+`1.20310 / 3.03194 / 3.02979 m/s^2`，a2 为
+`1.10786 / 2.23214 / 2.23105 m/s^2`。D6-A 相对 c0 的 frame 3--6 FK error 差为
+`-4.586e-5 m`，95% CI `[-6.191e-5,-3.103e-5]`；frame 3--8 internal acceleration 差为
+`-3.281e-4 m/s^2`，95% CI `[-7.637e-4,-1.648e-5]`；a2 差为 `-0.00110 m/s^2`，95% CI
+`[-0.00205,-0.00036]`。这些 guard 没有恶化，但幅度不足以改变主停止判定。
+
+运行从 manifest start 到 payload 完成计 **1.894 GPU-h**，低于 D6-A `2.5 GPU-h` 子预算；D6
+实际总成本也因此为 1.894 GPU-h。正式 workload 前有两个 0-forward / 0-GPU-h 的启动器事件：主机
+没有 `tmux`，随后命令执行器回收了 `nohup` 子进程；二者均未进入模型初始化，最终由可续接 PTY
+完成同一未重用 manifest。主机时钟的 2026-09-04 时间戳按原始机器 provenance 保留。
+
+权威 per-window payload SHA256 为
+`f0cfce74bf584cc2c5abcd88171e7d9d1adc842a843f58fd272eec03753038a1`，数组 archive SHA256 为
+`d5c3b9e8d3a6e6f70d11f9f78f6a018e96dd75f1a332a05bbb5498db989a892c`，resolved config SHA256 为
+`905460f770561c0878e8b389f4ac74beebdcb15928befb3943de4ea8ade5658b`，compact metrics SHA256 为
+`aac145aad9383cb26db0acf38364f2712757063417e59188d55fd8c19d7024da`，terminal manifest SHA256 为
+`4d177efd6b19f61713bf0202fb72681a9b89c8baa1919be805c2859432994ab7`。completion registry row 已
+填写非空顶层 `manifest_sha256`。
+
+依冻结停止规则，**D6-B-U 与 D6-B-G 均不启动**，因此没有 30 Hz boundary-jerk、penetration、
+contact 或 text-motion rollout 数值；这是 D6-A 预注册门主动节省后续 12 GPU-h 预算的结果，不是
+遗漏指标。推理侧 hard-anchor 路线在此关闭；不运行 timestep sweep、soft/decayed rebase、R3
+训练、C/consistency 修改或 production-default 变更。任何下一方向必须另行 dated preregistration
+并由用户明确批准。
