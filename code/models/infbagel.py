@@ -85,6 +85,11 @@ class Sampler:
         dose = kwargs.get('hsi_guidance_dose_scale', None)
         self.hsi_guidance_dose_scale = None if dose is None else float(dose)
         self.hsi_guidance_alpha_decay = bool(kwargs.get('hsi_guidance_alpha_decay', False))
+        # R2-CG, transferred from phase/01c-hsi commit b9296ed with explicit
+        # user approval. Off is byte-identical to every earlier sampler row.
+        self.hsi_guidance_posterior_coef1 = bool(
+            kwargs.get('hsi_guidance_posterior_coef1', False)
+        )
         # B-match seam term, OFF by default (0.0 = the released arithmetic, and
         # p_losses then takes a branch it cannot distinguish from the old code).
         # When > 0 it reweights the first two GENERATED frames of the position
@@ -1223,6 +1228,8 @@ class Sampler:
                     loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
+                if self.hsi_guidance_posterior_coef1:
+                    gradient = gradient * extract(self.posterior_mean_coef1, t, x.shape)
                 # Per-step trust region on the guidance increment, per sample so the
                 # branch cannot key on sample 0 and break layout neutrality.  Off by
                 # default; the released path adds the increment unnormalised 499 times

@@ -1,0 +1,14 @@
+# P2-KIN-R2CG candidate. The inherited P2-KIN composer owns the same branches
+# as the raw control, but selects local rotations and reconstructs positions.
+defaults:
+  - config_sample_hosi_kinematic
+  - _self_
+
+hsi_ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+hsi_checkpoint_sha256: 7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe
+occ_list_layout_repaired: true
+
+use_guidance: false
+hsi_guidance_posterior_coef1: true
+hsi_guidance_scale: 1.0
+

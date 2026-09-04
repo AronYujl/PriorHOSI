@@ -47,10 +47,13 @@ occupancy alphabet has a distinct value for it.  See ``_resolve_object_voxels``.
 from typing import Optional
 
 import torch
+from pytorch3d import transforms
 
+from guidance_loss import apply_hsi_guidance_loss
 from priors.core.representation import REPRESENTATION
 from priors.core.window_codec import project_to_so3
 from priors.hoi.diffusion import prepare_clean_x0
+from utils import transform_points
 
 from .composition import (
     ExpertOutputs,
@@ -70,7 +73,7 @@ class HOSIComposedSampler:
 
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
                  channel_mask='human', hsi_object_voxel_mode='occupied',
-                 body_composer=None):
+                 body_composer=None, hsi_guidance_scale=1.0):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -93,10 +96,21 @@ class HOSIComposedSampler:
         self.body_composer = body_composer
         self.channel_mask = channel_mask
         self.hsi_object_voxel_mode = hsi_object_voxel_mode
+        self.hsi_guidance_scale = float(hsi_guidance_scale)
+        if self.hsi_guidance_scale < 0:
+            raise ValueError('hsi_guidance_scale must be non-negative')
         self.dataset = None
         self.student_model = None
         self.compose_calls = 0
         self.hsi_object_voxels_remapped = 0
+        self.hsi_guidance_calls = 0
+        # Keep per-step telemetry on device. Converting each value to a Python
+        # scalar would force 499 CUDA synchronizations per window and turn audit
+        # instrumentation into a large, protocol-changing latency tax.
+        self._hsi_guidance_nonfinite_steps = None
+        self._hsi_guidance_gradient_max_abs = None
+        self._hsi_guidance_gradient_square_sum = None
+        self.hsi_guidance_gradient_values = 0
         if body_composer is not None and not gate_is_identity(self.gate, 0):
             raise ValueError(
                 'body_composer replaces the raw gate, so gate must remain the '
@@ -163,8 +177,37 @@ class HOSIComposedSampler:
             # occupancy reads the previous composed clean prediction.  There is
             # deliberately no private-HSI-pelvis switch.
             'scene_query_pelvis': 'shared_current_and_previous_composed_x0',
+            'hsi_posterior_guidance': {
+                'enabled': self._hsi_posterior_guidance_enabled(),
+                'energy': 'guidance_loss.apply_hsi_guidance_loss',
+                'evaluated_on': 'actual_composed_clean_body',
+                'posterior_coef1': self._hsi_posterior_guidance_enabled(),
+                'guidance_scale': self.hsi_guidance_scale,
+                'steps': '499_through_1' if self._hsi_posterior_guidance_enabled() else None,
+                'calls': self.hsi_guidance_calls,
+                'nonfinite_steps': self._audit_scalar(
+                    self._hsi_guidance_nonfinite_steps, int,
+                ),
+                'gradient_max_abs': self._audit_scalar(
+                    self._hsi_guidance_gradient_max_abs, float,
+                ),
+                'gradient_rms': (
+                    (self._audit_scalar(
+                        self._hsi_guidance_gradient_square_sum, float,
+                    ) / self.hsi_guidance_gradient_values) ** 0.5
+                    if self.hsi_guidance_gradient_values else 0.0
+                ),
+                'object_contact_dependency': False,
+                'history_restored_after_update': True,
+            },
         }
         return audit
+
+    @staticmethod
+    def _audit_scalar(value, cast):
+        if value is None:
+            return cast(0)
+        return cast(value.detach().cpu().item())
 
     def _describe_gate(self):
         if isinstance(self.gate, torch.Tensor):
@@ -309,6 +352,11 @@ class HOSIComposedSampler:
             current = diffusion.posterior_sample(
                 current, clean, timesteps, noise, fixed_points,
             )
+            if step and self._hsi_posterior_guidance_enabled():
+                current = self._apply_hsi_posterior_guidance(
+                    current, clean, timesteps, hsi_context, human_dict,
+                    fixed_points,
+                )
             if hoi_guidance is not None and step:
                 current = hoi_guidance.apply(current, clean, fixed_points, step)
             imgs.append(current)
@@ -419,6 +467,113 @@ class HOSIComposedSampler:
         cond = model(current, *common, is_sample=True)
         uncond = model(current, *common, is_sample=True, is_uncondition=True)
         return cond + sampler.w * (cond - uncond)
+
+    def _hsi_posterior_guidance_enabled(self):
+        """Whether the frozen R2-CG posterior rule is active.
+
+        Historical composed rows have no such sampler property and therefore
+        remain byte-identical. Enabling the rule without an HSI expert is a
+        configuration error rather than a silently ignored recipe.
+        """
+        return bool(
+            self.hsi_sampler is not None
+            and getattr(self.hsi_sampler, 'hsi_guidance_posterior_coef1', False)
+        )
+
+    def _apply_hsi_posterior_guidance(self, current, clean, timesteps,
+                                      context, human_dict, fixed_points):
+        """Apply native R2-CG human-scene guidance to the shared posterior.
+
+        Native HSIPrior differentiates its scene energy with respect to x0 and
+        adds ``posterior_mean_coef1(t) * gradient`` to x_{t-1}. Composition owns
+        the posterior, so the energy is evaluated on the clean body the shared
+        chain will actually follow. The noisy state may leave the FK manifold;
+        the next clean prediction is reconstructed by the selected composer.
+        """
+        if context is None or human_dict is None:
+            raise ValueError(
+                'R2-CG composed guidance needs HSI context and human_dict'
+            )
+        if 'rest_human_offsets' not in human_dict:
+            raise ValueError(
+                'R2-CG composed guidance needs '
+                'human_dict[rest_human_offsets]'
+            )
+
+        with torch.enable_grad():
+            guided_clean = clean.detach().requires_grad_(True)
+            batch, frames = guided_clean.shape[:2]
+            global_position = transform_points(
+                self.dataset.denormalize_torch(guided_clean[..., :84]),
+                context['mat'],
+            ).reshape(batch, frames, 28, 3)
+
+            offsets = human_dict['rest_human_offsets']
+            if offsets.ndim == 3:
+                offsets = offsets[:, None].expand(-1, frames, -1, -1)
+            expected = (batch, frames, 24, 3)
+            if tuple(offsets.shape) != expected:
+                raise ValueError(
+                    f'R2-CG expected rest offsets {expected}, got '
+                    f'{tuple(offsets.shape)}'
+                )
+            local_position = offsets.reshape(-1, 24, 3).clone()
+            local_position[:, 0] = global_position[..., 0, :].reshape(-1, 3)
+
+            global_rotation = transforms.rotation_6d_to_matrix(
+                guided_clean[..., 84:216].reshape(batch, frames, 22, 6)
+            )
+            global_rotation = (
+                context['mat'][:, None, None, :3, :3] @ global_rotation
+            )
+            local_rotation = self.dataset.quat_ik_torch(
+                global_rotation.reshape(-1, 22, 3, 3)
+            )
+            _, human_joints = self.dataset.quat_fk_torch(
+                local_rotation, local_position,
+            )
+            human_joints = human_joints.reshape(batch, frames, 24, 3)
+            loss = apply_hsi_guidance_loss(
+                human_joints, context['scene_flag'],
+                self.dataset.get_nearest_free_voxel,
+            )
+            gradient = torch.autograd.grad(-loss, guided_clean)[0]
+            gradient = gradient * self.hsi_guidance_scale
+
+        coefficient = self.hsi_sampler.posterior_mean_coef1.gather(
+            -1, timesteps.cpu(),
+        ).reshape(batch, 1, 1).to(
+            device=gradient.device, dtype=gradient.dtype,
+        )
+        update = coefficient * gradient
+
+        self.hsi_guidance_calls += 1
+        nonfinite_step = torch.logical_not(torch.isfinite(update)).any().to(
+            dtype=torch.int64,
+        )
+        gradient_max = gradient.detach().abs().max()
+        gradient_square_sum = gradient.detach().double().square().sum()
+        if self._hsi_guidance_nonfinite_steps is None:
+            self._hsi_guidance_nonfinite_steps = nonfinite_step
+            self._hsi_guidance_gradient_max_abs = gradient_max
+            self._hsi_guidance_gradient_square_sum = gradient_square_sum
+        else:
+            self._hsi_guidance_nonfinite_steps = (
+                self._hsi_guidance_nonfinite_steps + nonfinite_step
+            )
+            self._hsi_guidance_gradient_max_abs = torch.maximum(
+                self._hsi_guidance_gradient_max_abs, gradient_max,
+            )
+            self._hsi_guidance_gradient_square_sum = (
+                self._hsi_guidance_gradient_square_sum + gradient_square_sum
+            )
+        self.hsi_guidance_gradient_values += gradient.numel()
+
+        result = current + update
+        # Native p_sample_loop restores fixed history immediately after p_sample.
+        # Do the same after the shared update, so guidance never becomes history.
+        result[:, :REPRESENTATION.history_frames] = fixed_points
+        return result
 
     def _resolve_object_voxels(self, occ, occ_list):
         """Decide what the manipulated object looks like to the HSI expert.

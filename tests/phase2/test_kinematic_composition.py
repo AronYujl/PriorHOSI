@@ -308,6 +308,46 @@ class KinematicConfigTests(unittest.TestCase):
         self.assertEqual(cfg.mixer_gate, 0)
         self.assertEqual(composer.describe()['learned_parameters'], 0)
 
+    def test_r2cg_fragments_freeze_one_pair_and_one_operator_difference(self):
+        from hydra import compose, initialize_config_dir
+        from omegaconf import OmegaConf
+
+        OmegaConf.register_new_resolver(
+            'times', lambda x, y: int(x) * int(y), replace=True,
+        )
+        os.environ.setdefault('ROOT_DIR', str(REPO))
+        with initialize_config_dir(
+            version_base=None, config_dir=str(REPO / 'code' / 'config'),
+        ):
+            raw = compose(config_name='config_sample_hosi_rootsplit_r2cg')
+            kinematic = compose(config_name='config_sample_hosi_kinematic_r2cg')
+
+        expected_hash = (
+            '7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe'
+        )
+        for cfg in (raw, kinematic):
+            self.assertEqual(cfg.hsi_checkpoint_sha256, expected_hash)
+            self.assertTrue(cfg.hsi_guidance_posterior_coef1)
+            self.assertEqual(cfg.hsi_guidance_scale, 1.0)
+            self.assertFalse(cfg.use_guidance)
+            self.assertEqual(cfg.mixer_hsi_w, 1)
+            self.assertEqual(cfg.mixer_hsi_object_voxel_mode, 'occupied')
+            self.assertTrue(cfg.occ_list_layout_repaired)
+
+        self.assertIsNone(raw.sampler.pelvis.body_composer)
+        self.assertEqual(
+            raw.sampler.pelvis.gate._target_, 'mixer.gates.BodyGroupGate',
+        )
+        self.assertEqual(dict(raw.sampler.pelvis.gate.weights), {
+            'root': 0.0, 'lower_body': 1.0, 'torso': 0.0,
+            'arms': 0.0, 'hands': 0.0,
+        })
+        self.assertEqual(
+            kinematic.sampler.pelvis.body_composer._target_,
+            'mixer.kinematic_composition.KinematicBodyComposer',
+        )
+        self.assertEqual(kinematic.mixer_gate, 0)
+
 
 if __name__ == '__main__':
     unittest.main()

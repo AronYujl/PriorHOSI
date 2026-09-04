@@ -83,6 +83,29 @@ class StubDataset:
         del is_object
         return data
 
+    def denormalize_torch(self, data, is_object=False):
+        del is_object
+        return data
+
+    @staticmethod
+    def quat_ik_torch(global_rotation):
+        return global_rotation
+
+    @staticmethod
+    def quat_fk_torch(local_rotation, local_position):
+        del local_rotation
+        quaternion = torch.zeros(
+            local_position.shape[0], 22, 4,
+            device=local_position.device, dtype=local_position.dtype,
+        )
+        quaternion[..., 0] = 1
+        return quaternion, local_position
+
+    @staticmethod
+    def get_nearest_free_voxel(points, scene_flag):
+        del scene_flag
+        return torch.ones_like(points, dtype=torch.bool), torch.zeros_like(points)
+
 
 def _evaluator_arguments(batch=2, device='cpu'):
     torch.manual_seed(7)
@@ -257,7 +280,7 @@ class RecordingHSISampler:
     """
 
     def __init__(self, w=1.0, channels=REPRESENTATION.dimension,
-                 object_voxels=0):
+                 object_voxels=0, posterior_guidance=False):
         self.w = w
         self.channels = channels
         self.object_voxels = object_voxels
@@ -266,6 +289,8 @@ class RecordingHSISampler:
         self.student_model = None
         self.occ_calls = []
         self.grids_returned = []
+        self.hsi_guidance_posterior_coef1 = posterior_guidance
+        self.posterior_mean_coef1 = torch.ones(500)
 
     def set_dataset_and_model(self, dataset, model):
         self.dataset = dataset
@@ -351,7 +376,8 @@ class RecordingBodyComposer:
 
 def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
                             channel_mask='human', object_voxels=0,
-                            hsi_object_voxel_mode='occupied', body_composer=None):
+                            hsi_object_voxel_mode='occupied', body_composer=None,
+                            posterior_guidance=False):
     from priors.hoi.diffusion import HOIPriorSampler  # noqa: F401
 
     from mixer.hoi_adapter import HOIExpertSamplerAdapter
@@ -359,7 +385,10 @@ def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
     model = DeterministicModel()
     dataset = StubDataset()
     adapter = HOIExpertSamplerAdapter(device='cpu', timesteps=timesteps)
-    hsi_sampler = RecordingHSISampler(w=w, object_voxels=object_voxels)
+    hsi_sampler = RecordingHSISampler(
+        w=w, object_voxels=object_voxels,
+        posterior_guidance=posterior_guidance,
+    )
     hsi_model = RecordingHSIModel()
     composed = HOSIComposedSampler(
         adapter, hsi_sampler=hsi_sampler, gate=gate, channel_mask=channel_mask,
@@ -600,6 +629,105 @@ class KinematicComposerProtocolTests(unittest.TestCase):
             'shared_current_and_previous_composed_x0',
         )
         self.assertEqual(composition['compose_calls'], 500)
+
+
+class HSIPosteriorGuidanceTests(unittest.TestCase):
+    """R2-CG is applied to the shared posterior, not silently dropped."""
+
+    @staticmethod
+    def _human_dict(batch=1):
+        return {
+            'rest_human_offsets': torch.zeros(
+                batch, REPRESENTATION.window_frames, 24, 3,
+            ),
+        }
+
+    def test_default_off_keeps_the_historical_audit_and_path(self):
+        composed, _, _, _ = _make_composed_with_hsi(gate=0.5)
+        composed.p_sample_loop(**_evaluator_arguments())
+        guidance = composed.audit_dict()['composition']['hsi_posterior_guidance']
+        self.assertFalse(guidance['enabled'])
+        self.assertEqual(guidance['calls'], 0)
+        self.assertEqual(guidance['gradient_rms'], 0.0)
+
+    def test_enabled_rule_runs_on_the_actual_composer_output_for_499_steps(self):
+        import types
+
+        composer = RecordingBodyComposer(body_value=7.25)
+        composed, _, _, _ = _make_composed_with_hsi(
+            gate=0, body_composer=composer, posterior_guidance=True,
+        )
+        seen = []
+
+        def record(this, current, clean, timesteps, context, human_dict,
+                   fixed_points):
+            del this, context, human_dict
+            seen.append((int(timesteps[0]), clean.clone()))
+            result = current.clone()
+            result[:, :REPRESENTATION.history_frames] = fixed_points
+            return result
+
+        composed._apply_hsi_posterior_guidance = types.MethodType(record, composed)
+        arguments = _evaluator_arguments(batch=1)
+        arguments['human_dict'] = self._human_dict()
+        composed.p_sample_loop(**arguments)
+        self.assertEqual([step for step, _ in seen], list(reversed(range(1, 500))))
+        self.assertTrue(torch.equal(seen[0][1], composer.outputs[0]))
+
+    def test_update_uses_coef1_restores_history_and_cannot_touch_object(self):
+        composed, hsi_sampler, _, _ = _make_composed_with_hsi(
+            gate=0.5, batch=1, posterior_guidance=True,
+        )
+        clean = torch.zeros(1, REPRESENTATION.window_frames,
+                            REPRESENTATION.dimension)
+        clean[:, REPRESENTATION.history_frames:, :3] = 1.0
+        fixed = torch.full(
+            (1, REPRESENTATION.history_frames, REPRESENTATION.dimension), 9.0,
+        )
+        context = {
+            'mat': torch.eye(4).reshape(1, 4, 4),
+            'scene_flag': torch.zeros(1, dtype=torch.long),
+        }
+        timesteps = torch.tensor([17], dtype=torch.long)
+        current = torch.zeros_like(clean)
+
+        hsi_sampler.posterior_mean_coef1[17] = 0.25
+        quarter = composed._apply_hsi_posterior_guidance(
+            current, clean, timesteps, context, self._human_dict(), fixed,
+        )
+        hsi_sampler.posterior_mean_coef1[17] = 0.5
+        half = composed._apply_hsi_posterior_guidance(
+            current, clean, timesteps, context, self._human_dict(), fixed,
+        )
+
+        self.assertTrue(torch.equal(
+            quarter[:, :REPRESENTATION.history_frames], fixed,
+        ))
+        self.assertTrue(torch.equal(
+            half[:, REPRESENTATION.history_frames:, OBJECT_CHANNEL_START:],
+            current[:, REPRESENTATION.history_frames:, OBJECT_CHANNEL_START:],
+        ))
+        future = slice(REPRESENTATION.history_frames, None)
+        self.assertTrue(torch.allclose(
+            half[:, future, :3], 2.0 * quarter[:, future, :3],
+        ))
+        audit = composed.audit_dict()['composition']['hsi_posterior_guidance']
+        self.assertEqual(audit['calls'], 2)
+        self.assertEqual(audit['nonfinite_steps'], 0)
+        self.assertFalse(audit['object_contact_dependency'])
+
+    def test_sampler_property_is_default_off_and_explicitly_enabled(self):
+        from models.infbagel import Sampler
+
+        common = dict(
+            device='cpu', mask_ind=0, emb_f=0, batch_size=1,
+            channel=232, auto_regre_num=2, timesteps=500,
+            ddim_timesteps=25, cm_timesteps=16,
+        )
+        self.assertFalse(Sampler(**common).hsi_guidance_posterior_coef1)
+        self.assertTrue(Sampler(
+            **common, hsi_guidance_posterior_coef1=True,
+        ).hsi_guidance_posterior_coef1)
 
 
 class ChannelMaskIsMandatoryTests(unittest.TestCase):

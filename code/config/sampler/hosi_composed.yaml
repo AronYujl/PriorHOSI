@@ -91,6 +91,10 @@ pelvis:
     hsi_guidance_norm_cap: ${oc.select:hsi_guidance_norm_cap,null}
     hsi_guidance_dose_scale: ${oc.select:hsi_guidance_dose_scale,null}
     hsi_guidance_alpha_decay: ${oc.select:hsi_guidance_alpha_decay,false}
+    # Native R2-CG applies this in Sampler.p_sample. The composed loop owns the
+    # shared posterior, so it reads the same sampler property and applies the
+    # same coefficient to human-scene guidance on the actual composed body.
+    hsi_guidance_posterior_coef1: ${oc.select:hsi_guidance_posterior_coef1,false}
     seam_loss_weight: ${oc.select:seam_loss_weight,0.0}
     loss_w_jpos: ${oc.select:loss_w_jpos,1.0}
     pen_loss_weight: ${oc.select:pen_loss_weight,0.0}
@@ -98,3 +102,8 @@ pelvis:
     pen_floor_height: ${oc.select:pen_floor_height,0.02}
     pen_sdf_cache: ${oc.select:pen_sdf_cache,null}
     pen_sdf_dtype: ${oc.select:pen_sdf_dtype,float16}
+  # Separate from cfg.use_guidance: that evaluator switch selects the joint
+  # HOSI guidance function, including object/contact terms. The scene expert's
+  # frozen recipe is human-scene only and is implemented inside the composed
+  # posterior instead.
+  hsi_guidance_scale: ${oc.select:hsi_guidance_scale,1.0}
