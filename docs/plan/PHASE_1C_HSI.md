@@ -12723,3 +12723,103 @@ contact 或 text-motion rollout 数值；这是 D6-A 预注册门主动节省后
 遗漏指标。推理侧 hard-anchor 路线在此关闭；不运行 timestep sweep、soft/decayed rebase、R3
 训练、C/consistency 修改或 production-default 变更。任何下一方向必须另行 dated preregistration
 并由用户明确批准。
+
+D6-A 的退化也可由冻结 DDPM 表在运行前算出。把单位 `x0` 偏移注入每个 reverse step，并只保留
+posterior mean 的线性响应：全 500 步施加时最终响应为 `0.9998340607`；只在 `t>=184` 施加时，
+低噪声的 `t<184` 递推把该响应压到浮点可见范围内的 **0.0**。因此实测 retention `0.999260`
+不是偶然的 sampler 失效，而是低噪声 316 步必然用网络自身 `x0` 重写高噪声锚点。这个解释不改变
+D6 的冻结判定；它说明偏置是 denoiser 在低噪声输入上仍会重复写出的回归器输出偏差。
+
+## 2026-09-04（R3-AR：训练内 autoregressive c3 rebase；用户已批准）
+
+### A. 假设、唯一变量与 R2 配方回接
+
+用户于 2026-09-04 批准按 Claude Code session
+`99a3a9cf-4120-43ec-8b08-099ae21dd2c1` 的最终 R3-AR 方案推进。D2 测得 history 位置速度增益仅
+`0.136 [0.111,0.165]`，train 与 holdout 相同；R2 的 full-body seam loss 没有关闭地板；D5 的
+全程 c3 虽显著降低 seam jerk，却因在一个未按该参数化训练的 checkpoint 上事后覆盖整窗平移而
+增加 penetration；D6 又证明只在高噪声施加的偏移会被低噪声 denoiser 完全重写。假设是：把 c3
+放进训练前向，令 denoiser 在“起点已与干净 history 一致”的输出空间中学习 scene-aware residual，
+可以同时学习 seam 后侧速度增量与场景规避，而不是在推理时覆盖已学好的绝对位置。
+
+唯一 R3 方法变量为 `hsi_chain_rebase_mode=c3`。同一个 `rebase_model_output` 在 diffusion
+`p_losses` 的 denoiser 输出后、所有 base/FK/full-body seam loss 前执行，并在 native diffusion
+sampling 的 CFG 后、posterior mean 前执行。对 84 位置通道和 132 rotation-6D 通道，frame 2
+对齐到干净 `x[:,0:2]` 的线性匀速外推，并把同一 delta 加到 frame 2--15；梯度必须穿过 delta。
+`off` 必须返回原对象并保持训练、采样和 RNG 逐位等价。loss、权重、architecture、数据、预算、
+guidance 与 evaluator 均不变。
+
+当前主分支只携带 R2 checkpoint 和后续诊断，未携带 R2 训练源码/fragment；本轮把同一 HSI
+worktree 的封存提交 `fcc6ba249ac383e7912bdf86342ba67178f768b0` 中
+`fullbody_seam_loss_weight=0.5494500113254572`、fp32 24-joint seam residual、TensorBoard readout
+与 sampler config key 原样回接。它们是 R3 的固定 baseline 配方，不是第二个实验变量，不触碰
+`code/priors/core/`。
+
+### B. 启动前零训练分流
+
+正式 run id 前，用 R2 final EMA checkpoint（SHA256
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`）在训练 `p_losses` 路径做
+一次无 optimizer step 检查。对象固定为 D1--D6 frozen-60 中去掉 12 个 terminal padding 后的
+352 个 GT-history holdout windows，按 canonical order 组成一个 batch；`t=0`，同一显式 noise、
+同一 dropout RNG state、相同条件与 R2 loss。分别计算 rebase off/on 的总 loss、各 loss term、
+shared transformer gradient norm 和全部 finite 状态。
+
+按获批方案冻结初始化分流：`(loss_on-loss_off)/loss_off > 0.20` 时，R3 从 R2 final EMA 权重
+warm-start，但使用 fresh Adam、fresh scheduler、fresh causal EMA 与完整新预算；否则从 random
+初始化。这个 20% 规则只作获批的 operational branch，不把一次 loss 跳变解释成 warm-start
+优于 cold-start 的因果证据。任一 nonfinite 或 c3 梯度未到达 shared transformer 时停止，不启动
+正式训练。该检查预算 `<=0.5 GPU-h`，只生成一个 tracked compact JSON，不分配候选 checkpoint。
+
+### C. 正式训练
+
+唯一 fragment 为 `code/config/config_train_hsi_b_r3_ar.yaml`，从封存 R2 fragment 只增加
+`hsi_chain_rebase_mode=c3`。正式 training run id 为
+`p1-hsi-b-r3-ar-s42-20260904`；4×RTX 3090（GPU0--3）、micro-batch 512/GPU、accumulation 1、
+effective batch 2048、seed 42、bf16+TF32 trunk 与 fp32 geometry/full-body seam、Adam、peak LR
+`2e-4`、warmup 2,000 updates、through 117,004 constant、117,005--146,255 cosine 到 0、无
+gradient clipping、diffusion EMA 0.9999。完整预算仍为 146,255 updates = 299,530,240 processed
+windows；唯一 reportable checkpoint 是 final update 的 EMA，禁止中间 checkpoint 选择。
+
+若 B 节选择 warm-start，`load_state_dict=true` 且 model checkpoint 唯一为上述 R2 final EMA；
+`start_epoch=0`、`resume_from=""`，optimizer、scheduler 和 EMA 不继承 R2 rolling state。若选择
+cold-start，则保持 R2 的 `load_state_dict=false`、空 checkpoint 与 random initialization。
+两种分支都执行同一完整 processed-window budget，且结果中明确记录分支，不能与 R2 作同预算的
+纯机制 A/B 声称；主要检验仍是 R3 是否达到冻结 rollout 充分性条件。
+
+### D. 双协议评估与冻结判据
+
+final EMA 先跑 unguided、再跑 production voxel guidance +
+`hsi_guidance_posterior_coef1=true`。两格均为 native 500-step diffusion、w=1、predicted future
+occupancy、progress/occ-permutation fix、seed 42、canonical 8-shard、full375；正式 run id 的日期
+取各自 `tools/experiment.py start` 的 host-local 日期。66 GPU-h 是 full375 两格的上限估计；冻结
+判定使用其中与 D5/D6 完全相同的 frozen-60 episode 子集与五层总体权重
+`{31,46,195,58,45}/375`，episode-paired bootstrap 10,000 次、seed 42，同时报告 full375。
+
+主量沿用 D5：
+
+- U 相对 sealed R2-U 的 30 Hz `boundary_jerk` excess reduction `>=50%`，且 candidate-control
+  paired CI 上界 `<0`；
+- G 相对 sealed R2-CG 的 excess reduction `>=40%`，且 paired CI 上界 `<0`；
+- 任一格 reduction `<25%` 为 `DEPRIORITIZED`，其余为 `INCONCLUSIVE`。
+
+adoption guards 沿用 D6-B 修订版：G 的 `pen_ratio<=0.02805` 且不得相对 R2-CG 显著升高；U
+只要求不得相对 R2-U 显著升高；两格 `pen_depth_mean`、`fs_nemf`、`goal_planar_err_m`、
+`interior_jerk` 均不得显著升高，`contact_count` 不得显著下降，任何 nonfinite 硬失败。同表并列
+10 Hz `a1`、`a2` 和 cross-seam third difference。`a2` 相对对应 R2 显著下降时才记为网络学到
+history-consistent velocity increment；若只有 `a1` 被构造性压低而 `a2` 不动，则不得把结果写成
+训练机制成立，adoption 仍由 penetration 等冻结守卫决定。
+
+### E. 生命周期、预算与停止
+
+预注册提交后才回接 R2 runtime、实现训练前向 c3、运行零训练分流并冻结初始化。targeted tests
+必须覆盖 off identity、训练梯度穿过 delta、R2 loss 顺序与 sampling 共用 helper；训练 runtime
+变化要求一次 authority full suite、真实 LINGO training-loss smoke 和 4×512 full-micro-batch
+显存/吞吐 preflight。正式 manifest 必须由同一 GPU-visible context 的
+`tools/experiment.py start` 在 clean worktree 上创建；fully resolved config 不得含未解析
+interpolation。长任务只使用可续接 PTY，禁止 tmux/nohup detached launcher。
+
+零训练检查 `<=0.5 GPU-h`、训练 `<=86.7 GPU-h`、full375 双格评测 `<=66.1 GPU-h`，R3-AR
+总增量上限 `153.3 GPU-h`；Phase 1C 累计上限由 440 修订为 **600 GPU-h**。两格与统计完成后
+停止：不做 rebase 系数/衰减/timestep sweep，不改 C/consistency，不选择中间 checkpoint，不改
+production default，也不启动其他训练方向。是否把通过的 B teacher 蒸馏到 C 或交给 mixer，仍需
+新的用户裁决。

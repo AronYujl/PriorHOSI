@@ -1,0 +1,10 @@
+# R2: R1's reliable-teacher recipe plus one fp32 24-joint cross-window loss.
+defaults: [config_train_hsi_b_r1_reliable_teacher, _self_]
+
+exp_name: hsi_b_r2_fullbody_seam
+
+# Frozen by the preregistered 4x512 first-real-batch shared-transformer gradient
+# calibration: 0.10 * median(G_base=529.2033997) /
+# median(G_raw_seam=96.3151131) = 0.5494500113.  No sweep or rollout metric was
+# read.  See experiments/results/p1_hsi_b_r2_fullbody_seam_calibration_s42_20260901.json.
+fullbody_seam_loss_weight: 0.5494500113254572

@@ -1,0 +1,9 @@
+# R3-AR: train the R2 recipe through the same rotation-aware c3 output rebase
+# used at autoregressive sampling time.
+defaults: [config_train_hsi_b_r2_fullbody_seam, _self_]
+
+exp_name: hsi_b_r3_ar
+
+# The only R3-AR mechanism variable.  p_losses and native diffusion sampling
+# both consume the rebased x0; off remains the historical arithmetic.
+hsi_chain_rebase_mode: c3
