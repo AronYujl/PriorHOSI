@@ -1559,3 +1559,71 @@ smoke must prove finite R2-CG guidance plus exact audit fields. The smoke is fun
 only and its quality values are non-reportable. Launch the raw control and candidate as
 separate four-shard campaigns, with the raw control first; recover each once, merge only
 after four zero exit codes, then run the frozen paired analysis and stop.
+
+## 2026-09-04 — P2-R2CG-ENG1: inference-equivalent engineering pass, preregistered
+
+**Approved by the user 2026-09-04.** The first raw R2-CG campaign
+`p2-mixer-rootsplit-r2cg-s42-20260904` was stopped after 21/469 episode log records
+because measured latency was roughly 67--82 seconds per generated window while each GPU
+held only about 1.8--2.2 GiB and sustained roughly 18--24% SM utilization. All four
+shards exited 143 after SIGTERM and the terminal manifest is registered as `aborted`;
+none of its partial quality values may be read, reported or used for selection. The run
+id is sealed and will not be reused.
+
+This is not a second CPU-thread experiment. The launch already set
+`OMP_NUM_THREADS=4`, `MKL_NUM_THREADS=4` and `OPENBLAS_NUM_THREADS=4`, each shard had
+15 threads, and the host load was about 9 on 48 CPU cores. Phase 1C measured the same
+cap improving diffusion evaluation only from 61.694 to 60.761 seconds/window (1.0154x).
+The dominant fixed cost is the 499-step HSI scene-guidance/autograd path.
+
+### Allowed implementation, with semantics frozen
+
+The engineering candidate may make only these transformations:
+
+1. Reuse the sampler's device-resident 32^3 meshgrid instead of recreating it on every
+   reverse step, rebuilding it only if batch/device/dtype actually changes.
+2. Transform the previous clean human trajectory to world coordinates once before the
+   three temporal occupancy queries instead of repeating the identical transform in
+   each loop iteration.
+3. Cache the goal occupancy and its 2-D goal position for the duration of one sampling
+   window. They depend only on that window's fixed matrix, goal, scene, object points
+   and masks. The current-state anchor occupancy and all three previous-composed-x0
+   temporal occupancies remain dynamic and are recomputed at every reverse step.
+4. Cache the immutable posterior-mean coefficient schedule on the guidance gradient's
+   device and gather there, invalidating the cache if the source tensor changes.
+5. Replace empty-tensor-plus-repeated-`cat` construction of `occ_list`/`occ_pos` with a
+   single ordered `cat` over the exact same tensors. No tensor arithmetic may change.
+6. Repair `tools/launch_hosi_sharded.py` so every emitted Hydra override, including the
+   last one, retains its shell continuation and evaluator stdout/stderr plus the true
+   exit code remain inside the shard session.
+
+The pass must not reduce 500 diffusion steps or 499 guidance applications, change
+checkpoint/config/guidance weights, combine conditional and unconditional model calls,
+change RNG draws or their order, change the raw/kinematic operator, change either
+scene-query pelvis, enable a new occupancy backend, use compilation/CUDA graphs, or
+touch `code/priors/core/`. R2 remains a frozen current teacher, not an HSIPrior tuning
+target.
+
+### Equivalence and promotion gate
+
+On one fixed real HOSI window, seed 42, P15 online + Arm B and R2 final EMA +
+`hsi_guidance_posterior_coef1=true`, run baseline and candidate in interleaved order
+after warm-up. CUDA timing synchronizes before and after each measured region. The
+candidate is eligible only if all of the following hold:
+
+- final 232x16 output is bitwise equal;
+- every retained per-step clean/posterior checkpoint used by the harness is bitwise
+  equal, proving divergence was not hidden by the final step;
+- sampler audit is exactly equal, including 499 R2-CG calls, gradient telemetry,
+  object-channel independence and exact history restoration;
+- RNG state after the window is bitwise equal;
+- median end-to-end window wall time improves by at least 15% without increased peak
+  GPU memory.
+
+No quality metric is computed for this gate. Failure of any equivalence item rejects
+the candidate. Passing equivalence but missing 15% records a correct engineering null;
+the formal campaigns remain paused rather than being relaunched for a negligible gain.
+If both gates pass, rerun the already frozen raw-versus-kinematic comparison under new
+ids `p2-mixer-rootsplit-r2cg-eng1-s42-20260904` and
+`p2-mixer-kinematic-r2cg-eng1-s42-20260904`; all scientific gates and pairings from
+P2-KIN-R2CG remain unchanged. The aborted id is never aliased to either row.
