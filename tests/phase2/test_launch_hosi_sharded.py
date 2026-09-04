@@ -80,6 +80,18 @@ class PlanTests(unittest.TestCase):
     def test_the_merge_command_is_printed(self):
         self.assertIn('hosi_mode=merge_shards', self.script)
 
+    def test_the_last_override_stays_inside_the_shard_command(self):
+        script = _emit(
+            '--shards', '1', '--gpus', '3', '--host', 'authority',
+            '--overrides', 'first=value', 'last=value',
+        )
+        self.assertIn(
+            '  first=value \\\n  last=value \\\n'
+            '    > $RESULTS/shard00.log 2>&1;',
+            script,
+        )
+        self.assertNotIn('  last=value \n', script)
+
     def test_the_script_is_valid_bash(self):
         result = subprocess.run(['bash', '-n'], input=self.script, text=True,
                                 capture_output=True, timeout=60)

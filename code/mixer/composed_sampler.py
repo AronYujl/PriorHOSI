@@ -73,7 +73,8 @@ class HOSIComposedSampler:
 
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
                  channel_mask='human', hsi_object_voxel_mode='occupied',
-                 body_composer=None, hsi_guidance_scale=1.0):
+                 body_composer=None, hsi_guidance_scale=1.0,
+                 inference_engineering=False):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -97,6 +98,8 @@ class HOSIComposedSampler:
         self.channel_mask = channel_mask
         self.hsi_object_voxel_mode = hsi_object_voxel_mode
         self.hsi_guidance_scale = float(hsi_guidance_scale)
+        self.inference_engineering = bool(inference_engineering)
+        self._posterior_coefficient_cache = None
         if self.hsi_guidance_scale < 0:
             raise ValueError('hsi_guidance_scale must be non-negative')
         self.dataset = None
@@ -416,7 +419,7 @@ class HOSIComposedSampler:
         inside ``_hsi_x0``.
         """
         self.hsi_sampler.batch_size = batch
-        return {
+        context = {
             'mat': mat, 'scene_flag': scene_flag, 'text_emb': text_emb,
             'pelvis_goal': pelvis_goal, 'scene_goal': scene_goal,
             'object_goal': object_goal, 'need_scene': need_scene,
@@ -428,6 +431,9 @@ class HOSIComposedSampler:
             'seq_name_dict': seq_name_dict, 'obj_rot_mat_prefix': obj_rot_mat_prefix,
             'object_only': object_only,
         }
+        if self.inference_engineering:
+            context['static_occ_cache'] = {}
+        return context
 
     def _hsi_x0(self, current, previous_x0, timesteps, context):
         """HSIPrior's x_hat_0 for one step: occupancy, then cond and uncond.
@@ -447,7 +453,7 @@ class HOSIComposedSampler:
         """
         sampler = self.hsi_sampler
         model = sampler.student_model
-        occ, occ_list, occ_pos = sampler._compute_occ_sample(
+        occ_arguments = (
             current, previous_x0, context['mat'], context['scene_flag'],
             context['object_points'], context['pelvis_goal'],
             context['scene_goal'], context['object_goal'], context['is_loco'],
@@ -456,6 +462,13 @@ class HOSIComposedSampler:
             context['obj_rest_verts'], context['seq_name_dict'],
             context['obj_rot_mat_prefix'],
         )
+        if self.inference_engineering:
+            occ, occ_list, occ_pos = sampler._compute_occ_sample(
+                *occ_arguments, inference_engineering=True,
+                static_cache=context['static_occ_cache'],
+            )
+        else:
+            occ, occ_list, occ_pos = sampler._compute_occ_sample(*occ_arguments)
         occ, occ_list = self._resolve_object_voxels(occ, occ_list)
         common = (
             occ, timesteps, context['text_emb'], context['pelvis_goal'],
@@ -540,11 +553,29 @@ class HOSIComposedSampler:
             gradient = torch.autograd.grad(-loss, guided_clean)[0]
             gradient = gradient * self.hsi_guidance_scale
 
-        coefficient = self.hsi_sampler.posterior_mean_coef1.gather(
-            -1, timesteps.cpu(),
-        ).reshape(batch, 1, 1).to(
-            device=gradient.device, dtype=gradient.dtype,
-        )
+        if self.inference_engineering:
+            source = self.hsi_sampler.posterior_mean_coef1
+            cache_key = (
+                source.data_ptr(), source._version, gradient.device,
+                gradient.dtype,
+            )
+            if (
+                self._posterior_coefficient_cache is None
+                or self._posterior_coefficient_cache[0] != cache_key
+            ):
+                schedule = source.to(
+                    device=gradient.device, dtype=gradient.dtype,
+                )
+                self._posterior_coefficient_cache = (cache_key, schedule)
+            coefficient = self._posterior_coefficient_cache[1].gather(
+                -1, timesteps,
+            ).reshape(batch, 1, 1)
+        else:
+            coefficient = self.hsi_sampler.posterior_mean_coef1.gather(
+                -1, timesteps.cpu(),
+            ).reshape(batch, 1, 1).to(
+                device=gradient.device, dtype=gradient.dtype,
+            )
         update = coefficient * gradient
 
         self.hsi_guidance_calls += 1

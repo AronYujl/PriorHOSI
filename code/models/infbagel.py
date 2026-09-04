@@ -124,6 +124,18 @@ class Sampler:
         nb_voxels = dataset.nb_voxels
         self.occ_idx = torch.arange(0, nb_voxels[1], 1).to(self.device)
 
+    def _cached_sample_meshgrid(self, batch_size, device):
+        """Return the already-built inference grid when its shape still fits."""
+        grid = getattr(self, 'grid', None)
+        if (
+            grid is None
+            or grid.shape[0] != batch_size
+            or grid.device != torch.device(device)
+        ):
+            grid = self.dataset.create_meshgrid(batch_size=batch_size).to(device)
+            self.grid = grid
+        return grid
+
     def _compute_human_joints(self, predicted_noise, joints, mat, rest_human_offsets):
         global_jpos = transform_points(
             self.dataset.denormalize_torch(predicted_noise[:, :, :84]), mat
@@ -641,17 +653,23 @@ class Sampler:
     def _compute_occ_sample(self, x, x0, mat, scene_flag, object_points,
                             pelvis_goal, scene_goal, object_goal,
                             is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref,
-                            object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix):
+                            object_only, obj_rest_verts, seq_name_dict,
+                            obj_rot_mat_prefix, inference_engineering=False,
+                            static_cache=None):
         if self.dataset.load_scene:
             x_orig = transform_points(self.dataset.denormalize_torch(x[:, :, :84]), mat)
             mat_for_query = mat.clone()
             target_ind = self.mask_ind if self.mask_ind != -1 else 0
             mat_for_query[:, :3, 3] = x_orig[:, self.emb_f, target_ind * 3: target_ind * 3 + 3]
             mat_for_query[:, 1, 3] = 0
-            
-            self.grid = self.dataset.create_meshgrid(batch_size=self.batch_size).to(self.device)
 
-            query_points = transform_points(self.grid, mat_for_query)
+            if inference_engineering:
+                grid = self._cached_sample_meshgrid(self.batch_size, x.device)
+            else:
+                self.grid = self.dataset.create_meshgrid(batch_size=self.batch_size).to(self.device)
+                grid = self.grid
+
+            query_points = transform_points(grid, mat_for_query)
             occ = self.dataset.get_occ_for_points(query_points, object_points, scene_flag)
             nb_voxels = self.dataset.nb_voxels
             occ = occ.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
@@ -663,49 +681,63 @@ class Sampler:
                 occ[torch.logical_not(is_object)][occ == 2] = 1.
 
             if self.scene_type in ['plane_two', 'occ_two', 'occ_temp']:
-                mat_for_query_goal = mat.clone()
-                
-                # handle pelvis goal in the is_loco case
-                pelvis_goal_copy = pelvis_goal.clone()
-                if self.is_mix:
-                    # mix: non-loco (sit/lie) uses scene_goal (scene goal) instead of pelvis
-                    pelvis_goal_copy[torch.logical_not(is_loco)] = scene_goal[torch.logical_not(is_loco)]
+                cached_goal = (
+                    static_cache.get('goal')
+                    if inference_engineering and static_cache is not None
+                    else None
+                )
+                if cached_goal is None:
+                    mat_for_query_goal = mat.clone()
+
+                    # handle pelvis goal in the is_loco case
+                    pelvis_goal_copy = pelvis_goal.clone()
+                    if self.is_mix:
+                        # mix: non-loco (sit/lie) uses scene_goal (scene goal) instead of pelvis
+                        pelvis_goal_copy[torch.logical_not(is_loco)] = scene_goal[torch.logical_not(is_loco)]
+                    else:
+                        pelvis_goal_copy[is_loco] = pelvis_goal_copy[is_loco] / (
+                                    torch.norm(pelvis_goal_copy[is_loco], dim=-1, keepdim=True) + 1e-6) * 0.8
+                    pelvis_goal_orig = transform_points(pelvis_goal_copy.reshape(pelvis_goal_copy.shape[0], 1, 3), mat).squeeze(1)
+
+                    # handle object goal in the is_object case - no rotation needed
+                    object_goal_copy = object_goal.clone()
+                    object_goal_orig = transform_points(object_goal_copy.reshape(object_goal_copy.shape[0], 1, 3), mat).squeeze(1)
+
+                    mat_for_query_goal[need_pelvis_dir, :3, 3] = pelvis_goal_orig[need_pelvis_dir]
+                    mat_for_query_goal[is_object, :3, 3] = object_goal_orig[is_object]
+                    mat_for_query_goal[torch.logical_not(torch.logical_or(need_pelvis_dir, is_object)), :3, 3] = mat_for_query[
+                                                                                    torch.logical_not(torch.logical_or(need_pelvis_dir, is_object)), :3,
+                                                                                    3].clone()
+                    mat_for_query_goal[:, 1, 3] = 0.
+                    query_points_goal = transform_points(grid, mat_for_query_goal)
+                    occ_goal = self.dataset.get_occ_for_points(query_points_goal, object_points, scene_flag)
+
+                    if object_only:
+                        occ_goal[occ_goal == 1] = 0.
+
+                    if self.is_mix and torch.logical_not(is_object).any():
+                        occ_goal[torch.logical_not(is_object)][occ_goal == 2] = 1.
+
+                    nb_voxels = self.dataset.nb_voxels
+                    occ_goal = occ_goal.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
+
+                    end_goal_pos = torch.zeros(self.batch_size, 2).to(self.device)
+                    end_goal_pos[need_pelvis_dir] = pelvis_goal_copy[need_pelvis_dir].reshape(-1, 3)[:, [0, 2]]
+                    end_goal_pos[is_object] = object_goal_copy[is_object].reshape(-1, 3)[:, [0, 2]]
+                    if inference_engineering and static_cache is not None:
+                        static_cache['goal'] = (occ_goal, end_goal_pos)
                 else:
-                    pelvis_goal_copy[is_loco] = pelvis_goal_copy[is_loco] / (
-                                torch.norm(pelvis_goal_copy[is_loco], dim=-1, keepdim=True) + 1e-6) * 0.8
-                pelvis_goal_orig = transform_points(pelvis_goal_copy.reshape(pelvis_goal_copy.shape[0], 1, 3), mat).squeeze(1)
+                    occ_goal, end_goal_pos = cached_goal
 
-                # handle object goal in the is_object case - no rotation needed
-                object_goal_copy = object_goal.clone()
-                object_goal_orig = transform_points(object_goal_copy.reshape(object_goal_copy.shape[0], 1, 3), mat).squeeze(1)
+            if inference_engineering:
+                occ_pos_parts = [end_goal_pos[None]]
+                occ_list_parts = [self._occ_list_entry0(occ)]
+            else:
+                occ_pos = torch.zeros(0, self.batch_size, 2).to(self.device)
+                occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
 
-                mat_for_query_goal[need_pelvis_dir, :3, 3] = pelvis_goal_orig[need_pelvis_dir]
-                mat_for_query_goal[is_object, :3, 3] = object_goal_orig[is_object]
-                mat_for_query_goal[torch.logical_not(torch.logical_or(need_pelvis_dir, is_object)), :3, 3] = mat_for_query[
-                                                                                torch.logical_not(torch.logical_or(need_pelvis_dir, is_object)), :3,
-                                                                                3].clone()
-                mat_for_query_goal[:, 1, 3] = 0.
-                query_points_goal = transform_points(self.grid, mat_for_query_goal)
-                occ_goal = self.dataset.get_occ_for_points(query_points_goal, object_points, scene_flag)
-
-                if object_only:
-                    occ_goal[occ_goal == 1] = 0.
-
-                if self.is_mix and torch.logical_not(is_object).any():
-                    occ_goal[torch.logical_not(is_object)][occ_goal == 2] = 1.
-
-                nb_voxels = self.dataset.nb_voxels
-                occ_goal = occ_goal.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
-
-                end_goal_pos = torch.zeros(self.batch_size, 2).to(self.device)
-                end_goal_pos[need_pelvis_dir] = pelvis_goal_copy[need_pelvis_dir].reshape(-1, 3)[:, [0, 2]]
-                end_goal_pos[is_object] = object_goal_copy[is_object].reshape(-1, 3)[:, [0, 2]]
-            
-            occ_pos = torch.zeros(0, self.batch_size, 2).to(self.device)
-            occ_pos = torch.cat([occ_pos, end_goal_pos[None]], dim=0)
-                
-            occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
-            occ_list = torch.cat([occ_list, self._occ_list_entry0(occ)], dim=0)
+                occ_list = torch.zeros(0, nb_voxels[1], nb_voxels[0], nb_voxels[2]).to(self.device)
+                occ_list = torch.cat([occ_list, self._occ_list_entry0(occ)], dim=0)
             occ_temp = None
             if self.scene_type == 'occ_temp':
                 if self.dataset.vis:
@@ -737,20 +769,26 @@ class Sampler:
                     object_points_temp = torch.matmul(pred_obj_rot_mat, object_points_temp.transpose(-2,-1)).transpose(-2,-1) + pred_obj_trans.unsqueeze(-2) # [b, t, 1024, 3]
 
                 x_denorm = self.dataset.denormalize_torch(x0[:, :, :84])
+                if inference_engineering:
+                    x0_orig = transform_points(x_denorm, mat)
                     
                 # dynamically obtain temporal frame indices
                 temp_indices = self._get_temp_frame_indices(self.temp_voxel_num)
                 
                 # only loop when temporal voxels exist
                 for i in temp_indices:
-                    x0_orig = transform_points(x_denorm, mat)
+                    if not inference_engineering:
+                        x0_orig = transform_points(x_denorm, mat)
                     mat_for_query = mat.clone()
                     target_ind = self.mask_ind if self.mask_ind != -1 else 0
                     mat_for_query[:, :3, 3] = x0_orig[:, i, target_ind * 3: target_ind * 3 + 3]
                     mat_for_query[:, 1, 3] = 0
-                    query_points = transform_points(self.grid, mat_for_query)
-                    
-                    occ_pos = torch.cat([occ_pos, x_denorm[:, i, [0, 2]][None]], dim=0)
+                    query_points = transform_points(grid, mat_for_query)
+
+                    if inference_engineering:
+                        occ_pos_parts.append(x_denorm[:, i, [0, 2]][None])
+                    else:
+                        occ_pos = torch.cat([occ_pos, x_denorm[:, i, [0, 2]][None]], dim=0)
 
                     occ_temp = self.dataset.get_occ_for_points(query_points, object_points_temp[:, i, :, :], scene_flag)
                     
@@ -764,7 +802,14 @@ class Sampler:
                     occ_temp = occ_temp.reshape(-1, nb_voxels[0], nb_voxels[1], nb_voxels[2]).float()
                     occ_temp = occ_temp.permute(0, 2, 1, 3)
 
-                    occ_list = torch.cat([occ_list, occ_temp], dim=0)
+                    if inference_engineering:
+                        occ_list_parts.append(occ_temp)
+                    else:
+                        occ_list = torch.cat([occ_list, occ_temp], dim=0)
+
+            if inference_engineering:
+                occ_pos = torch.cat(occ_pos_parts, dim=0)
+                occ_list = torch.cat(occ_list_parts, dim=0)
 
             if self.scene_type == 'occ':
                 occ = occ.permute(0, 2, 1, 3)

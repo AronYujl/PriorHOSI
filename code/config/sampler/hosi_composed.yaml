@@ -44,6 +44,9 @@ pelvis:
   body_composer: ${oc.select:mixer_body_composer,null}
   channel_mask: ${mixer_channel_mask}
   hsi_object_voxel_mode: ${mixer_hsi_object_voxel_mode}
+  # Default off preserves the historical execution path. R2-CG ENG1 configs
+  # opt into transformations that must pass the preregistered bitwise gate.
+  inference_engineering: ${oc.select:mixer_inference_engineering,false}
   hoi_adapter:
     _target_: mixer.hoi_adapter.HOIExpertSamplerAdapter
     device: ${device}

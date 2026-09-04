@@ -296,8 +296,8 @@ class RecordingHSISampler:
         self.dataset = dataset
         self.student_model = model
 
-    def _compute_occ_sample(self, x, x0, *args):
-        del args
+    def _compute_occ_sample(self, x, x0, *args, **kwargs):
+        del args, kwargs
         # Clones, so a later in-place write by the loop cannot rewrite history.
         self.occ_calls.append((x.clone(), x0.clone()))
         batch = x.shape[0]
@@ -377,7 +377,8 @@ class RecordingBodyComposer:
 def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
                             channel_mask='human', object_voxels=0,
                             hsi_object_voxel_mode='occupied', body_composer=None,
-                            posterior_guidance=False):
+                            posterior_guidance=False,
+                            inference_engineering=False):
     from priors.hoi.diffusion import HOIPriorSampler  # noqa: F401
 
     from mixer.hoi_adapter import HOIExpertSamplerAdapter
@@ -394,6 +395,7 @@ def _make_composed_with_hsi(gate, timesteps=500, w=1.0, batch=2,
         adapter, hsi_sampler=hsi_sampler, gate=gate, channel_mask=channel_mask,
         hsi_object_voxel_mode=hsi_object_voxel_mode,
         body_composer=body_composer,
+        inference_engineering=inference_engineering,
     )
     composed.set_dataset_and_model(dataset, model, hsi_model=hsi_model)
     return composed, hsi_sampler, hsi_model, model
@@ -728,6 +730,34 @@ class HSIPosteriorGuidanceTests(unittest.TestCase):
         self.assertTrue(Sampler(
             **common, hsi_guidance_posterior_coef1=True,
         ).hsi_guidance_posterior_coef1)
+
+    def test_engineering_path_preserves_every_step_audit_and_rng(self):
+        arguments = _evaluator_arguments(batch=1)
+        arguments['human_dict'] = self._human_dict()
+        observed = {}
+        for optimized in (False, True):
+            composed, _, _, _ = _make_composed_with_hsi(
+                gate=0.5, batch=1, posterior_guidance=True,
+                inference_engineering=optimized,
+            )
+            torch.manual_seed(42)
+            images, _ = composed.p_sample_loop(**arguments)
+            observed[optimized] = {
+                'images': [image.clone() for image in images],
+                'audit': composed.audit_dict(),
+                'rng': torch.random.get_rng_state().clone(),
+            }
+
+        self.assertEqual(len(observed[False]['images']), 500)
+        for step, (baseline, optimized) in enumerate(zip(
+            observed[False]['images'], observed[True]['images'],
+        )):
+            self.assertTrue(
+                torch.equal(baseline, optimized),
+                f'engineering path changed posterior state at step {step}',
+            )
+        self.assertEqual(observed[False]['audit'], observed[True]['audit'])
+        self.assertTrue(torch.equal(observed[False]['rng'], observed[True]['rng']))
 
 
 class ChannelMaskIsMandatoryTests(unittest.TestCase):
