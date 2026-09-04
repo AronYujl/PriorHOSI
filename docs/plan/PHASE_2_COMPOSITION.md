@@ -1450,3 +1450,112 @@ record and from this conclusion. They are non-reportable, may not select any mix
 parameter, and say nothing about whether P17-OC's legs improve composition. P2-KIN-API
 therefore closes as an API PASS only. After HSIPrior settles, the exact next entry is
 a new preregistration for the complete 469-episode comparison specified above.
+
+## 2026-09-04 — P2-KIN-R2CG: settled-teacher operator comparison, preregistered
+
+**Approved by the user 2026-09-04.** The checkpoint-frozen teacher for this comparison
+is R2 final EMA
+`hsi_b_r2_fullbody_seam_epoch222.pth`, SHA-256
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe`, with the
+Phase 1C R2-CG inference recipe `hsi_guidance_posterior_coef1=true`. The recipe was
+implemented and passed its native HSI gate on `phase/01c-hsi` at `b9296ed`; carrying
+that conclusion and its three-line sampler change onto the mixer branch is explicit
+user-approved cross-branch communication. HOIPrior remains P15 online
+`ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c` with guidance
+Arm B. Neither expert is trained or tuned here.
+
+R2 is the best available Diffusion Teacher at preregistration time, not a promise that
+no later HSIPrior will supersede it. The two rows below may decide the composition
+operator under this frozen expert pair; they may not select an HSI checkpoint or tune a
+weight, schedule, joint group, threshold or scene-query pelvis. If a later HSIPrior is
+promoted, the selected operator requires a fresh checkpoint-paired row rather than a
+reinterpretation of these results.
+
+### The guidance transfer is part of the operator contract
+
+Merely setting `hsi_guidance_posterior_coef1=true` in the existing composed config
+would be a silent no-op: `HOSIComposedSampler` calls the HSI denoiser directly to obtain
+`x0_hat` and does not call `Sampler.p_sample`, where native R2-CG applies guidance. It
+also rejects the evaluator's generic HOSI `guidance_fn`, correctly, because that
+function includes hand-object and object-scene terms and would trespass on HOI-owned
+object/contact behavior.
+
+The composed interpretation is fixed before implementation:
+
+1. Obtain both expert clean predictions and form the actual raw or kinematic composed
+   clean body exactly as already specified.
+2. Evaluate **only** `apply_hsi_guidance_loss` on the 24 FK joints reconstructed from
+   that composed clean body. The energy is human-scene only; it has no dependency on
+   channels 216:232 and does not use the HOSI object/contact guidance terms.
+3. For reverse steps 499 through 1, add
+   `posterior_mean_coef1(t) * guidance_weight * grad(-loss, composed_x0)` to the shared
+   posterior sample, then restore the two history frames exactly. Step 0 is unguided,
+   matching native diffusion. `guidance_weight=1`; cap, dose and alpha-decay remain off.
+4. The energy is evaluated on the body the shared chain will actually follow, not on a
+   private HSI pelvis/body. Anchor occupancy still uses shared `current`; temporal
+   occupancy still uses previous composed `x0`. There is no private-HSI-pelvis option.
+
+Adding the coefficient after the shared posterior is the same location and scaling as
+native R2-CG. The noisy `x_{t-1}` need not itself satisfy FK; every following clean
+prediction is reconstructed by the selected composer, just as a native guided sampler
+denoises a guidance-shifted noisy state at its next step. This does not weaken the
+P2-KIN-API clean-output invariants.
+
+### Two formal rows, one controlled contrast
+
+Both rows use 67 scenes × 7 objects = 469 canonical episodes, four scene-level shards
+on `infbagel-4gpu` GPUs 0–3, seed 42, `hosi_per_episode_seeding=false`, 500 diffusion
+steps, `mixer_hsi_w=1`, `mixer_hsi_object_voxel_mode=occupied`, repaired entry-0
+occupancy layout, shared/previous-composed query pelvis, and the exact two checkpoint
+hashes above.
+
+| cell | run id | only operator difference |
+|---|---|---|
+| raw control | `p2-mixer-rootsplit-r2cg-s42-20260904` | P2-ROOT raw global-position/global-rotation channel ownership |
+| candidate | `p2-mixer-kinematic-r2cg-s42-20260904` | P2-KIN local-rotation ownership plus FK position reconstruction |
+
+Ownership is identical: HOI root/pelvis, torso, arms, hand markers, object and contact;
+HSI complete leg branches `{1,2,4,5,7,8,10,11}`. The raw control must be rerun with R2-CG;
+the old P17-OC P2-ROOT row is historical mechanism evidence, not a valid paired control
+for this checkpoint/recipe.
+
+### Frozen reading and gate
+
+All 15 persisted per-episode metrics are compared with 10,000 paired bootstrap
+replicates, seed 42, keyed by `scene_name/object_name/test_idx`. Completion uses its
+episode-proportion comparison. Heavy-tailed penetration columns additionally report
+better/worse/tied counts, a non-tied sign test and the largest-episode share of the
+absolute total delta; a mean CI alone cannot establish breadth on this benchmark.
+
+The candidate is an **operator PASS** only if:
+
+1. Against the raw R2-CG control, `foot_sliding` has paired mean-difference CI upper
+   bound below zero. This is the direct falsification of the raw hip-seam mechanism.
+2. Against the same raw control, neither `contact_percent` nor completion falls by more
+   than 0.02 absolute, and `scene_human_penetration_frame_ratio` is not significantly
+   worse. These guards prevent a smoother result obtained by disengagement or by giving
+   scene compliance back.
+3. Against the sealed G=0 anchor, the historical P2 gates remain unchanged:
+   `contact_percent >= 0.5878`, completion `>= 0.7433`, and
+   `scene_human_penetration_s_mean <= 6.28801`. Object-scene penetration is reported
+   without a threshold, as before.
+4. Every episode is present and finite; both checkpoint hashes, the operator/query
+   audit, R2-CG guidance call count, zero object-channel guidance dependency, and exact
+   history restoration pass.
+
+If criterion 1 fails, reject the kinematic operator as an empirical repair even though
+its API invariants hold. If criterion 1 passes but a utility guard fails, record a
+structural mechanism positive and a Phase 2 quality FAIL; do not tune this operator in
+the same direction. No seven-episode smoke metric may alter these rules.
+
+### Lifecycle and execution
+
+Use one preregistration commit, one implementation/config/test commit and one completion
+commit. The implementation adds two thin config fragments and the minimum default-off
+R2-CG plumbing; it does not change `code/priors/core/`. Before the formal rows: registry
+and Hydra resolution must pass, the complete authority suite must pass, the R2 file must
+be transferred worker-initiated and hash-verified, and one canonical-scene foreground
+smoke must prove finite R2-CG guidance plus exact audit fields. The smoke is functional
+only and its quality values are non-reportable. Launch the raw control and candidate as
+separate four-shard campaigns, with the raw control first; recover each once, merge only
+after four zero exit codes, then run the frozen paired analysis and stop.
