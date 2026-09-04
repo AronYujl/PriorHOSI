@@ -72,9 +72,21 @@ class ChainRebaseArithmeticTests(unittest.TestCase):
         self.assertIs(below, self.output)
         self.assertTrue(torch.equal(at_threshold, rebase_model_output(self.output, self.x, "c3")))
 
+    def test_future_loss_backpropagates_through_frame_two_delta(self):
+        output = self.output.clone().requires_grad_(True)
+        result = rebase_model_output(output, self.x, "c3")
+        result[:, 3, :216].sum().backward()
+
+        self.assertTrue(torch.equal(
+            output.grad[:, 2, :216], -torch.ones_like(output.grad[:, 2, :216])
+        ))
+        self.assertTrue(torch.equal(
+            output.grad[:, 3, :216], torch.ones_like(output.grad[:, 3, :216])
+        ))
+
 
 class ChainRebaseCallSiteTests(unittest.TestCase):
-    def test_diffusion_path_applies_rebase_before_trace_and_posterior(self):
+    def test_diffusion_training_and_sampling_share_the_rebase_helper(self):
         tree = ast.parse((REPO / "code" / "models" / "infbagel.py").read_text())
         sampler = next(
             node for node in ast.walk(tree)
@@ -83,20 +95,49 @@ class ChainRebaseCallSiteTests(unittest.TestCase):
         methods = {
             node.name: node for node in sampler.body if isinstance(node, ast.FunctionDef)
         }
-        p_sample = methods["p_sample"]
-        calls = [
-            node.lineno for node in ast.walk(p_sample)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "rebase_model_output"
+        calls = {}
+        for name in ("p_losses", "p_sample"):
+            calls[name] = [
+                node.lineno for node in ast.walk(methods[name])
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "rebase_model_output"
+            ]
+            self.assertEqual(len(calls[name]), 1)
+
+        p_losses = methods["p_losses"]
+        model_output = [
+            node.lineno for node in ast.walk(p_losses)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "predicted_noise"
+                for target in node.targets
+            )
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "student_model"
         ]
+        first_loss = [
+            node.lineno for node in ast.walk(p_losses)
+            if isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "loss_jpos"
+                for target in node.targets
+            )
+        ]
+        self.assertEqual(len(model_output), 1)
+        self.assertEqual(len(first_loss), 1)
+        self.assertLess(model_output[0], calls["p_losses"][0])
+        self.assertLess(calls["p_losses"][0], first_loss[0])
+
+        p_sample = methods["p_sample"]
         posterior = [
             node.lineno for node in ast.walk(p_sample)
             if isinstance(node, ast.Assign)
             and any(isinstance(target, ast.Name) and target.id == "model_mean" for target in node.targets)
         ]
-        self.assertEqual(len(calls), 1)
-        self.assertLess(calls[0], posterior[0])
+        self.assertLess(calls["p_sample"][0], posterior[0])
+        self.assertNotIn("rebase_model_output", ast.dump(methods["consistency_loss"]))
         self.assertNotIn("rebase_model_output", ast.dump(methods["cm_sample"]))
 
 

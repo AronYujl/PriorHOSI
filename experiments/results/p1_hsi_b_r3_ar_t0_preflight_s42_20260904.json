@@ -1,0 +1,72 @@
+{
+  "all_finite": true,
+  "arms": {
+    "c3": {
+      "all_finite": true,
+      "base_loss_derived": 0.052501507103443146,
+      "loss_fk_raw": 0.003794408170506358,
+      "loss_fk_weighted": 0.01138322427868843,
+      "loss_fullbody_seam_raw": 0.00017912263865582645,
+      "loss_fullbody_seam_weighted": 9.841893916018307e-05,
+      "loss_object": null,
+      "loss_pen": null,
+      "loss_seam": null,
+      "p_losses_loss": 0.05259992554783821,
+      "shared_transformer_grad_norm": 0.1321837157011032,
+      "training_total_loss": 0.06398314982652664
+    },
+    "off": {
+      "all_finite": true,
+      "base_loss_derived": 0.04394875094294548,
+      "loss_fk_raw": 0.0033855040092021227,
+      "loss_fk_weighted": 0.010156512260437012,
+      "loss_fullbody_seam_raw": 0.0003668674034997821,
+      "loss_fullbody_seam_weighted": 0.00020157531253062189,
+      "loss_object": null,
+      "loss_pen": null,
+      "loss_seam": null,
+      "p_losses_loss": 0.044150326400995255,
+      "shared_transformer_grad_norm": 0.1625782549381256,
+      "training_total_loss": 0.054306838661432266
+    }
+  },
+  "checkpoint": {
+    "path": "/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth",
+    "sha256": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe",
+    "size_bytes": 179647633,
+    "tensor_count": 218
+  },
+  "cohort": {
+    "canonical_order": true,
+    "selected_windows": 352,
+    "sha256": "d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3",
+    "terminal_padded_windows_excluded": 12
+  },
+  "initialization_rule": "warm-start R2 final EMA only when relative_total_loss_increase > 0.20; otherwise random initialization",
+  "initialization_threshold": 0.2,
+  "peak_memory_allocated_bytes": 13153062400,
+  "peak_memory_reserved_bytes": 14873001984,
+  "protocol": {
+    "explicit_noise_seed": 42,
+    "fullbody_seam_loss_weight": 0.5494500113254572,
+    "loss_w_fk": 3.0,
+    "model_mode": "train",
+    "optimizer_steps": 0,
+    "precision": "bf16_tf32 trunk; fp32 geometry and fullbody seam",
+    "restored_cpu_and_cuda_rng_before_each_arm": true,
+    "single_batch_size": 352,
+    "timestep": 0
+  },
+  "relative_total_loss_increase": 0.17817850207447844,
+  "required_gradient_reaches_shared_transformer": true,
+  "resource": {
+    "gpu_count": 1,
+    "gpu_hours": 0.00423996713426378,
+    "physical_gpu": 0,
+    "wall_seconds": 15.26388168334961
+  },
+  "schema_version": 1,
+  "seed": 42,
+  "selected_initialization": "random",
+  "status": "passed"
+}

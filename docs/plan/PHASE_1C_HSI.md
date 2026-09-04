@@ -12823,3 +12823,25 @@ interpolation。长任务只使用可续接 PTY，禁止 tmux/nohup detached lau
 停止：不做 rebase 系数/衰减/timestep sweep，不改 C/consistency，不选择中间 checkpoint，不改
 production default，也不启动其他训练方向。是否把通过的 B teacher 蒸馏到 C 或交给 mixer，仍需
 新的用户裁决。
+
+### F. 2026-09-04 零训练分流结果与初始化冻结
+
+实现后按 B 节执行了唯一一次配对检查。R2 final EMA 与 frozen-60 cohort 的 SHA256 分别为
+`7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe` 和
+`d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3`；352 个 exact-valid window
+按 canonical order 构成单 batch，`t=0`，off/c3 复用同一显式 noise，并在两次前向前恢复相同的
+CPU/CUDA RNG 状态。模型保持 train mode，故 dropout 与 future-occ jitter 也严格配对；无 optimizer
+step。
+
+| arm | training total | p_losses | derived base | raw / weighted full-body seam | raw / weighted FK | shared-transformer grad norm |
+|---|---:|---:|---:|---:|---:|---:|
+| off | 0.05430684 | 0.04415033 | 0.04394875 | 0.00036687 / 0.00020158 | 0.00338550 / 0.01015651 | 0.16257825 |
+| c3 | 0.06398315 | 0.05259993 | 0.05250151 | 0.00017912 / 0.00009842 | 0.00379441 / 0.01138322 | 0.13218372 |
+
+c3 的 total loss 相对增幅为 **17.817850%**，低于冻结的严格 `>20%` warm-start 条件；所有 loss 与
+梯度均有限，c3 梯度非零并到达 shared transformer。因此正式 R3-AR 初始化现冻结为 **random**：
+沿用继承配置的 `load_state_dict=false`、`ckpt_path=""`、`start_epoch=0`、`resume_from=""`，不向
+R3 fragment 添加 checkpoint override。单卡实测 15.264 秒，即 0.00424 GPU-h，低于 0.5 GPU-h
+上限。完整记录为
+`experiments/results/p1_hsi_b_r3_ar_t0_preflight_s42_20260904.json`。这个 operational branch
+不构成 cold-start 优于 warm-start 的因果证据。

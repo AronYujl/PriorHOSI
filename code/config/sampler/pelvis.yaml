@@ -35,6 +35,7 @@ pelvis:
   # config and the sampling configs never define the top-level key, and they
   # must still resolve.  consistency_loss ignores it -- C is not in scope.
   seam_loss_weight: ${oc.select:seam_loss_weight,0.0}
+  fullbody_seam_loss_weight: ${oc.select:fullbody_seam_loss_weight,0.0}
   loss_w_jpos: ${oc.select:loss_w_jpos,1.0}
   pen_loss_weight: ${oc.select:pen_loss_weight,0.0}
   pen_delta: ${oc.select:pen_delta,0.03}

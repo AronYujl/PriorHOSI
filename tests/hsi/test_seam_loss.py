@@ -68,6 +68,16 @@ def _method(name):
     raise AssertionError("method %r not found in infbagel.py" % name)
 
 
+def _uses_sampler_attribute(node, attribute):
+    return any(
+        isinstance(child, ast.Attribute)
+        and isinstance(child.value, ast.Name)
+        and child.value.id == "self"
+        and child.attr == attribute
+        for child in ast.walk(node)
+    )
+
+
 def _batch(seed=20260825):
     """A fixed synthetic batch.  No model, no dataset, no scene voxels, no GPU."""
     generator = torch.Generator().manual_seed(seed)
@@ -292,7 +302,8 @@ class InertWhenOffTests(unittest.TestCase):
         p_losses = _method("p_losses")
         guards = [
             node for node in ast.walk(p_losses)
-            if isinstance(node, ast.If) and "seam_loss_weight" in ast.dump(node.test)
+            if isinstance(node, ast.If)
+            and _uses_sampler_attribute(node.test, "seam_loss_weight")
         ]
         self.assertEqual(len(guards), 1, "expected exactly one seam weight guard")
         guard = guards[0]
@@ -330,7 +341,8 @@ class InertWhenOffTests(unittest.TestCase):
                     and getattr(node.targets[0], "id", None) == "loss_seam"
                     and isinstance(node.value, ast.Constant) and node.value.value is None):
                 none_line = node.lineno
-            if isinstance(node, ast.If) and "seam_loss_weight" in ast.dump(node.test):
+            if (isinstance(node, ast.If)
+                    and _uses_sampler_attribute(node.test, "seam_loss_weight")):
                 guard_line = node.lineno
         self.assertIsNotNone(none_line, "loss_seam = None is missing")
         self.assertIsNotNone(guard_line)
@@ -520,6 +532,140 @@ class ModelCIsOutOfScopeTests(unittest.TestCase):
     def test_sampler_config_default_is_off(self):
         text = (REPO / "code" / "config" / "sampler" / "pelvis.yaml").read_text()
         self.assertIn("seam_loss_weight: ${oc.select:seam_loss_weight,0.0}", text)
+
+
+class FullBodySeamObjectiveTests(unittest.TestCase):
+    def test_default_is_off_and_explicit_weight_is_kept(self):
+        self.assertEqual(_sampler().fullbody_seam_loss_weight, 0.0)
+        self.assertEqual(
+            _sampler(fullbody_seam_loss_weight=1.25).fullbody_seam_loss_weight,
+            1.25,
+        )
+
+    def test_two_second_differences_match_the_registered_formula(self):
+        generator = torch.Generator().manual_seed(20260901)
+        target = torch.randn((3, 6, 24, 3), generator=generator)
+        predicted = torch.randn((3, 6, 24, 3), generator=generator)
+        sampler = _sampler()
+        n = AUTO_REGRE_NUM
+
+        mixed = torch.cat([target[:, n - 2:n], predicted[:, n:n + 2]], dim=1)
+        expected = F.mse_loss(
+            mixed[:, 2:] - 2.0 * mixed[:, 1:-1] + mixed[:, :-2],
+            target[:, n:n + 2] - 2.0 * target[:, n - 1:n + 1]
+            + target[:, n - 2:n],
+        )
+        actual = sampler._compute_fullbody_seam_loss(predicted, target)
+        self.assertTrue(torch.equal(actual, expected))
+
+    def test_only_first_two_generated_predictions_have_gradients(self):
+        generator = torch.Generator().manual_seed(42)
+        target = torch.randn((2, 8, 24, 3), generator=generator)
+        predicted = torch.randn(
+            (2, 8, 24, 3), generator=generator, requires_grad=True
+        )
+        loss = _sampler()._compute_fullbody_seam_loss(predicted, target)
+        gradient = torch.autograd.grad(loss, predicted)[0]
+
+        self.assertTrue(torch.equal(
+            gradient[:, :AUTO_REGRE_NUM],
+            torch.zeros_like(gradient[:, :AUTO_REGRE_NUM]),
+        ))
+        self.assertTrue(bool((
+            gradient[:, AUTO_REGRE_NUM:AUTO_REGRE_NUM + 2] != 0
+        ).any()))
+        self.assertTrue(torch.equal(
+            gradient[:, AUTO_REGRE_NUM + 2:],
+            torch.zeros_like(gradient[:, AUTO_REGRE_NUM + 2:]),
+        ))
+
+    def test_the_two_generated_frames_are_coupled(self):
+        target = torch.zeros((1, 4, 24, 3))
+        sampler = _sampler()
+        n = AUTO_REGRE_NUM
+
+        first = target.clone()
+        first[:, n] = 1.0
+        first_loss = sampler._compute_fullbody_seam_loss(first, target)
+        first[:, n + 1] = 2.0
+        coupled_loss = sampler._compute_fullbody_seam_loss(first, target)
+
+        self.assertGreater(float(first_loss), 0.0)
+        self.assertLess(float(coupled_loss), float(first_loss))
+
+    def test_fk_path_sends_gradients_to_pelvis_translation_and_rotations(self):
+        class RotationAwareDataset:
+            def denormalize_torch(self, points, is_object=False):
+                return points
+
+            def quat_ik_torch(self, rotations):
+                return rotations
+
+            def quat_fk_torch(self, rotations, positions):
+                joints = positions.clone()
+                joints[:, :22] = joints[:, :22] + rotations[:, :, 0, :]
+                return None, joints
+
+        generator = torch.Generator().manual_seed(7)
+        target = torch.randn((1, 4, CHANNELS), generator=generator)
+        prediction = target.clone()
+        prediction[:, AUTO_REGRE_NUM:AUTO_REGRE_NUM + 2, :216] += 0.2
+        prediction.requires_grad_(True)
+        sampler = _sampler()
+        sampler.dataset = RotationAwareDataset()
+        mat = torch.eye(4).unsqueeze(0)
+        offsets = torch.zeros((1, 24, 3))
+
+        _, predicted_joints = sampler._compute_human_joints(
+            prediction, target[:, :, :84], mat, offsets
+        )
+        _, target_joints = sampler._compute_human_joints(
+            target, target[:, :, :84], mat, offsets
+        )
+        loss = sampler._compute_fullbody_seam_loss(predicted_joints, target_joints)
+        gradient = torch.autograd.grad(loss, prediction)[0]
+
+        n = AUTO_REGRE_NUM
+        self.assertTrue(bool((gradient[:, n:n + 2, :3] != 0).any()))
+        self.assertTrue(bool((gradient[:, n:n + 2, 84:216] != 0).any()))
+        self.assertTrue(torch.equal(
+            gradient[:, :n], torch.zeros_like(gradient[:, :n])
+        ))
+        self.assertTrue(torch.equal(
+            gradient[:, n + 2:], torch.zeros_like(gradient[:, n + 2:])
+        ))
+
+    def test_r2_and_r3_configs_add_only_the_registered_variables(self):
+        def body(name):
+            text = (REPO / "code" / "config" / name).read_text()
+            return [
+                line.strip() for line in text.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
+
+        self.assertEqual(
+            body("config_train_hsi_b_r2_fullbody_seam.yaml"),
+            [
+                "defaults: [config_train_hsi_b_r1_reliable_teacher, _self_]",
+                "exp_name: hsi_b_r2_fullbody_seam",
+                "fullbody_seam_loss_weight: 0.5494500113254572",
+            ],
+        )
+        self.assertEqual(
+            body("config_train_hsi_b_r3_ar.yaml"),
+            [
+                "defaults: [config_train_hsi_b_r2_fullbody_seam, _self_]",
+                "exp_name: hsi_b_r3_ar",
+                "hsi_chain_rebase_mode: c3",
+            ],
+        )
+        sampler_config = (
+            REPO / "code" / "config" / "sampler" / "pelvis.yaml"
+        ).read_text()
+        self.assertIn(
+            "fullbody_seam_loss_weight: ${oc.select:fullbody_seam_loss_weight,0.0}",
+            sampler_config,
+        )
 
 
 if __name__ == "__main__":                                       # pragma: no cover
