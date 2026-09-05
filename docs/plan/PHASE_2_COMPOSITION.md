@@ -1885,3 +1885,92 @@ Numbers: `experiments/results/p2_mixer_hsi_input_s42_20260905.json`.
 Scope, interpretation, verification and the next entry point:
 `docs/phase_summaries/PHASE_2_INPUT_DIAGNOSTIC.md`. This closes the registered
 diagnostic; Phase 2's joint-composition gate remains open.
+
+## 2026-09-05 — Phase 2.1 relational prototype, preregistered
+
+The user approved advancing the shared-chain HSI view and joint relational
+prototype. Split the work before implementation: **2.1**, on
+`phase/02a-relational-prototype`, delivers the input process, differentiable
+geometry and a controlled generated-window experiment; **2.2**, on a later
+`phase/02b-relational-rollout` session, evaluates closed-loop four-cell quality.
+Both integrate into `phase/02-mixer`. This session completes 2.1 only; the
+Phase 2 quality gate and learned Phase 3 training remain open.
+
+**Input process.** Model the known empty object/contact state as clean zero.
+Generate one independent full forward-noise trajectory per window,
+`u[t] = sqrt(alpha[t])*u[t-1] + sqrt(beta[t])*epsilon[t]`, starting at clean
+zero, and expose it in reverse order at the corresponding denoising step.
+This supplies both the training marginal and the correct known-zero temporal
+coupling; it replaces the previous probe's fixed-epsilon marginal construction.
+History is zero, the human hypothesis is shared, object tokens are masked at
+the HSI call, and geometry continues to see the complete world. Use the HOI
+window seed through a separate auxiliary generator; preserve global/carrier RNG.
+
+**Geometry.** Decode HOI to root position, root/global/local rotations and
+the object's physical pose in the same window frame. Apply a common root-centred
+translation and yaw to human and object; apply local SO(3) increments to the
+21 non-root body joints, then reconstruct positions with FK. Object-reference
+encoding uses the evaluator's `mat`, `obj_rot_mat_prefix` and BPS reference
+explicitly. Object-relative pose is fixed in this first prototype. Contact
+channels remain HOI. Pin history. Common motion alone preserves instantaneous
+root-object and hand-object relations; stance preservation requires joint motion.
+Geometry and its objective must be differentiable from zero residual.
+
+**Four cells, fixed optimization.** At generated G=0 states use P15 online +
+Arm B and R2 final EMA from the sealed input diagnostic. Obtain conditional and
+temporal-scene-masked HSI predictions through the new input view. Define the HSI
+proposal as their future FK difference, added to the HOI FK body; it is a
+dynamic-perception increment, with text/goals/static scene unchanged.
+
+All cells optimize the same root translation/yaw and body-local variables for
+20 Adam steps, learning rate 0.05, initialized at zero for each state. Bound
+each translation axis to 0.10 m and each angular increment component to 10
+degrees with tanh. Every cell includes residual regularization, HOI hand-object
+anchor preservation under fixed HOI contact labels >0.95, support-foot floor
+height, near-floor foot velocity, and root/object endpoint preservation. Energy
+terms use mean squared errors normalized by explicit physical tolerances:
+residual scales above; 0.05 m hand anchors and HSI proposal; 0.02 m floor/stance
+displacement; 0.10 m endpoints. Each normalized term has weight one. No sweep.
+The stance mask is fixed from HOI FK using the evaluator's 0.08 m ankle / 0.04 m
+toe heights and applies to adjacent frames with contact in both frames.
+
+Factor H adds the HSI proposal loss. Factor G adds human-scene and object-scene
+nearest-free-voxel displacement losses, each normalized by 0.05 m. Human geometry
+uses 24 FK joints; object geometry uses 128 evenly indexed rest-mesh vertices,
+fixed across cells. Cells are A00 (neither), A10 (H), A01 (G), A11 (H+G).
+This is an optimization-based mixer prototype, not trained network weights.
+
+**Sample and measurements.** Reuse the previous metadata-selected bins
+0,22,44,66 and all seven objects per scene: 28 episodes on four worker GPUs.
+Observe reverse steps 10,1,0 in every G=0 window, including generated histories.
+All four cells see identical state, masks, scene, object points and HSI outputs;
+optimized outputs stay in the observer and never alter the carrier. Record all
+objective terms before/after, human/object scene residuals and occupied-point
+fractions, contact-anchor drift, stance displacement, endpoint shifts, applied
+translation/angle magnitudes, optimizer gradient finiteness, and synchronized
+optimization time/peak memory. Save final cell motions beside per-state records.
+
+Use episode-first aggregation, initial/generated history strata, all three
+timesteps, and the existing 10,000-replicate seed-42 factorial paired bootstrap.
+Also report four-scene aggregation. Primary comparison is A11-A01 on generated
+history: scene residuals, with contact/stance/endpoint changes beside them.
+Read signs and uncertainty without a post-hoc scalar quality score. A negative
+or inconclusive HSI increment is retained. These quantities measure constrained
+window behavior, not native success, sliding, naturalness or closed-loop quality.
+
+**Gate and lifecycle.** Geometry tests must establish shared-transform relations,
+reference-frame round trips, exact history, and finite nonzero gradients through
+root and articulated joints at zero residual. Input tests establish the forward
+recurrence and marginal/covariance identities. The real-data gate requires 28
+complete episodes, every registered state/cell, finite optimization, four zero
+worker exits and complete paired reports. This gate permits an interface/probe
+handoff even if HSI adds no measured value; it cannot promote the full method.
+The registered workload includes batch-1 compute/memory timing for this changed
+path and real-data runtime validation. Add no separate smoke workload or new
+tool script. Use one config fragment, component modules/tests, the existing
+Hydra evaluator and bootstrap tool. Reuse sealed assets by reference, keep
+core/expert files unchanged, and use preregistration/implementation/completion
+commits. Archive resolved configs and preflight before the worker-owned run;
+recover once with the existing transfer/checksum procedure. Write
+`docs/phase_summaries/PHASE_2A_RELATIONAL_PROTOTYPE.md` before integration and
+tag the completed 2.1 interface deliverable. No 2.2 run starts in this session.
