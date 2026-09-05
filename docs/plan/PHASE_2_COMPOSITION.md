@@ -1721,3 +1721,45 @@ anchors are manifest `40e99e0a...`, completion record `fe61fd0b...`, aggregate
 `52a15289...`, and full merged summary `196709c1...`. The raw-first lifecycle gate is
 met; after this completion record is committed, start only
 `p2-mixer-kinematic-r2cg-r1-s42-20260904` under the unchanged original inference path.
+
+## 2026-09-05 — P2-KIN-R2CG-r1 candidate completion and operator verdict
+
+The kinematic candidate `p2-mixer-kinematic-r2cg-r1-s42-20260904` completed at
+commit `eca2dc0` on `infbagel-4gpu`. Four shard exit codes are zero; the guarded
+merge contains 469 unique canonical ordinals `0..468`, all persisted numeric values
+are finite, both checkpoint hashes are exact, and the recovered worker/authority
+trees pass a checksum-only comparison. The operator audit is
+`kinematic_local_rotation_fk` with HOI root/carrier, HSI local leg rotations
+`{1,2,4,5,7,8,10,11}`, HOI-attached markers and HOI object/contact. All four
+terminal-scene audits satisfy the fixed 500 compose / 499 R2-CG relation with zero
+nonfinite steps, posterior coef1, no object/contact dependency and exact history
+restoration.
+
+The preregistered 10,000-replicate episode-paired bootstrap (seed 42, one shared
+resample-index matrix, key `scene_name/object_name/test_idx`) rejects the operator.
+For the primary mechanism metric, foot sliding is `0.330981` against raw `0.329279`:
+delta `+0.001702`, 95% CI `[-0.023549,+0.026544]`. The mean interval is a null, not
+an improvement, so its upper bound does not clear zero. More importantly for this
+heavy-tailed metric, zero episodes tie and the direction is broadly harmful: 295
+worsen against 174 improve, exact two-sided sign-test `p=2.53e-8`, median delta
+`+0.019587`. The local-rotation/FK replacement therefore does not remove the
+empirical sliding failure attributed to the raw hip seam.
+
+The utility guards do not explain the rejection. Contact improves significantly by
+`+0.011451`, CI `[+0.004012,+0.018976]`; completion changes by `+0.012793`, CI
+`[-0.004264,+0.029851]`; scene-human penetration frame ratio changes by `-0.004646`,
+CI `[-0.016124,+0.006990]`, so it is not significantly worse. Against the frozen
+G=0 anchor, contact `0.703729` and completion `0.773987` pass, but scene-human
+penetration s-mean `7.632337` fails the unchanged `<=6.28801` gate. Its paired mean
+against G=0 is a tail-dominated null (`+0.645659`, CI `[-0.541556,+2.224837]`), while
+the non-tied direction is nevertheless broadly worse (265 worse, 194 better, 10 tied,
+sign-test `p=0.00106`). Penetration prevalence is significantly worse than G=0 by
+`+0.073456`, CI `[+0.056529,+0.090202]`.
+
+**Verdict: operator FAIL; reject, do not tune in this direction.** It preserves or
+improves engagement relative to the raw control, but fails both the direct sliding
+mechanism criterion and the carried G=0 scene-compliance threshold. No checkpoint or
+expert is selected by this result, and the current R2 teacher remains an interim
+teacher as already recorded. The full 16-metric paired tables, sign tests, tail shares,
+source hashes and resample-index hash are tracked in
+`experiments/results/p2_mixer_kinematic_r2cg_r1_paired_s42_20260905.json`.
