@@ -7,6 +7,10 @@ work. The input diagnostic and Phase 2.1 relational-window prototype are complet
 The relational interface passes; the tested HSI increment target adds no scene
 benefit over the geometric objective. See the dated completions and handoffs below.
 
+Current expert selection (user, 2026-09-06): **R2 final EMA + CG** and
+**P15 online + guidance Arm B**. Continue Phase 2 with these fixed experts.
+The next bounded deliverable is the Phase 2.2 closed-loop experiment below.
+
 ## What is being composed, and why not by data mixing
 
 The released InfBaGel trains one model on a mixture: synthesized pseudo-HOSI
@@ -2015,3 +2019,77 @@ Integrate this interface deliverable into `phase/02-mixer` and tag
 `exp/p2a-relational-prototype-v1`. Before a Phase 2.2 rollout proposal, reconsider
 the uniform full-body DP-displacement target in light of this negative result.
 The current HSI target is a retained control, not a selected production recipe.
+
+## 2026-09-06 — Phase 2.2 relational closed-loop experiment
+
+The user settled R2+CG / P15+guide and requested continuation. This implements
+the previously separated closed-loop subphase on `phase/02b-relational-rollout`.
+The Phase 2.1 negative changes the question: first establish whether the shared
+relation/geometry correction helps native rollout. Retain the tested HSI
+increment as a negative control; its window loss supplies no positive training
+target. Experts, the frozen core, and their inference weights stay fixed.
+
+**Mechanism.** At reverse steps 10,1,0, apply the Phase 2.1 bounded relation
+optimizer to the actual clean prediction before the shared DDPM posterior.
+The corrected clean prediction also becomes the next temporal scene-query
+reference. Use the exact known-empty HSI input process, 20 Adam steps at 0.05,
+the existing 67 residual coordinates, physical scales and source masks. All
+other denoising steps retain the HOI clean prediction. Common motion adjusts
+both the human and HOI object; contact channels and history stay exact.
+The sampler audit must describe this transformed object provenance explicitly.
+
+**Fixed five rows.** R2-CG human-scene posterior guidance is active at all
+499 nonzero reverse steps in every row, with coefficient1 and scale 1. P15
+Arm B follows it with its sealed last-ten-step recipe. Every row has the same
+A* goals, scene, seed 42, 500 steps, repaired occupancy and world geometry.
+
+| Row | Clean correction at 10,1,0 |
+|---|---|
+| reference | HOI clean, with the matched CG/Arm B posterior; no relation optimizer |
+| a00 | shared source relation, floor, stance, endpoint and residual objectives |
+| a10 | a00 plus the retained HSI conditional-minus-temporal-masked FK target |
+| a01 | a00 plus human/object nearest-free-voxel objectives |
+| a11 | a00 plus both factors |
+
+The R2 neural increment is queried in all four optimizer rows at the same three
+steps; factors change only which objective contributes to optimization. The
+reference and a00/a01 are controls for geometric guidance, not evidence that
+the R2 learned scene prior has helped. The archived 469-case G=0 remains an
+external context row because its CG state differs from these matched controls.
+
+**Cohort and runtime.** Reuse metadata-selected scene bins 0,22,44,66 and all
+seven objects: 28 complete episodes per row, 140 total. Use the eight idle
+authority RTX 3090 GPUs for this mixer workload, batch 1; record the actual
+allocation and any contention. Canonical episode/window seeds and posterior
+noise stay paired. No weight/schedule search or neural training is included.
+Archive resolved configurations, machine preflight and manifests before
+persistent execution with the verified infbagel interpreter. The registered
+experiment supplies real-data runtime verification and synchronized batch-1
+compute/memory measurements; add no separate smoke or new tool script.
+
+**Reading.** Persist all 15 native metrics and completion for every episode.
+Use the existing 10,000-replicate seed-42 paired bootstrap: the four-cell
+factorial, a01-reference, and a00-reference. Also report scene-mean versions
+over the four scenes. Primary mechanism contrast is a01-a00; a11-a01 tests
+whether the retained HSI target's negative transfers to rollout. Contact,
+completion and feet height accompany every penetration/sliding comparison.
+Native foot sliding observes the generated result, including newly planted
+feet outside the optimizer's fixed source stance mask.
+
+A pilot geometry benefit requires negative upper paired CI for object-scene
+mean penetration in a01-a00 and a01-reference, contact/completion point drops
+at most 0.02 against reference, and no significant worsening of native foot
+sliding or human-scene frame penetration. An HSI benefit additionally requires
+a11-a01 to improve scene metrics with the same engagement protections. Report
+episode and scene uncertainty together; four scenes cannot establish the full
+Phase 2 quality gate. Complete and retain all rows regardless of early signs.
+
+**Deliverable gate.** Component tests establish single-cell/four-cell optimizer
+equivalence, history/contact preservation, and that corrected clean predictions
+reach the posterior and subsequent scene context. All authority tests, resolved
+configs and registry validation pass. Complete 140 episodes with finite native
+metrics, correction gradients and 499 CG calls/window, plus paired reports and
+`docs/phase_summaries/PHASE_2B_RELATIONAL_ROLLOUT.md`. Classify the result even if
+negative. Use preregistration, implementation and completion commits. This
+subphase closes the pilot only; learned mixer training requires useful HSI
+supervision and the outstanding full Phase 2 gate in a later session.
