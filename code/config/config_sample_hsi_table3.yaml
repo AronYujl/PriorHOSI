@@ -1,0 +1,20 @@
+defaults: [config_sample_infbagel_lingo_hsi, _self_]
+
+lingo_hsi_mode: table3
+sample_type: diffusion
+device: cuda:0
+table3_output: ${oc.env:ROOT_DIR}/results/hsi_r2_table3_s42_20260906
+table3_encoder_source: ${oc.env:ROOT_DIR}/.claude/scratch/round3_fid/run_lingo_t2m_evaluator.py
+table3_encoder_checkpoint: /data/yujinlun/InfBaGel-worker-staging/lingo-t2m-evaluator-dedup-gate-20260813/output/model/finest.tar
+table3_mean: /data/yujinlun/InfBaGel-worker-staging/lingo-t2m-evaluator-dedup-gate-20260813/output/meta/mean.npy
+table3_std: /data/yujinlun/InfBaGel-worker-staging/lingo-t2m-evaluator-dedup-gate-20260813/output/meta/std.npy
+table3_glove_root: ${oc.env:ROOT_DIR}/.claude/scratch/p1c_t2m_evaluator/bundle/glove_lingo
+table3_chois_root: /data/yujinlun/chois_release
+table3_truth_motion: ${oc.env:ROOT_DIR}/.claude/scratch/round3_fid/gt/interactive
+table3_truth_metrics: ${oc.env:ROOT_DIR}/results/lingo_hsi/ground-truth-v3/evaluation/per_sequence_metrics.json
+table3_control_motion: ${oc.env:ROOT_DIR}/results/lingo_hsi/c_guided_v5_baseline/hsi_c_lingo_cm_v2_epoch089-f1c09c2425af/motion
+table3_control_result: ${oc.env:ROOT_DIR}/.claude/scratch/baseline_20260821/t2m_interactive.json
+table3_bootstrap_batch: 8
+table3_inputs:
+  unguided: /data/yujinlun/InfBaGel-hsi-r2/results/lingo_hsi/r2_fullbody_seam_unguided_shard8_on4/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_cg_guidance_coef1/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json

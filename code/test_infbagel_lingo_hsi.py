@@ -3584,6 +3584,9 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_predictor_decomp(cfg)
     elif mode == "rebase_numerics":
         path = evaluate_rebase_numerics(cfg)
+    elif mode == "table3":
+        from priors.hsi.text_motion import table3_readout
+        path = table3_readout(cfg)
     elif mode == "single_window_chain":
         path = evaluate_single_window_chain(cfg)
     elif mode == "d4_offline_decomp":
@@ -3594,7 +3597,7 @@ def main(cfg: DictConfig) -> None:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
-            "d4_offline_decomp, chain_rebase or rebase_numerics, got %s"
+            "d4_offline_decomp, chain_rebase, rebase_numerics or table3, got %s"
             % mode
         )
     print("Wrote %s" % path)

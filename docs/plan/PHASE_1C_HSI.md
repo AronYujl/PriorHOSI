@@ -13095,3 +13095,10 @@ D5/D6 的总体分层权重，也不把这些单步读数当作该总体的 roll
 - 单卡 RTX3090，GPU0，总读出预算上限 2 GPU-h；若 GPU0 被占用则在启动前登记空闲卡。
   干净提交、exact resolved config、tools/experiment.py start，完成后封存结果与注册。
 - 论文仓库仅修改 Table 3 及其直接说明，保留用户已有其他编辑。编译并检查实际排版。
+
+实现使用 priors/hsi/text_motion.py 与现有 LINGO evaluator 的 table3 mode。
+冻结 encoder 的模型类以 t2m_eval 命名空间导入，保留项目自身 utils；旧依赖负责原始
+加载、canonicalise、词表与 gallery。GPU FID 对完整协方差公式及秩亏情况下的平移/
+尺度解析结果通过三项组件检查（包含论文分组与 5cm 边界）。
+
+Authority suite：437 passed、3 skipped；registry validation 与 resolved-config 检查通过。
