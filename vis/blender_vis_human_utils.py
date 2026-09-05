@@ -28,7 +28,9 @@ def render_paired(config_path):
         for device in preferences.devices:
             device.use = device.type == 'CUDA'
         scene.cycles.samples = int(config['samples'])
+        scene.cycles.seed = 42
         scene.cycles.use_denoising = True
+        scene.cycles.denoiser = 'OPTIX'
         scene.cycles.max_bounces = 4
         scene.cycles.transparent_max_bounces = 8
         scene.render.use_persistent_data = True
@@ -43,14 +45,14 @@ def render_paired(config_path):
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = 'PNG'
     scene.render.image_settings.color_mode = 'RGB'
-    scene.view_settings.view_transform = 'Standard'
+    scene.view_settings.view_transform = 'Filmic'
     scene.view_settings.look = 'Medium High Contrast'
     scene.view_settings.exposure = 0
     scene.view_settings.gamma = 1
     world = bpy.data.worlds.new('White studio')
     world.use_nodes = True
     world.node_tree.nodes['Background'].inputs['Color'].default_value = (1, 1, 1, 1)
-    world.node_tree.nodes['Background'].inputs['Strength'].default_value = .7
+    world.node_tree.nodes['Background'].inputs['Strength'].default_value = .4
     scene.world = world
 
     def material(name, color, alpha=1.):
@@ -59,7 +61,7 @@ def render_paired(config_path):
         shader = mat.node_tree.nodes['Principled BSDF']
         shader.inputs['Base Color'].default_value = tuple(color) + (1.,)
         shader.inputs['Roughness'].default_value = .72
-        shader.inputs['Specular'].default_value = .25
+        shader.inputs['Specular'].default_value = .1
         if alpha < 1:
             tree = mat.node_tree
             transparent = tree.nodes.new('ShaderNodeBsdfTransparent')
@@ -103,11 +105,11 @@ def render_paired(config_path):
             normal = face.normal
             camera_wall = any(
                 abs(normal[axis]) > .95 and (
-                    (direction[axis] > 0 and center[axis] > room_upper[axis]-.06) or
-                    (direction[axis] < 0 and center[axis] < room_lower[axis]+.06)
+                    (direction[axis] > 0 and center[axis] > room_upper[axis]-.25) or
+                    (direction[axis] < 0 and center[axis] < room_lower[axis]+.25)
                 ) for axis in (0, 1)
             )
-            ceiling = center[2] > room_upper[2]-.06 and abs(normal.z) > .9
+            ceiling = center[2] > room_upper[2]-.25 and abs(normal.z) > .9
             if ceiling or camera_wall:
                 remove.append(face)
             elif center[2] < room_lower[2]+.12 and abs(normal.z) > .8:
@@ -122,8 +124,8 @@ def render_paired(config_path):
         bm.free()
         obj.data.update()
 
-    lower = np.minimum(room_lower, np.asarray(config['motion_bounds'][0]))
-    upper = np.maximum(room_upper, np.asarray(config['motion_bounds'][1]))
+    lower = np.asarray(config['motion_bounds'][0]) - np.array([.9, .9, .10])
+    upper = np.asarray(config['motion_bounds'][1]) + np.array([.9, .9, .15])
     target = (lower + upper) / 2
     camera_data = bpy.data.cameras.new('Shared camera')
     camera = bpy.data.objects.new('Shared camera', camera_data)
@@ -142,7 +144,7 @@ def render_paired(config_path):
     aspect = config['width']/config['height']
     camera_data.ortho_scale = float(max(extent[0], extent[1]*aspect)*1.07)
 
-    for name, energy, offset, size in [('Key', 1200., (-3.,-4.,8.), 6.), ('Fill', 650., (4.,2.,6.), 5.)]:
+    for name, energy, offset, size in [('Key', 500., (-3.,-4.,8.), 6.), ('Fill', 250., (4.,2.,6.), 5.)]:
         light_data = bpy.data.lights.new(name, 'AREA')
         light_data.energy = energy
         light_data.shape = 'DISK'
@@ -195,7 +197,10 @@ def render_paired(config_path):
               'exterior_cutaway_faces': removed_count, 'motion_transform': 'y-up to Blender only',
               'frame_count': config['frame_count'], 'keyframes': config['keyframes'],
               'scene_mesh': config['scene_mesh'], 'body_geometry_edited': False,
-              'furniture_geometry_edited': False}
+              'interior_vertex_positions_edited': False,
+              'exterior_cutaway_depth_m': .25,
+              'color_transform': 'Filmic', 'denoiser': 'OPTIX',
+              'fit_policy': 'union of both motions plus shared context margin'}
     (output / 'render_report.json').write_text(json.dumps(report, indent=2)+'\n')
 
 if __name__ == "__main__":

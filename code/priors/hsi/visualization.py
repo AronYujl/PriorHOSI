@@ -73,21 +73,24 @@ def _write_index(root: Path, rows):
         caption = html.escape(row["caption"])
         metrics = row["comparison"]
         cards.append(
-            '<article><h2>%s · %s</h2><p>%s · %s · %.2f s</p>'
+            '<article id="%s" data-action="%s"><h2>%s · %s</h2><p>%s · %s · %.2f s</p>'
             '<video controls preload="metadata" poster="%s/poster.png" src="%s/comparison.mp4"></video>'
-            '<p>Mean joint difference %.1f cm · mean root difference %.1f cm · final root difference %.1f cm</p>'
+            '<p>Recorded-span joint difference %.1f cm · whole-export root difference %.1f cm · final root difference %.1f cm</p>'
+            '<p>Recorded GT duration %.2f s; later exported frames hold the GT endpoint. Orange video header marks this interval.</p>'
             '<p><a href="%s/keyframes.png">Matched keyframes</a> · '
             '<a href="%s/teaser_pair.png">Overlaid poses</a> · '
             '<a href="%s/comparison.json">Measurements and provenance</a></p></article>'
-            % (case, caption, row["scene_name"], row["sequence_id"], row["duration_seconds"],
-               case, case, metrics["joint_error_cm"], metrics["root_error_cm"],
-               metrics["final_root_error_cm"], case, case, case)
+            % (case, row['action_class'], case, caption, row["scene_name"], row["sequence_id"], row["duration_seconds"],
+               case, case, float(np.mean(metrics['per_frame_joint_error_cm'][:row['source_length']])), metrics["root_error_cm"],
+               metrics["final_root_error_cm"], row['source_length']/30., case, case, case)
         )
     doc = ('<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
            '<title>HSIPrior: generated and ground truth</title><style>'
            'body{max-width:1320px;margin:36px auto;padding:0 24px;font:16px/1.6 system-ui;color:#22303a;background:#f5f6f7}'
            'h1{font-size:30px}h2{font-size:21px}article{background:white;padding:24px;margin:24px 0;border-radius:12px}'
-           'video{width:100%;background:white}a{color:#186c88}p{margin:10px 0}</style>'
+           'video{width:100%;background:white}a{color:#186c88}p{margin:10px 0}'
+           'nav{position:sticky;top:0;background:#f5f6f7;padding:12px 0;z-index:2}'
+           'button{padding:9px 18px;border:1px solid #ccd5d9;border-radius:7px;background:white;margin:0 8px 6px 0;cursor:pointer}</style>'
            '<h1>HSIPrior · 20 paired training-scene candidates</h1>'
            '<p><strong>Left: ground truth. Right: R2 + CG generation.</strong> Same source history, body, room, camera and clock.</p>'
            '<p>R2 final EMA · 500 diffusion steps · posterior-coefficient guidance · seed 42. '
@@ -95,7 +98,13 @@ def _write_index(root: Path, rows):
            'Source heading is preserved. GT is resampled with the same stride-3/interpolation protocol. '
            'Furniture and human trajectories are unchanged. Root/joint differences are frame-aligned comparisons to one recording, '
            'not measures of the only valid motion. All 20 candidates, including unsuccessful actions, are retained.</p>'
-           '<p><a href="selection.json">Source selection and measurements</a></p>' + ''.join(cards) + '</html>')
+           '<p><a href="selection.json">Source selection and measurements</a></p>'
+           '<nav><button onclick="showCases(\'all\')">全部20例</button>'
+           '<button onclick="showCases(\'navigate\')">行走</button><button onclick="showCases(\'sit\')">坐下</button>'
+           '<button onclick="showCases(\'rise\')">起身</button><button onclick="showCases(\'lie\')">躺卧</button>'
+           '<button onclick="showCases(\'wash\')">洗手</button></nav>'
+           + ''.join(cards) + '<script>function showCases(action){document.querySelectorAll("article").forEach(card=>{'
+           'card.style.display=(action==="all"||card.dataset.action===action)?"":"none";});}</script></html>')
     (root / 'index.html').write_text(doc, encoding='utf-8')
 
 
@@ -144,7 +153,7 @@ def prepare_paired_review(cfg):
         cache_bounds = torch.stack([cache.amin(dim=(0, 1, 2)), cache.amax(dim=(0, 1, 2))]).cpu().tolist()
         root_rotation = axis_angle_to_matrix(torch.as_tensor(gt['global_orient'][0], dtype=torch.float32))
         forward = root_rotation @ torch.tensor([0., 0., 1.])
-        azimuth = float(np.degrees(np.arctan2(-float(forward[2]), float(forward[0]))) - 40)
+        azimuth = float(np.degrees(np.arctan2(-float(forward[2]), float(forward[0]))) - 85)
         config = {
             'case_id': source['case_id'], 'caption': source['caption'],
             'vertices': str(case_dir / 'paired_vertices.npy'),
@@ -199,9 +208,12 @@ def finalize_paired_review(cfg):
         width, height = config['width'], config['height']
         video_filter = (
             'hstack=inputs=2,pad=iw:ih+60:0:60:color=white,'
+            "drawbox=x=0:y=39:w=%d:h=21:color=0xffddaa:t=fill:enable='gte(t,%.6f)',"
             'drawtext=fontfile=%s:text=Ground truth:x=20:y=12:fontsize=23:fontcolor=0x243440,'
-            'drawtext=fontfile=%s:text=R2 + CG:x=%d:y=12:fontsize=23:fontcolor=0x243440'
-        ) % (font_path, font_path, width+20)
+            'drawtext=fontfile=%s:text=R2 + CG:x=%d:y=12:fontsize=23:fontcolor=0x243440,'
+            "drawtext=fontfile=%s:text='Recorded GT %.2f s; orange indicates endpoint hold':x=20:y=42:fontsize=13:fontcolor=0x243440"
+        ) % (width, row['source_length']/30., font_path, font_path, width+20,
+             font_path, row['source_length']/30.)
         video = folder / 'comparison.mp4'
         if not video.exists():
             subprocess.run([
@@ -231,7 +243,10 @@ def finalize_paired_review(cfg):
                 image = Image.open(folder/name/('%05d.png' % frame)).resize((cell_width, cell_height), Image.Resampling.LANCZOS)
                 sheet.paste(image, (column*cell_width, top+32))
                 time = config['source_frame_indices'][frame]/30.
-                draw.text((column*cell_width+16, top+34+cell_height), 't = %.2f s' % time,
+                label = 't = %.2f s' % time
+                if arm == 0 and time >= row['source_length']/30.:
+                    label += ' | beyond recorded duration'
+                draw.text((column*cell_width+16, top+34+cell_height), label,
                           fill='#243440', font=small_font)
         sheet.save(folder/'keyframes.png')
         gt_image = Image.open(folder/'teaser_ground_truth.png')
