@@ -84,6 +84,21 @@ class ChainRebaseArithmeticTests(unittest.TestCase):
             output.grad[:, 3, :216], torch.ones_like(output.grad[:, 3, :216])
         ))
 
+    def test_first_future_frame_cannot_learn_an_acceleration(self):
+        output = self.output.clone().requires_grad_(True)
+        rebased = rebase_model_output(output, self.x, "c3")
+        rebased[:, 2, :216].sum().backward()
+        self.assertEqual(float(output.grad.abs().max()), 0.0)
+
+    def test_shared_output_bias_is_unidentifiable_in_exact_arithmetic(self):
+        output = self.output.double()
+        bias = torch.randn(232, dtype=torch.float64, requires_grad=True)
+        first = rebase_model_output(output, self.x.double(), "c3")
+        second = rebase_model_output(output + bias, self.x.double(), "c3")
+        self.assertTrue(torch.allclose(first[:, 2:, :216], second[:, 2:, :216], atol=1e-12, rtol=0))
+        second[:, 2:, :216].square().mean().backward()
+        self.assertLess(float(bias.grad[:216].abs().max()), 1e-15)
+
 
 class ChainRebaseCallSiteTests(unittest.TestCase):
     def test_diffusion_training_and_sampling_share_the_rebase_helper(self):

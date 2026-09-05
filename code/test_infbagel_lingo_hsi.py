@@ -2457,6 +2457,112 @@ def _evaluate_predictor_decomp_cohort(
     return records, {name: np.stack(values) for name, values in arrays.items()}
 
 
+def evaluate_rebase_numerics(cfg: DictConfig) -> Path:
+    """R3-ND: paired precision and bias interventions on fixed checkpoints."""
+    import random
+    from torch.utils.data._utils.collate import default_collate
+
+    random.seed(int(cfg.seed))
+    np.random.seed(int(cfg.seed))
+    torch.manual_seed(int(cfg.seed))
+    torch.cuda.manual_seed_all(int(cfg.seed))
+    model, checkpoint = _load_strict_checkpoint(cfg)
+    model.train()
+    model.requires_grad_(False)
+    model.out.requires_grad_(True)
+    dataset = hydra.utils.instantiate(cfg.dataset)
+    source = GroundTruthSource(DATASET_ROOT)
+    selections, subset, stratum_weights = _exact_holdout_windows(
+        dataset, source, cfg.lingo_episode_dir, cfg.lingo_episode_subset,
+        int(cfg.numerics_holdout_windows), int(cfg.numerics_terminal_padded_windows),
+    )
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, model)
+    device = torch.device(str(cfg.device))
+    records, batch_records = [], []
+    started = time.monotonic()
+    torch.cuda.reset_peak_memory_stats(device)
+    for start in range(0, len(selections), int(cfg.batch_size)):
+        selected = selections[start:start + int(cfg.batch_size)]
+        batch = default_collate([_lingo_item(dataset, row["data_idx"]) for row in selected])
+        batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
+        sampler.batch_size = len(selected)
+        generator = torch.Generator(device=device).manual_seed(int(cfg.seed) + start)
+        noise = torch.randn((len(selected), 16, 232), device=device, generator=generator)
+        for timestep in cfg.numerics_timesteps:
+            torch.manual_seed(int(cfg.seed) + start + int(timestep))
+            torch.cuda.manual_seed(int(cfg.seed) + start + int(timestep))
+            cpu_rng = torch.get_rng_state()
+            cuda_rng = torch.cuda.get_rng_state(device)
+            reference_hidden = None
+            for precision in cfg.numerics_precisions:
+                pair, predictions = [], []
+                for zero_bias in (False, True):
+                    torch.set_rng_state(cpu_rng)
+                    torch.cuda.set_rng_state(cuda_rng, device)
+                    values, stats, prediction, hidden = hsi_diagnostics.rebase_numerics_batch(
+                        cfg, sampler, model, batch, noise, timestep, precision, zero_bias
+                    )
+                    cell = "t%d_%s_%s" % (timestep, precision, "zero_bias" if zero_bias else "original")
+                    if reference_hidden is None:
+                        reference_hidden = hidden
+                    stats.update({
+                        "cell": cell, "batch_start": start, "window_count": len(selected),
+                        "hidden_abs_difference_from_bf16": float((hidden - reference_hidden).abs().max()),
+                    })
+                    batch_records.append(stats)
+                    pair.append((cell, values))
+                    predictions.append(prediction[:, 2:, :216])
+                difference = (predictions[1] - predictions[0]).square().mean((1, 2)).sqrt().cpu().tolist()
+                for cell, values in pair:
+                    values["bias_intervention_output_rms"] = difference
+                    for index, selection in enumerate(selected):
+                        records.append({
+                            **selection, "cell": cell,
+                            "metrics": {name: column[index] for name, column in values.items()},
+                        })
+            sampler.hsi_chain_rebase_mode = "off"
+            torch.set_rng_state(cpu_rng)
+            torch.cuda.set_rng_state(cuda_rng, device)
+            values, stats, _, _ = hsi_diagnostics.rebase_numerics_batch(
+                cfg, sampler, model, batch, noise, timestep, "fp32", False
+            )
+            cell = "t%d_fp32_off" % timestep
+            batch_records.append({**stats, "cell": cell, "batch_start": start, "window_count": len(selected)})
+            for index, selection in enumerate(selected):
+                records.append({**selection, "cell": cell, "metrics": {name: column[index] for name, column in values.items()}})
+            sampler.hsi_chain_rebase_mode = "c3"
+            torch.cuda.synchronize(device)
+            print("REBASE_NUMERICS %s batch=%d/11 t=%d elapsed=%.1fs" % (
+                cfg.numerics_model_name, start // int(cfg.batch_size) + 1,
+                timestep, time.monotonic() - started,
+            ), flush=True)
+    summary, episode_metrics = hsi_diagnostics.summarize_rebase_numerics(records, batch_records)
+    payload = {
+        "schema_version": 1, "mode": "rebase_numerics", "checkpoint": checkpoint,
+        "model_name": str(cfg.numerics_model_name), "seed": int(cfg.seed),
+        "selection": subset, "stratum_weights": stratum_weights,
+        "protocol": {
+            "timesteps": list(cfg.numerics_timesteps), "precisions": list(cfg.numerics_precisions),
+            "batch_size": int(cfg.batch_size), "model_mode": "train",
+            "gradient_parameters": "output head only; trunk frozen",
+            "optimizer_updates": 0, "noise": "CUDA generator(seed + canonical batch start), shared across all cells",
+            "future_occupancy_jitter": 0.0, "rollout": False, "guidance": False,
+        },
+        "resources": {
+            "diagnostic_seconds": time.monotonic() - started,
+            "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
+            "peak_reserved_bytes": torch.cuda.max_memory_reserved(device),
+        },
+        "summary": summary, "records": records, "batch_records": batch_records,
+    }
+    output_dir = Path(str(cfg.lingo_output_dir))
+    output_path = _write_payload(output_dir, payload)
+    for cell, metrics in episode_metrics.items():
+        _write_payload(output_dir / "cells" / cell, {"metrics": metrics})
+    return output_path
+
+
 def evaluate_predictor_decomp(cfg: DictConfig) -> Path:
     if int(cfg.batch_size) != 1 or int(cfg.predictor_decomp_timestep) != 498:
         raise ValueError("predictor decomposition requires batch_size=1 and timestep=498")
@@ -3461,6 +3567,8 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_teacher_forced_boundary(cfg)
     elif mode == "predictor_decomp":
         path = evaluate_predictor_decomp(cfg)
+    elif mode == "rebase_numerics":
+        path = evaluate_rebase_numerics(cfg)
     elif mode == "single_window_chain":
         path = evaluate_single_window_chain(cfg)
     elif mode == "d4_offline_decomp":
@@ -3471,7 +3579,7 @@ def main(cfg: DictConfig) -> None:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
-            "d4_offline_decomp or chain_rebase, got %s"
+            "d4_offline_decomp, chain_rebase or rebase_numerics, got %s"
             % mode
         )
     print("Wrote %s" % path)

@@ -12995,3 +12995,11 @@ R2/R3 分别在 GPU0/GPU1 运行，使用独立 manifest；单格的有效 batch
 通过 `tools/experiment.py start` 在干净提交上创建 manifest；复用既有输入身份与生命周期工具。
 run id 为 `p1-hsi-rebase-numerics-r2-s42-20260905` / `p1-hsi-rebase-numerics-r3-s42-20260905`。
 本轮完成全格、统计和结论后停止；数值问题即使得到支持，也需结合硬锚点限制决定下一训练机制。
+
+### E. 实现与执行前验证
+
+命名 probe 与 evaluator mode 已落地；`p_losses` 只额外返回现成的 `loss_jpos/loss_jrot`
+张量，训练和采样数学未改。通过输出头和模型 forward hook 实施短暂精度干预，结束后恢复
+bias 与精度上下文。定向检查 71 passed；authority suite 433 passed、3 skipped；registry
+validation 通过。两个新机制测试分别验证首个生成帧的零参数导数和共同输出 bias 的精确抵消。
+检查没有新增独立 smoke 或训练 workload。首次真实诊断将逐批报告生产 loss 与独立分项读数误差。

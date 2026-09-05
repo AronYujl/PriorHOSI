@@ -29,6 +29,160 @@ PREDICTOR_DECOMP_ARMS: Tuple[str, ...] = (
 )
 
 
+def rebase_numerics_batch(cfg, sampler, model, batch, noise, timestep, precision, zero_bias):
+    """Measure a fixed denoiser through production p_losses, without updates."""
+    from models.infbagel import rebase_model_output
+    from utils import transform_points
+    import torch.nn.functional as F
+
+    x_start = torch.cat((
+        batch["joints"], batch["global_rot_6d"].flatten(2),
+        batch["object_trans"], batch["object_rot_mat"].flatten(2), batch["contact_label"],
+    ), dim=-1)
+    mask = torch.zeros_like(x_start, dtype=torch.bool)
+    mask[:, :2] = True
+    t = torch.full((len(x_start),), int(timestep), device=x_start.device, dtype=torch.long)
+    saved_bias = model.out.bias.detach().clone()
+    captured = {}
+
+    def head_hook(module, inputs, output):
+        captured["hidden"] = inputs[0].detach().float()
+        if precision == "head_fp32":
+            saved_tf32 = torch.backends.cuda.matmul.allow_tf32
+            torch.backends.cuda.matmul.allow_tf32 = False
+            with torch.autocast(device_type=x_start.device.type, enabled=False):
+                output = F.linear(inputs[0].float(), module.weight, module.bias)
+            torch.backends.cuda.matmul.allow_tf32 = saved_tf32
+        return output
+
+    def model_hook(_module, _inputs, output):
+        if precision == "rebase_fp32":
+            output = output.float()
+        captured["raw"] = output
+        return output
+
+    with torch.no_grad():
+        if zero_bias:
+            model.out.bias[:216] = 0.0
+    hooks = (model.out.register_forward_hook(head_hook), model.register_forward_hook(model_hook))
+    saved_tf32 = torch.backends.cuda.matmul.allow_tf32
+    saved_cudnn_tf32 = torch.backends.cudnn.allow_tf32
+    torch.backends.cuda.matmul.allow_tf32 = precision != "fp32"
+    torch.backends.cudnn.allow_tf32 = precision != "fp32"
+    try:
+        with torch.autocast(
+            device_type=x_start.device.type, dtype=torch.bfloat16, enabled=precision != "fp32"
+        ):
+            loss = sampler.p_losses(
+                x_start, batch["joints"], batch["mat"], batch["scene_flag"], mask, t,
+                batch["text_clip_embedding"], batch["pelvis_goal"], batch["scene_goal"],
+                batch["object_goal"], batch["need_scene"], batch["need_pelvis_dir"],
+                batch["pi"], batch["end_pi"], batch["seg_len"], batch["need_pi"],
+                batch["is_loco"], batch["is_object"], batch["obj_bps_data"],
+                batch["obj_rot_mat_ref"], batch["rest_pose_obj_nn_pts"],
+                batch["transformed_obj_verts"], batch["rest_human_offsets"],
+                batch["object_points"], noise=noise.clone(),
+            )
+            total = loss["loss"] + float(cfg.loss_w_fk) * loss["loss_fk"]
+        raw = captured["raw"]
+        bias_grad, weight_grad, output_grad = torch.autograd.grad(
+            total, (model.out.bias, model.out.weight, raw)
+        )
+        with torch.no_grad(), torch.autocast(device_type=x_start.device.type, enabled=False):
+            prediction = rebase_model_output(raw.detach(), x_start, sampler.hsi_chain_rebase_mode).float()
+            per_window = {
+                "jpos_mse": (prediction[:, 2:, :84] - x_start[:, 2:, :84]).square().mean((1, 2)),
+                "jrot_l1": (prediction[:, 2:, 84:216] - x_start[:, 2:, 84:216]).abs().mean((1, 2)),
+                "raw_jpos_rms": raw[:, 2:, :84].float().square().mean((1, 2)).sqrt(),
+                "raw_jrot_rms": raw[:, 2:, 84:216].float().square().mean((1, 2)).sqrt(),
+                "prediction_finite_fraction": torch.isfinite(prediction).float().mean((1, 2)),
+                "anchor_error_rms": (
+                    prediction[:, 2, :216] - (2 * x_start[:, 1, :216] - x_start[:, 0, :216])
+                ).square().mean(1).sqrt(),
+            }
+            _, predicted_joints = sampler._compute_human_joints(
+                prediction, batch["joints"], batch["mat"], batch["rest_human_offsets"]
+            )
+            _, target_joints = sampler._compute_human_joints(
+                x_start, batch["joints"], batch["mat"], batch["rest_human_offsets"]
+            )
+            gt_positions = transform_points(
+                sampler.dataset.denormalize_torch(batch["joints"]), batch["mat"]
+            ).reshape(len(x_start), 16, 28, 3)
+            fk = (predicted_joints[:, 2:, [20, 21, 22, 23]] - gt_positions[:, 2:, [20, 21, 25, 27]]).square().mean((1, 2, 3))
+            fk += (predicted_joints[:, 2:, [7, 8, 10, 11]] - gt_positions[:, 2:, [7, 8, 10, 11]]).square().mean((1, 2, 3))
+            seam = torch.cat((target_joints[:, :2], predicted_joints[:, 2:4]), dim=1)
+            seam_acc = seam[:, 2:] - 2 * seam[:, 1:-1] + seam[:, :-2]
+            target_acc = target_joints[:, 2:4] - 2 * target_joints[:, 1:3] + target_joints[:, :2]
+            per_window["fk"] = fk
+            per_window["fullbody_seam"] = (seam_acc - target_acc).square().mean((1, 2, 3))
+            per_window["base"] = per_window["jpos_mse"] + per_window["jrot_l1"]
+            per_window["total"] = (
+                per_window["base"] + float(cfg.loss_w_fk) * fk
+                + sampler.fullbody_seam_loss_weight * per_window["fullbody_seam"]
+            )
+            g = bias_grad[:216].float()
+            batch_metrics = {
+                "production_total": float(total),
+                "production_jpos_mse": float(loss["loss_jpos"]),
+                "production_jrot_l1": float(loss["loss_jrot"]),
+                "production_fk": float(loss["loss_fk"]),
+                "production_fullbody_seam": float(loss["loss_fullbody_seam"]),
+                "readout_total_abs_error": float((per_window["total"].mean() - total).abs()),
+                "bias_gradient_rms": float(g.square().mean().sqrt()),
+                "position_bias_gradient_rms": float(g[:84].square().mean().sqrt()),
+                "rotation_bias_gradient_rms": float(g[84:].square().mean().sqrt()),
+                "weight_gradient_rms": float(weight_grad[:216].float().square().mean().sqrt()),
+                "output_gradient_sum_rms": float(output_grad[:, :, :216].float().sum((0, 1)).square().mean().sqrt()),
+                "first_future_output_gradient_rms": float(output_grad[:, 2, :216].float().square().mean().sqrt()),
+                "gradient_finite_fraction": float(torch.isfinite(g).float().mean()),
+                "raw_dtype": str(raw.dtype),
+            }
+        values = {name: value.cpu().tolist() for name, value in per_window.items()}
+        return values, batch_metrics, prediction.detach(), captured["hidden"]
+    finally:
+        for hook in hooks:
+            hook.remove()
+        with torch.no_grad():
+            model.out.bias.copy_(saved_bias)
+        torch.backends.cuda.matmul.allow_tf32 = saved_tf32
+        torch.backends.cudnn.allow_tf32 = saved_cudnn_tf32
+
+
+def summarize_rebase_numerics(records, batch_records):
+    """Separate episode readouts from batch-reduced output-head gradients."""
+    episodes = defaultdict(lambda: defaultdict(list))
+    for row in records:
+        for name, value in row["metrics"].items():
+            episodes[row["cell"]][row["episode_id"]].append((name, value))
+    episode_metrics = {}
+    for cell, rows in episodes.items():
+        episode_metrics[cell] = {}
+        for episode, values in rows.items():
+            columns = defaultdict(list)
+            for name, value in values:
+                columns[name].append(value)
+            episode_metrics[cell][episode] = {name: float(np.mean(value)) for name, value in columns.items()}
+    cells = {}
+    for cell, rows in episode_metrics.items():
+        cells[cell] = {name: float(np.mean([row[name] for row in rows.values()])) for name in next(iter(rows.values()))}
+        gradients = [r["bias_gradient_rms"] for r in batch_records if r["cell"] == cell]
+        cells[cell]["batch_bias_gradient_rms_mean"] = float(np.mean(gradients))
+    decisions = {}
+    for timestep in (0, 50, 250, 498):
+        arms = {p: cells[f"t{timestep}_{p}_original"] for p in ("bf16", "rebase_fp32", "head_fp32", "fp32")}
+        a, h, f = arms["bf16"], arms["head_fp32"], arms["fp32"]
+        decisions[str(timestep)] = {
+            "forward_bias_invariance_broken": bool(a["bias_intervention_output_rms"] > max(1e-3, 10 * f["bias_intervention_output_rms"])),
+            "backward_bias_leakage": bool(a["batch_bias_gradient_rms_mean"] > max(1e-7, 100 * f["batch_bias_gradient_rms_mean"])),
+            "head_fp32_localizes_both": bool(
+                h["bias_intervention_output_rms"] <= .01 * a["bias_intervention_output_rms"]
+                and h["batch_bias_gradient_rms_mean"] <= .01 * a["batch_bias_gradient_rms_mean"]
+            ),
+        }
+    return {"cells": cells, "decisions": decisions}, episode_metrics
+
+
 def validate_future_occ_mode(mode: str) -> str:
     mode = str(mode)
     if mode not in FUTURE_OCC_MODES:

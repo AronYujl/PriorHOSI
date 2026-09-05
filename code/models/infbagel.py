@@ -1440,6 +1440,8 @@ class Sampler:
             loss_seam=loss_seam,
             loss_fullbody_seam=loss_fullbody_seam,
             loss_pen=loss_pen,
+            loss_jpos=loss_jpos,
+            loss_jrot=loss_jrot,
         )
 
     @torch.no_grad()
