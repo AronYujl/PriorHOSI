@@ -1514,6 +1514,15 @@ def _gt_pelvis_trajectory(source, sequence_index: int) -> np.ndarray:
     )
 
 
+def _initial_heading_rotation(source_mat, start, goal, mode="goal"):
+    if mode == "source":
+        return source_mat[0, :3, :3]
+    theta = np.arctan2(-goal[2] + start[2], goal[0] - start[0]) + np.pi / 2.0
+    return torch.from_numpy(Rotation.from_euler("y", theta).as_matrix()).to(
+        device=source_mat.device, dtype=torch.float32
+    )
+
+
 def sampled_motion(
     cfg: DictConfig,
     dataset,
@@ -1568,9 +1577,8 @@ def sampled_motion(
     object_trans_world = dataset.denormalize_torch(object_trans, is_object=True)
     start = np.asarray(episode["start_location"], dtype=np.float64)
     goal = np.asarray(episode["pelvis_goal"], dtype=np.float64)
-    theta = np.arctan2(-goal[2] + start[2], goal[0] - start[0]) + np.pi / 2.0
-    desired_rotation = torch.from_numpy(Rotation.from_euler("y", theta).as_matrix()).to(
-        device=device, dtype=torch.float32
+    desired_rotation = _initial_heading_rotation(
+        mat, start, goal, str(cfg.get("hsi_initial_heading", "goal"))
     )
     points_world = points_world.reshape(1, WINDOW_FRAMES, 28, 3) @ desired_rotation.T
     points_world = points_world.reshape(1, WINDOW_FRAMES, 84)
@@ -3587,6 +3595,12 @@ def main(cfg: DictConfig) -> None:
     elif mode == "table3":
         from priors.hsi.text_motion import table3_readout
         path = table3_readout(cfg)
+    elif mode == "qualitative_cache":
+        from priors.hsi.visualization import prepare_paired_review
+        path = prepare_paired_review(cfg)
+    elif mode == "qualitative_finalize":
+        from priors.hsi.visualization import finalize_paired_review
+        path = finalize_paired_review(cfg)
     elif mode == "single_window_chain":
         path = evaluate_single_window_chain(cfg)
     elif mode == "d4_offline_decomp":
@@ -3597,7 +3611,7 @@ def main(cfg: DictConfig) -> None:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
-            "d4_offline_decomp, chain_rebase, rebase_numerics or table3, got %s"
+            "d4_offline_decomp, chain_rebase, rebase_numerics, table3, qualitative_cache or qualitative_finalize, got %s"
             % mode
         )
     print("Wrote %s" % path)

@@ -56,6 +56,17 @@ TIMING_INPUT = (
 
 
 class DiagnosticInputTests(unittest.TestCase):
+    def test_source_heading_recovers_world_history_independently_of_goal(self):
+        matrix = torch.eye(4).unsqueeze(0)
+        matrix[0, :3, :3] = transforms.axis_angle_to_matrix(torch.tensor([0., 1.1, 0.]))
+        world = torch.tensor([[1., .7, -2.], [1.1, .8, -1.9]])
+        canonical = world @ matrix[0, :3, :3]
+        for goal in (np.array([0., 0., 3.]), np.array([-2., 0., 0.])):
+            rotation = evaluator._initial_heading_rotation(matrix, np.zeros(3), goal, "source")
+            torch.testing.assert_close(canonical @ rotation.T, world)
+        native = evaluator._initial_heading_rotation(matrix, np.zeros(3), np.array([0., 0., 3.]))
+        torch.testing.assert_close(native, torch.eye(3))
+
     def test_float_metadata_becomes_valid_progress_indices(self):
         batch = evaluator._collate_hsi_training_inputs([
             {"pi": 3.0, "end_pi": np.float64(15), "seg_len": 48,

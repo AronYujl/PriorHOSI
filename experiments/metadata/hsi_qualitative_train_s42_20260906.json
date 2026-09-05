@@ -1,0 +1,893 @@
+{
+  "partition": "train",
+  "split_manifest": "experiments/splits/lingo_scene_family_disjoint_v3_seed42.json",
+  "seed": 42,
+  "selection_basis": "Four distinct scenes per action; original non-mirror eligible start windows; 90-300 source frames. Navigation needs endpoint displacement>=0.8m, path>=1.3m and max chord deviation>=0.2m and ranks by deviation then duration nearest180. Sit/rise require root-height decrease/increase>=0.15m. Other classes prefer duration nearest180. Scene preferences are recorded by the selected rows. No generated output was inspected during selection.",
+  "candidate_count": 20,
+  "total_windows": 97,
+  "fps": 30,
+  "initial_history": "source heading, two coarse frames",
+  "model": "R2 final EMA + posterior-coefficient CG, 500 steps",
+  "episodes": [
+    {
+      "scene_name": "037",
+      "data_idx": 119262,
+      "start_location": [
+        -1.4425967931747437,
+        0.0,
+        1.6251791715621948
+      ],
+      "pelvis_goal": [
+        -0.6302004456520081,
+        0.0,
+        0.5123447775840759
+      ],
+      "object_goal": [
+        -0.6302004456520081,
+        0.0,
+        0.5123447775840759
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 3,
+      "source_sequence_idx": 3046,
+      "pelvis_goal_frame": 421815,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "walk",
+      "source_length": 94,
+      "source_frame_range": [
+        421722,
+        421816
+      ],
+      "gt_root_height_delta_m": -0.002263784408569336,
+      "gt_path_length_m": 1.6605485913607376,
+      "gt_endpoint_distance_m": 1.3778200948922643,
+      "gt_max_chord_deviation_m": 0.3921368650378026,
+      "action_class": "navigate",
+      "case_id": "navigate_01",
+      "sequence_id": "037:003046"
+    },
+    {
+      "scene_name": "004",
+      "data_idx": 134632,
+      "start_location": [
+        0.5814721584320068,
+        0.0,
+        -0.14724422991275787
+      ],
+      "pelvis_goal": [
+        1.075745940208435,
+        0.0,
+        1.0816210508346558
+      ],
+      "object_goal": [
+        1.075745940208435,
+        0.0,
+        1.0816210508346558
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 4,
+      "source_sequence_idx": 3532,
+      "pelvis_goal_frame": 490059,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "walk",
+      "source_length": 154,
+      "source_frame_range": [
+        489906,
+        490060
+      ],
+      "gt_root_height_delta_m": 0.01922440528869629,
+      "gt_path_length_m": 1.6672446447583975,
+      "gt_endpoint_distance_m": 1.3245438647240007,
+      "gt_max_chord_deviation_m": 0.3807709140717685,
+      "action_class": "navigate",
+      "case_id": "navigate_02",
+      "sequence_id": "004:003532"
+    },
+    {
+      "scene_name": "006",
+      "data_idx": 142684,
+      "start_location": [
+        -1.4939841032028198,
+        0.0,
+        0.18543501198291779
+      ],
+      "pelvis_goal": [
+        -1.4098352193832397,
+        0.0,
+        1.193822979927063
+      ],
+      "object_goal": [
+        -1.4098352193832397,
+        0.0,
+        1.193822979927063
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 6,
+      "source_sequence_idx": 3692,
+      "pelvis_goal_frame": 521050,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "walk",
+      "source_length": 237,
+      "source_frame_range": [
+        520814,
+        521051
+      ],
+      "gt_root_height_delta_m": 0.0079345703125,
+      "gt_path_length_m": 1.4997549246643775,
+      "gt_endpoint_distance_m": 1.0092252910587751,
+      "gt_max_chord_deviation_m": 0.4002594240473845,
+      "action_class": "navigate",
+      "case_id": "navigate_03",
+      "sequence_id": "006:003692"
+    },
+    {
+      "scene_name": "023",
+      "data_idx": 68101,
+      "start_location": [
+        0.5626645684242249,
+        0.0,
+        0.2554108798503876
+      ],
+      "pelvis_goal": [
+        -1.4468194246292114,
+        0.0,
+        -0.2767740488052368
+      ],
+      "object_goal": [
+        -1.4468194246292114,
+        0.0,
+        -0.2767740488052368
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 4,
+      "source_sequence_idx": 1724,
+      "pelvis_goal_frame": 251370,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "walk",
+      "source_length": 167,
+      "source_frame_range": [
+        251204,
+        251371
+      ],
+      "gt_root_height_delta_m": -0.00902414321899414,
+      "gt_path_length_m": 2.7924626555127987,
+      "gt_endpoint_distance_m": 2.0789442173865513,
+      "gt_max_chord_deviation_m": 0.756296754860052,
+      "action_class": "navigate",
+      "case_id": "navigate_04",
+      "sequence_id": "023:001724"
+    },
+    {
+      "scene_name": "004",
+      "data_idx": 1058507,
+      "start_location": [
+        -0.41606444120407104,
+        0.0,
+        1.2695399522781372
+      ],
+      "pelvis_goal": [
+        0.11313791573047638,
+        0.0,
+        1.4874199628829956
+      ],
+      "object_goal": [
+        0.11313791573047638,
+        0.0,
+        1.4874199628829956
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 3401,
+      "pelvis_goal_frame": 472450,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "sit down on sofa",
+      "source_length": 179,
+      "source_frame_range": [
+        472272,
+        472451
+      ],
+      "gt_root_height_delta_m": -0.4399340748786926,
+      "gt_path_length_m": 0.8107921746076504,
+      "gt_endpoint_distance_m": 0.5722680422478181,
+      "gt_max_chord_deviation_m": 0.22240207611413407,
+      "action_class": "sit",
+      "case_id": "sit_01",
+      "sequence_id": "004:003401"
+    },
+    {
+      "scene_name": "055",
+      "data_idx": 1200728,
+      "start_location": [
+        -2.226884126663208,
+        0.0,
+        0.521041750907898
+      ],
+      "pelvis_goal": [
+        -1.8201736211776733,
+        0.0,
+        0.826057493686676
+      ],
+      "object_goal": [
+        -1.8201736211776733,
+        0.0,
+        0.826057493686676
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 5592,
+      "pelvis_goal_frame": 755917,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "sit down on chair",
+      "source_length": 182,
+      "source_frame_range": [
+        755736,
+        755918
+      ],
+      "gt_root_height_delta_m": -0.4365158677101135,
+      "gt_path_length_m": 1.213272905158026,
+      "gt_endpoint_distance_m": 0.5084297911340756,
+      "gt_max_chord_deviation_m": 0.447402060006041,
+      "action_class": "sit",
+      "case_id": "sit_02",
+      "sequence_id": "055:005592"
+    },
+    {
+      "scene_name": "079-play-chair",
+      "data_idx": 1388874,
+      "start_location": [
+        2.1766703128814697,
+        0.0,
+        0.3212890923023224
+      ],
+      "pelvis_goal": [
+        1.7663531303405762,
+        0.0,
+        0.3292226791381836
+      ],
+      "object_goal": [
+        1.7663531303405762,
+        0.0,
+        0.3292226791381836
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 7828,
+      "pelvis_goal_frame": 1072548,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "sit down on chair",
+      "source_length": 181,
+      "source_frame_range": [
+        1072368,
+        1072549
+      ],
+      "gt_root_height_delta_m": -0.42733335494995117,
+      "gt_path_length_m": 0.5796850034889995,
+      "gt_endpoint_distance_m": 0.410393874330964,
+      "gt_max_chord_deviation_m": 0.12053777043878798,
+      "action_class": "sit",
+      "case_id": "sit_03",
+      "sequence_id": "079-play-chair:007828"
+    },
+    {
+      "scene_name": "037",
+      "data_idx": 1027093,
+      "start_location": [
+        -1.8734769821166992,
+        0.0,
+        0.9567645788192749
+      ],
+      "pelvis_goal": [
+        -1.9014599323272705,
+        0.0,
+        1.7118421792984009
+      ],
+      "object_goal": [
+        -1.9014599323272705,
+        0.0,
+        1.7118421792984009
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 2985,
+      "pelvis_goal_frame": 415015,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "sit down on couch",
+      "source_length": 182,
+      "source_frame_range": [
+        414834,
+        415016
+      ],
+      "gt_root_height_delta_m": -0.41757112741470337,
+      "gt_path_length_m": 0.9645470816508864,
+      "gt_endpoint_distance_m": 0.7551406472478351,
+      "gt_max_chord_deviation_m": 0.170880905664011,
+      "action_class": "sit",
+      "case_id": "sit_04",
+      "sequence_id": "037:002985"
+    },
+    {
+      "scene_name": "067",
+      "data_idx": 1283889,
+      "start_location": [
+        -0.24206624925136566,
+        0.0,
+        -0.3619765043258667
+      ],
+      "pelvis_goal": [
+        0.21332477033138275,
+        0.0,
+        -0.1793244481086731
+      ],
+      "object_goal": [
+        0.21332477033138275,
+        0.0,
+        -0.1793244481086731
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 4,
+      "source_sequence_idx": 6770,
+      "pelvis_goal_frame": 922269,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "stand up from seat",
+      "source_length": 170,
+      "source_frame_range": [
+        922100,
+        922270
+      ],
+      "gt_root_height_delta_m": 0.44585251808166504,
+      "gt_path_length_m": 0.6102315273056238,
+      "gt_endpoint_distance_m": 0.4922888872022352,
+      "gt_max_chord_deviation_m": 0.06357879814725229,
+      "action_class": "rise",
+      "case_id": "rise_01",
+      "sequence_id": "067:006770"
+    },
+    {
+      "scene_name": "036",
+      "data_idx": 1019351,
+      "start_location": [
+        -1.585982084274292,
+        0.0,
+        1.7588021755218506
+      ],
+      "pelvis_goal": [
+        -1.1345441341400146,
+        0.0,
+        2.120063066482544
+      ],
+      "object_goal": [
+        -1.1345441341400146,
+        0.0,
+        2.120063066482544
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 4,
+      "source_sequence_idx": 2836,
+      "pelvis_goal_frame": 396617,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "stand up from seat",
+      "source_length": 156,
+      "source_frame_range": [
+        396462,
+        396618
+      ],
+      "gt_root_height_delta_m": 0.4174148440361023,
+      "gt_path_length_m": 0.7125921350200499,
+      "gt_endpoint_distance_m": 0.5680658971878044,
+      "gt_max_chord_deviation_m": 0.09445694420749595,
+      "action_class": "rise",
+      "case_id": "rise_02",
+      "sequence_id": "036:002836"
+    },
+    {
+      "scene_name": "040",
+      "data_idx": 1086906,
+      "start_location": [
+        0.7575646042823792,
+        0.0,
+        -0.7633579969406128
+      ],
+      "pelvis_goal": [
+        0.37985745072364807,
+        0.0,
+        -0.7740893363952637
+      ],
+      "object_goal": [
+        0.37985745072364807,
+        0.0,
+        -0.7740893363952637
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 4,
+      "source_sequence_idx": 3790,
+      "pelvis_goal_frame": 536744,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "stand up from seat",
+      "source_length": 141,
+      "source_frame_range": [
+        536604,
+        536745
+      ],
+      "gt_root_height_delta_m": 0.4621639847755432,
+      "gt_path_length_m": 0.5770310856937194,
+      "gt_endpoint_distance_m": 0.37472828493585925,
+      "gt_max_chord_deviation_m": 0.05937928823308672,
+      "action_class": "rise",
+      "case_id": "rise_03",
+      "sequence_id": "040:003790"
+    },
+    {
+      "scene_name": "026",
+      "data_idx": 975363,
+      "start_location": [
+        -0.2293935865163803,
+        0.0,
+        1.8181772232055664
+      ],
+      "pelvis_goal": [
+        -0.5792148113250732,
+        0.0,
+        1.7262498140335083
+      ],
+      "object_goal": [
+        -0.5792148113250732,
+        0.0,
+        1.7262498140335083
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 3,
+      "source_sequence_idx": 2097,
+      "pelvis_goal_frame": 298510,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "stand up from seat",
+      "source_length": 111,
+      "source_frame_range": [
+        298400,
+        298511
+      ],
+      "gt_root_height_delta_m": 0.441021203994751,
+      "gt_path_length_m": 0.46925862601504387,
+      "gt_endpoint_distance_m": 0.3647879306562222,
+      "gt_max_chord_deviation_m": 0.07535241652824755,
+      "action_class": "rise",
+      "case_id": "rise_04",
+      "sequence_id": "026:002097"
+    },
+    {
+      "scene_name": "052-bed",
+      "data_idx": 1184817,
+      "start_location": [
+        -0.8243012428283691,
+        0.0,
+        -0.00544215552508831
+      ],
+      "pelvis_goal": [
+        -1.4078155755996704,
+        0.0,
+        -0.706120491027832
+      ],
+      "object_goal": [
+        -1.4078155755996704,
+        0.0,
+        -0.706120491027832
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 6,
+      "source_sequence_idx": 5359,
+      "pelvis_goal_frame": 726945,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "lie down on bed and face up",
+      "source_length": 244,
+      "source_frame_range": [
+        726702,
+        726946
+      ],
+      "gt_root_height_delta_m": -0.45499497652053833,
+      "gt_path_length_m": 1.135924497672382,
+      "gt_endpoint_distance_m": 0.9118328280953875,
+      "gt_max_chord_deviation_m": 0.11731966858519381,
+      "action_class": "lie",
+      "case_id": "lie_01",
+      "sequence_id": "052-bed:005359"
+    },
+    {
+      "scene_name": "042",
+      "data_idx": 1096744,
+      "start_location": [
+        0.6655398607254028,
+        0.0,
+        -0.14599356055259705
+      ],
+      "pelvis_goal": [
+        0.6102001667022705,
+        0.0,
+        -0.21623702347278595
+      ],
+      "object_goal": [
+        0.6102001667022705,
+        0.0,
+        -0.21623702347278595
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 3930,
+      "pelvis_goal_frame": 554768,
+      "pelvis_goal_frame_clamped": false,
+      "caption": "lie down on sofa and face up",
+      "source_length": 214,
+      "source_frame_range": [
+        554555,
+        554769
+      ],
+      "gt_root_height_delta_m": -0.033387720584869385,
+      "gt_path_length_m": 0.5910202165485344,
+      "gt_endpoint_distance_m": 0.08942385485760419,
+      "gt_max_chord_deviation_m": 0.04579982346784858,
+      "action_class": "lie",
+      "case_id": "lie_02",
+      "sequence_id": "042:003930"
+    },
+    {
+      "scene_name": "009-1",
+      "data_idx": 849030,
+      "start_location": [
+        -0.23948131501674652,
+        0.0,
+        0.55853670835495
+      ],
+      "pelvis_goal": [
+        0.1292552351951599,
+        0.0,
+        0.7627308368682861
+      ],
+      "object_goal": [
+        0.1292552351951599,
+        0.0,
+        0.7627308368682861
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 7,
+      "source_sequence_idx": 154,
+      "pelvis_goal_frame": 22380,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "lie down on bed and face up",
+      "source_length": 259,
+      "source_frame_range": [
+        22122,
+        22381
+      ],
+      "gt_root_height_delta_m": -0.5227649807929993,
+      "gt_path_length_m": 1.0580325865512223,
+      "gt_endpoint_distance_m": 0.4214995677121136,
+      "gt_max_chord_deviation_m": 0.14262231584708554,
+      "action_class": "lie",
+      "case_id": "lie_03",
+      "sequence_id": "009-1:000154"
+    },
+    {
+      "scene_name": "023",
+      "data_idx": 950461,
+      "start_location": [
+        0.06054796651005745,
+        0.0,
+        1.1791889667510986
+      ],
+      "pelvis_goal": [
+        -0.37784427404403687,
+        0.0,
+        1.4390027523040771
+      ],
+      "object_goal": [
+        -0.37784427404403687,
+        0.0,
+        1.4390027523040771
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 6,
+      "source_sequence_idx": 1647,
+      "pelvis_goal_frame": 242150,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "lie down on sofa and face up",
+      "source_length": 245,
+      "source_frame_range": [
+        241906,
+        242151
+      ],
+      "gt_root_height_delta_m": -0.4730141758918762,
+      "gt_path_length_m": 0.811421528526751,
+      "gt_endpoint_distance_m": 0.5095986011743714,
+      "gt_max_chord_deviation_m": 0.17528884431376363,
+      "action_class": "lie",
+      "case_id": "lie_04",
+      "sequence_id": "023:001647"
+    },
+    {
+      "scene_name": "088-wash",
+      "data_idx": 1471828,
+      "start_location": [
+        -0.758915364742279,
+        0.0,
+        -0.9460564851760864
+      ],
+      "pelvis_goal": [
+        -0.7424447536468506,
+        0.0,
+        -0.9884641170501709
+      ],
+      "object_goal": [
+        -0.7424447536468506,
+        0.0,
+        -0.9884641170501709
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 8760,
+      "pelvis_goal_frame": 1201894,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "wash hands at washbasin",
+      "source_length": 178,
+      "source_frame_range": [
+        1201717,
+        1201895
+      ],
+      "gt_root_height_delta_m": -0.0013025999069213867,
+      "gt_path_length_m": 0.261434968609216,
+      "gt_endpoint_distance_m": 0.045493826735335384,
+      "gt_max_chord_deviation_m": 0.022182358917429524,
+      "action_class": "wash",
+      "case_id": "wash_01",
+      "sequence_id": "088-wash:008760"
+    },
+    {
+      "scene_name": "022",
+      "data_idx": 944402,
+      "start_location": [
+        -1.5836607217788696,
+        0.0,
+        1.7241806983947754
+      ],
+      "pelvis_goal": [
+        -1.5154755115509033,
+        0.0,
+        1.620842695236206
+      ],
+      "object_goal": [
+        -1.5154755115509033,
+        0.0,
+        1.620842695236206
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 1546,
+      "pelvis_goal_frame": 228417,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "wash hands at washbasin",
+      "source_length": 181,
+      "source_frame_range": [
+        228237,
+        228418
+      ],
+      "gt_root_height_delta_m": -0.001917719841003418,
+      "gt_path_length_m": 0.5700010682924297,
+      "gt_endpoint_distance_m": 0.12380616216744807,
+      "gt_max_chord_deviation_m": 0.04068553952989984,
+      "action_class": "wash",
+      "case_id": "wash_02",
+      "sequence_id": "022:001546"
+    },
+    {
+      "scene_name": "019",
+      "data_idx": 916078,
+      "start_location": [
+        0.5109660625457764,
+        0.0,
+        -0.9602882862091064
+      ],
+      "pelvis_goal": [
+        0.5031203031539917,
+        0.0,
+        -0.9555439949035645
+      ],
+      "object_goal": [
+        0.5031203031539917,
+        0.0,
+        -0.9555439949035645
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 6,
+      "source_sequence_idx": 1085,
+      "pelvis_goal_frame": 160386,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "wash hands at washbasin",
+      "source_length": 248,
+      "source_frame_range": [
+        160139,
+        160387
+      ],
+      "gt_root_height_delta_m": -0.0035964250564575195,
+      "gt_path_length_m": 0.12975840777562525,
+      "gt_endpoint_distance_m": 0.008781351831824314,
+      "gt_max_chord_deviation_m": 0.02695421956615799,
+      "action_class": "wash",
+      "case_id": "wash_03",
+      "sequence_id": "019:001085"
+    },
+    {
+      "scene_name": "047",
+      "data_idx": 1139420,
+      "start_location": [
+        -1.103685975074768,
+        0.0,
+        -0.5585501194000244
+      ],
+      "pelvis_goal": [
+        -0.9572307467460632,
+        0.0,
+        -0.7295819520950317
+      ],
+      "object_goal": [
+        -0.9572307467460632,
+        0.0,
+        -0.7295819520950317
+      ],
+      "object_name": null,
+      "penetration_counts": 0,
+      "test_frames": [
+        0,
+        1,
+        15
+      ],
+      "attempts": 0,
+      "episode_num": 5,
+      "source_sequence_idx": 4674,
+      "pelvis_goal_frame": 644530,
+      "pelvis_goal_frame_clamped": true,
+      "caption": "wash hands at washbasin",
+      "source_length": 197,
+      "source_frame_range": [
+        644334,
+        644531
+      ],
+      "gt_root_height_delta_m": -0.0023145675659179688,
+      "gt_path_length_m": 0.7933712387151812,
+      "gt_endpoint_distance_m": 0.2235332244698541,
+      "gt_max_chord_deviation_m": 0.11617603254121392,
+      "action_class": "wash",
+      "case_id": "wash_04",
+      "sequence_id": "047:004674"
+    }
+  ]
+}

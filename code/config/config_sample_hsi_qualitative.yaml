@@ -1,0 +1,22 @@
+defaults:
+  - config_sample_hsi_guidance_posterior_coef1
+  - _self_
+
+lingo_hsi_mode: sample
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+model_name: hsi_r2_cg_train_qualitative
+dataset:
+  split_partition: train
+hsi_initial_heading: source
+hsi_compute_rds: false
+shard_count: 8
+lingo_episode_dir: ${oc.env:ROOT_DIR}/data/hsi_qualitative_train_s42_20260906/data
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_qualitative_train_s42_20260906/generated
+qualitative_selection: ${oc.env:ROOT_DIR}/experiments/metadata/hsi_qualitative_train_s42_20260906.json
+qualitative_generated_dir: ${lingo_output_dir}
+qualitative_gt_dir: ${oc.env:ROOT_DIR}/results/hsi_qualitative_train_s42_20260906/ground_truth
+qualitative_review_dir: /data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906
+qualitative_render_stride: 2
+qualitative_case_ids: null
+qualitative_blender: /data/yujinlun/tools/blender-3.6.23-linux-x64/blender
+qualitative_ffmpeg: /data/yujinlun/tools/ffmpeg-nvenc-20260906/bin/ffmpeg

@@ -164,6 +164,9 @@ lingo_episode_subset: null
 #   pelvis xz path instead of the chord.  Attribution UPPER BOUND only -- it feeds
 #   privileged information a deployment cannot have.  Never use it for a baseline.
 hsi_gt_trajectory: false
+# Initial-history placement: goal reproduces the native endpoint-facing input;
+# source restores the observed source heading for a paired generated/GT view.
+hsi_initial_heading: goal
 # hsi_lookahead_m: the lookahead arc length in metres.  0.8 is the released value.
 #   0.48 is the deployable variant: one global constant, no privileged information.
 hsi_lookahead_m: 0.8

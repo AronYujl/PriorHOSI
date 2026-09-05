@@ -13163,3 +13163,20 @@ GPU2--7在其他任务使用中；本轮在空闲RTX3090 GPU0--1上分片，记�
 20条逐序列geometry差由既有paired_bootstrap.py汇总，仅用于描述这个已选择的cohort。
 交付全部候选的配对MP4、同时间关键帧图、可浏览索引、最终五例及逐例差距说明、原始
 参数和可重建渲染缓存。先用低成本预览筛选，最终五例提高静态图分辨率。
+
+输入已锁定：20条、17个原始训练场景、97个窗口，源长度94--259帧。候选及GT几何选择依据
+保存于 experiments/metadata/hsi_qualitative_train_s42_20260906.json；逐scene输入与该列表
+身份相等。新增source heading输入选择、显式source序列过滤、GPU配对FK缓存和既有Blender
+工具的配对模式；全部使用一个可视化config。30项组件检查通过。Authority首次438通过、
+3跳过，剩余2项因命令未export解释器变量而在fixture停止；补齐环境后该模块4项全部通过，
+合计440通过、3跳过。Registry validation通过。原生goal heading默认路径的回归检查通过。
+
+配对视频以15fps呈现两个分支相同的隔帧采样，保留30fps完整导出参数；另提供5个共同
+时刻的逐帧对照图和连续姿态图。比较使用原始世界坐标的FK关节误差，不做刚体对齐或DTW。
+现有静态FFmpeg缺少NVENC，使用独立目录下的BtbN FFmpeg GPU编码构建；Python环境保持
+机器验证的infbagel，渲染仍使用机器已有Blender3.6.23。
+
+启动前资源更新：GPU2--7的其他任务已结束，nvidia-smi确认八卡均为空闲。因此正式生成
+改为8个分片，使用GPU0--7；20条来源、97窗口、seed与每episode重置规则不变。GT与缓存
+重建先后使用单卡，Blender配对渲染按GPU空闲情况并行；总预算8 GPU-h保持原值。该变更
+发生在首个正式manifest创建前，纳入同一实现提交及fully resolved configs。

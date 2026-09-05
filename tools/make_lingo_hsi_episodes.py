@@ -102,7 +102,7 @@ def load_inputs(
 def build_episodes(
     split: Mapping[str, Any], language: Mapping[str, Any], sequence_start: np.ndarray,
     sequence_end: np.ndarray, joints: np.ndarray, window_scene: np.ndarray,
-    partition: str, per_scene_cap: int,
+    partition: str, per_scene_cap: int, source_sequence_ids: Optional[Sequence[int]] = None,
 ) -> Dict[str, List[Dict[str, Any]]]:
     sequence_idx = np.asarray(language["ori_sequence_idx"], dtype=np.int64)
     window_start = np.asarray(language["start_idx"], dtype=np.int64)
@@ -112,6 +112,7 @@ def build_episodes(
     sequence_length = sequence_end - sequence_start
     selected_scenes = set(split[partition]["scenes"])
     candidates: DefaultDict[str, List[Tuple[int, int]]] = defaultdict(list)
+    selected_sources = None if source_sequence_ids is None else set(source_sequence_ids)
 
     for data_idx, source_sequence_idx in enumerate(sequence_idx):
         source_sequence_idx = int(source_sequence_idx)
@@ -119,6 +120,7 @@ def build_episodes(
         scene = str(window_scene[data_idx])
         if (
             scene in selected_scenes
+            and (selected_sources is None or source_sequence_idx in selected_sources)
             and window_start[data_idx] == sequence_start[source_sequence_idx]
             and left_hand[data_idx] == -1
             and right_hand[data_idx] == -1
@@ -241,6 +243,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--partition", default=DEFAULT_PARTITION)
     parser.add_argument("--per-scene-cap", type=int, default=DEFAULT_PER_SCENE_CAP)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--source-selection", type=Path,
+                        help="JSON episodes list containing explicit source_sequence_idx values")
     return parser
 
 
@@ -252,6 +256,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     episodes_by_scene = build_episodes(
         split, language, sequence_start, sequence_end, joints, window_scene,
         args.partition, args.per_scene_cap,
+        None if args.source_selection is None else [
+            int(row["source_sequence_idx"])
+            for row in json.loads(args.source_selection.read_text())["episodes"]
+        ],
     )
     write_outputs(
         episodes_by_scene, args.output_dir, args.split_manifest,
