@@ -13067,3 +13067,31 @@ D5/D6 的总体分层权重，也不把这些单步读数当作该总体的 roll
 **NUMERICAL_MECHANISM_SUPPORTED_R3_NOT_RECOVERED** 收止；工作基线仍为 R2+CG。
 下一候选应保留首个生成帧的可学习增量，并消除无约束大输出的相减路径；新训练需要
 独立的具体方案与批准。本轮没有修改生产参数化、训练新模型或进入 mixer 阶段。
+
+
+## 2026-09-06（R2 Table 3：封存动作完整读出；用户已批准）
+
+用户要求补齐论文 Table 3 的 R2 数字，并把 locomotion、object reaching、interactive
+合并为一个分组表；三个外部方法暂不评测。本轮 component 为 hsi-table3，零训练、零生成，
+固定 R2 final EMA 的既有 unguided 与 posterior-coefficient guided full375 motion。
+
+- 130 个 caption==walk episode 用于 locomotion；245 个其他 episode 用于 reaching 与
+  interactive。全部按 episode 等权；不使用 holdout355 或 frozen60 替代论文分组。
+- 复用封存 geometry payload 的十个指标。Object reaching 保持既有 last_dist（终帧
+  28 关节最小 xz 距离），success 为 last_dist<=0.05；不改写为三维手部到达。
+- 文本—运动读出复用 round3_fid 的冻结加载、canonicalise、encoder、词表及 gallery
+  算法，作为外部评估依赖由 manifest 记录。只用既有 finest.tar、mean/std 与 GloVe；
+  不训练 evaluator。245 个完整配对输入；gallery32 的原去重构造计 224 个 query occurrence，
+  不把它们当作 224 个独立 episode。FID/MM-Dist 用全部 245 个 episode。
+- seed42；FID 配对 bootstrap 2000 次，其余沿用 10000 次。FID 用 GPU float64 的等价
+  sample-space nuclear-norm 公式，避免对重复的 512 维协方差在 CPU 做矩阵平方根。
+  先用旧 C 已封存的三项结果检验读出连续性：FID 误差<=1e-4、MM-Dist<=1e-5、
+  R@3 相同；失败即保留失败并定位，不变更指标。该检查没有模型选择或新 baseline 生成。
+- 保存 embeddings、gallery occurrence 指标、逐序列指标、点估计、置信区间与原始来源；
+  用现有 paired_bootstrap.py 给出 U/CG 的分组配对差。全部指标报告，不设晋级门或择优。
+- 一个 config fragment、HSI 组件模块、现有 LINGO evaluator 的 table3 mode；无新工具脚本。
+  定向测试验证 FID 等价公式和指标聚合，一次 authority suite。实际读出承担真实数据验证；
+  训练/采样执行路径保持原状，无训练 benchmark，无新增 smoke。
+- 单卡 RTX3090，GPU0，总读出预算上限 2 GPU-h；若 GPU0 被占用则在启动前登记空闲卡。
+  干净提交、exact resolved config、tools/experiment.py start，完成后封存结果与注册。
+- 论文仓库仅修改 Table 3 及其直接说明，保留用户已有其他编辑。编译并检查实际排版。
