@@ -13013,3 +13013,11 @@ R2/R3 首次 manifest 均在第一个 denoiser 前向前失败：直接 LINGO it
 重试分别使用 `p1-hsi-rebase-numerics-r2-r1-s42-20260905` 和
 `p1-hsi-rebase-numerics-r3-r1-s42-20260905`，输出目录追加 `_r1`。全格、输入身份、模型、
 条件、判据和总预算 1.0 GPU-h 均保持原样，失败工件原样保留。
+
+r1 两格在首次前向的 progress embedding 内停止，`pi` 的浮点存储类型尚未转换为整数索引，
+仍无完整 denoiser prediction。根因是新诊断入口绕开了已有输入语义。现改为按 underlying item
+身份映射到正式 `InfBaGelMixDataset.__getitem__`；该入口也恢复了 no-object 点的 999 坐标。
+collate 对 `scene_flag/pi/end_pi/seg_len` 明确使用 long，其余浮点使用 float32，布尔保留。
+新增回归检查覆盖实际暴露的进度索引与 float64 几何。r0/r1 均为入口失败、没有科学比较；
+r2 是首次可产生完整数值诊断的尝试，使用新的 `*-r2-s42-20260905` id 与 `r2_r2/r3_r2`
+输出目录。科学格、cohort、判据、零更新与 1.0 GPU-h 总上限保持原样。

@@ -2457,10 +2457,23 @@ def _evaluate_predictor_decomp_cohort(
     return records, {name: np.stack(values) for name, values in arrays.items()}
 
 
+def _collate_hsi_training_inputs(items, device):
+    from torch.utils.data._utils.collate import default_collate
+
+    indices = {"scene_flag", "pi", "end_pi", "seg_len"}
+    batch = default_collate(items)
+    return {
+        key: value.to(
+            device=device,
+            dtype=torch.long if key in indices else torch.float32 if value.is_floating_point() else value.dtype,
+        ) if torch.is_tensor(value) else value
+        for key, value in batch.items()
+    }
+
+
 def evaluate_rebase_numerics(cfg: DictConfig) -> Path:
     """R3-ND: paired precision and bias interventions on fixed checkpoints."""
     import random
-    from torch.utils.data._utils.collate import default_collate
 
     random.seed(int(cfg.seed))
     np.random.seed(int(cfg.seed))
@@ -2471,6 +2484,7 @@ def evaluate_rebase_numerics(cfg: DictConfig) -> Path:
     model.requires_grad_(False)
     model.out.requires_grad_(True)
     dataset = hydra.utils.instantiate(cfg.dataset)
+    mixed_indices = {int(index): position for position, (kind, index) in enumerate(dataset.indices) if kind == 1}
     source = GroundTruthSource(DATASET_ROOT)
     selections, subset, stratum_weights = _exact_holdout_windows(
         dataset, source, cfg.lingo_episode_dir, cfg.lingo_episode_subset,
@@ -2484,12 +2498,9 @@ def evaluate_rebase_numerics(cfg: DictConfig) -> Path:
     torch.cuda.reset_peak_memory_stats(device)
     for start in range(0, len(selections), int(cfg.batch_size)):
         selected = selections[start:start + int(cfg.batch_size)]
-        batch = default_collate([_lingo_item(dataset, row["data_idx"]) for row in selected])
-        batch = {
-            k: v.to(device=device, dtype=torch.float32 if v.is_floating_point() else v.dtype)
-            if torch.is_tensor(v) else v
-            for k, v in batch.items()
-        }
+        batch = _collate_hsi_training_inputs(
+            [dataset[mixed_indices[row["data_idx"]]] for row in selected], device
+        )
         sampler.batch_size = len(selected)
         generator = torch.Generator(device=device).manual_seed(int(cfg.seed) + start)
         noise = torch.randn((len(selected), 16, 232), device=device, generator=generator)

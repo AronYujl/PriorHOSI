@@ -55,6 +55,20 @@ TIMING_INPUT = (
 )
 
 
+class DiagnosticInputTests(unittest.TestCase):
+    def test_float_metadata_becomes_valid_progress_indices(self):
+        batch = evaluator._collate_hsi_training_inputs([
+            {"pi": 3.0, "end_pi": np.float64(15), "seg_len": 48,
+             "scene_flag": 2, "need_pi": True,
+             "object_points": np.zeros((4, 3), dtype=np.float64)},
+        ], torch.device("cpu"))
+        encoding = torch.arange(64)
+        self.assertEqual(encoding[batch["pi"]].item(), 3)
+        self.assertEqual(encoding[batch["end_pi"]].item(), 15)
+        self.assertEqual(batch["object_points"].dtype, torch.float32)
+        self.assertEqual(batch["need_pi"].dtype, torch.bool)
+
+
 class TimingAggregationTests(unittest.TestCase):
     def test_registered_warmup_and_aggregates_have_exact_values(self):
         result = evaluator._aggregate_timing(
