@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "run_id": "p2-mixer-hsi-input-s42-20260905",
+  "phase": "p2",
+  "status": "completed",
+  "classification": "input_sensitivity_motion_dominant",
+  "completed_at": "2026-09-05T14:15:07+00:00",
+  "git_commit": "34b73314e0de6a15a7107f5bb17f3f69f4215b10",
+  "scope": "Passive HSI predictions on G=0 generated HOI histories; no intervention feeds the carrier and no HOSI quality is evaluated.",
+  "checkpoints": {
+    "hoi": {
+      "schema_version": 2,
+      "checkpoint_type": "hoi_prior_phase1b",
+      "expert": "hoi",
+      "initialization": "random",
+      "run_id": "p1-hoi-p15-geom-perhand-equalized-s42-20260825",
+      "seed": 42,
+      "git_commit": "b85c7459b5a6fef1975e9ec5013fbb7849cb2aa0",
+      "processed_windows": 299520000,
+      "processed_frames": 4792320000,
+      "optimizer_updates": 146250,
+      "model_config": {
+        "dim_model": 512,
+        "num_heads": 16,
+        "num_layers": 8
+      },
+      "architecture_variant": "base",
+      "interaction_adapter_contract": null,
+      "sparse_relation_contract": null,
+      "diffusion_reliability_contract": null,
+      "selfcond_relation_source_contract": null,
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+      "window_state_codec": "state-compositional-v1",
+      "weights": "model",
+      "weight_variant": "online",
+      "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-p15-geom-perhand-equalized-s42-20260825/checkpoints/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth",
+      "sha256": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c"
+    },
+    "hsi": {
+      "path": "/home/yujinlun/data/datasets/InfBaGel-p2-hosi-v1/checkpoints/hsi/hsi_b_r2_fullbody_seam_epoch222.pth",
+      "sha256": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe",
+      "occ_list_layout_repaired": true,
+      "inference_cfg_w": 1.0
+    }
+  },
+  "coverage": {
+    "episodes": 28,
+    "scenes": [
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "a3df624b-0917-46e9-ac15-fab766276c72",
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092"
+    ],
+    "windows": 124,
+    "probe_states": 868,
+    "hsi_forward_calls": 8680,
+    "generated_history_windows": 96
+  },
+  "checks": {
+    "four_zero_exitcodes": true,
+    "ten_bootstrap_zero_exitcodes": true,
+    "all_recorded_metrics_finite": true,
+    "complete_per_window_timestep_coverage": true,
+    "repeat_max_over_all_states_metrics": 0.0
+  },
+  "results": {
+    "tokens_legacy": {
+      "generated_late_fk_mean_cm": 0.09526449960240431,
+      "generated_late_fk_median_cm": 0.09386216189401844,
+      "episodes_above_1_cm": 0,
+      "generated_late_fk_groups_cm": {
+        "root": 0.0686856885609199,
+        "lower_body": 0.08007788341830309,
+        "torso": 0.08338003467718011,
+        "arms": 0.104673294982025,
+        "hands": 0.16137637266247215
+      },
+      "generated_late_raw_mean_cm": 0.10378147969362927,
+      "generated_late_rotation_mean_deg": 0.16178978608816635,
+      "initial_late_fk_mean_cm": 0.12560051972312586,
+      "generated_timestep_fk_mean_cm": {
+        "499": 0.12925846850343234,
+        "400": 0.1330626691482505,
+        "250": 0.1275235308526409,
+        "100": 0.11383743233262833,
+        "10": 0.08735919313657345,
+        "1": 0.09235698179502352,
+        "0": 0.08750439114539194
+      },
+      "episode_paired_ci95_cm": [
+        0.089337927641705,
+        0.10138409348967505
+      ],
+      "scene_paired_ci95_cm": [
+        0.08733763388498494,
+        0.10319136531982369
+      ]
+    },
+    "motion_legacy": {
+      "generated_late_fk_mean_cm": 0.9991355531293552,
+      "generated_late_fk_median_cm": 0.9519641661484326,
+      "episodes_above_1_cm": 11,
+      "generated_late_fk_groups_cm": {
+        "root": 0.841074530873342,
+        "lower_body": 0.9154307812553685,
+        "torso": 0.9496683956916885,
+        "arms": 1.0565966278354715,
+        "hands": 1.3068089688036277
+      },
+      "generated_late_raw_mean_cm": 1.0347145874500951,
+      "generated_late_rotation_mean_deg": 1.3242799535702043,
+      "initial_late_fk_mean_cm": 0.812225805329425,
+      "generated_timestep_fk_mean_cm": {
+        "499": 1.303510767047435,
+        "400": 1.2282172858225109,
+        "250": 1.2120445078564068,
+        "100": 1.1525031575168612,
+        "10": 1.013488151047742,
+        "1": 0.9030761838609737,
+        "0": 0.9274747200918441
+      },
+      "episode_paired_ci95_cm": [
+        0.891893714281193,
+        1.1268691093506724
+      ],
+      "scene_paired_ci95_cm": [
+        0.9080637569513906,
+        1.0912450355595895
+      ]
+    },
+    "both_legacy": {
+      "generated_late_fk_mean_cm": 1.0123353125428245,
+      "generated_late_fk_median_cm": 0.9796530021620649,
+      "episodes_above_1_cm": 13,
+      "generated_late_fk_groups_cm": {
+        "root": 0.8505218903241625,
+        "lower_body": 0.9263991364047708,
+        "torso": 0.9644791104019854,
+        "arms": 1.0713563937911355,
+        "hands": 1.3205431846523754
+      },
+      "generated_late_raw_mean_cm": 1.04875925761392,
+      "generated_late_rotation_mean_deg": 1.3525793135161945,
+      "initial_late_fk_mean_cm": 0.8295943917972701,
+      "generated_timestep_fk_mean_cm": {
+        "499": 1.3139710005161578,
+        "400": 1.2375131254310376,
+        "250": 1.2170435386213585,
+        "100": 1.1554312236117128,
+        "10": 1.0270599300789387,
+        "1": 0.9217221804537605,
+        "0": 0.9451279160268858
+      },
+      "episode_paired_ci95_cm": [
+        0.9045163728541888,
+        1.1392206485814187
+      ],
+      "scene_paired_ci95_cm": [
+        0.9279927296808956,
+        1.0985035130251495
+      ]
+    },
+    "both_tokens": {
+      "generated_late_fk_mean_cm": 1.0022176817684623,
+      "generated_late_fk_median_cm": 0.9527599601341146,
+      "episodes_above_1_cm": 11,
+      "generated_late_fk_groups_cm": {
+        "root": 0.8451252037708916,
+        "lower_body": 0.9185387491390041,
+        "torso": 0.9529097090409794,
+        "arms": 1.059068605913031,
+        "hands": 1.3113461106567899
+      },
+      "generated_late_raw_mean_cm": 1.0381950103969244,
+      "generated_late_rotation_mean_deg": 1.325002740991308,
+      "initial_late_fk_mean_cm": 0.8155375221478087,
+      "generated_timestep_fk_mean_cm": {
+        "499": 1.305178174160235,
+        "400": 1.2300111943091394,
+        "250": 1.2146637983789115,
+        "100": 1.1553506768918902,
+        "10": 1.016349895744502,
+        "1": 0.9066293270460197,
+        "0": 0.9305408273914368
+      },
+      "episode_paired_ci95_cm": [
+        0.8950900295158677,
+        1.129808282492246
+      ],
+      "scene_paired_ci95_cm": [
+        0.9104221095166289,
+        1.0945740557157448
+      ]
+    },
+    "both_motion": {
+      "generated_late_fk_mean_cm": 0.09370838310192033,
+      "generated_late_fk_median_cm": 0.09106332820374519,
+      "episodes_above_1_cm": 0,
+      "generated_late_fk_groups_cm": {
+        "root": 0.06795773280799271,
+        "lower_body": 0.07939530020874562,
+        "torso": 0.08201966461743483,
+        "arms": 0.10253144334816922,
+        "hands": 0.15776561340039952
+      },
+      "generated_late_raw_mean_cm": 0.10205266810536529,
+      "generated_late_rotation_mean_deg": 0.15877052053635995,
+      "initial_late_fk_mean_cm": 0.1243257021997124,
+      "generated_timestep_fk_mean_cm": {
+        "499": 0.1277442077212796,
+        "400": 0.12939695158631218,
+        "250": 0.12659049761289407,
+        "100": 0.11261213548204813,
+        "10": 0.08475348032744867,
+        "1": 0.09095722074787262,
+        "0": 0.0865106958503119
+      },
+      "episode_paired_ci95_cm": [
+        0.08717962392593039,
+        0.10052935120312137
+      ],
+      "scene_paired_ci95_cm": [
+        0.08547433397717892,
+        0.10194243222666174
+      ]
+    },
+    "repeat_legacy": {
+      "generated_late_fk_mean_cm": 0.0,
+      "generated_late_fk_median_cm": 0.0,
+      "episodes_above_1_cm": 0,
+      "generated_late_fk_groups_cm": {
+        "root": 0.0,
+        "lower_body": 0.0,
+        "torso": 0.0,
+        "arms": 0.0,
+        "hands": 0.0
+      },
+      "generated_late_raw_mean_cm": 0.0,
+      "generated_late_rotation_mean_deg": 0.0,
+      "initial_late_fk_mean_cm": 0.0,
+      "generated_timestep_fk_mean_cm": {
+        "499": 0.0,
+        "400": 0.0,
+        "250": 0.0,
+        "100": 0.0,
+        "10": 0.0,
+        "1": 0.0,
+        "0": 0.0
+      }
+    }
+  },
+  "diagnostic_seconds_by_shard": {
+    "0": 165.2726229019463,
+    "22": 123.26118645817041,
+    "44": 111.32552599068731,
+    "66": 90.08933154633269
+  },
+  "uncertainty": "Episode bootstrap is conditional on 28 selected tasks; scene bootstrap has only four scenes. All use 10000 replicates and seed 42. Distances measure sensitivity, not quality improvement.",
+  "interpretation": "Token-only masking changes future FK by about 0.095 cm, weakening the token-path explanation of the prior rollout failure. Empty motion channels cause about 1 cm displacement and dominate the joint intervention; a live adapted rollout remains unmeasured. Root-leg coordination and scene-guidance attribution remain open.",
+  "artifacts": {
+    "worker_root": "/home/yujinlun/data/work/InfBaGel-mixer/results/experiments/p2-mixer-hsi-input-s42-20260905",
+    "authority_return": "results/incoming/p2-mixer-hsi-input-s42-20260905",
+    "paired_reports": "analysis/paired-*.json",
+    "per_episode_records": "evaluation-shard*/episode-*.json",
+    "state_predictions": "evaluation-shard*/state-*.pt"
+  }
+}

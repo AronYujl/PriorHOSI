@@ -3,7 +3,8 @@
 Status: updated 2026-09-05. Shared-chain sampling and fixed raw/kinematic
 composition are implemented. The completed R2-CG raw/KIN comparison rejected
 the kinematic operator. A learned mixer and the state machine remain future
-work. The next approved step is the HSI input diagnostic specified below.
+work. The HSI input diagnostic is complete: motion-channel sensitivity dominates
+the much smaller token-only effect. See the dated completion and handoff below.
 
 ## What is being composed, and why not by data mixing
 
@@ -1864,3 +1865,23 @@ The passive query restores CPU/CUDA RNG, including the existing occupancy
 function's CPU `randperm`. The final authority run was `pytest tests`:
 903 passed, 6 skipped in 167.17 seconds. Fully resolved diagnostic config and
 registry validation passed. The next action is the registered worker diagnostic.
+
+## 2026-09-05 — HSI input diagnostic completion
+
+`p2-mixer-hsi-input-s42-20260905` completed on committed implementation
+`34b7331`: 28 episodes, 124 carrier windows and 868 paired probe states.
+All four workers and ten bootstrap analyses exited successfully. Every recorded
+metric is finite; repeated HSI predictions have exactly zero measured difference.
+The immutable 124 MiB return passed its single checksum-only comparison.
+
+The input-first hypothesis is refined by the result: token-only masking has a
+submillimetre mean future-FK effect, while restoring missing motion channels
+produces about a centimetre of change. This weakens the token-path explanation
+of the old composition failure. These are passive prediction sensitivities;
+adapted closed-loop quality and the cause of the raw/KIN sliding failure remain
+unmeasured. No expert, production input mode or mixer is promoted.
+
+Numbers: `experiments/results/p2_mixer_hsi_input_s42_20260905.json`.
+Scope, interpretation, verification and the next entry point:
+`docs/phase_summaries/PHASE_2_INPUT_DIAGNOSTIC.md`. This closes the registered
+diagnostic; Phase 2's joint-composition gate remains open.
