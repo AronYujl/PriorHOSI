@@ -1,9 +1,9 @@
 # Phase 2 — composing the two expert priors
 
-Status: implementation started 2026-08-29. No composed result exists yet, because
-HSIPrior has no settled checkpoint (P17-OC is training on `phase/01c-hsi` from
-589ac7f). Everything below that does not need an HSI checkpoint is built and
-tested; everything that does is specified and blocked.
+Status: updated 2026-09-05. Shared-chain sampling and fixed raw/kinematic
+composition are implemented. The completed R2-CG raw/KIN comparison rejected
+the kinematic operator. A learned mixer and the state machine remain future
+work. The next approved step is the HSI input diagnostic specified below.
 
 ## What is being composed, and why not by data mixing
 
@@ -1763,3 +1763,96 @@ expert is selected by this result, and the current R2 teacher remains an interim
 teacher as already recorded. The full 16-metric paired tables, sign tests, tail shares,
 source hashes and resample-index hash are tracked in
 `experiments/results/p2_mixer_kinematic_r2cg_r1_paired_s42_20260905.json`.
+
+## 2026-09-05 — HSI input semantics on generated HOI histories
+
+The user approved continuing the input-first sequence after the source/result
+review. This session completes this Phase 2 diagnostic only. R2's archived
+training config uses `lingo_only=true`, `load_object_goal=true`, and
+`is_mix=false`: object/BPS condition embeddings are masked during training,
+history object/contact channels are zero, and future empty channels receive
+the ordinary forward noise. The composed caller instead exposes real object
+conditions and motion. Occupancy remapping changes the label alphabet; it
+does not establish that the complete conditional input is in distribution.
+
+**Hypothesis.** Restoring the training-time HSI object input semantics changes
+its human predictions on a fixed generated motion hypothesis. Separate object
+condition tokens from the empty motion channels before attributing a quality
+failure to the learned scene prior or training a residual mixer.
+
+**Frozen carrier and sample.** P15 online plus Arm B drives the existing G=0
+500-step chain; R2 final EMA is queried as a passive observer with CFG `w=1`.
+Use the checkpoint pair and immutable worker snapshot of the completed
+R2-CG comparison by reference. HSI posterior guidance is off; geometry still
+queries the full shared state and previous carrier x0 with object voxels
+mapped to occupied. No HSI probe prediction feeds the chain. Keep seed 42,
+existing per-scene generator semantics and every generated window/history.
+
+Choose four scenes using only the benchmark's start/goal metadata: bins
+`0,22,44,66` of the existing 67-bin longest-first scene-chord partition.
+These are respectively `a3df624b-0917-46e9-ac15-fab766276c72`,
+`b1b053a9-b268-4f62-a06d-b9b9325c5092`,
+`4abcb667-c57f-4d8f-940a-d964152329d5`, and
+`0aa05d5a-81d5-497b-832c-c90c3fe73a36`. Include all seven objects per scene:
+28 episodes, one scene per worker GPU. The selection uses no quality result.
+Probe reverse steps `499,400,250,100,10,1,0` in every carrier window.
+
+**Paired interventions.** Query occupancy once at each selected state, then
+reuse exactly those tensors, human state, text/goals/progress and timestep:
+
+| cell | object-condition tokens | motion channels 216:232 |
+|---|---|---|
+| legacy | real object | shared carrier |
+| tokens | training-time masked tokens | shared carrier |
+| motion | real object | training-time empty view |
+| both | training-time masked tokens | training-time empty view |
+| repeat | repeat legacy | repeat shared carrier |
+
+The empty view pins the two history frames to zero and sets future channels
+to `sqrt(1-alpha_bar[t]) * epsilon`. One independent seed-42 auxiliary noise
+tensor per window is reused across cells and noise levels. This defines paired
+one-step marginal probes, not a new reverse process for the missing modality.
+The auxiliary generator never consumes the carrier/global RNG stream. Masking
+tokens occurs only at the denoiser call, leaving the geometric context intact.
+
+**Measurements and reading.** Preserve selected inputs/predictions and all
+per-window/per-step records in the ignored run directory. Report displacement
+in cm for raw human positions and 24-joint FK, separately for root, legs,
+torso, arms and hands, plus global-rotation changes in degrees. Compute
+denormalized positions with the dataset function, not a copied scale factor.
+Compare tokens/legacy, motion/legacy, both/legacy, both/tokens,
+both/motion, and repeat/legacy. Repeat defines the numerical reference.
+Report initial-prefix and generated-history windows separately, and keep all
+seven timesteps visible. Primary reading: mean future FK displacement for
+both/legacy at steps `100,10,1,0` on generated-history windows. Count episodes
+above 1 cm (one fifth of the evaluator's 5 cm hand-contact distance) as an
+effect-size description, not a checkpoint or quality promotion threshold.
+
+Aggregate within episode first. Use `tools/paired_bootstrap.py`, 10,000
+replicates, seed 42, for each contrast against its repeat reference. Also
+aggregate to four scenes and report scene-level intervals; episode intervals
+describe these selected tasks, and four scenes do not establish generalization.
+Material differences establish input sensitivity, not that the corrected view
+improves HOSI quality. Small differences retain the source mismatch but weaken
+its explanation of the measured failure. No gate/weight/teacher is selected.
+
+**Implementation and completion gate.** Add one reusable named probe to
+`code/mixer/diagnostics.py`, invoked by the existing Hydra evaluator and one
+config fragment; add no tool script. Keep ordinary sampling arithmetic
+unchanged and verify the passive probe preserves the carrier/RNG. Component
+tests cover the real Unet token mask, missing-channel noise/history, physical
+units, pairing, and generated-history aggregation. Run the complete authority
+suite and metadata validation. The registered real-data diagnostic supplies
+runtime verification; no separate smoke workload is added. A production
+throughput benchmark is skipped because the production executed path is
+unchanged; diagnostic overhead is recorded only as diagnostic runtime.
+
+Create resolved configs and machine preflight beside the manifest before
+worker execution, publish committed source through worker-initiated Git, and
+run under a worker-owned persistent session. Retain every operational failure.
+Completion requires four successful processes, exactly 28 unique episodes,
+complete timestep coverage on every generated window, finite diagnostics,
+repeat/reference results, paired reports and the compact conclusion. Reuse
+existing lifecycle provenance and sealed asset references; introduce no new
+hashing mechanism. The next direction is chosen from these results, with the
+failed raw/KIN experiments preserved.
