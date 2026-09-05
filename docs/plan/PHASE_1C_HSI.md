@@ -12931,3 +12931,67 @@ R3-AR 总判定为 **DEPRIORITIZED**：训练内 c3 不仅未修复 seam excess�
 resample-index SHA256 为
 `9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821`。本轮在此停止，不运行
 系数、衰减或 timestep sweep，不改 C/consistency，不选择中间 checkpoint，也不启动下一训练方向。
+
+## 2026-09-05（R3-ND：rebase 数值与输出偏移诊断；用户已批准）
+
+### A. 范围与已知证据
+
+用户在只读评审后明确同意继续定位 R3 的输出抵消结构、基础去噪损失和 bf16 数值漂移。
+本节是独立诊断 subphase R3-ND，保持 `phase/01c-hsi`，component 为 `hsi-rebase-numerics`。
+只读取 R2/R3 已封存最终 EMA，执行前向和输出头梯度测量，optimizer updates 为 0。
+不训练新专家、不改生产 rebase、不改 C、mixer 或 `code/priors/core/`。
+
+评审已读取的事实必须与后续验证区分：R3 epoch mean loss 从 epoch 28 的 0.051056
+升至 epoch 222 的 1.651097；rank-0 TensorBoard 辅助拆分中基础项解释增量的 98.03%。
+R2/R3 人体 `out.bias` RMS 为 0.032479 / 4.366546，R3 rotation bias absmax 为 19.16748。
+精确算术下 c3 的 `y_f-y_2+(2h1-h0)` 消去共同 bias，并固定首个生成帧；bf16 与该抵消的
+数值耦合是待验证假设。已有负结果及这些观察不因本次诊断改判。
+
+### B. 冻结输入与操作
+
+- checkpoint：R2 `hsi_b_r2_fullbody_seam_epoch222.pth`（R2-CG manifest 所指对象），R3
+  `results/hsi_b_r3_ar_r1/checkpoints/hsi_b_r3_ar_r1_epoch222.pth`（R3 completion 所指对象）。
+- cohort：D1--D6 frozen-60 的 352 个 exact-valid GT-history 窗；保持 canonical 顺序，
+  排除原有 12 个 terminal padding。复用原有身份记录，不重新选择 episode。
+- timesteps 固定 `{0,50,250,498}`；每批 32，共 11 批；seed 42；模型 train mode，配对操作
+  恢复相同 CPU/CUDA RNG 与显式 noise。future occupancy jitter 置 0，固定场景排列修复。
+- 调用生产 `Sampler.p_losses`，目标为 R2/R3 共同的 base + 3*FK + 0.5494500113*fullbody-seam；
+  分别记录位置 MSE、旋转 L1、FK、seam。冻结主干参数只节省反传存储，输出头仍可求导。
+- 每个 checkpoint 的 2×4 格：人体 bias 原值/置零，乘以四条精度路径：原 bf16；bf16 主干与
+  输出头、仅 rebase 用 fp32；bf16 主干、输出头和 rebase 用 fp32；全 fp32（关闭 TF32）。
+  所有干预只在诊断调用期间生效。两个 checkpoint 各加一格全 fp32、rebase off，描述原始输出。
+- 记录原始输出幅度、首帧锚点误差、bias 干预前后输出差、输出 bias/weight 梯度范数及
+  未来帧输出梯度之和。记录同批三条 bf16 路径的输出头输入差，核实主干配对。
+
+### C. 启动前判据
+
+本诊断的目标是定位数值机制，任何判定均不构成 checkpoint 晋级或新的训练授权。
+
+1. **前向共同偏移不变性**：bf16 的 bias 干预输出 RMS 差大于 fp32 的 10 倍且大于
+   1e-3，支持低精度破坏输出共同偏移不变性；否则按实值报告，归因保持未定。
+2. **反传共同偏移泄漏**：bf16 人体 bias 梯度 RMS 大于 fp32 的 100 倍且大于 1e-7，
+   支持低精度反传产生不可辨识方向上的梯度。比较仅使用 c3 和相同 bias 状态。
+3. **位置定位**：相对原 bf16，head_fp32 的 bias 干预输出差与 bias 梯度 RMS 均下降至少
+   99%，支持输出头/抵消边界的数值定位；rebase_fp32 单独列出，检验事后升精度是否足够。
+4. **已训练权重的剩余误差**：报告全 fp32 下 R3 与 R2 的 base/FK/seam，分别区分共同 c3
+   与各自原生 rebase 状态。单步损失变化只描述当前权重；无法替代 native rollout 能力。
+
+所有 timestep 和 11 个 batch 全部报告。前向损失与干预差按 window 写出，并给出 episode
+均值；通过 `tools/paired_bootstrap.py` 生成 seed-42、10,000 次 episode-paired CI。
+输出头梯度是 batch 聚合量，逐批保留，使用全部批次均值作机制读数，不冒充 episode CI。
+NaN/Inf 记为数值失败并保留相关格，不把它转成零。没有 checkpoint 选择、参数或精度 sweep。
+
+### D. 生命周期与停止
+
+唯一 fragment 为 `code/config/config_sample_hsi_rebase_numerics.yaml`；probe 位于既有
+`code/priors/hsi/diagnostics.py`，由现有 LINGO evaluator 的命名 mode 调用，无新脚本。
+一份预注册提交、一份实现提交、一份完成提交。执行 component tests、registry validation
+以及一次 authority suite；按用户明确要求，真实数据功能验证由本正式诊断首批承担，不另增
+smoke 工作负载。训练和生产采样执行路径的数学保持原样，跳过训练性能 benchmark。
+
+R2/R3 分别在 GPU0/GPU1 运行，使用独立 manifest；单格的有效 batch 为 32、无 accumulation、
+无 optimizer。总预算上限 **1.0 GPU-h**（两个 checkpoint 各最多 0.5 GPU-h）；这是用户
+批准继续诊断的执行上限，不增加正式训练预算。启动前保存 exact-overrides resolved config，
+通过 `tools/experiment.py start` 在干净提交上创建 manifest；复用既有输入身份与生命周期工具。
+run id 为 `p1-hsi-rebase-numerics-r2-s42-20260905` / `p1-hsi-rebase-numerics-r3-s42-20260905`。
+本轮完成全格、统计和结论后停止；数值问题即使得到支持，也需结合硬锚点限制决定下一训练机制。

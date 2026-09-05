@@ -1,0 +1,26 @@
+# R3-ND: fixed-checkpoint precision and output-bias interventions; zero updates.
+defaults: [config_sample_infbagel_lingo_hsi, _self_]
+
+lingo_hsi_mode: rebase_numerics
+numerics_model_name: r3
+ckpt_path: ${oc.env:ROOT_DIR}/results/hsi_b_r3_ar_r1/checkpoints/hsi_b_r3_ar_r1_epoch222.pth
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/hsi_rebase_numerics/${numerics_model_name}
+lingo_episode_subset: ${oc.env:ROOT_DIR}/.claude/scratch/hetero_20260823/smoke60.json
+numerics_timesteps: [0, 50, 250, 498]
+numerics_precisions: [bf16, rebase_fp32, head_fp32, fp32]
+numerics_holdout_windows: 352
+numerics_terminal_padded_windows: 12
+
+batch_size: 32
+sample_type: diffusion
+use_guidance: false
+export_motion: false
+hsi_compute_rds: false
+hsi_chain_rebase_mode: c3
+hsi_future_occ_jitter_scale: 0.0
+occ_permute_fix: true
+use_object_keypoints: true
+geometry_loss_fp32: true
+fullbody_seam_loss_weight: 0.5494500113254572
+loss_w_fk: 3.0
+seed: 42
