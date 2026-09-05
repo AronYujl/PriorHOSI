@@ -2485,7 +2485,11 @@ def evaluate_rebase_numerics(cfg: DictConfig) -> Path:
     for start in range(0, len(selections), int(cfg.batch_size)):
         selected = selections[start:start + int(cfg.batch_size)]
         batch = default_collate([_lingo_item(dataset, row["data_idx"]) for row in selected])
-        batch = {k: v.to(device) if torch.is_tensor(v) else v for k, v in batch.items()}
+        batch = {
+            k: v.to(device=device, dtype=torch.float32 if v.is_floating_point() else v.dtype)
+            if torch.is_tensor(v) else v
+            for k, v in batch.items()
+        }
         sampler.batch_size = len(selected)
         generator = torch.Generator(device=device).manual_seed(int(cfg.seed) + start)
         noise = torch.randn((len(selected), 16, 232), device=device, generator=generator)

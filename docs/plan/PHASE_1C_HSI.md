@@ -13003,3 +13003,13 @@ run id 为 `p1-hsi-rebase-numerics-r2-s42-20260905` / `p1-hsi-rebase-numerics-r3
 bias 与精度上下文。定向检查 71 passed；authority suite 433 passed、3 skipped；registry
 validation 通过。两个新机制测试分别验证首个生成帧的零参数导数和共同输出 bias 的精确抵消。
 检查没有新增独立 smoke 或训练 workload。首次真实诊断将逐批报告生产 loss 与独立分项读数误差。
+
+### F. 首次入口失败与修正
+
+R2/R3 首次 manifest 均在第一个 denoiser 前向前失败：直接 LINGO item 的占位 object points
+为 float64，`_compute_occ` 在 bf16 上下文的 matmul 需要与正式训练相同的 float32 输入。
+两条 failure 已分别封存；没有 loss、模型前向或科学判定。诊断 collate 后统一将浮点张量
+转为 float32，保留整数和布尔类型；这与已有 `_diagnostic_window_inputs` 的精度语义一致。
+重试分别使用 `p1-hsi-rebase-numerics-r2-r1-s42-20260905` 和
+`p1-hsi-rebase-numerics-r3-r1-s42-20260905`，输出目录追加 `_r1`。全格、输入身份、模型、
+条件、判据和总预算 1.0 GPU-h 均保持原样，失败工件原样保留。
