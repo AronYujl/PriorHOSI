@@ -31,7 +31,8 @@ own:
   HOIPrior has no analogue for.  Dropping it would silently de-scene the HSI
   expert.
 
-``G == 0`` reduces this to HOIPrior alone, bitwise, with no HSI checkpoint
+With CG and relational correction off, ``G == 0`` reduces this to HOIPrior alone,
+bitwise, with no HSI checkpoint
 loaded, and ``tests/phase2`` asserts that against ``HOIPriorSampler.p_sample_loop``
 rather than trusting the arithmetic.  It also holds with the HSI expert LOADED and
 running -- measured on 7 real HOSI-test episodes against the sealed anchor row, all
@@ -76,7 +77,7 @@ class HOSIComposedSampler:
                  channel_mask='human', hsi_object_voxel_mode='occupied',
                  body_composer=None, hsi_guidance_scale=1.0,
                  inference_engineering=False, input_diagnostic=None,
-                 hsi_input_view=None):
+                 hsi_input_view=None, relational_corrector=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -103,6 +104,7 @@ class HOSIComposedSampler:
         self.inference_engineering = bool(inference_engineering)
         self.input_diagnostic = input_diagnostic
         self.hsi_input_view = hsi_input_view
+        self.relational_corrector = relational_corrector
         self._posterior_coefficient_cache = None
         if self.hsi_guidance_scale < 0:
             raise ValueError('hsi_guidance_scale must be non-negative')
@@ -171,10 +173,10 @@ class HOSIComposedSampler:
             'channel_mask': (
                 self.channel_mask if isinstance(self.channel_mask, str) else 'tensor'
             ),
-            # Recorded as a payload claim, not as prose: validated at construction
-            # for every mask this sampler will accept, so a row on disk carries the
-            # statement that its object channel came from HOI at every gate value.
-            'object_channels_from_hoi': True,
+            # Raw/kinematic composition preserves HOI object channels. Relational
+            # correction also transforms the object with the human; its own audit
+            # records that physical provenance and the exact contact restoration.
+            'object_channels_from_hoi': self.relational_corrector is None,
             'compose_calls': self.compose_calls,
             'hsi_expert_loaded': self.hsi_sampler is not None,
             'per_step_composition': True,
@@ -212,6 +214,8 @@ class HOSIComposedSampler:
                 'history_restored_after_update': True,
             },
         }
+        if self.relational_corrector is not None:
+            audit['composition']['relational_correction'] = self.relational_corrector.audit_dict()
         return audit
 
     @staticmethod
@@ -361,6 +365,11 @@ class HOSIComposedSampler:
                     outputs, dataset=self.dataset,
                     rest_human_offsets=human_dict['rest_human_offsets'],
                     fixed_points=fixed_points,
+                )
+            if self.relational_corrector is not None:
+                clean = self.relational_corrector.correct(
+                    self, current, previous_x0, timesteps, hsi_context,
+                    human_dict['rest_human_offsets'], clean, step,
                 )
             self.compose_calls += 1
             previous_x0 = clean

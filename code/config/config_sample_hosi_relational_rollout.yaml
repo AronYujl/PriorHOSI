@@ -1,0 +1,17 @@
+# Phase 2.2: one cell per independent closed-loop trajectory.
+defaults: [config_sample_hosi_relational_prototype, _self_]
+
+hosi_mode: evaluate
+hosi_episode_audits: true
+hsi_guidance_posterior_coef1: true
+hsi_guidance_scale: 1.0
+
+sampler:
+  pelvis:
+    input_diagnostic: null
+    relational_corrector:
+      _target_: mixer.relational.RelationalCorrector
+      cell: a01
+      steps: [10, 1, 0]
+      optimizer_steps: 20
+      learning_rate: 0.05

@@ -1104,6 +1104,14 @@ def main(cfg: DictConfig) -> None:
 
             scene_metrics.append(metrics)
 
+            if cfg.get('hosi_episode_audits', False):
+                with open(os.path.join(base_output_dir, f'episode-audit-{canonical_ordinal:03d}.json'), 'x') as handle:
+                    json.dump({
+                        'metrics': metrics, 'sampler_audit': sampler_body.audit_dict(),
+                        'generation_seconds': _seq_gen_time, 'frames': _num_frames,
+                        'end_to_end_seconds': _episode_time,
+                    }, handle, indent=2, default=convert_to_serializable)
+
             print(f"  feet_height: {metrics['feet_height']:.2f}")
             print(f"  foot_sliding: {metrics['foot_sliding']:.2f}")
             print(f"  hand_pen_loss_omomo: {metrics['hand_pen_loss_omomo']:.2f}")

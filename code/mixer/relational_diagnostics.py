@@ -4,9 +4,8 @@ import time
 
 import torch
 
-from .diagnostics import HSIInputDiagnostic, decode_human
-from .kinematic_composition import _apply_rotation
-from .relational import CELL_KEYS, RelationalGeometry, RelationalObjective, optimize_relational_cells
+from .diagnostics import HSIInputDiagnostic
+from .relational import CELL_KEYS, relational_problem, optimize_relational_cells
 
 
 class RelationalPrototypeDiagnostic(HSIInputDiagnostic):
@@ -23,17 +22,9 @@ class RelationalPrototypeDiagnostic(HSIInputDiagnostic):
 
     def _observe(self, sampler, current, previous_x0, timesteps, context,
                  rest_offsets, hoi_clean, step):
-        cond, uncond = sampler._hsi_prediction_pair(current, previous_x0, timesteps, context)
-        object_name = context['seq_name_dict'][0].split('_')[1]
-        vertices = context['obj_rest_verts'][object_name]
-        indices = torch.linspace(0, len(vertices) - 1, 128, device=vertices.device).long()
-        geometry = RelationalGeometry(hoi_clean, sampler.dataset, rest_offsets, context, vertices[indices][None])
-        conditional_fk = decode_human(cond, sampler.dataset, rest_offsets)[2]
-        unconditioned_fk = decode_human(uncond, sampler.dataset, rest_offsets)[2]
-        increment = _apply_rotation(context['mat'][:, None, None, :3, :3], conditional_fk - unconditioned_fk)
-        zero = hoi_clean.new_zeros(*hoi_clean.shape[:2], geometry.dimension)
-        target = geometry.decode(zero)['human'][:, 2:] + increment
-        objective = RelationalObjective(geometry, context['scene_flag'], target)
+        geometry, objective, cond, uncond = relational_problem(
+            sampler, current, previous_x0, timesteps, context, rest_offsets, hoi_clean,
+        )
         if current.is_cuda:
             torch.cuda.synchronize(current.device)
             torch.cuda.reset_peak_memory_stats(current.device)

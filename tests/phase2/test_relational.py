@@ -11,7 +11,7 @@ from pytorch3d import transforms
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'code'))
 
 from mixer.input_views import KnownEmptyObjectView, empty_forward_trajectory
-from mixer.relational import RelationalGeometry, RelationalObjective, optimize_relational_cells
+from mixer.relational import CELL_KEYS, RelationalCorrector, RelationalGeometry, RelationalObjective, optimize_relational_cells
 from mixer.relational_diagnostics import RelationalPrototypeDiagnostic
 from tests.phase2.test_kinematic_composition import _fixture
 
@@ -160,3 +160,87 @@ def test_registered_probe_serializes_four_cells_with_enabled_gradients(tmp_path)
     assert payload['probe'] == 'relational_constrained_window'
     assert set(payload['metrics']) == {'a00', 'a10', 'a01', 'a11'}
     assert all(record['initial_t0_gradient_finite'] == 1 for record in payload['metrics'].values())
+
+
+def test_independent_rollout_cell_matches_its_batched_window_cell():
+    geometry, _ = _geometry()
+    def nearest(points, flags):
+        target = points.clone()
+        target[..., 0] = points[..., 0].clamp(max=0)
+        return points[..., 0] > 0, target
+    geometry.dataset.get_nearest_free_voxel = nearest
+    target = geometry.decode(torch.zeros(1, 16, geometry.dimension))['human'][:, 2:] - 0.02
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target)
+    batch_output, batch_parameters, _ = optimize_relational_cells(geometry, objective, steps=3)
+    for index, cell in enumerate(CELL_KEYS):
+        output, parameters, metrics = optimize_relational_cells(geometry, objective, steps=3, cells=(cell,))
+        torch.testing.assert_close(output[0], batch_output[index], atol=2e-6, rtol=2e-5)
+        torch.testing.assert_close(parameters[0], batch_parameters[index], atol=2e-6, rtol=2e-5)
+        assert metrics['gradient_finite'].item() == 1
+
+
+def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
+    geometry, _ = _geometry()
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    context = {
+        'mat': geometry.mat, 'obj_rot_mat_prefix': geometry.prefix,
+        'obj_rot_mat_ref': geometry.reference,
+        'seq_name_dict': {0: 'sub16_clothesstand_0'},
+        'obj_rest_verts': {'clothesstand': geometry.object_points[0]},
+        'scene_flag': torch.zeros(1, dtype=torch.long),
+    }
+    sampler = SimpleNamespace(dataset=geometry.dataset, inner_hoi=SimpleNamespace(sample_calls=1),
+                              _hsi_prediction_pair=lambda *args: (geometry.base, geometry.base))
+    corrector = RelationalCorrector(cell='a01', optimizer_steps=2)
+    arguments = (sampler, geometry.base, geometry.base, torch.tensor([0]), context, geometry.offsets, geometry.base)
+    assert corrector.correct(*arguments, step=9) is geometry.base
+    with torch.no_grad():
+        result = corrector.correct(*arguments, step=0)
+    assert result.shape == geometry.base.shape
+    assert not torch.equal(result, geometry.base)
+    assert torch.equal(result[:, :2], geometry.base[:, :2])
+    assert torch.equal(result[..., 228:], geometry.base[..., 228:])
+    audit = corrector.audit_dict()
+    assert audit['calls'] == 1
+    assert audit['records'][0]['metrics']['gradient_finite'] == 1
+    assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
+
+
+def test_corrected_clean_drives_posterior_and_next_scene_reference():
+    from tests.phase2.test_composed_sampler import _evaluator_arguments, _make_composed_with_hsi
+    sampler, _, _, _ = _make_composed_with_hsi(0, batch=1)
+    arguments = _evaluator_arguments(batch=1)
+    arguments['fixed_points'][..., 219:228] = torch.eye(3).flatten()
+    arguments['human_dict'] = {'rest_human_offsets': torch.zeros(24, 3)}
+    posterior_clean = {}
+    original_posterior = sampler.inner_hoi.diffusion.posterior_sample
+
+    class Correction:
+        def correct(self, owner, current, previous_x0, timesteps, context, offsets, clean, step):
+            if step < 499:
+                assert torch.equal(previous_x0, posterior_clean[step+1])
+            result = clean.clone()
+            if step in (10, 1, 0):
+                result[:, 2:, 0] += 0.025
+            posterior_clean[step] = result.clone()
+            return result
+
+        def audit_dict(self):
+            return {'calls': 3}
+
+    def posterior(current, clean, timesteps, noise, fixed):
+        assert torch.equal(clean, posterior_clean[int(timesteps[0])])
+        return original_posterior(current, clean, timesteps, noise, fixed)
+
+    sampler.relational_corrector = Correction()
+    sampler.inner_hoi.diffusion.posterior_sample = posterior
+    samples, _ = sampler.p_sample_loop(**arguments)
+    assert len(posterior_clean) == 500
+    coefficient = sampler.inner_hoi.diffusion.posterior_mean_coef1[0]
+    torch.testing.assert_close(samples[-1][:, 2:, :219], coefficient * posterior_clean[0][:, 2:, :219])
+    assert torch.equal(samples[-1][:, :2], arguments['fixed_points'])
+    audit = sampler.audit_dict()['composition']
+    assert audit['object_channels_from_hoi'] is False
+    assert audit['relational_correction']['calls'] == 3

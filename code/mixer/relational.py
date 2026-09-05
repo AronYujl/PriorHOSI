@@ -1,11 +1,13 @@
 """Differentiable common human-object motion with articulated body corrections."""
 
 import math
+import time
 
 import torch
 from pytorch3d import transforms
 
 from priors.core.window_codec import project_to_so3
+from .diagnostics import decode_human
 from .kinematic_composition import (
     _ATTACHED_MARKER_PARENTS, _FK_EXTRA_TO_POSITION, _apply_rotation,
     _expand_rest_offsets, _forward_kinematics, _local_from_global,
@@ -201,15 +203,16 @@ class RelationalObjective:
         return terms, metrics
 
 
-def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05):
-    """Four independent Adam cells in one GPU batch, from identical zero residuals."""
+def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
+                              cells=CELL_KEYS):
+    """Independent Adam cells in one GPU batch, from identical zero residuals."""
     with torch.enable_grad():
-        parameters = geometry.base.new_zeros(4, geometry.base.shape[1], geometry.dimension, requires_grad=True)
+        parameters = geometry.base.new_zeros(len(cells), geometry.base.shape[1], geometry.dimension, requires_grad=True)
         optimizer = torch.optim.Adam([parameters], lr=learning_rate)
-        use_hsi = parameters.new_tensor((0, 1, 0, 1))
-        use_scene = parameters.new_tensor((0, 0, 1, 1))
-        gradient_finite = torch.ones(4, dtype=torch.bool, device=parameters.device)
-        gradient_max = parameters.new_zeros(4)
+        use_hsi = parameters.new_tensor([int(cell[1]) for cell in cells])
+        use_scene = parameters.new_tensor([int(cell[2]) for cell in cells])
+        gradient_finite = torch.ones(len(cells), dtype=torch.bool, device=parameters.device)
+        gradient_max = parameters.new_zeros(len(cells))
         initial_terms, initial_metrics = objective.evaluate(geometry.decode(parameters))
         for _ in range(steps):
             terms, _ = objective.evaluate(geometry.decode(parameters))
@@ -230,3 +233,70 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05)
     metrics['gradient_finite'] = gradient_finite.float()
     metrics['gradient_max'] = gradient_max
     return encoded, parameters.detach(), metrics
+
+
+def relational_problem(sampler, current, previous_x0, timesteps, context,
+                       rest_offsets, clean):
+    """Use the same frozen source and HSI target in window and rollout experiments."""
+    cond, uncond = sampler._hsi_prediction_pair(current, previous_x0, timesteps, context)
+    object_name = context['seq_name_dict'][0].split('_')[1]
+    vertices = context['obj_rest_verts'][object_name]
+    indices = torch.linspace(0, len(vertices) - 1, 128, device=vertices.device).long()
+    geometry = RelationalGeometry(clean, sampler.dataset, rest_offsets, context, vertices[indices][None])
+    conditional_fk = decode_human(cond, sampler.dataset, rest_offsets)[2]
+    unconditioned_fk = decode_human(uncond, sampler.dataset, rest_offsets)[2]
+    increment = _apply_rotation(context['mat'][:, None, None, :3, :3], conditional_fk - unconditioned_fk)
+    zero = clean.new_zeros(*clean.shape[:2], geometry.dimension)
+    target = geometry.decode(zero)['human'][:, 2:] + increment
+    return geometry, RelationalObjective(geometry, context['scene_flag'], target), cond, uncond
+
+
+class RelationalCorrector:
+    """Feed one registered relation cell into the shared reverse chain."""
+
+    def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
+                 learning_rate=0.05):
+        self.cell = cell
+        self.steps = tuple(steps)
+        self.optimizer_steps = int(optimizer_steps)
+        self.learning_rate = float(learning_rate)
+        self.records = []
+
+    def correct(self, sampler, current, previous_x0, timesteps, context,
+                rest_offsets, clean, step):
+        if step not in self.steps:
+            return clean
+        if current.is_cuda:
+            torch.cuda.synchronize(current.device)
+            torch.cuda.reset_peak_memory_stats(current.device)
+        started = time.perf_counter()
+        geometry, objective, _, _ = relational_problem(
+            sampler, current, previous_x0, timesteps, context, rest_offsets, clean,
+        )
+        encoded, _, metrics = optimize_relational_cells(
+            geometry, objective, self.optimizer_steps, self.learning_rate,
+            cells=(self.cell,),
+        )
+        if current.is_cuda:
+            torch.cuda.synchronize(current.device)
+        elapsed = time.perf_counter() - started
+        names = list(metrics)
+        values = torch.stack([metrics[name][0] for name in names]).detach().cpu().tolist()
+        self.records.append({
+            'window': sampler.inner_hoi.sample_calls, 'step': step,
+            'seconds': elapsed,
+            'peak_allocated_bytes': torch.cuda.max_memory_allocated(current.device) if current.is_cuda else None,
+            'history_exact': torch.equal(encoded[:, :2], clean[:, :2]),
+            'contact_exact': torch.equal(encoded[..., 228:], clean[..., 228:]),
+            'metrics': dict(zip(names, values)),
+        })
+        return encoded
+
+    def audit_dict(self):
+        return {
+            'cell': self.cell, 'steps': list(self.steps),
+            'optimizer_steps': self.optimizer_steps, 'learning_rate': self.learning_rate,
+            'insertion': 'clean_before_posterior_and_previous_x0',
+            'object_pose': 'hoi_with_common_human_object_transform',
+            'calls': len(self.records), 'records': self.records,
+        }

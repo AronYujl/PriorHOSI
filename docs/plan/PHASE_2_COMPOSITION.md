@@ -2093,3 +2093,14 @@ metrics, correction gradients and 499 CG calls/window, plus paired reports and
 negative. Use preregistration, implementation and completion commits. This
 subphase closes the pilot only; learned mixer training requires useful HSI
 supervision and the outstanding full Phase 2 gate in a later session.
+
+Implementation verification: the authority suite passed **914 tests with 4
+skips in 172.44 seconds**. The new relation tests cover single-cell equivalence,
+real optimizer history/contact restoration, and clean feedback through all 500
+posterior steps. The test fixture uses valid SO(3) history and accounts for the
+canonical step-zero posterior coefficient. Twenty exact job configurations
+resolve completely. Each completed native episode also persists metrics,
+generation timing and cumulative guidance/correction audit for detached-run
+inspection. The eight physical GPUs are isolated with `CUDA_VISIBLE_DEVICES`;
+four BLAS threads/process and a fixed scene-workload allocation are recorded
+in the execution plan. Concurrent timing is throughput/context information.
