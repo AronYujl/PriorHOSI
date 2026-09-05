@@ -1,0 +1,12 @@
+defaults: [config_sample_hosi_input_diagnostic, _self_]
+
+hosi_mode: relational_prototype
+sampler:
+  pelvis:
+    hsi_input_view:
+      _target_: mixer.input_views.KnownEmptyObjectView
+    input_diagnostic:
+      _target_: mixer.relational_diagnostics.RelationalPrototypeDiagnostic
+      steps: [10, 1, 0]
+      optimizer_steps: 20
+      learning_rate: 0.05

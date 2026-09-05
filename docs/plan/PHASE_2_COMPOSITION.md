@@ -1974,3 +1974,17 @@ commits. Archive resolved configs and preflight before the worker-owned run;
 recover once with the existing transfer/checksum procedure. Write
 `docs/phase_summaries/PHASE_2A_RELATIONAL_PROTOTYPE.md` before integration and
 tag the completed 2.1 interface deliverable. No 2.2 run starts in this session.
+
+Implementation detail fixed before execution: the four cells are vectorized as
+one four-cell GPU batch for each source window. Losses are reduced within each
+cell and summed for backward; Adam moments remain independent per cell. The
+recorded optimization time and peak allocation therefore describe one source
+window's complete four-cell computation. The source/evaluator batch remains one.
+
+Implementation verification: six new component tests cover the forward-noise
+recurrence/covariance, RNG isolation, shared-transform invariants, reference
+encoding, zero-residual gradients, four-cell optimization and probe serialization.
+The final authority suite, with the verified interpreter exported for subprocess
+tests, passed 911 tests with 4 skips in 161.58 seconds. Resolved Hydra config,
+registry validation and whitespace checks passed. The earlier suite's two setup
+errors were the unexported interpreter variable; they required a command fix.

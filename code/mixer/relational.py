@@ -1,0 +1,232 @@
+"""Differentiable common human-object motion with articulated body corrections."""
+
+import math
+
+import torch
+from pytorch3d import transforms
+
+from priors.core.window_codec import project_to_so3
+from .kinematic_composition import (
+    _ATTACHED_MARKER_PARENTS, _FK_EXTRA_TO_POSITION, _apply_rotation,
+    _expand_rest_offsets, _forward_kinematics, _local_from_global,
+)
+
+
+CELL_KEYS = ('a00', 'a10', 'a01', 'a11')
+
+
+class RelationalGeometry:
+    """67 residual coordinates/frame: translation, yaw, and 21 local rotations.
+
+    Cached expert inputs are frozen. Residual coordinates and reconstruction
+    remain differentiable, including at zero. A batch of residuals can broadcast
+    one cached window to the four independent optimization cells.
+    """
+
+    translation_scale = 0.10
+    angle_scale = math.radians(10)
+    dimension = 4 + 21 * 3
+
+    def __init__(self, clean, dataset, rest_offsets, context, object_points):
+        self.base = clean.detach()
+        self.dataset = dataset
+        self.positions = dataset.denormalize_torch(self.base[..., :84]).reshape(
+            *clean.shape[:2], 28, 3,
+        )
+        self.global_rotation = transforms.rotation_6d_to_matrix(
+            self.base[..., 84:216].reshape(*clean.shape[:2], 22, 6),
+        )
+        self.local_rotation = _local_from_global(self.global_rotation)
+        self.offsets = _expand_rest_offsets(rest_offsets, *clean.shape[:2], self.positions)
+        self.offsets[..., 0, :] = self.positions[..., 0, :]
+        self.mat = context['mat'].to(clean)
+        self.world_rotation = self.mat[:, :3, :3]
+        self.world_translation = self.mat[:, :3, 3]
+        self.prefix = context['obj_rot_mat_prefix'].reshape(-1, 3, 3).to(clean)
+        self.reference = context['obj_rot_mat_ref'].reshape(clean.shape[0], -1, 3, 3)[:, 0].to(clean)
+        self.object_position = dataset.denormalize_torch(self.base[..., 216:219], is_object=True)
+        object_relative = project_to_so3(self.base[..., 219:228].reshape(*clean.shape[:2], 3, 3))
+        self.object_rotation_world = self.prefix[:, None] @ object_relative @ self.reference[:, None]
+        self.object_points = object_points.to(clean)
+        mask = clean.new_ones(1, clean.shape[1], 1)
+        mask[:, :2] = 0
+        self.future_mask = mask
+
+    def world_points(self, points):
+        return _apply_rotation(self.world_rotation[:, None, None], points) + self.world_translation[:, None, None]
+
+    def decode(self, parameters):
+        bounded = parameters.tanh() * self.future_mask
+        translation = self.translation_scale * bounded[..., :3]
+        yaw = self.angle_scale * bounded[..., 3]
+        local_delta = self.angle_scale * bounded[..., 4:].reshape(*parameters.shape[:2], 21, 3)
+        cosine, sine, zero = yaw.cos(), yaw.sin(), torch.zeros_like(yaw)
+        one = torch.ones_like(yaw)
+        common_rotation = torch.stack(
+            (cosine, zero, sine, zero, one, zero, -sine, zero, cosine), dim=-1,
+        ).reshape(*yaw.shape, 3, 3)
+        root = self.positions[..., 0, :] + translation
+        root_rotation = common_rotation @ self.local_rotation[..., 0, :, :]
+        local = torch.cat((
+            root_rotation[..., None, :, :],
+            self.local_rotation[..., 1:, :, :] @ transforms.axis_angle_to_matrix(local_delta),
+        ), dim=-3)
+        offsets = self.offsets.expand(parameters.shape[0], -1, -1, -1).clone()
+        offsets[..., 0, :] = root
+        global_rotation, local_fk = _forward_kinematics(local, offsets)
+        human = self.world_points(local_fk)
+        object_position = root + _apply_rotation(
+            common_rotation, self.object_position - self.positions[..., 0, :],
+        )
+        object_translation_world = (
+            _apply_rotation(self.world_rotation[:, None], object_position)
+            + self.world_translation[:, None]
+        )
+        common_world_rotation = (
+            self.world_rotation[:, None] @ common_rotation
+            @ self.world_rotation[:, None].transpose(-1, -2)
+        )
+        object_rotation_world = common_world_rotation @ self.object_rotation_world
+        object_surface = (
+            _apply_rotation(object_rotation_world[..., None, :, :], self.object_points[:, None])
+            + object_translation_world[..., None, :]
+        )
+        return {
+            'human': human, 'local_fk': local_fk, 'global_rotation': global_rotation,
+            'object_position': object_position, 'object_translation_world': object_translation_world,
+            'object_rotation_world': object_rotation_world, 'object_surface': object_surface,
+            'bounded_parameters': bounded, 'translation': translation,
+            'yaw': yaw, 'local_delta': local_delta,
+        }
+
+    def encode(self, state, fixed_points):
+        global_rotation, fk = state['global_rotation'], state['local_fk']
+        positions = self.positions.expand(fk.shape[0], -1, -1, -1).clone()
+        positions[..., :22, :] = fk[..., :22, :]
+        for fk_index, position_index in _FK_EXTRA_TO_POSITION.items():
+            positions[..., position_index, :] = fk[..., fk_index, :]
+        for marker, parent in _ATTACHED_MARKER_PARENTS.items():
+            vector = self.positions[..., marker, :] - self.positions[..., parent, :]
+            local_vector = _apply_rotation(self.global_rotation[..., parent, :, :].transpose(-1, -2), vector)
+            positions[..., marker, :] = positions[..., parent, :] + _apply_rotation(
+                global_rotation[..., parent, :, :], local_vector,
+            )
+        object_relative = (
+            self.prefix[:, None].transpose(-1, -2) @ state['object_rotation_world']
+            @ self.reference[:, None].transpose(-1, -2)
+        )
+        result = torch.cat((
+            self.dataset.normalize_torch(positions).flatten(-2),
+            transforms.matrix_to_rotation_6d(global_rotation).flatten(-2),
+            self.dataset.normalize_torch(state['object_position'], is_object=True),
+            object_relative.flatten(-2), self.base[..., 228:232].expand(fk.shape[0], -1, -1),
+        ), dim=-1)
+        # Keep the original redundant history representation exactly.
+        return torch.cat((fixed_points.expand(fk.shape[0], -1, -1), result[:, 2:]), dim=1)
+
+
+def _mean(value):
+    return value.flatten(1).mean(1)
+
+
+def _masked_mean(value, mask):
+    # An empty contact/stance set contributes zero by definition.
+    return (value * mask).flatten(1).sum(1) / mask.expand_as(value).flatten(1).sum(1).clamp_min(1)
+
+
+class RelationalObjective:
+    """Physical residuals and fixed source relations shared by all four cells."""
+
+    def __init__(self, geometry, scene_flag, hsi_target):
+        self.geometry = geometry
+        self.scene_flag = scene_flag
+        self.hsi_target = hsi_target.detach()
+        zero = geometry.base.new_zeros(*geometry.base.shape[:2], geometry.dimension)
+        with torch.no_grad():
+            self.anchor = geometry.decode(zero)
+        human = self.anchor['human']
+        relative = human[..., 22:24, :] - self.anchor['object_translation_world'][..., None, :]
+        self.hand_anchor = _apply_rotation(
+            self.anchor['object_rotation_world'][..., None, :, :].transpose(-1, -2), relative,
+        )
+        self.contact = (geometry.base[..., 228:230] > 0.95)[:, 2:]
+        heights = human[..., (7, 8, 10, 11), 1]
+        stance = heights < heights.new_tensor((0.08, 0.08, 0.04, 0.04))
+        self.stance = stance[:, 2:] & stance[:, 1:-1]
+
+    def evaluate(self, state):
+        human = state['human']
+        surface = state['object_surface']
+        points = torch.cat((human[:, 2:], surface[:, 2:]), dim=-2)
+        with torch.no_grad():
+            occupied, nearest = self.geometry.dataset.get_nearest_free_voxel(
+                points.detach(), self.scene_flag.expand(points.shape[0]),
+            )
+        distance_squared = (points - nearest).square().sum(-1)
+        hand_target = (
+            _apply_rotation(state['object_rotation_world'][..., None, :, :], self.hand_anchor)
+            + state['object_translation_world'][..., None, :]
+        )
+        hand_squared = (human[:, 2:, 22:24] - hand_target[:, 2:]).square().sum(-1)
+        feet = human[..., (7, 8, 10, 11), :]
+        velocity_squared = (feet[:, 2:, :, (0, 2)] - feet[:, 1:-1, :, (0, 2)]).square().sum(-1)
+        support_height = human[:, 2:, (10, 11), 1].min(-1).values
+        root_endpoint = human[:, -1, 0] - self.anchor['human'][:, -1, 0]
+        object_endpoint = state['object_translation_world'][:, -1] - self.anchor['object_translation_world'][:, -1]
+        residual = state['bounded_parameters'][:, 2:]
+        contact_mse = _masked_mean(hand_squared, self.contact)
+        stance_mse = _masked_mean(velocity_squared, self.stance)
+        terms = {
+            'residual': _mean(residual[..., :3].square()) + _mean(residual[..., 3:4].square()) + _mean(residual[..., 4:].square()),
+            'contact': contact_mse / (3 * 0.05**2),
+            'stance': stance_mse / (2 * 0.02**2),
+            'floor': _mean((support_height - 0.02).square()) / 0.02**2,
+            'endpoint': (root_endpoint.square().mean(-1) + object_endpoint.square().mean(-1)) / 0.10**2,
+            'hsi': _mean((human[:, 2:] - self.hsi_target).square()) / 0.05**2,
+            'human_scene': _mean(distance_squared[..., :24]) / (3 * 0.05**2),
+            'object_scene': _mean(distance_squared[..., 24:]) / (3 * 0.05**2),
+        }
+        metrics = {
+            'human_scene_residual_cm': _mean(distance_squared[..., :24]).sqrt() * 100,
+            'object_scene_residual_cm': _mean(distance_squared[..., 24:]).sqrt() * 100,
+            'human_occupied_fraction': _mean(occupied[..., :24].float()),
+            'object_occupied_fraction': _mean(occupied[..., 24:].float()),
+            'contact_anchor_drift_cm': contact_mse.sqrt() * 100,
+            'stance_displacement_cm': stance_mse.sqrt() * 100,
+            'root_endpoint_shift_cm': root_endpoint.norm(dim=-1) * 100,
+            'object_endpoint_shift_cm': object_endpoint.norm(dim=-1) * 100,
+            'translation_max_cm': state['translation'].abs().flatten(1).max(1).values * 100,
+            'angle_component_max_deg': torch.cat((state['yaw'][..., None], state['local_delta'].flatten(-2)), -1).abs().flatten(1).max(1).values * (180 / math.pi),
+        }
+        return terms, metrics
+
+
+def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05):
+    """Four independent Adam cells in one GPU batch, from identical zero residuals."""
+    with torch.enable_grad():
+        parameters = geometry.base.new_zeros(4, geometry.base.shape[1], geometry.dimension, requires_grad=True)
+        optimizer = torch.optim.Adam([parameters], lr=learning_rate)
+        use_hsi = parameters.new_tensor((0, 1, 0, 1))
+        use_scene = parameters.new_tensor((0, 0, 1, 1))
+        gradient_finite = torch.ones(4, dtype=torch.bool, device=parameters.device)
+        gradient_max = parameters.new_zeros(4)
+        initial_terms, initial_metrics = objective.evaluate(geometry.decode(parameters))
+        for _ in range(steps):
+            terms, _ = objective.evaluate(geometry.decode(parameters))
+            loss = sum(terms[name] for name in ('residual', 'contact', 'stance', 'floor', 'endpoint'))
+            loss = loss + use_hsi * terms['hsi'] + use_scene * (terms['human_scene'] + terms['object_scene'])
+            optimizer.zero_grad(set_to_none=True)
+            loss.sum().backward()
+            gradient_finite &= torch.isfinite(parameters.grad).flatten(1).all(1)
+            gradient_max = torch.maximum(gradient_max, parameters.grad.detach().abs().flatten(1).max(1).values)
+            optimizer.step()
+        with torch.no_grad():
+            state = geometry.decode(parameters)
+            final_terms, final_metrics = objective.evaluate(state)
+            encoded = geometry.encode(state, geometry.base[:, :2])
+    metrics = {**final_metrics, **{'energy_' + k: v for k, v in final_terms.items()}}
+    metrics.update({'before_' + k: v.detach() for k, v in initial_metrics.items()})
+    metrics.update({'before_energy_' + k: v.detach() for k, v in initial_terms.items()})
+    metrics['gradient_finite'] = gradient_finite.float()
+    metrics['gradient_max'] = gradient_max
+    return encoded, parameters.detach(), metrics

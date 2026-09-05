@@ -8,6 +8,7 @@ import torch
 from pytorch3d import transforms
 
 from .body_groups import POSITION_GROUPS, ROTATION_GROUPS
+from .input_views import empty_motion_view, masked_object_arguments
 from .kinematic_composition import (
     _expand_rest_offsets, _forward_kinematics, _local_from_global,
 )
@@ -22,23 +23,6 @@ CONTRASTS = {
     'repeat_legacy': ('repeat', 'legacy'),
 }
 FK_GROUPS = {**ROTATION_GROUPS, 'hands': (22, 23)}
-
-
-def empty_motion_view(current, sigma, noise):
-    """Match the LINGO-only non-mix training marginal and clean history."""
-    view = current.clone()
-    view[:, :2, 216:] = 0
-    view[:, 2:, 216:] = sigma * noise[:, 2:]
-    return view
-
-
-def masked_object_arguments(common):
-    """Mask object tokens only; geometry has already read the full world."""
-    arguments = list(common)
-    # _hsi_model_arguments follows Unet.forward after its motion argument.
-    # Index 13 is is_object; Unet masks goal and BPS embeddings with this flag.
-    arguments[13] = torch.zeros_like(arguments[13])
-    return tuple(arguments)
 
 
 def decode_human(value, dataset, rest_offsets):
@@ -78,7 +62,7 @@ def prediction_difference(first, second):
     return result
 
 
-def aggregate_episode(records):
+def aggregate_episode(records, contrast_names=CONTRASTS):
     """Average within episode, keeping prefix type and noise levels explicit."""
     collected = defaultdict(list)
     for record in records:
@@ -90,13 +74,14 @@ def aggregate_episode(records):
             for metric, value in metrics.items():
                 for stratum in strata:
                     collected[(contrast, f'{stratum}_{metric}')].append(value)
-    result = {contrast: {} for contrast in CONTRASTS}
+    result = {contrast: {} for contrast in contrast_names}
     for (contrast, metric), values in collected.items():
         result[contrast][metric] = sum(values) / len(values)
     return result
 
 
-def write_analysis_inputs(source_dirs, output_dir, expected_episodes=28):
+def write_analysis_inputs(source_dirs, output_dir, expected_episodes=28,
+                          contrast_names=CONTRASTS):
     """Export paired episode/scene inputs for the existing bootstrap command."""
     episodes = {}
     for directory in source_dirs:
@@ -119,7 +104,7 @@ def write_analysis_inputs(source_dirs, output_dir, expected_episodes=28):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=False)
     exported = {}
-    for contrast in CONTRASTS:
+    for contrast in contrast_names:
         episode_metrics = {
             name: value['metrics'][contrast] for name, value in episodes.items()
         }
@@ -150,6 +135,9 @@ def write_analysis_inputs(source_dirs, output_dir, expected_episodes=28):
 
 class HSIInputDiagnostic:
     """Named probe: object_input_semantics. Predictions never feed the carrier."""
+
+    probe_name = 'object_input_semantics'
+    contrast_names = CONTRASTS
 
     def __init__(self, steps=(499, 400, 250, 100, 10, 1, 0), seed=42):
         self.steps = tuple(steps)
@@ -231,10 +219,10 @@ class HSIInputDiagnostic:
 
     def finish_episode(self):
         payload = {
-            'schema_version': 1, 'probe': 'object_input_semantics', 'seed': self.seed,
+            'schema_version': 1, 'probe': self.probe_name, 'seed': self.seed,
             'episode': self.episode, 'window_count': self.window_index + 1,
             'steps': list(self.steps), 'records': self.records,
-            'metrics': aggregate_episode(self.records),
+            'metrics': aggregate_episode(self.records, self.contrast_names),
         }
         path = self.output_dir / f'episode-{self.episode["canonical_ordinal"]:03d}.json'
         with path.open('x') as handle:

@@ -61,6 +61,7 @@ from .composition import (
     compose_x0,
     gate_is_identity,
 )
+from .input_views import masked_object_arguments
 
 
 class HOSIComposedSampler:
@@ -74,7 +75,8 @@ class HOSIComposedSampler:
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
                  channel_mask='human', hsi_object_voxel_mode='occupied',
                  body_composer=None, hsi_guidance_scale=1.0,
-                 inference_engineering=False, input_diagnostic=None):
+                 inference_engineering=False, input_diagnostic=None,
+                 hsi_input_view=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -100,6 +102,7 @@ class HOSIComposedSampler:
         self.hsi_guidance_scale = float(hsi_guidance_scale)
         self.inference_engineering = bool(inference_engineering)
         self.input_diagnostic = input_diagnostic
+        self.hsi_input_view = hsi_input_view
         self._posterior_coefficient_cache = None
         if self.hsi_guidance_scale < 0:
             raise ValueError('hsi_guidance_scale must be non-negative')
@@ -176,6 +179,10 @@ class HOSIComposedSampler:
             'hsi_expert_loaded': self.hsi_sampler is not None,
             'per_step_composition': True,
             'hsi_object_voxel_mode': self.hsi_object_voxel_mode,
+            'hsi_input_view': (
+                'known_empty_forward_trajectory' if self.hsi_input_view is not None
+                else 'shared_full_state'
+            ),
             'hsi_object_voxels_remapped': self.hsi_object_voxels_remapped,
             # Anchor occupancy reads the shared noisy chain (`current`); temporal
             # occupancy reads the previous composed clean prediction.  There is
@@ -298,6 +305,8 @@ class HOSIComposedSampler:
         # trajectory the chain is not taking. Initialized to `current` to match
         # the released `x0.append(points)`, which happens after the history fix.
         previous_x0 = current
+        if self.hsi_input_view is not None:
+            self.hsi_input_view.begin_window(current, generator.initial_seed())
         if self.input_diagnostic is not None:
             self.input_diagnostic.begin_window(current)
         imgs = []
@@ -459,8 +468,15 @@ class HOSIComposedSampler:
         ``current`` for both would query the scene along a NOISY trajectory at
         high timesteps -- pure noise on the first step.
         """
+        cond, uncond = self._hsi_prediction_pair(current, previous_x0, timesteps, context)
+        return cond + self.hsi_sampler.w * (cond - uncond)
+
+    def _hsi_prediction_pair(self, current, previous_x0, timesteps, context):
         common = self._hsi_model_arguments(current, previous_x0, timesteps, context)
-        return self._hsi_predict(current, common)
+        if self.hsi_input_view is not None:
+            current = self.hsi_input_view.for_step(current, int(timesteps[0]))
+            common = masked_object_arguments(common)
+        return self._hsi_predict_pair(current, common)
 
     def _hsi_model_arguments(self, current, previous_x0, timesteps, context):
         """Query the full world once, independently of denoiser input views."""
@@ -491,10 +507,14 @@ class HOSIComposedSampler:
         )
 
     def _hsi_predict(self, current, common):
+        cond, uncond = self._hsi_predict_pair(current, common)
+        return cond + self.hsi_sampler.w * (cond - uncond)
+
+    def _hsi_predict_pair(self, current, common):
         model = self.hsi_sampler.student_model
         cond = model(current, *common, is_sample=True)
         uncond = model(current, *common, is_sample=True, is_uncondition=True)
-        return cond + self.hsi_sampler.w * (cond - uncond)
+        return cond, uncond
 
     def _hsi_posterior_guidance_enabled(self):
         """Whether the frozen R2-CG posterior rule is active.

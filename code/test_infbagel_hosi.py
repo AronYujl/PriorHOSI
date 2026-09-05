@@ -505,10 +505,14 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
-    if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_input_diagnostics':
+    if str(cfg.get('hosi_mode', 'evaluate')) in ('merge_input_diagnostics', 'merge_relational_prototype'):
         from mixer.diagnostics import write_analysis_inputs
+        kwargs = {}
+        if cfg.hosi_mode == 'merge_relational_prototype':
+            from mixer.relational import CELL_KEYS
+            kwargs['contrast_names'] = CELL_KEYS
         summary = write_analysis_inputs(
-            list(cfg.hosi_input_diagnostic_sources), cfg.hosi_output_dir,
+            list(cfg.hosi_input_diagnostic_sources), cfg.hosi_output_dir, **kwargs,
         )
         with open(os.path.join(cfg.hosi_output_dir, 'metrics.json'), 'x') as handle:
             json.dump(summary, handle, indent=2, allow_nan=False)
@@ -516,7 +520,7 @@ def main(cfg: DictConfig) -> None:
     if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_shards':
         run_merge_shards(cfg)
         return
-    input_diagnostic_mode = str(cfg.get('hosi_mode', 'evaluate')) == 'input_diagnostic'
+    input_diagnostic_mode = str(cfg.get('hosi_mode', 'evaluate')) in ('input_diagnostic', 'relational_prototype')
     if input_diagnostic_mode:
         if subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
             raise RuntimeError('registered input diagnostics require a clean worktree')
@@ -1126,7 +1130,7 @@ def main(cfg: DictConfig) -> None:
         if len(diagnostic_episodes) != int(sharding_plan['shard_episode_count']):
             raise RuntimeError('input diagnostic episode coverage is incomplete')
         payload = {
-            'schema_version': 1, 'probe': 'object_input_semantics',
+            'schema_version': 1, 'probe': sampler_body.input_diagnostic.probe_name,
             'run_id': cfg.run_id, 'seed': int(cfg.seed),
             'git_commit': diagnostic_commit,
             'git_commit_at_completion': subprocess.check_output(
