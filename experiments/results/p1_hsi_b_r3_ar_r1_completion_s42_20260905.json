@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p1-hsi-b-r3-ar-r1-completion-s42-20260905",
+  "created_at": "2026-09-05T21:46:35+08:00",
+  "source_git_commit": "c65dec944d434205d362843f13c187b8d019a309",
+  "result": "completed",
+  "verdict": "DEPRIORITIZED",
+  "checkpoint": {
+    "path": "results/hsi_b_r3_ar_r1/checkpoints/hsi_b_r3_ar_r1_epoch222.pth",
+    "sha256": "456aec619000bd3b5b616aa400abe16399ff0ca04a4d394d7c622d9e13a9a0bc"
+  },
+  "counts": {
+    "optimizer_updates": 146255,
+    "processed_windows": 299530240,
+    "evaluation_episodes_per_cell": 375,
+    "evaluation_windows_per_cell": 2271,
+    "motion_archives_per_cell": 375,
+    "nonfinite_values": 0
+  },
+  "resources": {
+    "t0_preflight_gpu_hours": 0.00423996713426378,
+    "training_including_sealed_failed_attempt_gpu_hours": 92.80894880249153,
+    "unguided_evaluation_gpu_hours": 20.782222222222224,
+    "guided_evaluation_gpu_hours": 41.86666666666667,
+    "formal_increment_gpu_hours": 155.4620776585147,
+    "approved_increment_gpu_hours_max": 160.6,
+    "within_budget": true
+  },
+  "statistics": {
+    "cohort_sha256": "d291e9d338ab3b3da51463633cd9c57098b408d384889e139727c0f78cdcb7d3",
+    "design": "five-stratum population-weighted episode-paired bootstrap",
+    "replicates": 10000,
+    "seed": 42,
+    "resample_index_sha256": "9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821"
+  },
+  "frozen60": {
+    "ground_truth_boundary_jerk": 90.5411838908217,
+    "unguided": {
+      "primary": {
+        "control": 126.52527549375446,
+        "candidate": 248.42442179752499,
+        "candidate_minus_control": 121.89914630377054,
+        "ci": [63.60143351531259, 190.231422870479],
+        "control_excess_over_gt": 35.98409160293275,
+        "candidate_excess_over_gt": 157.8832379067033,
+        "excess_reduction_fraction": -3.3875843705843502,
+        "support_threshold": 0.5,
+        "deprioritized": true
+      },
+      "guards": {
+        "pen_ratio": {"control": 0.03336729228202287, "candidate": 0.03333894117911357, "delta": -0.00002835110290930491, "ci": [-0.008010403051426288, 0.009295074720305864], "passed": true},
+        "pen_depth_mean": {"control": 0.05402307209544092, "candidate": 0.06477180165224888, "delta": 0.010748729556807982, "ci": [0.004854736804905315, 0.017130425401008093], "passed": false},
+        "fs_nemf": {"control": 0.29313789665114, "candidate": 0.4440888182574189, "delta": 0.1509509216062789, "ci": [0.06411842704765583, 0.25551560098330317], "passed": false},
+        "goal_planar_err_m": {"control": 0.04723034467837483, "candidate": 0.5188105837754885, "delta": 0.4715802390971136, "ci": [0.3334979686067204, 0.6287678463315255], "passed": false},
+        "interior_jerk": {"control": 63.70290487531219, "candidate": 514.7900090781875, "delta": 451.08710420287525, "ci": [405.23254472838926, 496.314930850642], "passed": false},
+        "contact_count": {"control": 983.2174724606303, "candidate": 836.4692951563592, "delta": -146.74817730427105, "ci": [-289.01807129155344, 4.88591981961504], "passed": true}
+      },
+      "mechanism": {
+        "a1": {"control": 3.0966072495427, "candidate": 0.020611838375901182, "delta": -3.075995411166799, "ci": [-3.4045097314036883, -2.764945334667506]},
+        "a2": {"control": 2.2678703495984345, "candidate": 2.8973710977534455, "delta": 0.6295007481550107, "ci": [-0.2868314558260635, 1.7622796263421954]},
+        "cross_seam_third_difference": {"control": 50.31832318990452, "candidate": 28.943741214211784, "delta": -21.374581975692738, "ci": [-31.79725317114898, -9.066154725570971]},
+        "learned_history_consistent_velocity": false
+      }
+    },
+    "guided": {
+      "primary": {
+        "control": 154.4626605818325,
+        "candidate": 289.65046467313636,
+        "candidate_minus_control": 135.18780409130375,
+        "ci": [83.58677438195947, 191.1047828401085],
+        "control_excess_over_gt": 63.921476691010824,
+        "candidate_excess_over_gt": 199.1092807823146,
+        "excess_reduction_fraction": -2.114904271451461,
+        "support_threshold": 0.4,
+        "deprioritized": true
+      },
+      "guards": {
+        "pen_ratio": {"absolute_threshold": 0.02805, "control": 0.02308905045066978, "candidate": 0.04144364895852128, "delta": 0.0183545985078515, "ci": [0.003920853158104348, 0.036056508293557034], "passed": false},
+        "pen_depth_mean": {"control": 0.0523256978944957, "candidate": 0.06662977118511507, "delta": 0.014304073290619373, "ci": [0.008452573185207812, 0.021014191340683448], "passed": false},
+        "fs_nemf": {"control": 0.2708616631415589, "candidate": 0.46670363050053904, "delta": 0.1958419673589801, "ci": [0.10514974688222421, 0.29201898598919496], "passed": false},
+        "goal_planar_err_m": {"control": 0.05828489066997041, "candidate": 0.4861705404908858, "delta": 0.4278856498209155, "ci": [0.2960243925844042, 0.5802572378820569], "passed": false},
+        "interior_jerk": {"control": 72.66025478287597, "candidate": 656.1586974621397, "delta": 583.4984426792637, "ci": [460.26907224896956, 737.0620957399035], "passed": false},
+        "contact_count": {"control": 954.9864867747955, "candidate": 930.1071174218225, "delta": -24.879369352972986, "ci": [-213.88686496663047, 193.19621055731216], "passed": true}
+      },
+      "mechanism": {
+        "a1": {"control": 3.9256700870543333, "candidate": 0.020895433478119473, "delta": -3.9047746535762142, "ci": [-4.255202335127515, -3.5607493160083683]},
+        "a2": {"control": 2.7428373971634126, "candidate": 2.9821291885177295, "delta": 0.2392917913543171, "ci": [-0.43262296619607193, 0.9698710426866283]},
+        "cross_seam_third_difference": {"control": 62.98507641804596, "candidate": 29.800525706529612, "delta": -33.18455071151635, "ci": [-41.94316894315921, -24.357559019688477]},
+        "learned_history_consistent_velocity": false
+      }
+    },
+    "all_guards_passed": false
+  },
+  "full375": {
+    "unguided": {
+      "boundary_jerk": {"control": 124.67728587195379, "candidate": 292.1736167173514, "delta": 167.4963308453977, "ci": [132.9355433671867, 210.0988089895529], "excess_reduction_fraction": -4.162564824729878},
+      "pen_ratio": {"control": 0.030174204776440096, "candidate": 0.026559881594519198, "delta": -0.0036143231819209037, "ci": [-0.008311968480848376, 0.0017996906552914167]},
+      "pen_depth_mean": {"control": 0.05326564409339706, "candidate": 0.06299711324336972, "delta": 0.009731469149972662, "ci": [0.007289609749873988, 0.012109327461479365]},
+      "fs_nemf": {"control": 0.2965905434037461, "candidate": 0.38502730645263394, "delta": 0.08843676304888781, "ci": [0.05889741005964166, 0.11955554233549368]},
+      "goal_planar_err_m": {"control": 0.04519399468122672, "candidate": 0.4429651562367715, "delta": 0.3977711615555448, "ci": [0.3564851149739702, 0.4403749840898961]},
+      "interior_jerk": {"control": 63.24177315753592, "candidate": 549.2668418508684, "delta": 486.0250686933325, "ci": [464.1070499829109, 509.7292587860228]},
+      "contact_count": {"control": 916.8300260540518, "candidate": 688.9792883039175, "delta": -227.85073775013433, "ci": [-299.0492066781415, -149.50045871370324]}
+    },
+    "guided": {
+      "boundary_jerk": {"control": 159.08317533488662, "candidate": 296.3150066996466, "delta": 137.23183136475996, "ci": [108.12527489928472, 169.46687788578916], "excess_reduction_fraction": -1.8384691151898251},
+      "pen_ratio": {"control": 0.021416264461055958, "candidate": 0.029701422558261352, "delta": 0.008285158097205394, "ci": [0.002594775813112664, 0.014982108256808629]},
+      "pen_depth_mean": {"control": 0.05061298897531032, "candidate": 0.0634310656769779, "delta": 0.012818076701667572, "ci": [0.010383732053481969, 0.015353273913246937]},
+      "fs_nemf": {"control": 0.27648234373209074, "candidate": 0.4063761822960673, "delta": 0.12989383856397665, "ci": [0.10045412975333941, 0.15971106711429847]},
+      "goal_planar_err_m": {"control": 0.058306214129614946, "candidate": 0.4264404578258036, "delta": 0.3681342436961886, "ci": [0.3275906467261147, 0.4109983263364517]},
+      "interior_jerk": {"control": 72.41524473938536, "candidate": 566.4409881991897, "delta": 494.02574345980435, "ci": [470.2513264881182, 519.4643030012385]},
+      "contact_count": {"control": 893.0890492206051, "candidate": 735.9921774552041, "delta": -157.0968717654012, "ci": [-233.42728678901352, -74.19494342739893]}
+    }
+  },
+  "artifacts": {
+    "training_manifest_sha256": "3604be034599cbe66364ea2ee60d041114d1a61fd33a01ae29ba9390ed949a2a",
+    "unguided_manifest_sha256": "7bd4fabf82fe36998384d4defda7d69188c9ad2379bb9efd8be3de449d6899a3",
+    "guided_manifest_sha256": "ca66aa2c244c259ac3964396fb5d523afe4c6a254a2558479b938e51186d7133",
+    "unguided_payload_sha256": "42bf6aa3048e628749cec91b433549ec8b3c1ddbc0e0ff323ac632b5cf3f30f6",
+    "guided_payload_sha256": "6a24b024c743fb30019d4edaba8b24d9017b5aab2490cfefafa2e8f14462eb67",
+    "unguided_stratified_candidate_vs_control_sha256": "6d8a3f8205767281fc748a53ce8deab84d2466ab7e94298dd08c065c46d919ba",
+    "guided_stratified_candidate_vs_control_sha256": "80d68e4b9d0ffeb6fed7865a6d1d9109c4c9f621e13e1341a2cf8fa5a4658fe4",
+    "unguided_full375_candidate_vs_control_sha256": "8cbcb97e9101d9fb584a9b7d4ccec38aa1382b1f137e6fbd67e5d735fe5d05f4",
+    "guided_full375_candidate_vs_control_sha256": "137d59d700f6fb5db545d738e9d17cdf3f388379f91f2bfc1a7580b3341ae732",
+    "unguided_control_subset60_with_telemetry_sha256": "355383b6a8ef0e55e11c57e81089355c3653815fdda50d20e478359cfa1d31fd",
+    "guided_control_subset60_with_telemetry_sha256": "d31e5cd2ddfa9f2d9f720dab385ab743eac7b4a85c7781167d3341c37f4d05b7"
+  },
+  "training_observation": "Epoch mean loss rose from 0.051056 at epoch 28 to 1.651097 at epoch 222; rollout confirms broad degradation rather than a seam-only tradeoff.",
+  "conclusion": "Training-time c3 forces a1 near zero and lowers the cross-seam third difference, but does not significantly reduce a2 and catastrophically degrades native rollout quality. The R3-AR direction is deprioritized and is not a production candidate."
+}

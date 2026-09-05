@@ -12884,3 +12884,50 @@ server 必须 PPID 1；日志和 terminal exit status 写入新 run 目录，Cod
 合计 93.0982 GPU-h。用户据此批准训练成本上限由 **90.0 调整为 94.0 GPU-h**，R3-AR 总增量
 上限由 **156.6 调整为 160.6 GPU-h**。零训练检查 0.5 GPU-h、full375 双格评测 66.1 GPU-h、
 Phase 1C 累计 600 GPU-h 及所有科学停止规则不变。
+
+### I. 2026-09-05 R3-AR 完成与冻结判定
+
+from-random retry 在提交 `c65dec944d434205d362843f13c187b8d019a309` 上完成全部
+146,255 updates / 299,530,240 processed windows，final EMA 为
+`results/hsi_b_r3_ar_r1/checkpoints/hsi_b_r3_ar_r1_epoch222.pth`，SHA256
+`456aec619000bd3b5b616aa400abe16399ff0ca04a4d394d7c622d9e13a9a0bc`。retry 与已封存失败
+run 合计 92.809 GPU-h，低于修订后的 94.0；但 epoch mean loss 从 epoch 28 的最低
+`0.051056` 持续升至 epoch 222 的 `1.651097`。该异常未触发事后 checkpoint 选择，仍严格评估
+预注册的 final EMA。
+
+U/G 两格均完成 canonical 8-shard full375，各有 375 episodes / 2,271 windows / 375 motion
+archives，merge exit 0，全部有限。U 用 20.782 GPU-h，G 用 41.867 GPU-h，双格合计
+62.649 GPU-h，低于 66.1 上限。加上零训练分流与训练，正式 R3-AR 增量为
+**155.462 GPU-h**，低于 160.6 上限。U/G payload SHA256 分别为
+`42bf6aa3048e628749cec91b433549ec8b3c1ddbc0e0ff323ac632b5cf3f30f6` 与
+`6a24b024c743fb30019d4edaba8b24d9017b5aab2490cfefafa2e8f14462eb67`。
+
+冻结 60、五层总体加权、10,000 次 episode-paired bootstrap、seed 42 的主结果为：
+
+| cell | GT / R2 / R3-AR `boundary_jerk` | R3-AR − R2，95% CI | excess reduction | 判定 |
+|---|---:|---:|---:|---|
+| U | 90.5412 / 126.5253 / **248.4244** | **+121.8991** `[+63.6014,+190.2314]` | **−338.76%** | `DEPRIORITIZED` |
+| G | 90.5412 / 154.4627 / **289.6505** | **+135.1878** `[+83.5868,+191.1048]` | **−211.49%** | `DEPRIORITIZED` |
+
+两格都远低于“reduction <25%”停止线，并非边界不确定。U 的 `pen_ratio` 未显著增加，G 则为
+`0.04144`，既高于绝对阈值 `0.02805`，又显著增加
+`+0.01835 [+0.00392,+0.03606]`。两格的 `pen_depth_mean`、`fs_nemf`、`goal_planar_err_m` 和
+`interior_jerk` 均显著增加；frozen-60 的 `contact_count` 下降未达显著，但 full375 中 U/G
+分别显著下降 `-227.85 [-299.05,-149.50]` 与 `-157.10 [-233.43,-74.19]`。full375 也复现主量
+反向恶化：U/G boundary-jerk excess reduction 分别为 `-416.26%` 与 `-183.85%`。
+
+匹配 R2 payload 未保存 10 Hz a1/a2，但其封存 motion archives 保存了同一 `global_jpos`、fps、
+seams 和 window lengths。本轮在 CPU 上按 evaluator 原公式重建 R2 遥测；同样重建 R3-AR 的
+375 个 archive，与已写入 payload 的 a1/a2/third 最大绝对差分别不超过
+`7.6e-9 / 4.6e-6 / 5.4e-5`，因此没有使用 D5-c3 作为错误对照。frozen-60 中 U/G 的 a1 均从
+R2 的 `3.0966/3.9257` 显著降至 `0.02061/0.02090`，third difference 也显著下降；但冻结的
+关键 a2 反而从 `2.2679/2.7428` 升至 `2.8974/2.9821`，差值 CI
+`[-0.2868,+1.7623] / [-0.4326,+0.9699]` 均跨零。因此只能说 c3 构造性钉住 a1，**不能声称网络
+学到了 history-consistent velocity increment**。
+
+R3-AR 总判定为 **DEPRIORITIZED**：训练内 c3 不仅未修复 seam excess，还伴随广泛 rollout
+退化；checkpoint 只作为封存负结果，不进入生产默认、C/consistency 或 mixer。完整 compact
+结果为 `experiments/results/p1_hsi_b_r3_ar_r1_completion_s42_20260905.json`；共享 bootstrap
+resample-index SHA256 为
+`9e01f188430f3566f7511fd88d1c2d5d51d58e9bb6230ebb3b14d3c9ff1ec821`。本轮在此停止，不运行
+系数、衰减或 timestep sweep，不改 C/consistency，不选择中间 checkpoint，也不启动下一训练方向。
