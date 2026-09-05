@@ -1,10 +1,11 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-05. Shared-chain sampling and fixed raw/kinematic
+Status: updated 2026-09-06. Shared-chain sampling and fixed raw/kinematic
 composition are implemented. The completed R2-CG raw/KIN comparison rejected
 the kinematic operator. A learned mixer and the state machine remain future
-work. The HSI input diagnostic is complete: motion-channel sensitivity dominates
-the much smaller token-only effect. See the dated completion and handoff below.
+work. The input diagnostic and Phase 2.1 relational-window prototype are complete.
+The relational interface passes; the tested HSI increment target adds no scene
+benefit over the geometric objective. See the dated completions and handoffs below.
 
 ## What is being composed, and why not by data mixing
 
@@ -1988,3 +1989,29 @@ The final authority suite, with the verified interpreter exported for subprocess
 tests, passed 911 tests with 4 skips in 161.58 seconds. Resolved Hydra config,
 registry validation and whitespace checks passed. The earlier suite's two setup
 errors were the unexported interpreter variable; they required a command fix.
+
+## 2026-09-06 — Phase 2.1 handoff: interface passes, HSI target is negative
+
+`p2-mixer-relational-prototype-s42-20260905` completed at `1c09b38`: 28 episodes,
+124 windows, 372 observed states and 1,488 optimized cell outputs. All four GPU
+processes and both factorial analyses completed. Every state matches the previous
+G=0 carrier exactly in current, previous x0 and HOI prediction; all optimized
+histories/contact channels are exact and all optimizer gradients are finite.
+The single immutable recovery/checksum comparison passed.
+
+The preregistered 2.1 interface gate passes. The scientific result does not
+promote the HSI target recipe: A11 increases object-scene residual and contact
+anchor drift against A01, while human-scene and stance differences are
+inconclusive. Endpoint shifts relative to HOI become slightly smaller. A01's
+geometric objective improves the measured object-scene proxy against A00.
+These are window optimization outcomes, with all four outputs kept outside the
+carrier; they do not establish native HOSI quality or a trained mixer.
+
+Numbers and all-metric source pointers:
+`experiments/results/p2_mixer_relational_prototype_s42_20260905.json`.
+Implementation, interpretation, verification, limitations and the exact next
+entry: `docs/phase_summaries/PHASE_2A_RELATIONAL_PROTOTYPE.md`.
+Integrate this interface deliverable into `phase/02-mixer` and tag
+`exp/p2a-relational-prototype-v1`. Before a Phase 2.2 rollout proposal, reconsider
+the uniform full-body DP-displacement target in light of this negative result.
+The current HSI target is a retained control, not a selected production recipe.

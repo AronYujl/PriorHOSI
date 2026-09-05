@@ -1,0 +1,2600 @@
+{
+  "schema_version": 1,
+  "run_id": "p2-mixer-relational-prototype-s42-20260905",
+  "phase": "p2",
+  "subphase": "2.1",
+  "status": "completed",
+  "classification": "interface_pass_hsi_increment_negative",
+  "completed_at": "2026-09-05T15:52:53+00:00",
+  "git_commit": "1c09b389e4e4c3243e705ee9b3c07c21b44370a8",
+  "checkpoints": {
+    "hoi": {
+      "schema_version": 2,
+      "checkpoint_type": "hoi_prior_phase1b",
+      "expert": "hoi",
+      "initialization": "random",
+      "run_id": "p1-hoi-p15-geom-perhand-equalized-s42-20260825",
+      "seed": 42,
+      "git_commit": "b85c7459b5a6fef1975e9ec5013fbb7849cb2aa0",
+      "processed_windows": 299520000,
+      "processed_frames": 4792320000,
+      "optimizer_updates": 146250,
+      "model_config": {
+        "dim_model": 512,
+        "num_heads": 16,
+        "num_layers": 8
+      },
+      "architecture_variant": "base",
+      "interaction_adapter_contract": null,
+      "sparse_relation_contract": null,
+      "diffusion_reliability_contract": null,
+      "selfcond_relation_source_contract": null,
+      "data_contract_sha256": "a908994bef58a21798af605f01df25582743e1066dd7d0211315c3f0c88951cf",
+      "split_sha256": "019b01ddd6d98cf1e22f1a5a87051d43908e76886d4682c105271c7c91fcac9e",
+      "window_state_codec": "state-compositional-v1",
+      "weights": "model",
+      "weight_variant": "online",
+      "path": "/home/yujinlun/data/work/InfBaGel-release/results/experiments/p1-hoi-p15-geom-perhand-equalized-s42-20260825/checkpoints/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth",
+      "sha256": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c"
+    },
+    "hsi": {
+      "path": "/home/yujinlun/data/datasets/InfBaGel-p2-hosi-v1/checkpoints/hsi/hsi_b_r2_fullbody_seam_epoch222.pth",
+      "sha256": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe",
+      "occ_list_layout_repaired": true,
+      "inference_cfg_w": 1.0
+    }
+  },
+  "scope": "Passive four-cell optimization at shared generated states; optimized results never enter the carrier. These are proxy window metrics, not native HOSI quality.",
+  "cells": {
+    "a00": "source relation/stance/endpoint/residual objectives",
+    "a10": "a00 plus HSI dynamic-perception target",
+    "a01": "a00 plus human/object scene geometry",
+    "a11": "a00 plus both HSI and geometry"
+  },
+  "coverage": {
+    "episodes": 28,
+    "scenes": [
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "a3df624b-0917-46e9-ac15-fab766276c72",
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092"
+    ],
+    "windows": 124,
+    "states": 372,
+    "optimized_cells": 1488,
+    "hsi_forward_calls": 744
+  },
+  "runtime_verification": {
+    "states": 372,
+    "current_exact": 372,
+    "previous_x0_exact": 372,
+    "hoi_clean_exact": 372,
+    "history_exact_cells": 1488,
+    "contact_exact_cells": 1488,
+    "gradient_finite_cells": 1488,
+    "maximum_peak_allocated_mib": 399.35888671875,
+    "four_cell_optimization_seconds_mean": 0.8047579095976788,
+    "four_cell_optimization_seconds_median": 0.8041359933558851,
+    "four_cell_optimization_seconds_p95": 0.8284720522351563
+  },
+  "cell_means": {
+    "a00": {
+      "initial_late": {
+        "angle_component_max_deg": 5.761323764210656,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 8.475615594588384e-06,
+        "before_energy_contact": 1.0748367755532966e-12,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 5.135474116319702,
+        "before_energy_hsi": 0.014242271540708663,
+        "before_energy_human_scene": 0.0007418210912614345,
+        "before_energy_object_scene": 0.02444760442466802,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.015035232972531091,
+        "before_human_occupied_fraction": 0.0036493765267853937,
+        "before_human_scene_residual_cm": 0.10482167142132919,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.053930168696318836,
+        "before_object_scene_residual_cm": 0.6377752178481647,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.09934166215714954,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.573381283098743,
+        "energy_contact": 0.004990130484137418,
+        "energy_endpoint": 0.0262400730157099,
+        "energy_floor": 0.13687275327919496,
+        "energy_hsi": 0.2987827466623414,
+        "energy_human_scene": 0.0016914674826174242,
+        "energy_object_scene": 0.026611759415876197,
+        "energy_residual": 0.05337327604536854,
+        "energy_stance": 0.004815958817267702,
+        "gradient_finite": 1.0,
+        "gradient_max": 2.169765753405435,
+        "human_occupied_fraction": 0.026431406584812238,
+        "human_scene_residual_cm": 0.3181001287663267,
+        "object_endpoint_shift_cm": 1.4914851584693505,
+        "object_occupied_fraction": 0.04365301037268225,
+        "object_scene_residual_cm": 0.663916451413007,
+        "root_endpoint_shift_cm": 1.4750403011483806,
+        "stance_displacement_cm": 0.0545002906804993,
+        "translation_max_cm": 4.212494109358106
+      },
+      "generated_late": {
+        "angle_component_max_deg": 5.175185044444337,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 7.5043346398657645e-06,
+        "before_energy_contact": 8.775184225941029e-13,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 4.692348485747254,
+        "before_energy_hsi": 0.014816603039455619,
+        "before_energy_human_scene": 0.006040740634253131,
+        "before_energy_object_scene": 0.05444906117711568,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.029132171472863986,
+        "before_human_occupied_fraction": 0.006586452523392565,
+        "before_human_scene_residual_cm": 0.16534769469344157,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.07185198330481533,
+        "before_object_scene_residual_cm": 0.8591611500197314,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.20020968493352942,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.6181765549081975,
+        "energy_contact": 0.005724684235604717,
+        "energy_endpoint": 0.01977140429605436,
+        "energy_floor": 0.1415409602652695,
+        "energy_hsi": 0.24717100102101394,
+        "energy_human_scene": 0.006495619313557002,
+        "energy_object_scene": 0.05189694057036676,
+        "energy_residual": 0.04255278229700945,
+        "energy_stance": 0.010334478499623366,
+        "gradient_finite": 1.0,
+        "gradient_max": 1.9787754535123154,
+        "human_occupied_fraction": 0.026414478428249837,
+        "human_scene_residual_cm": 0.3452711537281841,
+        "object_endpoint_shift_cm": 1.244855037099771,
+        "object_occupied_fraction": 0.07146574041891306,
+        "object_scene_residual_cm": 0.8679254311043276,
+        "root_endpoint_shift_cm": 1.2322619356267797,
+        "stance_displacement_cm": 0.13731170112685281,
+        "translation_max_cm": 3.26799568081231
+      }
+    },
+    "a10": {
+      "initial_late": {
+        "angle_component_max_deg": 5.567351568312872,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 8.475615594588384e-06,
+        "before_energy_contact": 1.0748367755532966e-12,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 5.135474116319702,
+        "before_energy_hsi": 0.014242271540708663,
+        "before_energy_human_scene": 0.0007418210912614345,
+        "before_energy_object_scene": 0.02444760442466802,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.015035232972531091,
+        "before_human_occupied_fraction": 0.0036493765267853937,
+        "before_human_scene_residual_cm": 0.10482167142132919,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.053930168696318836,
+        "before_object_scene_residual_cm": 0.6377752178481647,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.09934166215714954,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.8045494833162853,
+        "energy_contact": 0.00904033717510867,
+        "energy_endpoint": 0.023482247079040723,
+        "energy_floor": 0.12268180479960782,
+        "energy_hsi": 0.1777231513433868,
+        "energy_human_scene": 0.0015908412221473814,
+        "energy_object_scene": 0.026542397740567616,
+        "energy_residual": 0.05566186927968547,
+        "energy_stance": 0.0047719343565404415,
+        "gradient_finite": 1.0,
+        "gradient_max": 2.171665303763889,
+        "human_occupied_fraction": 0.025120465569974233,
+        "human_scene_residual_cm": 0.2959957114653662,
+        "object_endpoint_shift_cm": 1.4221597688183898,
+        "object_occupied_fraction": 0.04393202773575294,
+        "object_scene_residual_cm": 0.6587277214885467,
+        "root_endpoint_shift_cm": 1.4104327905390943,
+        "stance_displacement_cm": 0.05424145218871888,
+        "translation_max_cm": 3.9528350858461287
+      },
+      "generated_late": {
+        "angle_component_max_deg": 5.179008276349473,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 7.5043346398657645e-06,
+        "before_energy_contact": 8.775184225941029e-13,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 4.692348485747254,
+        "before_energy_hsi": 0.014816603039455619,
+        "before_energy_human_scene": 0.006040740634253131,
+        "before_energy_object_scene": 0.05444906117711568,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.029132171472863986,
+        "before_human_occupied_fraction": 0.006586452523392565,
+        "before_human_scene_residual_cm": 0.16534769469344157,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.07185198330481533,
+        "before_object_scene_residual_cm": 0.8591611500197314,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.20020968493352942,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.8808360771155682,
+        "energy_contact": 0.01092688454841619,
+        "energy_endpoint": 0.017670950903460887,
+        "energy_floor": 0.1268327832206278,
+        "energy_hsi": 0.1546315691688148,
+        "energy_human_scene": 0.0067089296215076125,
+        "energy_object_scene": 0.05231388103414543,
+        "energy_residual": 0.04713544680126328,
+        "energy_stance": 0.010554384264689522,
+        "gradient_finite": 1.0,
+        "gradient_max": 1.979853043762104,
+        "human_occupied_fraction": 0.026173239440139093,
+        "human_scene_residual_cm": 0.3455039428607564,
+        "object_endpoint_shift_cm": 1.1986128668553524,
+        "object_occupied_fraction": 0.07139298051496872,
+        "object_scene_residual_cm": 0.8732921760845,
+        "root_endpoint_shift_cm": 1.1791556303578732,
+        "stance_displacement_cm": 0.13892708704416173,
+        "translation_max_cm": 3.0468626003732124
+      }
+    },
+    "a01": {
+      "initial_late": {
+        "angle_component_max_deg": 5.790931446211679,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 8.475615594588384e-06,
+        "before_energy_contact": 1.0748367755532966e-12,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 5.135474116319702,
+        "before_energy_hsi": 0.014242271540708663,
+        "before_energy_human_scene": 0.0007418210912614345,
+        "before_energy_object_scene": 0.02444760442466802,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.015035232972531091,
+        "before_human_occupied_fraction": 0.0036493765267853937,
+        "before_human_scene_residual_cm": 0.10482167142132919,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.053930168696318836,
+        "before_object_scene_residual_cm": 0.6377752178481647,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.09934166215714954,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.5742575380773771,
+        "energy_contact": 0.005012765738813739,
+        "energy_endpoint": 0.026379959132360194,
+        "energy_floor": 0.13596935042490563,
+        "energy_hsi": 0.3169646059562053,
+        "energy_human_scene": 0.0012806339724366332,
+        "energy_object_scene": 0.01956023575734261,
+        "energy_residual": 0.058296097353810354,
+        "energy_stance": 0.004808273831648486,
+        "gradient_finite": 1.0,
+        "gradient_max": 2.1716672749746415,
+        "human_occupied_fraction": 0.025191327293647363,
+        "human_scene_residual_cm": 0.2864611775924762,
+        "object_endpoint_shift_cm": 1.5295770842404592,
+        "object_occupied_fraction": 0.04046423457302375,
+        "object_scene_residual_cm": 0.5769721340565455,
+        "root_endpoint_shift_cm": 1.4997796304523945,
+        "stance_displacement_cm": 0.05443520560151054,
+        "translation_max_cm": 4.532171899364108
+      },
+      "generated_late": {
+        "angle_component_max_deg": 5.198841860924178,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 7.5043346398657645e-06,
+        "before_energy_contact": 8.775184225941029e-13,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 4.692348485747254,
+        "before_energy_hsi": 0.014816603039455619,
+        "before_energy_human_scene": 0.006040740634253131,
+        "before_energy_object_scene": 0.05444906117711568,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.029132171472863986,
+        "before_human_occupied_fraction": 0.006586452523392565,
+        "before_human_scene_residual_cm": 0.16534769469344157,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.07185198330481533,
+        "before_object_scene_residual_cm": 0.8591611500197314,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.20020968493352942,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.6297603250853576,
+        "energy_contact": 0.005997510425050765,
+        "energy_endpoint": 0.020053713540295566,
+        "energy_floor": 0.14150832477985695,
+        "energy_hsi": 0.2780619976723719,
+        "energy_human_scene": 0.0027184395992840464,
+        "energy_object_scene": 0.028543774029432752,
+        "energy_residual": 0.052216936235268754,
+        "energy_stance": 0.01033615988173444,
+        "gradient_finite": 1.0,
+        "gradient_max": 1.9810165772080781,
+        "human_occupied_fraction": 0.025003768719494036,
+        "human_scene_residual_cm": 0.29506507110693975,
+        "object_endpoint_shift_cm": 1.2863225522412385,
+        "object_occupied_fraction": 0.06378359561531864,
+        "object_scene_residual_cm": 0.7153758899741669,
+        "root_endpoint_shift_cm": 1.2596184420423655,
+        "stance_displacement_cm": 0.13735300646735832,
+        "translation_max_cm": 3.532140980717231
+      }
+    },
+    "a11": {
+      "initial_late": {
+        "angle_component_max_deg": 5.614646474520366,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 8.475615594588384e-06,
+        "before_energy_contact": 1.0748367755532966e-12,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 5.135474116319702,
+        "before_energy_hsi": 0.014242271540708663,
+        "before_energy_human_scene": 0.0007418210912614345,
+        "before_energy_object_scene": 0.02444760442466802,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.015035232972531091,
+        "before_human_occupied_fraction": 0.0036493765267853937,
+        "before_human_scene_residual_cm": 0.10482167142132919,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.053930168696318836,
+        "before_object_scene_residual_cm": 0.6377752178481647,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.09934166215714954,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.8086846165713809,
+        "energy_contact": 0.009177171104099779,
+        "energy_endpoint": 0.02354607099135007,
+        "energy_floor": 0.12177971307010878,
+        "energy_hsi": 0.17910349442224416,
+        "energy_human_scene": 0.0011989398141546796,
+        "energy_object_scene": 0.022458050446099758,
+        "energy_residual": 0.05693193835516771,
+        "energy_stance": 0.004770784660996426,
+        "gradient_finite": 1.0,
+        "gradient_max": 2.173564774649484,
+        "human_occupied_fraction": 0.02465986462387567,
+        "human_scene_residual_cm": 0.2736872301570007,
+        "object_endpoint_shift_cm": 1.43854584411851,
+        "object_occupied_fraction": 0.04229113733232398,
+        "object_scene_residual_cm": 0.6114919637995107,
+        "root_endpoint_shift_cm": 1.4213629168059145,
+        "stance_displacement_cm": 0.054231517016887665,
+        "translation_max_cm": 3.9991430257047926
+      },
+      "generated_late": {
+        "angle_component_max_deg": 5.204070827807564,
+        "before_angle_component_max_deg": 0.0,
+        "before_contact_anchor_drift_cm": 7.5043346398657645e-06,
+        "before_energy_contact": 8.775184225941029e-13,
+        "before_energy_endpoint": 0.0,
+        "before_energy_floor": 4.692348485747254,
+        "before_energy_hsi": 0.014816603039455619,
+        "before_energy_human_scene": 0.006040740634253131,
+        "before_energy_object_scene": 0.05444906117711568,
+        "before_energy_residual": 0.0,
+        "before_energy_stance": 0.029132171472863986,
+        "before_human_occupied_fraction": 0.006586452523392565,
+        "before_human_scene_residual_cm": 0.16534769469344157,
+        "before_object_endpoint_shift_cm": 0.0,
+        "before_object_occupied_fraction": 0.07185198330481533,
+        "before_object_scene_residual_cm": 0.8591611500197314,
+        "before_root_endpoint_shift_cm": 0.0,
+        "before_stance_displacement_cm": 0.20020968493352942,
+        "before_translation_max_cm": 0.0,
+        "contact_anchor_drift_cm": 0.8861257931379459,
+        "energy_contact": 0.01111831548673017,
+        "energy_endpoint": 0.017834528167296658,
+        "energy_floor": 0.12683309540327656,
+        "energy_hsi": 0.15956872176572198,
+        "energy_human_scene": 0.0040099284560457076,
+        "energy_object_scene": 0.03453702246309263,
+        "energy_residual": 0.05137267866476046,
+        "energy_stance": 0.01055539038614106,
+        "gradient_finite": 1.0,
+        "gradient_max": 1.9848944844673821,
+        "human_occupied_fraction": 0.025761088849466738,
+        "human_scene_residual_cm": 0.3152749979137482,
+        "object_endpoint_shift_cm": 1.215149641604369,
+        "object_occupied_fraction": 0.0670506674378649,
+        "object_scene_residual_cm": 0.7788852571407706,
+        "root_endpoint_shift_cm": 1.1894754520138742,
+        "stance_displacement_cm": 0.13878336436117317,
+        "translation_max_cm": 3.146376316795634
+      }
+    }
+  },
+  "generated_history_timestep_means": {
+    "a00": {
+      "10": {
+        "human_scene_residual_cm": 0.3597169572992204,
+        "object_scene_residual_cm": 0.8716889867958214,
+        "contact_anchor_drift_cm": 0.6124282273854595,
+        "stance_displacement_cm": 0.1359361307049284,
+        "root_endpoint_shift_cm": 1.4253542881492787,
+        "object_endpoint_shift_cm": 1.4340541226443013
+      },
+      "1": {
+        "human_scene_residual_cm": 0.32948775898808796,
+        "object_scene_residual_cm": 0.8641735409684226,
+        "contact_anchor_drift_cm": 0.6067822674893333,
+        "stance_displacement_cm": 0.13449263699403424,
+        "root_endpoint_shift_cm": 1.0805362195855688,
+        "object_endpoint_shift_cm": 1.0928648434925714
+      },
+      "0": {
+        "human_scene_residual_cm": 0.34660874489724397,
+        "object_scene_residual_cm": 0.867913765548739,
+        "contact_anchor_drift_cm": 0.6353191698497993,
+        "stance_displacement_cm": 0.14150633568159576,
+        "root_endpoint_shift_cm": 1.1908952991454915,
+        "object_endpoint_shift_cm": 1.2076461451624407
+      }
+    },
+    "a10": {
+      "10": {
+        "human_scene_residual_cm": 0.36356291570563437,
+        "object_scene_residual_cm": 0.87766323323634,
+        "contact_anchor_drift_cm": 0.8814274637505851,
+        "stance_displacement_cm": 0.13668482544876281,
+        "root_endpoint_shift_cm": 1.3531805551000564,
+        "object_endpoint_shift_cm": 1.3689025277639328
+      },
+      "1": {
+        "human_scene_residual_cm": 0.3279811668668001,
+        "object_scene_residual_cm": 0.869536533248199,
+        "contact_anchor_drift_cm": 0.8846933676424075,
+        "stance_displacement_cm": 0.13575596817496682,
+        "root_endpoint_shift_cm": 1.0434560096440435,
+        "object_endpoint_shift_cm": 1.0658044677041894
+      },
+      "0": {
+        "human_scene_residual_cm": 0.34496774600983476,
+        "object_scene_residual_cm": 0.872676761768961,
+        "contact_anchor_drift_cm": 0.8763873999537118,
+        "stance_displacement_cm": 0.14434046750875557,
+        "root_endpoint_shift_cm": 1.1408303263295196,
+        "object_endpoint_shift_cm": 1.1611316050979352
+      }
+    },
+    "a01": {
+      "10": {
+        "human_scene_residual_cm": 0.30671315061545124,
+        "object_scene_residual_cm": 0.7221844347911863,
+        "contact_anchor_drift_cm": 0.6232262409260484,
+        "stance_displacement_cm": 0.13617585770735124,
+        "root_endpoint_shift_cm": 1.44800476205795,
+        "object_endpoint_shift_cm": 1.470565421768631
+      },
+      "1": {
+        "human_scene_residual_cm": 0.2795136224212391,
+        "object_scene_residual_cm": 0.7103227152030855,
+        "contact_anchor_drift_cm": 0.6200425255013093,
+        "stance_displacement_cm": 0.1344913239305725,
+        "root_endpoint_shift_cm": 1.1120973599034567,
+        "object_endpoint_shift_cm": 1.1390273416621817
+      },
+      "0": {
+        "human_scene_residual_cm": 0.2989684402841289,
+        "object_scene_residual_cm": 0.7136205199282287,
+        "contact_anchor_drift_cm": 0.6460122088287152,
+        "stance_displacement_cm": 0.14139183776415123,
+        "root_endpoint_shift_cm": 1.2187532041656897,
+        "object_endpoint_shift_cm": 1.249374893292903
+      }
+    },
+    "a11": {
+      "10": {
+        "human_scene_residual_cm": 0.33417122493436785,
+        "object_scene_residual_cm": 0.7836461232181072,
+        "contact_anchor_drift_cm": 0.8859907829217495,
+        "stance_displacement_cm": 0.13629448400164138,
+        "root_endpoint_shift_cm": 1.3640848091953433,
+        "object_endpoint_shift_cm": 1.3874875189005789
+      },
+      "1": {
+        "human_scene_residual_cm": 0.3005737038299678,
+        "object_scene_residual_cm": 0.7750392332504126,
+        "contact_anchor_drift_cm": 0.888764982579314,
+        "stance_displacement_cm": 0.1350104838711064,
+        "root_endpoint_shift_cm": 1.0505592514581286,
+        "object_endpoint_shift_cm": 1.0787559596834337
+      },
+      "0": {
+        "human_scene_residual_cm": 0.3110800649769089,
+        "object_scene_residual_cm": 0.777970414953792,
+        "contact_anchor_drift_cm": 0.8836216139127743,
+        "stance_displacement_cm": 0.14504512521077176,
+        "root_endpoint_shift_cm": 1.1537822953881505,
+        "object_endpoint_shift_cm": 1.1792054462290946
+      }
+    }
+  },
+  "generated_history_factorial_contrasts": {
+    "episode": {
+      "a00_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "a01_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.12318604904787477,
+            -0.0019847464168606913
+          ],
+          "crosses_zero": false,
+          "difference": -0.05020608262124436,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.2914845832157106,
+            -0.04426345001873426
+          ],
+          "crosses_zero": false,
+          "difference": -0.15254954113016078,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0037044318464804693,
+            7.349308444567691e-05
+          ],
+          "crosses_zero": true,
+          "difference": -0.0014107097087558025,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.01348222071084256,
+            -0.0028243602652100485
+          ],
+          "crosses_zero": false,
+          "difference": -0.007682144803594417,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.0008880741554801804,
+            0.02680153083140684
+          ],
+          "crosses_zero": false,
+          "difference": 0.011583770177160274,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.00022278904217947891,
+            0.0002942582693525405
+          ],
+          "crosses_zero": true,
+          "difference": 4.130534050551209e-05,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.014031320975252873,
+            0.04340769869770091
+          ],
+          "crosses_zero": false,
+          "difference": 0.027356506415585773,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.020775114142810008,
+            0.06456163040873711
+          ],
+          "crosses_zero": false,
+          "difference": 0.041467515141467355,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a10_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.009133414700648447,
+            0.00989746501572845
+          ],
+          "crosses_zero": true,
+          "difference": 0.00023278913257230145,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.011881340318388504,
+            0.024277871726520687
+          ],
+          "crosses_zero": true,
+          "difference": 0.005366744980172339,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0009343076508751093,
+            0.0004653446699761193
+          ],
+          "crosses_zero": true,
+          "difference": -0.00024123898811074403,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.0011842952735762373,
+            0.0010568121157217404
+          ],
+          "crosses_zero": true,
+          "difference": -7.275990394434955e-05,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.20363239527088658,
+            0.32183530835068747
+          ],
+          "crosses_zero": false,
+          "difference": 0.26265952220737077,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0029192178391866256,
+            0.007941922851481268
+          ],
+          "crosses_zero": true,
+          "difference": 0.0016153859173089202,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.08243769997293522,
+            -0.023644094195817728
+          ],
+          "crosses_zero": false,
+          "difference": -0.05310630526890636,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.07906895502394758,
+            -0.0115595677443949
+          ],
+          "crosses_zero": false,
+          "difference": -0.046242170244418714,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a11_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.06925614032776375,
+            -0.0047722728138545716
+          ],
+          "crosses_zero": false,
+          "difference": -0.02999615581443595,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.18825792344138859,
+            -0.019519418168444123
+          ],
+          "crosses_zero": false,
+          "difference": -0.08904017396355704,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0018071568796874493,
+            0.0002588990570340739
+          ],
+          "crosses_zero": true,
+          "difference": -0.0006533895787831005,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.007917342552165167,
+            -0.0016344335493545788
+          ],
+          "crosses_zero": false,
+          "difference": -0.004415072981048163,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.20762121506801928,
+            0.3308790557206773
+          ],
+          "crosses_zero": false,
+          "difference": 0.26794923822974853,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.002826897207850291,
+            0.007716233424690303
+          ],
+          "crosses_zero": true,
+          "difference": 0.0014716632343203587,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.07418042617745463,
+            -0.010776220070221373
+          ],
+          "crosses_zero": false,
+          "difference": -0.042786483612905477,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.06508136205955778,
+            0.00654424615865162
+          ],
+          "crosses_zero": true,
+          "difference": -0.02970539549540219,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "a11_minus_a01": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.005294284616626564,
+            0.054709189524491275
+          ],
+          "crosses_zero": true,
+          "difference": 0.02020992680680842,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.019956070359761817,
+            0.11765414271765201
+          ],
+          "crosses_zero": false,
+          "difference": 0.06350936716660374,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.00042963273935320935,
+            0.002221121921130819
+          ],
+          "crosses_zero": true,
+          "difference": 0.0007573201299727018,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.000701114117879515,
+            0.0063554629428672176
+          ],
+          "crosses_zero": false,
+          "difference": 0.0032670718225462545,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.19868141572967518,
+            0.31352410107566636
+          ],
+          "crosses_zero": false,
+          "difference": 0.25636546805258825,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0030614729635121797,
+            0.007941512421592896
+          ],
+          "crosses_zero": true,
+          "difference": 0.0014303578938148467,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.09684086010568821,
+            -0.04272139527367529
+          ],
+          "crosses_zero": false,
+          "difference": -0.07014299002849125,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.09977078220556411,
+            -0.041587844919744196
+          ],
+          "crosses_zero": false,
+          "difference": -0.07117291063686955,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a11_minus_a10": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.07430616596846357,
+            -0.002482434116790176
+          ],
+          "crosses_zero": false,
+          "difference": -0.03022894494700824,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.19545899542682912,
+            -0.024764501202390644
+          ],
+          "crosses_zero": false,
+          "difference": -0.09440691894372939,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0015392908249780614,
+            0.0004954808859794246
+          ],
+          "crosses_zero": true,
+          "difference": -0.00041215059067235653,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.007892808494004974,
+            -0.0015867086380887511
+          ],
+          "crosses_zero": false,
+          "difference": -0.0043423130771038125,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            -0.0031717998074904086,
+            0.01604582665579637
+          ],
+          "crosses_zero": true,
+          "difference": 0.005289716022377746,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0011925822982138017,
+            0.00072559476253533
+          ],
+          "crosses_zero": true,
+          "difference": -0.00014372268298856145,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.0002649753440899462,
+            0.023373023269915204
+          ],
+          "crosses_zero": false,
+          "difference": 0.010319821656000889,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.0041999145581732185,
+            0.03209326427591115
+          ],
+          "crosses_zero": false,
+          "difference": 0.016536774749016526,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "interaction_hsi_x_geometry": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.0025616645257705677,
+            0.05007277846408783
+          ],
+          "crosses_zero": true,
+          "difference": 0.019977137674236124,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.016967287700339426,
+            0.10783468620981258
+          ],
+          "crosses_zero": false,
+          "difference": 0.0581426221864314,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            0.00013460769702168467,
+            0.002276076938484691
+          ],
+          "crosses_zero": false,
+          "difference": 0.0009985591180834458,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0011534470581294428,
+            0.0059772985766443415
+          ],
+          "crosses_zero": false,
+          "difference": 0.0033398317264906044,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            -0.016105173336234974,
+            0.002424434786078158
+          ],
+          "crosses_zero": true,
+          "difference": -0.006294054154782526,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0012187456337274674,
+            0.0006022154192636606
+          ],
+          "crosses_zero": true,
+          "difference": -0.00018502802349407353,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.029301812473256177,
+            -0.006737328881939122
+          ],
+          "crosses_zero": false,
+          "difference": -0.017036684759584888,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.04305335737284392,
+            -0.008168449723047422
+          ],
+          "crosses_zero": false,
+          "difference": -0.02493074039245083,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "main_effect_geometry": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.09833975042590011,
+            -0.002675134710827112
+          ],
+          "crosses_zero": false,
+          "difference": -0.0402175137841263,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.24277663203242122,
+            -0.03452675797347888
+          ],
+          "crosses_zero": false,
+          "difference": -0.1234782300369451,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.002602693839155303,
+            0.0002469878433092092
+          ],
+          "crosses_zero": true,
+          "difference": -0.0009114301497140794,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.010642467296007058,
+            -0.002225873589716418
+          ],
+          "crosses_zero": false,
+          "difference": -0.006012228940349115,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.00023882503533639003,
+            0.020944605672341996
+          ],
+          "crosses_zero": false,
+          "difference": 0.00843674309976901,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0006080814182669626,
+            0.00046445936851558244
+          ],
+          "crosses_zero": true,
+          "difference": -5.120867124152467e-05,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.008334346912603824,
+            0.03221726773657295
+          ],
+          "crosses_zero": false,
+          "difference": 0.018838164035793335,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.014150003927433548,
+            0.04650795657881262
+          ],
+          "crosses_zero": false,
+          "difference": 0.02900214494524194,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "main_effect_hsi": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.005610814377931617,
+            0.03054527457026151
+          ],
+          "crosses_zero": true,
+          "difference": 0.010221357969690361,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.008949619346497243,
+            0.066608423204038
+          ],
+          "crosses_zero": false,
+          "difference": 0.03443805607338805,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0005939758937858555,
+            0.001206015215556489
+          ],
+          "crosses_zero": true,
+          "difference": 0.0002580405709309789,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -1.264171554379859e-05,
+            0.0035558699780066805
+          ],
+          "crosses_zero": true,
+          "difference": 0.0015971559593009525,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.2013633048121317,
+            0.31783189226796127
+          ],
+          "crosses_zero": false,
+          "difference": 0.2595124951299795,
+          "direction": "positive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0029516049889032458,
+            0.007907145106404714
+          ],
+          "crosses_zero": true,
+          "difference": 0.0015228719055618834,
+          "direction": "inconclusive",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.08933304616464624,
+            -0.034100550788398194
+          ],
+          "crosses_zero": false,
+          "difference": -0.061624647648698794,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.0886631682362018,
+            -0.02814782693621178
+          ],
+          "crosses_zero": false,
+          "difference": -0.05870754044064414,
+          "direction": "negative",
+          "n": 28,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 28,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      }
+    },
+    "scene": {
+      "a00_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "crosses_zero": true,
+          "difference": 0.0,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "a01_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.11609736446823393,
+            0.005036469667203836
+          ],
+          "crosses_zero": true,
+          "difference": -0.050206082621244374,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.2042086291655571,
+            -0.10089045309476435
+          ],
+          "crosses_zero": false,
+          "difference": -0.15254954113016073,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0036746840028471337,
+            0.00012203957084763479
+          ],
+          "crosses_zero": true,
+          "difference": -0.0014107097087558023,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.009213015579253168,
+            -0.006210583817180652
+          ],
+          "crosses_zero": false,
+          "difference": -0.007682144803594422,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.007521309983478136,
+            0.018453576156443025
+          ],
+          "crosses_zero": false,
+          "difference": 0.011583770177160335,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.00021269278866904717,
+            0.000262611595039465
+          ],
+          "crosses_zero": true,
+          "difference": 4.13053405055111e-05,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.014727898660831795,
+            0.03750853228220158
+          ],
+          "crosses_zero": false,
+          "difference": 0.02735650641558582,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.022949820824279987,
+            0.05891314171668549
+          ],
+          "crosses_zero": false,
+          "difference": 0.041467515141467404,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a10_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.00503110804018525,
+            0.00669203751248143
+          ],
+          "crosses_zero": true,
+          "difference": 0.0002327891325722975,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.001255280978291945,
+            0.016339811432377366
+          ],
+          "crosses_zero": true,
+          "difference": 0.005366744980172422,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0006170871780899483,
+            0.0003156157395475482
+          ],
+          "crosses_zero": true,
+          "difference": -0.00024123898811074336,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.0005965453881120412,
+            0.0008153522092759317
+          ],
+          "crosses_zero": true,
+          "difference": -7.27599039443607e-05,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.21681362772902485,
+            0.3196098353978436
+          ],
+          "crosses_zero": false,
+          "difference": 0.26265952220737077,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0030841821614576853,
+            0.006901786086105172
+          ],
+          "crosses_zero": true,
+          "difference": 0.0016153859173089202,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.08043498874290678,
+            -0.02577762179490589
+          ],
+          "crosses_zero": false,
+          "difference": -0.053106305268906334,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.07698266442361112,
+            -0.015501676065226344
+          ],
+          "crosses_zero": false,
+          "difference": -0.046242170244418734,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a11_minus_a00": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.06956033523441585,
+            -0.0025870896410197103
+          ],
+          "crosses_zero": false,
+          "difference": -0.02999615581443598,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.13580307775597306,
+            -0.04227727017114086
+          ],
+          "crosses_zero": false,
+          "difference": -0.08904017396355696,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0017294748148526107,
+            0.0003468287108089052
+          ],
+          "crosses_zero": true,
+          "difference": -0.0006533895787831016,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.00532108932729666,
+            -0.0035090566347996885
+          ],
+          "crosses_zero": false,
+          "difference": -0.004415072981048174,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.22024636904871653,
+            0.33091314835157115
+          ],
+          "crosses_zero": false,
+          "difference": 0.2679492382297485,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.002954124590031394,
+            0.0070407450908706246
+          ],
+          "crosses_zero": true,
+          "difference": 0.0014716632343203667,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.07776505163746186,
+            -0.01327914844547945
+          ],
+          "crosses_zero": false,
+          "difference": -0.042786483612905574,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.06603704834791943,
+            0.005239972149923722
+          ],
+          "crosses_zero": true,
+          "difference": -0.029705395495402104,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        }
+      },
+      "a11_minus_a01": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.008623079766356748,
+            0.05060039758006454
+          ],
+          "crosses_zero": true,
+          "difference": 0.020209926806808394,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.03456885692208045,
+            0.09244987741112709
+          ],
+          "crosses_zero": false,
+          "difference": 0.06350936716660377,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.00041532821961920083,
+            0.0019299684795646022
+          ],
+          "crosses_zero": true,
+          "difference": 0.0007573201299727007,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0016242199895487343,
+            0.005301782144935775
+          ],
+          "crosses_zero": false,
+          "difference": 0.003267071822546248,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.21213345367599407,
+            0.3121997213153025
+          ],
+          "crosses_zero": false,
+          "difference": 0.2563654680525882,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0032167361850708592,
+            0.007253437879539672
+          ],
+          "crosses_zero": true,
+          "difference": 0.0014303578938148556,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.09409508513045989,
+            -0.05078768072768103
+          ],
+          "crosses_zero": false,
+          "difference": -0.07014299002849139,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.09183194569550676,
+            -0.05151811673665635
+          ],
+          "crosses_zero": false,
+          "difference": -0.07117291063686951,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "a11_minus_a10": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.0751640051886305,
+            0.0011595736735712098
+          ],
+          "crosses_zero": true,
+          "difference": -0.030228944947008278,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.1368187822424049,
+            -0.051995055645053856
+          ],
+          "crosses_zero": false,
+          "difference": -0.09440691894372938,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.0014779722426813188,
+            0.000438751972747951
+          ],
+          "crosses_zero": true,
+          "difference": -0.00041215059067235826,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.005159922142091433,
+            -0.003305144409768243
+          ],
+          "crosses_zero": false,
+          "difference": -0.004342313077103813,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            -0.0013797149692894028,
+            0.011959147014044824
+          ],
+          "crosses_zero": true,
+          "difference": 0.005289716022377711,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0011722128914326904,
+            0.0006045833939597803
+          ],
+          "crosses_zero": true,
+          "difference": -0.0001437226829885535,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.0027065106245207637,
+            0.016846878419595646
+          ],
+          "crosses_zero": false,
+          "difference": 0.01031982165600076,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.006930069924696192,
+            0.024873004242699115
+          ],
+          "crosses_zero": false,
+          "difference": 0.01653677474901663,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "interaction_hsi_x_geometry": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.003876895993632626,
+            0.04390836006758311
+          ],
+          "crosses_zero": true,
+          "difference": 0.019977137674236096,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.0348790774677295,
+            0.08606476347287387
+          ],
+          "crosses_zero": false,
+          "difference": 0.05814262218643135,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            0.00011022927679328522,
+            0.0022754469490979578
+          ],
+          "crosses_zero": false,
+          "difference": 0.000998559118083444,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0020763431847715275,
+            0.004486429935659843
+          ],
+          "crosses_zero": false,
+          "difference": 0.0033398317264906087,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            -0.010156139360849248,
+            -0.001315909020957573
+          ],
+          "crosses_zero": false,
+          "difference": -0.0062940541547826245,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0012005200047814635,
+            0.0005175879516569268
+          ],
+          "crosses_zero": true,
+          "difference": -0.0001850280234940646,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.02607289332141846,
+            -0.00906331058639498
+          ],
+          "crosses_zero": false,
+          "difference": -0.017036684759585058,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.0403101941787454,
+            -0.011689987283366121
+          ],
+          "crosses_zero": false,
+          "difference": -0.024930740392450773,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "main_effect_geometry": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.09551780671409237,
+            0.0030980216703875227
+          ],
+          "crosses_zero": true,
+          "difference": -0.04021751378412633,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            -0.170513705703981,
+            -0.0764427543699091
+          ],
+          "crosses_zero": false,
+          "difference": -0.12347823003694505,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.002576328122764226,
+            0.00023472936831355536
+          ],
+          "crosses_zero": true,
+          "difference": -0.0009114301497140803,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            -0.007159819459199109,
+            -0.0047317889922504994
+          ],
+          "crosses_zero": false,
+          "difference": -0.006012228940349118,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.003698354711135221,
+            0.015008369994998133
+          ],
+          "crosses_zero": false,
+          "difference": 0.008436743099769023,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0005437857427057699,
+            0.0004270266209330034
+          ],
+          "crosses_zero": true,
+          "difference": -5.12086712415212e-05,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            0.008701622068603102,
+            0.02500350281581401
+          ],
+          "crosses_zero": false,
+          "difference": 0.01883816403579329,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            0.015329644629254499,
+            0.03982739496591778
+          ],
+          "crosses_zero": false,
+          "difference": 0.029002144945242017,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      },
+      "main_effect_hsi": {
+        "human_scene_residual_cm": {
+          "ci": [
+            -0.006684631769540435,
+            0.028646217546272987
+          ],
+          "crosses_zero": true,
+          "difference": 0.010221357969690346,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_scene_residual_cm": {
+          "ci": [
+            0.017129318188215698,
+            0.051746793958560494
+          ],
+          "crosses_zero": false,
+          "difference": 0.034438056073388096,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "human_occupied_fraction": {
+          "ci": [
+            -0.00047044285801584344,
+            0.0009865239998778008
+          ],
+          "crosses_zero": true,
+          "difference": 0.00025804057093097867,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "object_occupied_fraction": {
+          "ci": [
+            0.0005860483971629705,
+            0.0030585671771058533
+          ],
+          "crosses_zero": false,
+          "difference": 0.0015971559593009436,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "contact_anchor_drift_cm": {
+          "ci": [
+            0.21447354070250946,
+            0.31590477835657305
+          ],
+          "crosses_zero": false,
+          "difference": 0.2595124951299795,
+          "direction": "positive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "stance_displacement_cm": {
+          "ci": [
+            -0.0030123202679277483,
+            0.007077611982822422
+          ],
+          "crosses_zero": true,
+          "difference": 0.001522871905561888,
+          "direction": "inconclusive",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": false
+        },
+        "root_endpoint_shift_cm": {
+          "ci": [
+            -0.08646667370606496,
+            -0.03828265126129346
+          ],
+          "crosses_zero": false,
+          "difference": -0.06162464764869886,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        },
+        "object_endpoint_shift_cm": {
+          "ci": [
+            -0.08282765806529419,
+            -0.03458742281599406
+          ],
+          "crosses_zero": false,
+          "difference": -0.05870754044064412,
+          "direction": "negative",
+          "n": 4,
+          "n_dropped_nonfinite": 0,
+          "n_sequences": 4,
+          "nan_replicates": 0,
+          "significant": true
+        }
+      }
+    }
+  },
+  "uncertainty": "10000 paired replicates, seed 42, every cell/metric on shared resampling indices. Episode intervals concern these 28 tasks; scene intervals have four scene units.",
+  "diagnostic_seconds_by_shard": {
+    "0": 228.47998475888744,
+    "22": 167.28393738903105,
+    "44": 147.52779928501695,
+    "66": 120.86106384918094
+  },
+  "interpretation": "Geometry reduces the measured object-scene proxy. Adding this HSI increment target to the same optimizer increases object-scene residual and hand-anchor drift; the interface passes but this target recipe demonstrates no extra scene benefit. Endpoint deviations become slightly smaller. No learned mixer or closed-loop quality is promoted.",
+  "artifacts": {
+    "worker_root": "/home/yujinlun/data/work/InfBaGel-mixer/results/experiments/p2-mixer-relational-prototype-s42-20260905",
+    "authority_return": "results/incoming/p2-mixer-relational-prototype-s42-20260905",
+    "full_factorial_reports": "analysis/factorial-*.json",
+    "per_episode_records": "evaluation-shard*/episode-*.json",
+    "state_predictions": "evaluation-shard*/state-*.pt"
+  },
+  "compact_contrast_metrics": [
+    "human_scene_residual_cm",
+    "object_scene_residual_cm",
+    "human_occupied_fraction",
+    "object_occupied_fraction",
+    "contact_anchor_drift_cm",
+    "stance_displacement_cm",
+    "root_endpoint_shift_cm",
+    "object_endpoint_shift_cm"
+  ],
+  "full_completion_record": "results/incoming/p2-mixer-relational-prototype-s42-20260905/completion_metrics.json"
+}
