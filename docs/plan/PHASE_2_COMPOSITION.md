@@ -3,13 +3,15 @@
 Status: updated 2026-09-06. Shared-chain sampling and fixed raw/kinematic
 composition are implemented. The completed R2-CG raw/KIN comparison rejected
 the kinematic operator. A learned mixer and the state machine remain future
-work. The input diagnostic and Phase 2.1 relational-window prototype are complete.
-The relational interface passes; the tested HSI increment target adds no scene
-benefit over the geometric objective. See the dated completions and handoffs below.
+work. The input diagnostic and Phase 2.1/2.2 relational experiments are complete.
+The relational interface passes; the closed-loop recipe fails its quality gate.
+The common correction already worsens sliding and completion. Adding the HSI
+increment reduces sliding but increases object-scene depth. See the handoffs below.
 
 Current expert selection (user, 2026-09-06): **R2 final EMA + CG** and
 **P15 online + guidance Arm B**. Continue Phase 2 with these fixed experts.
-The next bounded deliverable is the Phase 2.2 closed-loop experiment below.
+Phase 2.2 is archived below. Review the common reconstruction/constraint bundle
+before registering a further diagnostic; the full Phase 2 gate remains open.
 
 ## What is being composed, and why not by data mixing
 
@@ -2104,3 +2106,43 @@ generation timing and cumulative guidance/correction audit for detached-run
 inspection. The eight physical GPUs are isolated with `CUDA_VISIBLE_DEVICES`;
 four BLAS threads/process and a fixed scene-workload allocation are recorded
 in the execution plan. Concurrent timing is throughput/context information.
+
+## 2026-09-06 — Phase 2.2 completion: closed-loop quality FAIL
+
+`p2-mixer-relational-rollout-r1-s42-20260906` completed on `3e17090`: all 20
+GPU jobs and six paired analyses succeeded, covering 140 episodes, 620 windows,
+309,380 CG applications and 1,488 relation corrections. Native metrics and
+correction gradients are finite; correction histories/contact channels are
+exact. The initial nohup launch consumed a separate id and failed before any
+GPU job; its manifest/empty log remain retained. The fresh run used persistent
+screen on authority GPUs 1–7 because GPU 0 was occupied at launch.
+
+The deliverable gate passes; the pilot quality gate fails. A01's object-scene
+depth sum improves against A00 by 8.909 (episode CI [-20.161,-2.025]), but its
+improvement against the matched reference is unresolved at episode level
+(-7.598, CI [-18.347,0.523]); the four-scene CI is [-12.852,-0.696]. Completion
+falls from 22/28 to 19/28, exceeding the registered two-point protection budget.
+Sliding rises from 0.17468 to 0.58421 and human-scene penetrating-frame prevalence
+from 38.53% to 75.38%; both worsen at both resampling units. Contact stays near
+the reference (67.34% versus 68.43%).
+
+A00 already has sliding 0.55478 and completion 18/28. Therefore the common
+reconstruction/objective bundle introduces the main cost before adding either
+factor. This contrast does not identify which of its objectives causes it.
+The floor objective and source-fixed stance mask remain candidates for a later
+isolated diagnostic, especially given the feet-height change 4.012 to 1.670 cm.
+
+The HSI result refines the window-only negative: A11-A01 reduces sliding by
+0.21379 (episode CI [-0.26534,-0.16596]) and human-scene frame prevalence by
+4.084 points, while increasing object-scene depth sum by 3.80666 (episode CI
+[0.67010,8.07866]; scene CI [1.59575,5.64067]). A11 completes 18/28. Retain this
+tradeoff; it supplies no net-quality promotion or training target for a mixer.
+
+Full five-row values, both uncertainty units, gates, runtime and failures:
+`experiments/results/p2_mixer_relational_rollout_r1_s42_20260906.json`.
+Handoff and exact next entry:
+`docs/phase_summaries/PHASE_2B_RELATIONAL_ROLLOUT.md`.
+Integrate the completed pilot into `phase/02-mixer` and tag
+`exp/p2b-relational-rollout-v1`, preserving the negative quality verdict.
+The expert selection remains R2+CG / P15+Arm B. Start no new diagnostic or
+learned-mixer training in this closing session.

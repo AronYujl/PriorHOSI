@@ -1,0 +1,907 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p2-mixer-relational-rollout-r1-s42-20260906",
+  "phase": "p2",
+  "subphase": "2.2",
+  "classification": "deliverable_pass_closed_loop_quality_fail",
+  "completed_at": "2026-09-05T17:55:10+00:00",
+  "experts": {
+    "hoi": "P15 online + sealed Arm B",
+    "hsi": "R2 final EMA + CG",
+    "checkpoint_identity_reference": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/a01-shard00of67/overall_evaluation_summary.json"
+  },
+  "design": {
+    "rows": [
+      "reference",
+      "a00",
+      "a10",
+      "a01",
+      "a11"
+    ],
+    "episodes_per_row": 28,
+    "scenes": 4,
+    "scene_bins": [
+      0,
+      22,
+      44,
+      66
+    ],
+    "seed": 42,
+    "timesteps": 500,
+    "correction_steps": [
+      10,
+      1,
+      0
+    ],
+    "optimizer_steps": 20,
+    "learning_rate": 0.05,
+    "native_metrics": 15,
+    "completion_metric": true,
+    "bootstrap_replicates": 10000,
+    "neural_training": false
+  },
+  "rows": {
+    "reference": {
+      "feet_height": 4.011944574969156,
+      "foot_sliding": 0.17468168063437864,
+      "hand_pen_loss_omomo": 0.5095024364290371,
+      "hand_pen_ratio": 0.1987020362700735,
+      "human_pen_loss_infbagel": 8.146507592596564,
+      "human_pen_ratio": 0.199072634701484,
+      "xy_points_err": 3.4222413120525226,
+      "end_obj_trans_err": 8.200218249112368,
+      "contact_percent": 0.6734028697993004,
+      "scene_human_penetration_s_mean": 3.79587342344582,
+      "scene_human_penetration_s_max": 29.627070043369063,
+      "scene_human_penetration_frame_ratio": 0.38533590700743453,
+      "scene_obj_penetration_s_mean": 30.11801167871038,
+      "scene_obj_penetration_s_max": 148.995017560465,
+      "scene_obj_penetration_frame_ratio": 0.27306432699385497,
+      "completed": 0.7857142857142857
+    },
+    "a00": {
+      "feet_height": 1.6703658870288305,
+      "foot_sliding": 0.5547779127459281,
+      "hand_pen_loss_omomo": 0.46650775449117127,
+      "hand_pen_ratio": 0.19671176028038775,
+      "human_pen_loss_infbagel": 7.4078465858412255,
+      "human_pen_ratio": 0.19982091058045626,
+      "xy_points_err": 3.285161532195551,
+      "end_obj_trans_err": 8.946748057912503,
+      "contact_percent": 0.6851044081727009,
+      "scene_human_penetration_s_mean": 4.585696600909744,
+      "scene_human_penetration_s_max": 46.29870656558445,
+      "scene_human_penetration_frame_ratio": 0.7540470063686371,
+      "scene_obj_penetration_s_mean": 31.429494924992987,
+      "scene_obj_penetration_s_max": 169.03198486992292,
+      "scene_obj_penetration_frame_ratio": 0.29803268518298864,
+      "completed": 0.6428571428571429
+    },
+    "a10": {
+      "feet_height": 1.8597441060202462,
+      "foot_sliding": 0.3792686646021074,
+      "hand_pen_loss_omomo": 0.4696196332344828,
+      "hand_pen_ratio": 0.2053267522715032,
+      "human_pen_loss_infbagel": 7.449972093337211,
+      "human_pen_ratio": 0.2071323087438941,
+      "xy_points_err": 3.3297690762473002,
+      "end_obj_trans_err": 8.959363720246724,
+      "contact_percent": 0.6763335520642807,
+      "scene_human_penetration_s_mean": 5.574455293826759,
+      "scene_human_penetration_s_max": 44.5790664425918,
+      "scene_human_penetration_frame_ratio": 0.7140926745321069,
+      "scene_obj_penetration_s_mean": 35.17553602499954,
+      "scene_obj_penetration_s_max": 187.3264244603259,
+      "scene_obj_penetration_frame_ratio": 0.29828432761132717,
+      "completed": 0.6785714285714286
+    },
+    "a01": {
+      "feet_height": 1.7318348799433028,
+      "foot_sliding": 0.5842111887341882,
+      "hand_pen_loss_omomo": 0.4638979550609942,
+      "hand_pen_ratio": 0.1979955181346408,
+      "human_pen_loss_infbagel": 7.363907987698326,
+      "human_pen_ratio": 0.20093932455139502,
+      "xy_points_err": 3.295071451326034,
+      "end_obj_trans_err": 9.023496894431966,
+      "contact_percent": 0.6843476486458515,
+      "scene_human_penetration_s_mean": 2.6969871899512197,
+      "scene_human_penetration_s_max": 28.267898436103547,
+      "scene_human_penetration_frame_ratio": 0.7537919368062701,
+      "scene_obj_penetration_s_mean": 22.52050863696994,
+      "scene_obj_penetration_s_max": 131.8765117440905,
+      "scene_obj_penetration_frame_ratio": 0.29718191229871344,
+      "completed": 0.6785714285714286
+    },
+    "a11": {
+      "feet_height": 1.788135405097689,
+      "foot_sliding": 0.3704169186038097,
+      "hand_pen_loss_omomo": 0.46704427092306233,
+      "hand_pen_ratio": 0.20057055154549225,
+      "human_pen_loss_infbagel": 7.410543378773734,
+      "human_pen_ratio": 0.20270679585103477,
+      "xy_points_err": 3.2662080800426856,
+      "end_obj_trans_err": 9.095708443783224,
+      "contact_percent": 0.6790857107229373,
+      "scene_human_penetration_s_mean": 4.485087840152638,
+      "scene_human_penetration_s_max": 34.01193551932062,
+      "scene_human_penetration_frame_ratio": 0.712952511118991,
+      "scene_obj_penetration_s_mean": 26.32717227388334,
+      "scene_obj_penetration_s_max": 152.2177165897904,
+      "scene_obj_penetration_frame_ratio": 0.2971095718842532,
+      "completed": 0.6428571428571429
+    }
+  },
+  "paired_gate_metrics": {
+    "episode": {
+      "a01_minus_a00": {
+        "completed": {
+          "difference": 0.03571428571428571,
+          "ci95": [
+            0.0,
+            0.10714285714285714
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.0007567595268492515,
+          "ci95": [
+            -0.012107340117196741,
+            0.010590126167179768
+          ]
+        },
+        "feet_height": {
+          "difference": 0.06146899291447231,
+          "ci95": [
+            -0.1409499400428363,
+            0.27905039489269234
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.029433275988260208,
+          "ci95": [
+            -0.016442455462471584,
+            0.07668547612947366
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": -1.8887094109585243,
+          "ci95": [
+            -5.620928168975349,
+            0.009337316303780022
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.00025506956236703057,
+          "ci95": [
+            -0.023246019306991782,
+            0.027651464327105444
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": -8.908986288023048,
+          "ci95": [
+            -20.16103929876034,
+            -2.02544398884472
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": -0.000850772884275232,
+          "ci95": [
+            -0.003436177080896284,
+            0.0014691975666210049
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.07674883651946272,
+          "ci95": [
+            -0.046283223699512224,
+            0.23106171317132446
+          ]
+        }
+      },
+      "a11_minus_a01": {
+        "completed": {
+          "difference": -0.03571428571428571,
+          "ci95": [
+            -0.10714285714285714,
+            0.0
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.005261937922914338,
+          "ci95": [
+            -0.02052094630954772,
+            0.009159389762462122
+          ]
+        },
+        "feet_height": {
+          "difference": 0.05630052515438625,
+          "ci95": [
+            -0.12099942458527428,
+            0.21700509158628326
+          ]
+        },
+        "foot_sliding": {
+          "difference": -0.21379427013037852,
+          "ci95": [
+            -0.2653433457911044,
+            -0.16595583307300937
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 1.7881006502014185,
+          "ci95": [
+            -0.062217383031799856,
+            5.405541275406722
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.04083942568727902,
+          "ci95": [
+            -0.07091275550691144,
+            -0.007952196350587276
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 3.8066636369133966,
+          "ci95": [
+            0.670096430314462,
+            8.07866416267178
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": -7.234041446021624e-05,
+          "ci95": [
+            -0.006251853985512363,
+            0.005322257464285937
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.07221154935125794,
+          "ci95": [
+            -0.10125923668965697,
+            0.2793809504614076
+          ]
+        }
+      },
+      "a10_minus_a00": {
+        "completed": {
+          "difference": 0.03571428571428571,
+          "ci95": [
+            0.0,
+            0.10714285714285714
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.008770856108420298,
+          "ci95": [
+            -0.0230922070695414,
+            0.004304881254709171
+          ]
+        },
+        "feet_height": {
+          "difference": 0.18937821899141585,
+          "ci95": [
+            -0.05375551325934273,
+            0.44048281652586796
+          ]
+        },
+        "foot_sliding": {
+          "difference": -0.17550924814382052,
+          "ci95": [
+            -0.23139351839237246,
+            -0.12142812470067502
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 0.9887586929170149,
+          "ci95": [
+            -0.04391872090886214,
+            2.9979631398871005
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.03995433183653014,
+          "ci95": [
+            -0.06509729493409395,
+            -0.01405859834381513
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 3.7460411000065506,
+          "ci95": [
+            -0.5832103287950824,
+            11.363522570176105
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.0002516424283385277,
+          "ci95": [
+            -0.004561736288347415,
+            0.006071119509371262
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.01261566233422075,
+          "ci95": [
+            -0.29102635694601175,
+            0.35279147152323254
+          ]
+        }
+      },
+      "a00_minus_reference": {
+        "completed": {
+          "difference": -0.14285714285714285,
+          "ci95": [
+            -0.2857142857142857,
+            -0.03571428571428571
+          ]
+        },
+        "contact_percent": {
+          "difference": 0.011701538373400358,
+          "ci95": [
+            -0.011539769782545766,
+            0.03728612985014531
+          ]
+        },
+        "feet_height": {
+          "difference": -2.341578687940325,
+          "ci95": [
+            -2.749674203140395,
+            -1.9171573168465073
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.3800962321115494,
+          "ci95": [
+            0.27575288830434314,
+            0.4885785950610244
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 0.7898231774639238,
+          "ci95": [
+            0.10355145527433446,
+            2.0394653566497647
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": 0.36871109936120255,
+          "ci95": [
+            0.283016385207884,
+            0.45621187247868095
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 1.3114832462826078,
+          "ci95": [
+            -2.96097340161567,
+            5.121528267138221
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.02496835818913366,
+          "ci95": [
+            0.013083273883343542,
+            0.039548749692039566
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.7465298088001353,
+          "ci95": [
+            0.307440026995859,
+            1.271311027147541
+          ]
+        }
+      },
+      "a01_minus_reference": {
+        "completed": {
+          "difference": -0.10714285714285714,
+          "ci95": [
+            -0.21428571428571427,
+            0.0
+          ]
+        },
+        "contact_percent": {
+          "difference": 0.010944778846551106,
+          "ci95": [
+            -0.00951052496827498,
+            0.0312384460727622
+          ]
+        },
+        "feet_height": {
+          "difference": -2.280109695025853,
+          "ci95": [
+            -2.7175775010670935,
+            -1.836771278509072
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.4095295080998097,
+          "ci95": [
+            0.30640365183899554,
+            0.5137391651363725
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": -1.0988862334946004,
+          "ci95": [
+            -3.684999161422924,
+            0.26348837050468965
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": 0.3684560297988355,
+          "ci95": [
+            0.28284318881508497,
+            0.45686686059094167
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": -7.59750304174044,
+          "ci95": [
+            -18.34686897522167,
+            0.52299612953689
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.02411758530485843,
+          "ci95": [
+            0.011955493595451118,
+            0.03896799490737197
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.823278645319598,
+          "ci95": [
+            0.3703521983698011,
+            1.382281944637985
+          ]
+        }
+      }
+    },
+    "scene": {
+      "a01_minus_a00": {
+        "completed": {
+          "difference": 0.035714285714285726,
+          "ci95": [
+            0.0,
+            0.10714285714285718
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.0007567595268492822,
+          "ci95": [
+            -0.01106402938213219,
+            0.009563130261891761
+          ]
+        },
+        "feet_height": {
+          "difference": 0.06146899291447239,
+          "ci95": [
+            -0.1089834741183689,
+            0.24375894239970625
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.02943327598826015,
+          "ci95": [
+            0.001994686875738949,
+            0.06750252935318288
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": -1.8887094109585243,
+          "ci95": [
+            -5.552958043558257,
+            -0.04421430067824453
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.0002550695623670385,
+          "ci95": [
+            -0.023017263838223057,
+            0.024010147367204943
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": -8.908986288023048,
+          "ci95": [
+            -15.449620928715117,
+            -4.004237639052528
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": -0.0008507728842752568,
+          "ci95": [
+            -0.0033323816688997435,
+            0.0015166029334067882
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.07674883651946307,
+          "ci95": [
+            -0.09011275001934571,
+            0.31762030640883165
+          ]
+        }
+      },
+      "a11_minus_a01": {
+        "completed": {
+          "difference": -0.035714285714285726,
+          "ci95": [
+            -0.10714285714285718,
+            0.0
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.005261937922914295,
+          "ci95": [
+            -0.017625781541573765,
+            0.006261211338271039
+          ]
+        },
+        "feet_height": {
+          "difference": 0.05630052515438616,
+          "ci95": [
+            -0.07201220308031364,
+            0.16588111008916578
+          ]
+        },
+        "foot_sliding": {
+          "difference": -0.2137942701303785,
+          "ci95": [
+            -0.26534924702352314,
+            -0.16945745395943929
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 1.788100650201419,
+          "ci95": [
+            -0.016802837939134632,
+            5.332743491711362
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.040839425687279066,
+          "ci95": [
+            -0.07734469164695058,
+            -0.0021604384694781376
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 3.806663636913396,
+          "ci95": [
+            1.5957457053311503,
+            5.640669191522257
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": -7.234041446020634e-05,
+          "ci95": [
+            -0.008692109890814315,
+            0.0046054859246526525
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.07221154935125784,
+          "ci95": [
+            -0.07502686099282352,
+            0.27868090796151335
+          ]
+        }
+      },
+      "a10_minus_a00": {
+        "completed": {
+          "difference": 0.035714285714285726,
+          "ci95": [
+            0.0,
+            0.10714285714285718
+          ]
+        },
+        "contact_percent": {
+          "difference": -0.008770856108420294,
+          "ci95": [
+            -0.019058585034836095,
+            0.001516872817995507
+          ]
+        },
+        "feet_height": {
+          "difference": 0.18937821899141588,
+          "ci95": [
+            -0.062314953122820205,
+            0.44107139110565197
+          ]
+        },
+        "foot_sliding": {
+          "difference": -0.17550924814382057,
+          "ci95": [
+            -0.18105368787715226,
+            -0.1699648084104889
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 0.9887586929170147,
+          "ci95": [
+            -0.029000332445970542,
+            2.9768615700304504
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": -0.03995433183653013,
+          "ci95": [
+            -0.07293275584067616,
+            -0.01659836726529257
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 3.7460411000065506,
+          "ci95": [
+            -0.39018505173070217,
+            10.228513621126437
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.0002516424283385138,
+          "ci95": [
+            -0.006310910252588155,
+            0.005914887945566855
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.012615662334220623,
+          "ci95": [
+            -0.15720811872077922,
+            0.1737025466614539
+          ]
+        }
+      },
+      "a00_minus_reference": {
+        "completed": {
+          "difference": -0.14285714285714285,
+          "ci95": [
+            -0.25,
+            -0.035714285714285726
+          ]
+        },
+        "contact_percent": {
+          "difference": 0.011701538373400378,
+          "ci95": [
+            -0.0016357007429242953,
+            0.02516493065976544
+          ]
+        },
+        "feet_height": {
+          "difference": -2.3415786879403253,
+          "ci95": [
+            -2.4431658642632623,
+            -2.265409060886928
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.3800962321115494,
+          "ci95": [
+            0.30337702052081333,
+            0.45681544370228555
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": 0.7898231774639237,
+          "ci95": [
+            0.12251101062117546,
+            1.9245902597987357
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": 0.3687110993612026,
+          "ci95": [
+            0.3252485620656184,
+            0.41217363665678675
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": 1.3114832462826076,
+          "ci95": [
+            -2.1257401276379824,
+            4.748706620203198
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.024968358189133677,
+          "ci95": [
+            0.00988259698663442,
+            0.040054119391632934
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.7465298088001349,
+          "ci95": [
+            0.3710590369467215,
+            1.1511726404673284
+          ]
+        }
+      },
+      "a01_minus_reference": {
+        "completed": {
+          "difference": -0.10714285714285714,
+          "ci95": [
+            -0.21428571428571427,
+            0.0
+          ]
+        },
+        "contact_percent": {
+          "difference": 0.010944778846551095,
+          "ci95": [
+            -0.0014885556986600768,
+            0.023378113391762267
+          ]
+        },
+        "feet_height": {
+          "difference": -2.280109695025853,
+          "ci95": [
+            -2.433722146919796,
+            -2.1908293877329146
+          ]
+        },
+        "foot_sliding": {
+          "difference": 0.4095295080998096,
+          "ci95": [
+            0.3053717073965523,
+            0.5136873088030669
+          ]
+        },
+        "scene_human_penetration_s_mean": {
+          "difference": -1.0988862334946004,
+          "ci95": [
+            -3.6363486642200904,
+            0.2773550147144956
+          ]
+        },
+        "scene_human_penetration_frame_ratio": {
+          "difference": 0.3684560297988355,
+          "ci95": [
+            0.30223129822739536,
+            0.4346807613702758
+          ]
+        },
+        "scene_obj_penetration_s_mean": {
+          "difference": -7.597503041740441,
+          "ci95": [
+            -12.85168837098172,
+            -0.6957227490576257
+          ]
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "difference": 0.02411758530485842,
+          "ci95": [
+            0.009146057069301605,
+            0.039089113540415235
+          ]
+        },
+        "end_obj_trans_err": {
+          "difference": 0.8232786453195979,
+          "ci95": [
+            0.3519462488059486,
+            1.4771199984742065
+          ]
+        }
+      }
+    }
+  },
+  "gates": {
+    "deliverable": "pass",
+    "pilot_geometry": "fail",
+    "full_phase2": "open",
+    "geometry_checks": {
+      "object_scene_vs_a00_upper_episode_ci_below_zero": true,
+      "object_scene_vs_reference_upper_episode_ci_below_zero": false,
+      "object_scene_vs_reference_upper_scene_ci_below_zero": true,
+      "contact_drop_at_most_0_02_vs_reference": true,
+      "completion_drop_at_most_0_02_vs_reference": false,
+      "no_significant_foot_sliding_worsening_vs_reference": false,
+      "no_significant_human_scene_frame_worsening_vs_reference": false
+    },
+    "hsi_increment": {
+      "net_utility": "fail",
+      "foot_sliding_improves_vs_a01_episode_and_scene": true,
+      "human_scene_frame_ratio_improves_vs_a01_episode_and_scene": true,
+      "object_scene_depth_worsens_vs_a01_episode_and_scene": true,
+      "completion_point_drop_vs_a01": -0.0357142857142857,
+      "completion_point_drop_vs_reference": -0.1428571428571428
+    }
+  },
+  "interpretation": [
+    "The current relation correction fails the registered native-quality gate. Retain the fixed expert pair; promote no composition recipe.",
+    "The common A00 reconstruction/objective bundle already worsens sliding, completion and human-scene frame prevalence. This localizes the upstream cost to that bundle, without identifying an individual objective.",
+    "Geometry improves object-scene mean depth against A00 at both units; against the matched reference the episode CI crosses zero and the scene CI excludes zero. Native sliding, completion and human-scene prevalence still fail protection.",
+    "The HSI increment reduces native sliding and human-scene frame prevalence, while increasing object-scene depth against A01. This is a measurable tradeoff, refining the earlier window-only negative.",
+    "The floor target and fixed source stance mask are candidates for a later isolated diagnostic. This five-row experiment did not separate them from FK reconstruction, other objectives or their closed-loop interaction.",
+    "Only four scene units are available. Scene/episode intervals are reported together and no broad generalization or learned-mixer result is claimed."
+  ],
+  "verification": {
+    "process_exits": {
+      "reference-bin00": 0,
+      "a00-bin00": 0,
+      "a10-bin00": 0,
+      "a01-bin00": 0,
+      "a11-bin00": 0,
+      "reference-bin22": 0,
+      "a00-bin22": 0,
+      "a10-bin22": 0,
+      "a01-bin22": 0,
+      "a11-bin22": 0,
+      "reference-bin44": 0,
+      "a00-bin44": 0,
+      "a10-bin44": 0,
+      "a01-bin44": 0,
+      "a11-bin44": 0,
+      "reference-bin66": 0,
+      "a00-bin66": 0,
+      "a10-bin66": 0,
+      "a01-bin66": 0,
+      "a11-bin66": 0
+    },
+    "analysis_exitcode": 0,
+    "paired_reports": 6,
+    "complete_episode_audits": 140,
+    "windows": 620,
+    "cg_calls": 309380,
+    "cg_nonfinite_steps": 0,
+    "correction_calls": 1488,
+    "all_correction_gradients_finite": true,
+    "all_correction_histories_and_contacts_exact": true,
+    "all_native_metrics_finite": true,
+    "authority_suite": "914 passed,4 skipped in172.44s on runtime source",
+    "completion_authority_suite": "914 passed,4 skipped in160.66s"
+  },
+  "runtime": {
+    "host": "authority",
+    "active_gpu_indices": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "gpu_type": "RTX 3090 24GB",
+    "reduced_allocation_reason": "GPU0 occupied by separate HSI evaluation at launch; fixed seven-GPU allocation retained.",
+    "manifest_wall_seconds": 4217,
+    "correction_seconds_mean": 0.5702319230073162,
+    "correction_seconds_median": 0.5738482056185603,
+    "correction_seconds_p95": 0.6183989658020437,
+    "correction_peak_allocated_mib": 804.43359375,
+    "concurrent_generation_seconds_sum": 26539.03788963519,
+    "generated_frames_sum": 26880,
+    "timing_scope": "Correction timing includes HSI target query and optimizer plus resident-model allocation. Concurrent shard timing is not isolated production latency."
+  },
+  "artifacts": {
+    "run_directory": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906",
+    "manifest": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/manifest.json",
+    "native_and_paired_results": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/analysis",
+    "resolved_configs": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/resolved",
+    "machine_preflight": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/machine_preflight.json",
+    "completion": "results/experiments/p2-mixer-relational-rollout-r1-s42-20260906/completion_metrics.json",
+    "handoff": "docs/phase_summaries/PHASE_2B_RELATIONAL_ROLLOUT.md"
+  },
+  "retained_failure": {
+    "experiment_id": "p2-mixer-relational-rollout-s42-20260906",
+    "classification": "operational_launcher_failure_before_sampling",
+    "gpu_jobs_started": 0,
+    "manifest": "results/experiments/p2-mixer-relational-rollout-s42-20260906/manifest.json",
+    "detail": "Nohup controller absent at first inspection, empty log, no shard starts; exit signal unrecorded. Fresh id used screen."
+  },
+  "commits": {
+    "preregistration": "59ce660",
+    "implementation": "72eb67e",
+    "execution_and_failure_retention": "3e17090",
+    "executed_commit": "3e17090f3305c66e2e9a689f38d73fac4a258465"
+  },
+  "integration": {
+    "branch": "phase/02-mixer",
+    "tag": "exp/p2b-relational-rollout-v1",
+    "tag_meaning": "Completed pilot and negative quality result, not full Phase2 success"
+  },
+  "next_entry": "Review the common reconstruction/floor/stance/source constraints before one separately approved diagnostic. Retain matched CG reference, A00 and HSI tradeoff; establish useful HSI supervision and full Phase2 quality before learned mixer training."
+}
