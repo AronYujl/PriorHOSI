@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "optimizer_updates": 0,
+  "generated_windows": 0,
+  "control_continuity": {
+    "fid": 20.13036269558725,
+    "fid_difference": 5.3811676338000325e-05,
+    "mm_dist": 8.04578685760498,
+    "r_precision": [
+      0.2857142857142857,
+      0.39732142857142855,
+      0.45982142857142855
+    ]
+  },
+  "metric_scope": "internal LINGO evaluator; published feature metrics are incompatible",
+  "protocol": {
+    "locomotion_episodes": 130,
+    "interactive_episodes": 245,
+    "object_reaching": "final-frame minimum planar distance over 28 joints",
+    "fid_replicates": 2000,
+    "other_replicates": 10000,
+    "r_precision_unit": "frozen gallery query occurrence; may repeat sequences",
+    "generation": "sealed 500-step diffusion, CFG 1, seed 42"
+  },
+  "arms": {
+    "unguided": {
+      "source": "/data/yujinlun/InfBaGel-hsi-r2/results/lingo_hsi/r2_fullbody_seam_unguided_shard8_on4/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json",
+      "points": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.03518209800685428,
+            "ci95": [
+              0.034169323714547756,
+              0.036194066896573764
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 0.8629937311465826,
+            "ci95": [
+              0.5800525942325523,
+              1.1989456765412898
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 10.218791963156177,
+            "ci95": [
+              7.136158636277206,
+              13.758787262116293
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.3791137145735576,
+            "ci95": [
+              0.3538194306769042,
+              0.40441145305228327
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.027158719688808293,
+            "ci95": [
+              0.02489530730243456,
+              0.02954819711310543
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.8775510204081632,
+            "ci95": [
+              0.8367346938775511,
+              0.9183673469387755
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 18.432174501575318,
+            "ci95": [
+              13.78155401704334,
+              23.687363045120286
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 48.12323198052086,
+            "ci95": [
+              36.14788019136124,
+              61.59689650472195
+            ]
+          },
+          "interior_jerk": {
+            "mean": 57.83752902403494,
+            "ci95": [
+              55.72594779023668,
+              59.99013173498954
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 126.34151397695105,
+            "ci95": [
+              118.50190426646057,
+              134.5754042180586
+            ]
+          },
+          "contact_count": {
+            "mean": 1106.346890785853,
+            "ci95": [
+              1007.0021447241656,
+              1213.5682226496463
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 381.71471526939297,
+            "ci95": [
+              340.1264813997175,
+              426.51773098053434
+            ]
+          },
+          "MM-Dist": {
+            "mean": 9.238607013347197,
+            "ci95": [
+              8.391772015456644,
+              10.102192579760235
+            ]
+          },
+          "FID": {
+            "mean": 38.415147962664406,
+            "ci95": [
+              29.810608416958914,
+              51.31598010414583
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.41517857142857145,
+            "ci95": [
+              0.3482142857142857,
+              0.48214285714285715
+            ]
+          }
+        }
+      },
+      "ranking": {
+        "R-Precision@1/2/3": [
+          0.22321428571428573,
+          0.3482142857142857,
+          0.41517857142857145
+        ],
+        "caption_collision_oracle_ceiling@1/2/3": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "scored_items": 224,
+        "gallery": 32,
+        "distance_tie_break": "seeded random among exact ties (seed=42)",
+        "bootstrap": {
+          "unit": "scored_generated_sample",
+          "one_sample": true,
+          "replicates": 10000,
+          "seed": 42,
+          "95_ci": {
+            "R-Precision@1": [
+              0.16964285714285715,
+              0.2767857142857143
+            ],
+            "R-Precision@2": [
+              0.2857142857142857,
+              0.4107142857142857
+            ],
+            "R-Precision@3": [
+              0.3482142857142857,
+              0.48214285714285715
+            ]
+          }
+        },
+        "unique_sequences_scored": 148
+      },
+      "literal_ranking": {
+        "R-Precision@1/2/3": [
+          0.17410714285714285,
+          0.29910714285714285,
+          0.3705357142857143
+        ],
+        "caption_collision_oracle_ceiling@1/2/3": [
+          0.53125,
+          0.7633928571428571,
+          0.8571428571428571
+        ],
+        "scored_items": 224,
+        "gallery": 32,
+        "distance_tie_break": "seeded random among exact ties (seed=42)",
+        "bootstrap": {
+          "unit": "scored_generated_sample",
+          "one_sample": true,
+          "replicates": 10000,
+          "seed": 42,
+          "95_ci": {
+            "R-Precision@1": [
+              0.125,
+              0.22767857142857142
+            ],
+            "R-Precision@2": [
+              0.24107142857142858,
+              0.36160714285714285
+            ],
+            "R-Precision@3": [
+              0.3080357142857143,
+              0.4375
+            ]
+          }
+        },
+        "unique_sequences_scored": 224
+      },
+      "MM-Dist_ci95": [
+        8.386117902790405,
+        10.095051439364953
+      ]
+    },
+    "guided": {
+      "source": "/data/yujinlun/InfBaGel-hsi/results/lingo_hsi/r2_cg_guidance_coef1/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json",
+      "points": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.029258628802465624,
+            "ci95": [
+              0.028228942563710804,
+              0.030302794096539642
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 0.8353530119359764,
+            "ci95": [
+              0.5751122184806361,
+              1.1407698783267266
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 9.79526773913844,
+            "ci95": [
+              6.843965392817873,
+              13.106725650177843
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.33166695393751927,
+            "ci95": [
+              0.31066685889907875,
+              0.3527106720541807
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.029328230696268397,
+            "ci95": [
+              0.026920396609345913,
+              0.031773881540142504
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.8775510204081632,
+            "ci95": [
+              0.8367346938775511,
+              0.9183673469387755
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 16.27127730097627,
+            "ci95": [
+              12.305406808542648,
+              20.59309245258577
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 49.22951844725207,
+            "ci95": [
+              36.35468641036453,
+              63.46550301435107
+            ]
+          },
+          "interior_jerk": {
+            "mean": 68.23257917701272,
+            "ci95": [
+              65.40911414599331,
+              71.22334094653847
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 165.616402843195,
+            "ci95": [
+              155.05506720154605,
+              177.24910223577956
+            ]
+          },
+          "contact_count": {
+            "mean": 1074.3945700364363,
+            "ci95": [
+              978.7134029670142,
+              1176.1428773482373
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 433.08264839497787,
+            "ci95": [
+              391.7636522325434,
+              476.1902075426911
+            ]
+          },
+          "MM-Dist": {
+            "mean": 8.900054415817163,
+            "ci95": [
+              8.046030928810335,
+              9.7772549820889
+            ]
+          },
+          "FID": {
+            "mean": 40.04967810525568,
+            "ci95": [
+              30.642041684456505,
+              53.17715046033896
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.4330357142857143,
+            "ci95": [
+              0.3705357142857143,
+              0.4955357142857143
+            ]
+          }
+        }
+      },
+      "ranking": {
+        "R-Precision@1/2/3": [
+          0.25892857142857145,
+          0.35714285714285715,
+          0.4330357142857143
+        ],
+        "caption_collision_oracle_ceiling@1/2/3": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "scored_items": 224,
+        "gallery": 32,
+        "distance_tie_break": "seeded random among exact ties (seed=42)",
+        "bootstrap": {
+          "unit": "scored_generated_sample",
+          "one_sample": true,
+          "replicates": 10000,
+          "seed": 42,
+          "95_ci": {
+            "R-Precision@1": [
+              0.20089285714285715,
+              0.3169642857142857
+            ],
+            "R-Precision@2": [
+              0.29464285714285715,
+              0.41964285714285715
+            ],
+            "R-Precision@3": [
+              0.3705357142857143,
+              0.4955357142857143
+            ]
+          }
+        },
+        "unique_sequences_scored": 148
+      },
+      "literal_ranking": {
+        "R-Precision@1/2/3": [
+          0.19196428571428573,
+          0.29017857142857145,
+          0.375
+        ],
+        "caption_collision_oracle_ceiling@1/2/3": [
+          0.53125,
+          0.7633928571428571,
+          0.8571428571428571
+        ],
+        "scored_items": 224,
+        "gallery": 32,
+        "distance_tie_break": "seeded random among exact ties (seed=42)",
+        "bootstrap": {
+          "unit": "scored_generated_sample",
+          "one_sample": true,
+          "replicates": 10000,
+          "seed": 42,
+          "95_ci": {
+            "R-Precision@1": [
+              0.14285714285714285,
+              0.24553571428571427
+            ],
+            "R-Precision@2": [
+              0.23214285714285715,
+              0.3482142857142857
+            ],
+            "R-Precision@3": [
+              0.3125,
+              0.4375
+            ]
+          }
+        },
+        "unique_sequences_scored": 224
+      },
+      "MM-Dist_ci95": [
+        8.046186227325578,
+        9.745107523315415
+      ]
+    }
+  },
+  "fid_guided_minus_unguided": {
+    "mean_delta": 1.6345301425912737,
+    "ci95": [
+      -3.9672391267846385,
+      7.241871055595477
+    ]
+  },
+  "seconds": 1012.6150033175945,
+  "peak_cuda_bytes": 237524480,
+  "experiment_id": "p1-hsi-r2-table3-s42-20260906",
+  "source_commit": "167933c7f859cad98cbdb33b96ce7305211d2bec",
+  "gpu_hours": 0.2812819453659985,
+  "manifest": "results/experiments/p1-hsi-r2-table3-s42-20260906/manifest.json",
+  "paired_reports": {
+    "locomotion": "results/hsi_r2_table3_s42_20260906/paired_locomotion.json",
+    "interactive": "results/hsi_r2_table3_s42_20260906/paired_interactive.json"
+  },
+  "input_provenance": {
+    "unguided_run": "p1-hsi-b-r2-eval-unguided-shard8-on4-s42-20260901",
+    "guided_run": "p1-hsi-b-r2-cg-guidance-coef1-s42-20260902",
+    "encoder_reference": ".claude/scratch/baseline_20260821/t2m_interactive.json",
+    "input_identity_policy": "Reuse the sealed motion/checkpoint identities through the source run manifests and registry; encoder source and normalization are recorded in this run manifest."
+  },
+  "verification": {
+    "targeted_tests_passed": 3,
+    "authority_tests_passed": 437,
+    "authority_tests_skipped": 3,
+    "frozen_control_continuity_passed": true,
+    "runtime_exit": 0
+  }
+}

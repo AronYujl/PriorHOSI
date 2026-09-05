@@ -13102,3 +13102,23 @@ D5/D6 的总体分层权重，也不把这些单步读数当作该总体的 roll
 尺度解析结果通过三项组件检查（包含论文分组与 5cm 边界）。
 
 Authority suite：437 passed、3 skipped；registry validation 与 resolved-config 检查通过。
+
+
+### 完成结果
+
+R2 unguided 与 R2+CG 的全部 13 项已完成；两格均覆盖 375 个封存动作，按 130/245 分组。
+FID 为 38.415148 / 40.049678，R-Precision@3 为 0.415179 / 0.433036，MM-Dist 为
+9.238607 / 8.900054。三项点估计均弱于旧 C 的占位值；旧 C 为 16-step consistency、R2
+为 500-step diffusion，操作点差别完整保留，不解释为纯训练效应。R@3 原 gallery 实际包含
+224 个 query occurrence、148 个 unique episode，该计数与重采样单位已写入论文表注和随表说明。
+
+旧 C 的 encoder 连续性通过：FID 差 5.381e-5，R-Precision 与 MM-Dist 一致。GPU float64
+FID 的 2000 次配对 bootstrap 和其余 10000 次区间完整保存；U/CG 的 130/245 分组配对差由
+既有 paired_bootstrap.py 完成。完整 workload exit 0，耗时 1012.615 秒（0.281282 GPU-h），
+峰值 allocated 237,524,480 bytes，低于 2 GPU-h 上限。没有训练、生成或外部方法评估。
+
+论文 Table 3 已改为一个 table/tabular，三组表头、两行 R2 操作点、每行 13 项，无占位数；
+三个外部方法保留空值。main.pdf 编译通过。结果：
+`experiments/results/p1_hsi_r2_table3_s42_20260906.json`；交接：
+`docs/phase_summaries/PHASE_1C_R2_TABLE3.md`。该读出完成不构成新的模型晋级或 Phase 1C gate
+通过，也不启动下一阶段。
