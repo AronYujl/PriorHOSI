@@ -13122,3 +13122,44 @@ FID 的 2000 次配对 bootstrap 和其余 10000 次区间完整保存；U/CG �
 `experiments/results/p1_hsi_r2_table3_s42_20260906.json`；交接：
 `docs/phase_summaries/PHASE_1C_R2_TABLE3.md`。该读出完成不构成新的模型晋级或 Phase 1C gate
 通过，也不启动下一阶段。
+
+
+## 2026-09-06（训练场景五类配对可视化；用户已批准）
+
+用户批准绕行、坐下、起身离开、躺卧、洗手五类候选，并要求每条同时渲染模型生成与真实动作。
+本轮为 hsi-qualitative，固定 R2 final EMA、posterior-coefficient CG、500-step diffusion 和 seed42，
+零训练。先选每类四个训练来源，共20条；每条只生成一次。候选覆盖不同原始场景，排除镜像，
+遵守 v3 train split、无手部目标标记、源序列长度>48及合法起始窗口。优先90--300源帧的完整
+片段，按GT动作语义、可辨识姿态变化、场景覆盖和导航曲率选择输入；生成前锁定20条身份。
+生成后按完整配对视频中的动作完成、场景接触/穿透、脚滑与时间连续性各类选一例；保留全部
+20条及失败，最终五条称训练条件下的精选生成案例，不作总体或泛化结论。
+
+### 配对条件与边界
+
+现有 native evaluator 会将源初态转向起终点连线。这会使生成与原始GT的初始朝向不同，
+因此新增仅用于明确输入条件选择的 hsi_initial_heading=source；默认 goal 保持既有 native
+协议。source 使用数据项已有 canonical-to-world 旋转恢复真实两帧历史，其后完全自回归。
+R2模型、guidance、窗口数、终点供给和采样数学保持固定，不输入GT未来路径、不逐窗重置GT。
+该输入设置区别于 Table3，必须写入可视化说明；不把本轮数值并入 Table3。
+
+生成和GT使用相同的原始场景、性别/体型、坐标系、相机、光照及播放速度。GT采用 evaluator
+既有stride3及插值时间轴，与生成完全同长；另存源帧范围，明确GT重采样口径。初始两帧
+作为给定条件显示。仅允许材质、照明、外墙展示剖切与相机调整；家具和人体运动坐标保持
+原值，不做根部抬升、IK、接触吸附、时间重排或人工重定向。静态关键帧在两个分支使用同一
+组时刻；完整视频用于判断关键帧之间的差距。
+
+### 实现、资源与交付
+
+复用 tools/make_lingo_hsi_episodes.py 的episode构造，扩展显式来源选择；一个config fragment，
+既有HSI evaluator的sample/ground_truth入口与导出。配对缓存/读出置于HSI组件模块，Blender
+渲染扩展现有vis/blender_vis_human_utils.py的配对模式；不增加工具脚本、不修改core。
+执行受影响组件测试及一次authority suite，真实功能验证由正式配对生成首条承担。初始化
+只增加每episode一次已有旋转的选择，denoiser每步执行、形状与内存路径保持原状，跳过
+每步性能benchmark，不追加独立smoke。
+
+GPU2--7在其他任务使用中；本轮在空闲RTX3090 GPU0--1上分片，记录缩减集合与主机竞争，
+不报告吞吐benchmark。SMPL-X重建与Blender渲染使用GPU。生成/GT和最终配对读出采用
+干净提交、完全解析config、既有experiment.py manifest；采样与渲染总预算上限8 GPU-h。
+20条逐序列geometry差由既有paired_bootstrap.py汇总，仅用于描述这个已选择的cohort。
+交付全部候选的配对MP4、同时间关键帧图、可浏览索引、最终五例及逐例差距说明、原始
+参数和可重建渲染缓存。先用低成本预览筛选，最终五例提高静态图分辨率。
