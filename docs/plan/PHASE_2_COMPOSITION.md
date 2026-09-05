@@ -1688,3 +1688,36 @@ returns and merges with four zero exit codes may the kinematic row start. Partia
 from the aborted lifecycle is neither an input nor a baseline. The expected latency is
 about 65 seconds/window, so the campaign is intentionally accepted as slow; no further
 optimization or parallel topology change is authorized in this lifecycle.
+
+## 2026-09-05 — P2-KIN-R2CG-r1 raw control completion
+
+The fresh raw control `p2-mixer-rootsplit-r2cg-r1-s42-20260904` completed at commit
+`687f3b5` on `infbagel-4gpu`. All four shard exit codes were zero and the immutable
+worker return passed a checksum-only comparison against the authority staging tree.
+The guarded merge recovered 469 distinct canonical ordinals `0..468`, with shard
+counts `119/112/119/119`; every persisted numeric episode value is finite and both
+checkpoint hashes match the frozen pair.
+
+The raw P2-ROOT point estimates are: completion `0.761194`, foot sliding `0.329279`,
+contact `0.692278`, scene-human penetration mean `7.619572`, and scene-human
+penetration frame ratio `0.388053`. These are the paired control values, not an
+operator verdict; no raw-only threshold was preregistered and the kinematic cell has
+not yet run.
+
+The run logs contain 1,617 completed windows, implying 806,883 R2-CG applications
+under the fixed 499-through-1 sampler path. A pre-existing evaluator limitation is
+recorded rather than hidden: `sampler_body` is rebuilt for each scene, so the device
+counter persisted by each shard covers only that shard's terminal scene. All four
+terminal-scene audits independently satisfy exactly 500 compose calls and 499 HSI
+guidance calls per completed window, zero nonfinite guidance steps, posterior coef1,
+zero object/contact dependency, exact history restoration and the frozen shared-current
+plus previous-composed-x0 pelvis query. The full-run call count is therefore derived
+from completed window records and the branch-free sampler contract; it is not labelled
+as a cumulative device counter.
+
+Tracked compact result:
+`experiments/results/p2_mixer_rootsplit_r2cg_r1_s42_20260904.json`. Recovered artifact
+anchors are manifest `40e99e0a...`, completion record `fe61fd0b...`, aggregate
+`52a15289...`, and full merged summary `196709c1...`. The raw-first lifecycle gate is
+met; after this completion record is committed, start only
+`p2-mixer-kinematic-r2cg-r1-s42-20260904` under the unchanged original inference path.

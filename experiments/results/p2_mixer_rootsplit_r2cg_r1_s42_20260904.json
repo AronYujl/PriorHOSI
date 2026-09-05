@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "run_id": "p2-mixer-rootsplit-r2cg-r1-s42-20260904",
+  "status": "completed",
+  "operator": "raw_p2_root",
+  "seed": 42,
+  "git_commit": "687f3b503da71eeb04ece2ce9ea08a9616f3d68a",
+  "checkpoint_sha256": {
+    "hoi": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c",
+    "hsi": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe"
+  },
+  "inference": {
+    "diffusion_steps_per_window": 500,
+    "hsi_guidance_calls_per_window": 499,
+    "hsi_guidance_posterior_coef1": true,
+    "mixer_inference_engineering": false,
+    "per_episode_seeding": false
+  },
+  "execution": {
+    "worker": "infbagel-4gpu",
+    "gpus": [0, 1, 2, 3],
+    "shard_exitcodes": [0, 0, 0, 0],
+    "episodes_per_shard": [119, 112, 119, 119],
+    "logged_completed_windows": 1617,
+    "derived_hsi_guidance_calls": 806883,
+    "timing_valid": false
+  },
+  "validation": {
+    "episodes": 469,
+    "canonical_ordinals": "complete_unique_0_through_468",
+    "all_episode_numeric_values_finite": true,
+    "checkpoint_pair_exact": true,
+    "operator_exact": true,
+    "terminal_scene_audit_per_shard": {
+      "compose_calls_per_window": 500,
+      "hsi_guidance_calls_per_window": 499,
+      "all_relations_exact": true,
+      "all_nonfinite_steps_zero": true,
+      "posterior_coef1": true,
+      "object_contact_dependency": false,
+      "history_restored_after_update": true,
+      "scene_query_pelvis": "shared_current_and_previous_composed_x0"
+    },
+    "audit_scope_note": "The evaluator rebuilds sampler_body per scene, so each shard payload's device-counter audit covers its terminal scene. The full-run count is derived from 1,617 completed window log records and the branch-free 499-through-1 sampler contract, not misrepresented as one cumulative device counter."
+  },
+  "results": {
+    "completion_rate": 0.7611940298507462,
+    "feet_height": 3.637043410526918,
+    "foot_sliding": 0.3292790672578283,
+    "hand_pen_loss_omomo": 0.37675938680851945,
+    "hand_pen_ratio": 0.19149564659403664,
+    "human_pen_loss_infbagel": 6.037626948346163,
+    "human_pen_ratio": 0.19623786536778118,
+    "xy_points_err": 3.9785710290006833,
+    "end_obj_trans_err": 7.591569586309479,
+    "contact_percent": 0.6922777476446468,
+    "scene_human_penetration_s_mean": 7.619572131073286,
+    "scene_human_penetration_s_max": 55.846883724606045,
+    "scene_human_penetration_frame_ratio": 0.3880534350379571,
+    "scene_obj_penetration_s_mean": 33.17748779731517,
+    "scene_obj_penetration_s_max": 157.25063164573885,
+    "scene_obj_penetration_frame_ratio": 0.25410108600677583
+  },
+  "artifacts": {
+    "manifest_sha256": "40e99e0a2eb5723a1114d5ab47a198eeb706b2c966a60fbfc6065bb48023e725",
+    "completion_metrics_sha256": "fe61fd0b65c6ebe31d9331e44d19654b160abd43289adfe8898a4b1c64b2fa5a",
+    "machine_preflight_sha256": "a2cf3fba626046233067b4e59a38e63a4b4eab6fe894859cff9561b56c6e98d8",
+    "launcher_sha256": "2b5f3cd250468c01a64df83ad56ff6aa4e4081d3ea2d319b27dfcb9d5d58de89",
+    "resolved_config_shard00_sha256": "ecf6c2aa88b062b1183c1fe1d16682486b9628d19d2011bd877c322d645b1b83",
+    "aggregate_metrics_sha256": "52a152891d2cf8d17cd62a5a5f07dcc0682aa7b2671fd84d62c7577830630555",
+    "overall_evaluation_summary_sha256": "196709c18c76cdf10724bbf737ef9f998c5b002931f50a00eabb0041a6c8fdca"
+  },
+  "next_action": "Start the already-preregistered kinematic R2-CG r1 candidate only after this raw completion record is committed."
+}
