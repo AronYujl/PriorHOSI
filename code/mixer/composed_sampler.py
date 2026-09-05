@@ -74,7 +74,7 @@ class HOSIComposedSampler:
     def __init__(self, hoi_adapter, hsi_sampler=None, gate=None, state=None,
                  channel_mask='human', hsi_object_voxel_mode='occupied',
                  body_composer=None, hsi_guidance_scale=1.0,
-                 inference_engineering=False):
+                 inference_engineering=False, input_diagnostic=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -99,6 +99,7 @@ class HOSIComposedSampler:
         self.hsi_object_voxel_mode = hsi_object_voxel_mode
         self.hsi_guidance_scale = float(hsi_guidance_scale)
         self.inference_engineering = bool(inference_engineering)
+        self.input_diagnostic = input_diagnostic
         self._posterior_coefficient_cache = None
         if self.hsi_guidance_scale < 0:
             raise ValueError('hsi_guidance_scale must be non-negative')
@@ -297,6 +298,8 @@ class HOSIComposedSampler:
         # trajectory the chain is not taking. Initialized to `current` to match
         # the released `x0.append(points)`, which happens after the history fix.
         previous_x0 = current
+        if self.input_diagnostic is not None:
+            self.input_diagnostic.begin_window(current)
         imgs = []
         for step in reversed(range(diffusion.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=device)
@@ -304,6 +307,11 @@ class HOSIComposedSampler:
                 diffusion, current, timesteps, fixed_points, hoi_arguments,
                 local_object_bps, object_so3_x0,
             )
+            if self.input_diagnostic is not None:
+                self.input_diagnostic.observe(
+                    self, current, previous_x0, timesteps, hsi_context,
+                    human_dict['rest_human_offsets'], hoi_clean,
+                )
             # Skip the HSI expert on any step whose gate discards it entirely.
             # This is free of numerical consequence, and provably so: the G == 0
             # row already reproduced a sealed anchor produced WITHOUT the HSI
@@ -451,8 +459,12 @@ class HOSIComposedSampler:
         ``current`` for both would query the scene along a NOISY trajectory at
         high timesteps -- pure noise on the first step.
         """
+        common = self._hsi_model_arguments(current, previous_x0, timesteps, context)
+        return self._hsi_predict(current, common)
+
+    def _hsi_model_arguments(self, current, previous_x0, timesteps, context):
+        """Query the full world once, independently of denoiser input views."""
         sampler = self.hsi_sampler
-        model = sampler.student_model
         occ_arguments = (
             current, previous_x0, context['mat'], context['scene_flag'],
             context['object_points'], context['pelvis_goal'],
@@ -470,16 +482,19 @@ class HOSIComposedSampler:
         else:
             occ, occ_list, occ_pos = sampler._compute_occ_sample(*occ_arguments)
         occ, occ_list = self._resolve_object_voxels(occ, occ_list)
-        common = (
+        return (
             occ, timesteps, context['text_emb'], context['pelvis_goal'],
             context['scene_goal'], context['is_loco'], context['need_scene'],
             context['need_pelvis_dir'], context['pi'], context['end_pi'],
             context['seq_length'], context['need_pi'], context['object_goal'],
             context['is_object'], context['obj_bps_data'], occ_list, occ_pos,
         )
+
+    def _hsi_predict(self, current, common):
+        model = self.hsi_sampler.student_model
         cond = model(current, *common, is_sample=True)
         uncond = model(current, *common, is_sample=True, is_uncondition=True)
-        return cond + sampler.w * (cond - uncond)
+        return cond + self.hsi_sampler.w * (cond - uncond)
 
     def _hsi_posterior_guidance_enabled(self):
         """Whether the frozen R2-CG posterior rule is active.

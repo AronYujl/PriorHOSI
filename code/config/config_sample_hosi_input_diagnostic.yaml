@@ -1,0 +1,19 @@
+# Passive paired input probe on the frozen P15/R2 expert pair.
+defaults: [config_sample_hosi_rootsplit_r2cg, _self_]
+
+hosi_mode: input_diagnostic
+hosi_input_diagnostic_sources: null
+run_id: null
+hosi_expected_episodes: null
+# Four invocations select preregistered bins 0,22,44,66, one scene/GPU.
+hosi_shard_count: 67
+hosi_shard_index: 0
+hsi_guidance_posterior_coef1: false
+
+sampler:
+  pelvis:
+    gate: 0
+    input_diagnostic:
+      _target_: mixer.diagnostics.HSIInputDiagnostic
+      steps: [499, 400, 250, 100, 10, 1, 0]
+      seed: ${seed}

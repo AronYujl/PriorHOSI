@@ -1856,3 +1856,11 @@ repeat/reference results, paired reports and the compact conclusion. Reuse
 existing lifecycle provenance and sealed asset references; introduce no new
 hashing mechanism. The next direction is chosen from these results, with the
 failed raw/KIN experiments preserved.
+
+Implementation verification: the actual Unet object-goal/BPS mask, empty-channel
+noise/history, cm conversion, FK-facing measurements, episode/scene aggregation,
+and two complete 500-step carrier windows are covered by six component tests.
+The passive query restores CPU/CUDA RNG, including the existing occupancy
+function's CPU `randperm`. The final authority run was `pytest tests`:
+903 passed, 6 skipped in 167.17 seconds. Fully resolved diagnostic config and
+registry validation passed. The next action is the registered worker diagnostic.

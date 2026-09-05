@@ -12,6 +12,7 @@ import hydra
 import json
 import torch.nn.functional as F
 import random
+import subprocess
 
 from utils import *
 from constants import *
@@ -504,9 +505,26 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_input_diagnostics':
+        from mixer.diagnostics import write_analysis_inputs
+        summary = write_analysis_inputs(
+            list(cfg.hosi_input_diagnostic_sources), cfg.hosi_output_dir,
+        )
+        with open(os.path.join(cfg.hosi_output_dir, 'metrics.json'), 'x') as handle:
+            json.dump(summary, handle, indent=2, allow_nan=False)
+        return
     if str(cfg.get('hosi_mode', 'evaluate')) == 'merge_shards':
         run_merge_shards(cfg)
         return
+    input_diagnostic_mode = str(cfg.get('hosi_mode', 'evaluate')) == 'input_diagnostic'
+    if input_diagnostic_mode:
+        if subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
+            raise RuntimeError('registered input diagnostics require a clean worktree')
+        diagnostic_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], text=True,
+        ).strip()
+        diagnostic_started = time.perf_counter()
+        diagnostic_episodes = []
     cfg.vis = True
     device = cfg.device
     seed_everything(int(cfg.seed))
@@ -732,6 +750,11 @@ def main(cfg: DictConfig) -> None:
 
         for test_idx, test_item in enumerate(tqdm(test_data, desc=f"Processing {scene_name}")):
             canonical_ordinal = canonical_ordinals[(scene_name, test_idx)]
+            if input_diagnostic_mode:
+                sampler_body.input_diagnostic.begin_episode({
+                    'scene_name': scene_name, 'object_name': test_item['object_name'],
+                    'test_idx': test_idx, 'canonical_ordinal': int(canonical_ordinal),
+                }, base_output_dir)
             # OFF by default, and scene-level sharding does not need it: a scene's
             # episodes are already seeded identically however many other scenes ran,
             # because `sampler_body` is rebuilt per scene (so `sample_calls` resets)
@@ -996,6 +1019,11 @@ def main(cfg: DictConfig) -> None:
                     global_rot_6d_all.append(global_rot_6d.cpu().numpy()[:, :-cfg.auto_regre_num])
 
 
+            if input_diagnostic_mode:
+                diagnostic_episodes.append(sampler_body.input_diagnostic.finish_episode())
+                print(f'Input diagnostic completed episode {canonical_ordinal}', flush=True)
+                continue
+
             points_all = torch.from_numpy(np.concatenate(points_all, axis=1)).reshape(cfg.batch_size, -1, cfg.dataset.nb_joints, 3)
             object_trans_all = np.concatenate(object_trans_all, axis=1).reshape(-1, 3)
             object_rot_mat_all = np.concatenate(object_rot_mat_all, axis=1).reshape(-1, 9)
@@ -1093,6 +1121,26 @@ def main(cfg: DictConfig) -> None:
             all_scenes_metrics.extend(scene_metrics)
         else:
             skipped_scenes += 1
+
+    if input_diagnostic_mode:
+        if len(diagnostic_episodes) != int(sharding_plan['shard_episode_count']):
+            raise RuntimeError('input diagnostic episode coverage is incomplete')
+        payload = {
+            'schema_version': 1, 'probe': 'object_input_semantics',
+            'run_id': cfg.run_id, 'seed': int(cfg.seed),
+            'git_commit': diagnostic_commit,
+            'git_commit_at_completion': subprocess.check_output(
+                ['git', 'rev-parse', 'HEAD'], text=True,
+            ).strip(),
+            'episodes': diagnostic_episodes, 'sharding': sharding_plan,
+            'checkpoint': checkpoint_metadata, 'hsi_checkpoint': hsi_checkpoint_metadata,
+            'sampler_audit': sampler_body.audit_dict(),
+            'diagnostic_seconds': time.perf_counter() - diagnostic_started,
+            'quality_evaluated': False,
+        }
+        with open(os.path.join(base_output_dir, 'metrics.json'), 'x') as handle:
+            json.dump(payload, handle, indent=2, allow_nan=False)
+        return
 
     # 2026-08-29: expected-episode guard, matching hoi_expected_sequences on the HOI
     # path.  Without it a partial sweep emitted a complete-looking aggregate over
