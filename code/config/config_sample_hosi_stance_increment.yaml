@@ -1,0 +1,7 @@
+# Phase 2.7: preserve source horizontal foot displacement on the frozen mask.
+defaults: [config_sample_hosi_stance_height, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      source_stance_velocity: true

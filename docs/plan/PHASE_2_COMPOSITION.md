@@ -2602,3 +2602,11 @@ config fragment; no expert/core/evaluator change or new tool script. Preregistra
 implementation and completion commits; PHASE_2G_STANCE_INCREMENT.md and compact
 result before integration/tag exp/p2g-stance-increment-v1. Deliverable validity is
 separate from pilot quality; full Phase 2/learned training remain open. Close only 2.7.
+
+Implementation verification: **922 passed, 4 skipped in 163.29 seconds**. Moving
+source has exact zero stance energy/gradient, added supported horizontal motion
+is penalized, and spatial shifts/vertical motion preserve the horizontal target.
+Source feet, mask and floor remain fixed during optimization; recorded/default
+corrector outputs agree. All eight resolved configs match sealed Phase 2.6 except
+run/output paths and source_stance_velocity=true; Hydra instantiation confirms
+the selected objective. Registry valid with 351 records; diff check passes.

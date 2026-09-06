@@ -65,19 +65,78 @@ def test_source_floor_mask_is_relative_and_frozen_during_optimization():
         torch.zeros(points.shape[:-1], dtype=torch.bool), points,
     )
     target = geometry.decode(torch.zeros(1, 16, geometry.dimension))['human'][:, 2:]
-    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target, source_floor=True)
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target,
+                                    source_floor=True, source_stance_velocity=True)
     original_floor, original_mask = objective.floor_height.clone(), objective.stance.clone()
+    original_feet = objective.source_feet.clone()
     height = objective.anchor['human'][..., (7, 8, 10, 11), 1] - original_floor[:, None, None]
     expected = height < torch.tensor([.08, .08, .04, .04])
     assert torch.equal(original_mask, expected[:, 2:] & expected[:, 1:-1])
     optimize_relational_cells(geometry, objective, steps=3, cells=('a00',), include_floor=False)
     assert torch.equal(objective.floor_height, original_floor)
     assert torch.equal(objective.stance, original_mask)
+    assert torch.equal(objective.source_feet, original_feet)
+    assert not objective.source_feet.requires_grad
     default = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target)
-    explicit = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target, source_floor=False)
+    explicit = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target,
+                                   source_floor=False, source_stance_velocity=False)
     a, _, _ = optimize_relational_cells(geometry, default, steps=3, cells=('a00',), include_floor=False)
     b, _, _ = optimize_relational_cells(geometry, explicit, steps=3, cells=('a00',), include_floor=False)
     assert torch.equal(a, b)
+
+
+def test_source_stance_velocity_has_zero_energy_and_gradient_at_moving_source():
+    geometry, _ = _geometry()
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    parameters = torch.zeros(1, 16, geometry.dimension, requires_grad=True)
+    state = geometry.decode(parameters)
+    target = state['human'].detach()[:, 2:]
+    source = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target,
+                                 source_stance_velocity=True)
+    stationary = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target)
+    # Isolate the target semantics with known support; height selection is tested above.
+    source.stance.fill_(True)
+    stationary.stance.fill_(True)
+    terms, metrics = source.evaluate(state)
+    old_terms, _ = stationary.evaluate(state)
+    assert old_terms['stance'].item() > 0
+    assert metrics['stance_displacement_cm'].item() > 0
+    assert terms['stance'].item() == metrics['stance_increment_cm'].item() == 0
+    gradient, = torch.autograd.grad(terms['stance'].sum(), parameters)
+    assert torch.count_nonzero(gradient) == 0
+
+
+def test_source_stance_velocity_penalizes_added_horizontal_motion_on_fixed_support():
+    geometry, _ = _geometry()
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    state = geometry.decode(torch.zeros(1, 16, geometry.dimension))
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long),
+                                    state['human'][:, 2:], source_stance_velocity=True)
+    objective.stance.fill_(True)
+    baseline = state['human'].detach()
+    # A shared spatial shift preserves displacement; vertical motion also leaves
+    # this horizontal-only constraint unchanged even when crossing height thresholds.
+    shift = torch.zeros_like(baseline)
+    shift[..., 0] = .125
+    shift[..., 1] = torch.arange(16)[None, :, None] * .1
+    unchanged, _ = objective.evaluate(dict(state, human=baseline + shift))
+    torch.testing.assert_close(unchanged['stance'], torch.zeros(1), atol=1e-10, rtol=0)
+    # One added horizontal step on a supported toe is penalized and has a gradient.
+    movement = torch.zeros_like(baseline)
+    movement[:, 8:, 10, 0] = .02
+    moved_human = (baseline + movement).requires_grad_()
+    changed, metrics = objective.evaluate(dict(state, human=moved_human))
+    assert changed['stance'].item() > 0 and metrics['stance_increment_cm'].item() > 0
+    changed['stance'].sum().backward()
+    assert moved_human.grad[:, 7:9, 10, 0].abs().sum().item() > 0
+    assert torch.count_nonzero(moved_human.grad[..., 1]) == 0
+    objective.stance[:, :, 2] = False
+    excluded, _ = objective.evaluate(dict(state, human=moved_human.detach()))
+    assert excluded['stance'].item() == 0
 
 
 def test_empty_path_matches_the_forward_recurrence():
@@ -227,7 +286,8 @@ def test_independent_rollout_cell_matches_its_batched_window_cell():
         assert metrics['gradient_finite'].item() == 1
 
 
-def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
+@pytest.mark.parametrize('source_stance_velocity', [False, True])
+def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_stance_velocity):
     geometry, _ = _geometry()
     geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
         torch.zeros(points.shape[:-1], dtype=torch.bool), points,
@@ -241,7 +301,8 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
     }
     sampler = SimpleNamespace(dataset=geometry.dataset, inner_hoi=SimpleNamespace(sample_calls=1),
                               _hsi_prediction_pair=lambda *args: (geometry.base, geometry.base))
-    corrector = RelationalCorrector(cell='a01', optimizer_steps=2)
+    corrector = RelationalCorrector(cell='a01', optimizer_steps=2,
+                                    source_stance_velocity=source_stance_velocity)
     arguments = (sampler, geometry.base, geometry.base, torch.tensor([0]), context, geometry.offsets, geometry.base)
     assert corrector.correct(*arguments, step=9) is geometry.base
     with torch.no_grad():
@@ -251,10 +312,15 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
     assert torch.equal(result[:, :2], geometry.base[:, :2])
     assert torch.equal(result[..., 228:], geometry.base[..., 228:])
     audit = corrector.audit_dict()
+    assert audit['source_stance_velocity'] is source_stance_velocity
+    if source_stance_velocity:
+        assert audit['records'][0]['metrics']['before_energy_stance'] == 0
+        assert audit['records'][0]['metrics']['before_stance_increment_cm'] == 0
     assert audit['calls'] == 1
     assert audit['records'][0]['metrics']['gradient_finite'] == 1
     assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
-    recorded = RelationalCorrector(cell='a01', optimizer_steps=2, record_motion=True)
+    recorded = RelationalCorrector(cell='a01', optimizer_steps=2, record_motion=True,
+                                   source_stance_velocity=source_stance_velocity)
     rng_before = torch.get_rng_state().clone()
     with torch.no_grad():
         observed = recorded.correct(*arguments, step=0)

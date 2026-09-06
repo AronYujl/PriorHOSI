@@ -183,14 +183,17 @@ def _masked_mean(value, mask):
 class RelationalObjective:
     """Physical residuals and fixed source relations shared by all four cells."""
 
-    def __init__(self, geometry, scene_flag, hsi_target, source_floor=False):
+    def __init__(self, geometry, scene_flag, hsi_target, source_floor=False,
+                 source_stance_velocity=False):
         self.geometry = geometry
         self.scene_flag = scene_flag
         self.hsi_target = hsi_target.detach()
+        self.source_stance_velocity = source_stance_velocity
         zero = geometry.base.new_zeros(*geometry.base.shape[:2], geometry.dimension)
         with torch.no_grad():
             self.anchor = geometry.decode(zero)
         human = self.anchor['human']
+        self.source_feet = human[..., (7, 8, 10, 11), :].detach()
         relative = human[..., 22:24, :] - self.anchor['object_translation_world'][..., None, :]
         self.hand_anchor = _apply_rotation(
             self.anchor['object_rotation_world'][..., None, :, :].transpose(-1, -2), relative,
@@ -221,16 +224,20 @@ class RelationalObjective:
         hand_squared = (human[:, 2:, 22:24] - hand_target[:, 2:]).square().sum(-1)
         feet = human[..., (7, 8, 10, 11), :]
         velocity_squared = (feet[:, 2:, :, (0, 2)] - feet[:, 1:-1, :, (0, 2)]).square().sum(-1)
+        foot_correction = feet - self.source_feet
+        increment_squared = (foot_correction[:, 2:, :, (0, 2)]
+                             - foot_correction[:, 1:-1, :, (0, 2)]).square().sum(-1)
         support_height = human[:, 2:, (10, 11), 1].min(-1).values
         root_endpoint = human[:, -1, 0] - self.anchor['human'][:, -1, 0]
         object_endpoint = state['object_translation_world'][:, -1] - self.anchor['object_translation_world'][:, -1]
         residual = state['bounded_parameters'][:, 2:]
         contact_mse = _masked_mean(hand_squared, self.contact)
         stance_mse = _masked_mean(velocity_squared, self.stance)
+        stance_increment_mse = _masked_mean(increment_squared, self.stance)
         terms = {
             'residual': _mean(residual[..., :3].square()) + _mean(residual[..., 3:4].square()) + _mean(residual[..., 4:].square()),
             'contact': contact_mse / (3 * 0.05**2),
-            'stance': stance_mse / (2 * 0.02**2),
+            'stance': (stance_increment_mse if self.source_stance_velocity else stance_mse) / (2 * 0.02**2),
             'floor': _mean((support_height - 0.02).square()) / 0.02**2,
             'endpoint': (root_endpoint.square().mean(-1) + object_endpoint.square().mean(-1)) / 0.10**2,
             'hsi': _mean((human[:, 2:] - self.hsi_target).square()) / 0.05**2,
@@ -248,6 +255,7 @@ class RelationalObjective:
             'object_occupied_fraction': _mean(occupied[..., 24:].float()),
             'contact_anchor_drift_cm': contact_mse.sqrt() * 100,
             'stance_displacement_cm': stance_mse.sqrt() * 100,
+            'stance_increment_cm': stance_increment_mse.sqrt() * 100,
             'root_endpoint_shift_cm': root_endpoint.norm(dim=-1) * 100,
             'object_endpoint_shift_cm': object_endpoint.norm(dim=-1) * 100,
             'translation_max_cm': state['translation'].abs().flatten(1).max(1).values * 100,
@@ -292,7 +300,8 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
 
 
 def relational_problem(sampler, current, previous_x0, timesteps, context,
-                       rest_offsets, clean, source_floor=False):
+                       rest_offsets, clean, source_floor=False,
+                       source_stance_velocity=False):
     """Use the same frozen source and HSI target in window and rollout experiments."""
     cond, uncond = sampler._hsi_prediction_pair(current, previous_x0, timesteps, context)
     object_name = context['seq_name_dict'][0].split('_')[1]
@@ -304,14 +313,18 @@ def relational_problem(sampler, current, previous_x0, timesteps, context,
     increment = _apply_rotation(context['mat'][:, None, None, :3, :3], conditional_fk - unconditioned_fk)
     zero = clean.new_zeros(*clean.shape[:2], geometry.dimension)
     target = geometry.decode(zero)['human'][:, 2:] + increment
-    return geometry, RelationalObjective(geometry, context['scene_flag'], target, source_floor=source_floor), cond, uncond
+    return geometry, RelationalObjective(
+        geometry, context['scene_flag'], target, source_floor=source_floor,
+        source_stance_velocity=source_stance_velocity,
+    ), cond, uncond
 
 
 class RelationalCorrector:
     """Feed one registered relation cell into the shared reverse chain."""
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
-                 learning_rate=0.05, include_floor=True, record_motion=False, source_floor=False):
+                 learning_rate=0.05, include_floor=True, record_motion=False, source_floor=False,
+                 source_stance_velocity=False):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
@@ -320,6 +333,7 @@ class RelationalCorrector:
         self.records = []
         self.record_motion = record_motion
         self.source_floor = source_floor
+        self.source_stance_velocity = source_stance_velocity
         self.motion_records = []
 
     @torch.no_grad()
@@ -360,6 +374,7 @@ class RelationalCorrector:
         geometry, objective, _, _ = relational_problem(
             sampler, current, previous_x0, timesteps, context, rest_offsets, clean,
             source_floor=self.source_floor,
+            source_stance_velocity=self.source_stance_velocity,
         )
         encoded, parameters, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
@@ -389,6 +404,7 @@ class RelationalCorrector:
             'optimizer_steps': self.optimizer_steps, 'learning_rate': self.learning_rate,
             'include_floor': self.include_floor,
             'source_floor': self.source_floor,
+            'source_stance_velocity': self.source_stance_velocity,
             'optimizer_gradient_steps': self.optimizer_steps * len(self.records),
             'insertion': 'clean_before_posterior_and_previous_x0',
             'object_pose': 'hoi_with_common_human_object_transform',
