@@ -112,6 +112,8 @@ def test_fixed_source_pairing_static_base_and_passive_history():
     geometry.dataset.scene_grid_torch = dataset.scene_grid_torch
     geometry.dataset.get_nearest_free_voxel = lambda p, f: (torch.zeros(p.shape[:-1], dtype=torch.bool), p)
     context = dict(mat=geometry.mat, scene_flag=torch.zeros(1, dtype=torch.long),
+                   obj_rot_mat_prefix=geometry.prefix, obj_rot_mat_ref=geometry.reference,
+                   seq_name_dict={0: 'sub10_cube_0'}, obj_rest_verts={'cube': geometry.object_points[0]},
                    pelvis_goal=torch.zeros(1, 3), object_goal=torch.ones(1, 3), scene_goal=torch.zeros(1, 3),
                    is_object=torch.ones(1, dtype=torch.bool), is_loco=torch.zeros(1, dtype=torch.bool),
                    need_pelvis_dir=torch.ones(1, dtype=torch.bool))
@@ -132,12 +134,15 @@ def test_fixed_source_pairing_static_base_and_passive_history():
     objective = RelationalObjective(geometry, context['scene_flag'], geometry.decode(p)['human'][:, 2:])
     editor = SceneEvidenceEditor(enabled=True, mode='calibrate', lambda_dp=26., noise_levels=(250,),
         diagnostics=dict(enabled=True, noise_draws=2, mismatch_local_x_m=2., physical_probe_rms_m=[.001]))
-    teacher = SceneEvidenceTeacher(sampler, {}, None, context, reference, 42, lambda_dp=26.)
-    result = run_fixed_source_views(editor, teacher, geometry, objective, p, reference, 42)
+    returned = editor.edit(sampler, geometry.base, {}, None, context, geometry.offsets, 42)
+    record = editor.records[0]
+    result = record['view_diagnostic']
     assert result['ambient_rng_preserved'] and result['scene_storage_unchanged']
-    assert teacher.hsi_calls == 12 and teacher.hoi_calls == 6
-    assert all(x['hoi_reference_rms'] == [0.] for x in result['iterations'])
-    assert all(x['base_prediction_equal'] for x in result['iterations'])
+    assert record['hsi_teacher_calls'] == 12 and record['hoi_teacher_calls'] == 6
+    assert all(x['hoi_reference_rms'] == [0.] for x in record['iterations'])
+    assert all(x['base_prediction_equal'] for x in record['iterations'])
+    assert torch.equal(returned, geometry.base)
+    assert editor.motion_records[0]['local_bps'] is None
     for start in (0, 3):
         assert all(torch.equal(sampler.pairs[start][0], sampler.pairs[i][0]) for i in range(start, start+3))
     assert not torch.equal(sampler.pairs[0][0], sampler.pairs[3][0])

@@ -3384,3 +3384,14 @@ CG off, gate0 and unchanged editor recipe; registry363 records validates. Runtim
 source/context replay, actual R2 static-base equivalence and batch1 timings are
 measured by the registered workload. Passive records carry all ray probes and
 same-source lambda0 short edits; no probe changes actual history.
+
+### Phase2.13 operational failure and same-protocol retry
+
+The first run failed on all six first windows after queries/probes, while saving
+optional local_bps=None with tensor.detach(). All six exits and failed manifest
+remain at p2-mixer-evidence-views-s42-20260907; no episode was saved. Fix the
+serialization to preserve None and extend the passive end-to-end test through
+motion persistence. Rerun exactly the registered24 tasks/68 windows as
+p2-mixer-evidence-views-r1-s42-20260907. First attempt adds six attempted windows
+(864 HSI and384 HOI teacher forwards) of operational cost; these are outside the
+9792/4352 complete retry budget. Settings and scientific selection remain fixed.

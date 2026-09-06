@@ -315,7 +315,7 @@ class SceneEvidenceEditor:
                     k: v.detach().cpu() if torch.is_tensor(v) else v
                     for k, v in context.items() if k not in ('obj_rest_verts', 'static_occ_cache')}
                 self.motion_records[-1]['rest_offsets'] = offsets.detach().cpu()
-                self.motion_records[-1]['local_bps'] = local_bps.detach().cpu()
+                self.motion_records[-1]['local_bps'] = None if local_bps is None else local_bps.detach().cpu()
                 self.motion_records[-1]['hoi_arguments'] = {
                     k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in arguments.items()}
         return returned
