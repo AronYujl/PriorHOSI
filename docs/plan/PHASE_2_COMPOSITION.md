@@ -1,19 +1,19 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Shared-chain sampling and fixed raw/kinematic
-composition are implemented. The completed R2-CG raw/KIN comparison rejected
-the kinematic operator. Phase 2.1/2.2 relational experiments and the Phase 2.3
-common-correction diagnostic are complete. The original closed-loop recipe
-failed its quality gate; Phase 2.3 identifies its forced floor objective as a
-source of sliding, human-scene prevalence and completion costs. Zero-step
-reconstruction improves sliding and HS prevalence against the matched reference
-on the four-scene pilot and is the preferred next comparison anchor.
+Status: updated 2026-09-06. Phase 2.4 deliverable PASS; floor-free geometry and
+HSI quality gates FAIL. Shared-chain sampling and fixed raw/kinematic composition
+are implemented; the R2-CG comparison rejected the kinematic operator. Phase
+2.1–2.4 are complete. Phase 2.3 identified the forced floor cost. Phase 2.4
+re-established geometry's OS-depth benefit with a significant sliding cost, and
+the HSI target's significant OS cost with one lost completion. Retain zero-step
+reconstruction as the four-scene pilot comparison anchor.
 
 Current expert selection (user, 2026-09-06): **R2 final EMA + CG** and
-**P15 online + guidance Arm B**. Continue Phase 2 with these fixed experts.
-Re-establish geometry/HSI factor effects on the corrected anchor through a
-separately approved experiment. Full Phase 2, useful learned HSI supervision,
-learned-mixer training and the state machine remain open. See the handoffs below.
+**P15 online + guidance Arm B**. Keep these fixed. Next entry is a read-only
+review of saved geometry/stance changes before a separately approved diagnostic.
+Full Phase 2, useful learned HSI supervision, motion realism, learned-mixer
+training and the state machine remain open. Latest handoff:
+[Phase 2.4](../phase_summaries/PHASE_2D_FLOOR_FREE_FACTORIAL.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2301,3 +2301,32 @@ Implementation verification: 916 passed, 4 skipped in 160.39 seconds; registry
 valid with 345 records. All twelve exact resolved configs differ from sealed
 no_floor only in run/output locations and the approved cell. The implementation
 adds one inherited config fragment; runtime code and its tested path are unchanged.
+
+
+## 2026-09-06 — Phase 2.4 completion: floor-free tradeoff retained
+
+All 84 new episodes/372 windows and paired analyses completed successfully on
+8x RTX 3090 in 40m39s. Reused reconstruction and no_floor A00 remain matched.
+A01 reduces OS s_mean 30.53389 to 19.05300 against reconstruction; primary
+Bonferroni 99% episode and scene intervals exclude zero. FS rises .12928 to
+.20764, significant at both units; geometry quality gate fails its protection.
+A11 raises OS s_mean to 25.38633 versus A01, a significant adjusted cost at both
+units. Its sliding benefit versus A01 is unresolved at episode unit. A10/A11
+complete 21/28 versus 22/28 controls; the same clothesstand endpoint exceeds
+10 cm, violating the two-point completion budget. HSI quality gate fails.
+All contact point protections pass; depth maxima and other adverse/positive
+findings remain in the complete result. Secondary factorial interaction confirms
+geometry-dependent HSI effects without identifying the underlying mechanism.
+
+Deliverable PASS, both recipe promotion gates FAIL. Retain reconstruction anchor,
+fixed experts and the earlier floor-active negative. Full Phase 2, realism and
+learned-mixer training remain open. Compact result:
+experiments/results/p2_mixer_floor_free_factorial_s42_20260906.json;
+handoff: docs/phase_summaries/PHASE_2D_FLOOR_FREE_FACTORIAL.md.
+Integrate/tag exp/p2d-floor-free-factorial-v1 after completion verification;
+close only this subphase. Later review should localize the geometric sliding
+cost from saved artifacts before a separately approved diagnostic.
+
+Completion verification: **916 passed, 4 skipped in 157.04 seconds**; registry
+valid with 346 records. Complete native/optimizer finiteness and history/contact
+audits pass. All twelve jobs and all analysis reports succeeded.
