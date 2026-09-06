@@ -1,14 +1,15 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.7 source-stance-velocity experiment approved.
-Phase 2.6 deliverable PASS; pilot quality FAIL. The next controlled change
-penalizes correction-induced horizontal foot displacement with the same frozen
-source-height mask. Retain reconstruction anchor until the new quality gate passes.
+Status: updated 2026-09-06. Phase 2.7 deliverable PASS; pilot quality FAIL.
+OS-depth gains pass, while the adjusted HS-frame primary remains unresolved at
+episode level. The A00 control also increases its common objective and worsens
+native sliding against reconstruction. Retain reconstruction and the fixed experts.
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Current session implements and evaluates only the approved Phase 2.7 experiment.
-[Phase2.6 handoff](../phase_summaries/PHASE_2F_STANCE_HEIGHT.md).
+Close only Phase 2.7. The next read-only review should examine the common optimizer
+at its near-zero source objective before one separately approved intervention.
+[Phase2.7 handoff](../phase_summaries/PHASE_2G_STANCE_INCREMENT.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2610,3 +2611,41 @@ Source feet, mask and floor remain fixed during optimization; recorded/default
 corrector outputs agree. All eight resolved configs match sealed Phase 2.6 except
 run/output paths and source_stance_velocity=true; Hydra instantiation confirms
 the selected objective. Registry valid with 351 records; diff check passes.
+
+## 2026-09-06 — Phase 2.7 completion: HS primary unresolved, common optimizer cost
+
+All eight GPU jobs and automatic analyses completed successfully: 56 episodes,
+248 windows, 744 corrections, 14,880 optimizer steps and 123,752 CG calls.
+Saved motions reconstruct the optimized increment and every native FS value;
+all initial stance energies are exactly zero. Deliverable PASS, quality FAIL.
+
+A01-increment HS frame prevalence falls 2.7963 percentage points versus
+A01-height. The adjusted episode CI [-6.4085,+0.2678] points crosses zero;
+the scene CI [-6.4548,-0.0209] points passes. Nominal 95% intervals exclude
+zero at both units, but the registered adjusted primary gate remains unmet.
+A01-increment OS mean 21.285703 improves versus new A00 30.645320 and
+reconstruction 30.533886, with both adjusted comparisons passing at both units.
+All registered candidate protections pass. All episode completion outcomes
+match reconstruction (22/28), while candidate FS increases from reconstruction
+.129277 to .160854 with unresolved nominal intervals.
+
+The common control has a distinct negative: A00-increment FS rises .010686
+(8.27%) versus reconstruction, significant at both units. Its entire active
+objective increases in 336/372 corrections (36 tied), from an episode-first
+initial mean 3.94e-13 to .047956. Exact zero initial stance energy therefore
+does not guarantee that the 20-step optimizer preserves the source. The logged
+energies establish this departure; its numerical/optimization cause remains open.
+Source/corrected mask membership, absolute/incremental foot displacement,
+vertical corrections and scene energies are retained with step/history strata.
+
+GPU job wall time was 32m06s; manifest start through analysis completion was
+32m39s. Full native/paired/diagnostic results, runtime and failures are in
+`experiments/results/p2_mixer_stance_increment_s42_20260906.json` and
+`docs/phase_summaries/PHASE_2G_STANCE_INCREMENT.md`. Retain reconstruction;
+review the common optimizer before a separately approved new mechanism.
+Integrate/tag exp/p2g-stance-increment-v1 after completion verification.
+
+Completion verification: **922 passed, 4 skipped in 163.87 seconds**; registry
+valid with 352 records. Native pairing, saved-native FS and increment audits pass.
+Source and native evaluator stayed fixed; existing immutable input references
+are retained.
