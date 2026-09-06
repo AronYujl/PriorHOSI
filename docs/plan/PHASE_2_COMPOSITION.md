@@ -2,16 +2,18 @@
 
 Status: updated 2026-09-06. Shared-chain sampling and fixed raw/kinematic
 composition are implemented. The completed R2-CG raw/KIN comparison rejected
-the kinematic operator. A learned mixer and the state machine remain future
-work. The input diagnostic and Phase 2.1/2.2 relational experiments are complete.
-The relational interface passes; the closed-loop recipe fails its quality gate.
-The common correction already worsens sliding and completion. Adding the HSI
-increment reduces sliding but increases object-scene depth. See the handoffs below.
+the kinematic operator. Phase 2.1/2.2 relational experiments and the Phase 2.3
+common-correction diagnostic are complete. The original closed-loop recipe
+failed its quality gate; Phase 2.3 identifies its forced floor objective as a
+source of sliding, human-scene prevalence and completion costs. Zero-step
+reconstruction improves sliding and HS prevalence against the matched reference
+on the four-scene pilot and is the preferred next comparison anchor.
 
 Current expert selection (user, 2026-09-06): **R2 final EMA + CG** and
 **P15 online + guidance Arm B**. Continue Phase 2 with these fixed experts.
-Phase 2.2 is archived below. Review the common reconstruction/constraint bundle
-before registering a further diagnostic; the full Phase 2 gate remains open.
+Re-establish geometry/HSI factor effects on the corrected anchor through a
+separately approved experiment. Full Phase 2, useful learned HSI supervision,
+learned-mixer training and the state machine remain open. See the handoffs below.
 
 ## What is being composed, and why not by data mixing
 
@@ -2211,3 +2213,36 @@ now sets ROOT_DIR to its checkout's absolute root; this replaces its relative
 reset and changes no data target. Eight fully resolved configs match sealed A00
 except run/output locations and the registered interventions. The previous suite
 also passed 916/4 before that path correction. Registry validation passes.
+
+
+## 2026-09-06 — Phase 2.3 completion: floor cost identified
+
+The approved `p2-mixer-common-diagnostic-s42-20260906` completed all 56 new
+native episodes/248 windows on eight RTX 3090 GPUs in 34 minutes 17 seconds.
+All eight jobs and eight paired reports passed; 123,752 CG calls, 744 corrections,
+7,440 actual optimizer steps, finite outputs/gradients and exact history/contact.
+The matched reference and A00 are reused from Phase 2.2.
+
+Excluding only floor from A00 restores completion 18/28 to 22/28, lowers FS
+0.55478 to 0.13113 and HS penetrating-frame prevalence 75.405% to 33.926%.
+All three effects are significant at episode and scene units. Contact is 67.620%
+versus A00 68.510%, with unresolved difference; native feet height returns from
+1.670 to 3.895 cm. This identifies the floor cost within the fixed common bundle,
+including its interactions, rather than a separate stance-mask effect.
+
+Zero-step reconstruction reaches 22/28, contact 68.466%, FS 0.12928 and feet height
+3.903 cm. Against reference, FS delta -0.04540 and HS prevalence delta -0.04331
+are significant at both units. Thus reconstruction is a useful candidate anchor
+on this pilot. Object-scene mean-depth change remains unresolved. No-floor adds
+no significant FS/HS-prevalence improvement over reconstruction, decreases contact
+0.8458 percentage points and increases HS maximum depth-sum 0.97438; both adverse
+effects are significant at both units. Prefer the cheaper reconstruction anchor
+for the next separately approved comparison. The full Phase 2 gate and useful
+learned HSI composition remain open; previous factor effects must be retested on
+the corrected anchor before transfer.
+
+Full metrics, paired intervals, runtime and limits are in
+`experiments/results/p2_mixer_common_diagnostic_s42_20260906.json` and
+`docs/phase_summaries/PHASE_2C_COMMON_DIAGNOSTIC.md`. The diagnostic deliverable
+passes. Integrate into `phase/02-mixer` and tag `exp/p2c-common-diagnostic-v1`.
+Close this subphase without starting another workload.
