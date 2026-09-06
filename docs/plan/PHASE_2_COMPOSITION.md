@@ -1,6 +1,7 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.7 deliverable PASS; pilot quality FAIL.
+Status: updated 2026-09-06. Phase 2.8 optimizer diagnosis is approved and its
+implementation is verified. Phase 2.7 deliverable PASS; pilot quality FAIL.
 OS-depth gains pass, while the adjusted HS-frame primary remains unresolved at
 episode level. The A00 control also increases its common objective and worsens
 native sliding against reconstruction. Retain reconstruction and the fixed experts.
@@ -2691,7 +2692,7 @@ to recover missing optimizer inputs.
 7,440 original and 7,440 shadow updates, finite traces, exact history/contact,
 and exact replay of all 16 native outcomes and existing correction scalars/states
 against sealed A00-increment. Recording must preserve optimizer output and RNG
-in component tests. Independent trace reconstruction verifies energies at every
+in component tests. Independent trace reconstruction verifies active energies at every
 step and Adam's first update (atol 1e-8, rtol 1e-6). Initial term-gradient
 attribution and contact-off source preservation are measured over every correction,
 including zero-contact and zero-gradient cases. A causal-positive classification
@@ -2729,3 +2730,13 @@ PHASE_2H_OPTIMIZER_DIAGNOSTIC.md and a compact result before integration/tag
 exp/p2h-optimizer-diagnostic-v1. Close only Phase 2.8; reconstruction and the
 fixed experts remain the comparison anchor. Any production repair is a subsequent
 concrete experiment informed by this diagnosis.
+
+Implementation verification: **924 passed, 4 skipped in 163.62 seconds**.
+CPU/CUDA component checks preserve original optimizer outputs, scalars and RNG
+exactly while recording the full trajectory; the source contact gradient explains
+the fixture's initial update, and its contact-off shadow stays exactly at zero.
+These fixture findings are not substituted for the registered real-data cohort.
+Saved tensor caches reproduce decoded geometry and contact residuals. Four fully
+resolved configs match sealed A00-increment except run/output paths and
+optimizer_diagnostic=true. Formal GPU execution supplies functional and timing/
+memory validation; the native evaluator and production objective remain unchanged.

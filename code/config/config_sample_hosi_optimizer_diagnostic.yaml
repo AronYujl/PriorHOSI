@@ -1,0 +1,8 @@
+# Phase 2.8: observe A00 Adam and a same-source contact-off shadow.
+defaults: [config_sample_hosi_stance_increment, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      cell: a00
+      optimizer_diagnostic: true

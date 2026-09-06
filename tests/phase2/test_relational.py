@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'code'))
 
 from mixer.input_views import KnownEmptyObjectView, empty_forward_trajectory
 from mixer.relational import CELL_KEYS, RelationalCorrector, RelationalGeometry, RelationalObjective, optimize_relational_cells, source_floor_height
-from mixer.relational_diagnostics import RelationalPrototypeDiagnostic
+from mixer.relational_diagnostics import (
+    RelationalOptimizerTrace, RelationalPrototypeDiagnostic, diagnose_relational_optimizer,
+)
 from tests.phase2.test_kinematic_composition import _fixture
 
 
@@ -137,6 +139,67 @@ def test_source_stance_velocity_penalizes_added_horizontal_motion_on_fixed_suppo
     objective.stance[:, :, 2] = False
     excluded, _ = objective.evaluate(dict(state, human=moved_human.detach()))
     assert excluded['stance'].item() == 0
+
+
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+def test_optimizer_trace_preserves_output_rng_and_attributes_source_departure(device):
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA unavailable')
+    geometry, _ = _geometry()
+    for name, value in vars(geometry).copy().items():
+        if torch.is_tensor(value):
+            setattr(geometry, name, value.to(device))
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool, device=points.device), points,
+    )
+    zero = geometry.base.new_zeros(1, 16, geometry.dimension)
+    objective = RelationalObjective(
+        geometry, torch.zeros(1, dtype=torch.long, device=device),
+        geometry.decode(zero)['human'][:, 2:], source_stance_velocity=True,
+    )
+    objective.contact.fill_(True)
+    objective.stance.fill_(True)
+    expected, expected_parameters, expected_metrics = optimize_relational_cells(
+        geometry, objective, steps=20, cells=('a00',), include_floor=False,
+    )
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state().clone() if device == 'cuda' else None
+    trace = RelationalOptimizerTrace()
+    actual, parameters, metrics = optimize_relational_cells(
+        geometry, objective, steps=20, cells=('a00',), include_floor=False, trace=trace,
+    )
+    assert torch.equal(actual, expected)
+    assert torch.equal(parameters, expected_parameters)
+    assert all(torch.equal(metrics[name], expected_metrics[name]) for name in metrics)
+    snapshot = diagnose_relational_optimizer(geometry, objective, trace, 20, .05, 'a00', False)
+    assert torch.equal(torch.get_rng_state(), cpu_rng)
+    if device == 'cuda':
+        assert torch.equal(torch.cuda.get_rng_state(), cuda_rng)
+    reference, shadow = snapshot['reference'], snapshot['contact_off']
+    assert reference['parameters'].shape == (21, 1, 16, geometry.dimension)
+    assert reference['gradients'].shape == (20, 1, 16, geometry.dimension)
+    assert reference['loss'][0].item() > 0
+    assert reference['loss'][-1].item() > reference['loss'][0].item()
+    for name in ('residual', 'stance', 'endpoint'):
+        assert torch.count_nonzero(reference['initial_term_gradients'][name]) == 0
+    assert torch.equal(reference['initial_term_gradients']['contact'], reference['gradients'][0])
+    first_gradient = reference['gradients'][0]
+    expected_update = -.05 * first_gradient / (first_gradient.abs() + 1e-8)
+    torch.testing.assert_close(reference['parameters'][1], expected_update, atol=1e-8, rtol=1e-6)
+    assert torch.count_nonzero(shadow['parameters']) == 0
+    assert torch.count_nonzero(shadow['gradients']) == 0
+    assert torch.count_nonzero(shadow['loss']) == 0
+    for name in ('residual', 'contact', 'stance', 'endpoint'):
+        assert torch.equal(snapshot['contact_off_final_original_terms'][name], reference['terms'][name][0])
+    mask = snapshot['contact_mask'].to(device)
+    squared = snapshot['source_contact_residual'].to(device)[:, 2:].square().sum(-1)
+    contact = (squared * mask).flatten(1).sum(1) / mask.flatten(1).sum(1) / (3 * .05**2)
+    torch.testing.assert_close(contact.cpu(), reference['terms']['contact'][0], atol=0, rtol=0)
+    # The cached tensor inputs suffice to reconstruct every saved parameter state.
+    replay = RelationalGeometry.__new__(RelationalGeometry)
+    for name, value in snapshot['geometry'].items():
+        setattr(replay, name, value.to(device))
+    torch.testing.assert_close(replay.decode(parameters)['human'], geometry.decode(parameters)['human'], atol=0, rtol=0)
 
 
 def test_empty_path_matches_the_forward_recurrence():
@@ -320,7 +383,8 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_
     assert audit['records'][0]['metrics']['gradient_finite'] == 1
     assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
     recorded = RelationalCorrector(cell='a01', optimizer_steps=2, record_motion=True,
-                                   source_stance_velocity=source_stance_velocity)
+                                   source_stance_velocity=source_stance_velocity,
+                                   optimizer_diagnostic=source_stance_velocity)
     rng_before = torch.get_rng_state().clone()
     with torch.no_grad():
         observed = recorded.correct(*arguments, step=0)
@@ -328,6 +392,9 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_
     assert torch.equal(result, observed)
     assert recorded.records[0]['metrics'] == corrector.records[0]['metrics']
     snapshot = recorded.motion_records[0]
+    if source_stance_velocity:
+        assert snapshot['optimizer_diagnostic']['reference']['parameters'].shape[0] == 3
+        assert recorded.audit_dict()['shadow_optimizer_gradient_steps'] == 2
     source = snapshot['states']['source']['human']
     stance = source[..., (7, 8, 10, 11), 1] < torch.tensor([.08, .08, .04, .04])
     assert torch.equal(snapshot['stance_mask'], stance[:, 2:] & stance[:, 1:-1])

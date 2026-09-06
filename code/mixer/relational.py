@@ -265,7 +265,7 @@ class RelationalObjective:
 
 
 def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
-                              cells=CELL_KEYS, include_floor=True):
+                              cells=CELL_KEYS, include_floor=True, trace=None):
     """Independent Adam cells in one GPU batch, from identical zero residuals."""
     with torch.enable_grad():
         parameters = geometry.base.new_zeros(len(cells), geometry.base.shape[1], geometry.dimension, requires_grad=True)
@@ -283,14 +283,23 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
             loss = sum(terms[name] for name in common_terms)
             loss = loss + use_hsi * terms['hsi'] + use_scene * (terms['human_scene'] + terms['object_scene'])
             optimizer.zero_grad(set_to_none=True)
+            if trace is not None:
+                trace.before_backward(parameters, terms, loss, common_terms, optimizer)
             loss.sum().backward()
             gradient_finite &= torch.isfinite(parameters.grad).flatten(1).all(1)
             gradient_max = torch.maximum(gradient_max, parameters.grad.detach().abs().flatten(1).max(1).values)
             optimizer.step()
+            if trace is not None:
+                trace.after_step(parameters, optimizer)
         with torch.no_grad():
             state = geometry.decode(parameters)
             final_terms, final_metrics = objective.evaluate(state)
             encoded = geometry.encode(state, geometry.base[:, :2])
+            if trace is not None:
+                final_loss = sum(final_terms[name] for name in common_terms)
+                final_loss = final_loss + use_hsi * final_terms['hsi'] + use_scene * (
+                    final_terms['human_scene'] + final_terms['object_scene'])
+                trace.finish(parameters, final_terms, final_loss)
     metrics = {**final_metrics, **{'energy_' + k: v for k, v in final_terms.items()}}
     metrics.update({'before_' + k: v.detach() for k, v in initial_metrics.items()})
     metrics.update({'before_energy_' + k: v.detach() for k, v in initial_terms.items()})
@@ -324,16 +333,17 @@ class RelationalCorrector:
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
                  learning_rate=0.05, include_floor=True, record_motion=False, source_floor=False,
-                 source_stance_velocity=False):
+                 source_stance_velocity=False, optimizer_diagnostic=False):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
         self.learning_rate = float(learning_rate)
         self.include_floor = include_floor
         self.records = []
-        self.record_motion = record_motion
+        self.record_motion = record_motion or optimizer_diagnostic
         self.source_floor = source_floor
         self.source_stance_velocity = source_stance_velocity
+        self.optimizer_diagnostic = optimizer_diagnostic
         self.motion_records = []
 
     @torch.no_grad()
@@ -376,9 +386,13 @@ class RelationalCorrector:
             source_floor=self.source_floor,
             source_stance_velocity=self.source_stance_velocity,
         )
+        trace = None
+        if self.optimizer_diagnostic:
+            from .relational_diagnostics import RelationalOptimizerTrace, diagnose_relational_optimizer
+            trace = RelationalOptimizerTrace()
         encoded, parameters, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
-            cells=(self.cell,), include_floor=self.include_floor,
+            cells=(self.cell,), include_floor=self.include_floor, trace=trace,
         )
         if current.is_cuda:
             torch.cuda.synchronize(current.device)
@@ -396,6 +410,19 @@ class RelationalCorrector:
         if self.record_motion:
             self.record_geometry(geometry, objective, parameters,
                                  sampler.inner_hoi.sample_calls, step)
+        if self.optimizer_diagnostic:
+            if current.is_cuda:
+                torch.cuda.synchronize(current.device)
+            diagnostic_started = time.perf_counter()
+            self.motion_records[-1]['optimizer_diagnostic'] = diagnose_relational_optimizer(
+                geometry, objective, trace, self.optimizer_steps, self.learning_rate,
+                self.cell, self.include_floor,
+            )
+            if current.is_cuda:
+                torch.cuda.synchronize(current.device)
+            self.records[-1]['optimizer_diagnostic_seconds'] = time.perf_counter() - diagnostic_started
+            self.records[-1]['optimizer_diagnostic_peak_allocated_bytes'] = (
+                torch.cuda.max_memory_allocated(current.device) if current.is_cuda else None)
         return encoded
 
     def audit_dict(self):
@@ -405,6 +432,8 @@ class RelationalCorrector:
             'include_floor': self.include_floor,
             'source_floor': self.source_floor,
             'source_stance_velocity': self.source_stance_velocity,
+            'optimizer_diagnostic': self.optimizer_diagnostic,
+            'shadow_optimizer_gradient_steps': self.optimizer_steps * len(self.records) if self.optimizer_diagnostic else 0,
             'optimizer_gradient_steps': self.optimizer_steps * len(self.records),
             'insertion': 'clean_before_posterior_and_previous_x0',
             'object_pose': 'hoi_with_common_human_object_transform',
