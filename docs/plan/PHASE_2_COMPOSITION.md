@@ -1,15 +1,13 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.6 deliverable PASS; height-aligned pilot
-quality FAIL. Source-relative floor expands stance coverage (338 to 5 empty
-masks/372 calls) and retains OS-depth benefit, but the registered sliding gain
-is unresolved at episode level and HS frame prevalence worsens against
-reconstruction. Neither height recipe is promoted; retain reconstruction anchor.
+Status: updated 2026-09-06. Phase 2.7 source-stance-velocity experiment approved.
+Phase 2.6 deliverable PASS; pilot quality FAIL. The next controlled change
+penalizes correction-induced horizontal foot displacement with the same frozen
+source-height mask. Retain reconstruction anchor until the new quality gate passes.
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Next session should read the latest handoff and review support/HS changes before
-one separately approved mechanism; avoid automatic parameter sweeps.
+Current session implements and evaluates only the approved Phase 2.7 experiment.
 [Phase2.6 handoff](../phase_summaries/PHASE_2F_STANCE_HEIGHT.md).
 
 ## What is being composed, and why not by data mixing
@@ -2515,3 +2513,92 @@ exp/p2f-stance-height-v1 after final verification; close only this subphase.
 Completion verification: **919 passed, 4 skipped in 165.41 seconds**; registry
 valid with 350 records, complete native pairing at both units, saved-native FS
 checks and all finiteness/history/contact audits pass.
+
+## 2026-09-06 — Phase 2.7 approved source-stance-velocity experiment
+
+User approved two 28-episode rows, A00-increment and A01-increment, following a
+read-only review of the Phase 2.5/2.6 recordings. Branch
+phase/02g-stance-increment; run p2-mixer-stance-increment-s42-20260906.
+One config fragment inherits config_sample_hosi_stance_height and enables
+source_stance_velocity. Fixed R2 final EMA+CG/P15 online+Arm B, seed 42,
+bins 0/22/44/66, seven objects, 500 diffusion steps, 499 CG calls/window,
+corrections 10/1/0, 20 Adam steps at .05, all bounds/scales and source contact
+labels. Source-relative floor estimation and the two-adjacent-frame stance mask
+remain frozen within each correction. Forced floor and HSI target factors stay
+off. A01 adds the same human/object scene geometry as before.
+
+**Mechanism and evidence.** A01-height selects 14,243 foot transitions; 4,042
+exceed the existing low-speed criterion (.005 m per scale-3 interpolated sample,
+equivalently .015 m per source segment). They contribute 97.989% of pooled
+selected horizontal displacement squared. This identifies optimization pressure,
+not whether those movements are gait or genuine sliding. A00's episode-first
+initial stance energy is .010769 before height alignment and 1.679636 afterward;
+initial residual/endpoint energies are zero and contact energy is about 4e-13.
+The source motion itself therefore drives common optimization. On A01-height,
+same-frozen-floor mask losses are 790/14,243 (5.55%); the previous review's
+interpretation of mixed-reference lost_world_mask_count as lost support is
+withdrawn. Its mean selected FS proxy contribution decreases, rather than
+increases, overall. Between-window floor jumps have exploratory episode-level
+Spearman rho .0066 with the FS change against old A01, without causal attribution.
+
+Replace only the stance energy target for the approved rows. For frozen source
+feet p_src and corrected feet p, define horizontal correction d = (p-p_src)_xz
+and E_stance = mean_M ||d[t]-d[t-1]||^2 / (2*.02^2), on t=2..15 and joints
+7/8/10/11. This equals the difference between corrected and source horizontal
+displacements. The detached source stays fixed through optimization. The existing
+zero-velocity recipe remains the default for sealed configurations. Preserve raw
+stance_displacement_cm telemetry and add stance_increment_cm; energy_stance
+records the actual optimized quantity. Record the target mode in the sampler audit.
+
+Hypothesis: preserving source foot displacement removes an unnecessary drive to
+rewrite gait, reducing HS penetrating-frame prevalence while retaining geometry's
+OS-depth benefit. Risk: the source contains genuine sliding that this objective
+preserves; geometry may also need to change foot motion. Saved joints and scalar
+metrics do not locate native mesh-SDF penetrations, so neither the height review
+nor this hypothesis claims that the extra HS penetration is at the feet.
+
+**Comparisons and gates.** Reuse sealed Phase 2.6 A00-height/A01-height and
+Phase 2.3 reconstruction. Primary family of three contrasts: A01-increment minus
+A01-height HS penetrating-frame ratio; A01-increment minus A00-increment OS
+s_mean; A01-increment minus reconstruction OS s_mean. Use 10,000 seed-42 paired
+bootstrap replicates with Bonferroni 98.3333% percentile CIs at episode and
+four-scene units; require all upper limits below zero at both units. Secondary
+nominal 95% comparisons: each new row versus its sealed height counterpart and
+reconstruction, A01-increment versus A00-increment, and the target-by-geometry
+interaction. Report all 15 native metrics and completion, including negatives.
+Each new row may lose at most .02 contact/completion points against its height
+counterpart and reconstruction; A01 must also pass versus new A00. A01 may have
+no significant nominal worsening in FS or HS frame prevalence against new A00
+or reconstruction at either unit, or in FS against A01-height. Unresolved primary
+comparisons fail promotion; absence of significance is not equivalence.
+
+**Registered diagnostic.** Preserve source/corrected, transform-decomposed,
+sampled-window, stitched and evaluated-joint snapshots. Verify that before
+energy_stance and before stance_increment_cm are exactly zero in all corrections;
+reconstruct the optimized increment and raw displacement from recorded motions.
+Report both displacement measures, source floor/coverage, same-floor mask changes,
+horizontal and vertical correction magnitudes, sparse-joint occupancy and scene
+energies, episode-first and by step/initial-versus-generated history. Use each
+episode's own frozen source for the within-correction comparison; different rows'
+later source trajectories have diverged. Verify saved joints reproduce native FS.
+These diagnostics do not replace native quality gates or measure motion realism.
+
+**Execution and deliverable.** Same 56 episodes/248 windows/744 corrections and
+14,880 optimizer steps, complete native pairing, finite values/gradients and
+exact history/contact. Meaningful component checks cover zero loss/gradient at
+the moving source, resistance to added foot motion, fixed source targets/masks,
+horizontal-only loss and default output compatibility. Run the full authority
+suite, registry validation and resolved-config comparison before formal sampling.
+The formal batch-1 run supplies real-data functional and synchronized compute/
+memory validation; no separate smoke or performance workload is added. Archive
+all eight resolved configs, preflight, inherited sealed input references, command
+and launch/analysis artifacts. Start from clean committed source through
+tools/experiment.py start, then native Hydra evaluation and tools/paired_bootstrap.py.
+Use a host-owned detached screen with eight GPU lanes and automatic analysis.
+Initial stability requires one complete episode per lane and peak allocation below
+20 GiB on each 24 GiB RTX 3090. Preserve every failure; no run-id reuse or automatic
+restart. Source scope: existing mixer relation module, its component tests and one
+config fragment; no expert/core/evaluator change or new tool script. Preregistration,
+implementation and completion commits; PHASE_2G_STANCE_INCREMENT.md and compact
+result before integration/tag exp/p2g-stance-increment-v1. Deliverable validity is
+separate from pilot quality; full Phase 2/learned training remain open. Close only 2.7.
