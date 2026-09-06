@@ -284,3 +284,10 @@ HOI source reference. Learned mixer, expert retraining, distillation and state
 machine work are deferred. Historical gates/results retain their original scope.
 Phase 2.10 delivers the editor and a finite integration diagnostic; Phase 2.11 is
 the separately registered 469-task comparison after the implementation gate.
+
+## 2026-09-07 — Approved independent-development calibration
+
+The user selected independent-development signal-scale calibration after2.10.
+Phase2.11 is now phase/02k-scene-evidence-calibration, with an estimated global
+lambda and a separate development verification gate. The formal469 comparison
+moves to Phase2.12 / phase/02l-scene-evidence-benchmark. Close one subphase/session.
