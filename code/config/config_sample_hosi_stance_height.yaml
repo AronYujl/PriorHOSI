@@ -1,0 +1,7 @@
+# Phase 2.6: change only the stance height reference; keep recording enabled.
+defaults: [config_sample_hosi_stance_recording, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      source_floor: true

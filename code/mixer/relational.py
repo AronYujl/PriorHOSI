@@ -17,6 +17,50 @@ from .kinematic_composition import (
 CELL_KEYS = ('a00', 'a10', 'a01', 'a11')
 
 
+@torch.no_grad()
+def source_floor_height(human):
+    """Native low-speed/DBSCAN height rule on nonpadded scale-3 source FK.
+
+    One-dimensional core components are ordered by their first input index,
+    matching DBSCAN's assignment of a border point reachable from two clusters.
+    Native evaluation includes noise in its minimum-median comparison.
+    """
+    toes = human.detach()[:, :, (10, 11), :].to(torch.float64)
+    index = torch.arange((human.shape[1] - 1) * 3 + 1, device=human.device)
+    base = index // 3
+    fraction = (index % 3).to(toes.dtype)[None, :, None, None] / 3
+    dense = (toes[:, base] * (1 - fraction)
+             + toes[:, (base + 1).clamp_max(human.shape[1] - 1)] * fraction).to(human.dtype)
+    speed = (dense[:, 1:] - dense[:, :-1]).norm(dim=-1)
+    speed = torch.cat((speed, speed[:, -1:]), dim=1)
+    selected = speed < .005
+    floors = []
+    counts = selected.flatten(1).sum(1)
+    for points, mask in zip(dense, selected):
+        heights = points[..., 1].transpose(0, 1).flatten()
+        values = heights[mask.transpose(0, 1).flatten()].to(torch.float64)
+        count = len(values)
+        if count == 0:
+            floors.append(human.new_zeros(()))
+            continue
+        neighbors = (values[:, None] - values[None, :]).abs() <= .005
+        core = torch.where(neighbors.sum(1) >= 3)[0]
+        if len(core) == 0:
+            floors.append(values.quantile(.5).to(human.dtype))
+            continue
+        ordered = core[values[core].argsort()]
+        gaps = values[ordered][1:] - values[ordered][:-1] > .005
+        groups = torch.cat((gaps.new_zeros(1), gaps)).long().cumsum(0)
+        priorities = torch.empty_like(ordered)
+        for group in range(int(groups[-1]) + 1):
+            member = groups == group
+            priorities[member] = ordered[member].min()
+        labels = torch.where(neighbors[:, ordered], priorities[None, :], count).amin(1)
+        medians = torch.stack([values[labels == label].quantile(.5) for label in labels.unique()])
+        floors.append(medians.min().to(human.dtype))
+    return torch.stack(floors), counts
+
+
 class RelationalGeometry:
     """67 residual coordinates/frame: translation, yaw, and 21 local rotations.
 
@@ -139,7 +183,7 @@ def _masked_mean(value, mask):
 class RelationalObjective:
     """Physical residuals and fixed source relations shared by all four cells."""
 
-    def __init__(self, geometry, scene_flag, hsi_target):
+    def __init__(self, geometry, scene_flag, hsi_target, source_floor=False):
         self.geometry = geometry
         self.scene_flag = scene_flag
         self.hsi_target = hsi_target.detach()
@@ -153,6 +197,11 @@ class RelationalObjective:
         )
         self.contact = (geometry.base[..., 228:230] > 0.95)[:, 2:]
         heights = human[..., (7, 8, 10, 11), 1]
+        self.floor_height = human.new_zeros(human.shape[0])
+        self.floor_sample_count = human.new_zeros(human.shape[0])
+        if source_floor:
+            self.floor_height, self.floor_sample_count = source_floor_height(human)
+            heights = heights - self.floor_height[:, None, None]
         stance = heights < heights.new_tensor((0.08, 0.08, 0.04, 0.04))
         self.stance = stance[:, 2:] & stance[:, 1:-1]
 
@@ -189,6 +238,10 @@ class RelationalObjective:
             'object_scene': _mean(distance_squared[..., 24:]) / (3 * 0.05**2),
         }
         metrics = {
+            'source_floor_height_cm': self.floor_height.expand(human.shape[0]) * 100,
+            'source_floor_sample_count': self.floor_sample_count.to(human).expand(human.shape[0]),
+            'source_stance_count': self.stance.flatten(1).sum(1).to(human).expand(human.shape[0]),
+            'absolute_toe_height_cm': _mean(human[:, 2:, (10, 11), 1]) * 100,
             'human_scene_residual_cm': _mean(distance_squared[..., :24]).sqrt() * 100,
             'object_scene_residual_cm': _mean(distance_squared[..., 24:]).sqrt() * 100,
             'human_occupied_fraction': _mean(occupied[..., :24].float()),
@@ -239,7 +292,7 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
 
 
 def relational_problem(sampler, current, previous_x0, timesteps, context,
-                       rest_offsets, clean):
+                       rest_offsets, clean, source_floor=False):
     """Use the same frozen source and HSI target in window and rollout experiments."""
     cond, uncond = sampler._hsi_prediction_pair(current, previous_x0, timesteps, context)
     object_name = context['seq_name_dict'][0].split('_')[1]
@@ -251,14 +304,14 @@ def relational_problem(sampler, current, previous_x0, timesteps, context,
     increment = _apply_rotation(context['mat'][:, None, None, :3, :3], conditional_fk - unconditioned_fk)
     zero = clean.new_zeros(*clean.shape[:2], geometry.dimension)
     target = geometry.decode(zero)['human'][:, 2:] + increment
-    return geometry, RelationalObjective(geometry, context['scene_flag'], target), cond, uncond
+    return geometry, RelationalObjective(geometry, context['scene_flag'], target, source_floor=source_floor), cond, uncond
 
 
 class RelationalCorrector:
     """Feed one registered relation cell into the shared reverse chain."""
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
-                 learning_rate=0.05, include_floor=True, record_motion=False):
+                 learning_rate=0.05, include_floor=True, record_motion=False, source_floor=False):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
@@ -266,6 +319,7 @@ class RelationalCorrector:
         self.include_floor = include_floor
         self.records = []
         self.record_motion = record_motion
+        self.source_floor = source_floor
         self.motion_records = []
 
     @torch.no_grad()
@@ -284,6 +338,8 @@ class RelationalCorrector:
         self.motion_records.append({
             'window': window, 'step': step,
             'stance_mask': objective.stance.detach().cpu().clone(),
+            'source_floor_height_m': objective.floor_height.detach().cpu().clone(),
+            'source_floor_sample_count': objective.floor_sample_count.detach().cpu().clone(),
             'parameters': parameters.detach().cpu().clone(),
             'states': {
                 name: {key: state[key].detach().cpu().clone() for key in (
@@ -303,6 +359,7 @@ class RelationalCorrector:
         started = time.perf_counter()
         geometry, objective, _, _ = relational_problem(
             sampler, current, previous_x0, timesteps, context, rest_offsets, clean,
+            source_floor=self.source_floor,
         )
         encoded, parameters, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
@@ -331,6 +388,7 @@ class RelationalCorrector:
             'cell': self.cell, 'steps': list(self.steps),
             'optimizer_steps': self.optimizer_steps, 'learning_rate': self.learning_rate,
             'include_floor': self.include_floor,
+            'source_floor': self.source_floor,
             'optimizer_gradient_steps': self.optimizer_steps * len(self.records),
             'insertion': 'clean_before_posterior_and_previous_x0',
             'object_pose': 'hoi_with_common_human_object_transform',

@@ -2483,3 +2483,10 @@ no mid-window resume or id reuse. Use one config fragment, existing component
 modules/evaluator/bootstrap, no new tool script. Preregistration, implementation,
 completion commits; PHASE_2F_STANCE_HEIGHT.md and compact result before integration
 and tag exp/p2f-stance-height-v1. Close only 2.6; any further recipe needs approval.
+
+Implementation verification: **919 passed, 4 skipped in 160.74 seconds**.
+Native-reference tests cover CPU/CUDA source interpolation and DBSCAN height,
+static/no-low-speed cases, no artificial terminal support, frozen source floor/
+mask during optimizer steps, and exact default/explicit-world output agreement.
+Eight resolved configs match Phase2.5 sealed rows except run/output paths and
+source_floor=true. Registry valid with 349 records; diff check passed.

@@ -6,12 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import torch
+import numpy as np
+import pytest
 from pytorch3d import transforms
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'code'))
 
 from mixer.input_views import KnownEmptyObjectView, empty_forward_trajectory
-from mixer.relational import CELL_KEYS, RelationalCorrector, RelationalGeometry, RelationalObjective, optimize_relational_cells
+from mixer.relational import CELL_KEYS, RelationalCorrector, RelationalGeometry, RelationalObjective, optimize_relational_cells, source_floor_height
 from mixer.relational_diagnostics import RelationalPrototypeDiagnostic
 from tests.phase2.test_kinematic_composition import _fixture
 
@@ -30,6 +32,52 @@ def _geometry():
                'obj_rot_mat_ref': rotation(-0.1, 0.4, 0.2)}
     points = torch.tensor([[[-0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.0, 0.1, 0.0]]])
     return RelationalGeometry(hoi, dataset, offsets, context, points), fixed
+
+
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+def test_source_floor_matches_native_rule_on_nonpadded_source(device):
+    from eval_metrics import determine_floor_height_and_contacts
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA unavailable')
+    generator = torch.Generator().manual_seed(42)
+    human = torch.randn(24, 16, 24, 3, generator=generator).cumsum(1) * .004
+    human[..., 1] += .07
+    # All static heights, and no real low-speed samples despite a final endpoint.
+    human[0, :, 10, :] = torch.tensor([0., .04, 0.])
+    human[0, :, 11, :] = torch.tensor([0., .08, 0.])
+    human[1, :, (10, 11), 0] = torch.arange(16)[:, None] * .06
+    actual, counts = source_floor_height(human.to(device))
+    expected = []
+    for source in human.numpy():
+        time = np.arange(46) / 3
+        dense = np.stack([np.interp(time, np.arange(16), source[:, j, axis])
+                          for j in range(24) for axis in range(3)], axis=-1)
+        dense = dense.reshape(46, 24, 3).astype(np.float32)
+        expected.append(float(determine_floor_height_and_contacts(dense)))
+    torch.testing.assert_close(actual.cpu(), torch.tensor(expected), atol=2e-7, rtol=1e-6)
+    assert counts[1].item() == 0 and actual[1].item() == 0
+    assert actual[0].item() == pytest.approx(.04)
+
+
+def test_source_floor_mask_is_relative_and_frozen_during_optimization():
+    geometry, _ = _geometry()
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    target = geometry.decode(torch.zeros(1, 16, geometry.dimension))['human'][:, 2:]
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target, source_floor=True)
+    original_floor, original_mask = objective.floor_height.clone(), objective.stance.clone()
+    height = objective.anchor['human'][..., (7, 8, 10, 11), 1] - original_floor[:, None, None]
+    expected = height < torch.tensor([.08, .08, .04, .04])
+    assert torch.equal(original_mask, expected[:, 2:] & expected[:, 1:-1])
+    optimize_relational_cells(geometry, objective, steps=3, cells=('a00',), include_floor=False)
+    assert torch.equal(objective.floor_height, original_floor)
+    assert torch.equal(objective.stance, original_mask)
+    default = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target)
+    explicit = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target, source_floor=False)
+    a, _, _ = optimize_relational_cells(geometry, default, steps=3, cells=('a00',), include_floor=False)
+    b, _, _ = optimize_relational_cells(geometry, explicit, steps=3, cells=('a00',), include_floor=False)
+    assert torch.equal(a, b)
 
 
 def test_empty_path_matches_the_forward_recurrence():
