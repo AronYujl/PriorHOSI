@@ -258,13 +258,40 @@ class RelationalCorrector:
     """Feed one registered relation cell into the shared reverse chain."""
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
-                 learning_rate=0.05, include_floor=True):
+                 learning_rate=0.05, include_floor=True, record_motion=False):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
         self.learning_rate = float(learning_rate)
         self.include_floor = include_floor
         self.records = []
+        self.record_motion = record_motion
+        self.motion_records = []
+
+    @torch.no_grad()
+    def record_geometry(self, geometry, objective, parameters, window, step):
+        """Observe a fixed-order transform decomposition without changing inference."""
+        translation_parameters = torch.zeros_like(parameters)
+        translation_parameters[..., :3] = parameters[..., :3]
+        common_parameters = translation_parameters.clone()
+        common_parameters[..., 3] = parameters[..., 3]
+        states = {
+            'source': objective.anchor,
+            'translation_only': geometry.decode(translation_parameters),
+            'common': geometry.decode(common_parameters),
+            'corrected': geometry.decode(parameters),
+        }
+        self.motion_records.append({
+            'window': window, 'step': step,
+            'stance_mask': objective.stance.detach().cpu().clone(),
+            'parameters': parameters.detach().cpu().clone(),
+            'states': {
+                name: {key: state[key].detach().cpu().clone() for key in (
+                    'human', 'object_translation_world', 'object_rotation_world',
+                    'translation', 'yaw', 'local_delta',
+                )} for name, state in states.items()
+            },
+        })
 
     def correct(self, sampler, current, previous_x0, timesteps, context,
                 rest_offsets, clean, step):
@@ -277,7 +304,7 @@ class RelationalCorrector:
         geometry, objective, _, _ = relational_problem(
             sampler, current, previous_x0, timesteps, context, rest_offsets, clean,
         )
-        encoded, _, metrics = optimize_relational_cells(
+        encoded, parameters, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
             cells=(self.cell,), include_floor=self.include_floor,
         )
@@ -294,6 +321,9 @@ class RelationalCorrector:
             'contact_exact': torch.equal(encoded[..., 228:], clean[..., 228:]),
             'metrics': dict(zip(names, values)),
         })
+        if self.record_motion:
+            self.record_geometry(geometry, objective, parameters,
+                                 sampler.inner_hoi.sample_calls, step)
         return encoded
 
     def audit_dict(self):

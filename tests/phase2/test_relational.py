@@ -206,6 +206,21 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
     assert audit['calls'] == 1
     assert audit['records'][0]['metrics']['gradient_finite'] == 1
     assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
+    recorded = RelationalCorrector(cell='a01', optimizer_steps=2, record_motion=True)
+    rng_before = torch.get_rng_state().clone()
+    with torch.no_grad():
+        observed = recorded.correct(*arguments, step=0)
+    assert torch.equal(torch.get_rng_state(), rng_before)
+    assert torch.equal(result, observed)
+    assert recorded.records[0]['metrics'] == corrector.records[0]['metrics']
+    snapshot = recorded.motion_records[0]
+    source = snapshot['states']['source']['human']
+    stance = source[..., (7, 8, 10, 11), 1] < torch.tensor([.08, .08, .04, .04])
+    assert torch.equal(snapshot['stance_mask'], stance[:, 2:] & stance[:, 1:-1])
+    decoded = geometry.decode(snapshot['parameters'])
+    torch.testing.assert_close(snapshot['states']['corrected']['human'], decoded['human'])
+    for state in snapshot['states'].values():
+        assert all(value.device.type == 'cpu' and not value.requires_grad for value in state.values())
 
 
 def test_zero_step_reconstruction_projects_redundant_positions_without_motion_update():

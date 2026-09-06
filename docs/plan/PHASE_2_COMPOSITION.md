@@ -2392,3 +2392,11 @@ implementation and completion commits; retain any failures, no run-id reuse.
 Write PHASE_2E_STANCE_RECORDING.md and compact result, integrate/tag
 exp/p2e-stance-recording-v1 after diagnostic gate. Full Phase 2 and learned
 training remain open. Close only 2.5, with no new recipe in this session.
+
+Implementation verification: **916 passed, 4 skipped in 159.36 seconds** on the
+final source (earlier recorder suite also 916/4 in 159.11s). Component checks
+establish exact recorder on/off outputs, RNG state and objective telemetry;
+saved masks and decoded states match independent reconstruction. Eight resolved
+job configs differ from their sealed row only in run/output paths and recording
+flag. Registry validation passes with 347 records. New recording includes the
+complete object rotations and evaluated joints before native metric processing.

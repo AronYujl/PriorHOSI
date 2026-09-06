@@ -868,6 +868,10 @@ def main(cfg: DictConfig) -> None:
             object_rot_mat_all = []
 
             _seq_gen_time = 0
+            motion_corrector = getattr(sampler_body, 'relational_corrector', None)
+            record_relational_motion = getattr(motion_corrector, 'record_motion', False)
+            if record_relational_motion:
+                recorded_windows = []
 
             for step in tqdm(range(seg_len), desc="Sampling windows"):
                 print(f"  Window {step + 1}/{seg_len}")
@@ -1006,8 +1010,17 @@ def main(cfg: DictConfig) -> None:
                 object_rot_mat = info_dict['object_rot_mat'].clone()
                 contact_label = info_dict['contact_label'].clone()
                 global_rot_6d = info_dict['global_rot_6d'].clone()
+                if record_relational_motion:
+                    recorded_windows.append({
+                        'window': sampler_body.inner_hoi.sample_calls,
+                        'points_world': points.detach().cpu().clone(),
+                        'object_translation_world': obj_trans.detach().cpu().clone(),
+                        'global_rot_6d': global_rot_6d.detach().cpu().clone(),
+                    })
 
                 object_rot_mat_global = (MAT @ mat_T @ object_rot_mat.reshape(cfg.max_window_size, 3, 3) @ obj_rot_mat_ref).reshape(object_rot_mat.shape)
+                if record_relational_motion:
+                    recorded_windows[-1]['object_rotation_world'] = object_rot_mat_global.detach().cpu().clone()
 
                 if step == seg_len - 1:
                     points_all.append(points.cpu().numpy())
@@ -1032,6 +1045,13 @@ def main(cfg: DictConfig) -> None:
             object_trans_all = np.concatenate(object_trans_all, axis=1).reshape(-1, 3)
             object_rot_mat_all = np.concatenate(object_rot_mat_all, axis=1).reshape(-1, 9)
             global_rot_6d_all = torch.from_numpy(np.concatenate(global_rot_6d_all, axis=1)).reshape(-1, 22, 6)
+            if record_relational_motion:
+                recorded_stitched = {
+                    'points_world': np.array(points_all, copy=True),
+                    'object_translation_world': np.array(object_trans_all, copy=True),
+                    'object_rotation_world': np.array(object_rot_mat_all, copy=True),
+                    'global_rot_6d': global_rot_6d_all.clone(),
+                }
 
             obj_trans, obj_rot_mat = interp_object(object_trans_all, object_rot_mat_all, cfg.interp_s)
             obj_trans, obj_rot_mat = torch.from_numpy(obj_trans).to(device).float(), torch.from_numpy(obj_rot_mat).to(device).reshape(-1, 3, 3).float()
@@ -1061,6 +1081,8 @@ def main(cfg: DictConfig) -> None:
                 smplx_model_cache[gender] = create_smplx_model(gender, device, batch_size=1)
             human_verts, joints = run_smplx_model(pose_pred, root_trans, betas[None].repeat(root_trans.shape[0], 1), gender, joints_ind=SMPLX_JOINTS_28, smpl_model=smplx_model_cache[gender])
             human_faces = smplx_model_cache[gender].faces
+            if record_relational_motion:
+                recorded_joints = joints.detach().cpu().clone()
 
             rest_verts = obj_rest_verts[obj_name][None].repeat(obj_rot_mat.shape[0], 1, 1)
             transformed_obj_verts = obj_rot_mat.bmm(rest_verts.transpose(1, 2)) + obj_trans[:, :, None]
@@ -1101,6 +1123,19 @@ def main(cfg: DictConfig) -> None:
             # what catches a short merge, which would otherwise read as a complete
             # result -- and it identifies an episode across runs and shard counts.
             metrics['canonical_ordinal'] = int(canonical_ordinal)
+            if record_relational_motion:
+                with open(os.path.join(base_output_dir, f'episode-motion-{canonical_ordinal:03d}.pt'), 'xb') as handle:
+                    torch.save({
+                        'schema_version': 1, 'canonical_ordinal': int(canonical_ordinal),
+                        'scene_name': scene_name, 'object_name': obj_name, 'test_idx': test_idx,
+                        'cell': motion_corrector.cell, 'interp_s': cfg.interp_s,
+                        'history_frames': cfg.auto_regre_num,
+                        'corrections': motion_corrector.motion_records,
+                        'windows': recorded_windows, 'stitched': recorded_stitched,
+                        'evaluated_joints_world': recorded_joints,
+                        'floor_height_m': metrics['feet_height'] / 100,
+                    }, handle)
+                motion_corrector.motion_records.clear()
 
             scene_metrics.append(metrics)
 
