@@ -3289,3 +3289,16 @@ GPU adjusted-delta and paired-ratio intervals match the NumPy reference. The
 initial Phase2.12 handoff records automatic analysis and exact completion entry.
 Feet height directional counts are descriptive because no preferred direction
 is registered. Runtime/core/expert/evaluator sources remain unchanged.
+
+### Phase 2.12 completion — native scene-evidence benchmark (2026-09-07)
+
+The frozen `lambda_dp=26` benchmark completed all 469 native tasks for full,
+lambda0 and reconstruction rows, reusing the sealed native-HOI row. Protections
+and the total scene-quality family pass; the HSI-evidence family and joint gate
+fail because full versus lambda0 has HS delta -0.0021 [98.75% CI -0.0726, 0.0582]
+and OS delta +0.0841 [-0.0465, 0.3213]. Full versus native HOI improves HS by
+-0.6123 [-1.3295, -0.1273] and OS by -2.3490 [-3.9245, -0.9359]. The benchmark
+is closed with the isolated HSI contribution unresolved; no test-set tuning or
+new mechanism follows in this session. See
+`docs/phase_summaries/PHASE_2L_SCENE_EVIDENCE_BENCHMARK.md` and the compact result
+for all means, protections, audits and tail diagnostics.

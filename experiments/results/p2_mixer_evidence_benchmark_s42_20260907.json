@@ -1,0 +1,379 @@
+{
+  "classification": "benchmark_complete_joint_quality_unresolved_or_failed",
+  "run": "results/experiments/p2-mixer-evidence-benchmark-s42-20260907",
+  "analysis_run": "results/experiments/p2-mixer-evidence-analysis-s42-20260907",
+  "tasks_per_row": 469,
+  "scenes": 67,
+  "new_rollouts": 1407,
+  "gates": {
+    "hsi_evidence": false,
+    "total_scene_quality": true,
+    "protections": true,
+    "joint": false
+  },
+  "means": {
+    "full": {
+      "feet_height": 3.8788355743961294,
+      "foot_sliding": 0.12185320569951946,
+      "hand_pen_loss_omomo": 0.39678512072749395,
+      "hand_pen_ratio": 0.19540518472320648,
+      "human_pen_loss_infbagel": 6.312387270189485,
+      "human_pen_ratio": 0.1993322783975856,
+      "xy_points_err": 3.543724119836993,
+      "end_obj_trans_err": 7.584664328391157,
+      "contact_percent": 0.6972367395475205,
+      "scene_human_penetration_s_mean": 6.374332998219034,
+      "scene_human_penetration_s_max": 60.16666198230678,
+      "scene_human_penetration_frame_ratio": 0.2752577579621948,
+      "scene_obj_penetration_s_mean": 29.766351033410142,
+      "scene_obj_penetration_s_max": 157.45532223336826,
+      "scene_obj_penetration_frame_ratio": 0.2610078287233454,
+      "completed": 0.7569296375266524
+    },
+    "lambda0": {
+      "feet_height": 3.870396471735257,
+      "foot_sliding": 0.12084845093336619,
+      "hand_pen_loss_omomo": 0.3969881780042765,
+      "hand_pen_ratio": 0.19571360223579096,
+      "human_pen_loss_infbagel": 6.315717061166016,
+      "human_pen_ratio": 0.19971807184182347,
+      "xy_points_err": 3.5486391076554002,
+      "end_obj_trans_err": 7.575127101098217,
+      "contact_percent": 0.6980295935351513,
+      "scene_human_penetration_s_mean": 6.37642833414968,
+      "scene_human_penetration_s_max": 59.806331063789536,
+      "scene_human_penetration_frame_ratio": 0.27548693892544013,
+      "scene_obj_penetration_s_mean": 29.682223221409124,
+      "scene_obj_penetration_s_max": 156.79594037120816,
+      "scene_obj_penetration_frame_ratio": 0.2606307817543589,
+      "completed": 0.7569296375266524
+    },
+    "reconstruct": {
+      "feet_height": 3.856347682379456,
+      "foot_sliding": 0.11814295154832184,
+      "hand_pen_loss_omomo": 0.3969850213917207,
+      "hand_pen_ratio": 0.1957754031814603,
+      "human_pen_loss_infbagel": 6.315676426429469,
+      "human_pen_ratio": 0.19971268574026094,
+      "xy_points_err": 3.5313810962788477,
+      "end_obj_trans_err": 7.569152322699075,
+      "contact_percent": 0.697917689137818,
+      "scene_human_penetration_s_mean": 7.053443789216013,
+      "scene_human_penetration_s_max": 63.37152902841735,
+      "scene_human_penetration_frame_ratio": 0.2759354637979444,
+      "scene_obj_penetration_s_mean": 32.398808758283025,
+      "scene_obj_penetration_s_max": 167.82667568070318,
+      "scene_obj_penetration_frame_ratio": 0.26030117516983736,
+      "completed": 0.7569296375266524
+    },
+    "native_hoi": {
+      "feet_height": 3.9810748242620213,
+      "foot_sliding": 0.16506111863814596,
+      "hand_pen_loss_omomo": 0.3821208979209682,
+      "hand_pen_ratio": 0.19292031344610142,
+      "human_pen_loss_infbagel": 6.098257466982903,
+      "human_pen_ratio": 0.1966574744496153,
+      "xy_points_err": 3.552011198707735,
+      "end_obj_trans_err": 7.586314356915637,
+      "contact_percent": 0.6914711021846419,
+      "scene_human_penetration_s_mean": 6.98667804444746,
+      "scene_human_penetration_s_max": 63.1544411276507,
+      "scene_human_penetration_frame_ratio": 0.3099517145517793,
+      "scene_obj_penetration_s_mean": 32.11538607865816,
+      "scene_obj_penetration_s_max": 167.73428787948535,
+      "scene_obj_penetration_frame_ratio": 0.2604964340328058,
+      "completed": 0.7633262260127932
+    }
+  },
+  "primary": {
+    "episode": {
+      "lambda0": {
+        "scene_human_penetration_s_mean": {
+          "point": -0.0020953359306460856,
+          "low": -0.07264259669651715,
+          "high": 0.05822045616341604,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        },
+        "scene_obj_penetration_s_mean": {
+          "point": 0.08412781200101818,
+          "low": -0.046502537962188596,
+          "high": 0.32126671564073117,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        }
+      },
+      "native_hoi": {
+        "scene_human_penetration_s_mean": {
+          "point": -0.6123450462284264,
+          "low": -1.3294744828219363,
+          "high": -0.12725749744286127,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        },
+        "scene_obj_penetration_s_mean": {
+          "point": -2.349035045248018,
+          "low": -3.924518990135886,
+          "high": -0.9358860401358,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        }
+      }
+    },
+    "scene": {
+      "lambda0": {
+        "scene_human_penetration_s_mean": {
+          "point": -0.002095335930646099,
+          "low": -0.06742286414877684,
+          "high": 0.055846248841534656,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        },
+        "scene_obj_penetration_s_mean": {
+          "point": 0.08412781200101846,
+          "low": -0.04183862620313483,
+          "high": 0.29936147291100046,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        }
+      },
+      "native_hoi": {
+        "scene_human_penetration_s_mean": {
+          "point": -0.6123450462284263,
+          "low": -1.6234337431359636,
+          "high": -0.12596432209803907,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        },
+        "scene_obj_penetration_s_mean": {
+          "point": -2.3490350452480175,
+          "low": -3.888997472141115,
+          "high": -1.0349819609871884,
+          "quantiles": [
+            0.00625,
+            0.99375
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        }
+      }
+    }
+  },
+  "protection": {
+    "episode": {
+      "lambda0": {
+        "contact_lower": -0.0016430582587653782,
+        "completion_lower": 0.0,
+        "fs_ratio": {
+          "point": 1.0083141716620536,
+          "low": 0.9843203730921272,
+          "high": 1.0347029384208482,
+          "quantiles": [
+            0.025,
+            0.975
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        },
+        "contact_pass": true,
+        "completion_pass": true,
+        "fs_pass": true
+      },
+      "native_hoi": {
+        "contact_lower": 0.0017126537099687014,
+        "completion_lower": -0.014925373134328358,
+        "fs_ratio": {
+          "point": 0.7382308244660044,
+          "low": 0.675642981899588,
+          "high": 0.8021347496338435,
+          "quantiles": [
+            0.025,
+            0.975
+          ],
+          "resamples": 10000,
+          "paired_units": 469
+        },
+        "contact_pass": true,
+        "completion_pass": true,
+        "fs_pass": true
+      }
+    },
+    "scene": {
+      "lambda0": {
+        "contact_lower": -0.0015678434181832337,
+        "completion_lower": 0.0,
+        "fs_ratio": {
+          "point": 1.0083141716620536,
+          "low": 0.9845327968191283,
+          "high": 1.034618879888952,
+          "quantiles": [
+            0.025,
+            0.975
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        },
+        "contact_pass": true,
+        "completion_pass": true,
+        "fs_pass": true
+      },
+      "native_hoi": {
+        "contact_lower": 0.002095048174655946,
+        "completion_lower": -0.014925373134328351,
+        "fs_ratio": {
+          "point": 0.7382308244660045,
+          "low": 0.6807577841151192,
+          "high": 0.7999963320320883,
+          "quantiles": [
+            0.025,
+            0.975
+          ],
+          "resamples": 10000,
+          "paired_units": 67
+        },
+        "contact_pass": true,
+        "completion_pass": true,
+        "fs_pass": true
+      }
+    }
+  },
+  "trajectory_audits": {
+    "full": {
+      "counts": {
+        "windows": 2086,
+        "episodes": 469,
+        "motion_bytes": 201745579,
+        "seconds": 3114.302129769698,
+        "teacher_seconds": 755.582378430292,
+        "solver_seconds": 2104.8419728372246,
+        "hoi_teacher_calls": 33376,
+        "hsi_teacher_calls": 33376,
+        "source_domain_outside_points": 98192,
+        "source_domain_invalid_queries": 91648,
+        "final_domain_outside_points": 97744,
+        "final_domain_invalid_queries": 91312,
+        "accepted_updates": 14770,
+        "line_search_trials": 67285,
+        "stop_accepted": 14770,
+        "domain_rejected_trials": 18789,
+        "stop_search_exhausted": 1918,
+        "changed_windows": 2015
+      },
+      "peak_allocated_bytes": 1453274624,
+      "world_history_max_abs": 9.5367431640625e-07,
+      "saved_fs_max_error": 0.0,
+      "generation_seconds_sum": 6960.384890237823,
+      "generated_frames_sum": 90426,
+      "mean_parameter_gradient_norms": {
+        "hoi_reference": 3.6935672148794005e-05,
+        "hsi_evidence": 0.02457201335192157,
+        "explicit": 0.05077844832507508
+      }
+    },
+    "lambda0": {
+      "counts": {
+        "windows": 2086,
+        "episodes": 469,
+        "motion_bytes": 201747755,
+        "seconds": 3047.978693502024,
+        "teacher_seconds": 117.65090700611472,
+        "solver_seconds": 2678.588101942092,
+        "hoi_teacher_calls": 33376,
+        "hsi_teacher_calls": 0,
+        "source_domain_outside_points": 98132,
+        "source_domain_invalid_queries": 91606,
+        "final_domain_outside_points": 97826,
+        "final_domain_invalid_queries": 91401,
+        "accepted_updates": 6893,
+        "line_search_trials": 117419,
+        "stop_accepted": 6893,
+        "domain_rejected_trials": 12038,
+        "changed_windows": 1165,
+        "stop_zero_gradient": 768,
+        "stop_search_exhausted": 9027
+      },
+      "peak_allocated_bytes": 1453274624,
+      "world_history_max_abs": 7.152557373046875e-07,
+      "saved_fs_max_error": 0.0,
+      "generation_seconds_sum": 6831.786635849625,
+      "generated_frames_sum": 90426,
+      "mean_parameter_gradient_norms": {
+        "hoi_reference": 1.843419485274762e-05,
+        "hsi_evidence": 0.0,
+        "explicit": 0.03848393138243169
+      }
+    },
+    "reconstruct": {
+      "counts": {
+        "windows": 2086,
+        "episodes": 469,
+        "motion_bytes": 201748011,
+        "seconds": 51.45169453881681,
+        "teacher_seconds": 0.0,
+        "solver_seconds": 0.0,
+        "hoi_teacher_calls": 0,
+        "hsi_teacher_calls": 0,
+        "source_domain_outside_points": 98090,
+        "source_domain_invalid_queries": 91555,
+        "final_domain_outside_points": 98090,
+        "final_domain_invalid_queries": 91555,
+        "changed_windows": 0
+      },
+      "peak_allocated_bytes": 1453274624,
+      "world_history_max_abs": 9.5367431640625e-07,
+      "saved_fs_max_error": 0.0,
+      "generation_seconds_sum": 3827.560630992055,
+      "generated_frames_sum": 90426,
+      "mean_parameter_gradient_norms": {}
+    }
+  },
+  "external_reference": {
+    "source": "InfBaGel paper Table1 Hybrid1:0.5, handoff section14.5",
+    "kind": "paper-reported unpaired pre-repair protocol",
+    "metrics": {
+      "completed": 0.8145,
+      "foot_sliding": 0.15,
+      "contact_percent": 0.7696,
+      "scene_human_penetration_s_mean": 3.17,
+      "scene_obj_penetration_s_mean": 12.45
+    },
+    "interpretation": "Descriptive external context; representation/reconstruction differs; no paired or same-protocol superiority claim."
+  },
+  "analysis_exit": {
+    "exit": 0,
+    "gates": {
+      "hsi_evidence": false,
+      "total_scene_quality": true,
+      "protections": true,
+      "joint": false
+    }
+  }
+}
