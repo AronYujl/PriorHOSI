@@ -7,8 +7,8 @@ native sliding against reconstruction. Retain reconstruction and the fixed exper
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Close only Phase 2.7. The next read-only review should examine the common optimizer
-at its near-zero source objective before one separately approved intervention.
+Phase 2.7 is closed. The user approved Phase 2.8 diagnosis of the common optimizer
+at its near-zero source objective; its exact scope is registered below.
 [Phase2.7 handoff](../phase_summaries/PHASE_2G_STANCE_INCREMENT.md).
 
 ## What is being composed, and why not by data mixing
@@ -2649,3 +2649,83 @@ Completion verification: **922 passed, 4 skipped in 163.87 seconds**; registry
 valid with 352 records. Native pairing, saved-native FS and increment audits pass.
 Source and native evaluator stayed fixed; existing immutable input references
 are retained.
+
+## 2026-09-06 — Phase 2.8 approved A00 optimizer diagnosis
+
+The user approved investigating why A00 correction raises its complete common
+objective. Branch phase/02h-optimizer-diagnostic; run
+p2-mixer-optimizer-diagnostic-s42-20260906. This is one diagnostic experiment:
+reproduce all 28 Phase 2.7 A00-increment episodes, bins 0/22/44/66 and seven
+objects, and observe all 372 corrections from their own frozen source states.
+Retain R2 final EMA+CG/P15 online+Arm B, seed 42, 500 diffusion steps,
+499 CG calls/window, corrections 10/1/0, 20 Adam steps at .05, default
+betas/epsilon, all bounds/scales, source-height masks, source stance displacement
+target, contact labels and native evaluation. Floor, HSI and scene objectives
+remain inactive in A00. The observation and counterfactual never feed the chain.
+
+**Hypothesis and causal diagnostic.** Contact anchors are transformed into
+object coordinates with a rotation transpose and reconstructed in world
+coordinates. The resulting floating-point source residual may supply the only
+initial gradient, whose Adam-normalized update can increase an already near-zero
+nonnegative objective. Before/after logs alone do not establish this mechanism.
+Record states 0..20: residual coordinates, every energy and active total;
+updates 1..20: actual total gradient and Adam first/second moments; record each
+active term's initial gradient separately. Retain the original contact residual,
+mask, source object rotation and anchor so the round trip can be reconstructed.
+Evaluate the same round trip in float64 using the saved float32 inputs to separate
+cached nonorthogonality from subsequent arithmetic error; this does not recreate
+double-precision expert predictions. Check the first Adam update against
+-lr*g/(abs(g)+eps). Evaluate one shadow first proposal -lr*g to measure the
+effect of normalization at the same .05 LR, without a learning-rate search.
+
+For each identical source, run one shadow 20-step Adam solve with only the
+contact energy omitted. All other active terms and optimizer settings match.
+Record its complete trajectory and evaluate its final state under the original
+objective as well. This ablation isolates the trigger; it is not a contact-free
+candidate recipe. Source state, target, mask and global RNG remain unchanged.
+The diagnostic records source/global rotations and reconstruction inputs needed
+to replay a correction independently, avoiding another full sampling run merely
+to recover missing optimizer inputs.
+
+**Evidence and gates.** Deliverable: 28 episodes/124 windows/372 corrections,
+7,440 original and 7,440 shadow updates, finite traces, exact history/contact,
+and exact replay of all 16 native outcomes and existing correction scalars/states
+against sealed A00-increment. Recording must preserve optimizer output and RNG
+in component tests. Independent trace reconstruction verifies energies at every
+step and Adam's first update (atol 1e-8, rtol 1e-6). Initial term-gradient
+attribution and contact-off source preservation are measured over every correction,
+including zero-contact and zero-gradient cases. A causal-positive classification
+requires all original initial noncontact gradients to be exactly zero, the
+contact gradient to reproduce the full gradient, the first update to satisfy
+Adam's formula, and all contact-off trajectories to remain at zero residual.
+Report any counterexample and leave its cause unresolved. Report first/last/best
+objective, stepwise increases, initial gradient/update size, term contributions,
+rotation/round-trip discrepancies and source movement by correction step and
+initial/generated history. The initial iterate is included in best-objective
+reporting; it is never selected for generated output.
+
+Use episode-first and four-scene means with 10,000 seed-42 paired replicates and
+nominal 95% intervals for original versus shadow common-objective increase and
+motion displacement. Report native replay and the previously measured A00 cost;
+there is no new native-quality claim for the shadow or a promotion gate.
+An observed trigger does not by itself prove that a changed contact expression
+or optimizer will improve A01's scene-constrained rollout.
+
+**Execution and closure.** One config fragment enables observation, implemented
+in existing relational modules and component tests, with no new tool script,
+expert/core/evaluator change or production objective/optimizer replacement.
+Run the full authority suite, registry validation and resolved-config comparison.
+The formal diagnostic supplies real-data functionality and synchronized batch-1
+timing/memory checks; no separate smoke or performance workload is added. Use
+four RTX3090 lanes, one per existing scene shard, on the eight-GPU authority host;
+four unused GPUs avoid duplicate sampling and preserve within-scene seed order.
+Archive exact resolved configs, machine preflight, source/input references and
+commands beside the clean-worktree tools/experiment.py start manifest. Run in a
+host-owned detached screen with automatic native/trace/paired analysis. Initial
+stability requires one episode per lane and peak allocation below 20 GiB.
+Preserve all failures and artifacts, with no run-id reuse or automatic restart.
+Use preregistration, logical implementation and completion commits, then write
+PHASE_2H_OPTIMIZER_DIAGNOSTIC.md and a compact result before integration/tag
+exp/p2h-optimizer-diagnostic-v1. Close only Phase 2.8; reconstruction and the
+fixed experts remain the comparison anchor. Any production repair is a subsequent
+concrete experiment informed by this diagnosis.
