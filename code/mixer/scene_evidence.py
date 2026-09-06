@@ -98,6 +98,8 @@ class SceneEvidenceTeacher:
         self.beta, self.lambda_dp = beta, lambda_dp
         self.generator = torch.Generator(device=source.device).manual_seed(
             (int(seed) + 32452843) % (2**63 - 1))
+        self.scene_generator = torch.Generator(device='cpu').manual_seed(
+            (int(seed) + 49979687) % (2**63 - 1))
         self.empty = KnownEmptyObjectView()
         self.empty.begin_window(source, seed)
         self.hoi_calls = self.hsi_calls = 0
@@ -121,7 +123,13 @@ class SceneEvidenceTeacher:
         if self.lambda_dp:
             # Both geometric query inputs are clean. Object geometry is complete;
             # only the denoiser's view has known-empty object/contact modalities.
-            common = self.sampler._hsi_model_arguments(candidate, candidate, t, self.context)
+            # Native occupancy queries sample object vertices with CPU randperm.
+            # Carry that stream separately, restoring both ambient RNG states.
+            devices = [candidate.device.index] if candidate.is_cuda else []
+            with torch.random.fork_rng(devices=devices):
+                torch.set_rng_state(self.scene_generator.get_state())
+                common = self.sampler._hsi_model_arguments(candidate, candidate, t, self.context)
+                self.scene_generator.set_state(torch.get_rng_state())
             view = self.empty.for_step(z_edit, level)
             cond, base = self.sampler._hsi_predict_pair(view, masked_object_arguments(common))
             hsi_delta[..., :216] = (epsilon_from_x0(view, cond, alpha, sigma)
@@ -150,8 +158,8 @@ class SceneEvidenceEditor:
                  hoi_reference_weight=1., noise_levels=(300, 264, 229, 193, 157, 121, 86, 50),
                  initial_step=1., shrink=.5, c1=1e-4, max_backtracks=10,
                  prox_weight=1., record_motion=True):
-        if mode not in ('edit', 'reconstruct_only'):
-            raise ValueError('scene_edit mode must be edit or reconstruct_only')
+        if mode not in ('edit', 'reconstruct_only', 'calibrate'):
+            raise ValueError('scene_edit mode must be edit, reconstruct_only or calibrate')
         if not noise_levels or any(k <= 0 or k >= 499 for k in noise_levels):
             raise ValueError('scene_edit requires interior canonical noise levels')
         self.enabled, self.mode = enabled, mode
@@ -188,7 +196,7 @@ class SceneEvidenceEditor:
         initial_domain = domain_state(initial, grid)
         iterations, teacher_seconds, solver_seconds = [], 0., 0.
         initial_terms, initial_metrics = objective.evaluate(initial)
-        for level in self.noise_levels if self.mode == 'edit' else ():
+        for level in self.noise_levels if self.mode in ('edit', 'calibrate') else ():
             current_state = geometry.decode(parameters)
             candidate = geometry.encode(current_state, source[:, :2]).detach()
             current_domain = domain_state(current_state, grid)
@@ -228,8 +236,12 @@ class SceneEvidenceEditor:
                 first + '_dot_' + second: (gradients[first] * gradients[second]).flatten(1).sum(1).cpu().tolist()
                 for first, second in (('hoi_reference', 'hsi_evidence'),
                                       ('hoi_reference', 'explicit'), ('hsi_evidence', 'explicit'))}
-            parameters, solver = local_armijo(parameters, evaluate, admissible,
-                                               self.initial_step, self.shrink, self.c1, self.max_backtracks)
+            if self.mode == 'calibrate':
+                solver = dict(accepted=[False] * source.shape[0], trials=[],
+                              reason=['passive_measurement'] * source.shape[0])
+            else:
+                parameters, solver = local_armijo(parameters, evaluate, admissible,
+                                                   self.initial_step, self.shrink, self.c1, self.max_backtracks)
             if source.is_cuda:
                 torch.cuda.synchronize(source.device)
             solver_seconds += time.perf_counter() - started
@@ -250,7 +262,9 @@ class SceneEvidenceEditor:
             return dict(outside_points=(~items[1]).flatten(1).sum(1).cpu().tolist(),
                         invalid_queries=(~items[2]).flatten(1).sum(1).cpu().tolist(),
                         exterior_distance_max=items[0].flatten(1).max(1).values.cpu().tolist())
+        returned = source if self.mode == 'calibrate' else result
         self.records.append(dict(window=sampler.inner_hoi.sample_calls, mode=self.mode,
+            returned_source_exact=torch.equal(returned, source),
             seed=int(seed), seconds=time.perf_counter() - start,
             teacher_seconds=teacher_seconds, solver_seconds=solver_seconds,
             hoi_teacher_calls=teacher.hoi_calls, hsi_teacher_calls=teacher.hsi_calls,
@@ -266,16 +280,18 @@ class SceneEvidenceEditor:
             iterations=iterations))
         if self.record_motion:
             self.motion_records.append(dict(window=sampler.inner_hoi.sample_calls,
-                raw_source=source.cpu().clone(), reference=reference.cpu(), edited=result.cpu(),
+                raw_source=source.cpu().clone(), reference=reference.cpu(), edited=returned.cpu(),
                 parameters=parameters.cpu(), stance_mask=objective.stance.cpu(),
                 contact_mask=objective.contact.cpu()))
-        return result
+        return returned
 
     def audit_dict(self):
         return dict(enabled=self.enabled, mode=self.mode, placement='post_window',
                     lambda_dp=self.lambda_dp, hoi_reference_weight=self.hoi_reference_weight,
                     noise_levels=self.noise_levels, prediction_source='raw_x0',
                     weighting='alpha_over_sigma', explicit_terms=EXPLICIT_TERMS,
+                    scene_query_rng='independent_cpu_generator_forked_per_query',
+                    hsi_teacher_input='known_empty_forward_trajectory',
                     explicit_weights={key: 1. for key in EXPLICIT_TERMS},
                     physical_scales_m=dict(contact=.05, stance=.02, endpoint=.10, scene=.05),
                     translation_bound_m=.10, angular_component_bound_deg=10.,

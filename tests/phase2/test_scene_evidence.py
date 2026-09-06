@@ -213,3 +213,77 @@ def test_actual_position_normalization_is_shared():
     root = Path(__file__).resolve().parents[2]
     arrays = [np.load(root / 'data' / part / 'norm.npy') for part in ('train', 'test', 'dataset')]
     assert all(np.array_equal(arrays[0][:2], array[:2]) for array in arrays[1:])
+
+
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+def test_actual_native_object_query_rng_is_independent(device):
+    from models.infbagel import Sampler
+    from tests.phase2.test_hsi_inference_engineering import CountingSceneDataset, _arguments
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA unavailable')
+    args=list(_arguments())
+    args=[a.to(device) if torch.is_tensor(a) else a for a in args]
+    args[13]={'cube':torch.arange(4500,device=device,dtype=torch.float32).reshape(1500,3)/1000}
+    args[14]={0:'sub10_cube_000'};args[15]=torch.eye(3,device=device)[None]
+    native=Sampler(device=device,mask_ind=0,emb_f=0,batch_size=1,channel=232,
+                   auto_regre_num=2,timesteps=500,ddim_timesteps=25,cm_timesteps=16,
+                   scene_type='occ_temp',temp_voxel_num=3,
+                   occ_list_layout_repaired=True)
+    dataset=CountingSceneDataset();dataset.vis=True
+    samples=[];get_occ=dataset.get_occ_for_points
+    def observe(points,object_points,flag):
+        if object_points is not None:samples.append(object_points.clone())
+        return get_occ(points,object_points,flag)
+    dataset.get_occ_for_points=observe
+    native.set_dataset_and_model(dataset,torch.nn.Linear(1,1).to(device))
+    class ActualQuery(QuerySampler):
+        def _hsi_model_arguments(self,current,previous,t,context):
+            native._compute_occ_sample(current,previous,*args[2:])
+            return super()._hsi_model_arguments(current,previous,t,context)
+    source=args[0];sampler=ActualQuery()
+    sampler.inner_hoi.diffusion.to(device)
+    cpu=torch.random.get_rng_state().clone()
+    cuda=torch.cuda.get_rng_state().clone() if device=='cuda' else None
+    teacher=SceneEvidenceTeacher(sampler,{},None,{},source,42)
+    teacher.query(source,250)
+    assert torch.equal(cpu,torch.random.get_rng_state())
+    if cuda is not None:assert torch.equal(cuda,torch.cuda.get_rng_state())
+    first=[p.clone() for p in samples];samples.clear()
+    torch.rand(10)
+    another=SceneEvidenceTeacher(sampler,{},None,{},source,42)
+    another.query(source,250)
+    assert len(first)==5
+    assert all(torch.equal(a,b) for a,b in zip(first,samples))
+
+
+def test_scene_balanced_scale_excludes_verification_and_inactive_sources():
+    from mixer.scene_calibration import estimate_global_scale
+    def episode(scene,ratios,energy=1.):
+        return dict(episode=dict(scene_name=scene),records=[dict(mode='calibrate',
+            source_terms=dict(human_scene=[energy],object_scene=[0.]),
+            iterations=[dict(parameter_gradient_norms=dict(explicit=[ratio],hsi_evidence=[1.]))
+                        for _ in range(8)]) for ratio in ratios])
+    episodes=[episode('a',[10.,10.,1000.]),episode('b',[20.,20.]),episode('c',[30.]),
+              episode('holdout',[1e9]),episode('a',[1e10],energy=0.)]
+    result=estimate_global_scale(episodes,['a','b','c'])
+    assert result['lambda_dp']==2. and result['active_windows']=={'a':3,'b':2,'c':1}
+    assert result['inactive_windows']==1
+    with pytest.raises(ValueError,match='coverage'):
+        estimate_global_scale(episodes,['a','b','missing'])
+
+
+def test_passive_calibration_returns_source_and_leaves_parameters_zero():
+    geometry,_=_geometry();sampler=QuerySampler();sampler.dataset=geometry.dataset
+    sampler.dataset.scene_grid_torch=torch.tensor([-100.,-100.,-100.,100.,100.,100.,10.,10.,10.])
+    sampler.dataset.get_nearest_free_voxel=lambda p,f:(torch.zeros(p.shape[:-1],dtype=torch.bool),p)
+    context=dict(mat=geometry.mat,obj_rot_mat_prefix=geometry.prefix,obj_rot_mat_ref=geometry.reference,
+                 scene_flag=torch.zeros(1,dtype=torch.long),seq_name_dict={0:'sub10_cube_0'},
+                 obj_rest_verts={'cube':geometry.object_points[0]})
+    editor=SceneEvidenceEditor(enabled=True,mode='calibrate',lambda_dp=1.,noise_levels=(250,100))
+    result=editor.edit(sampler,geometry.base,{},None,context,geometry.offsets,42)
+    assert torch.equal(result,geometry.base)
+    assert not editor.motion_records[0]['parameters'].any()
+    assert editor.records[0]['returned_source_exact']
+    assert torch.equal(editor.motion_records[0]['edited'],geometry.base)
+    assert editor.records[0]['edit_rms']==0
+    assert all(i['hoi_reference_rms']==[0.] for i in editor.records[0]['iterations'])

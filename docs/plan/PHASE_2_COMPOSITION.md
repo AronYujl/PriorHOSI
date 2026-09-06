@@ -3160,3 +3160,14 @@ suite, registry validation, config comparisons and default native/RNG contracts.
 Write PHASE_2K_SCENE_EVIDENCE_CALIBRATION.md plus compact result; integrate/tag
 exp/p2k-scene-evidence-calibration-v1 only if its deliverable gate passes. Full469
 and InfBaGel comparison belong to Phase2.12 after its own registration.
+
+Implementation verification:949 passed/4 historical-asset skips in164.69s;
+17 scene-evidence component cases pass, including CPU/CUDA execution of the
+native object occupancy query with unchanged ambient RNG and seed-reproducible
+sampled vertices. Passive calibration returns its raw source exactly. The
+scene-balanced estimator excludes verification and zero-scene records. The
+24-task manifest is tracked at experiments/tasks/scene_evidence_development_s42_20260907.json;
+its read-only snapshot and construction command are under
+results/evidence-scale-inputs-s42-20260907/. Six stage1 jobs resolve. Runtime uses
+the existing evaluator's generator, A*, rebase and recorder; development mode
+returns declared window proxies before the native mesh-SDF metric block.

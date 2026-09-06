@@ -1,0 +1,653 @@
+{
+  "seed": 42,
+  "selection": [
+    {
+      "scene": "004",
+      "family": "004",
+      "role": "calibration",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/004.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/004.json",
+      "source_hsi_sequence": 3401
+    },
+    {
+      "scene": "006",
+      "family": "006",
+      "role": "calibration",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/006.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/006.json",
+      "source_hsi_sequence": 3692
+    },
+    {
+      "scene": "055",
+      "family": "055",
+      "role": "calibration",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/055.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/055.json",
+      "source_hsi_sequence": 5592
+    },
+    {
+      "scene": "023",
+      "family": "023",
+      "role": "verification",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/023.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/023.json",
+      "source_hsi_sequence": 1647
+    },
+    {
+      "scene": "037",
+      "family": "037",
+      "role": "verification",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/037.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/037.json",
+      "source_hsi_sequence": 2985
+    },
+    {
+      "scene": "036",
+      "family": "036",
+      "role": "verification",
+      "source_grid": "/data/yujinlun/InfBaGel-mixer/data/dataset/Scene/036.npy",
+      "source_hsi_episode_file": "/data/yujinlun/InfBaGel-mixer/data/hsi_qualitative_train_s42_20260906/data/036.json",
+      "source_hsi_sequence": 2836
+    }
+  ],
+  "hoi_sources": [
+    {
+      "data_idx": 1509,
+      "sequence_id": 16,
+      "sequence_name": "sub10_clothesstand_016",
+      "object_name": "clothesstand",
+      "offset": [
+        -0.4578588008880615,
+        0.5221809148788452,
+        0.31572437286376953
+      ]
+    },
+    {
+      "data_idx": 5507,
+      "sequence_id": 51,
+      "sequence_name": "sub10_floorlamp_001",
+      "object_name": "floorlamp",
+      "offset": [
+        0.3077363967895508,
+        0.9790459871292114,
+        0.2945554256439209
+      ]
+    },
+    {
+      "data_idx": 10079,
+      "sequence_id": 91,
+      "sequence_name": "sub10_largebox_000",
+      "object_name": "largebox",
+      "offset": [
+        0.06525826454162598,
+        0.15848107635974884,
+        0.780949592590332
+      ]
+    },
+    {
+      "data_idx": 236335,
+      "sequence_id": 1844,
+      "sequence_name": "sub15_suitcase_022",
+      "object_name": "suitcase",
+      "offset": [
+        0.015358924865722656,
+        0.32225704193115234,
+        0.5221168994903564
+      ]
+    }
+  ],
+  "hoi_partition": "internal_validation",
+  "motion_data_source": "/data/yujinlun/InfBaGel-mixer/data/train",
+  "lingo_partition": "train",
+  "source_splits": [
+    "experiments/splits/omomo_hoi_train_validation_seed42.json",
+    "experiments/splits/lingo_scene_family_disjoint_v3_seed42.json"
+  ],
+  "test_annotations_used_for_selection": false,
+  "scene_names_disjoint_from_hosi_test": true,
+  "tasks": 24,
+  "point_goal_rule": "LINGO pelvis endpoint plus heading-rotated initial HOI root-object xz offset and source object height",
+  "tasks_by_scene": {
+    "004": [
+      {
+        "scene_name": "004",
+        "data_idx": 1509,
+        "start_location": [
+          -0.41606444120407104,
+          0.0,
+          1.2695399522781372
+        ],
+        "pelvis_goal": [
+          0.11313791573047638,
+          0.0,
+          1.4874199628829956
+        ],
+        "object_goal": [
+          0.23077525414473765,
+          0.5221809148788453,
+          2.030998860359418
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 3401
+      },
+      {
+        "scene_name": "004",
+        "data_idx": 5507,
+        "start_location": [
+          -0.41606444120407104,
+          0.0,
+          1.2695399522781372
+        ],
+        "pelvis_goal": [
+          0.11313791573047638,
+          0.0,
+          1.4874199628829956
+        ],
+        "object_goal": [
+          0.5026699622363502,
+          0.9790459871292116,
+          1.3149978835827127
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 3401
+      },
+      {
+        "scene_name": "004",
+        "data_idx": 10079,
+        "start_location": [
+          -0.41606444120407104,
+          0.0,
+          1.2695399522781372
+        ],
+        "pelvis_goal": [
+          0.11313791573047638,
+          0.0,
+          1.4874199628829956
+        ],
+        "object_goal": [
+          0.860122249587285,
+          0.15848107635974887,
+          1.7243910839726557
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 3401
+      },
+      {
+        "scene_name": "004",
+        "data_idx": 236335,
+        "start_location": [
+          -0.41606444120407104,
+          0.0,
+          1.2695399522781372
+        ],
+        "pelvis_goal": [
+          0.11313791573047638,
+          0.0,
+          1.4874199628829956
+        ],
+        "object_goal": [
+          0.6017838904977477,
+          0.3222570419311524,
+          1.6719926170065063
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 3401
+      }
+    ],
+    "006": [
+      {
+        "scene_name": "006",
+        "data_idx": 1509,
+        "start_location": [
+          -1.4939841032028198,
+          0.0,
+          0.18543501198291779
+        ],
+        "pelvis_goal": [
+          -1.4098352193832397,
+          0.0,
+          1.193822979927063
+        ],
+        "object_goal": [
+          -1.8398525005357207,
+          0.5221809148788451,
+          1.5465292303410614
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 3692
+      },
+      {
+        "scene_name": "006",
+        "data_idx": 5507,
+        "start_location": [
+          -1.4939841032028198,
+          0.0,
+          0.18543501198291779
+        ],
+        "pelvis_goal": [
+          -1.4098352193832397,
+          0.0,
+          1.193822979927063
+        ],
+        "object_goal": [
+          -1.078669563612413,
+          0.9790459871292113,
+          1.4617668119575196
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 3692
+      },
+      {
+        "scene_name": "006",
+        "data_idx": 10079,
+        "start_location": [
+          -1.4939841032028198,
+          0.0,
+          0.18543501198291779
+        ],
+        "pelvis_goal": [
+          -1.4098352193832397,
+          0.0,
+          1.193822979927063
+        ],
+        "object_goal": [
+          -1.2798593299480059,
+          0.1584810763597488,
+          1.9666406656871072
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 3692
+      },
+      {
+        "scene_name": "006",
+        "data_idx": 236335,
+        "start_location": [
+          -1.4939841032028198,
+          0.0,
+          0.18543501198291779
+        ],
+        "pelvis_goal": [
+          -1.4098352193832397,
+          0.0,
+          1.193822979927063
+        ],
+        "object_goal": [
+          -1.3511103219040745,
+          0.3222570419311523,
+          1.7128541347940087
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 3692
+      }
+    ],
+    "023": [
+      {
+        "scene_name": "023",
+        "data_idx": 1509,
+        "start_location": [
+          0.06054796651005745,
+          0.0,
+          1.1791889667510986
+        ],
+        "pelvis_goal": [
+          -0.37784427404403687,
+          0.0,
+          1.4390027523040771
+        ],
+        "object_goal": [
+          -0.882886931594661,
+          0.5221809148788452,
+          1.2060897315751424
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 1647
+      },
+      {
+        "scene_name": "023",
+        "data_idx": 5507,
+        "start_location": [
+          0.06054796651005745,
+          0.0,
+          1.1791889667510986
+        ],
+        "pelvis_goal": [
+          -0.37784427404403687,
+          0.0,
+          1.4390027523040771
+        ],
+        "object_goal": [
+          -0.4743449970759598,
+          0.9790459871292114,
+          1.8539150311529964
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 1647
+      },
+      {
+        "scene_name": "023",
+        "data_idx": 10079,
+        "start_location": [
+          0.06054796651005745,
+          0.0,
+          1.1791889667510986
+        ],
+        "pelvis_goal": [
+          -0.37784427404403687,
+          0.0,
+          1.4390027523040771
+        ],
+        "object_goal": [
+          -1.01639999794688,
+          0.15848107635974884,
+          1.8933016569130432
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 1647
+      },
+      {
+        "scene_name": "023",
+        "data_idx": 236335,
+        "start_location": [
+          0.06054796651005745,
+          0.0,
+          1.1791889667510986
+        ],
+        "pelvis_goal": [
+          -0.37784427404403687,
+          0.0,
+          1.4390027523040771
+        ],
+        "object_goal": [
+          -0.8191748406058472,
+          0.32225704193115234,
+          1.7184115644855926
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 1647
+      }
+    ],
+    "036": [
+      {
+        "scene_name": "036",
+        "data_idx": 1509,
+        "start_location": [
+          -1.585982084274292,
+          0.0,
+          1.7588021755218506
+        ],
+        "pelvis_goal": [
+          -1.1345441341400146,
+          0.0,
+          2.120063066482544
+        ],
+        "object_goal": [
+          -1.174109756116587,
+          0.5221809148788452,
+          2.6748162753317413
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 2836
+      },
+      {
+        "scene_name": "036",
+        "data_idx": 5507,
+        "start_location": [
+          -1.585982084274292,
+          0.0,
+          1.7588021755218506
+        ],
+        "pelvis_goal": [
+          -1.1345441341400146,
+          0.0,
+          2.120063066482544
+        ],
+        "object_goal": [
+          -0.7122851878766698,
+          0.9790459871292114,
+          2.06383166079269
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 2836
+      },
+      {
+        "scene_name": "036",
+        "data_idx": 10079,
+        "start_location": [
+          -1.585982084274292,
+          0.0,
+          1.7588021755218506
+        ],
+        "pelvis_goal": [
+          -1.1345441341400146,
+          0.0,
+          2.120063066482544
+        ],
+        "object_goal": [
+          -0.48402366634501903,
+          0.15848107635974884,
+          2.5570573779303825
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 2836
+      },
+      {
+        "scene_name": "036",
+        "data_idx": 236335,
+        "start_location": [
+          -1.585982084274292,
+          0.0,
+          1.7588021755218506
+        ],
+        "pelvis_goal": [
+          -1.1345441341400146,
+          0.0,
+          2.120063066482544
+        ],
+        "object_goal": [
+          -0.7172915908886895,
+          0.32225704193115234,
+          2.434295891720066
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 2836
+      }
+    ],
+    "037": [
+      {
+        "scene_name": "037",
+        "data_idx": 1509,
+        "start_location": [
+          -1.8734769821166992,
+          0.0,
+          0.9567645788192749
+        ],
+        "pelvis_goal": [
+          -1.9014599323272705,
+          0.0,
+          1.7118421792984009
+        ],
+        "object_goal": [
+          -2.370697264371442,
+          0.5221809148788452,
+          2.0103934937938193
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 2985
+      },
+      {
+        "scene_name": "037",
+        "data_idx": 5507,
+        "start_location": [
+          -1.8734769821166992,
+          0.0,
+          0.9567645788192749
+        ],
+        "pelvis_goal": [
+          -1.9014599323272705,
+          0.0,
+          1.7118421792984009
+        ],
+        "object_goal": [
+          -1.6048432915192063,
+          0.9790459871292114,
+          2.0175923339688886
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 2985
+      },
+      {
+        "scene_name": "037",
+        "data_idx": 10079,
+        "start_location": [
+          -1.8734769821166992,
+          0.0,
+          0.9567645788192749
+        ],
+        "pelvis_goal": [
+          -1.9014599323272705,
+          0.0,
+          1.7118421792984009
+        ],
+        "object_goal": [
+          -1.8651683395665075,
+          0.15848107635974884,
+          2.494672829920154
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 2985
+      },
+      {
+        "scene_name": "037",
+        "data_idx": 236335,
+        "start_location": [
+          -1.8734769821166992,
+          0.0,
+          0.9567645788192749
+        ],
+        "pelvis_goal": [
+          -1.9014599323272705,
+          0.0,
+          1.7118421792984009
+        ],
+        "object_goal": [
+          -1.905447766167689,
+          0.32225704193115234,
+          2.234169711109347
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 2985
+      }
+    ],
+    "055": [
+      {
+        "scene_name": "055",
+        "data_idx": 1509,
+        "start_location": [
+          -2.226884126663208,
+          0.0,
+          0.521041750907898
+        ],
+        "pelvis_goal": [
+          -1.8201736211776733,
+          0.0,
+          0.826057493686676
+        ],
+        "object_goal": [
+          -1.842294417655775,
+          0.5221809148788452,
+          1.3817797548334187
+        ],
+        "object_name": "clothesstand",
+        "source_hoi_sequence": "sub10_clothesstand_016",
+        "source_lingo_sequence": 5592
+      },
+      {
+        "scene_name": "055",
+        "data_idx": 5507,
+        "start_location": [
+          -2.226884126663208,
+          0.0,
+          0.521041750907898
+        ],
+        "pelvis_goal": [
+          -1.8201736211776733,
+          0.0,
+          0.826057493686676
+        ],
+        "object_goal": [
+          -1.39988931570905,
+          0.9790459871292114,
+          0.7565902981045589
+        ],
+        "object_name": "floorlamp",
+        "source_hoi_sequence": "sub10_floorlamp_001",
+        "source_lingo_sequence": 5592
+      },
+      {
+        "scene_name": "055",
+        "data_idx": 10079,
+        "start_location": [
+          -2.226884126663208,
+          0.0,
+          0.521041750907898
+        ],
+        "pelvis_goal": [
+          -1.8201736211776733,
+          0.0,
+          0.826057493686676
+        ],
+        "object_goal": [
+          -1.1562477608494621,
+          0.15848107635974884,
+          1.2424027341367565
+        ],
+        "object_name": "largebox",
+        "source_hoi_sequence": "sub10_largebox_000",
+        "source_lingo_sequence": 5592
+      },
+      {
+        "scene_name": "055",
+        "data_idx": 236335,
+        "start_location": [
+          -2.226884126663208,
+          0.0,
+          0.521041750907898
+        ],
+        "pelvis_goal": [
+          -1.8201736211776733,
+          0.0,
+          0.826057493686676
+        ],
+        "object_goal": [
+          -1.3932566304240914,
+          0.32225704193115234,
+          1.127028981227207
+        ],
+        "object_name": "suitcase",
+        "source_hoi_sequence": "sub15_suitcase_022",
+        "source_lingo_sequence": 5592
+      }
+    ]
+  },
+  "selection_rule": "Numeric LINGO train base scenes; first existing eligible episode with chord[.4,2]m; seed42 permutation of sorted eligible scene names:004,006,055 for calibration;023,037,036 for verification;067 unused."
+}

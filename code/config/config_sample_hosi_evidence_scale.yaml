@@ -1,0 +1,15 @@
+# Phase 2.11: independent-development source measurement and fixed-scale checks.
+defaults: [config_sample_hosi_scene_edit, _self_]
+
+hosi_mode: scene_evidence_development
+hosi_task_dir: ${oc.env:ROOT_DIR}/results/evidence-scale-inputs-s42-20260907/tasks
+hosi_shard_count: 6
+hosi_expected_episodes: null
+dataset:
+  folder: ${oc.env:ROOT_DIR}/results/evidence-scale-inputs-s42-20260907/motion
+
+sampler:
+  pelvis:
+    scene_editor:
+      mode: calibrate
+      lambda_dp: 1.0

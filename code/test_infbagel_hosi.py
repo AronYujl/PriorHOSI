@@ -521,7 +521,8 @@ def main(cfg: DictConfig) -> None:
         run_merge_shards(cfg)
         return
     input_diagnostic_mode = str(cfg.get('hosi_mode', 'evaluate')) in ('input_diagnostic', 'relational_prototype')
-    if input_diagnostic_mode:
+    development_mode = str(cfg.get('hosi_mode', 'evaluate')) == 'scene_evidence_development'
+    if input_diagnostic_mode or development_mode:
         if subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
             raise RuntimeError('registered input diagnostics require a clean worktree')
         diagnostic_commit = subprocess.check_output(
@@ -567,7 +568,7 @@ def main(cfg: DictConfig) -> None:
 
     # Load scene SDF data
     scene_sdf_root = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'Scene_sdf')
-    scene_sdf, scene_sdf_json = load_scene_sdf_data(scene_sdf_root)
+    scene_sdf, scene_sdf_json = ({}, {}) if development_mode else load_scene_sdf_data(scene_sdf_root)
 
     model_name = os.path.splitext(cfg.ckpt_path.split('/')[-1])[0]
     base_output_dir = os.path.abspath(str(cfg.hosi_output_dir))
@@ -658,7 +659,7 @@ def main(cfg: DictConfig) -> None:
             'inference_cfg_w': float(cfg.get('mixer_hsi_w', 0)),
         }
 
-    json_data_dir = os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data')
+    json_data_dir = str(cfg.get('hosi_task_dir') or os.path.join(ROOT_DIR, 'data', 'hosi_test', 'data'))
     # 2026-08-30: sharding.  The canonical enumeration -- scene files sorted, then
     # test items in file order -- is what assigns every episode its canonical
     # ordinal, and the ordinal is what a merge anchors on and what identifies an
@@ -868,6 +869,7 @@ def main(cfg: DictConfig) -> None:
             object_rot_mat_all = []
 
             _seq_gen_time = 0
+            development_record_start = len(sampler_body.scene_editor.records) if development_mode else 0
             motion_corrector = getattr(sampler_body, 'relational_corrector', None)
             if motion_corrector is None:
                 motion_corrector = getattr(sampler_body, 'scene_editor', None)
@@ -1038,6 +1040,15 @@ def main(cfg: DictConfig) -> None:
                     global_rot_6d_all.append(global_rot_6d.cpu().numpy()[:, :-cfg.auto_regre_num])
 
 
+            if development_mode:
+                from mixer.scene_calibration import save_development_episode
+                diagnostic_episodes.append(save_development_episode(
+                    sampler_body.scene_editor, development_record_start, base_output_dir,
+                    dict(scene_name=scene_name, object_name=obj_name, test_idx=test_idx,
+                         canonical_ordinal=int(canonical_ordinal)),
+                    recorded_windows, _seq_gen_time,
+                ))
+                continue
             if input_diagnostic_mode:
                 diagnostic_episodes.append(sampler_body.input_diagnostic.finish_episode())
                 print(f'Input diagnostic completed episode {canonical_ordinal}', flush=True)
@@ -1171,11 +1182,11 @@ def main(cfg: DictConfig) -> None:
         else:
             skipped_scenes += 1
 
-    if input_diagnostic_mode:
+    if input_diagnostic_mode or development_mode:
         if len(diagnostic_episodes) != int(sharding_plan['shard_episode_count']):
             raise RuntimeError('input diagnostic episode coverage is incomplete')
         payload = {
-            'schema_version': 1, 'probe': sampler_body.input_diagnostic.probe_name,
+            'schema_version': 1, 'probe': 'scene_evidence_development' if development_mode else sampler_body.input_diagnostic.probe_name,
             'run_id': cfg.run_id, 'seed': int(cfg.seed),
             'git_commit': diagnostic_commit,
             'git_commit_at_completion': subprocess.check_output(
