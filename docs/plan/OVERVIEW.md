@@ -3,6 +3,12 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
+2026-09-06 当前进度：Phase 2.8 已完成，A00 的接触坐标往返误差及 Adam 放大机制已通过
+372 次修正的因果诊断确认。原始生成结果逐值复现，修正配方继续保留待修复状态。
+下一入口是完整目标的优化求解审查；具体修复实验另行批准。完整 Phase 2 与 learned mixer
+训练仍开放，详见 [Phase 2.8 交接](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md)
+和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。
+
 ## 1. 主张、边界与接口
 
 InfBaGel 的 synthesized-OMOMO scene 由真实 motion 反推，训练条件分布与真实场景下
@@ -267,4 +273,3 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   1024/3072，最多允许一次不改变专家接口的几何 contact fallback。正式重训仍只用 seed 42、
   scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
   同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
-

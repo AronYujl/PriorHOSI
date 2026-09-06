@@ -1,16 +1,17 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.8 optimizer diagnosis is approved and its
-implementation is verified. Phase 2.7 deliverable PASS; pilot quality FAIL.
-OS-depth gains pass, while the adjusted HS-frame primary remains unresolved at
-episode level. The A00 control also increases its common objective and worsens
-native sliding against reconstruction. Retain reconstruction and the fixed experts.
+Status: updated 2026-09-06. Phase 2.8 deliverable PASS; causal diagnostic POSITIVE.
+Source contact round-trip error supplies the initial gradient; Adam amplification
+starts all 336 A00 objective increases. All 372 contact-off shadow trajectories
+preserve zero residual. Original native outcomes and motions replay exactly.
+Retain reconstruction and the fixed experts; the correction recipe remains unpromoted.
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Phase 2.7 is closed. The user approved Phase 2.8 diagnosis of the common optimizer
-at its near-zero source objective; its exact scope is registered below.
-[Phase2.7 handoff](../phase_summaries/PHASE_2G_STANCE_INCREMENT.md).
+Close only Phase 2.8. Next review: minimization of the complete active objective,
+including source-consistent contact relations and the nearest-free scene energy.
+A production repair needs its own concrete experiment and approval.
+[Phase2.8 handoff](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2740,3 +2741,62 @@ Saved tensor caches reproduce decoded geometry and contact residuals. Four fully
 resolved configs match sealed A00-increment except run/output paths and
 optimizer_diagnostic=true. Formal GPU execution supplies functional and timing/
 memory validation; the native evaluator and production objective remain unchanged.
+
+## 2026-09-06 — Phase 2.8 completion: contact trigger and optimizer departure identified
+
+All four GPU jobs and automatic analysis exited zero: 28 episodes/124 windows,
+372 original and 372 contact-off solves, 14,880 total optimizer steps and
+61,876 CG calls. All 16 native outcomes, original correction scalars and saved
+motion fields exactly reproduce Phase 2.7 A00-increment. Active energies reconstruct
+at every recorded iterate; all registered causal checks pass with no counterexample.
+
+Every initial residual/stance/endpoint gradient is zero and the contact gradient
+exactly equals the total. All 336 nonzero-gradient sources increase their objective
+at Adam step 1 and remain worse at step 20; the other 36 have exactly zero selected
+contact residual and stay fixed. Every correction has contact labels, so those
+36 are not empty-contact cases. The source is the best of all 21 recorded iterates
+in every case. Contact-off shadows keep zero parameters/gradients throughout all
+372 solves and preserve the original complete objective at its source value.
+
+Episode-first initial contact residual RMS is 4.2822e-8 m, maximum gradient
+1.1198e-7 and first maximum parameter update .0397644. The first articulation
+component reaches .397383 degrees on the same mean-of-maxima basis; common
+translation/yaw are initially negligible. Initial/first/final common objectives
+are 3.9373e-13/.0451663/.0479565. The first loss is mainly contact .0449961;
+the final loss is mainly stance .0429265. The mean curve peaks at .419932 at
+iteration 3. The recorded steps follow Adam's formula; the finite 20-step recipe
+fails to minimize this near-zero source objective. Finite gradients alone do not
+validate the solve.
+
+The single unnormalized -.05*g proposal has mean maximum parameter size 5.5990e-9
+and objective 4.0248e-13. Its 329 tiny increases, 7 decreases and 36 ties remain
+visible; it establishes the scale of Adam normalization, not a validated SGD
+replacement. Float64 round-trip evaluation on the cached float32 geometry retains
+4.4768e-8 m mean RMS error. Casting that arithmetic retains cached rotation error;
+no full-float64 geometry or sampler intervention was tested.
+
+Contact-off minus original objective increase is -.0479565, nominal 95% episode
+CI [-.0537445,-.0416525] and scene CI [-.0538459,-.0438220]. Corresponding human
+RMS motion shifts are -.283432 cm and object shifts -.174962 cm, with negative
+intervals at both units. These are paired same-source correction diagnostics,
+not native outcomes for a contact-free rollout. The original native FS remains
+.139963, with the sealed +.010686 cost against reconstruction. A separate read-only
+audit of archived A01 finds its complete objective (including both scene terms)
+increases in335/372 corrections, .0537254 to .0813346 episode-first. Its cause was
+not subjected to this contact-off experiment. Retain its evidence as the next
+optimizer review target rather than assuming an A00-only numerical repair suffices.
+
+GPU wall time was33m45s; manifest through analysis35m10s; peak allocated804.66MiB.
+The 28 motion files total327,323,430 bytes. An initial exact-replay checker failed
+on NumPy arrays; its original program and failure were retained, array equality
+was corrected, and the final complete analysis passed without restarting sampling.
+The original vectorized all-step Adam diagnostic uses float32 bias powers;
+closure reconstruction with production Python-double powers agrees at the
+registered1e-8/1e-6 tolerance (maximum absolute difference1.49e-8).
+
+Implementation verification remains 924 passed/4 skipped at 4471699. Completion
+verification: **924 passed, 4 skipped in 169.11 seconds**; registry valid with
+354 records. Archive all raw traces, native/paired projections, strata, zero-gradient
+cases, runtime and analysis revision. Integrate/tag exp/p2h-optimizer-diagnostic-v1
+after completion verification. Full Phase2, learned training and realism remain
+open; close this diagnostic subphase only.
