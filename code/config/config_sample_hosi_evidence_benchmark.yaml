@@ -1,0 +1,12 @@
+# Phase 2.12: lambda fixed by independent-development calibration; full native test.
+defaults: [config_sample_hosi_scene_edit, _self_]
+
+hosi_mode: evaluate
+hosi_shard_count: 8
+hosi_expected_episodes: 469
+
+sampler:
+  pelvis:
+    scene_editor:
+      mode: edit
+      lambda_dp: 26.0

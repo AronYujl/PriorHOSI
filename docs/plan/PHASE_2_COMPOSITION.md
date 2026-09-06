@@ -3282,3 +3282,10 @@ realized solver/teacher call counts. Sharded timing remains workload cost, not
 isolated production latency. Write PHASE_2L_SCENE_EVIDENCE_BENCHMARK.md and compact
 result before integration/tag exp/p2l-scene-evidence-benchmark-v1. Close only2.12;
 learned training, new weights, state machine and subsequent phases stay deferred.
+
+Implementation/config verification:949 passed/4 historical-asset skips in166.94s;
+all24 jobs resolve and their differences match the registered rows/shards/outputs.
+GPU adjusted-delta and paired-ratio intervals match the NumPy reference. The
+initial Phase2.12 handoff records automatic analysis and exact completion entry.
+Feet height directional counts are descriptive because no preferred direction
+is registered. Runtime/core/expert/evaluator sources remain unchanged.
