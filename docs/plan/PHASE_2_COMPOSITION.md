@@ -2330,3 +2330,65 @@ cost from saved artifacts before a separately approved diagnostic.
 Completion verification: **916 passed, 4 skipped in 157.04 seconds**; registry
 valid with 346 records. Complete native/optimizer finiteness and history/contact
 audits pass. All twelve jobs and all analysis reports succeeded.
+
+
+## 2026-09-06 — Phase 2.5 approved stance recording diagnostic
+
+User approved replaying floor-free A00/A01, 28 episodes each, with additional
+recording only. Branch phase/02e-stance-recording; run
+p2-mixer-stance-recording-s42-20260906. Fixed experts R2 final EMA + CG and P15
+online + Arm B, seed 42, bins 0/22/44/66 and all seven objects; same 500-step
+sampler, corrections 10/1/0, 20 Adam steps/.05, scales, masks and geometry.
+A00 replays Phase 2.3 no_floor; A01 replays Phase 2.4 a01. No inference recipe,
+objective, expert/core code or RNG change. Use eight authority RTX 3090 lanes.
+
+Hypothesis: the sparse fixed world-height stance mask leaves corrected foot motion
+outside its coverage; distinguish empty mask from stationary selected feet and
+locate where native sliding differs from the correction-time surrogate. Existing
+A01 audits have zero stance energy before/after at 338/372 calls; 19/28 episodes
+have only zero stance energy and contribute 85.69% of net FS increase vs A00.
+These are exploratory descriptive findings, not mask-count measurements.
+
+Correct prior archival language: Phase 2.3/2.4 evaluate mode saved metrics and
+scalar correction audits, not complete motion trajectories; save_motion_params
+was not consumed by this entry point. Full motion retention starts with this
+opt-in diagnostic. No prior result or negative finding is discarded.
+
+Record per correction: exact source stance mask, raw optimizer parameters,
+source and corrected world FK bodies/object poses, translation-only and common
+translation+yaw decoded states (fixed-order descriptive decomposition), window
+and reverse step. Also save each final sampled window, stitched pre-interpolation
+positions/rotations/object poses, post-interpolation SMPL joints and native floor
+height. Save detached CPU tensors per episode outside Git; flush buffers after
+write. Observation must consume no RNG or modify returned tensors.
+
+Gate: all 56 episodes/248 windows, 744 correction records and complete trajectory
+artifacts; finite native/gradient values, exact history/contact, full authority
+suite and registry validation. Every native metric and completion per episode
+must equal its sealed row exactly; mismatch is a failed equivalence gate and
+cannot support promoted inference or changed scientific findings. Compare existing
+scalar optimization telemetry except timing/memory. New tests compare recorder
+on/off tensors and RNG state and independent saved state/mask reconstruction.
+Formal replay supplies real-data equivalence and recorded batch-1 latency/memory;
+no separate smoke or benchmark workload. Peak allocation below 20 GiB, eight
+persistent GPU lanes; initial stability requires first completed episode/lane.
+
+Analysis uses GPU for tensor/frame calculations. First verify native FS exactly
+from saved evaluated joints/floor. Decompose per-transition FS contributions by
+source/corrected contact mask overlap on the correction grid, and native
+predecessor-frame vs two-frame stance eligibility, world vs estimated-floor
+thresholds. Separate fixed-mask empty/active corrections; report selected-foot
+motion changes and outside-mask changes. Report root translation, added yaw and
+added articulation contributions as order-dependent algebra, not isolated causal
+interventions. Distinguish clean correction, final sampled window and stitched/
+interpolated evaluated output; do not equate FK surrogate with SMPL native FS.
+Episode-first aggregation, all four scenes, source vs generated histories and
+three reverse steps. Use existing paired bootstrap (10,000 seed-42 replicates,
+episode/scene units) for A01-A00 native replication and diagnostic quantities;
+all new diagnostic CIs are exploratory nominal 95%, no recipe promotion gate.
+
+Use one config fragment and existing component modules/tools. Preregistration,
+implementation and completion commits; retain any failures, no run-id reuse.
+Write PHASE_2E_STANCE_RECORDING.md and compact result, integrate/tag
+exp/p2e-stance-recording-v1 after diagnostic gate. Full Phase 2 and learned
+training remain open. Close only 2.5, with no new recipe in this session.
