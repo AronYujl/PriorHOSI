@@ -1,0 +1,10 @@
+# Phase 2.9: complete-objective descent with a same-source original-Adam shadow.
+defaults: [config_sample_hosi_stance_increment, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      solver: armijo
+      learning_rate: 1.0
+      max_backtracks: 20
+      solver_diagnostic: true

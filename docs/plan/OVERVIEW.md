@@ -5,8 +5,9 @@
 
 2026-09-06 当前进度：Phase 2.8 已完成，A00 的接触坐标往返误差及 Adam 放大机制已通过
 372 次修正的因果诊断确认。原始生成结果逐值复现，修正配方继续保留待修复状态。
-下一入口是完整目标的优化求解审查；具体修复实验另行批准。完整 Phase 2 与 learned mixer
-训练仍开放，详见 [Phase 2.8 交接](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md)
+用户已批准 Phase 2.9 的 Armijo 求解器修复实验，实现验证通过，A00/A01 各 28 个 episode
+准备执行。完整 Phase 2 与 learned mixer 训练仍开放，详见
+[Phase 2.8 交接](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md)
 和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。
 
 ## 1. 主张、边界与接口

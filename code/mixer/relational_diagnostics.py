@@ -60,6 +60,98 @@ class RelationalOptimizerTrace:
         }
 
 
+class RelationalArmijoTrace(RelationalOptimizerTrace):
+    """Accepted states, trial decisions and the actual per-state scene references."""
+
+    def __init__(self, initial_step=1., max_backtracks=20):
+        super().__init__()
+        self.settings = {'initial_step': initial_step, 'shrink': .5, 'c1': 1e-4,
+                         'max_backtracks': max_backtracks, 'strict_decrease': True}
+        self.scene_queries = []
+        self.active = []
+        self.accepted = []
+        self.step_sizes = []
+        self.trials = []
+
+    def _scene(self, query):
+        self.scene_queries.append({name: value.detach().clone() for name, value in query.items()})
+
+    def before_backward(self, parameters, terms, loss, gradient_terms, active, query):
+        if not self.parameters:
+            self.initial_term_gradients = {
+                name: torch.autograd.grad(terms[name].sum(), parameters, retain_graph=True)[0].detach().clone()
+                for name in gradient_terms
+            }
+        self._state(parameters, terms, loss)
+        self._scene(query)
+        self.active.append(active.clone())
+
+    def trial(self, iteration, trial, pending, alpha, terms, loss, bound, accepted):
+        self.trials.append({
+            'iteration': iteration, 'trial': trial,
+            'pending': pending.clone(), 'step_size': alpha.clone(),
+            'terms': {name: value.detach().clone() for name, value in terms.items()},
+            'loss': loss.detach().clone(), 'armijo_bound': bound.detach().clone(),
+            'accepted': accepted.clone(),
+        })
+
+    def after_step(self, gradient, accepted, alpha):
+        self.gradients.append(gradient.clone())
+        self.accepted.append(accepted.clone())
+        self.step_sizes.append(alpha.clone())
+
+    def finish(self, parameters, terms, loss, query):
+        self._state(parameters, terms, loss)
+        self._scene(query)
+
+    def payload(self):
+        parameters = torch.stack(self.parameters).cpu()
+        cells = parameters.shape[1]
+        return {
+            'settings': self.settings, 'parameters': parameters,
+            'terms': {name: torch.stack([terms[name] for terms in self.terms]).cpu()
+                      for name in self.terms[0]},
+            'loss': torch.stack(self.losses).cpu(),
+            'gradients': (torch.stack(self.gradients).cpu() if self.gradients
+                          else parameters.new_empty(0, *parameters.shape[1:])),
+            'active': (torch.stack(self.active).cpu() if self.active
+                       else torch.empty(0, cells, dtype=torch.bool)),
+            'accepted': (torch.stack(self.accepted).cpu() if self.accepted
+                         else torch.empty(0, cells, dtype=torch.bool)),
+            'step_sizes': (torch.stack(self.step_sizes).cpu() if self.step_sizes
+                           else parameters.new_empty(0, cells)),
+            'initial_term_gradients': {name: value.cpu() for name, value in self.initial_term_gradients.items()},
+            'scene_queries': {name: torch.stack([query[name] for query in self.scene_queries]).cpu()
+                              for name in self.scene_queries[0]},
+            'trials': [{
+                **{name: value.cpu() if torch.is_tensor(value) else value
+                   for name, value in record.items() if name != 'terms'},
+                'terms': {name: value.cpu() for name, value in record['terms'].items()},
+            } for record in self.trials],
+        }
+
+
+def diagnose_relational_solver(geometry, objective, reference, cell, include_floor):
+    """Compare the accepted solver with original Adam on this identical source."""
+    shadow = RelationalOptimizerTrace()
+    optimize_relational_cells(
+        geometry, objective, steps=20, learning_rate=.05,
+        cells=(cell,), include_floor=include_floor, trace=shadow,
+    )
+    return {
+        'armijo': reference.payload(), 'adam': shadow.payload(),
+        'adam_final_scene_query': {name: value.detach().cpu().clone()
+                                   for name, value in objective.last_scene_query.items()},
+        'geometry': {name: value.detach().cpu().clone() for name, value in vars(geometry).items()
+                     if torch.is_tensor(value)},
+        'contact_mask': objective.contact.cpu().clone(),
+        'hand_anchor': objective.hand_anchor.cpu().clone(),
+        'hsi_target': objective.hsi_target.cpu().clone(),
+        'scene_flag': objective.scene_flag.cpu().clone(),
+        'scene_grid': geometry.dataset.scene_grid_torch.detach().cpu().clone(),
+    }
+
+
 def diagnose_relational_optimizer(geometry, objective, reference, steps, learning_rate,
                                   cell, include_floor):
     """Same-source contact ablation and first-step probe; neither feeds sampling."""

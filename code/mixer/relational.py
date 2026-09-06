@@ -216,6 +216,7 @@ class RelationalObjective:
             occupied, nearest = self.geometry.dataset.get_nearest_free_voxel(
                 points.detach(), self.scene_flag.expand(points.shape[0]),
             )
+        self.last_scene_query = {'occupied': occupied, 'nearest': nearest}
         distance_squared = (points - nearest).square().sum(-1)
         hand_target = (
             _apply_rotation(state['object_rotation_world'][..., None, :, :], self.hand_anchor)
@@ -265,8 +266,14 @@ class RelationalObjective:
 
 
 def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
-                              cells=CELL_KEYS, include_floor=True, trace=None):
-    """Independent Adam cells in one GPU batch, from identical zero residuals."""
+                              cells=CELL_KEYS, include_floor=True, trace=None,
+                              solver='adam', max_backtracks=20):
+    """Optimize registered cells from identical zero residuals with the selected solver."""
+    if solver != 'adam':
+        return {'armijo': _optimize_relational_armijo}[solver](
+            geometry, objective, steps, learning_rate, cells, include_floor,
+            trace, max_backtracks,
+        )
     with torch.enable_grad():
         parameters = geometry.base.new_zeros(len(cells), geometry.base.shape[1], geometry.dimension, requires_grad=True)
         optimizer = torch.optim.Adam([parameters], lr=learning_rate)
@@ -308,6 +315,116 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
     return encoded, parameters.detach(), metrics
 
 
+def _complete_energy(terms, common_terms, use_hsi, use_scene):
+    loss = sum(terms[name] for name in common_terms)
+    return loss + use_hsi * terms['hsi'] + use_scene * (
+        terms['human_scene'] + terms['object_scene'])
+
+
+def _optimize_relational_armijo(geometry, objective, steps, learning_rate, cells,
+                                include_floor, trace, max_backtracks):
+    """Steepest descent with independent sufficient-decrease searches per cell.
+
+    Each trial re-evaluates the complete objective and its current voxel targets.
+    Stop codes: 0 gradient budget, 1 zero gradient, 2 exhausted line search.
+    """
+    with torch.enable_grad():
+        parameters = geometry.base.new_zeros(
+            len(cells), geometry.base.shape[1], geometry.dimension, requires_grad=True)
+        use_hsi = parameters.new_tensor([int(cell[1]) for cell in cells])
+        use_scene = parameters.new_tensor([int(cell[2]) for cell in cells])
+        common_terms = ('residual', 'contact', 'stance', 'floor', 'endpoint') if include_floor else (
+            'residual', 'contact', 'stance', 'endpoint')
+        gradient_terms = common_terms + (('hsi',) if any(cell[1] == '1' for cell in cells) else ())
+        gradient_terms += ('human_scene', 'object_scene') if any(cell[2] == '1' for cell in cells) else ()
+        initial_terms, initial_metrics = objective.evaluate(geometry.decode(parameters))
+        initial_loss = _complete_energy(initial_terms, common_terms, use_hsi, use_scene)
+        active = torch.ones(len(cells), device=parameters.device, dtype=torch.bool)
+        gradient_finite = active.clone()
+        energy_finite = torch.isfinite(initial_loss)
+        gradient_max = parameters.new_zeros(len(cells))
+        gradients = parameters.new_zeros(len(cells))
+        evaluations = parameters.new_ones(len(cells))
+        trials = parameters.new_zeros(len(cells))
+        updates = parameters.new_zeros(len(cells))
+        stop_code = parameters.new_zeros(len(cells))
+        for iteration in range(steps):
+            if not active.any():
+                break
+            terms, _ = objective.evaluate(geometry.decode(parameters))
+            loss = _complete_energy(terms, common_terms, use_hsi, use_scene)
+            evaluations += 1
+            energy_finite &= torch.isfinite(loss)
+            parameters.grad = None
+            if trace is not None:
+                trace.before_backward(parameters, terms, loss, gradient_terms,
+                                      active, objective.last_scene_query)
+            loss.sum().backward()
+            gradient = parameters.grad.detach().clone()
+            gradients += 1
+            gradient_finite &= torch.isfinite(gradient).flatten(1).all(1)
+            current_max = gradient.abs().flatten(1).amax(1)
+            gradient_max = torch.maximum(gradient_max, current_max)
+            zero_gradient = active & (current_max == 0)
+            stop_code = torch.where(zero_gradient, stop_code.new_ones(()), stop_code)
+            pending = active & ~zero_gradient
+            accepted = torch.zeros_like(active)
+            next_parameters = parameters.detach().clone()
+            accepted_alpha = parameters.new_zeros(len(cells))
+            alpha = parameters.new_full((len(cells),), learning_rate)
+            slope = -gradient.square().flatten(1).sum(1)
+            with torch.no_grad():
+                for trial in range(max_backtracks):
+                    if not pending.any():
+                        break
+                    candidate = torch.where(
+                        pending[:, None, None],
+                        parameters - alpha[:, None, None] * gradient,
+                        next_parameters,
+                    )
+                    candidate_terms, _ = objective.evaluate(geometry.decode(candidate))
+                    candidate_loss = _complete_energy(candidate_terms, common_terms, use_hsi, use_scene)
+                    evaluations += 1
+                    trials += pending.to(trials)
+                    energy_finite &= torch.isfinite(candidate_loss)
+                    bound = loss.detach() + 1e-4 * alpha * slope
+                    take = pending & (candidate_loss <= bound) & (candidate_loss < loss.detach())
+                    if trace is not None:
+                        trace.trial(iteration, trial, pending, alpha, candidate_terms,
+                                    candidate_loss, bound, take)
+                    next_parameters = torch.where(take[:, None, None], candidate, next_parameters)
+                    accepted_alpha = torch.where(take, alpha, accepted_alpha)
+                    accepted |= take
+                    pending &= ~take
+                    alpha *= .5
+                parameters.copy_(next_parameters)
+                updates += accepted.to(updates)
+                stop_code = torch.where(pending, stop_code.new_full((), 2), stop_code)
+                active &= accepted
+                if trace is not None:
+                    trace.after_step(gradient, accepted, accepted_alpha)
+        with torch.no_grad():
+            state = geometry.decode(parameters)
+            final_terms, final_metrics = objective.evaluate(state)
+            final_loss = _complete_energy(final_terms, common_terms, use_hsi, use_scene)
+            evaluations += 1
+            energy_finite &= torch.isfinite(final_loss)
+            encoded = geometry.encode(state, geometry.base[:, :2])
+            if trace is not None:
+                trace.finish(parameters, final_terms, final_loss, objective.last_scene_query)
+    metrics = {**final_metrics, **{'energy_' + k: v for k, v in final_terms.items()}}
+    metrics.update({'before_' + k: v.detach() for k, v in initial_metrics.items()})
+    metrics.update({'before_energy_' + k: v.detach() for k, v in initial_terms.items()})
+    metrics.update(
+        before_energy_total=initial_loss.detach(), energy_total=final_loss,
+        gradient_finite=gradient_finite.float(), gradient_max=gradient_max,
+        energy_finite=energy_finite.float(), gradient_evaluations=gradients,
+        objective_evaluations=evaluations, line_search_trials=trials,
+        optimizer_updates=updates, optimizer_stop_code=stop_code,
+    )
+    return encoded, parameters.detach(), metrics
+
+
 def relational_problem(sampler, current, previous_x0, timesteps, context,
                        rest_offsets, clean, source_floor=False,
                        source_stance_velocity=False):
@@ -333,17 +450,21 @@ class RelationalCorrector:
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
                  learning_rate=0.05, include_floor=True, record_motion=False, source_floor=False,
-                 source_stance_velocity=False, optimizer_diagnostic=False):
+                 source_stance_velocity=False, optimizer_diagnostic=False,
+                 solver='adam', max_backtracks=20, solver_diagnostic=False):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
         self.learning_rate = float(learning_rate)
         self.include_floor = include_floor
         self.records = []
-        self.record_motion = record_motion or optimizer_diagnostic
+        self.record_motion = record_motion or optimizer_diagnostic or solver_diagnostic
         self.source_floor = source_floor
         self.source_stance_velocity = source_stance_velocity
         self.optimizer_diagnostic = optimizer_diagnostic
+        self.solver = solver
+        self.max_backtracks = int(max_backtracks)
+        self.solver_diagnostic = solver_diagnostic
         self.motion_records = []
 
     @torch.no_grad()
@@ -387,12 +508,16 @@ class RelationalCorrector:
             source_stance_velocity=self.source_stance_velocity,
         )
         trace = None
-        if self.optimizer_diagnostic:
+        if self.solver_diagnostic:
+            from .relational_diagnostics import RelationalArmijoTrace, diagnose_relational_solver
+            trace = RelationalArmijoTrace(self.learning_rate, self.max_backtracks)
+        elif self.optimizer_diagnostic:
             from .relational_diagnostics import RelationalOptimizerTrace, diagnose_relational_optimizer
             trace = RelationalOptimizerTrace()
         encoded, parameters, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
             cells=(self.cell,), include_floor=self.include_floor, trace=trace,
+            solver=self.solver, max_backtracks=self.max_backtracks,
         )
         if current.is_cuda:
             torch.cuda.synchronize(current.device)
@@ -410,7 +535,19 @@ class RelationalCorrector:
         if self.record_motion:
             self.record_geometry(geometry, objective, parameters,
                                  sampler.inner_hoi.sample_calls, step)
-        if self.optimizer_diagnostic:
+        if self.solver_diagnostic:
+            if current.is_cuda:
+                torch.cuda.synchronize(current.device)
+            diagnostic_started = time.perf_counter()
+            self.motion_records[-1]['solver_diagnostic'] = diagnose_relational_solver(
+                geometry, objective, trace, self.cell, self.include_floor,
+            )
+            if current.is_cuda:
+                torch.cuda.synchronize(current.device)
+            self.records[-1]['solver_diagnostic_seconds'] = time.perf_counter() - diagnostic_started
+            self.records[-1]['solver_diagnostic_peak_allocated_bytes'] = (
+                torch.cuda.max_memory_allocated(current.device) if current.is_cuda else None)
+        elif self.optimizer_diagnostic:
             if current.is_cuda:
                 torch.cuda.synchronize(current.device)
             diagnostic_started = time.perf_counter()
@@ -432,9 +569,14 @@ class RelationalCorrector:
             'include_floor': self.include_floor,
             'source_floor': self.source_floor,
             'source_stance_velocity': self.source_stance_velocity,
+            'solver': self.solver, 'max_backtracks': self.max_backtracks,
+            'solver_diagnostic': self.solver_diagnostic,
+            'solver_shadow_gradient_steps': 20 * len(self.records) if self.solver_diagnostic else 0,
             'optimizer_diagnostic': self.optimizer_diagnostic,
             'shadow_optimizer_gradient_steps': self.optimizer_steps * len(self.records) if self.optimizer_diagnostic else 0,
-            'optimizer_gradient_steps': self.optimizer_steps * len(self.records),
+            'optimizer_gradient_steps': (
+                sum(int(record['metrics']['gradient_evaluations']) for record in self.records)
+                if self.solver == 'armijo' else self.optimizer_steps * len(self.records)),
             'insertion': 'clean_before_posterior_and_previous_x0',
             'object_pose': 'hoi_with_common_human_object_transform',
             'calls': len(self.records), 'records': self.records,

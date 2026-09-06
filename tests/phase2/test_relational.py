@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'code'))
 from mixer.input_views import KnownEmptyObjectView, empty_forward_trajectory
 from mixer.relational import CELL_KEYS, RelationalCorrector, RelationalGeometry, RelationalObjective, optimize_relational_cells, source_floor_height
 from mixer.relational_diagnostics import (
-    RelationalOptimizerTrace, RelationalPrototypeDiagnostic, diagnose_relational_optimizer,
+    RelationalArmijoTrace, RelationalOptimizerTrace, RelationalPrototypeDiagnostic,
+    diagnose_relational_optimizer,
 )
 from tests.phase2.test_kinematic_composition import _fixture
 
@@ -202,6 +203,136 @@ def test_optimizer_trace_preserves_output_rng_and_attributes_source_departure(de
     torch.testing.assert_close(replay.decode(parameters)['human'], geometry.decode(parameters)['human'], atol=0, rtol=0)
 
 
+@pytest.mark.parametrize('device', ['cpu', 'cuda'])
+@pytest.mark.parametrize('cell', ['a00', 'a01'])
+def test_armijo_minimizes_full_objective_with_identical_recorded_output(device, cell):
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip('CUDA unavailable')
+    geometry, _ = _geometry()
+    for name, value in vars(geometry).copy().items():
+        if torch.is_tensor(value):
+            setattr(geometry, name, value.to(device))
+    def nearest(points, flags):
+        target = points.clone()
+        target[..., 0] = points[..., 0].clamp(max=0)
+        return points[..., 0] > 0, target
+    geometry.dataset.get_nearest_free_voxel = nearest
+    zero = geometry.base.new_zeros(1, 16, geometry.dimension)
+    objective = RelationalObjective(
+        geometry, torch.zeros(1, dtype=torch.long, device=device),
+        geometry.decode(zero)['human'][:, 2:], source_floor=True, source_stance_velocity=True,
+    )
+    objective.contact.fill_(True)
+    frozen = (objective.stance.clone(), objective.source_feet.clone(), objective.floor_height.clone())
+    kwargs = dict(steps=20, learning_rate=1., cells=(cell,), include_floor=False, solver='armijo')
+    expected, expected_parameters, expected_metrics = optimize_relational_cells(geometry, objective, **kwargs)
+    cpu_rng = torch.get_rng_state().clone()
+    cuda_rng = torch.cuda.get_rng_state().clone() if device == 'cuda' else None
+    trace = RelationalArmijoTrace()
+    encoded, parameters, metrics = optimize_relational_cells(geometry, objective, trace=trace, **kwargs)
+    assert torch.equal(encoded, expected) and torch.equal(parameters, expected_parameters)
+    assert all(torch.equal(metrics[k], expected_metrics[k]) for k in metrics)
+    assert torch.equal(cpu_rng, torch.get_rng_state())
+    if device == 'cuda':
+        assert torch.equal(cuda_rng, torch.cuda.get_rng_state())
+    for before, after in zip(frozen, (objective.stance, objective.source_feet, objective.floor_height)):
+        assert torch.equal(before, after)
+    payload = trace.payload()
+    assert (payload['loss'][1:] <= payload['loss'][:-1]).all()
+    assert metrics['energy_total'].item() <= metrics['before_energy_total'].item()
+    assert metrics['gradient_evaluations'].item() <= 20
+    assert metrics['line_search_trials'].item() <= 400
+    assert metrics['optimizer_updates'].item() == payload['accepted'].sum().item()
+    if cell == 'a00':
+        assert parameters.abs().max().item() < 1e-5
+    else:
+        assert metrics['energy_total'].item() < metrics['before_energy_total'].item()
+        assert metrics['optimizer_updates'].item() > 0
+    for trial in payload['trials']:
+        take = trial['accepted']
+        assert (trial['loss'][take] <= trial['armijo_bound'][take]).all()
+        assert (trial['loss'][take] < payload['loss'][trial['iteration']][take]).all()
+    assert torch.equal(encoded[:, :2], geometry.base[:, :2])
+    assert torch.equal(encoded[..., 228:], geometry.base[..., 228:])
+
+
+class ScalarRelationGeometry:
+    """Analytic one-coordinate problem for complete-loss and voxel-switch tests."""
+    dimension = 1
+    base = torch.zeros(1, 3, 232, dtype=torch.float64)
+
+    def decode(self, parameters):
+        return {'x': parameters[:, 2, 0]}
+
+    def encode(self, state, history):
+        return torch.cat((history.expand(len(state['x']), -1, -1),
+                          state['x'][:, None, None].expand(-1, 1, 232)), dim=1)
+
+
+def scalar_relation_objective(residual_weight, switching=False):
+    class Objective:
+        coordinates = []
+
+        def evaluate(self, state):
+            x = state['x']
+            self.coordinates.extend(x.detach().tolist())
+            target = torch.where(x.detach() >= .4, 3., 1.) if switching else torch.ones_like(x)
+            self.last_scene_query = {'nearest': target[:, None, None, None],
+                                     'occupied': torch.ones(len(x), 1, 1, dtype=torch.bool)}
+            zero = x * 0
+            terms = {name: zero for name in ('contact', 'stance', 'floor', 'endpoint', 'hsi', 'human_scene')}
+            terms.update(residual=residual_weight*x.square(),
+                         object_scene=(.75 if switching else 1.)*(x-target).square())
+            return terms, {}
+    return Objective()
+
+
+def test_armijo_uses_complete_loss_and_independent_cells():
+    geometry = ScalarRelationGeometry()
+    objective = scalar_relation_objective(50.)
+    trace = RelationalArmijoTrace()
+    _, parameters, metrics = optimize_relational_cells(
+        geometry, objective, cells=('a00', 'a01'), include_floor=False,
+        solver='armijo', learning_rate=1., trace=trace,
+    )
+    assert parameters[0].count_nonzero() == 0
+    # The optimum of 50*x^2+(x-1)^2 is 1/51, far from the scene-only optimum 1.
+    assert parameters[1, 2, 0].item() == pytest.approx(1/51, abs=1e-5)
+    assert metrics['energy_total'][1].item() < 1.
+    assert any(t['terms']['object_scene'][1] < 1 and t['loss'][1] > 1
+               and not t['accepted'][1] for t in trace.trials)
+    assert not trace.trials[0]['accepted'].any()
+    for i, cell in enumerate(('a00', 'a01')):
+        _, separate, _ = optimize_relational_cells(
+            geometry, scalar_relation_objective(50.), cells=(cell,), include_floor=False,
+            solver='armijo', learning_rate=1.,
+        )
+        torch.testing.assert_close(parameters[i], separate[0], atol=0, rtol=0)
+
+
+def test_armijo_requeries_voxel_switch_and_returns_last_accepted_state():
+    geometry = ScalarRelationGeometry()
+    objective = scalar_relation_objective(0., switching=True)
+    trace = RelationalArmijoTrace(max_backtracks=4)
+    _, parameters, metrics = optimize_relational_cells(
+        geometry, objective, cells=('a01',), include_floor=False,
+        solver='armijo', learning_rate=1., max_backtracks=4, trace=trace,
+    )
+    # The first proposal x=1.5 would lower a frozen (x-1)^2 surrogate. The voxel
+    # switch to target=3 makes the true loss larger, and the search must reject it.
+    assert objective.coordinates[2] == 1.5
+    assert trace.trials[0]['loss'].item() > trace.losses[0].item()
+    assert not trace.trials[0]['accepted'].item()
+    assert 0 < parameters[0, 2, 0].item() < .4
+    assert metrics['optimizer_stop_code'].item() == 2
+    payload = trace.payload()
+    assert torch.equal(parameters, payload['parameters'][-1])
+    assert (payload['loss'][1:] <= payload['loss'][:-1]).all()
+    assert not payload['accepted'][-1].any()
+    assert torch.equal(payload['parameters'][-1], payload['parameters'][-2])
+    assert metrics['energy_total'].item() < metrics['before_energy_total'].item()
+
+
 def test_empty_path_matches_the_forward_recurrence():
     betas = torch.linspace(0.0001, 0.02, 500)
     generator = torch.Generator().manual_seed(42)
@@ -350,11 +481,13 @@ def test_independent_rollout_cell_matches_its_batched_window_cell():
 
 
 @pytest.mark.parametrize('source_stance_velocity', [False, True])
-def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_stance_velocity):
+@pytest.mark.parametrize('solver', ['adam', 'armijo'])
+def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_stance_velocity, solver):
     geometry, _ = _geometry()
     geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
         torch.zeros(points.shape[:-1], dtype=torch.bool), points,
     )
+    geometry.dataset.scene_grid_torch = torch.tensor([-3., 0., -4., 3., 2., 4., 300., 100., 400.])
     context = {
         'mat': geometry.mat, 'obj_rot_mat_prefix': geometry.prefix,
         'obj_rot_mat_ref': geometry.reference,
@@ -365,7 +498,8 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_
     sampler = SimpleNamespace(dataset=geometry.dataset, inner_hoi=SimpleNamespace(sample_calls=1),
                               _hsi_prediction_pair=lambda *args: (geometry.base, geometry.base))
     corrector = RelationalCorrector(cell='a01', optimizer_steps=2,
-                                    source_stance_velocity=source_stance_velocity)
+                                    source_stance_velocity=source_stance_velocity,
+                                    solver=solver, learning_rate=1. if solver == 'armijo' else .05)
     arguments = (sampler, geometry.base, geometry.base, torch.tensor([0]), context, geometry.offsets, geometry.base)
     assert corrector.correct(*arguments, step=9) is geometry.base
     with torch.no_grad():
@@ -384,7 +518,9 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_
     assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
     recorded = RelationalCorrector(cell='a01', optimizer_steps=2, record_motion=True,
                                    source_stance_velocity=source_stance_velocity,
-                                   optimizer_diagnostic=source_stance_velocity)
+                                   optimizer_diagnostic=source_stance_velocity and solver == 'adam',
+                                   solver=solver, learning_rate=1. if solver == 'armijo' else .05,
+                                   solver_diagnostic=solver == 'armijo')
     rng_before = torch.get_rng_state().clone()
     with torch.no_grad():
         observed = recorded.correct(*arguments, step=0)
@@ -392,9 +528,13 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts(source_
     assert torch.equal(result, observed)
     assert recorded.records[0]['metrics'] == corrector.records[0]['metrics']
     snapshot = recorded.motion_records[0]
-    if source_stance_velocity:
+    if source_stance_velocity and solver == 'adam':
         assert snapshot['optimizer_diagnostic']['reference']['parameters'].shape[0] == 3
         assert recorded.audit_dict()['shadow_optimizer_gradient_steps'] == 2
+    if solver == 'armijo':
+        assert snapshot['solver_diagnostic']['armijo']['parameters'].shape[0] <= 3
+        assert snapshot['solver_diagnostic']['adam']['parameters'].shape[0] == 21
+        assert recorded.audit_dict()['solver_shadow_gradient_steps'] == 20
     source = snapshot['states']['source']['human']
     stance = source[..., (7, 8, 10, 11), 1] < torch.tensor([.08, .08, .04, .04])
     assert torch.equal(snapshot['stance_mask'], stance[:, 2:] & stance[:, 1:-1])

@@ -1,6 +1,8 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.8 deliverable PASS; causal diagnostic POSITIVE.
+Status: updated 2026-09-06. Phase 2.9 Armijo solver implementation is verified;
+the approved A00/A01 experiment is ready for execution. Phase 2.8 deliverable
+PASS; causal diagnostic POSITIVE.
 Source contact round-trip error supplies the initial gradient; Adam amplification
 starts all 336 A00 objective increases. All 372 contact-off shadow trajectories
 preserve zero residual. Original native outcomes and motions replay exactly.
@@ -2901,3 +2903,14 @@ the old assumption that every correction executes exactly20 gradient updates.
 Write PHASE_2I_ARMIJO.md and a compact result before integration/tag
 exp/p2i-armijo-v1. Close only Phase 2.9. Full Phase2, realism and learned training
 remain open; any further intervention requires its own approval.
+
+Implementation verification: **932 passed, 4 skipped in 171.78 seconds**.
+Near-zero real-geometry fixtures and nonzero scene objectives pass on CPU/CUDA;
+observed/default Armijo outputs, metrics and RNG agree exactly. Analytic tests
+recover the complete-loss optimum, preserve independent cells, reject a trial
+whose refreshed voxel reference raises its objective, and retain the last accepted
+state on search exhaustion. Recorded accepted states retain their actual scene
+references. All eight resolved configs match sealed Phase 2.7 except run/output
+paths, solver=armijo, learning_rate=1, max_backtracks=20 and solver_diagnostic=true.
+Registry validation passes with 355 records; diff check passes. Formal execution
+will supply the registered functional and synchronized timing/memory validation.
