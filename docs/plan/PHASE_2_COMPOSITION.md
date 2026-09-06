@@ -8,9 +8,9 @@ Retain reconstruction and the fixed experts; the correction recipe remains unpro
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Close only Phase 2.8. Next review: minimization of the complete active objective,
-including source-consistent contact relations and the nearest-free scene energy.
-A production repair needs its own concrete experiment and approval.
+Phase 2.8 is closed. The user approved the next solver repair, registered as
+Phase 2.9 below: Armijo gradient descent on the complete active objective,
+retaining contact constraints and all physical objective definitions.
 [Phase2.8 handoff](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md).
 
 ## What is being composed, and why not by data mixing
@@ -2800,3 +2800,104 @@ verification: **924 passed, 4 skipped in 169.11 seconds**; registry valid with
 cases, runtime and analysis revision. Integrate/tag exp/p2h-optimizer-diagnostic-v1
 after completion verification. Full Phase2, learned training and realism remain
 open; close this diagnostic subphase only.
+
+## 2026-09-06 — Phase 2.9 approved complete-objective Armijo solve
+
+The user's approval authorizes the solver repair following Phase 2.8. Branch
+phase/02i-armijo; run p2-mixer-armijo-s42-20260906. One experiment runs
+A00-armijo/A01-armijo, 28 episodes each, against sealed Phase 2.7 A00/A01-increment
+and Phase 2.3 reconstruction. Fix seed 42, bins 0/22/44/66, seven objects,
+R2 final EMA+CG/P15 online+Arm B, 500 diffusion steps, 499 CG calls/window,
+corrections 10/1/0, representation, bounds, scales, weights, source contact
+labels and source-height/stance-displacement targets. Floor and HSI factors
+stay off. A01 retains both scene terms. Contact's existing formula stays active
+and unchanged; this isolates the solver from an objective-definition intervention.
+
+**Solver.** Replace the selected rows' fixed-step Adam with steepest descent
+and Armijo backtracking on their complete active loss. At each iteration use
+d=-g, initial step size 1, shrink factor .5 and c1=1e-4. Accept only a trial
+with E_trial <= E_current + c1*alpha*(g dot d) and E_trial < E_current. The
+strict decrease distinguishes a useful update from a rounded equality. Re-query
+occupancy and nearest-free references at every current/trial/final evaluation.
+Commit the accepted parameters as the next iterate. Stop at exactly zero
+gradient, exhaustion of 20 backtracking trials, or 20 gradient iterations.
+No ad hoc loss/gradient threshold, momentum, weight search or output selection
+is added. A finite search limit is a recorded stopping reason, not a stationarity
+certificate. Return the last accepted iterate. Default Adam remains available
+unchanged for sealed configs and the diagnostic comparison.
+
+The gradient-iteration ceiling stays 20; backtracking adds at most 400 objective-
+only trials per correction, with source/current/final evaluations accounted
+separately. Record actual gradient evaluations, objective evaluations, accepted
+updates and line-search attempts. Initial per-term diagnostic derivatives are
+separate from solver gradients. Initial step 1 is the registered line-search
+proposal scale, not a tuned learning-rate sweep. The original solver is 20 Adam
+steps at .05. Include synchronized compute/memory costs; equal diffusion budgets
+do not imply equal optimizer work.
+
+**Registered internal diagnostic.** Each new source also receives one original
+20-step Adam/.05 shadow with the same complete objective, geometry, target and
+frozen mask. The shadow never feeds sampling. Retain both parameter/energy/gradient
+trajectories, every line-search trial's step size, energy and acceptance decision,
+and accepted-state nearest-free references. Save cached geometry, scene grid,
+contact anchors/mask and HSI target so accepted full losses can be reconstructed.
+Keep source/corrected/transform-decomposed motions and sampled/stitched/evaluated
+trajectories. Verify that the complete loss never rises at returned iterates or
+within the accepted path, and that every accepted trial satisfies both conditions.
+Report zero-step solves, search exhaustion, budget exhaustion and tiny source
+movements; do not equate a motionless A01 with a useful solver.
+
+The scene objective is piecewise because its integer voxel references change.
+Its existing query also leaves zero displacement for invalid grid indices.
+Record source/corrected/shadow invalid-query and geometric out-of-grid fractions,
+including newly invalid points, so a boundary crossing is visible beside a scene-
+energy reduction. These observations do not alter the loss or the native evaluator
+and do not certify physical collision improvement. Preserve unresolved geometry
+limitations alongside all native outcomes.
+
+**Gates and comparisons.** Deliverable: all 56 episodes/248 windows/744 original
+solves and matching Adam shadows, finite energies/gradients/recordings, exact
+history/contact, frozen targets/masks and complete native pairing. Armijo trajectories
+and their final complete objectives must be nonincreasing at every correction;
+independent accepted-state reconstruction must agree at atol1e-8/rtol1e-6.
+Component checks cover near-zero contact-driven sources, a nonzero scene objective,
+a changing voxel reference, independent cells, trial rejection, accepted-state
+return and recorded/default output/RNG compatibility. A failed technical gate is
+an implementation/operational failure; a stalled or weak solver can pass technical
+validity and fail the native quality gate.
+
+Native primary family: A00-armijo minus A00-increment FS; A01-armijo minus
+A00-armijo OS s_mean; A01-armijo minus reconstruction OS s_mean. Use 10,000 seed-42
+paired replicates and Bonferroni 98.3333% percentile intervals at both 28-episode
+and four-scene units, requiring all upper limits below zero. Report all 15 native
+metrics and completion, both new rows against their sealed counterparts and
+reconstruction, A01 versus new A00, and the solver-by-geometry interaction with
+nominal 95% intervals. Each row's contact/completion point loss is at most .02
+against its sealed counterpart and reconstruction; A01 also passes against new
+A00. A00 may have no significant nominal FS/HS-frame harm versus reconstruction;
+A01 may have none versus reconstruction, new A00 or sealed A01 at either unit.
+An unresolved primary fails promotion; absence of significance is not equivalence.
+
+Report episode-first and scene means, 10,000 seed-42 nominal paired intervals for
+Armijo versus same-source Adam full-objective change and human/object motion RMS,
+plus step10/1/0 and initial/generated-history strata. Separate within-source
+optimizer diagnostics from the native comparison of diverging rollout sources.
+Technical monotonicity alone does not establish realism or useful scene correction.
+
+**Execution and closure.** One config fragment inherits source-stance-increment
+and selects Armijo, initial step1 and the solver diagnostic. Scope existing mixer
+relational modules/component tests and phase docs; no new tool script or expert/
+core/evaluator change. Use one preregistration, one logical implementation and one
+completion commit. Run the complete authority suite, registry validation, resolved
+config comparison and diff check. The formal run supplies real-data functionality
+and synchronized batch-1 timing/memory checks, without a separate smoke or benchmark.
+Run eight RTX3090 lanes in a host-owned detached screen with automatic native,
+trace and paired analysis. Initial stability requires one episode per lane, all
+trace checks passing and peak allocation below20GiB. Keep all failures, raw data
+and run identities; no automatic restart or overwriting of results. Archive
+preflight, exact resolved configs, input identities by reference and commands before
+clean-worktree tools/experiment.py start. Full solver counts and timings replace
+the old assumption that every correction executes exactly20 gradient updates.
+Write PHASE_2I_ARMIJO.md and a compact result before integration/tag
+exp/p2i-armijo-v1. Close only Phase 2.9. Full Phase2, realism and learned training
+remain open; any further intervention requires its own approval.
