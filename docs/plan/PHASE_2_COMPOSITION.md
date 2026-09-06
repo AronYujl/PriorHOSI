@@ -3194,3 +3194,91 @@ Completion authority suite:949 passed/4 historical-asset skips in178.79s;
 registry valid with360 records, selected benchmark config resolves and diff check
 passes. The candidate is sealed with lambda26; all native quality claims remain
 open pending Phase2.12.
+
+## 2026-09-07 — Phase 2.12 fixed DP-Edit full469 native benchmark
+
+The user approved proceeding after the lambda26 calibration. Run the full native
+Atomic-HOSI enumeration:67 scenes x7 objects, seed42, P15 online/Arm B500 steps,
+R2 final EMA, post-window DP-Edit with lambda26, beta_ref1,8 levels/iterations,
+unchanged source/explicit terms, bounds, local Armijo and isolated scene-query
+RNG from2.11. No test-based tuning, new teacher, training or additional mechanism.
+Branch phase/02l-scene-evidence-benchmark; one config fragment inherits
+config_sample_hosi_scene_edit and fixes lambda26,8 shards and469 expected tasks.
+
+**Rows and provenance.** Generate reconstruct_only, lambda0 and full lambda26,
+469 tasks each (1407 new rollouts). Reuse the sealed native HOI469-task result
+p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829 by reference. Disabled source
+identity is covered by the current full native-chain tests and the2.10 real
+seven-episode exact native comparison; do not spend a duplicate469 baseline run.
+All new rows use the same checkpoint pair and stage2.11 generator/geometry/RNG
+recipe. Old A01/Armijo outputs are not the lambda0 control. Save full source,
+reference, edited, stitched and evaluated trajectories and per-episode audits.
+The previously observed28-task/four-scene subset remains exploratory; no lambda
+was selected on it. Report the complete469 population without favorable subsets.
+
+**Statistics and gates fixed before outcomes.** Keep all15 native fields plus
+completed (both final errors<10cm). Pair by scene/object/test_idx with exactly469
+keys and67 complete scenes, and also aggregate per scene. All resampling uses
+10,000 seed42 paired replicates, sharing the index plan within each unit.
+Six pairwise contrasts among the four local rows report nominal95% intervals for
+every metric. Primary family has four comparisons: lambda26 minus lambda0 on HS
+s_mean and OS s_mean, and lambda26 minus native HOI on those same two metrics.
+Use Bonferroni98.75% two-sided intervals (quantiles.625/99.375) and require an upper
+limit belowzero at both episode and scene units for each claimed improvement.
+HSI evidence gate requires both lambda0 contrasts; total scene-quality gate
+requires both native-HOI contrasts. A partial pass is reported as metric-specific,
+not promoted into a joint success. Report relative magnitudes even when a tiny
+difference is significant; no practical-effect threshold is inferred after seeing
+results. All scalar units retain native meaning: s_mean is a frame-average sum
+of penetrating vertex depths, and completion is endpoint success.
+
+Protection gate: lambda26 versus lambda0 AND native HOI, at both units, must have
+nominal95% lower bounds for contact/completion deltas at least-.02 (two percentage
+points). The paired bootstrap ratio mean(FS_full)/mean(FS_reference) must have
+nominal95% upper bound at most1.10. These are registered noninferiority margins;
+absence of significant harm by itself does not pass. Joint promotion requires
+both primary gates and all protections. A negative/unresolved scientific gate
+still completes this fixed benchmark; preserve all failures and do not launch a
+new mechanism or tune on test results. Reconstruction contrasts remain visible.
+
+Report improved/worsened/tied task and scene counts for all metrics, object strata,
+completion discordance, and the ten largest absolute HS/OS delta contributors
+alongside full means. Tail contributions are descriptive and never define a
+selected result. Original tools/paired_bootstrap.py produces the nominal reports;
+GPU float64 resampling computes the registered adjusted and FS-ratio intervals
+using the same NumPy seed42 index plan. All metric pairs must be finite; no
+nonfinite pair is silently excluded in the benchmark gate.
+
+**External comparison.** Include InfBaGel paper Table1 Hybrid1:0.5 as an explicitly
+paper-reported, unpaired reference: success81.45%, FS.15, contact76.96%, HS Pmean3.17,
+OS Pmean12.45 (handoff section14.5 / original paper Table1). Its pre-repair motion
+representation/reconstruction differs from current local evaluation. Present
+side-by-side context without paired uncertainty or a same-protocol superiority
+claim. Keep the historical July reproduction separate if cited; never load its
+released checkpoint into repaired representation and call that equivalent.
+
+**Execution and technical gate.** Eight RTX3090 host-owned persistent lanes; each
+lane runs its full/lambda0/reconstruct shard sequentially.24 shard jobs overall,
+followed automatically by existing native merge and complete analysis. Resolve
+and archive all24 configs, verify only registered row overrides, archive machine
+preflight and sealed input/baseline/calibration references, then clean-worktree
+tools/experiment.py start. No new runtime/evaluator/tool source is needed. Run the
+full authority suite, registry and diff validation. Formal jobs provide observed
+batch1 timing/memory; no separate smoke or benchmark is added.
+
+Initial stability: every lane finishes one full native episode with finite
+metrics/teacher/gradients, exact history/contact and peak allocation below20GiB;
+its per-episode motion/audit files must exist. Keep all independent lane exits and
+never automatically restart or overwrite a failed result. After that interval,
+report observed throughput/ETA and yield while the persistent campaign continues;
+continuous Codex polling is unnecessary. Sampling can survive a control-session
+interruption. Episode files are durable outputs, not a claim that the native
+evaluator supports resuming a partially written shard.
+
+Merge only complete8-shard rows with469 ordinals and67 scenes; verify per-episode
+mode/lambda, fixed configuration and all source/solver/domain invariants before
+reporting. Keep source/corrected query-invalid and geometric-outside counts and
+realized solver/teacher call counts. Sharded timing remains workload cost, not
+isolated production latency. Write PHASE_2L_SCENE_EVIDENCE_BENCHMARK.md and compact
+result before integration/tag exp/p2l-scene-evidence-benchmark-v1. Close only2.12;
+learned training, new weights, state machine and subsequent phases stay deferred.
