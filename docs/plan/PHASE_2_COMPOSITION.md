@@ -1,19 +1,17 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.9 Armijo solver implementation is verified;
-the approved A00/A01 experiment is ready for execution. Phase 2.8 deliverable
-PASS; causal diagnostic POSITIVE.
-Source contact round-trip error supplies the initial gradient; Adam amplification
-starts all 336 A00 objective increases. All 372 contact-off shadow trajectories
-preserve zero residual. Original native outcomes and motions replay exactly.
-Retain reconstruction and the fixed experts; the correction recipe remains unpromoted.
+Status: updated 2026-09-06. Phase 2.9 deliverable PASS; pilot quality PASS.
+Armijo produces zero complete-objective increases in 744 corrections. All three
+adjusted native primary comparisons and registered protections pass. A00 sliding
+returns near reconstruction; A01 reduces OS mean by 13.20% against reconstruction,
+while giving back significant HS/OS depth gains relative to the prior Adam recipe.
+Retain reconstruction as the comparison anchor and Armijo as the passing pilot.
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
 Full Phase2, useful HSI supervision, realism and learned training remain open.
-Phase 2.8 is closed. The user approved the next solver repair, registered as
-Phase 2.9 below: Armijo gradient descent on the complete active objective,
-retaining contact constraints and all physical objective definitions.
-[Phase2.8 handoff](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md).
+Close only Phase 2.9. Review the scene objective's discontinuities and grid-boundary
+semantics on recorded A01 solves before a separately approved next experiment.
+[Phase2.9 handoff](../phase_summaries/PHASE_2I_ARMIJO.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2914,3 +2912,75 @@ references. All eight resolved configs match sealed Phase 2.7 except run/output
 paths, solver=armijo, learning_rate=1, max_backtracks=20 and solver_diagnostic=true.
 Registry validation passes with 355 records; diff check passes. Formal execution
 will supply the registered functional and synchronized timing/memory validation.
+
+## 2026-09-06 — Phase 2.9 completion: monotone solve and pilot quality PASS
+
+All eight GPU jobs and automatic analysis exited zero: 56 episodes, 248 windows,
+744 Armijo solves and same-source Adam shadows, 123,752 CG calls. Every accepted
+iterate satisfies the registered full-objective Armijo condition and strict
+decrease. All final objectives are nonincreasing, active energies independently
+reconstruct, source masks/history/contact are exact and saved joints reproduce
+native FS. The solver made 4,818 gradient evaluations, 28,333 line-search trials,
+34,639 total objective evaluations and 4,246 accepted updates. Adam shadows made
+14,880 gradient updates and never entered the generated chain.
+
+The three primary contrasts pass Bonferroni 98.3333% intervals at both units:
+A00-armijo FS versus A00-increment delta -.0106451 (episode [-.0178746,-.0046410],
+scene [-.0162632,-.0050597]); A01-armijo OS mean versus new A00 delta -4.028411
+(episode [-9.143940,-.651786], scene [-5.942986,-1.832115]); versus reconstruction
+delta -4.029828 (episode [-9.147277,-.652113], scene [-5.946129,-1.833127]).
+All point and nominal protections pass. Completion remains 22/28 with identical
+episode outcomes for every row. Contact is 68.4657% for A00 and 68.3976% for A01;
+the latter is .06812 percentage points below reconstruction with unresolved
+nominal intervals. Reconstruction remains the comparison anchor.
+
+A00 FS .129318 is 7.61% below old A00 and only .0000409 above reconstruction;
+its source correction is at floating-point scale, with exactly zero stance and
+endpoint energies. A01 FS .137591 is .008313 (6.43%) above reconstruction, with
+nominal episode CI [-.007186,.033708] and scene [-.007046,.032112]. Passing the
+registered absence-of-significant-harm protection does not establish equivalence.
+A01 HS frames 34.5061% versus reconstruction 34.2028% is also unresolved. Its HS
+mean 3.894199 versus 4.014550 is nominally better only at scene level. The full
+Phase2 requirement for useful human-scene composition remains open.
+
+The quality tradeoff against old A01 is material: OS mean rises 21.285703→26.504058
+(delta +5.218355) and HS mean 2.212554→3.894199 (+1.681645), with positive nominal
+95% intervals at both units. HS/OS maxima also worsen at both units. A01 retains
+43.57% of the old OS-mean benefit versus reconstruction. Its FS improvement versus
+old A01 is unresolved at both units. All 16 native metrics, nominal comparisons,
+solver-by-geometry interactions and measured costs remain in the compact result;
+the passing pilot is not a claim of dominance over the Adam recipe.
+
+On identical A01 sources, mean complete objective falls .0535347→.0399240 under
+Armijo and rises to .0808130 under Adam. Of 372 A01 corrections, 217 start with
+positive scene energy; all 217 lower both complete and scene energy, 167 stop at
+the 20-iteration budget and 50 exhaust line search after accepted updates. The
+155 zero-scene sources account for all 125 zero-update solves; 30 take numerical
+contact-improving steps. A00 has 109 tiny decreases and 263 ties, versus 339 increases
+and 33 ties in its Adam shadows. A00/A01 total line-search exhaustion counts 334/192
+include the near-zero source cases and must not be read as failed scene descent.
+
+Boundary diagnostics identify seven newly invalid object-point observations in
+four A01 corrections: floorlamp in scene b1b053a9, window 5, steps 10/1/0 (six points,
+zero previous scene residual), and monitor in scene 0aa05d5a, window 7, step 0 (one point,
+scene-energy drop .000139799 on that point). The cohort episode-first mean drop
+on newly invalid points is 8.32136e-7. This leaves a real objective-domain issue;
+these co-occurrences do not explain the full native gain. No new invalid human
+query is recorded. Keep query validity, geometric out-of-grid status and native
+mesh-SDF metrics distinct.
+
+GPU job wall 36m52s; manifest through analysis 38m28s; peak allocated 804.43 MiB.
+56 motion files total 710,829,890 bytes. Instrumented correction sums are 107.93s
+A00 and 293.50s A01; generation sums 5375.08/5750.01s and shadow/archive sums
+206.50/212.65s. Eight-lane timing includes brief initial trace verification on
+GPU 7 and does not establish isolated production latency. No operational failure,
+restart or result overwrite occurred. Implementation suite: 932 passed/4 skipped
+in 171.78s. Completion suite: **932 passed, 4 skipped in 171.53 seconds**;
+registry valid with 356 records. Native pairing, monotonicity, frozen-source and
+saved-state audits all pass.
+
+Integrate/tag exp/p2i-armijo-v1 after completion verification. Retain Armijo as a
+passing pilot solver, fixed experts and reconstruction as the anchor. Read
+PHASE_2I_ARMIJO.md before the next read-only review of scene-reference switching,
+grid coverage and positive-scene solves that exhaust line search. No further
+experiment is approved by this completion; close only 2.9.

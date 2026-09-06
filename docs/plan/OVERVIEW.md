@@ -3,11 +3,11 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-06 当前进度：Phase 2.8 已完成，A00 的接触坐标往返误差及 Adam 放大机制已通过
-372 次修正的因果诊断确认。原始生成结果逐值复现，修正配方继续保留待修复状态。
-用户已批准 Phase 2.9 的 Armijo 求解器修复实验，实现验证通过，A00/A01 各 28 个 episode
-准备执行。完整 Phase 2 与 learned mixer 训练仍开放，详见
-[Phase 2.8 交接](../phase_summaries/PHASE_2H_OPTIMIZER_DIAGNOSTIC.md)
+2026-09-06 当前进度：Phase 2.9 已完成，交付与本轮质量门槛均通过。Armijo 在 744 次
+修正中保持完整目标不增，A00 滑步接近重建基准，A01 物景穿透指标比重建下降 13.20%。
+相对原 Adam 版 A01，人景与物景穿透深度均显著回升；保留这项质量取舍以及边界查询问题。
+重建仍为比较锚点，Armijo 保留为通过本轮门槛的候选。完整 Phase 2、有效 HSI 监督与
+learned mixer 训练仍开放，详见 [Phase 2.9 交接](../phase_summaries/PHASE_2I_ARMIJO.md)
 和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。
 
 ## 1. 主张、边界与接口
