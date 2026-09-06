@@ -2146,3 +2146,59 @@ Integrate the completed pilot into `phase/02-mixer` and tag
 `exp/p2b-relational-rollout-v1`, preserving the negative quality verdict.
 The expert selection remains R2+CG / P15+Arm B. Start no new diagnostic or
 learned-mixer training in this closing session.
+
+
+## 2026-09-06 — Phase 2.3 approved common-correction diagnostic
+
+The user explicitly approved the two-row diagnostic after the Phase 2.2 review.
+Branch `phase/02c-common-diagnostic` isolates reconstruction feedback and the
+floor objective. The archived A00 records contain 372 corrections: 309 have zero
+initial stance energy, and the mean floor share of initial common energy is
+96.803%. This is energy accounting, not gradient attribution or proof of an
+empty stance mask. A00 worsens native sliding in 25/28 episodes and all four
+scene means. Its fixed source stance mask uses absolute heights and two adjacent
+frames; native sliding uses estimated-floor-relative heights on generated motion.
+
+**Two new rows, no selection sweep.** `reconstruction` is A00 with zero optimizer
+steps, retaining decode/encode and clean feedback at 10,1,0. `no_floor` is A00
+with only the floor term excluded from the optimized sum, retaining 20 Adam steps
+at 0.05. Floor energy is still measured. Residual/contact/stance/endpoint terms,
+physical scales, bounds, masks and all sampler settings retain Phase 2.2 values.
+R2 final EMA + CG and P15 online + Arm B remain fixed. Raw gate is zero; neither
+new row adds an HSI learned or geometry objective. A zero-step result is an FK
+projection of redundant source channels, not an identity requirement.
+
+**Protocol.** Same bins 0,22,44,66, all seven objects per scene, seed 42:
+28 episodes/124 windows per new row, 56 episodes/248 windows total. Reuse matched
+`reference` and `a00` from `p2-mixer-relational-rollout-r1-s42-20260906` by reference.
+Use the eight authority RTX 3090 GPUs, one independent scene job each, batch 1;
+record actual availability, resolved configs and hardware before persistent screen
+execution via the existing experiment/evaluator lifecycle. Reuse sealed input
+provenance. No new tool script, smoke workload, expert/core edit or training.
+The formal workload supplies real-data verification and synchronized batch-1
+runtime/memory measurement; optimized compute changes with the zero-step arm.
+
+**Analysis fixed before execution.** Report all 15 native metrics and completion
+for all four rows. Use 10,000 seed-42 paired bootstrap replicates at episode and
+scene units for reconstruction-reference, no_floor-a00, no_floor-reference and
+no_floor-reconstruction. Primary diagnostic outcomes are native sliding and
+human-scene penetrating-frame fraction; report contact, completion and feet
+height beside them, plus object-scene depth. Negative upper 95% CI at both units
+in no_floor-a00 supports an independent floor cost for that outcome. Positive
+lower CI in reconstruction-reference identifies harmful reconstruction feedback.
+Intervals crossing zero are unresolved. These contrasts permit interactions;
+no sum-of-effects or individual stance-mask causal claim is implied. Lower
+sliding with worse engagement/penetration is a tradeoff. Contact/completion point
+losses above 0.02 against reference block a candidate promotion, as do significant
+native sliding or human-scene prevalence regressions. Four scenes and this
+diagnostic alone cannot satisfy full Phase 2 or authorize learned-mixer training.
+
+**Deliverable gate.** Retain both rows and failures; finite native outputs, 499
+finite CG calls/window, three correction calls/window, exact history/contact
+preservation; actual optimizer gradients finite in no_floor (zero-step arm has
+no optimizer gradients). Tests verify zero-step reconstruction and exact default
+objective compatibility plus isolated floor exclusion; full authority suite and
+registry validation pass. Write paired reports, compact result and
+`docs/phase_summaries/PHASE_2C_COMMON_DIAGNOSTIC.md`; classify negative results.
+Use preregistration, implementation and completion commits; integrate/tag the
+completed diagnostic only. No further direction starts in its closing session.
