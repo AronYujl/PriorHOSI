@@ -2246,3 +2246,53 @@ Full metrics, paired intervals, runtime and limits are in
 `docs/phase_summaries/PHASE_2C_COMMON_DIAGNOSTIC.md`. The diagnostic deliverable
 passes. Integrate into `phase/02-mixer` and tag `exp/p2c-common-diagnostic-v1`.
 Close this subphase without starting another workload.
+
+
+## 2026-09-06 — Phase 2.4 approved floor-free factorial
+
+User approved three new closed-loop rows: A01 geometry, A10 HSI increment,
+A11 both, each with include_floor=false. Reuse sealed Phase 2.3 no_floor as
+A00 and reconstruction as the practical anchor. Fixed R2 final EMA + CG and
+P15 online + Arm B, seed 42, bins 0/22/44/66, seven objects each; 84 new
+episodes/372 windows. Preserve 500 diffusion steps, CG at 499 steps, corrections
+at 10/1/0, 20 Adam steps at LR 0.05, existing bounds/scales/masks and HSI input
+view. No expert/core change, weight search or training. Branch
+phase/02d-floor-free-factorial; run p2-mixer-floor-free-factorial-s42-20260906.
+
+Hypothesis: removing forced floor allows geometry to improve scene penetration
+against reconstruction; test whether HSI's previously measured sliding/OS-depth
+tradeoff persists. A00 controls optimizer/common terms; reconstruction controls
+practical utility. The retained HSI target is not presumed useful supervision.
+
+Persist all 15 native metrics plus endpoint completion, engagement/feet height,
+audits and synchronized runtime/memory. Paired 10,000 seed-42 bootstrap at episode
+and four-scene units: factorial A00/A10/A01/A11 plus A01-reconstruction and
+A11-reconstruction. Primary family has five OS s_mean contrasts: A01-A00,
+A11-A01, A10-A00, A01-reconstruction, A11-reconstruction. In addition to nominal
+95% intervals report Bonferroni 99% percentile intervals (five comparisons) at
+each unit, using the same seed/resamples. Require negative upper adjusted CIs at
+both units for a positive primary contrast. Report factorial interaction and all
+other metrics with nominal CIs as secondary, explicitly without familywise claims.
+Geometry promotion requires A01-A00 and A01-reconstruction OS gains. HSI promotion
+requires A11-A01 and A11-reconstruction OS gains. Each promoted row must lose at
+most .02 contact/completion against reconstruction and its matched factor control,
+with no significant nominal worsening in FS or HS penetrating-frame prevalence
+at either unit. Report HS/OS depth maxima and all adverse outcomes regardless of
+gate. Four scenes and native endpoint completion do not establish full Phase 2,
+state-machine success, motion realism or permission for learned training.
+
+Use eight authority RTX 3090 lanes, one process/GPU, batch 1, four BLAS threads.
+Schedule twelve scene jobs by known window counts; keep peak allocation below
+20 GiB. Archive exact resolved configs and comparison to sealed no_floor, machine
+preflight and inherited input references before persistent launch. Full authority
+suite and registry validation required. Runtime code is unchanged: skip separate
+functional/performance workloads; formal evaluation records batch-1 timing/memory.
+Initial stability requires one completed episode per active lane with finite CG,
+optimizer/native values and exact history/contact; episode artifacts provide
+restart boundaries, retain any failed run and use a fresh id for an approved retry.
+
+Deliverable: all 84 new episodes, matched 28-episode reused rows, complete paired
+reports, retained failures, compact result and PHASE_2D_FLOOR_FREE_FACTORIAL.md.
+Use preregistration, one config implementation and completion commits; integrate
+and tag exp/p2d-floor-free-factorial-v1 after deliverable gate. Close only 2.4;
+no subsequent experiment starts in its closing session.
