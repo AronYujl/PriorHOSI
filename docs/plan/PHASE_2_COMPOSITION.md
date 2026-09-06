@@ -3056,3 +3056,28 @@ The existing evaluator changes only by selecting scene_editor for its motion
 recorder. Per-window logs include all active explicit terms, teacher and explicit
 parameter-gradient norms/dots, every local trial, boundary counts, calls and
 synchronized timing. No expert, core, metric or tool implementation changes.
+
+## 2026-09-06 — Phase 2.10 completion: editor works, HSI gain unresolved
+
+All four rows completed28 episodes/180 windows in the registered single scene;
+all GPU jobs and paired analysis exited zero. DP-Edit accepts329/360 updates and
+preserves exact history/contact and geometric domain constraints. HSI signal is
+nonzero; its mean weighted parameter-gradient norm is about589x smaller than the
+explicit terms. DP-Edit versus lambda0 HS/OS means improve .0598%/.0209%, with
+both nominal paired intervals crossing zero. Completion stays7/7 for every row.
+Reconstruction changes FS/contact/penetration by itself and remains a required
+control. Implementation gate passes; quality/transfer and full469 gates remain
+open. No weights were selected or adjusted using this diagnostic.
+
+See PHASE_2J_SCENE_EVIDENCE.md and
+experiments/results/p2_mixer_scene_evidence_s42_20260906.json for all metrics,
+contrasts, runtime and artifact references. Phase2.11 starts with an explicit
+choice between the fixed-setting469 comparison and independent-development
+signal-scale calibration; any calibration requires its own dated registration
+and must preserve the test/development boundary. This session closes only2.10.
+
+Completion verification: **945 passed, 4 skipped in169.67s**; the skips are two
+historical HSI checkpoint-pair cases and two historical P8 bootstrap cases.
+Registry valid with358 records and diff check passes. Disabled-row native metrics
+match all seven corresponding episodes of the sealed469-task P15 Arm B baseline
+exactly. Integrate by fast-forward and tag exp/p2j-scene-evidence-v1.
