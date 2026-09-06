@@ -869,6 +869,8 @@ def main(cfg: DictConfig) -> None:
 
             _seq_gen_time = 0
             motion_corrector = getattr(sampler_body, 'relational_corrector', None)
+            if motion_corrector is None:
+                motion_corrector = getattr(sampler_body, 'scene_editor', None)
             record_relational_motion = getattr(motion_corrector, 'record_motion', False)
             if record_relational_motion:
                 recorded_windows = []

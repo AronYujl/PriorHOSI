@@ -1,0 +1,26 @@
+# Phase 2.10: post-window DP evidence; lambda_dp=0 is the identical-editor control.
+defaults: [config_sample_hosi_input_diagnostic, _self_]
+
+hosi_mode: evaluate
+hosi_episode_audits: true
+hsi_guidance_posterior_coef1: false
+hsi_guidance_scale: 0.0
+mixer_gate: 0
+
+sampler:
+  pelvis:
+    gate: 0
+    input_diagnostic: null
+    scene_editor:
+      _target_: mixer.scene_evidence.SceneEvidenceEditor
+      enabled: true
+      mode: edit
+      lambda_dp: 0.1
+      hoi_reference_weight: 1.0
+      noise_levels: [300, 264, 229, 193, 157, 121, 86, 50]
+      initial_step: 1.0
+      shrink: 0.5
+      c1: 0.0001
+      max_backtracks: 10
+      prox_weight: 1.0
+      record_motion: true

@@ -3043,3 +3043,16 @@ PHASE_2J_SCENE_EVIDENCE.md and compact result. Phase2.11 (branch
 phase/02k-scene-evidence-benchmark) will freeze pilot settings and preregister the
 four-row 469-task comparison with episode/scene uncertainty before execution;
 this session closes only 2.10 and leaves that next entry concrete.
+
+Implementation verification: **945 passed, 4 skipped in 163.99s**, including 13
+new scene-evidence component cases. The existing skips concern unavailable sealed
+historical evaluation artifacts. Registry validation passes at357 records. All four
+Hydra jobs resolve. Train/test/LINGO norm.npy human bounds are exactly equal;
+P15/R2 canonical beta equality is checked when wiring the real models. Raw heads
+share existing once-prepared conditions; the editor consumes independent random
+streams. The sampler restores actual fixed history after native object SO(3)
+projection in enabled editor modes; the disabled path retains native arithmetic.
+The existing evaluator changes only by selecting scene_editor for its motion
+recorder. Per-window logs include all active explicit terms, teacher and explicit
+parameter-gradient norms/dots, every local trial, boundary counts, calls and
+synchronized timing. No expert, core, metric or tool implementation changes.

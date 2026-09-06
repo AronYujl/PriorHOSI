@@ -77,7 +77,7 @@ class HOSIComposedSampler:
                  channel_mask='human', hsi_object_voxel_mode='occupied',
                  body_composer=None, hsi_guidance_scale=1.0,
                  inference_engineering=False, input_diagnostic=None,
-                 hsi_input_view=None, relational_corrector=None):
+                 hsi_input_view=None, relational_corrector=None, scene_editor=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -105,6 +105,14 @@ class HOSIComposedSampler:
         self.input_diagnostic = input_diagnostic
         self.hsi_input_view = hsi_input_view
         self.relational_corrector = relational_corrector
+        self.scene_editor = scene_editor
+        if scene_editor is not None and scene_editor.enabled:
+            if (not gate_is_identity(self.gate, 0) or body_composer is not None
+                    or relational_corrector is not None or input_diagnostic is not None
+                    or self._hsi_posterior_guidance_enabled()):
+                raise ValueError('scene editor requires pure HOI generation and HSI CG off')
+            if hsi_sampler is None:
+                raise ValueError('scene editor requires the scene-query sampler')
         self._posterior_coefficient_cache = None
         if self.hsi_guidance_scale < 0:
             raise ValueError('hsi_guidance_scale must be non-negative')
@@ -161,6 +169,11 @@ class HOSIComposedSampler:
             if hsi_model is None:
                 raise ValueError('an HSI sampler needs an HSI model')
             self.hsi_sampler.set_dataset_and_model(dataset, hsi_model)
+        if self.scene_editor is not None and self.scene_editor.enabled:
+            model.eval().requires_grad_(False)
+            hsi_model.eval().requires_grad_(False)
+            if not torch.equal(self.inner_hoi.diffusion.betas.cpu(), self.hsi_sampler.betas.cpu()):
+                raise ValueError('scene teacher diffusion schedules differ')
 
     def audit_dict(self):
         audit = dict(self.inner_hoi.audit_dict())
@@ -176,7 +189,8 @@ class HOSIComposedSampler:
             # Raw/kinematic composition preserves HOI object channels. Relational
             # correction also transforms the object with the human; its own audit
             # records that physical provenance and the exact contact restoration.
-            'object_channels_from_hoi': self.relational_corrector is None,
+            'object_channels_from_hoi': (self.relational_corrector is None
+                                         and (self.scene_editor is None or not self.scene_editor.enabled)),
             'compose_calls': self.compose_calls,
             'hsi_expert_loaded': self.hsi_sampler is not None,
             'per_step_composition': True,
@@ -216,6 +230,8 @@ class HOSIComposedSampler:
         }
         if self.relational_corrector is not None:
             audit['composition']['relational_correction'] = self.relational_corrector.audit_dict()
+        if self.scene_editor is not None:
+            audit['composition']['scene_edit'] = self.scene_editor.audit_dict()
         return audit
 
     @staticmethod
@@ -393,6 +409,12 @@ class HOSIComposedSampler:
         current[..., 219:228] = project_to_so3(
             current[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
         ).reshape(batch, REPRESENTATION.window_frames, 9)
+        if self.scene_editor is not None and self.scene_editor.enabled:
+            current[:, :REPRESENTATION.history_frames] = fixed_points
+            current = self.scene_editor.edit(
+                self, current, hoi_arguments, local_object_bps, hsi_context,
+                human_dict['rest_human_offsets'], generator.initial_seed(),
+            )
         self.inner_hoi._update_audit(current)
         imgs[-1] = current
         return imgs, []
@@ -410,6 +432,11 @@ class HOSIComposedSampler:
         checkpoint raises in prepare_sample_arguments' relation check instead of
         being silently mis-conditioned.
         """
+        clean = self._hoi_raw_x0(current, timesteps, arguments, local_object_bps)
+        return prepare_clean_x0(clean, fixed_points, object_so3_x0=object_so3_x0)
+
+    def _hoi_raw_x0(self, current, timesteps, arguments, local_object_bps):
+        """Raw HOI network head with the already-prepared window conditions."""
         model = self.inner_hoi.student_model
         forward_arguments = dict(arguments)
         if local_object_bps is not None:
@@ -430,7 +457,7 @@ class HOSIComposedSampler:
                 forward_arguments['object_bps'], forward_arguments['goals'],
                 forward_arguments['progress'],
             )
-        return prepare_clean_x0(clean, fixed_points, object_so3_x0=object_so3_x0)
+        return clean
 
     def _hsi_context(self, batch, mat, scene_flag, text_emb, pelvis_goal,
                      scene_goal, object_goal, need_scene, need_pelvis_dir, pi,
