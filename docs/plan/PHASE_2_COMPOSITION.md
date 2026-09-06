@@ -1,16 +1,16 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.5 recording diagnostic and exact replay PASS.
-Geometry/HSI quality gates from Phase2.4 remain FAIL. Both replay rows have empty
-source stance masks at 338/372 corrections; geometry's added height-weighted
-foot motion lies predominantly outside this coverage already at clean correction.
-A mask/height-reference repair has not been tested. Retain reconstruction anchor.
+Status: updated 2026-09-06. Phase 2.6 deliverable PASS; height-aligned pilot
+quality FAIL. Source-relative floor expands stance coverage (338 to 5 empty
+masks/372 calls) and retains OS-depth benefit, but the registered sliding gain
+is unresolved at episode level and HS frame prevalence worsens against
+reconstruction. Neither height recipe is promoted; retain reconstruction anchor.
 
 Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
-Next session should propose one controlled support-selection diagnostic using
-saved evidence. Full Phase2, useful HSI supervision, realism, learned training
-and state-machine evaluation remain open. Latest handoff:
-[Phase2.5](../phase_summaries/PHASE_2E_STANCE_RECORDING.md).
+Full Phase2, useful HSI supervision, realism and learned training remain open.
+Next session should read the latest handoff and review support/HS changes before
+one separately approved mechanism; avoid automatic parameter sweeps.
+[Phase2.6 handoff](../phase_summaries/PHASE_2F_STANCE_HEIGHT.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2490,3 +2490,28 @@ static/no-low-speed cases, no artificial terminal support, frozen source floor/
 mask during optimizer steps, and exact default/explicit-world output agreement.
 Eight resolved configs match Phase2.5 sealed rows except run/output paths and
 source_floor=true. Registry valid with 349 records; diff check passed.
+
+
+## 2026-09-06 — Phase 2.6 completion: coverage expands, quality FAIL
+
+Both 28-episode rows completed on eight RTX3090 GPUs in35m56s. All motion/audits
+and analyses pass. Empty masks fall338/372 to5/372 in each row. A01-height FS
+.140129 vs old A01 .207636 is a32.51% point reduction but its adjusted episode
+CI [-.197414,.045276] is unresolved. OS s_mean20.910681 improves against new
+A00 and reconstruction under the three-comparison adjusted gate. It gives back
+1.857684 of old A01's OS benefit, significant at nominal95% in both units.
+HS penetrating frames rise4.5911 points against reconstruction, significant at
+both units and failing the protection. Completion is22/28 with identical episode
+outcomes throughout; all contact/completion point protections pass.
+
+Source floors vary across windows and differ from final native estimates; these
+are measured discrepancies, not ground-truth bias or proof of a causal failure
+mechanism. The final classification is deliverable PASS, pilot quality FAIL.
+Keep experts and reconstruction anchor fixed; full Phase2/learned training open.
+Compact: experiments/results/p2_mixer_stance_height_s42_20260906.json;
+handoff: docs/phase_summaries/PHASE_2F_STANCE_HEIGHT.md. Integrate/tag
+exp/p2f-stance-height-v1 after final verification; close only this subphase.
+
+Completion verification: **919 passed, 4 skipped in 165.41 seconds**; registry
+valid with 350 records, complete native pairing at both units, saved-native FS
+checks and all finiteness/history/contact audits pass.
