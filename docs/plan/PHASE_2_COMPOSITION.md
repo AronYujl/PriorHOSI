@@ -2202,3 +2202,12 @@ registry validation pass. Write paired reports, compact result and
 `docs/phase_summaries/PHASE_2C_COMMON_DIAGNOSTIC.md`; classify negative results.
 Use preregistration, implementation and completion commits; integrate/tag the
 completed diagnostic only. No further direction starts in its closing session.
+
+
+Implementation verification: **916 passed, 4 skipped in 163.18 seconds** on the
+final source. Zero-step reconstruction and isolated floor exclusion have component
+coverage, including exact default-path compatibility. The evaluator entry point
+now sets ROOT_DIR to its checkout's absolute root; this replaces its relative
+reset and changes no data target. Eight fully resolved configs match sealed A00
+except run/output locations and the registered interventions. The previous suite
+also passed 916/4 before that path correction. Registry validation passes.

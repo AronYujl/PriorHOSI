@@ -204,7 +204,7 @@ class RelationalObjective:
 
 
 def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
-                              cells=CELL_KEYS):
+                              cells=CELL_KEYS, include_floor=True):
     """Independent Adam cells in one GPU batch, from identical zero residuals."""
     with torch.enable_grad():
         parameters = geometry.base.new_zeros(len(cells), geometry.base.shape[1], geometry.dimension, requires_grad=True)
@@ -214,9 +214,12 @@ def optimize_relational_cells(geometry, objective, steps=20, learning_rate=0.05,
         gradient_finite = torch.ones(len(cells), dtype=torch.bool, device=parameters.device)
         gradient_max = parameters.new_zeros(len(cells))
         initial_terms, initial_metrics = objective.evaluate(geometry.decode(parameters))
+        common_terms = ('residual', 'contact', 'stance', 'floor', 'endpoint') if include_floor else (
+            'residual', 'contact', 'stance', 'endpoint',
+        )
         for _ in range(steps):
             terms, _ = objective.evaluate(geometry.decode(parameters))
-            loss = sum(terms[name] for name in ('residual', 'contact', 'stance', 'floor', 'endpoint'))
+            loss = sum(terms[name] for name in common_terms)
             loss = loss + use_hsi * terms['hsi'] + use_scene * (terms['human_scene'] + terms['object_scene'])
             optimizer.zero_grad(set_to_none=True)
             loss.sum().backward()
@@ -255,11 +258,12 @@ class RelationalCorrector:
     """Feed one registered relation cell into the shared reverse chain."""
 
     def __init__(self, cell='a01', steps=(10, 1, 0), optimizer_steps=20,
-                 learning_rate=0.05):
+                 learning_rate=0.05, include_floor=True):
         self.cell = cell
         self.steps = tuple(steps)
         self.optimizer_steps = int(optimizer_steps)
         self.learning_rate = float(learning_rate)
+        self.include_floor = include_floor
         self.records = []
 
     def correct(self, sampler, current, previous_x0, timesteps, context,
@@ -275,7 +279,7 @@ class RelationalCorrector:
         )
         encoded, _, metrics = optimize_relational_cells(
             geometry, objective, self.optimizer_steps, self.learning_rate,
-            cells=(self.cell,),
+            cells=(self.cell,), include_floor=self.include_floor,
         )
         if current.is_cuda:
             torch.cuda.synchronize(current.device)
@@ -296,6 +300,8 @@ class RelationalCorrector:
         return {
             'cell': self.cell, 'steps': list(self.steps),
             'optimizer_steps': self.optimizer_steps, 'learning_rate': self.learning_rate,
+            'include_floor': self.include_floor,
+            'optimizer_gradient_steps': self.optimizer_steps * len(self.records),
             'insertion': 'clean_before_posterior_and_previous_x0',
             'object_pose': 'hoi_with_common_human_object_transform',
             'calls': len(self.records), 'records': self.records,

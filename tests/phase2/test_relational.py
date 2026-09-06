@@ -208,6 +208,54 @@ def test_corrector_applies_real_optimizer_and_preserves_history_contacts():
     assert audit['records'][0]['history_exact'] and audit['records'][0]['contact_exact']
 
 
+def test_zero_step_reconstruction_projects_redundant_positions_without_motion_update():
+    geometry, _ = _geometry()
+    # A denoiser can predict redundant positions inconsistent with its rotations.
+    geometry.positions[:, 2:, 10, 0] += 0.1
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    zero = torch.zeros(1, 16, geometry.dimension)
+    state = geometry.decode(zero)
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), state['human'][:, 2:])
+    encoded, parameters, metrics = optimize_relational_cells(geometry, objective, steps=0, cells=('a00',))
+    torch.testing.assert_close(encoded, geometry.encode(state, geometry.base[:, :2]))
+    assert parameters.count_nonzero() == 0
+    assert metrics['gradient_max'].item() == 0
+    torch.testing.assert_close(state['global_rotation'], geometry.global_rotation, atol=2e-6, rtol=2e-5)
+    torch.testing.assert_close(state['object_position'], geometry.object_position)
+    assert not torch.allclose(state['local_fk'][:, 2:, 10], geometry.positions[:, 2:, 10])
+    assert torch.equal(encoded[:, :2], geometry.base[:, :2])
+    assert torch.equal(encoded[..., 228:], geometry.base[..., 228:])
+
+
+def test_floor_exclusion_matches_independent_zero_floor_objective_and_keeps_telemetry():
+    geometry, _ = _geometry()
+    geometry.dataset.get_nearest_free_voxel = lambda points, flags: (
+        torch.zeros(points.shape[:-1], dtype=torch.bool), points,
+    )
+    target = geometry.decode(torch.zeros(1, 16, geometry.dimension))['human'][:, 2:]
+    objective = RelationalObjective(geometry, torch.zeros(1, dtype=torch.long), target)
+
+    class ZeroFloorObjective:
+        def evaluate(self, state):
+            terms, metrics = objective.evaluate(state)
+            terms['floor'] = terms['floor'] * 0
+            return terms, metrics
+
+    default, default_parameters, _ = optimize_relational_cells(geometry, objective, steps=3, cells=('a00',))
+    explicit, explicit_parameters, _ = optimize_relational_cells(geometry, objective, steps=3, cells=('a00',), include_floor=True)
+    assert torch.equal(default, explicit)
+    assert torch.equal(default_parameters, explicit_parameters)
+    actual, parameters, metrics = optimize_relational_cells(geometry, objective, steps=3, cells=('a00',), include_floor=False)
+    expected, expected_parameters, _ = optimize_relational_cells(geometry, ZeroFloorObjective(), steps=3, cells=('a00',))
+    torch.testing.assert_close(actual, expected)
+    torch.testing.assert_close(parameters, expected_parameters)
+    assert not torch.allclose(parameters, default_parameters)
+    assert metrics['energy_floor'].item() > 0
+    assert metrics['gradient_finite'].item() == 1
+
+
 def test_corrected_clean_drives_posterior_and_next_scene_reference():
     from tests.phase2.test_composed_sampler import _evaluator_arguments, _make_composed_with_hsi
     sampler, _, _, _ = _make_composed_with_hsi(0, batch=1)

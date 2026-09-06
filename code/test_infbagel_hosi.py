@@ -1347,7 +1347,7 @@ def main(cfg: DictConfig) -> None:
 if __name__ == "__main__":
     os.environ['HYDRA_FULL_ERROR'] = '1'
     os.environ['CUDA_LAUNCH_BLOCKING'] = '0'
-    os.environ['ROOT_DIR'] = '../'
+    os.environ['ROOT_DIR'] = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     OmegaConf.register_new_resolver("times", lambda x, y: int(x) * int(y))
     main()

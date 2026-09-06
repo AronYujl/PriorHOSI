@@ -1,0 +1,9 @@
+# Phase 2.3: A00 with only the floor objective excluded.
+# The reconstruction row overrides optimizer_steps=0 and include_floor=true.
+defaults: [config_sample_hosi_relational_rollout, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      cell: a00
+      include_floor: false
