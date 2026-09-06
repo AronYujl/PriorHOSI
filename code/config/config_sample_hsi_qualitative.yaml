@@ -19,4 +19,4 @@ qualitative_review_dir: /data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_2
 qualitative_render_stride: 2
 qualitative_case_ids: null
 qualitative_blender: /data/yujinlun/tools/blender-3.6.23-linux-x64/blender
-qualitative_ffmpeg: /data/yujinlun/tools/ffmpeg-nvenc-20260906/bin/ffmpeg
+qualitative_ffmpeg: /data/yujinlun/tools/ffmpeg-nvenc-20250831/bin/ffmpeg

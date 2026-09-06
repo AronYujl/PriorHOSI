@@ -1,0 +1,69 @@
+{
+  "status": "complete",
+  "candidate_count": 20,
+  "scene_count": 17,
+  "window_count": 97,
+  "selected": [
+    {
+      "case_id": "navigate_01",
+      "sequence_id": "037:003046",
+      "caption": "walk",
+      "recorded_span_joint_error_cm": 14.661385899525325,
+      "reason": "行走路径与GT较接近，完整身体大部分可见，适合展示小空间内的移动。",
+      "observed_gap": "步幅、摆臂和转向时机有差异；FS为0.605，GT为0.536，脚部质量仍有限。该例是短程转弯，不宣称复杂路径规划。"
+    },
+    {
+      "case_id": "sit_04",
+      "sequence_id": "037:002985",
+      "caption": "sit down on couch",
+      "recorded_span_joint_error_cm": 23.74135059079051,
+      "reason": "座椅及腿部比较清楚，生成完成了接近、调整位置和坐下。",
+      "observed_gap": "生成在座椅前多了步伐调整，落座过程的根部位置和姿态与GT有差异。与最低关节差的sit_01相比，本例接触部位更清楚。"
+    },
+    {
+      "case_id": "rise_01",
+      "sequence_id": "067:006770",
+      "caption": "stand up from seat",
+      "recorded_span_joint_error_cm": 13.688619082738231,
+      "reason": "完整起身过程可辨认，四条起身候选中与GT较接近。",
+      "observed_gap": "GT约3.7秒已站直，生成此时仍在起身；约4.7秒仍明显前倾。该片段只支持起身能力，尚未包含完整离开路径。"
+    },
+    {
+      "case_id": "lie_02",
+      "sequence_id": "042:003930",
+      "caption": "lie down on sofa and face up",
+      "recorded_span_joint_error_cm": 15.202493448377918,
+      "reason": "生成完成了坐到躺的转变；另外三例的时序或最终姿态差距更大。",
+      "observed_gap": "躺下时机偏晚，手臂、腿部和身体支撑位置有差别。原始场景靠背/扫描边缘仍遮挡部分头肩；接触与穿透需要结合GT看。"
+    },
+    {
+      "case_id": "wash_04",
+      "sequence_id": "047:004674",
+      "caption": "wash hands at washbasin",
+      "recorded_span_joint_error_cm": 15.699636081818033,
+      "reason": "生成能接近台面并抬手交互，动作过程可辨认。",
+      "observed_gap": "抬手、俯身及收手时机与GT不同，手部位置和脚部稳定性也有差距。手指采用两侧一致的SMPL-X平手设置，无法据此判断细粒度手指动作。"
+    }
+  ],
+  "artifacts": {
+    "review": "/data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906/review/selected.html",
+    "all20": "/data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906/review/index.html",
+    "archive": "/data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906/HSIPrior_GT_comparison_20cases.zip",
+    "report": "/data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906/review/SELECTED_FIVE.md",
+    "media_validation": "/data/yujinlun/iclr2027/artifacts/hsi/paired_train_s42_20260906/review/media_verification.json"
+  },
+  "runs": [
+    "p1-hsi-r2-qualitative-s42-20260906",
+    "p1-hsi-r2-qualitative-render-s42-20260906",
+    "p1-hsi-r2-qualitative-render-r1-s42-20260906",
+    "p1-hsi-r2-qualitative-media-r2-s42-20260906"
+  ],
+  "sampling_source": "27046c6",
+  "rendering_source": "b8e885d",
+  "tests": {
+    "authority_passed": 440,
+    "authority_skipped": 3,
+    "targeted_evaluator_and_visualization_passed": 30
+  },
+  "notes": "All20 candidates retained. Final five are selected training-source examples with visible remaining errors. Source initial heading; not the native Table3 input protocol. Model generation executed once."
+}
