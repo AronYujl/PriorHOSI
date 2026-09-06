@@ -3171,3 +3171,26 @@ its read-only snapshot and construction command are under
 results/evidence-scale-inputs-s42-20260907/. Six stage1 jobs resolve. Runtime uses
 the existing evaluator's generator, A*, rebase and recorder; development mode
 returns declared window proxies before the native mesh-SDF metric block.
+
+## 2026-09-07 — Phase 2.11 completion: lambda26 calibrated, candidate gate PASS
+
+All48 development executions/148 windows finish. The three calibration scenes
+provide26 positive-scene windows plus2 inactive ones. Scene-balanced estimation
+selects lambda26 (unrounded25.820766); verification data do not select or alter it.
+Independent verification gives contact-anchor drift.177683cm and source stance
+increment.222867cm, both below.5cm; HS/OS voxel residuals satisfy the1.10x bounds.
+All solver/history/contact/domain/RNG checks pass. HS/OS proxy improvements are
+only.0300%/.0653%; contact-anchor drift increases.041257cm with positive nominal
+intervals at both task and scene units. Candidate eligibility is not a quality
+claim. All source conditions, unfavorable outcomes and intervals are retained.
+
+Use PHASE_2K_SCENE_EVIDENCE_CALIBRATION.md and
+experiments/results/p2_mixer_evidence_scale_s42_20260907.json. Freeze lambda26,
+original reference/explicit/solver settings and the repaired independent query
+RNG for Phase2.12 registration. No469 native workload or new parameter search
+starts in this session. Integrate/tag only2.11 after completion verification.
+
+Completion authority suite:949 passed/4 historical-asset skips in178.79s;
+registry valid with360 records, selected benchmark config resolves and diff check
+passes. The candidate is sealed with lambda26; all native quality claims remain
+open pending Phase2.12.
