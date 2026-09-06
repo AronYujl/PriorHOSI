@@ -3395,3 +3395,17 @@ motion persistence. Rerun exactly the registered24 tasks/68 windows as
 p2-mixer-evidence-views-r1-s42-20260907. First attempt adds six attempted windows
 (864 HSI and384 HOI teacher forwards) of operational cost; these are outside the
 9792/4352 complete retry budget. Settings and scientific selection remain fixed.
+
+### Phase2.13 aggregate serialization failure and artifact-only recovery
+
+The r1 campaign saved all24 tasks/68 windows, then all six final metrics.json
+writers failed on Hydra ListConfig nested in diagnostics metadata. Retain six
+exit1 statuses, truncated aggregates and the failed manifest. Per-episode JSON
+and motion tensors are complete. Convert the configuration at the editor input
+boundary to plain containers; extend the Hydra-configured end-to-end test through
+json.dumps(audit_dict). This metadata-only fix preserves executed tensors and
+adds no generation/probe workload. Recover statistics under the fresh
+p2-mixer-evidence-views-analysis-s42-20260907 manifest, referencing r1 outputs;
+retain all original failures. Bootstrap uses GPU7 with the existing pairing
+rules and NumPy seed42 index plan; original source replay uses GPU0..5. All
+source/legacy/static/RNG/coverage checks precede scientific interpretation.

@@ -6,6 +6,7 @@ teacher refreshes are not a global density or a monotone likelihood sequence.
 import time
 
 import torch
+from omegaconf import OmegaConf
 
 from .input_views import KnownEmptyObjectView, masked_object_arguments
 from .relational import RelationalGeometry, RelationalObjective
@@ -180,7 +181,7 @@ class SceneEvidenceEditor:
         if teacher_scene_view not in ('legacy_occupied', 'environment_only_temporal'):
             raise ValueError('mismatched teacher observations are diagnostic-only')
         self.teacher_scene_view = teacher_scene_view
-        self.diagnostics = dict(diagnostics or {})
+        self.diagnostics = OmegaConf.to_container(OmegaConf.create(diagnostics or {}), resolve=True)
         if self.diagnostics.get('enabled') and mode != 'calibrate':
             raise ValueError('fixed-source diagnostics require passive calibrate mode')
         self.records, self.motion_records = [], []

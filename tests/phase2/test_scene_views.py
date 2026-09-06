@@ -2,6 +2,8 @@
 from types import SimpleNamespace
 from pathlib import Path
 import sys
+import json
+from omegaconf import OmegaConf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'code'))
 
@@ -133,7 +135,7 @@ def test_fixed_source_pairing_static_base_and_passive_history():
     reference = geometry.encode(geometry.decode(p), geometry.base[:, :2])
     objective = RelationalObjective(geometry, context['scene_flag'], geometry.decode(p)['human'][:, 2:])
     editor = SceneEvidenceEditor(enabled=True, mode='calibrate', lambda_dp=26., noise_levels=(250,),
-        diagnostics=dict(enabled=True, noise_draws=2, mismatch_local_x_m=2., physical_probe_rms_m=[.001]))
+        diagnostics=OmegaConf.create(dict(enabled=True, noise_draws=2, mismatch_local_x_m=2., physical_probe_rms_m=[.001])))
     returned = editor.edit(sampler, geometry.base, {}, None, context, geometry.offsets, 42)
     record = editor.records[0]
     result = record['view_diagnostic']
@@ -143,6 +145,7 @@ def test_fixed_source_pairing_static_base_and_passive_history():
     assert all(x['base_prediction_equal'] for x in record['iterations'])
     assert torch.equal(returned, geometry.base)
     assert editor.motion_records[0]['local_bps'] is None
+    assert json.loads(json.dumps(editor.audit_dict(), allow_nan=False))['diagnostics']['physical_probe_rms_m'] == [.001]
     for start in (0, 3):
         assert all(torch.equal(sampler.pairs[start][0], sampler.pairs[i][0]) for i in range(start, start+3))
     assert not torch.equal(sampler.pairs[0][0], sampler.pairs[3][0])
