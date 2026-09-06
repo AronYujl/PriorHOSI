@@ -3377,3 +3377,10 @@ Stop on correctness failures; retain operational failures without reuse. Complet
 only2.13 with compact result and PHASE_2M_DP_EVIDENCE_VIEWS.md, then integrate/tag
 exp/p2m-dp-evidence-views-v1. Scientific failure completes this diagnostic and
 requires a separate next-phase decision; no automatic development rollout follows.
+
+Implementation verification:955 passed/4 existing historical-asset skips in173.63s;
+23 targeted scene-view/evidence cases pass. Six exact jobs resolve with lambda26,
+CG off, gate0 and unchanged editor recipe; registry363 records validates. Runtime
+source/context replay, actual R2 static-base equivalence and batch1 timings are
+measured by the registered workload. Passive records carry all ray probes and
+same-source lambda0 short edits; no probe changes actual history.

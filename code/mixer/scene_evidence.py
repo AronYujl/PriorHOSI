@@ -91,11 +91,12 @@ class SceneEvidenceTeacher:
     """Pure raw-head queries using conditions prepared once by native generation."""
 
     def __init__(self, sampler, arguments, local_bps, context, source, seed,
-                 beta=1., lambda_dp=.1):
+                 beta=1., lambda_dp=.1, teacher_scene_view='legacy_occupied'):
         self.sampler, self.arguments = sampler, arguments
         self.local_bps, self.context = local_bps, context
         self.source = source.detach()
         self.beta, self.lambda_dp = beta, lambda_dp
+        self.teacher_scene_view = teacher_scene_view
         self.generator = torch.Generator(device=source.device).manual_seed(
             (int(seed) + 32452843) % (2**63 - 1))
         self.scene_generator = torch.Generator(device='cpu').manual_seed(
@@ -105,7 +106,7 @@ class SceneEvidenceTeacher:
         self.hoi_calls = self.hsi_calls = 0
 
     @torch.no_grad()
-    def query(self, candidate, level):
+    def query(self, candidate, level, capture=False):
         diffusion = self.sampler.inner_hoi.diffusion
         t = torch.full((candidate.shape[0],), level, device=candidate.device, dtype=torch.long)
         alpha = diffusion.sqrt_alpha_bar[level].to(candidate)
@@ -130,11 +131,18 @@ class SceneEvidenceTeacher:
                 torch.set_rng_state(self.scene_generator.get_state())
                 common = self.sampler._hsi_model_arguments(candidate, candidate, t, self.context)
                 self.scene_generator.set_state(torch.get_rng_state())
+            if self.teacher_scene_view != 'legacy_occupied':
+                from .scene_views import teacher_common
+                common = teacher_common(common, candidate, self.context,
+                                        self.sampler.hsi_sampler, self.teacher_scene_view)
             view = self.empty.for_step(z_edit, level)
             cond, base = self.sampler._hsi_predict_pair(view, masked_object_arguments(common))
             hsi_delta[..., :216] = (epsilon_from_x0(view, cond, alpha, sigma)
                                     - epsilon_from_x0(view, base, alpha, sigma))[..., :216]
             self.hsi_calls += 2
+            if capture:
+                self.query_bundle = dict(common=common, view=view, cond=cond, base=base,
+                                         alpha=alpha, sigma=sigma, hoi_delta=hoi_delta)
         mask = editable_mask(candidate)
         direction = evidence_direction(hoi_delta, hsi_delta, alpha, sigma,
                                        self.beta, self.lambda_dp, mask)
@@ -157,7 +165,8 @@ class SceneEvidenceEditor:
     def __init__(self, enabled=False, mode='edit', lambda_dp=.1,
                  hoi_reference_weight=1., noise_levels=(300, 264, 229, 193, 157, 121, 86, 50),
                  initial_step=1., shrink=.5, c1=1e-4, max_backtracks=10,
-                 prox_weight=1., record_motion=True):
+                 prox_weight=1., record_motion=True,
+                 teacher_scene_view='legacy_occupied', diagnostics=None):
         if mode not in ('edit', 'reconstruct_only', 'calibrate'):
             raise ValueError('scene_edit mode must be edit, reconstruct_only or calibrate')
         if not noise_levels or any(k <= 0 or k >= 499 for k in noise_levels):
@@ -168,6 +177,12 @@ class SceneEvidenceEditor:
         self.initial_step, self.shrink, self.c1 = initial_step, shrink, c1
         self.max_backtracks, self.prox_weight = max_backtracks, prox_weight
         self.record_motion = record_motion
+        if teacher_scene_view not in ('legacy_occupied', 'environment_only_temporal'):
+            raise ValueError('mismatched teacher observations are diagnostic-only')
+        self.teacher_scene_view = teacher_scene_view
+        self.diagnostics = dict(diagnostics or {})
+        if self.diagnostics.get('enabled') and mode != 'calibrate':
+            raise ValueError('fixed-source diagnostics require passive calibrate mode')
         self.records, self.motion_records = [], []
         self.cell = ('disabled' if not enabled else
                      ('reconstruct' if mode == 'reconstruct_only' else ('dp_edit' if lambda_dp else 'lambda0')))
@@ -189,14 +204,23 @@ class SceneEvidenceEditor:
         objective = RelationalObjective(geometry, context['scene_flag'], initial['human'][:, 2:],
                                         source_floor=True, source_stance_velocity=True)
         teacher = SceneEvidenceTeacher(sampler, arguments, local_bps, context, reference, seed,
-                                        self.hoi_reference_weight, self.lambda_dp)
+                                        self.hoi_reference_weight, self.lambda_dp,
+                                        self.teacher_scene_view)
         grid = sampler.dataset.scene_grid_torch.to(source)
         mask = editable_mask(source)
         denominator = mask.flatten(1).sum(1)
         initial_domain = domain_state(initial, grid)
         iterations, teacher_seconds, solver_seconds = [], 0., 0.
         initial_terms, initial_metrics = objective.evaluate(initial)
-        for level in self.noise_levels if self.mode in ('edit', 'calibrate') else ():
+        diagnostic = None
+        if self.diagnostics.get('enabled'):
+            from .scene_evidence_diagnostics import run_fixed_source_views
+            diagnostic = run_fixed_source_views(self, teacher, geometry, objective,
+                                                 parameters, reference, seed)
+            iterations = diagnostic.pop('iterations')
+            teacher_seconds = diagnostic['teacher_seconds']
+            solver_seconds = diagnostic['probe_seconds']
+        for level in self.noise_levels if self.mode in ('edit', 'calibrate') and diagnostic is None else ():
             current_state = geometry.decode(parameters)
             candidate = geometry.encode(current_state, source[:, :2]).detach()
             current_domain = domain_state(current_state, grid)
@@ -278,16 +302,28 @@ class SceneEvidenceEditor:
             source_metrics=values(initial_metrics), final_metrics=values(final_metrics),
             source_domain=domain_record(initial_domain), final_domain=domain_record(final_domain),
             iterations=iterations))
+        if diagnostic is not None:
+            self.records[-1]['view_diagnostic'] = diagnostic
         if self.record_motion:
             self.motion_records.append(dict(window=sampler.inner_hoi.sample_calls,
                 raw_source=source.cpu().clone(), reference=reference.cpu(), edited=returned.cpu(),
                 parameters=parameters.cpu(), stance_mask=objective.stance.cpu(),
                 contact_mask=objective.contact.cpu()))
+            if diagnostic is not None:
+                self.motion_records[-1]['probe_motions'] = self.diagnostic_motions
+                self.motion_records[-1]['replay_context'] = {
+                    k: v.detach().cpu() if torch.is_tensor(v) else v
+                    for k, v in context.items() if k not in ('obj_rest_verts', 'static_occ_cache')}
+                self.motion_records[-1]['rest_offsets'] = offsets.detach().cpu()
+                self.motion_records[-1]['local_bps'] = local_bps.detach().cpu()
+                self.motion_records[-1]['hoi_arguments'] = {
+                    k: v.detach().cpu() if torch.is_tensor(v) else v for k, v in arguments.items()}
         return returned
 
     def audit_dict(self):
         return dict(enabled=self.enabled, mode=self.mode, placement='post_window',
                     lambda_dp=self.lambda_dp, hoi_reference_weight=self.hoi_reference_weight,
+                    teacher_scene_view=self.teacher_scene_view, diagnostics=self.diagnostics,
                     noise_levels=self.noise_levels, prediction_source='raw_x0',
                     weighting='alpha_over_sigma', explicit_terms=EXPLICIT_TERMS,
                     scene_query_rng='independent_cpu_generator_forked_per_query',
