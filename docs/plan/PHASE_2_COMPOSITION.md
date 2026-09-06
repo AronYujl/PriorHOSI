@@ -1,19 +1,16 @@
 # Phase 2 — composing the two expert priors
 
-Status: updated 2026-09-06. Phase 2.4 deliverable PASS; floor-free geometry and
-HSI quality gates FAIL. Shared-chain sampling and fixed raw/kinematic composition
-are implemented; the R2-CG comparison rejected the kinematic operator. Phase
-2.1–2.4 are complete. Phase 2.3 identified the forced floor cost. Phase 2.4
-re-established geometry's OS-depth benefit with a significant sliding cost, and
-the HSI target's significant OS cost with one lost completion. Retain zero-step
-reconstruction as the four-scene pilot comparison anchor.
+Status: updated 2026-09-06. Phase 2.5 recording diagnostic and exact replay PASS.
+Geometry/HSI quality gates from Phase2.4 remain FAIL. Both replay rows have empty
+source stance masks at 338/372 corrections; geometry's added height-weighted
+foot motion lies predominantly outside this coverage already at clean correction.
+A mask/height-reference repair has not been tested. Retain reconstruction anchor.
 
-Current expert selection (user, 2026-09-06): **R2 final EMA + CG** and
-**P15 online + guidance Arm B**. Keep these fixed. Next entry is a read-only
-review of saved geometry/stance changes before a separately approved diagnostic.
-Full Phase 2, useful learned HSI supervision, motion realism, learned-mixer
-training and the state machine remain open. Latest handoff:
-[Phase 2.4](../phase_summaries/PHASE_2D_FLOOR_FREE_FACTORIAL.md).
+Experts remain **R2 final EMA + CG** and **P15 online + guidance Arm B**.
+Next session should propose one controlled support-selection diagnostic using
+saved evidence. Full Phase2, useful HSI supervision, realism, learned training
+and state-machine evaluation remain open. Latest handoff:
+[Phase2.5](../phase_summaries/PHASE_2E_STANCE_RECORDING.md).
 
 ## What is being composed, and why not by data mixing
 
@@ -2400,3 +2397,27 @@ saved masks and decoded states match independent reconstruction. Eight resolved
 job configs differ from their sealed row only in run/output paths and recording
 flag. Registry validation passes with 347 records. New recording includes the
 complete object rotations and evaluated joints before native metric processing.
+
+
+## 2026-09-06 — Phase 2.5 completion: sparse stance coverage localized
+
+All 56 episodes/248 windows and 56 trajectory files completed in 32m11s on eight
+RTX3090 GPUs. Native per-episode metrics and optimizer scalars exactly reproduce
+sealed A00/A01; saved SMPL joints reproduce native FS. Both rows have 338/372
+empty masks; 19/28 episodes are entirely empty. Geometry's outside-source-mask
+FS-change proxy increases .117005 with positive nominal episode/scene intervals;
+inside-mask contrast is unresolved. The change is already present at clean
+correction, with larger translation/articulation temporal increments. World-height
+vs estimated-floor support selection is a measured mismatch; no mask intervention
+has yet shown restored quality. Full statistical and representation limits are
+in PHASE_2E_STANCE_RECORDING.md and the compact result
+experiments/results/p2_mixer_stance_recording_s42_20260906.json.
+
+Deliverable and exact replay PASS; retain prior recipe quality FAIL and frozen
+experts/reconstruction anchor. Close this subphase and integrate/tag
+exp/p2e-stance-recording-v1. Next separately approved experiment should test
+support selection/height alignment before weight tuning or learned training.
+
+Completion verification: **916 passed, 4 skipped in 161.25 seconds**; registry
+valid with 348 records. All 16 native and 144 diagnostic metrics have complete
+28-episode/4-scene paired coverage. Exact replay and all trajectory audits pass.
