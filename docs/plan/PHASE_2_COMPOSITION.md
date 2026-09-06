@@ -3302,3 +3302,78 @@ is closed with the isolated HSI contribution unresolved; no test-set tuning or
 new mechanism follows in this session. See
 `docs/phase_summaries/PHASE_2L_SCENE_EVIDENCE_BENCHMARK.md` and the compact result
 for all means, protections, audits and tail diagnostics.
+
+## 2026-09-07 — Phase 2.13 fixed-source DP teacher views
+
+User approved implementation and bounded execution of the Phase2.13 handoff,
+located locally in /data/yujinlun/report/PriorHOSI_Codex_Handoff_Phase2_13_2e69eba.md.
+Branch phase/02m-dp-evidence-views; baseline is the sealed Phase2.12 integration.
+H1: dynamic manipulated-object overlay, despite known-empty HSI object modalities,
+may bias DP evidence toward avoiding the held object. Requerying the original
+surrounding environment may improve scene-directed corrections and contact.
+H2 (execution-space limitation) and H3 (proxy/surface mismatch) remain distinct.
+
+Keep P15 online/Arm B500, R2 EMA, lambda26, beta1, eight existing levels, 67D,
+six explicit terms, bounds, local Armijo, static grids and query positions fixed.
+Default teacher view remains legacy_occupied. Add environment_only_temporal only
+to the teacher; query native geometry with obj_points=None, retaining underlying
+walls. Preserve all world flags, object context, geometry and original RNG streams.
+No shared core, expert, native metrics, planner or dataset/model source changes.
+
+**Data and budget.** Replay the24 existing Phase2.11 development tasks (all68
+passive windows) using their original pipeline to recover exact missing query
+context; compare raw sources against sealed passive tensors. Save regenerated
+context for reproducibility. Keep calibration004/006/055 and verification023/037/036
+separate. Only reconstructed source candidates; no nonzero-candidate extension.
+Three views A legacy, B environment-only, C fixed spatially shifted environment.
+Choose the handoff's spatial alternative to avoid a donor-context generation pass:
+C queries the same scene at +2m along window-local X, rotated by the unchanged
+world mat; static grids/occ_pos/true geometry stay fixed. Shift is fixed before
+outcomes; no donor search or official test input is used. Out-of-grid shifted
+observations and distribution mismatch are recorded as limitations.
+Per(window,level),3 deterministic draws use seed42/window seed +1000003*draw.
+A/B/C share one noisy tensor, known-empty trajectory, sampled object query and
+HOI pair. HSI budget68*8*3*3*2=9792 forwards; HOI pairs3264 forwards shared across
+views. Additional independent lambda0 short edit at each source uses8 levels,
+1088 HOI forwards and0 HSI, with outputs confined to diagnostics. Source replay
+cost is24 native HOI development generations; six GPU lanes0..5, one scene each,
+batch1. No full469, expert training, new seed or parameter selection.
+
+**Registered diagnostic.** run_fixed_source_views in the editor's calibrate path
+returns raw source exactly. Record raw x0/epsilon, alpha/sigma weighted direction,
+unscaled/scaled VJP, six individual explicit gradients, HOI and total gradients,
+group norms using existing body maps, dot/cosine and three-draw stability. Zero
+norm cosine is null with reason. Fixed ray probes target1mm and5mm equal-weight
+human/object future RMS: scalar bracket from1 with up to20 doublings then20
+bisections, maximum scalar2**20. Keep the original ray through tanh decode;
+record attained RMS, domain admissibility and saturation/weak-direction failure,
+never replace a blocked direction by projection. Evaluate every probe including
+inadmissible ones descriptively, and report feasible subsets with their counts
+alongside all windows. Save source terms/domain/grasp activity, per-view grid
+changes, world query centers/goals, metrics, realized calls/timing and selected
+motion tensors (first window of every task, first level/draw, both scales).
+
+Report all windows grouped by scene role/object/level, collision type, grasp,
+source domain and overlay coverage. B-A and B-C comparisons first average draws
+and levels within window, then windows within task; retain task and scene means
+and95% paired uncertainty (10000 seed42 replicates). Primary diagnostic is HS
+proxy change at5mm, with OS/contact/stance/endpoint,1mm and gradient alignment
+fully reported. Evidence supporting H1 requires useful B versus A and C HS
+changes at equal attainable displacement, without increased OS/contact damage;
+otherwise classify not_supported or inconclusive. No native quality claim:
+these development scenes lack the native mesh-SDF bundle, so H3 remains open.
+A/B difference alone is input sensitivity, not useful transfer. Zero-size groups
+and reverse responses remain in the report. Lambda0 short edits are the common
+geometric reference; no diagnostic probe enters actual history.
+
+**Verification and completion.** Exact legacy/default, static-base output,
+source identity, world history, ambient CPU/CUDA RNG, backing scene storage,
+query-layout/overlap and batch-contract tests; full authority suite and registry.
+The first registered real task provides runtime functional/performance evidence
+at the actual batch1; do not add a separate smoke or performance workload.
+Archive six resolved jobs and machine/input references before clean-worktree
+experiment.py start. Persistent host-owned lanes retain every independent exit.
+Stop on correctness failures; retain operational failures without reuse. Complete
+only2.13 with compact result and PHASE_2M_DP_EVIDENCE_VIEWS.md, then integrate/tag
+exp/p2m-dp-evidence-views-v1. Scientific failure completes this diagnostic and
+requires a separate next-phase decision; no automatic development rollout follows.
