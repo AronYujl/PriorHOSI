@@ -274,3 +274,13 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   1024/3072，最多允许一次不改变专家接口的几何 contact fallback。正式重训仍只用 seed 42、
   scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
   同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
+
+## 2026-09-06 — DP-Edit scope amendment
+
+The user approved the SceneEvidenceEditing handoff for implementation. The active
+Phase 2 direction is frozen P15/R2 priors with post-window dynamic-perception
+evidence editing. Use HSI full-DP versus static-only raw predictions and a coupled
+HOI source reference. Learned mixer, expert retraining, distillation and state
+machine work are deferred. Historical gates/results retain their original scope.
+Phase 2.10 delivers the editor and a finite integration diagnostic; Phase 2.11 is
+the separately registered 469-task comparison after the implementation gate.

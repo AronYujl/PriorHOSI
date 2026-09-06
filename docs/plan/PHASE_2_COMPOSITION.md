@@ -2984,3 +2984,62 @@ passing pilot solver, fixed experts and reconstruction as the anchor. Read
 PHASE_2I_ARMIJO.md before the next read-only review of scene-reference switching,
 grid coverage and positive-scene solves that exhaust line search. No further
 experiment is approved by this completion; close only 2.9.
+
+## 2026-09-06 — Phase 2.10 DP-Edit implementation and integration diagnostic
+
+Authorization: user requests advancing the new experiment in
+/data/yujinlun/papers/PriorHOSI_SceneEvidenceEditing_Codex_Handoff.md. Branch
+phase/02j-scene-evidence; deliver the handoff section 16 minimum implementation.
+Hypothesis: raw HSI dynamic-perception evidence, queried on a clean candidate's
+scene and shared noisy human view, can edit a fixed HOI source while HOI reference
+and relation constraints preserve manipulation. This finite diagnostic establishes
+implementation validity; quality and transfer remain hypotheses until 469 tasks.
+
+Implement a default-off post-window editor, after unchanged 500-step P15 online
+Arm B generation. R2 final EMA provides raw cond/static-only pairs. HSI posterior
+CG, raw/body composition and old relational correction are off. Reuse the 67D
+relational parameterization, 10cm/10degree component bounds, source-relative stance
+mask/foot increments, contact anchors, endpoint and residual terms. Explicit
+weights are 1 for residual/contact/stance/endpoint/human_scene/object_scene, using
+RelationalObjective's existing physical scales; floor and old HSI displacement
+tracking have weight zero. Reconstructed source is the fixed teacher reference.
+
+Teacher: eight descending rounded integer levels linspace(300,50,8), one noise
+sample/level; shared source/candidate noise; separate seeded editor and known-empty
+forward trajectories. HOI beta=1; lambda=.1 versus 0; alpha/sigma weighting; no RMS
+normalization or clipping. Future 0:228 channels participate, HSI only 0:216.
+Freeze teachers and detach query conditions. One accepted steepest-descent step
+per refreshed teacher, initial step1, shrink.5, c1=1e-4, ten backtracks, dimensionless
+proximal weight1. Each trial refreshes explicit nearest-free references. Only
+local frozen-teacher surrogate decrease is claimed. Nonfinite teacher/gradient
+is an explicit run failure, with artifacts retained and no automatic fallback.
+
+Domain: use floating scene bounds, reject newly exterior points and increased
+per-point exterior Euclidean distance (tolerance zero) against the current accepted
+state. Record source and final geometric and integer-query invalidity separately.
+Original exterior points remain represented and evaluated. Contact/history exact;
+fixed object point set; no random geometry resampling or global RNG consumption.
+
+One config fragment supports disabled, reconstruct_only, lambda0 and lambda.1.
+Formal finite integration diagnostic: these four rows on scene bin0, all seven
+objects, seed42 (28 episodes), up to four independent RTX3090 lanes; all native
+metrics and full saved trajectories retained. No hyperparameter selection or
+quality promotion from this diagnostic. It supplies real-data functionality and
+synchronized batch1 teacher/solver/total timing/memory; no separate smoke test or
+performance workload. Use tools/experiment.py start from clean implementation,
+archive exact resolved configs/preflight and reuse sealed asset identities by
+reference. No new tools script, hash mechanism, expert/core or metric changes.
+Evaluator changes may only connect the existing motion recorder to the editor.
+
+Gate: component mathematics/sign, source cancellation, masks, detached teachers,
+independent per-cell Armijo, domain rejection, geometry/history/contact and RNG;
+complete authority suite and registry validation; paired resolved configurations;
+real full episodes including consecutive edited-history windows; finite nonzero
+DP evidence at an interior noise level; all trial decisions/terms/call counts and
+full native outputs saved. Report 10,000 seed42 paired diagnostic intervals using
+existing paired_bootstrap; seven episodes/one scene give no generalization claim.
+No significant-improvement requirement for this implementation gate. Finish with
+PHASE_2J_SCENE_EVIDENCE.md and compact result. Phase2.11 (branch
+phase/02k-scene-evidence-benchmark) will freeze pilot settings and preregister the
+four-row 469-task comparison with episode/scene uncertainty before execution;
+this session closes only 2.10 and leaves that next entry concrete.
