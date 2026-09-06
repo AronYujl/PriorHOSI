@@ -1,0 +1,7 @@
+# Phase 2.4: floor-free geometry/HSI factorial; each job overrides cell.
+defaults: [config_sample_hosi_common_diagnostic, _self_]
+
+sampler:
+  pelvis:
+    relational_corrector:
+      cell: a01

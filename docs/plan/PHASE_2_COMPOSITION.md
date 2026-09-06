@@ -2296,3 +2296,8 @@ reports, retained failures, compact result and PHASE_2D_FLOOR_FREE_FACTORIAL.md.
 Use preregistration, one config implementation and completion commits; integrate
 and tag exp/p2d-floor-free-factorial-v1 after deliverable gate. Close only 2.4;
 no subsequent experiment starts in its closing session.
+
+Implementation verification: 916 passed, 4 skipped in 160.39 seconds; registry
+valid with 345 records. All twelve exact resolved configs differ from sealed
+no_floor only in run/output locations and the approved cell. The implementation
+adds one inherited config fragment; runtime code and its tested path are unchanged.
