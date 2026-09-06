@@ -3409,3 +3409,15 @@ p2-mixer-evidence-views-analysis-s42-20260907 manifest, referencing r1 outputs;
 retain all original failures. Bootstrap uses GPU7 with the existing pairing
 rules and NumPy seed42 index plan; original source replay uses GPU0..5. All
 source/legacy/static/RNG/coverage checks precede scientific interpretation.
+
+### Phase2.13 completion — environment view hypothesis not supported
+
+Artifact recovery validates all24 tasks/68 sources and4896 paired view records;
+9792 HSI and4352 HOI teacher forwards match the registered complete budget.
+B-A5mm HS delta is+0.000420cm (task95% CI[-0.000380,+0.001361]); OS and contact
+are also unresolved. A/B direction median cosine is0.9966; B noise median0.9961.
+Spatial mismatch changes direction but yields no resolved useful B advantage.
+All probes attain the target; B is domain-admissible in949/1632 queries. Preserve
+both serialization failures and the independent successful recovery. Engineering
+is complete; H1 is not supported, H2/H3 remain inconclusive, and no development
+rollout is promoted. See PHASE_2M_DP_EVIDENCE_VIEWS.md and the compact result.

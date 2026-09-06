@@ -291,3 +291,12 @@ The user selected independent-development signal-scale calibration after2.10.
 Phase2.11 is now phase/02k-scene-evidence-calibration, with an estimated global
 lambda and a separate development verification gate. The formal469 comparison
 moves to Phase2.12 / phase/02l-scene-evidence-benchmark. Close one subphase/session.
+
+## 2026-09-07 — Phase2.13 fixed-source teacher views completed
+
+The environment-only temporal view passes input/replay contracts but supplies no
+resolved useful improvement over the legacy DP teacher on68 fixed development
+windows. Both operational serialization failures are retained; complete saved
+outputs support the successful independent analysis. Keep legacy defaults and
+read PHASE_2M_DP_EVIDENCE_VIEWS.md before teacher reconsideration. Development
+rollout/full469 and learned training remain deferred; this closes only2.13.
