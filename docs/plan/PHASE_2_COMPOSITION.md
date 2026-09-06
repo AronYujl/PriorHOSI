@@ -2421,3 +2421,65 @@ support selection/height alignment before weight tuning or learned training.
 Completion verification: **916 passed, 4 skipped in 161.25 seconds**; registry
 valid with 348 records. All 16 native and 144 diagnostic metrics have complete
 28-episode/4-scene paired coverage. Exact replay and all trajectory audits pass.
+
+
+## 2026-09-06 — Phase 2.6 approved source-height intervention
+
+User approved A00-height/A01-height, 28 episodes each. Branch
+phase/02f-stance-height; run p2-mixer-stance-height-s42-20260906. Reuse sealed
+Phase2.5 A00/A01 and Phase2.3 reconstruction. Same bins 0/22/44/66, seven
+objects, seed42, R2 final EMA+CG/P15 online+Arm B, 500 diffusion steps,
+499 CG calls/window, corrections 10/1/0, 20 Adam/.05, bounds/scales/objectives.
+Only change stance height reference: world zero -> estimated source floor.
+Retain two-adjacent-frame eligibility and squared horizontal stance displacement,
+fixed source contact labels and absence of forced floor objective. No HSI factor,
+expert/core change, weight search, evaluator change or neural training.
+
+At each correction, detach its current pre-optimization 16-frame FK source.
+Linearly interpolate toes on the native scale-3 grid, retaining the last real
+sample but excluding its two artificial held duplicates. Select low-speed toe
+samples by native 3D displacement <.005m; repeat last real velocity for its final
+sample as the native estimator does. Cluster selected heights with native
+DBSCAN eps=.005m/min_samples=3, preserving left-then-right input order for border
+assignment and treating noise as a group as the existing evaluator does. Floor
+is minimum group median, zero when no low-speed sample exists. Compute numeric
+interpolation/clustering on GPU and verify against existing CPU native function
+on matched nonpadded inputs. This is source-FK/native-rule alignment, not equality
+to the future full-episode SMPL floor. No future realized trajectory or evaluation
+floor is used. Freeze estimated height and resulting two-frame stance mask for
+all 20 optimizer steps of that correction. Keep actual native evaluator unchanged.
+
+Hypothesis: source-relative support coverage reduces A01 sliding while preserving
+its scene-depth benefit. Risk: a short/noisy source may yield an unstable floor
+or treat hovering feet as support. Persist estimates, low-speed sample counts,
+absolute toe height, masks, source/corrected/sampled/stitched/evaluated trajectories,
+new contacts, selected/outside-mask motion and all 15 native metrics/completion.
+Summarize estimate changes across steps/windows and its differences from final
+native floor descriptively. Coverage increase alone does not pass quality.
+
+Primary family: three paired outcomes — A01-height minus sealed A01 foot_sliding;
+A01-height minus A00-height OS s_mean; A01-height minus reconstruction OS s_mean.
+10,000 seed42 paired replicates, episode and four-scene units; Bonferroni 98.3333%
+percentile intervals (.833333,99.166667 percentiles) for three comparisons at each
+unit. Require negative upper intervals at both units. Report all native metrics,
+A00-height/A00 and A01-height/A01, interaction of height and geometry, plus both
+new rows against reconstruction with nominal 95% secondary CIs. Contact and
+completion point loss at most .02 for each new row against its sealed counterpart
+and reconstruction; candidate must also pass against A00-height. Candidate may
+have no significant nominal worsening of FS/HS penetrating-frame prevalence
+against reconstruction or A00-height at either unit. Full Phase2/realism remains
+open even if this pilot passes. Complete all rows regardless of early signs.
+
+Gate: all 56 episodes/248 windows/744 corrections and complete recorded motions;
+finite native/gradient/floor values and exact history/contact, exact default-path
+compatibility, native-reference estimator tests and floor/mask frozen during
+optimization. Full authority suite and registry validation. Archive eight resolved
+configs compared to sealed rows, preflight, inherited input references and launch
+artifacts before clean-worktree persistent execution on eight RTX3090 lanes.
+Record synchronized batch1 timing/memory; formal run provides functional and
+compute validation, no separate smoke/benchmark workload. Initial stability needs
+one complete episode per lane and peak allocation below 20GiB. Preserve failures;
+no mid-window resume or id reuse. Use one config fragment, existing component
+modules/evaluator/bootstrap, no new tool script. Preregistration, implementation,
+completion commits; PHASE_2F_STANCE_HEIGHT.md and compact result before integration
+and tag exp/p2f-stance-height-v1. Close only 2.6; any further recipe needs approval.
