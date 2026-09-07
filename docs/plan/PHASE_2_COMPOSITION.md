@@ -4039,3 +4039,47 @@ Cache audit clarification:248 contact masks and124 H0 quality support masks comp
 exactly. B1 lacks repair_stance_mask in all124 old snapshots; its proposal support
 is reconstructed, and logged stance_exact=true is vacuous for that absent field.
 No claim of an exact saved-B1-support comparison; no outcome or gate changes.
+
+
+## 2026-09-07 — Phase2.20 fixed complete HOI candidate pool (authorized)
+
+New handoff /data/yujinlun/report/PriorHOSI_dd993d7_Codex_Next_Experiment_Handoff.md
+from base dd993d7; branch phase/02r-candidate-selection. This independent phase
+implements A–D (protocol,112-slot pool,score/select,native28 conclusion) in one
+session. It does not reopen failed Temporal2.18 or conditional2.19. User authorizes
+execution and publication. No441/full469, expert/core/native evaluator edits,
+training, posture edits, guard/weight/K searches or new tracked runner.
+
+Frozen numerical protocol: experiments/protocols/p2_candidate_selection_s42_20260907.json.
+All unspecified values there are this phase's implementation decisions, not
+historical settings: generation offsets0/100000000/200000000/300000000, four
+levels50/157/264/300 and two paired repeats, normalized84-coordinate future MSE,
+10% geometric budget with fixed.006666667 dimensionless floor, fixed endpoint/
+hand/foot protection, deterministic candidate-index ties and C0 common fallback.
+Generation seed offset is scoped to sampler so task assets, object subsampling
+and native metric RNG remain seed42; separate scoring streams. Full/static raw
+heads share clean-candidate geometry and KnownEmptyObjectView. One negative
+control rolls only dynamic voxel blocks+16 X cells, preserving static/anchor
+blocks and coordinate embeddings and the occupied object-view convention.
+
+CF-CG primary native HS requires>=5% reduction, task95% upper<0, scene point<=0.
+OS point<=0/upper<=.02, FS upper<=.01cm, contact/completion lower>=-.02,
+root/object endpoint upper<=1cm vs CG andC0 for task and scene units. Task-paired
+10000 seed42 CUDA float64 bootstrap;112 candidates are not112 independent tasks.
+All native15, failure/coverage/cost, CS and mismatch, one feasible oracle actual
+candidate per task, seven object strata and fixed014/329/371/420 visuals retained.
+Numerical pass requires visual review; otherwise review pending. Technical
+failures or no multi-candidate budget set mean BLOCKED/inconclusive, not NO-GO.
+
+Reuse sealed B1 only after input/config/seed/cached output compatibility; its
+124 cached windows lack replay context, recovered from actual world transforms
+and original task/path/condition equations, checked against new captured contexts.
+Scorer uses final edited candidate, each window's own history, local2..15 mapped
+to global14*w+2..14*w+15 (disjoint); no interpolation padding enters scores.
+Hash checks requested by the handoff use existing manifest/file helpers only;
+sealed checkpoint identities are referenced. No additional smoke suite; complete
+first generation lane and scorer execution provide real-data interface evidence.
+Full authority suite and registry validation precede reportable workloads.
+Engineering closure requires full retained evidence and summary; scientific gate
+is separate. Any failure preserves original outputs and allows registered
+diagnostics only.

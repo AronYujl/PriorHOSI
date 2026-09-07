@@ -1,0 +1,10 @@
+# Fixed K4 B1 pool; native evaluator seed remains42 for every candidate.
+defaults: [config_sample_hosi_conditional_repair, _self_]
+
+sampler:
+  pelvis:
+    _target_: mixer.candidate_selection.CandidatePoolSampler
+    candidate_seed_offset: 0
+    scene_editor:
+      repair_enabled: false
+      record_replay_context: true
