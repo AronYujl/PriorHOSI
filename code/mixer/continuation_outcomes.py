@@ -532,8 +532,6 @@ def run_continuation_scene(cfg):
     OmegaConf.save(OmegaConf.create(OmegaConf.to_container(cfg,resolve=True)),out/'resolved.yaml')
     device = torch.device(cfg.device)
     seed_everything(42)
-    cfg.dataset.vis = True;cfg.dataset.load_object_payload = False
-    cfg.dataset.test_scene_name = cfg.continuation.scene
     dataset = InfBaGelDataset(**cfg.dataset)
     dataset.obj_rest_verts={k:v.to(device) for k,v in dataset.obj_rest_verts.items()}
     hoi,_ = load_trained_hoi_prior(cfg.ckpt_path,device,weight_variant=cfg.checkpoint_weight_variant)

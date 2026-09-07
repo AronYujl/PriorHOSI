@@ -4387,3 +4387,18 @@ unchanged floor estimator to each actual slice, with floor values retained.
 Both native contact hands and fixed-source FK anchors are saved, including N/A.
 Representative rendering selects the lexicographically first registered state for
 each fixed task333/376/421/20/375, independently of the outcomes.
+
+Operational failure retained at ecea024: lane00 fails before dataset/expert
+construction because Hydra struct rejects the undeclared load_object_payload
+option. Zero HOI/HSI calls or generated windows; other seven lanes unstarted.
+Original manifest is failed and all logs retained. Correct the config schema
+and pass dataset.vis, load_object_payload and test_scene_name explicitly in
+the resolved job, removing the runtime assignments. Cached context already
+provides the original BPS/text; payload materialization is a loader cost only.
+The replacement r2 run uses the same22 states/132 windows and no extra calls.
+
+Corrected preflight:1061 passed/4 historical skips174.73s, including the exact
+Hydra compose/struct regression. Eight r2 jobs resolve explicit loader options;
+B1 sampling and source physical conditions remain unchanged. The first failed
+run consumed0 of132 planned windows. No runtime source edit occurred while its
+controller was active; the controller had already exited before this correction.

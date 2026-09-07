@@ -6,3 +6,7 @@ continuation:
   protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_continuation_outcomes_s42_20260907.json
   scene: null
   state_ids: null
+
+# Explicitly declared for Hydra struct; standard loader default stays true.
+dataset:
+  load_object_payload: true

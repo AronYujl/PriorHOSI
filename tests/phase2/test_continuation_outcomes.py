@@ -288,3 +288,19 @@ def test_failed_branch_preserves_current_and_failure_cost(fake_rollout,tmp_path,
     assert result['costs']['attempted_windows']==1 and result['costs']['generated_windows']==0
     restored=torch.load(tmp_path/'Wplus.pt',weights_only=False)
     assert len(restored['windows'])==1 and restored['failure']==result['failure']
+
+
+def test_hydra_struct_resolves_loader_options_before_reportable_entry():
+    import hydra
+    from omegaconf import OmegaConf
+    root=Path(__file__).resolve().parents[2]
+    scene='0aa05d5a-81d5-497b-832c-c90c3fe73a36'
+    with hydra.initialize_config_dir(config_dir=str(root/'code/config'),version_base=None):
+        cfg=hydra.compose(config_name='config_sample_hosi_continuation',overrides=[
+            'continuation.enabled=true',f'continuation.scene={scene}',
+            'dataset.load_object_payload=false','dataset.vis=true',f'dataset.test_scene_name={scene}'])
+    resolved=OmegaConf.to_container(cfg,resolve=True,throw_on_missing=True)
+    assert resolved['dataset']['load_object_payload'] is False
+    assert resolved['dataset']['vis'] is True
+    assert resolved['dataset']['test_scene_name']==scene
+    assert cfg.sampler.pelvis.candidate_seed_offset==0
