@@ -4307,7 +4307,28 @@ workload is requested by the handoff and supplies real-data verification.
 Implementation verification: authority1039 passed/4 historical skips178.03s;
 28 focused component checks pass. Registered task372 interface completed13
 windows (off1, G3, reversedG3, H3, reversedH3): disabled B1 exact, both candidate
-orders and G/H candidate motions exact, H score/choice exact, CPU/CUDA RNG restored,
+orders and G/H candidate motions exact, H singleton-budget choice exact, CPU/CUDA RNG restored,
 one logical sample call and editor record committed. Cached72 inputs/IDs/finite
 and editor checks pass; all28 cache rows and per-hand traces are saved. Eight
 resolved configs archive exact P15 online/R2/ArmB/B1 compatibility by reference.
+
+## 2026-09-07 — Phase 2.23 completion: closed-loop decisions, quality NO-GO
+
+Completed G28/H28,520 candidate windows/248 actual commits.144 first-window
+cache checks exact;56 native retained endpoints exact;37 all-W0 episodes fully
+reproduce B1. G-B1 HS point improves14.65% but taskCI crosses0 and contact/FS
+protections fail. H-G HS/OS point worsen1.91%/4.29%; HSI added value is
+unestablished. All B1/G/H completion outcomes remain22/28. G chooses12 offsets,
+H14; H changes its contemporaneous geometric choice14 times. Benefits and costs
+concentrate on a few tasks, particularly375 (HS/OS),20 (FS),333/376/421 (contact).
+
+All8 jobs exit0,653.53s controller;268320 formal HOI and1584 HSI calls, plus13
+registered interface windows/6708 HOI calls. Interface372 has singleton score
+budget and does not exercise active score-repeat inference. Final authority1039
+passed/4 skips175.78s; original registry enum error repaired with result preserved.
+Five videos/20 frames and complete task/scene tables retained; human blind review
+pending. Summary `PHASE_2U_SINGLE_SIDE_WAYPOINT.md`, compact result
+`p2_mixer_single_side_waypoint_s42_20260907.json`, tag
+`exp/p2u-single-side-waypoint-v1`. Engineering deliverable closes; method NO-GO.
+Next discussion must address joint feasibility across generated histories;
+do not tune current score/offset/margins or start further phases/441/469/training.

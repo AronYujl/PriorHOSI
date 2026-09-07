@@ -1,0 +1,1159 @@
+{
+  "schema_version": 1,
+  "phase": "2.23",
+  "experiment_id": "p2-mixer-single-side-waypoint-s42-20260907",
+  "status": "completed",
+  "decision": "NO-GO",
+  "technical_integrity": true,
+  "conclusion": "Protected single-side decisions have localized native benefits and unresolved aggregate HS gain, with contact/FS protection failures. Frozen HSI L_full adds no demonstrated scene benefit over G; retain NO-GO and stop expansion.",
+  "protocol": "experiments/protocols/p2_single_side_waypoint_s42_20260907.json",
+  "config": "code/config/config_sample_hosi_single_side.yaml",
+  "baseline_commit": "5557dbf",
+  "preregistration_commit": "0b52cd8",
+  "implementation_commit": "d65639b",
+  "runtime_commit": "8360fa2",
+  "tag": "exp/p2u-single-side-waypoint-v1",
+  "summary": "docs/phase_summaries/PHASE_2U_SINGLE_SIDE_WAYPOINT.md",
+  "run_root": "/data/yujinlun/InfBaGel-mixer/results/experiments/p2-mixer-single-side-waypoint-s42-20260907",
+  "completed_stages": [
+    "A72 cache verification and geometric headroom",
+    "B isolated sampler and registered interface",
+    "C G28 and H28 native rollout and paired inference"
+  ],
+  "checkpoint_reference": "experiments/protocols/p2_candidate_selection_s42_20260907.json",
+  "cache": {
+    "tasks": 28,
+    "windows": 72,
+    "qualified_offset_tasks": 13,
+    "qualified_sides": 17,
+    "useful_geometric_tasks": [
+      333,
+      372,
+      376,
+      421,
+      424
+    ],
+    "new_generation": false
+  },
+  "means_native15_and_status": {
+    "B0": {
+      "feet_height": 4.004635342529842,
+      "foot_sliding": 0.17389913356697306,
+      "hand_pen_loss_omomo": 0.5184614462742891,
+      "hand_pen_ratio": 0.1999050523487053,
+      "human_pen_loss_infbagel": 8.269916815074652,
+      "human_pen_ratio": 0.2002357401818569,
+      "xy_points_err": 3.3004593902400563,
+      "end_obj_trans_err": 8.119794949223953,
+      "contact_percent": 0.6681600647022211,
+      "scene_human_penetration_s_mean": 4.764332497166054,
+      "scene_human_penetration_s_max": 52.34838893277837,
+      "scene_human_penetration_frame_ratio": 0.3914589710932757,
+      "scene_obj_penetration_s_mean": 31.09362451596618,
+      "scene_obj_penetration_s_max": 183.62934504236495,
+      "scene_obj_penetration_frame_ratio": 0.27300754824786316,
+      "completed": 0.7857142857142857,
+      "task_failed": 0.0
+    },
+    "B1": {
+      "feet_height": 3.803431136267526,
+      "foot_sliding": 0.123736656337444,
+      "hand_pen_loss_omomo": 0.5207488898447211,
+      "hand_pen_ratio": 0.1982773925576891,
+      "human_pen_loss_infbagel": 8.288922296728122,
+      "human_pen_ratio": 0.1987734243074166,
+      "xy_points_err": 3.2187069799484953,
+      "end_obj_trans_err": 8.12983229490263,
+      "contact_percent": 0.6806408451712861,
+      "scene_human_penetration_s_mean": 4.104416241811123,
+      "scene_human_penetration_s_max": 40.18352617522968,
+      "scene_human_penetration_frame_ratio": 0.34825472300872207,
+      "scene_obj_penetration_s_mean": 27.597257827157915,
+      "scene_obj_penetration_s_max": 160.07711946133765,
+      "scene_obj_penetration_frame_ratio": 0.27479934150220026,
+      "completed": 0.7857142857142857,
+      "task_failed": 0.0
+    },
+    "G": {
+      "feet_height": 3.9198487997055054,
+      "foot_sliding": 0.1370653137830444,
+      "hand_pen_loss_omomo": 0.5420313651484321,
+      "hand_pen_ratio": 0.1982773925576891,
+      "human_pen_loss_infbagel": 8.626594156189935,
+      "human_pen_ratio": 0.1987734243074166,
+      "xy_points_err": 3.2123660868299857,
+      "end_obj_trans_err": 8.056620342124786,
+      "contact_percent": 0.6654978954690984,
+      "scene_human_penetration_s_mean": 3.5031535894959234,
+      "scene_human_penetration_s_max": 34.21702249547733,
+      "scene_human_penetration_frame_ratio": 0.34342524921521544,
+      "scene_obj_penetration_s_mean": 25.450679803149473,
+      "scene_obj_penetration_s_max": 145.9538531390655,
+      "scene_obj_penetration_frame_ratio": 0.27258170971513856,
+      "completed": 0.7857142857142857,
+      "task_failed": 0.0
+    },
+    "H": {
+      "feet_height": 3.901408612728119,
+      "foot_sliding": 0.13358405837906895,
+      "hand_pen_loss_omomo": 0.5212488345153231,
+      "hand_pen_ratio": 0.20094570091792516,
+      "human_pen_loss_infbagel": 8.292733212693294,
+      "human_pen_ratio": 0.2014417326676526,
+      "xy_points_err": 3.1762281698840007,
+      "end_obj_trans_err": 8.120700085003461,
+      "contact_percent": 0.6702556713248191,
+      "scene_human_penetration_s_mean": 3.569920121663017,
+      "scene_human_penetration_s_max": 36.71632333512285,
+      "scene_human_penetration_frame_ratio": 0.34263615237016765,
+      "scene_obj_penetration_s_mean": 26.543227831808117,
+      "scene_obj_penetration_s_max": 158.2167150037629,
+      "scene_obj_penetration_frame_ratio": 0.277712488513706,
+      "completed": 0.7857142857142857,
+      "task_failed": 0.0
+    }
+  },
+  "contrasts": {
+    "task": {
+      "H-G": {
+        "scene_human_penetration_s_mean": {
+          "delta": 0.06676653216709383,
+          "ci": [
+            -0.06262956752450138,
+            0.2486549293140081
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 1.0925480286586466,
+          "ci": [
+            -0.001721800786789832,
+            3.251466660587383
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": -0.0034812554039754446,
+          "ci": [
+            -0.010241889208397309,
+            0.00011547298384283897
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": 0.004757775855720784,
+          "ci": [
+            -0.008850316336407952,
+            0.02060748949929885
+          ],
+          "n": 28
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": -0.036137916945985386,
+          "ci": [
+            -0.12311979313381015,
+            0.04580675566103302
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": 0.06407974287867546,
+          "ci": [
+            -0.04777032166852482,
+            0.2224270483878041
+          ],
+          "n": 28
+        }
+      },
+      "G-B1": {
+        "scene_human_penetration_s_mean": {
+          "delta": -0.6012626523151994,
+          "ci": [
+            -1.965562980249524,
+            0.16823190237794602
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -2.1465780240084444,
+          "ci": [
+            -6.3287591411599085,
+            0.09660630247422626
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": 0.013328657445600408,
+          "ci": [
+            -0.001091694694607685,
+            0.04097001006076863
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": -0.015142949702187646,
+          "ci": [
+            -0.033503487927828875,
+            -0.0006757255773645104
+          ],
+          "n": 28
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": -0.006340893118509224,
+          "ci": [
+            -0.08146705305469887,
+            0.06006236262952109
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": -0.07321195277784552,
+          "ci": [
+            -0.2795160901067512,
+            0.04488101894302022
+          ],
+          "n": 28
+        }
+      },
+      "H-B1": {
+        "scene_human_penetration_s_mean": {
+          "delta": -0.5344961201481055,
+          "ci": [
+            -1.7508938791867485,
+            0.162586592959373
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -1.0540299953497976,
+          "ci": [
+            -3.1029603841979143,
+            0.12101271514396784
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": 0.009847402041624964,
+          "ci": [
+            -0.009540599327772153,
+            0.04065162550012405
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": -0.010385173846466861,
+          "ci": [
+            -0.02554374453155119,
+            0.0016046676698995821
+          ],
+          "n": 28
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": -0.04247881006449461,
+          "ci": [
+            -0.13402028524849033,
+            0.0436282976962892
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": -0.009132209899170058,
+          "ci": [
+            -0.1270780068755682,
+            0.11196177037033646
+          ],
+          "n": 28
+        }
+      },
+      "H-B0": {
+        "scene_human_penetration_s_mean": {
+          "delta": -1.1944123755030367,
+          "ci": [
+            -3.540887710988889,
+            0.07171572075650533
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -4.550396684158061,
+          "ci": [
+            -10.49441638165486,
+            -0.746846395518104
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": -0.040315075187904094,
+          "ci": [
+            -0.08605614719329936,
+            0.004507400787482696
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": 0.002095606622598169,
+          "ci": [
+            -0.018428846094265983,
+            0.02407292399987719
+          ],
+          "n": 28
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": -0.12423122035605566,
+          "ci": [
+            -0.2431053652461352,
+            -0.012279655784368562
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": 0.0009051357795085226,
+          "ci": [
+            -0.11326981916291905,
+            0.12735068897849747
+          ],
+          "n": 28
+        }
+      }
+    },
+    "scene": {
+      "H-G": {
+        "scene_human_penetration_s_mean": {
+          "delta": 0.06676653216709343,
+          "ci": [
+            -0.060109597871945,
+            0.1955742285146168
+          ],
+          "n": 4
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 1.092548028658645,
+          "ci": [
+            -0.001337876357997203,
+            3.241500859241502
+          ],
+          "n": 4
+        },
+        "foot_sliding": {
+          "delta": -0.003481255403975453,
+          "ci": [
+            -0.010030566805253795,
+            0.0001463917094821736
+          ],
+          "n": 4
+        },
+        "contact_percent": {
+          "delta": 0.004757775855720764,
+          "ci": [
+            -0.009769333847120587,
+            0.019284885558562115
+          ],
+          "n": 4
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 4
+        },
+        "xy_points_err": {
+          "delta": -0.03613791694598556,
+          "ci": [
+            -0.11509133702410124,
+            0.0365570553445389
+          ],
+          "n": 4
+        },
+        "end_obj_trans_err": {
+          "delta": 0.06407974287867502,
+          "ci": [
+            -0.04920681406344718,
+            0.269311466919524
+          ],
+          "n": 4
+        }
+      },
+      "G-B1": {
+        "scene_human_penetration_s_mean": {
+          "delta": -0.601262652315199,
+          "ci": [
+            -1.9525353759527202,
+            0.1976739342457483
+          ],
+          "n": 4
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -2.146578024008443,
+          "ci": [
+            -6.132250199892691,
+            0.17631676899535442
+          ],
+          "n": 4
+        },
+        "foot_sliding": {
+          "delta": 0.013328657445600425,
+          "ci": [
+            -0.0012542409923642778,
+            0.04082256160422074
+          ],
+          "n": 4
+        },
+        "contact_percent": {
+          "delta": -0.015142949702187658,
+          "ci": [
+            -0.024029973041601038,
+            -0.0014502371829957783
+          ],
+          "n": 4
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 4
+        },
+        "xy_points_err": {
+          "delta": -0.006340893118509272,
+          "ci": [
+            -0.04807580927652977,
+            0.06985938775220091
+          ],
+          "n": 4
+        },
+        "end_obj_trans_err": {
+          "delta": -0.07321195277784565,
+          "ci": [
+            -0.2570883038320715,
+            0.038754860205309605
+          ],
+          "n": 4
+        }
+      },
+      "H-B1": {
+        "scene_human_penetration_s_mean": {
+          "delta": -0.5344961201481057,
+          "ci": [
+            -1.7449416318808553,
+            0.1830993077559728
+          ],
+          "n": 4
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -1.054029995349798,
+          "ci": [
+            -2.8805803816233375,
+            0.1953168106930594
+          ],
+          "n": 4
+        },
+        "foot_sliding": {
+          "delta": 0.009847402041624972,
+          "ci": [
+            -0.0018719566755286063,
+            0.030873785952531645
+          ],
+          "n": 4
+        },
+        "contact_percent": {
+          "delta": -0.010385173846466894,
+          "ci": [
+            -0.024658390605650088,
+            -0.001365768043767035
+          ],
+          "n": 4
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 4
+        },
+        "xy_points_err": {
+          "delta": -0.04247881006449483,
+          "ci": [
+            -0.13962367083877325,
+            0.0416321679949756
+          ],
+          "n": 4
+        },
+        "end_obj_trans_err": {
+          "delta": -0.009132209899170629,
+          "ci": [
+            -0.04426479073507528,
+            0.02600037093673402
+          ],
+          "n": 4
+        }
+      },
+      "H-B0": {
+        "scene_human_penetration_s_mean": {
+          "delta": -1.1944123755030371,
+          "ci": [
+            -3.4731916648535335,
+            0.010689348277602484
+          ],
+          "n": 4
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -4.550396684158061,
+          "ci": [
+            -8.40292112422841,
+            -1.545481658540667
+          ],
+          "n": 4
+        },
+        "foot_sliding": {
+          "delta": -0.040315075187904094,
+          "ci": [
+            -0.07320765219187417,
+            -0.00742249818393402
+          ],
+          "n": 4
+        },
+        "contact_percent": {
+          "delta": 0.002095606622598084,
+          "ci": [
+            -0.010567321750781844,
+            0.013108523949542289
+          ],
+          "n": 4
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 4
+        },
+        "xy_points_err": {
+          "delta": -0.12423122035605594,
+          "ci": [
+            -0.23573815955647404,
+            -0.01272428115563784
+          ],
+          "n": 4
+        },
+        "end_obj_trans_err": {
+          "delta": 0.000905135779507793,
+          "ci": [
+            -0.06729583921177129,
+            0.06910611077078688
+          ],
+          "n": 4
+        }
+      }
+    }
+  },
+  "scene_means": {
+    "B0": {
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36": {
+        "feet_height": 4.212623834609985,
+        "foot_sliding": 0.2432091209211713,
+        "hand_pen_loss_omomo": 0.2966646441694008,
+        "hand_pen_ratio": 0.1806787039552416,
+        "human_pen_loss_infbagel": 4.940603779348456,
+        "human_pen_ratio": 0.1806787039552416,
+        "xy_points_err": 3.9590911274509772,
+        "end_obj_trans_err": 9.507205816251892,
+        "contact_percent": 0.6290764790764791,
+        "scene_human_penetration_s_mean": 0.2663907072024553,
+        "scene_human_penetration_s_max": 6.403460870363882,
+        "scene_human_penetration_frame_ratio": 0.2985545125390802,
+        "scene_obj_penetration_s_mean": 38.77171468362212,
+        "scene_obj_penetration_s_max": 142.48575125421797,
+        "scene_obj_penetration_frame_ratio": 0.32377967131989344,
+        "completed": 0.7142857142857143,
+        "task_failed": 0.0
+      },
+      "a3df624b-0917-46e9-ac15-fab766276c72": {
+        "feet_height": 3.9449002061571394,
+        "foot_sliding": 0.16231584837483398,
+        "hand_pen_loss_omomo": 0.5962454810677238,
+        "hand_pen_ratio": 0.21079273987561464,
+        "human_pen_loss_infbagel": 9.521138539335945,
+        "human_pen_ratio": 0.21211549120822124,
+        "xy_points_err": 2.17747354347791,
+        "end_obj_trans_err": 5.3925168833562305,
+        "contact_percent": 0.7600918300107519,
+        "scene_human_penetration_s_mean": 15.852086758340842,
+        "scene_human_penetration_s_max": 180.3396029919386,
+        "scene_human_penetration_frame_ratio": 0.5096701521958623,
+        "scene_obj_penetration_s_mean": 33.36666526369351,
+        "scene_obj_penetration_s_max": 365.93392246110096,
+        "scene_obj_penetration_frame_ratio": 0.18409527718488658,
+        "completed": 1.0,
+        "task_failed": 0.0
+      },
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092": {
+        "feet_height": 4.11802956036159,
+        "foot_sliding": 0.14214147614163392,
+        "hand_pen_loss_omomo": 0.5763962353869699,
+        "hand_pen_ratio": 0.2079365083149501,
+        "human_pen_loss_infbagel": 9.166326124998088,
+        "human_pen_ratio": 0.2079365083149501,
+        "xy_points_err": 4.294990428856441,
+        "end_obj_trans_err": 10.497711918183736,
+        "contact_percent": 0.6231491760267865,
+        "scene_human_penetration_s_mean": 0.8217480281767037,
+        "scene_human_penetration_s_max": 8.963522597083024,
+        "scene_human_penetration_frame_ratio": 0.31206381347562584,
+        "scene_obj_penetration_s_mean": 24.48032018116542,
+        "scene_obj_penetration_s_max": 110.16655622209821,
+        "scene_obj_penetration_frame_ratio": 0.2343465174947466,
+        "completed": 0.5714285714285714,
+        "task_failed": 0.0
+      },
+      "4abcb667-c57f-4d8f-940a-d964152329d5": {
+        "feet_height": 3.7429877689906528,
+        "foot_sliding": 0.14793008883025302,
+        "hand_pen_loss_omomo": 0.6045394244730622,
+        "hand_pen_ratio": 0.20021225724901473,
+        "human_pen_loss_infbagel": 9.451598816616118,
+        "human_pen_ratio": 0.20021225724901473,
+        "xy_points_err": 2.770282461174897,
+        "end_obj_trans_err": 7.081745179103954,
+        "contact_percent": 0.6603227736948668,
+        "scene_human_penetration_s_mean": 2.117104494944215,
+        "scene_human_penetration_s_max": 13.686969271727971,
+        "scene_human_penetration_frame_ratio": 0.44554740616253447,
+        "scene_obj_penetration_s_mean": 27.75579793538366,
+        "scene_obj_penetration_s_max": 115.93115023204258,
+        "scene_obj_penetration_frame_ratio": 0.34980872699192594,
+        "completed": 0.8571428571428571,
+        "task_failed": 0.0
+      }
+    },
+    "B1": {
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36": {
+        "feet_height": 3.9261460304260254,
+        "foot_sliding": 0.17941684385214976,
+        "hand_pen_loss_omomo": 0.2743493819512618,
+        "hand_pen_ratio": 0.17744937113353185,
+        "human_pen_loss_infbagel": 4.554609173539299,
+        "human_pen_ratio": 0.17744937113353185,
+        "xy_points_err": 3.731910086103848,
+        "end_obj_trans_err": 9.516790828534536,
+        "contact_percent": 0.6529282977558839,
+        "scene_human_penetration_s_mean": 0.1996357327776163,
+        "scene_human_penetration_s_max": 5.626635074083294,
+        "scene_human_penetration_frame_ratio": 0.1839453647179263,
+        "scene_obj_penetration_s_mean": 35.175272735263206,
+        "scene_obj_penetration_s_max": 121.16601773754726,
+        "scene_obj_penetration_frame_ratio": 0.33281087316572666,
+        "completed": 0.7142857142857143,
+        "task_failed": 0.0
+      },
+      "a3df624b-0917-46e9-ac15-fab766276c72": {
+        "feet_height": 3.6583091531481062,
+        "foot_sliding": 0.08826066834028058,
+        "hand_pen_loss_omomo": 0.6347894276197101,
+        "hand_pen_ratio": 0.20766831295830862,
+        "human_pen_loss_infbagel": 10.12460779523516,
+        "human_pen_ratio": 0.20965243995721852,
+        "xy_points_err": 2.1863578419600214,
+        "end_obj_trans_err": 5.428741406649351,
+        "contact_percent": 0.7456098650079875,
+        "scene_human_penetration_s_mean": 13.569843638522018,
+        "scene_human_penetration_s_max": 135.14206945257527,
+        "scene_human_penetration_frame_ratio": 0.5023727512785366,
+        "scene_obj_penetration_s_mean": 27.065802291468053,
+        "scene_obj_penetration_s_max": 301.0446687085288,
+        "scene_obj_penetration_frame_ratio": 0.18523750653756516,
+        "completed": 1.0,
+        "task_failed": 0.0
+      },
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092": {
+        "feet_height": 3.587508201599121,
+        "foot_sliding": 0.07218536599318469,
+        "hand_pen_loss_omomo": 0.581444371073303,
+        "hand_pen_ratio": 0.205687837941306,
+        "human_pen_loss_infbagel": 9.226000654737122,
+        "human_pen_ratio": 0.205687837941306,
+        "xy_points_err": 4.208693826305015,
+        "end_obj_trans_err": 10.547698874558721,
+        "contact_percent": 0.6308783561697597,
+        "scene_human_penetration_s_mean": 0.7554772557424647,
+        "scene_human_penetration_s_max": 7.9787057393363545,
+        "scene_human_penetration_frame_ratio": 0.30091002876205103,
+        "scene_obj_penetration_s_mean": 21.1183443410056,
+        "scene_obj_penetration_s_max": 106.35344532557896,
+        "scene_obj_penetration_frame_ratio": 0.2332642674446106,
+        "completed": 0.5714285714285714,
+        "task_failed": 0.0
+      },
+      "4abcb667-c57f-4d8f-940a-d964152329d5": {
+        "feet_height": 4.041761159896851,
+        "foot_sliding": 0.15508374716416093,
+        "hand_pen_loss_omomo": 0.5924123787346096,
+        "hand_pen_ratio": 0.20230404819761003,
+        "human_pen_loss_infbagel": 9.250471563400911,
+        "human_pen_ratio": 0.20230404819761003,
+        "xy_points_err": 2.7478661654250964,
+        "end_obj_trans_err": 7.026098069867918,
+        "contact_percent": 0.6931468617515131,
+        "scene_human_penetration_s_mean": 1.8927083402023916,
+        "scene_human_penetration_s_max": 11.986694434923786,
+        "scene_human_penetration_frame_ratio": 0.40579074727637426,
+        "scene_obj_penetration_s_mean": 27.029611940894807,
+        "scene_obj_penetration_s_max": 111.7443460736956,
+        "scene_obj_penetration_frame_ratio": 0.3478847188608987,
+        "completed": 0.8571428571428571,
+        "task_failed": 0.0
+      }
+    },
+    "G": {
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36": {
+        "feet_height": 4.391816684177944,
+        "foot_sliding": 0.23376223618517228,
+        "hand_pen_loss_omomo": 0.27435918529070996,
+        "hand_pen_ratio": 0.17744937113353185,
+        "human_pen_loss_infbagel": 4.55476832731035,
+        "human_pen_ratio": 0.17744937113353185,
+        "xy_points_err": 3.680212503033025,
+        "end_obj_trans_err": 9.538154197590691,
+        "contact_percent": 0.6586754241926656,
+        "scene_human_penetration_s_mean": 0.19406026321563072,
+        "scene_human_penetration_s_max": 5.5406827580715925,
+        "scene_human_penetration_frame_ratio": 0.1806612935449396,
+        "scene_obj_penetration_s_mean": 34.42991195209496,
+        "scene_obj_penetration_s_max": 119.57249007990218,
+        "scene_obj_penetration_frame_ratio": 0.3311688375792333,
+        "completed": 0.7142857142857143,
+        "task_failed": 0.0
+      },
+      "a3df624b-0917-46e9-ac15-fab766276c72": {
+        "feet_height": 3.6583091531481062,
+        "foot_sliding": 0.08639460233977014,
+        "hand_pen_loss_omomo": 0.7348263307254196,
+        "hand_pen_ratio": 0.20766831295830862,
+        "human_pen_loss_infbagel": 11.70403724968675,
+        "human_pen_ratio": 0.20965243995721852,
+        "xy_points_err": 2.1419558141912733,
+        "end_obj_trans_err": 5.078835878521204,
+        "contact_percent": 0.7225675369656595,
+        "scene_human_penetration_s_mean": 10.96832162710572,
+        "scene_human_penetration_s_max": 109.16628664944854,
+        "scene_human_penetration_frame_ratio": 0.5072583566818919,
+        "scene_obj_penetration_s_mean": 18.872217440611816,
+        "scene_obj_penetration_s_max": 241.0605378491538,
+        "scene_obj_penetration_frame_ratio": 0.16835845887128795,
+        "completed": 1.0,
+        "task_failed": 0.0
+      },
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092": {
+        "feet_height": 3.587508201599121,
+        "foot_sliding": 0.07276660002525889,
+        "hand_pen_loss_omomo": 0.5806961674092496,
+        "hand_pen_ratio": 0.205687837941306,
+        "human_pen_loss_infbagel": 9.215568532024422,
+        "human_pen_ratio": 0.205687837941306,
+        "xy_points_err": 4.316640352564199,
+        "end_obj_trans_err": 10.603845225913185,
+        "contact_percent": 0.6126193770074295,
+        "scene_human_penetration_s_mean": 0.663199694827199,
+        "scene_human_penetration_s_max": 8.153276640389647,
+        "scene_human_penetration_frame_ratio": 0.28442028031817507,
+        "scene_obj_penetration_s_mean": 21.419224125998362,
+        "scene_obj_penetration_s_max": 110.81891523088727,
+        "scene_obj_penetration_frame_ratio": 0.2304311799151557,
+        "completed": 0.5714285714285714,
+        "task_failed": 0.0
+      },
+      "4abcb667-c57f-4d8f-940a-d964152329d5": {
+        "feet_height": 4.041761159896851,
+        "foot_sliding": 0.15533781658197635,
+        "hand_pen_loss_omomo": 0.5782437771683492,
+        "hand_pen_ratio": 0.20230404819761003,
+        "human_pen_loss_infbagel": 9.032002515738213,
+        "human_pen_ratio": 0.20230404819761003,
+        "xy_points_err": 2.7106556775314465,
+        "end_obj_trans_err": 7.005646066474063,
+        "contact_percent": 0.6681292437106391,
+        "scene_human_penetration_s_mean": 2.1870327728351446,
+        "scene_human_penetration_s_max": 14.007843933999538,
+        "scene_human_penetration_frame_ratio": 0.4013610663158553,
+        "scene_obj_penetration_s_mean": 27.081365693892753,
+        "scene_obj_penetration_s_max": 112.3634693963187,
+        "scene_obj_penetration_frame_ratio": 0.3603683624948774,
+        "completed": 0.8571428571428571,
+        "task_failed": 0.0
+      }
+    },
+    "H": {
+      "0aa05d5a-81d5-497b-832c-c90c3fe73a36": {
+        "feet_height": 4.318055936268398,
+        "foot_sliding": 0.22046884697255686,
+        "hand_pen_loss_omomo": 0.2609205547742022,
+        "hand_pen_ratio": 0.18565955332347325,
+        "human_pen_loss_infbagel": 4.343216460155678,
+        "human_pen_ratio": 0.18565955332347325,
+        "xy_points_err": 3.6747752289686884,
+        "end_obj_trans_err": 9.480519858854157,
+        "contact_percent": 0.6463601532567049,
+        "scene_human_penetration_s_mean": 0.0862317682559868,
+        "scene_human_penetration_s_max": 2.7991567461618354,
+        "scene_human_penetration_frame_ratio": 0.18476638357554162,
+        "scene_obj_penetration_s_mean": 34.44519828047071,
+        "scene_obj_penetration_s_max": 120.14620208740234,
+        "scene_obj_penetration_frame_ratio": 0.32624273002147675,
+        "completed": 0.7142857142857143,
+        "task_failed": 0.0
+      },
+      "a3df624b-0917-46e9-ac15-fab766276c72": {
+        "feet_height": 3.6583091531481062,
+        "foot_sliding": 0.08551751969062961,
+        "hand_pen_loss_omomo": 0.6295298441857865,
+        "hand_pen_ratio": 0.21013136420931136,
+        "human_pen_loss_infbagel": 9.99909594274584,
+        "human_pen_ratio": 0.21211549120822124,
+        "xy_points_err": 1.9903131228472506,
+        "end_obj_trans_err": 5.448520037212542,
+        "contact_percent": 0.7436993469828508,
+        "scene_human_penetration_s_mean": 11.233217498719958,
+        "scene_human_penetration_s_max": 120.76703671472413,
+        "scene_human_penetration_frame_ratio": 0.4955108346683638,
+        "scene_obj_penetration_s_mean": 23.189123143475236,
+        "scene_obj_penetration_s_max": 289.9377351147788,
+        "scene_obj_penetration_frame_ratio": 0.17558701216642345,
+        "completed": 1.0,
+        "task_failed": 0.0
+      },
+      "b1b053a9-b268-4f62-a06d-b9b9325c5092": {
+        "feet_height": 3.587508201599121,
+        "foot_sliding": 0.07252450044208995,
+        "hand_pen_loss_omomo": 0.5810522765776633,
+        "hand_pen_ratio": 0.205687837941306,
+        "human_pen_loss_infbagel": 9.220639242639297,
+        "human_pen_ratio": 0.205687837941306,
+        "xy_points_err": 4.262318688311747,
+        "end_obj_trans_err": 10.579920985868998,
+        "contact_percent": 0.6300573381073624,
+        "scene_human_penetration_s_mean": 0.7855891476252249,
+        "scene_human_penetration_s_max": 9.505414069763251,
+        "scene_human_penetration_frame_ratio": 0.28777373555515495,
+        "scene_obj_penetration_s_mean": 21.401262044906616,
+        "scene_obj_penetration_s_max": 109.34736687796456,
+        "scene_obj_penetration_frame_ratio": 0.23244325178010122,
+        "completed": 0.5714285714285714,
+        "task_failed": 0.0
+      },
+      "4abcb667-c57f-4d8f-940a-d964152329d5": {
+        "feet_height": 4.041761159896851,
+        "foot_sliding": 0.15582536641099942,
+        "hand_pen_loss_omomo": 0.6134926625236403,
+        "hand_pen_ratio": 0.20230404819761003,
+        "human_pen_loss_infbagel": 9.607981205232363,
+        "human_pen_ratio": 0.20230404819761003,
+        "xy_points_err": 2.7775056394083157,
+        "end_obj_trans_err": 6.973839458078146,
+        "contact_percent": 0.6609058469523585,
+        "scene_human_penetration_s_mean": 2.1746420720508985,
+        "scene_human_penetration_s_max": 13.793685809842177,
+        "scene_human_penetration_frame_ratio": 0.4024936556816101,
+        "scene_obj_penetration_s_mean": 27.13732785837991,
+        "scene_obj_penetration_s_max": 113.435555934906,
+        "scene_obj_penetration_frame_ratio": 0.3765769600868225,
+        "completed": 0.8571428571428571,
+        "task_failed": 0.0
+      }
+    }
+  },
+  "gates": {
+    "H-G": {
+      "HS_relative_5percent": false,
+      "HS_task_CI": false,
+      "HS_scene_direction": false,
+      "OS_point": false,
+      "task_OS": false,
+      "task_FS": true,
+      "task_contact": true,
+      "task_completion": true,
+      "task_root_endpoint": true,
+      "task_object_endpoint": true,
+      "scene_OS": false,
+      "scene_FS": true,
+      "scene_contact": true,
+      "scene_completion": true,
+      "scene_root_endpoint": true,
+      "scene_object_endpoint": true
+    },
+    "G-B1": {
+      "HS_relative_5percent": true,
+      "HS_task_CI": false,
+      "HS_scene_direction": true,
+      "OS_point": true,
+      "task_OS": false,
+      "task_FS": false,
+      "task_contact": false,
+      "task_completion": true,
+      "task_root_endpoint": true,
+      "task_object_endpoint": true,
+      "scene_OS": false,
+      "scene_FS": false,
+      "scene_contact": false,
+      "scene_completion": true,
+      "scene_root_endpoint": true,
+      "scene_object_endpoint": true
+    },
+    "H-B1": {
+      "HS_relative_5percent": true,
+      "HS_task_CI": false,
+      "HS_scene_direction": true,
+      "OS_point": true,
+      "task_OS": false,
+      "task_FS": false,
+      "task_contact": false,
+      "task_completion": true,
+      "task_root_endpoint": true,
+      "task_object_endpoint": true,
+      "scene_OS": false,
+      "scene_FS": false,
+      "scene_contact": false,
+      "scene_completion": true,
+      "scene_root_endpoint": true,
+      "scene_object_endpoint": true
+    },
+    "H-B0": {
+      "HS_relative_5percent": true,
+      "HS_task_CI": false,
+      "HS_scene_direction": true,
+      "OS_point": true,
+      "task_OS": true,
+      "task_FS": true,
+      "task_contact": true,
+      "task_completion": true,
+      "task_root_endpoint": true,
+      "task_object_endpoint": true,
+      "scene_OS": true,
+      "scene_FS": true,
+      "scene_contact": true,
+      "scene_completion": true,
+      "scene_root_endpoint": true,
+      "scene_object_endpoint": true
+    }
+  },
+  "counts": {
+    "G": {
+      "windows": 124,
+      "candidates": 260,
+      "input_proposals": 260,
+      "input_invalid_sides": 0,
+      "qualified_offsets": 41,
+      "selected_offsets": 12,
+      "fallbacks": {
+        "no_qualified_offset": 36,
+        "W0_selected": 20,
+        "input_inapplicable": 56
+      },
+      "H_changes_G": 0,
+      "score_failures": 0,
+      "invalid_committed": 0,
+      "HOI_calls": 134160,
+      "HSI_calls": 0,
+      "generation_seconds": 1383.6810210142285,
+      "scoring_seconds": 0.0,
+      "decision_total_seconds": 1465.110328875482,
+      "native_generation_seconds": 1466.2121044024825,
+      "native_end_to_end_seconds": 1492.396277250722,
+      "first_window_cache_checks": 72,
+      "first_window_caches_exact": true
+    },
+    "H": {
+      "windows": 124,
+      "candidates": 260,
+      "input_proposals": 260,
+      "input_invalid_sides": 0,
+      "qualified_offsets": 40,
+      "selected_offsets": 14,
+      "fallbacks": {
+        "no_qualified_offset": 36,
+        "W0_selected": 18,
+        "input_inapplicable": 56
+      },
+      "H_changes_G": 14,
+      "score_failures": 0,
+      "invalid_committed": 0,
+      "HOI_calls": 134160,
+      "HSI_calls": 1584,
+      "generation_seconds": 1384.5013035666198,
+      "scoring_seconds": 24.44044285453856,
+      "decision_total_seconds": 1491.3560301847756,
+      "native_generation_seconds": 1492.505289291963,
+      "native_end_to_end_seconds": 1518.8491063937545,
+      "first_window_cache_checks": 72,
+      "first_window_caches_exact": true
+    }
+  },
+  "consistency": {
+    "cache_checks": 144,
+    "cache_exact": true,
+    "retained_endpoint_checks": 56,
+    "endpoint_max_error_cm": 0.0,
+    "complete_W0_regression_tasks": {
+      "G": 20,
+      "H": 17
+    },
+    "all_completion_outcomes_equal": true,
+    "same_pool_claim": "first window only; later pools follow actual policy-specific histories"
+  },
+  "costs": {
+    "controller_wall_seconds": 653.5289213825017,
+    "jobs": [
+      {
+        "name": "G-0",
+        "gpu": 0,
+        "exitcode": 0,
+        "seconds": 626.2505324352533
+      },
+      {
+        "name": "G-22",
+        "gpu": 1,
+        "exitcode": 0,
+        "seconds": 398.9264374151826
+      },
+      {
+        "name": "G-44",
+        "gpu": 2,
+        "exitcode": 0,
+        "seconds": 335.7456929255277
+      },
+      {
+        "name": "G-66",
+        "gpu": 3,
+        "exitcode": 0,
+        "seconds": 221.44217817299068
+      },
+      {
+        "name": "H-0",
+        "gpu": 4,
+        "exitcode": 0,
+        "seconds": 653.5174546800554
+      },
+      {
+        "name": "H-22",
+        "gpu": 5,
+        "exitcode": 0,
+        "seconds": 385.4024936761707
+      },
+      {
+        "name": "H-44",
+        "gpu": 6,
+        "exitcode": 0,
+        "seconds": 346.63311567902565
+      },
+      {
+        "name": "H-66",
+        "gpu": 7,
+        "exitcode": 0,
+        "seconds": 221.68829553760588
+      }
+    ],
+    "formal_HOI_candidates": 520,
+    "formal_HOI_calls": 268320,
+    "formal_HSI_calls": 1584,
+    "interface_HOI_candidates": 13,
+    "interface_HOI_calls": 6708,
+    "interface_HSI_calls": 0,
+    "all_new_HOI_calls": 275028,
+    "all_new_HSI_calls": 1584,
+    "interface_total_wall_seconds": null,
+    "limitations": "Formal total timers include rejected trials, loading/native evaluation at job/episode scopes. Interface13 counted separately; its complete wall timer was not archived. Concurrent runs are not isolated throughput estimates."
+  },
+  "tests": {
+    "authority_passed": 1039,
+    "authority_skipped": 4,
+    "authority_seconds": 175.78,
+    "initial_authority_seconds": 178.03,
+    "component_passed": 28,
+    "interface_generated_windows": 13,
+    "interface": "off B1 and reversed signed candidate order exact; one commit and RNG restore verified; task372 budget singleton means actual HSI score-repeat path not exercised by this interface",
+    "logs": "results/single-side-preflight-s42-20260907"
+  },
+  "failures": {
+    "operational_run_failures": 0,
+    "score_failures": 0,
+    "inherited_registry_schema_repair": "p2.22 phase enum corrected to p2 plus subphase2.22; old result and NO-GO preserved",
+    "scientific": "H-G HS point worsens1.906% and OS4.293%; G/H-B1 contact/FS uncertainty margins fail"
+  },
+  "diagnosis": {
+    "dominant_G_HS_gain_task": 375,
+    "G_minus_B1_HS_task375": -17.86927032470703,
+    "H_minus_G_OS_task375": 29.88848114013672,
+    "native_FS_cost_task": 20,
+    "G_minus_B1_FS_task20": 0.38041774633115744,
+    "contact_loss_tasks": [
+      333,
+      376,
+      421
+    ],
+    "completion_losses_H_G": [],
+    "next_question": "Joint proposal or temporal protection must preserve complete-task engagement; no score-sign, weight, offset search or next-phase run is authorized by this closure."
+  },
+  "visualization": {
+    "tasks": [
+      14,
+      329,
+      371,
+      375,
+      420
+    ],
+    "videos": 5,
+    "frames": 20,
+    "human_blind_review_pending": true,
+    "limits": "SMPL-X joints and128 object points, sparse native SDF; no fine contact or naturalness certification"
+  },
+  "artifacts": {
+    "cache": "analysis/cache_analysis.json",
+    "cache_table": "analysis/cache_tasks.csv",
+    "decisions": "G/decisions and H/decisions",
+    "native": "analysis/native_per_task.json",
+    "full_contrasts": "analysis/contrasts.json",
+    "motions": "G-shard*/episode-motion-*.pt and H-shard*/episode-motion-*.pt",
+    "commands": "execution_plan.json",
+    "plots": "visualizations"
+  },
+  "test_set_development": true,
+  "new_training": false,
+  "additional441": false,
+  "full469": false,
+  "HSI_value_supported": false
+}
