@@ -3732,3 +3732,35 @@ The startup failure is operational orchestration, not the one model-interface
 correction. A remaining scientific failure after this correction stops the
 candidate. The r1 videos remain retained as identical B1/B2 evidence; render the
 same four preselected task identities for r2.
+
+### Phase2.15 completion — corrected native28 candidate NO-GO (2026-09-07)
+
+The corrected free-coordinate B2 completes28 native tasks/124 windows, paired
+with compatible r1 B0/B1. All4 corrected jobs exit0; all84 comparison episodes
+have complete15-field native evaluation. Final suite974 passed/4 skipped167.34s.
+HSI620 queries,331/2480 accepted fit steps,122/124 nonzero windows but only15
+reach1mm; task-balanced RMS0.6283mm. There are24219 trials:331 admissible/accepted;
+22828 rejections include stance,14727 fail stance alone; common/finite failures0.
+
+B2-B1 FS=-0.001207, task95% CI[-0.005108,+0.001331]; HS=-0.093245
+[-0.290010,+0.011178]; OS=-0.575203[-1.857078,+0.094102]. Scene-unit intervals
+also cross zero. Repair-amplitude and FS gates fail, as does OS uncertainty
+protection. Contact/completion/endpoint protections pass; all groups complete
+identical22/28 tasks. B2-B0 total FS/HS/OS improvements pass task and scene checks,
+but do not establish extra HSI efficacy. No full469 promotion or further search.
+
+The failed initial launcher and r1 all-rejection interface result remain intact.
+Only the registered interface correction was used; r1 B0/B1 reuse has exact
+zero-gradient/output proof. Across r1/r2 all28 first sources/proposals/HSI fit
+losses and124 seeds match; all96 later sources differ, verifying actual submitted
+history propagation. No core/expert or native metric-definition changes.
+
+Native469 SDF assets are complete; this phase needed no LINGO asset work after the
+user's scope correction. Historical/paper InfBaGel values remain explicitly
+protocol-mismatched reference rows. Four preselected complete videos and all
+native/proxy metrics, object strata, failure traces and paired inputs are saved.
+Summary: PHASE_2O_SCENE_PRIOR_TRANSFER.md; compact result:
+experiments/results/p2_mixer_scene_prior_transfer_s42_20260907.json.
+Seal engineering/development closure at exp/p2o-scene-prior-transfer-v1 and retain
+unresolved scene-prior transfer quality. The next entry is review of the measured
+pose-target/stance-constraint compatibility under the same native benchmark goal.

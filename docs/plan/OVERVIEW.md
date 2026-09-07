@@ -3,12 +3,14 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-07 当前进度：Phase 2.14a 已完成，局部门槛为 NO-GO。关系投影在 5mm 等幅
-探针中将接触漂移降低99.59%，平均保留82.06%的参数方向范数；同预算短编辑的 HSI
-额外场景收益仍未成立，足部修正增量相对 lambda0 变差。停止当前 DP 直接梯度路线，
-保留原生产默认；开发闭环和 full469 均未启动。详见
-[Phase 2.14a 交接](../phase_summaries/PHASE_2N_RELATION_COMPATIBLE_DP.md)
-和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。完整 Phase2 质量门槛仍开放。
+2026-09-07 当前进度：Phase 2.15 已完成，原生28任务开发门槛为 NO-GO。
+已按用户要求切换到 data/hosi_test 并使用完整原生 SDF 评价；完成一轮接口修复后，
+HSI 条件去噪修复平均仅改变约0.63mm，15/124窗口达到1mm；相对无 HSI 编辑器的
+FS 改善−0.00121且95%区间跨零，HS/OS额外收益也未确立。保留全部正负结果、
+启动失败和接口错误，停止当前候选，full469未启动。详见
+[Phase 2.15 交接](../phase_summaries/PHASE_2O_SCENE_PRIOR_TRANSFER.md)
+和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。目标仍是在原生469任务上超越 InfBaGel，
+本次结果尚未支持该结论。
 
 ## 1. 主张、边界与接口
 
