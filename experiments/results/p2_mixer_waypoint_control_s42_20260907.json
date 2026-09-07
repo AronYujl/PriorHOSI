@@ -1,0 +1,2907 @@
+{
+  "schema_version": 1,
+  "phase": "2.21",
+  "experiment_id": "p2-mixer-waypoint-control-r2-s42-20260907",
+  "status": "completed",
+  "decision": "NO-GO",
+  "conclusion": "Waypoint direction controllability supported; joint quality fails. A/B/C complete; D/E unopened.",
+  "baseline_commit": "ccd02dc",
+  "preregistration_commit": "5ae8ec3",
+  "initial_runtime_commit": "f439dbb",
+  "runtime_commit": "05b781d",
+  "tag": "exp/p2s-waypoint-control-v1",
+  "protocol": "experiments/protocols/p2_waypoint_control_s42_20260907.json",
+  "config": "code/config/config_sample_hosi_waypoint_probe.yaml",
+  "summary": "docs/phase_summaries/PHASE_2S_WAYPOINT_CONTROL.md",
+  "run_root": "results/experiments/p2-mixer-waypoint-control-r2-s42-20260907",
+  "source_run": "results/experiments/p2-mixer-candidate-selection-s42-20260907",
+  "source_checkpoint_reference": "experiments/protocols/p2_candidate_selection_s42_20260907.json#checkpoints",
+  "coverage": {
+    "tasks": 28,
+    "cache_candidates": 112,
+    "cache_windows": 496,
+    "applicable_pairs": 22,
+    "generated_windows": 75,
+    "repeat_windows": 3,
+    "applicability": [
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.5400000214576721,
+              0.0,
+              1.0600000619888306
+            ],
+            "query": [
+              0.5400000214576721,
+              0.9008416533470154,
+              1.0600000619888306
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.5400000214576721,
+              0.0,
+              1.2600001096725464
+            ],
+            "query": [
+              0.5400000214576721,
+              0.9008416533470154,
+              1.2600001096725464
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.0,
+          -1.0
+        ],
+        "path_index": 37,
+        "task": 14,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "clothesstand",
+        "original_waypoint_world": [
+          0.5400000214576721,
+          0.0,
+          1.1600000858306885
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 15,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "floorlamp",
+        "original_waypoint_world": [
+          0.6800000667572021,
+          0.0,
+          1.4999998807907104
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 16,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "monitor",
+        "original_waypoint_world": [
+          0.6200000047683716,
+          0.0,
+          1.0
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              1.2200000286102295,
+              0.0,
+              1.0
+            ],
+            "query": [
+              1.2200000286102295,
+              0.8807595372200012,
+              1.0
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              1.0199999809265137,
+              0.0,
+              1.0
+            ],
+            "query": [
+              1.0199999809265137,
+              0.8807595372200012,
+              1.0
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          1.0,
+          0.0
+        ],
+        "path_index": 39,
+        "task": 17,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "smallbox",
+        "original_waypoint_world": [
+          1.1200000047683716,
+          0.0,
+          1.0
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.7600001096725464,
+              0.0,
+              1.2200000286102295
+            ],
+            "query": [
+              0.7600001096725464,
+              0.8883807063102722,
+              1.2200000286102295
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.5600000619888306,
+              0.0,
+              1.2200000286102295
+            ],
+            "query": [
+              0.5600000619888306,
+              0.8883807063102722,
+              1.2200000286102295
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          1.0,
+          0.0
+        ],
+        "path_index": 36,
+        "task": 18,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "smalltable",
+        "original_waypoint_world": [
+          0.6600000858306885,
+          0.0,
+          1.2200000286102295
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 19,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "suitcase",
+        "original_waypoint_world": [
+          1.119999885559082,
+          0.0,
+          0.9200000166893005
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.18000000715255737,
+              0.0,
+              0.7200000286102295
+            ],
+            "query": [
+              0.18000000715255737,
+              0.8828704357147217,
+              0.7200000286102295
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.18000000715255737,
+              0.0,
+              0.5199999809265137
+            ],
+            "query": [
+              0.18000000715255737,
+              0.8828704357147217,
+              0.5199999809265137
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.0,
+          1.0
+        ],
+        "path_index": 37,
+        "task": 20,
+        "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+        "object": "tripod",
+        "original_waypoint_world": [
+          0.18000000715255737,
+          0.0,
+          0.6200000047683716
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.4107106328010559,
+              0.0,
+              0.7892893552780151
+            ],
+            "query": [
+              0.4107106328010559,
+              0.9270778298377991,
+              0.7892893552780151
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.26928919553756714,
+              0.0,
+              0.9307105541229248
+            ],
+            "query": [
+              0.26928919553756714,
+              0.9270778298377991,
+              0.9307105541229248
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          0.7071073055267334,
+          -0.7071062326431274
+        ],
+        "path_index": 31,
+        "task": 329,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "clothesstand",
+        "original_waypoint_world": [
+          0.3399999141693115,
+          0.0,
+          0.85999995470047
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.5799999833106995,
+              0.0,
+              -0.06000000983476639
+            ],
+            "query": [
+              0.5799999833106995,
+              0.8925278782844543,
+              -0.06000000983476639
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.5799999833106995,
+              0.0,
+              -0.2600000202655792
+            ],
+            "query": [
+              0.5799999833106995,
+              0.8925278782844543,
+              -0.2600000202655792
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.0,
+          1.0
+        ],
+        "path_index": 41,
+        "task": 330,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "floorlamp",
+        "original_waypoint_world": [
+          0.5799999833106995,
+          0.0,
+          -0.1600000113248825
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 331,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "monitor",
+        "original_waypoint_world": [
+          0.8799999952316284,
+          0.0,
+          0.7400000095367432
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.699999988079071,
+              0.0,
+              -1.6000001430511475
+            ],
+            "query": [
+              0.699999988079071,
+              0.8959560990333557,
+              -1.6000001430511475
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.9000000357627869,
+              0.0,
+              -1.6000001430511475
+            ],
+            "query": [
+              0.9000000357627869,
+              0.8959560990333557,
+              -1.6000001430511475
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 38,
+        "task": 332,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "smallbox",
+        "original_waypoint_world": [
+          0.800000011920929,
+          0.0,
+          -1.6000001430511475
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.2800000011920929,
+              0.0,
+              -1.659999966621399
+            ],
+            "query": [
+              -0.2800000011920929,
+              0.8874629735946655,
+              -1.659999966621399
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.2800000011920929,
+              0.0,
+              -1.459999918937683
+            ],
+            "query": [
+              -0.2800000011920929,
+              0.8874629735946655,
+              -1.459999918937683
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.0,
+          -1.0
+        ],
+        "path_index": 36,
+        "task": 333,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "smalltable",
+        "original_waypoint_world": [
+          -0.2800000011920929,
+          0.0,
+          -1.559999942779541
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.5199999809265137,
+              0.0,
+              -3.059999704360962
+            ],
+            "query": [
+              0.5199999809265137,
+              0.8829218149185181,
+              -3.059999704360962
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.7200000286102295,
+              0.0,
+              -3.059999704360962
+            ],
+            "query": [
+              0.7200000286102295,
+              0.8829218149185181,
+              -3.059999704360962
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 38,
+        "task": 334,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "suitcase",
+        "original_waypoint_world": [
+          0.6200000047683716,
+          0.0,
+          -3.059999704360962
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.26928937435150146,
+              0.0,
+              -0.6892892718315125
+            ],
+            "query": [
+              -0.26928937435150146,
+              0.8828704357147217,
+              -0.6892892718315125
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.4107106328010559,
+              0.0,
+              -0.8307107090950012
+            ],
+            "query": [
+              -0.4107106328010559,
+              0.8828704357147217,
+              -0.8307107090950012
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          0.7071062326431274,
+          0.7071073055267334
+        ],
+        "path_index": 34,
+        "task": 335,
+        "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+        "object": "tripod",
+        "original_waypoint_world": [
+          -0.3400000035762787,
+          0.0,
+          -0.7599999904632568
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              1.0399999618530273,
+              0.0,
+              2.7799999713897705
+            ],
+            "query": [
+              1.0399999618530273,
+              0.9140300154685974,
+              2.7799999713897705
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.8399999141693115,
+              0.0,
+              2.7799999713897705
+            ],
+            "query": [
+              0.8399999141693115,
+              0.9140300154685974,
+              2.7799999713897705
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          1.0,
+          0.0
+        ],
+        "path_index": 35,
+        "task": 371,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "clothesstand",
+        "original_waypoint_world": [
+          0.9399999380111694,
+          0.0,
+          2.7799999713897705
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.8292891383171082,
+              0.0,
+              2.550710439682007
+            ],
+            "query": [
+              -0.8292891383171082,
+              0.8822880387306213,
+              2.550710439682007
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.9707104563713074,
+              0.0,
+              2.4092891216278076
+            ],
+            "query": [
+              -0.9707104563713074,
+              0.8822880387306213,
+              2.4092891216278076
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          0.7071067690849304,
+          0.7071067690849304
+        ],
+        "path_index": 33,
+        "task": 372,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "floorlamp",
+        "original_waypoint_world": [
+          -0.8999997973442078,
+          0.0,
+          2.4799997806549072
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.5892893671989441,
+              0.0,
+              0.1092892438173294
+            ],
+            "query": [
+              0.5892893671989441,
+              0.8918322324752808,
+              0.1092892438173294
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.7307105660438538,
+              0.0,
+              0.25071078538894653
+            ],
+            "query": [
+              0.7307105660438538,
+              0.8918322324752808,
+              0.25071078538894653
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.7071059942245483,
+          -0.7071076035499573
+        ],
+        "path_index": 35,
+        "task": 373,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "monitor",
+        "original_waypoint_world": [
+          0.6599999666213989,
+          0.0,
+          0.18000000715255737
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              1.1200000047683716,
+              0.0,
+              2.380000352859497
+            ],
+            "query": [
+              1.1200000047683716,
+              0.8924731016159058,
+              2.380000352859497
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.9199999570846558,
+              0.0,
+              2.380000352859497
+            ],
+            "query": [
+              0.9199999570846558,
+              0.8924731016159058,
+              2.380000352859497
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          1.0,
+          0.0
+        ],
+        "path_index": 35,
+        "task": 374,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "smallbox",
+        "original_waypoint_world": [
+          1.0199999809265137,
+          0.0,
+          2.380000352859497
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.06000007688999176,
+              0.0,
+              2.359999656677246
+            ],
+            "query": [
+              0.06000007688999176,
+              0.8883807063102722,
+              2.359999656677246
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.13999992609024048,
+              0.0,
+              2.359999656677246
+            ],
+            "query": [
+              -0.13999992609024048,
+              0.8883807063102722,
+              2.359999656677246
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          1.0,
+          0.0
+        ],
+        "path_index": 36,
+        "task": 375,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "smalltable",
+        "original_waypoint_world": [
+          -0.03999992460012436,
+          0.0,
+          2.359999656677246
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.8199999332427979,
+              0.0,
+              -0.7199999094009399
+            ],
+            "query": [
+              -0.8199999332427979,
+              0.8820604681968689,
+              -0.7199999094009399
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.619999885559082,
+              0.0,
+              -0.7199999094009399
+            ],
+            "query": [
+              -0.619999885559082,
+              0.8820604681968689,
+              -0.7199999094009399
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 37,
+        "task": 376,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "suitcase",
+        "original_waypoint_world": [
+          -0.7199999094009399,
+          0.0,
+          -0.7199999094009399
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.2200000286102295,
+              0.0,
+              0.5200001001358032
+            ],
+            "query": [
+              0.2200000286102295,
+              0.884044885635376,
+              0.5200001001358032
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.42000001668930054,
+              0.0,
+              0.5200001001358032
+            ],
+            "query": [
+              0.42000001668930054,
+              0.884044885635376,
+              0.5200001001358032
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 38,
+        "task": 377,
+        "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+        "object": "tripod",
+        "original_waypoint_world": [
+          0.320000022649765,
+          0.0,
+          0.5200001001358032
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 420,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "clothesstand",
+        "original_waypoint_world": [
+          0.6200000047683716,
+          0.0,
+          -0.1199999749660492
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.10000000149011612,
+              0.0,
+              -2.739999771118164
+            ],
+            "query": [
+              -0.10000000149011612,
+              0.899495005607605,
+              -2.739999771118164
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.10000000149011612,
+              0.0,
+              -2.739999771118164
+            ],
+            "query": [
+              0.10000000149011612,
+              0.899495005607605,
+              -2.739999771118164
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 38,
+        "task": 421,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "floorlamp",
+        "original_waypoint_world": [
+          -1.862645149230957e-09,
+          0.0,
+          -2.739999771118164
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -1.0399999618530273,
+              0.0,
+              0.3999999165534973
+            ],
+            "query": [
+              -1.0399999618530273,
+              0.8914366960525513,
+              0.3999999165534973
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.8399999737739563,
+              0.0,
+              0.3999999165534973
+            ],
+            "query": [
+              -0.8399999737739563,
+              0.8914366960525513,
+              0.3999999165534973
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -1.0,
+          0.0
+        ],
+        "path_index": 38,
+        "task": 422,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "monitor",
+        "original_waypoint_world": [
+          -0.9399999976158142,
+          0.0,
+          0.3999999165534973
+        ]
+      },
+      {
+        "applicable": false,
+        "reasons": [
+          "original_waypoint_is_path_endpoint"
+        ],
+        "variants": {},
+        "normal": null,
+        "task": 423,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "smallbox",
+        "original_waypoint_world": [
+          0.46000009775161743,
+          0.0,
+          -2.7200002670288086
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.49071064591407776,
+              0.0,
+              1.7092891931533813
+            ],
+            "query": [
+              -0.49071064591407776,
+              0.8804745674133301,
+              1.7092891931533813
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              -0.3492893874645233,
+              0.0,
+              1.8507107496261597
+            ],
+            "query": [
+              -0.3492893874645233,
+              0.8804745674133301,
+              1.8507107496261597
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.7071062326431274,
+          -0.7071073055267334
+        ],
+        "path_index": 33,
+        "task": 424,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "smalltable",
+        "original_waypoint_world": [
+          -0.42000001668930054,
+          0.0,
+          1.7799999713897705
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              0.40928927063941956,
+              0.0,
+              -0.9507107734680176
+            ],
+            "query": [
+              0.40928927063941956,
+              0.8790253400802612,
+              -0.9507107734680176
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.5507106184959412,
+              0.0,
+              -0.8092894554138184
+            ],
+            "query": [
+              0.5507106184959412,
+              0.8790253400802612,
+              -0.8092894554138184
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.7071067690849304,
+          -0.7071067690849304
+        ],
+        "path_index": 37,
+        "task": 425,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "suitcase",
+        "original_waypoint_world": [
+          0.47999995946884155,
+          0.0,
+          -0.880000114440918
+        ]
+      },
+      {
+        "applicable": true,
+        "reasons": [],
+        "variants": {
+          "Wplus": {
+            "waypoint_world": [
+              -0.0707106813788414,
+              0.0,
+              1.0692894458770752
+            ],
+            "query": [
+              -0.0707106813788414,
+              0.884044885635376,
+              1.0692894458770752
+            ],
+            "reason": null
+          },
+          "Wminus": {
+            "waypoint_world": [
+              0.07071062177419662,
+              0.0,
+              1.2107107639312744
+            ],
+            "query": [
+              0.07071062177419662,
+              0.884044885635376,
+              1.2107107639312744
+            ],
+            "reason": null
+          }
+        },
+        "normal": [
+          -0.7071064710617065,
+          -0.7071071267127991
+        ],
+        "path_index": 37,
+        "task": 426,
+        "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+        "object": "tripod",
+        "original_waypoint_world": [
+          -2.9802322387695312e-08,
+          0.0,
+          1.1400001049041748
+        ]
+      }
+    ]
+  },
+  "stage_A": {
+    "attribution": {
+      "first_window": {
+        "comparisons": 84,
+        "task_means": {
+          "raw_source": {
+            "human_rms_mm": 0.989559040650342,
+            "root_rms_mm": 0.5875139007077502,
+            "object_rms_mm": 1.3647086948512115,
+            "local_human_rms_mm": 0.6951513132764614
+          },
+          "proposal": {
+            "human_rms_mm": 1.0209248021490882,
+            "root_rms_mm": 0.6252858212490551,
+            "object_rms_mm": 1.3883045458702643,
+            "local_human_rms_mm": 0.6964011684994277
+          },
+          "edited": {
+            "human_rms_mm": 1.0209248021490882,
+            "root_rms_mm": 0.6252858212490551,
+            "object_rms_mm": 1.3883045458702643,
+            "local_human_rms_mm": 0.6964011684994277
+          }
+        },
+        "common_history_comparisons": 84,
+        "edited_over_raw": {
+          "human_rms_mm": 1.0316967055125206,
+          "root_rms_mm": 1.06429110953086,
+          "object_rms_mm": 1.0172900276140069,
+          "local_human_rms_mm": 1.0017979613921397
+        }
+      },
+      "later_windows_descriptive": {
+        "comparisons": 288,
+        "task_means": {
+          "raw_source": {
+            "human_rms_mm": 3.6018314475309388,
+            "root_rms_mm": 1.6307997419891467,
+            "object_rms_mm": 3.2175680725611864,
+            "local_human_rms_mm": 2.5281189108666244
+          },
+          "proposal": {
+            "human_rms_mm": 3.609004725768472,
+            "root_rms_mm": 1.6394859766335927,
+            "object_rms_mm": 3.2249339544429425,
+            "local_human_rms_mm": 2.5297338956497852
+          },
+          "edited": {
+            "human_rms_mm": 3.609004725768472,
+            "root_rms_mm": 1.6394859766335927,
+            "object_rms_mm": 3.2249339544429425,
+            "local_human_rms_mm": 2.5297338956497852
+          }
+        },
+        "common_history_comparisons": 0,
+        "edited_over_raw": {
+          "human_rms_mm": 1.0019915641089898,
+          "root_rms_mm": 1.0053263649857163,
+          "object_rms_mm": 1.0022892699441455,
+          "local_human_rms_mm": 1.0006388088694005
+        }
+      }
+    },
+    "oracle_means": {
+      "registered": {
+        "feet_height": 3.8140352283205305,
+        "foot_sliding": 0.12420789461807658,
+        "hand_pen_loss_omomo": 0.5220722920073838,
+        "hand_pen_ratio": 0.19862107460254005,
+        "human_pen_loss_infbagel": 8.306646797863541,
+        "human_pen_ratio": 0.1991171063522675,
+        "xy_points_err": 3.19652361462691,
+        "end_obj_trans_err": 8.095953946134873,
+        "contact_percent": 0.682335322475865,
+        "scene_human_penetration_s_mean": 3.9913833996231136,
+        "scene_human_penetration_s_max": 39.51480295841715,
+        "scene_human_penetration_frame_ratio": 0.34784355526790023,
+        "scene_obj_penetration_s_mean": 27.12756645321789,
+        "scene_obj_penetration_s_max": 157.86799329540267,
+        "scene_obj_penetration_frame_ratio": 0.27345137022036525,
+        "completed": 0.7857142857142857,
+        "task_failed": 0.0
+      },
+      "completed_only": {
+        "feet_height": 3.8149320653506686,
+        "foot_sliding": 0.1244927278020915,
+        "hand_pen_loss_omomo": 0.5218406682648232,
+        "hand_pen_ratio": 0.19841582008770534,
+        "human_pen_loss_infbagel": 8.303038848847473,
+        "human_pen_ratio": 0.19891185183743282,
+        "xy_points_err": 3.2048603719366446,
+        "end_obj_trans_err": 8.08647885652525,
+        "contact_percent": 0.6793720611252205,
+        "scene_human_penetration_s_mean": 3.9667315126612914,
+        "scene_human_penetration_s_max": 39.053092568181455,
+        "scene_human_penetration_frame_ratio": 0.34536864003166556,
+        "scene_obj_penetration_s_mean": 27.431238378413518,
+        "scene_obj_penetration_s_max": 157.7322099296081,
+        "scene_obj_penetration_frame_ratio": 0.2734996680769005,
+        "completed": 0.7857142857142857,
+        "task_failed": 0.0
+      },
+      "unprotected": {
+        "feet_height": 3.8149320653506686,
+        "foot_sliding": 0.1244927278020915,
+        "hand_pen_loss_omomo": 0.5218406682648232,
+        "hand_pen_ratio": 0.19841582008770534,
+        "human_pen_loss_infbagel": 8.303038848847473,
+        "human_pen_ratio": 0.19891185183743282,
+        "xy_points_err": 3.2048603719366446,
+        "end_obj_trans_err": 8.08647885652525,
+        "contact_percent": 0.6793720611252205,
+        "scene_human_penetration_s_mean": 3.9667315126612914,
+        "scene_human_penetration_s_max": 39.053092568181455,
+        "scene_human_penetration_frame_ratio": 0.34536864003166556,
+        "scene_obj_penetration_s_mean": 27.431238378413518,
+        "scene_obj_penetration_s_max": 157.7322099296081,
+        "scene_obj_penetration_frame_ratio": 0.2734996680769005,
+        "completed": 0.7857142857142857,
+        "task_failed": 0.0
+      },
+      "CG": {
+        "feet_height": 3.813376384122031,
+        "foot_sliding": 0.12465480113430014,
+        "hand_pen_loss_omomo": 0.5204120638365696,
+        "hand_pen_ratio": 0.19864799035713077,
+        "human_pen_loss_infbagel": 8.283037689819293,
+        "human_pen_ratio": 0.19914402210685825,
+        "xy_points_err": 3.1935505203104446,
+        "end_obj_trans_err": 8.096097133654569,
+        "contact_percent": 0.6824955583368352,
+        "scene_human_penetration_s_mean": 3.9930354950816502,
+        "scene_human_penetration_s_max": 39.51172908488661,
+        "scene_human_penetration_frame_ratio": 0.34763991280591916,
+        "scene_obj_penetration_s_mean": 27.18223953315133,
+        "scene_obj_penetration_s_max": 157.96847129740596,
+        "scene_obj_penetration_frame_ratio": 0.27331923523784746,
+        "completed": 0.7857142857142857,
+        "task_failed": 0.0
+      }
+    },
+    "oracle_task_contrasts": {
+      "registered-CG": {
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": -0.00016023586097025603,
+          "ci": [
+            -0.0011340852130325826,
+            0.0005343300110741966
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": -0.0001431875196950776,
+          "ci": [
+            -0.017075373658112115,
+            0.017569578236101984
+          ],
+          "n": 28
+        },
+        "feet_height": {
+          "delta": 0.000658844198499407,
+          "ci": [
+            -0.008710793086460658,
+            0.011007913521357944
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": -0.000446906516223558,
+          "ci": [
+            -0.0016252134763477062,
+            0.00037078876069789675
+          ],
+          "n": 28
+        },
+        "hand_pen_loss_omomo": {
+          "delta": 0.0016602281708141423,
+          "ci": [
+            -0.0020276430924630923,
+            0.007821829935892309
+          ],
+          "n": 28
+        },
+        "hand_pen_ratio": {
+          "delta": -2.691575459071568e-05,
+          "ci": [
+            -0.0004960298538208008,
+            0.0004152825900486537
+          ],
+          "n": 28
+        },
+        "human_pen_loss_infbagel": {
+          "delta": 0.023609108044248775,
+          "ci": [
+            -0.034189676976877435,
+            0.11674432565440283
+          ],
+          "n": 28
+        },
+        "human_pen_ratio": {
+          "delta": -2.691575459071568e-05,
+          "ci": [
+            -0.0004960298538208008,
+            0.0004152825900486537
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_frame_ratio": {
+          "delta": 0.00020364246198109216,
+          "ci": [
+            -0.0008730153952326093,
+            0.0013648952756609234
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_max": {
+          "delta": 0.0030738735305411474,
+          "ci": [
+            -0.026957727662686788,
+            0.03424233091063797
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_mean": {
+          "delta": -0.0016520954585368078,
+          "ci": [
+            -0.004057256401574705,
+            -2.6838690973818303e-05
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "delta": 0.00013213498251778738,
+          "ci": [
+            -0.0004152825900486537,
+            0.0008116875376020158
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_max": {
+          "delta": -0.10047800200326101,
+          "ci": [
+            -0.3031050818307059,
+            0.006025450570242745
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": -0.05467307993343898,
+          "ci": [
+            -0.16386167705059052,
+            0.0
+          ],
+          "n": 28
+        },
+        "task_failed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": 0.002973094316465514,
+          "ci": [
+            -0.01332402678339609,
+            0.02343138197569974
+          ],
+          "n": 28
+        }
+      },
+      "completed_only-CG": {
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": -0.0031234972116148435,
+          "ci": [
+            -0.006582335335495552,
+            -5.753022253669749e-05
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": -0.009618277129318032,
+          "ci": [
+            -0.06147514255384781,
+            0.03648113958271486
+          ],
+          "n": 28
+        },
+        "feet_height": {
+          "delta": 0.0015556812286376953,
+          "ci": [
+            -0.00781429133244923,
+            0.011630143438066754
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": -0.00016207333220864283,
+          "ci": [
+            -0.0014544760343637136,
+            0.0008360983240387819
+          ],
+          "n": 28
+        },
+        "hand_pen_loss_omomo": {
+          "delta": 0.0014286044282536229,
+          "ci": [
+            -0.0023365626879012775,
+            0.007546549782416279
+          ],
+          "n": 28
+        },
+        "hand_pen_ratio": {
+          "delta": -0.0002321702694254262,
+          "ci": [
+            -0.0008479338139295578,
+            0.0002768550600324358
+          ],
+          "n": 28
+        },
+        "human_pen_loss_infbagel": {
+          "delta": 0.02000115902817916,
+          "ci": [
+            -0.03865682374948141,
+            0.11476815121834828
+          ],
+          "n": 28
+        },
+        "human_pen_ratio": {
+          "delta": -0.0002321702694254262,
+          "ci": [
+            -0.0008479338139295578,
+            0.0002768550600324358
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_frame_ratio": {
+          "delta": -0.0022712727742535727,
+          "ci": [
+            -0.006610974110662937,
+            0.0010700758679636879
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_max": {
+          "delta": -0.4586365167051554,
+          "ci": [
+            -1.3967498266603797,
+            0.04172584278109881
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_mean": {
+          "delta": -0.026303982420358807,
+          "ci": [
+            -0.06646338712515508,
+            -0.0036426937689871663
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "delta": 0.00018043283905301775,
+          "ci": [
+            -0.0005892493895121982,
+            0.0011305479066712515
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_max": {
+          "delta": -0.23626136779785156,
+          "ci": [
+            -1.7279193656785146,
+            0.8287186077662868
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 0.24899884526218685,
+          "ci": [
+            -0.07376283566866601,
+            0.7532105661396464
+          ],
+          "n": 28
+        },
+        "task_failed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": 0.011309851626200334,
+          "ci": [
+            -0.0165285772111799,
+            0.04037824026974176
+          ],
+          "n": 28
+        }
+      },
+      "unprotected-CG": {
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "contact_percent": {
+          "delta": -0.0031234972116148435,
+          "ci": [
+            -0.006582335335495552,
+            -5.753022253669749e-05
+          ],
+          "n": 28
+        },
+        "end_obj_trans_err": {
+          "delta": -0.009618277129318032,
+          "ci": [
+            -0.06147514255384781,
+            0.03648113958271486
+          ],
+          "n": 28
+        },
+        "feet_height": {
+          "delta": 0.0015556812286376953,
+          "ci": [
+            -0.00781429133244923,
+            0.011630143438066754
+          ],
+          "n": 28
+        },
+        "foot_sliding": {
+          "delta": -0.00016207333220864283,
+          "ci": [
+            -0.0014544760343637136,
+            0.0008360983240387819
+          ],
+          "n": 28
+        },
+        "hand_pen_loss_omomo": {
+          "delta": 0.0014286044282536229,
+          "ci": [
+            -0.0023365626879012775,
+            0.007546549782416279
+          ],
+          "n": 28
+        },
+        "hand_pen_ratio": {
+          "delta": -0.0002321702694254262,
+          "ci": [
+            -0.0008479338139295578,
+            0.0002768550600324358
+          ],
+          "n": 28
+        },
+        "human_pen_loss_infbagel": {
+          "delta": 0.02000115902817916,
+          "ci": [
+            -0.03865682374948141,
+            0.11476815121834828
+          ],
+          "n": 28
+        },
+        "human_pen_ratio": {
+          "delta": -0.0002321702694254262,
+          "ci": [
+            -0.0008479338139295578,
+            0.0002768550600324358
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_frame_ratio": {
+          "delta": -0.0022712727742535727,
+          "ci": [
+            -0.006610974110662937,
+            0.0010700758679636879
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_max": {
+          "delta": -0.4586365167051554,
+          "ci": [
+            -1.3967498266603797,
+            0.04172584278109881
+          ],
+          "n": 28
+        },
+        "scene_human_penetration_s_mean": {
+          "delta": -0.026303982420358807,
+          "ci": [
+            -0.06646338712515508,
+            -0.0036426937689871663
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "delta": 0.00018043283905301775,
+          "ci": [
+            -0.0005892493895121982,
+            0.0011305479066712515
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_max": {
+          "delta": -0.23626136779785156,
+          "ci": [
+            -1.7279193656785146,
+            0.8287186077662868
+          ],
+          "n": 28
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 0.24899884526218685,
+          "ci": [
+            -0.07376283566866601,
+            0.7532105661396464
+          ],
+          "n": 28
+        },
+        "task_failed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 28
+        },
+        "xy_points_err": {
+          "delta": 0.011309851626200334,
+          "ci": [
+            -0.0165285772111799,
+            0.04037824026974176
+          ],
+          "n": 28
+        }
+      }
+    },
+    "registered_oracle_exact": true,
+    "oracle_relative_HS_improvement_percent": {
+      "registered": 0.041374424559248446,
+      "completed_only": 0.6587465213559573,
+      "unprotected": 0.6587465213559573
+    },
+    "limitations": "Raw_source includes ArmB; no unguided-model attribution. Later windows have divergent histories. Oracles are per-task diagnostics, not aggregate-tradeoff upper bounds."
+  },
+  "stage_B": {
+    "endpoint_max_errors_cm": {
+      "root_cm": 0.0,
+      "object_cm": 0.0
+    },
+    "completed_exact": true,
+    "candidates": 112,
+    "mode": "native_retained_v2",
+    "default_preserved": "legacy_XZ",
+    "old_results_reclassified": false
+  },
+  "stage_C": {
+    "gates": {
+      "applicable_coverage": true,
+      "integrity": true,
+      "raw_source_Wplus_root_mean": true,
+      "raw_source_Wplus_root_positive_fraction": true,
+      "raw_source_Wplus_root_CI": true,
+      "raw_source_Wplus_root_scenes": true,
+      "raw_source_Wplus_object_mean": true,
+      "raw_source_Wplus_contact_anchor_m": false,
+      "raw_source_Wplus_contact_surface_distance_m": true,
+      "raw_source_Wplus_support_speed_m_per_s": true,
+      "raw_source_Wplus_human_scene_RMS_cm": false,
+      "raw_source_Wplus_object_scene_RMS_cm": false,
+      "raw_source_Wplus_human_occupied_fraction": false,
+      "raw_source_Wplus_object_occupied_fraction": false,
+      "raw_source_Wplus_contact_fraction": true,
+      "raw_source_Wplus_speed_retention": true,
+      "raw_source_Wminus_root_mean": true,
+      "raw_source_Wminus_root_positive_fraction": true,
+      "raw_source_Wminus_root_CI": true,
+      "raw_source_Wminus_root_scenes": true,
+      "raw_source_Wminus_object_mean": true,
+      "raw_source_Wminus_contact_anchor_m": false,
+      "raw_source_Wminus_contact_surface_distance_m": true,
+      "raw_source_Wminus_support_speed_m_per_s": true,
+      "raw_source_Wminus_human_scene_RMS_cm": true,
+      "raw_source_Wminus_object_scene_RMS_cm": true,
+      "raw_source_Wminus_human_occupied_fraction": true,
+      "raw_source_Wminus_object_occupied_fraction": true,
+      "raw_source_Wminus_contact_fraction": true,
+      "raw_source_Wminus_speed_retention": true,
+      "edited_Wplus_root_mean": true,
+      "edited_Wplus_root_positive_fraction": true,
+      "edited_Wplus_root_CI": true,
+      "edited_Wplus_root_scenes": true,
+      "edited_Wplus_object_mean": true,
+      "edited_Wplus_contact_anchor_m": false,
+      "edited_Wplus_contact_surface_distance_m": true,
+      "edited_Wplus_support_speed_m_per_s": true,
+      "edited_Wplus_human_scene_RMS_cm": false,
+      "edited_Wplus_object_scene_RMS_cm": false,
+      "edited_Wplus_human_occupied_fraction": true,
+      "edited_Wplus_object_occupied_fraction": false,
+      "edited_Wplus_contact_fraction": true,
+      "edited_Wplus_speed_retention": true,
+      "edited_Wminus_root_mean": true,
+      "edited_Wminus_root_positive_fraction": true,
+      "edited_Wminus_root_CI": true,
+      "edited_Wminus_root_scenes": true,
+      "edited_Wminus_object_mean": true,
+      "edited_Wminus_contact_anchor_m": false,
+      "edited_Wminus_contact_surface_distance_m": true,
+      "edited_Wminus_support_speed_m_per_s": true,
+      "edited_Wminus_human_scene_RMS_cm": true,
+      "edited_Wminus_object_scene_RMS_cm": true,
+      "edited_Wminus_human_occupied_fraction": true,
+      "edited_Wminus_object_occupied_fraction": true,
+      "edited_Wminus_contact_fraction": true,
+      "edited_Wminus_speed_retention": true,
+      "useful_pairs": false
+    },
+    "means": {
+      "raw_source_Wplus": {
+        "W0": {
+          "root_directed_m": 0.0,
+          "object_directed_m": 0.0,
+          "contact_anchor_m": 0.0,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.056317262520844284,
+          "contact_fraction": 0.870129877870733,
+          "support_speed_m_per_s": 0.12911877522518073,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.1321444673718014,
+          "object_scene_RMS_cm": 0.686820877498978,
+          "human_occupied_fraction": 0.004734848657707599,
+          "object_occupied_fraction": 0.06445312858241695,
+          "world_joint_speed_m_per_s": 0.6263065419413827,
+          "human_rms_mm": 0.0,
+          "root_rms_mm": 0.0,
+          "object_rms_mm": 0.0,
+          "local_human_rms_mm": 0.0
+        },
+        "altered": {
+          "root_directed_m": 0.04680229249325665,
+          "object_directed_m": 0.05280380585992878,
+          "contact_anchor_m": 0.009565431771215185,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.057520462115379895,
+          "contact_fraction": 0.8798701336438005,
+          "support_speed_m_per_s": 0.1280357804613653,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.17897153934382046,
+          "object_scene_RMS_cm": 0.7114272264705286,
+          "human_occupied_fraction": 0.006222943807105449,
+          "object_occupied_fraction": 0.06810572599484162,
+          "world_joint_speed_m_per_s": 0.6288152242248709,
+          "human_rms_mm": 36.52414259465054,
+          "root_rms_mm": 33.777638827263,
+          "object_rms_mm": 38.14755701268893,
+          "local_human_rms_mm": 6.593487040050204
+        }
+      },
+      "raw_source_Wminus": {
+        "W0": {
+          "root_directed_m": 0.0,
+          "object_directed_m": 0.0,
+          "contact_anchor_m": 0.0,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.056317262520844284,
+          "contact_fraction": 0.870129877870733,
+          "support_speed_m_per_s": 0.12911877522518073,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.1321444673718014,
+          "object_scene_RMS_cm": 0.686820877498978,
+          "human_occupied_fraction": 0.004734848657707599,
+          "object_occupied_fraction": 0.06445312858241695,
+          "world_joint_speed_m_per_s": 0.6263065419413827,
+          "human_rms_mm": 0.0,
+          "root_rms_mm": 0.0,
+          "object_rms_mm": 0.0,
+          "local_human_rms_mm": 0.0
+        },
+        "altered": {
+          "root_directed_m": 0.047101611610163345,
+          "object_directed_m": 0.052184047516096725,
+          "contact_anchor_m": 0.009622290920817228,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.054919238879599354,
+          "contact_fraction": 0.8733766295693137,
+          "support_speed_m_per_s": 0.1320413523653001,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.12894496560421764,
+          "object_scene_RMS_cm": 0.6686180468109639,
+          "human_occupied_fraction": 0.00487012998200953,
+          "object_occupied_fraction": 0.062525367771741,
+          "world_joint_speed_m_per_s": 0.6309813504869287,
+          "human_rms_mm": 36.46295714109303,
+          "root_rms_mm": 33.91448171124392,
+          "object_rms_mm": 37.719815863516054,
+          "local_human_rms_mm": 6.333859143305051
+        }
+      },
+      "edited_Wplus": {
+        "W0": {
+          "root_directed_m": 0.0,
+          "object_directed_m": 0.0,
+          "contact_anchor_m": 0.0,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.056323273022743786,
+          "contact_fraction": 0.870129877870733,
+          "support_speed_m_per_s": 0.13029674162336236,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.12562007393202893,
+          "object_scene_RMS_cm": 0.6591548831632915,
+          "human_occupied_fraction": 0.004734848657707599,
+          "object_occupied_fraction": 0.06308340474391695,
+          "world_joint_speed_m_per_s": 0.6263116476210681,
+          "human_rms_mm": 0.0,
+          "root_rms_mm": 0.0,
+          "object_rms_mm": 0.0,
+          "local_human_rms_mm": 0.0
+        },
+        "altered": {
+          "root_directed_m": 0.0468060817908157,
+          "object_directed_m": 0.05278731903738596,
+          "contact_anchor_m": 0.009561509875248835,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.05753005609254946,
+          "contact_fraction": 0.8798701336438005,
+          "support_speed_m_per_s": 0.1289914028964259,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.16836871299652,
+          "object_scene_RMS_cm": 0.6838307648703398,
+          "human_occupied_fraction": 0.00581709967545149,
+          "object_occupied_fraction": 0.06671063627370379,
+          "world_joint_speed_m_per_s": 0.628798711028966,
+          "human_rms_mm": 36.53521187689865,
+          "root_rms_mm": 33.79559471318385,
+          "object_rms_mm": 38.15539531592769,
+          "local_human_rms_mm": 6.59564608895819
+        }
+      },
+      "edited_Wminus": {
+        "W0": {
+          "root_directed_m": 0.0,
+          "object_directed_m": 0.0,
+          "contact_anchor_m": 0.0,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.056323273022743786,
+          "contact_fraction": 0.870129877870733,
+          "support_speed_m_per_s": 0.13029674162336236,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.12562007393202893,
+          "object_scene_RMS_cm": 0.6591548831632915,
+          "human_occupied_fraction": 0.004734848657707599,
+          "object_occupied_fraction": 0.06308340474391695,
+          "world_joint_speed_m_per_s": 0.6263116476210681,
+          "human_rms_mm": 0.0,
+          "root_rms_mm": 0.0,
+          "object_rms_mm": 0.0,
+          "local_human_rms_mm": 0.0
+        },
+        "altered": {
+          "root_directed_m": 0.04702969640493393,
+          "object_directed_m": 0.05211364731869914,
+          "contact_anchor_m": 0.009620734050349081,
+          "contact_count": 23.181818181818183,
+          "contact_surface_distance_m": 0.05492371117526835,
+          "contact_fraction": 0.8733766295693137,
+          "support_speed_m_per_s": 0.1328474205148589,
+          "support_count": 20.181818181818183,
+          "human_scene_RMS_cm": 0.12229551968861635,
+          "object_scene_RMS_cm": 0.636535161979912,
+          "human_occupied_fraction": 0.00487012998200953,
+          "object_occupied_fraction": 0.060876626082145696,
+          "world_joint_speed_m_per_s": 0.6309554901990023,
+          "human_rms_mm": 36.41424605835875,
+          "root_rms_mm": 33.87040066262801,
+          "object_rms_mm": 37.66949990048321,
+          "local_human_rms_mm": 6.333787268566329
+        }
+      }
+    },
+    "contrasts": {
+      "raw_source_Wplus": {
+        "contact_anchor_m": {
+          "delta": 0.009565431771215183,
+          "ci": [
+            0.007829512753684138,
+            0.01153797094891052
+          ],
+          "n": 22
+        },
+        "contact_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "contact_fraction": {
+          "delta": 0.009740255773067474,
+          "ci": [
+            -0.003246759826486761,
+            0.025974022393876858
+          ],
+          "n": 22
+        },
+        "contact_surface_distance_m": {
+          "delta": 0.001203199594535611,
+          "ci": [
+            -0.00027877759103747923,
+            0.00278584028551863
+          ],
+          "n": 22
+        },
+        "human_occupied_fraction": {
+          "delta": 0.00148809514939785,
+          "ci": [
+            -0.0014880952658131719,
+            0.005275973786377687
+          ],
+          "n": 22
+        },
+        "human_rms_mm": {
+          "delta": 36.52414259465055,
+          "ci": [
+            34.983526698394535,
+            38.20445639780261
+          ],
+          "n": 22
+        },
+        "human_scene_RMS_cm": {
+          "delta": 0.046827071972019046,
+          "ci": [
+            -0.01208117708426887,
+            0.12337234432978383
+          ],
+          "n": 22
+        },
+        "local_human_rms_mm": {
+          "delta": 6.593487040050204,
+          "ci": [
+            5.829582319134209,
+            7.39925572537134
+          ],
+          "n": 22
+        },
+        "object_directed_m": {
+          "delta": 0.05280380585992878,
+          "ci": [
+            0.04685745081779632,
+            0.058458760217763486
+          ],
+          "n": 22
+        },
+        "object_occupied_fraction": {
+          "delta": 0.00365259741242467,
+          "ci": [
+            -0.0007863216758282347,
+            0.009258318827910856
+          ],
+          "n": 22
+        },
+        "object_rms_mm": {
+          "delta": 38.14755701268893,
+          "ci": [
+            34.07250441335987,
+            41.86453091778409
+          ],
+          "n": 22
+        },
+        "object_scene_RMS_cm": {
+          "delta": 0.024606348971550427,
+          "ci": [
+            -0.06156691272703021,
+            0.10185977580546388
+          ],
+          "n": 22
+        },
+        "root_directed_m": {
+          "delta": 0.04680229249325666,
+          "ci": [
+            0.044860911314291034,
+            0.04883663912981071
+          ],
+          "n": 22
+        },
+        "root_rms_mm": {
+          "delta": 33.77763882726299,
+          "ci": [
+            32.45242860342401,
+            35.25087860669594
+          ],
+          "n": 22
+        },
+        "support_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "support_speed_m_per_s": {
+          "delta": -0.0010829947638154203,
+          "ci": [
+            -0.00502237252097384,
+            0.002486957014755929
+          ],
+          "n": 22
+        },
+        "world_joint_speed_m_per_s": {
+          "delta": 0.002508682283488187,
+          "ci": [
+            -0.00843666514212435,
+            0.01295387345281514
+          ],
+          "n": 22
+        }
+      },
+      "raw_source_Wminus": {
+        "contact_anchor_m": {
+          "delta": 0.009622290920817228,
+          "ci": [
+            0.00788907258995586,
+            0.01179145306210653
+          ],
+          "n": 22
+        },
+        "contact_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "contact_fraction": {
+          "delta": 0.003246751698580655,
+          "ci": [
+            0.0,
+            0.009740255095741966
+          ],
+          "n": 22
+        },
+        "contact_surface_distance_m": {
+          "delta": -0.0013980236412449317,
+          "ci": [
+            -0.00294635995418172,
+            -3.309993877668279e-05
+          ],
+          "n": 22
+        },
+        "human_occupied_fraction": {
+          "delta": 0.000135281324301931,
+          "ci": [
+            -0.0010822513672544367,
+            0.0017586581366644664
+          ],
+          "n": 22
+        },
+        "human_rms_mm": {
+          "delta": 36.46295714109303,
+          "ci": [
+            34.96676085944132,
+            37.967098811596735
+          ],
+          "n": 22
+        },
+        "human_scene_RMS_cm": {
+          "delta": -0.003199501767583773,
+          "ci": [
+            -0.05109973081293369,
+            0.059137544678692595
+          ],
+          "n": 22
+        },
+        "local_human_rms_mm": {
+          "delta": 6.333859143305053,
+          "ci": [
+            5.524100487546558,
+            7.214269219161332
+          ],
+          "n": 22
+        },
+        "object_directed_m": {
+          "delta": 0.052184047516096725,
+          "ci": [
+            0.0464897846845402,
+            0.05764145816422322
+          ],
+          "n": 22
+        },
+        "object_occupied_fraction": {
+          "delta": -0.0019277608106759462,
+          "ci": [
+            -0.004388192163737999,
+            0.00022828752619468353
+          ],
+          "n": 22
+        },
+        "object_rms_mm": {
+          "delta": 37.719815863516054,
+          "ci": [
+            33.832518534328,
+            41.21031011900558
+          ],
+          "n": 22
+        },
+        "object_scene_RMS_cm": {
+          "delta": -0.018202830688014083,
+          "ci": [
+            -0.08007373300323428,
+            0.0355276593958102
+          ],
+          "n": 22
+        },
+        "root_directed_m": {
+          "delta": 0.047101611610163345,
+          "ci": [
+            0.04496869181960144,
+            0.049318577662448994
+          ],
+          "n": 22
+        },
+        "root_rms_mm": {
+          "delta": 33.914481711243916,
+          "ci": [
+            32.58318772909802,
+            35.27349746555054
+          ],
+          "n": 22
+        },
+        "support_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "support_speed_m_per_s": {
+          "delta": 0.0029225771401193723,
+          "ci": [
+            -0.0011638985042524085,
+            0.007100572786584484
+          ],
+          "n": 22
+        },
+        "world_joint_speed_m_per_s": {
+          "delta": 0.004674808545546099,
+          "ci": [
+            -0.005771532993425023,
+            0.015212089229713777
+          ],
+          "n": 22
+        }
+      },
+      "edited_Wplus": {
+        "contact_anchor_m": {
+          "delta": 0.009561509875248831,
+          "ci": [
+            0.007825673943455238,
+            0.011532628531449991
+          ],
+          "n": 22
+        },
+        "contact_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "contact_fraction": {
+          "delta": 0.009740255773067474,
+          "ci": [
+            -0.003246759826486761,
+            0.025974022393876858
+          ],
+          "n": 22
+        },
+        "contact_surface_distance_m": {
+          "delta": 0.0012067830698056655,
+          "ci": [
+            -0.00027383399111303416,
+            0.002786671772429889
+          ],
+          "n": 22
+        },
+        "human_occupied_fraction": {
+          "delta": 0.001082251017743891,
+          "ci": [
+            -0.0014880953293124383,
+            0.004329004240836102
+          ],
+          "n": 22
+        },
+        "human_rms_mm": {
+          "delta": 36.535211876898664,
+          "ci": [
+            34.98489583031851,
+            38.222066625966654
+          ],
+          "n": 22
+        },
+        "human_scene_RMS_cm": {
+          "delta": 0.04274863906449109,
+          "ci": [
+            -0.011702583775122902,
+            0.11252350608084431
+          ],
+          "n": 22
+        },
+        "local_human_rms_mm": {
+          "delta": 6.59564608895819,
+          "ci": [
+            5.832282502018875,
+            7.401663096144138
+          ],
+          "n": 22
+        },
+        "object_directed_m": {
+          "delta": 0.05278731903738596,
+          "ci": [
+            0.04678729694146155,
+            0.058468244194095444
+          ],
+          "n": 22
+        },
+        "object_occupied_fraction": {
+          "delta": 0.0036272315297868445,
+          "ci": [
+            -0.0006848627909097229,
+            0.00882711004444652
+          ],
+          "n": 22
+        },
+        "object_rms_mm": {
+          "delta": 38.155395315927684,
+          "ci": [
+            34.05068088466117,
+            41.88329399270897
+          ],
+          "n": 22
+        },
+        "object_scene_RMS_cm": {
+          "delta": 0.024675881707048295,
+          "ci": [
+            -0.06070185442610656,
+            0.10027714149109426
+          ],
+          "n": 22
+        },
+        "root_directed_m": {
+          "delta": 0.046806081790815704,
+          "ci": [
+            0.044855919395658105,
+            0.048836766314608135
+          ],
+          "n": 22
+        },
+        "root_rms_mm": {
+          "delta": 33.79559471318386,
+          "ci": [
+            32.464484268477946,
+            35.26984104920564
+          ],
+          "n": 22
+        },
+        "support_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "support_speed_m_per_s": {
+          "delta": -0.0013053387269364642,
+          "ci": [
+            -0.005280355451564427,
+            0.002135832887792094
+          ],
+          "n": 22
+        },
+        "world_joint_speed_m_per_s": {
+          "delta": 0.0024870634078979492,
+          "ci": [
+            -0.008528933674097062,
+            0.012942023575305939
+          ],
+          "n": 22
+        }
+      },
+      "edited_Wminus": {
+        "contact_anchor_m": {
+          "delta": 0.009620734050349081,
+          "ci": [
+            0.007886241495011052,
+            0.011789861233215283
+          ],
+          "n": 22
+        },
+        "contact_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "contact_fraction": {
+          "delta": 0.003246751698580655,
+          "ci": [
+            0.0,
+            0.009740255095741966
+          ],
+          "n": 22
+        },
+        "contact_surface_distance_m": {
+          "delta": -0.0013995618474754422,
+          "ci": [
+            -0.0029462537410753697,
+            -3.6463516087017624e-05
+          ],
+          "n": 22
+        },
+        "human_occupied_fraction": {
+          "delta": 0.000135281324301931,
+          "ci": [
+            -0.0010822513672544367,
+            0.0017586581366644664
+          ],
+          "n": 22
+        },
+        "human_rms_mm": {
+          "delta": 36.414246058358756,
+          "ci": [
+            34.91622240269368,
+            37.91906523113737
+          ],
+          "n": 22
+        },
+        "human_scene_RMS_cm": {
+          "delta": -0.0033245542434125726,
+          "ci": [
+            -0.04972848824933718,
+            0.0563757726370957
+          ],
+          "n": 22
+        },
+        "local_human_rms_mm": {
+          "delta": 6.33378726856633,
+          "ci": [
+            5.523827469252539,
+            7.215271168282121
+          ],
+          "n": 22
+        },
+        "object_directed_m": {
+          "delta": 0.05211364731869914,
+          "ci": [
+            0.04642796297557652,
+            0.05757465729574588
+          ],
+          "n": 22
+        },
+        "object_occupied_fraction": {
+          "delta": -0.002206778661771254,
+          "ci": [
+            -0.004515018314123154,
+            -0.00025301854210821984
+          ],
+          "n": 22
+        },
+        "object_rms_mm": {
+          "delta": 37.66949990048322,
+          "ci": [
+            33.7833816055386,
+            41.16248461856927
+          ],
+          "n": 22
+        },
+        "object_scene_RMS_cm": {
+          "delta": -0.022619721183379495,
+          "ci": [
+            -0.08066250214415538,
+            0.023560100810576422
+          ],
+          "n": 22
+        },
+        "root_directed_m": {
+          "delta": 0.04702969640493393,
+          "ci": [
+            0.044923965438184416,
+            0.049250641274689276
+          ],
+          "n": 22
+        },
+        "root_rms_mm": {
+          "delta": 33.87040066262801,
+          "ci": [
+            32.53529649168627,
+            35.22910507055258
+          ],
+          "n": 22
+        },
+        "support_count": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 22
+        },
+        "support_speed_m_per_s": {
+          "delta": 0.0025506788914965244,
+          "ci": [
+            -0.0015346102397855452,
+            0.006715310814208361
+          ],
+          "n": 22
+        },
+        "world_joint_speed_m_per_s": {
+          "delta": 0.004643842577934265,
+          "ci": [
+            -0.00578186803243377,
+            0.015198984166437918
+          ],
+          "n": 22
+        }
+      }
+    },
+    "scene_directed_root_means": {
+      "raw_source_Wplus": {
+        "0aa05d5a-81d5-497b-832c-c90c3fe73a36": 0.04443261679261923,
+        "4abcb667-c57f-4d8f-940a-d964152329d5": 0.04821527066330115,
+        "b1b053a9-b268-4f62-a06d-b9b9325c5092": 0.047102001309394834,
+        "a3df624b-0917-46e9-ac15-fab766276c72": 0.04673119102205549
+      },
+      "raw_source_Wminus": {
+        "0aa05d5a-81d5-497b-832c-c90c3fe73a36": 0.043745544739067554,
+        "4abcb667-c57f-4d8f-940a-d964152329d5": 0.04979454353451729,
+        "b1b053a9-b268-4f62-a06d-b9b9325c5092": 0.047897198051214215,
+        "a3df624b-0917-46e9-ac15-fab766276c72": 0.04614286071487835
+      },
+      "edited_Wplus": {
+        "0aa05d5a-81d5-497b-832c-c90c3fe73a36": 0.044283607974648476,
+        "4abcb667-c57f-4d8f-940a-d964152329d5": 0.04811338149011135,
+        "b1b053a9-b268-4f62-a06d-b9b9325c5092": 0.047178592532873154,
+        "a3df624b-0917-46e9-ac15-fab766276c72": 0.04686087369918823
+      },
+      "edited_Wminus": {
+        "0aa05d5a-81d5-497b-832c-c90c3fe73a36": 0.043807593174278736,
+        "4abcb667-c57f-4d8f-940a-d964152329d5": 0.049765897914767265,
+        "b1b053a9-b268-4f62-a06d-b9b9325c5092": 0.04773199334740639,
+        "a3df624b-0917-46e9-ac15-fab766276c72": 0.04602394199797085
+      }
+    },
+    "useful_pairs": [
+      {
+        "task": 14,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 17,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 18,
+        "passed": true,
+        "arms": {
+          "Wplus": true,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 20,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 329,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 330,
+        "passed": false,
+        "arms": {
+          "Wplus": true,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 332,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 333,
+        "passed": false,
+        "arms": {
+          "Wplus": true,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 334,
+        "passed": true,
+        "arms": {
+          "Wplus": true,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 335,
+        "passed": false,
+        "arms": {
+          "Wplus": true,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 371,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 372,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 373,
+        "passed": false,
+        "arms": {
+          "Wplus": true,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 374,
+        "passed": true,
+        "arms": {
+          "Wplus": true,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 375,
+        "passed": true,
+        "arms": {
+          "Wplus": true,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 376,
+        "passed": false,
+        "arms": {
+          "Wplus": true,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 377,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 421,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 422,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 424,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": true
+        }
+      },
+      {
+        "task": 425,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      },
+      {
+        "task": 426,
+        "passed": false,
+        "arms": {
+          "Wplus": false,
+          "Wminus": false
+        }
+      }
+    ],
+    "sign_pass_counts": {
+      "Wplus": 9,
+      "Wminus": 8
+    },
+    "rejection_labels": {
+      "speed_retention": 4,
+      "support_speed_m_per_s": 6,
+      "contact_anchor_m": 13,
+      "human_scene_RMS_cm": 6,
+      "object_scene_RMS_cm": 5,
+      "object_occupied_fraction": 4,
+      "contact_surface_distance_m": 1,
+      "contact_fraction": 1,
+      "human_occupied_fraction": 3
+    },
+    "root_positive_counts": {
+      "Wplus": 22,
+      "Wminus": 22
+    },
+    "speed_retention": {
+      "Wplus": 1.003396982825643,
+      "Wminus": 1.0082485013172369
+    },
+    "worst_contact": {
+      "task": 329,
+      "arm": "Wminus",
+      "reasons": [
+        "contact_anchor_m"
+      ],
+      "delta": {
+        "root_directed_m": 0.05310548469424248,
+        "object_directed_m": 0.03006257861852646,
+        "contact_anchor_m": 0.026231455742023315,
+        "contact_count": 0,
+        "contact_surface_distance_m": -0.012823879718780518,
+        "contact_fraction": 0.0,
+        "support_speed_m_per_s": 0.005183486613844157,
+        "support_count": 0,
+        "human_scene_RMS_cm": 0.0,
+        "object_scene_RMS_cm": -0.018778300487372723,
+        "human_occupied_fraction": 0.0,
+        "object_occupied_fraction": -0.0100446417927742,
+        "world_joint_speed_m_per_s": 0.0018482804298400879,
+        "human_rms_mm": 35.31558298853082,
+        "root_rms_mm": 35.603224068871235,
+        "object_rms_mm": 21.542105517542346,
+        "local_human_rms_mm": 9.84498908960733
+      },
+      "joint_speed_retention": 1.0023443135823522
+    },
+    "worst_human_scene": {
+      "task": 426,
+      "arm": "Wplus",
+      "reasons": [
+        "contact_anchor_m",
+        "human_scene_RMS_cm",
+        "human_occupied_fraction"
+      ],
+      "delta": {
+        "root_directed_m": 0.04437587782740593,
+        "object_directed_m": 0.048474159091711044,
+        "contact_anchor_m": 0.011456510035454162,
+        "contact_count": 0,
+        "contact_surface_distance_m": -0.00047955289483070374,
+        "contact_fraction": 0.07142853736877441,
+        "support_speed_m_per_s": 0.003013288121550328,
+        "support_count": 0,
+        "human_scene_RMS_cm": 0.6014506210982966,
+        "object_scene_RMS_cm": -0.6165860054563748,
+        "human_occupied_fraction": 0.02678571455180645,
+        "object_occupied_fraction": -0.014508932828903198,
+        "world_joint_speed_m_per_s": -0.026454508304595947,
+        "human_rms_mm": 34.37511185072649,
+        "root_rms_mm": 31.81248014888777,
+        "object_rms_mm": 37.76200757010393,
+        "local_human_rms_mm": 5.677161776803387
+      },
+      "joint_speed_retention": 0.9561121542791275
+    },
+    "W0_bitwise_count": 28,
+    "repeats": [
+      {
+        "task": 14,
+        "arm": "Wplus_repeat",
+        "exact": true
+      },
+      {
+        "task": 371,
+        "arm": "Wplus_repeat",
+        "exact": true
+      },
+      {
+        "task": 329,
+        "arm": "Wplus_repeat",
+        "exact": true
+      }
+    ]
+  },
+  "stage_D": {
+    "started": false,
+    "reason": "C joint quality gate failed"
+  },
+  "stage_E": {
+    "started": false,
+    "reason": "C failed; no structured route pool"
+  },
+  "cost": {
+    "generation_seconds": 386.7326340880245,
+    "model_calls": 38700,
+    "model_call_breakdown": {
+      "diffusion": 37500,
+      "B1_reference": 1200
+    },
+    "timing": {
+      "geometry_seconds": 108.36347352899611,
+      "B1_reference_seconds": 4.294659435749054
+    },
+    "execution": {
+      "exits": [
+        {
+          "shard": 66,
+          "gpu": 3,
+          "seconds": 101.27428238280118,
+          "exitcode": 0
+        },
+        {
+          "shard": 0,
+          "gpu": 0,
+          "seconds": 141.09259800240397,
+          "exitcode": 0
+        },
+        {
+          "shard": 22,
+          "gpu": 1,
+          "seconds": 109.07404452748597,
+          "exitcode": 0
+        },
+        {
+          "shard": 44,
+          "gpu": 2,
+          "seconds": 127.81694216281176,
+          "exitcode": 0
+        }
+      ],
+      "seconds": 245.44711497612298
+    },
+    "lanes": [
+      {
+        "tasks": 7,
+        "generated_windows": 16,
+        "seconds": 91.58250661194324,
+        "peak_allocated_bytes": 422682112,
+        "new_HSI_calls": 0,
+        "full_native_rollouts": 0
+      },
+      {
+        "tasks": 7,
+        "generated_windows": 20,
+        "seconds": 117.0067406706512,
+        "peak_allocated_bytes": 424181760,
+        "new_HSI_calls": 0,
+        "full_native_rollouts": 0
+      },
+      {
+        "tasks": 7,
+        "generated_windows": 22,
+        "seconds": 130.13324913941324,
+        "peak_allocated_bytes": 427181056,
+        "new_HSI_calls": 0,
+        "full_native_rollouts": 0
+      },
+      {
+        "tasks": 7,
+        "generated_windows": 17,
+        "seconds": 97.72722688689828,
+        "peak_allocated_bytes": 426778112,
+        "new_HSI_calls": 0,
+        "full_native_rollouts": 0
+      }
+    ]
+  },
+  "operational_failure": {
+    "run": "results/experiments/p2-mixer-waypoint-control-s42-20260907",
+    "status": "failed",
+    "reason": "Audit expected500 model calls but existing B1 adds16 reference calls.",
+    "retained": "manifest/logs/task014 cached attribution and endpoint records",
+    "missing": "one generatedW0 tensor was not saved before assertion",
+    "correction": "Count500+actual B1 reference calls; save captures before assertions; unique r2 run with unchanged scientific protocol.",
+    "execution_exception": "One failed extraW0 followed by implementation-only restart despite nominal retry budget0; failed outputs kept, no signed quality outcome before correction."
+  },
+  "tests": {
+    "authority_passed": 1028,
+    "authority_skipped": 4,
+    "seconds": 173.91,
+    "logs": "results/waypoint-control-preflight-s42-20260907",
+    "registry_records": 382
+  },
+  "visual_review": {
+    "mode": "agent inspection of saved first-window trajectories and four fixed video frames per reviewed task",
+    "reviewed_tasks": [
+      14,
+      329,
+      371,
+      420,
+      426
+    ],
+    "frames": [
+      0,
+      5,
+      10,
+      15
+    ],
+    "videos": 28,
+    "trajectory_figures": 28,
+    "saved_frame_figures": 112,
+    "render_exitcode": 0,
+    "findings": [
+      "World root and object paths separate consistently with the signed waypoint targets in applicable examples.",
+      "Raw and B1 shapes remain visually similar; task329 enters a crouch in all three arms.",
+      "Task420 has only W0 because the original waypoint already reaches the route endpoint; the absent branches are explicitly marked inapplicable.",
+      "Task426 is the registered worst human-scene proxy case. The skeleton-only render does not certify its mesh collision quality."
+    ],
+    "limitations": "One independent16-frame window, skeleton and128 object points, no scene/full-body mesh. Sampled frames cannot certify naturalness, fine contact, sliding or jitter; no complete episode or native quality gain is claimed.",
+    "independent_human_review": false,
+    "visual_review_pending": true,
+    "numerical_failure_independently_blocks_expansion": true
+  },
+  "test_set_development": true,
+  "complete_native_rollouts": 0,
+  "HSI_forwards": 0,
+  "new_checkpoints": 0,
+  "additional441": false,
+  "full469": false,
+  "next_priority": "Define and verify joint-feasibility waypoint conditions that preserve hand-object relations and scene quality in a new bounded protocol."
+}

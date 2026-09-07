@@ -4215,3 +4215,45 @@ Corrected runtime verification:1028 passed,4 historical skips173.91s; registry38
 rows valid including retained failed run. New r2 manifest will start from the
 committed instrumentation correction. Exact source conditions, ArmB/B1 calls,
 offsets, hypothesis and numerical gates remain the preregistered ones.
+
+### Phase2.21 completion — control response supported, quality NO-GO (2026-09-07)
+
+Runtime05b781d completes A112 cached candidates/496windows, B112 exact native
+endpoint/completion checks, C75 first windows:28W0+44 signed+3 exact repeats.
+22 applicable pairs;6 tasks have original waypoint already at the path endpoint.
+All28W0 raw/proposal/edited outputs match sealedC0 bitwise. Model latent/text/BPS/
+progress/object goal pairing, repeat outputs, finite/history/editor guards pass.
+No new full task rollout or HSI forward. Initial f439dbb count failure remains
+failed with logs/partial A/B; one failedW0 tensor was not preserved before its
+assertion. New runtime counts500diffusion+16B1reference calls and saves captures
+first; no scientific change or implicit retry/overwriting.
+
+A first-window raw/B1 world human coordinateRMS.98956/1.02092mm: B1 did not
+collapse larger proposals. Later-window3.60183/3.60900mm is descriptive across
+different histories. Registered oracle exact; completed-only/unprotected HS
+3.96673 vs oldCG3.99304, only.65875% headroom and worse OS/contact means.
+B native_retained_v2 aligns all112 root/object values exactly, including3D
+object error, strict10cm classification and actual retained interpolation frame;
+legacy Phase2.20 results remain sealed and unmodified.
+
+C edited mean directed root4.6806/4.7030cm, object5.2787/5.2114cm forW+/W-.
+All22 tasks have positive root response each sign; task95% and scene means
+support direction. But anchor95% upper1.1533/1.1790cm exceeds1cm, plus-side
+human/object voxelRMS and object occupancy upper bounds exceed registered
+margins. Surface contact, foot and mean speed retention protections pass overall.
+Only4/22 pairs meet both signs' per-task useful response and every quality
+margin (9plus,8minus individually), below50%. Scientific NO-GO; do not mistake
+it for absent waypoint controllability or universal contact failure. H2/H3
+unopened;2.22route pool/2.23HSI selection/441/469 remain stopped.
+
+Final authority1028 passed,4 historical skips173.91s; registry382 valid.
+r2 controller245.45s;75-window generation386.73 cumulative GPU seconds,
+37500diffusion+1200B1reference=38700HOI calls,0HSI. Allocator peaks422.68–427.18MB.
+28 actual first-window animations/28 trajectories/112 frames rendered; five
+fixed/failure tasks reviewed, human independent review pending. Raw/B1 visual
+shapes similar;329 crouching persists. Summary PHASE_2S_WAYPOINT_CONTROL.md,
+compact result p2_mixer_waypoint_control_s42_20260907.json, tag
+exp/p2s-waypoint-control-v1. Engineering closure passes with retained failure;
+next unique priority is jointly feasible waypoint conditions preserving grasp
+relations and scene quality under a new bounded protocol, not larger offsets,
+unregistered gate changes or automatic complete-route generation/training.
