@@ -3891,3 +3891,82 @@ Closure bookkeeping: the hypothesis occupied the canonical run id, so the
 register command refused a duplicate. Preserve it append-only and record a
 unique completion event linked to the same completed manifest/run_id. Registry375
 rows validates. No sampling rerun, result overwrite or scientific change.
+
+
+## 2026-09-07 — Phase2.17 source-dynamics preservation (authorized)
+
+Handoff: /data/yujinlun/report/PriorHOSI_next_experiment_Codex_90ea106_HTD_temporal.md
+(the supplied papers path is absent). Base90ea106, clean worktree. Branch
+phase/02q-temporal-preservation. User authorizes implementation/execution/publication.
+H-T tests whether preserving same-window raw HOI dynamics protects edit quality;
+H-S requires additional HSI utility under identical Temporal treatment. Neither
+source error nor jitter alone establishes naturalness or HSI transfer.
+
+Split before implementation:2.17 covers A0 asset/time recovery, component and full
+suite, one frozen-source scale calibration and A1/A2 fixed-window repair/decision.
+Conditional2.18 covers G1/H1 native28 closed rollouts, at most56 new episodes;
+conditional2.19 covers additional441/full469. Close one subphase per session.
+2.15/2.16 NO-GO remains sealed. No expert/evaluator/core changes, candidates,
+training, new hash machinery, unrequested smoke suite or new tracked runner.
+
+Inputs: exact committed native28 manifest, all124 B1 and124 B2-quality windows.
+Each uses its own raw_source, original proposal, incoming edited parameters and
+source anchors. Existing caches lack replay_context/rest_offsets; recover from
+native task metadata and saved world motions with explicit replay tolerances;
+never silently substitute another arm's history. Recover original frame transform
+using evaluator formula and kinematic assets; require FK <=1e-5m and object/world
+history consistency, exact original saved output for bypass. Record every missing
+asset or mismatch. Native source30Hz, stride3 => dt=.1s, with original2-frame
+history; verify dataset/evaluator sampling and metadata before physical loss.
+No padding is generated inside the16-frame windows; interpolation tail is excluded.
+
+Method: default-off post-editor Temporal; root-local world-consistent FK21 nonroot
+joints, V/A stencils ending t2..15. Freeze source, incoming keep center and proposal
+protection independently. Explicit frame/link validity; unequal timestamps rejected.
+Scales: sqrt(task-balanced mean per-window mean square source derivative per
+coordinate), pooled equally across G0/H0; minimum sV=.001m/s,sA=.01m/s².
+Freeze before candidate outcomes; lambdaV=lambdaA=1, keep chordal SO3 squared
+Frobenius/(2*(10deg)^2), mean over future frames/nonroot joints. Keep minimum
+and derivative normalization explicit; no weight search. Same20 iterations,
+initial step.25,10 backtracks,Armijo1e-4,halving; actual projected direction
+slope uses original gradient dot direction. Keep63 free coordinates, original
+proposal10deg component range,2cm feet,quality support1e-12m²,domain,contact,
+HS and finite guards. Invalid input/no stencil => named no-op. Off/zero weights
+return incoming tensors directly with no FK/random call. Loss always differentiable
+at zero under enable_grad; old fit/solver paths unchanged.
+
+A2 gate (fixed before new results): both arms task-balanced source V/A sum falls,
+nonzero accepted changes, all hard/finite/history checks pass. Independent evidence
+must be supplied by contact anchor error, world support slip, or reviewed motion;
+optimized source error/boundary source error alone is insufficient. Quantitative
+support: >=5% task-balanced reduction in mean active source-anchor distance or
+fixed proposal-support horizontal speed, task95% upper<0,scene delta<=0 in at
+least one arm, no significant opposite effect in the other. These are diagnostics
+of geometry/feet, not native metrics. Require mean human scene voxel residual
+increase<=.01cm in each arm and mean occupied fraction not higher; fixed source
+floor toe-height rise<=.1cm; joint-speed retention>=95% of incoming, root/object
+exactly fixed. All28 tasks remain in denominators; empty contact/support counts
+are recorded and contribute no evidence. Visual review must not reveal loss of
+contact, new freeze/lift or seam damage. If unavailable mark visual_review_pending
+and withhold promotion. No editing quota. Preserve any failure and stop with
+insufficient evidence if only directly optimized quantities improve.
+
+Task-paired10000 seed42 bootstrap and four-scene sensitivity, CUDA float64.
+Report G1-G0 andH1-H0 independently; offlineH1-G1 is descriptive because sources
+and histories differ. No stitched replay success/native15 claim. All28 tasks get
+fixed-view replay clips and V/A curves including372/420; independent-window
+history resets explicitly labeled. No human perception score is claimed.
+
+Prospective2.18 must register its concrete runs before execution. HSI primary
+H1-G1 HS>=5% relative to G1 with task95% upper<0 and scene mean<=0. Protect FS
+upper<=+.01cm,contact/completion lower>=-.02,root/object endpoint upper<=1cm,
+OS point<=0 and upper<=.02 versus corresponding no-Temporal arm and H1vsG1,
+both task/scene. Temporal quality needs independent native improvement with
+protection of HS/OS/contact/completion, alongside source dynamics engagement.
+No promotion based only on H1-B0 or source error. Remaining441 historically used,
+not untouched; test_set_development=true throughout.
+
+Engineering closure requires valid implementation/full suite, registry validation,
+complete positive/negative fixed-window evidence and phase summary; scientific
+promotion is separate. On a failed A2, no native28/441, no tuning guards/weights,
+and no switch to candidate reranking. Publish negative results too.
