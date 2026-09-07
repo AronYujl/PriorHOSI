@@ -3541,3 +3541,27 @@ Final implementation suite:966 passed/4 historical skips in174.41s; all six
 resolved configs differ from sealed views jobs only in output/run identity,
 saved-replay source and registered diagnostic selector/weak-direction threshold.
 Frozen core is unchanged from053eb13. No additional numerical/performance tuning.
+
+
+### Phase2.14a completion — relation protection works; direct DP route NO-GO
+
+All24 tasks/68 saved sources complete; all6 lanes exit0. Raw sources/references,
+contact masks and lambda0 short parameters match bitwise68/68.9792 HSI/7616 HOI
+forwards and9792 matched physical probes meet the budget; no source generation.
+At5mm, G1/G2 contact drift0.924533/0.003768cm (99.59% reduction), with mean
+r_keep0.820624 and max normalized Jv2.65e-9. Same8-step G2-G0 HS+0.000035cm,
+95% task CI[-0.003099,+0.003635]; G2-G3 HS+0.000872[-0.002718,+0.004926].
+Both fail the registered5%/significance gate. G2-G0 stance increment+0.021480cm
+[+0.007859,+0.036833] also fails its point margin; G2-G3 OS point is positive.
+Projection protects contact but supplies no demonstrated useful HSI scene gain.
+Keep all favorable contact/stance contrasts and common-feasible subsets in the
+full report.966 tests pass/4 historical skips;368 registry rows validate.
+
+Close2.14a as engineering complete/scientific NO-GO at
+exp/p2n-relation-compatible-dp-v1. No2.14b rollout candidate or full469 is promoted.
+See PHASE_2N_RELATION_COMPATIBLE_DP.md and the compact result. Raw development
+meshes exist (5 closed/006 open), while the validated native signed surface bundle
+is missing. July InfBaGel469 task identities match, but its sealed evaluator
+never serialized the trajectories needed for unified motion re-evaluation.
+Any conditional-denoising-repair mechanism is a separately registered next
+proposal; it remains unvalidated and is not executed in this session.

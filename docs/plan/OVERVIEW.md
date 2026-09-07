@@ -3,12 +3,12 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-06 当前进度：Phase 2.9 已完成，交付与本轮质量门槛均通过。Armijo 在 744 次
-修正中保持完整目标不增，A00 滑步接近重建基准，A01 物景穿透指标比重建下降 13.20%。
-相对原 Adam 版 A01，人景与物景穿透深度均显著回升；保留这项质量取舍以及边界查询问题。
-重建仍为比较锚点，Armijo 保留为通过本轮门槛的候选。完整 Phase 2、有效 HSI 监督与
-learned mixer 训练仍开放，详见 [Phase 2.9 交接](../phase_summaries/PHASE_2I_ARMIJO.md)
-和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。
+2026-09-07 当前进度：Phase 2.14a 已完成，局部门槛为 NO-GO。关系投影在 5mm 等幅
+探针中将接触漂移降低99.59%，平均保留82.06%的参数方向范数；同预算短编辑的 HSI
+额外场景收益仍未成立，足部修正增量相对 lambda0 变差。停止当前 DP 直接梯度路线，
+保留原生产默认；开发闭环和 full469 均未启动。详见
+[Phase 2.14a 交接](../phase_summaries/PHASE_2N_RELATION_COMPATIBLE_DP.md)
+和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。完整 Phase2 质量门槛仍开放。
 
 ## 1. 主张、边界与接口
 
