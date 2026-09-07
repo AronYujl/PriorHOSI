@@ -4008,3 +4008,34 @@ suite989 passed before extra six zero-weight editor cases; final suite includes
 all29 component cases. Runtime code/core/expert/evaluator scope verified before
 committing. Loss derivative and actual-direction changes use the existing solver
 with a Temporal-only option; legacy optimizer arithmetic remains unchanged.
+
+
+### Phase2.17 completion — fixed-window Temporal NO-GO (2026-09-07)
+
+Runtime b87bd8e completes248/248 cached windows across28 tasks,4 scenes; all4
+jobs exit0,0 expert calls/new rollouts. G/H normalized source V+A errors fall
+68.154%/53.900%,98/120 windows change; task-balanced RMS.024929/.534955mm
+(window means.030018/.556178mm). All guards/finite/history/common/coverage and
+scene/toe-height/motion protections pass. Independent quality gate fails:
+G support-speed gain.03684% falls below5%; H speed worsens.2115% with uncertainty
+crossing0; contact changes are unconfirmed. HS voxel means slightly regress by
+.000306/.000544cm within.01cm protection. Direct objective gain does not establish
+H-T or H-S. No2.18/441/full469,retuning or reranking follows.
+
+995 tests pass/4 historical skips171.96s; registry377 records validates.
+Controller393.29s including analysis; synchronized Temporal4.665/3.890s per
+window in sharded runs, observed GPU use931–932MiB (not allocator peak).
+All28 four-panel independent-window replay videos and physical curves saved.
+Six task frame reviews show no clear additional quality improvement; independent
+human blind review remains pending. No native15/completion scores claimed from
+replay. Source/keep/proposal references, per-window seeds, times and stitching
+intervals retained. Summary PHASE_2Q_TEMPORAL_PRESERVATION.md and compact result
+p2_mixer_temporal_preservation_s42_20260907.json carry all comparisons/negatives.
+Engineering closure passes; scientific promotion fails. Seal
+exp/p2q-temporal-preservation-v1, integrate completed record into phase/02-mixer;
+next entry requires new user handoff, not an automatic new phase.
+
+Cache audit clarification:248 contact masks and124 H0 quality support masks compare
+exactly. B1 lacks repair_stance_mask in all124 old snapshots; its proposal support
+is reconstructed, and logged stance_exact=true is vacuous for that absent field.
+No claim of an exact saved-B1-support comparison; no outcome or gate changes.

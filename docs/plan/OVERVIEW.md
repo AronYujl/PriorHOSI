@@ -3,14 +3,13 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-07 当前进度：Phase 2.16 已完成，足部质量 guard 原生28任务结论为 NO-GO。
-新 guard 将任务平衡修复 RMS 从0.628增至2.799mm，88/124窗口达到1mm，
-但相对 B1 的 HS 仅改善1.88%且区间跨零，FS保护失败，完成任务从22降至21。
-最常见限制变为2cm足部位移；任务372的原生FS对地面估计变化敏感，
-任务420物体终点误差越过10cm。正式指标和既定门槛保持不变，未启动静态消融、441或469。
-详见 [Phase 2.16 总结](../phase_summaries/PHASE_2P_FOOT_QUALITY_GUARD.md)
-和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。原有Phase2.15 NO-GO与完整证据保持封存。
-目标仍是在 data/hosi_test 的原生469任务上超越 InfBaGel；目前尚未建立该结果。
+2026-09-07 当前进度：Phase2.17源动态Temporal模块及固定输入验证完成，结论NO-GO。
+两组各124窗口，源动态误差下降68.15%/53.90%，但独立足部/接触质量改善不足。
+全部硬约束和场景保留通过；995项测试通过、4项历史跳过；全部28任务视频/曲线保存。
+未启动2.18闭环native28、441或469，旧2.15/2.16负结果保持封存。
+详见 [Phase2.17总结](../phase_summaries/PHASE_2Q_TEMPORAL_PRESERVATION.md)
+及 [Phase2计划](PHASE_2_COMPOSITION.md)。下一步等待新的实验交接。
+目标仍是在 data/hosi_test 的原生469任务上超越InfBaGel，目前尚未建立该结果。
 
 ## 1. 主张、边界与接口
 

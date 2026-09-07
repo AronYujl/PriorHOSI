@@ -1,0 +1,1879 @@
+{
+  "phase": "2.17",
+  "mode": "independent_window_replay",
+  "test_set_development": true,
+  "tasks": 28,
+  "scenes": 4,
+  "windows": 248,
+  "expert_calls": 0,
+  "native_rollouts_started": 0,
+  "decision": "NO-GO",
+  "visual_review_pending": true,
+  "gates": {
+    "coverage": true,
+    "hard_guards": true,
+    "fixed_history_common": true,
+    "finite_execution": true,
+    "source_dynamics": true,
+    "nonzero_changes": true,
+    "independent_quality": false,
+    "B1_no_hsi_scene_retained": true,
+    "B1_no_hsi_no_toe_lift": true,
+    "B1_no_hsi_motion_retained": true,
+    "B2_quality_scene_retained": true,
+    "B2_quality_no_toe_lift": true,
+    "B2_quality_motion_retained": true
+  },
+  "independent_quality": {
+    "B1_no_hsi": {
+      "support_speed_m_per_s": false,
+      "contact_anchor_cm": false
+    },
+    "B2_quality": {
+      "support_speed_m_per_s": false,
+      "contact_anchor_cm": false
+    }
+  },
+  "means": {
+    "B1_no_hsi": {
+      "before": {
+        "support_speed_m_per_s": 0.16961486099896078,
+        "support_count": 40.091198979591844,
+        "contact_anchor_cm": 0.005520705033144615,
+        "contact_count": 21.809311224489793,
+        "human_scene_residual_cm": 0.14216266546182993,
+        "human_occupied_fraction": 0.005118364459772825,
+        "toe_height_above_fixed_floor_cm": 2.005982655936814,
+        "joint_speed_m_per_s": 0.4164611133217786,
+        "root_path_m": 0.5203863678417695,
+        "near_stationary_fraction": 0.0035102758633026687,
+        "hand_object_velocity_error_m2_per_s2": 6.572298189205712e-06,
+        "hand_object_acceleration_error_m2_per_s4": 0.001471952473216354,
+        "hand_velocity_count": 21.58341836734694,
+        "hand_acceleration_count": 21.40038265306122,
+        "velocity_error_m2_per_s2": 4.113357640355526e-06,
+        "acceleration_error_m2_per_s4": 0.000915142722001174,
+        "velocity_normalized": 9.815994570164512e-05,
+        "acceleration_normalized": 0.0003224685581942068,
+        "source_normalized_sum": 0.000420628503895852
+      },
+      "after": {
+        "support_speed_m_per_s": 0.16955237182864577,
+        "support_count": 40.091198979591844,
+        "contact_anchor_cm": 0.005520691391437775,
+        "contact_count": 21.809311224489793,
+        "human_scene_residual_cm": 0.14246906046090382,
+        "human_occupied_fraction": 0.005107735195401091,
+        "toe_height_above_fixed_floor_cm": 2.005961377487271,
+        "joint_speed_m_per_s": 0.416453000113406,
+        "root_path_m": 0.5203863678417695,
+        "near_stationary_fraction": 0.0034600284908419842,
+        "hand_object_velocity_error_m2_per_s2": 6.57222506384747e-06,
+        "hand_object_acceleration_error_m2_per_s4": 0.0014719258815682483,
+        "hand_velocity_count": 21.58341836734694,
+        "hand_acceleration_count": 21.40038265306122,
+        "velocity_error_m2_per_s2": 1.6374111267453944e-06,
+        "acceleration_error_m2_per_s4": 0.0002692589412625581,
+        "velocity_normalized": 3.907469307208245e-05,
+        "acceleration_normalized": 9.487868993807547e-05,
+        "source_normalized_sum": 0.00013395338301015787
+      }
+    },
+    "B2_quality": {
+      "before": {
+        "support_speed_m_per_s": 0.1673659048290277,
+        "support_count": 39.93252551020408,
+        "contact_anchor_cm": 0.014561488469247206,
+        "contact_count": 21.74264455782313,
+        "human_scene_residual_cm": 0.12875363622652683,
+        "human_occupied_fraction": 0.004979045266823266,
+        "toe_height_above_fixed_floor_cm": 1.9491907732350575,
+        "joint_speed_m_per_s": 0.4141655018572144,
+        "root_path_m": 0.519893717746168,
+        "near_stationary_fraction": 0.003038447527490084,
+        "hand_object_velocity_error_m2_per_s2": 2.888851027503838e-06,
+        "hand_object_acceleration_error_m2_per_s4": 0.0005043343388317942,
+        "hand_velocity_count": 21.5453231292517,
+        "hand_acceleration_count": 21.355144557823127,
+        "velocity_error_m2_per_s2": 0.00019930985042166232,
+        "acceleration_error_m2_per_s4": 0.02649220704929672,
+        "velocity_normalized": 0.004756271106419623,
+        "acceleration_normalized": 0.009335050812498467,
+        "source_normalized_sum": 0.014091321918918093
+      },
+      "after": {
+        "support_speed_m_per_s": 0.16771988439291308,
+        "support_count": 39.93252551020408,
+        "contact_anchor_cm": 0.01456331700612939,
+        "contact_count": 21.74264455782313,
+        "human_scene_residual_cm": 0.12929750382995273,
+        "human_occupied_fraction": 0.004979045266823266,
+        "toe_height_above_fixed_floor_cm": 1.9583370643129356,
+        "joint_speed_m_per_s": 0.41444290048461785,
+        "root_path_m": 0.519893717746168,
+        "near_stationary_fraction": 0.0031563355961317973,
+        "hand_object_velocity_error_m2_per_s2": 2.889032151606608e-06,
+        "hand_object_acceleration_error_m2_per_s4": 0.0005044669496254442,
+        "hand_velocity_count": 21.5453231292517,
+        "hand_acceleration_count": 21.355144557823127,
+        "velocity_error_m2_per_s2": 0.00011043181406658351,
+        "acceleration_error_m2_per_s4": 0.010956700349909896,
+        "velocity_normalized": 0.0026353120298027587,
+        "acceleration_normalized": 0.0038608091169377995,
+        "source_normalized_sum": 0.006496121146740558
+      }
+    }
+  },
+  "counts": {
+    "B1_no_hsi": {
+      "windows": 124,
+      "changed": 98,
+      "accepted_steps": 796,
+      "mean_rms_mm": 0.0300182491382345,
+      "mean_seconds": 4.665332363047186
+    },
+    "B2_quality": {
+      "windows": 124,
+      "changed": 120,
+      "accepted_steps": 1447,
+      "mean_rms_mm": 0.556178131115442,
+      "mean_seconds": 3.889678650896155
+    }
+  },
+  "paired_task": {
+    "B1_no_hsi": {
+      "acceleration_error_m2_per_s4": {
+        "delta": -0.0006458837807386159,
+        "ci": [
+          -0.0016588883538460686,
+          -6.493622879199818e-05
+        ],
+        "n": 28
+      },
+      "acceleration_normalized": {
+        "delta": -0.00022758986825613143,
+        "ci": [
+          -0.0005845419766876721,
+          -2.2881558875685327e-05
+        ],
+        "n": 28
+      },
+      "contact_anchor_cm": {
+        "delta": -1.3641706842003381e-08,
+        "ci": [
+          -3.066747815120282e-07,
+          2.73816143621307e-07
+        ],
+        "n": 28
+      },
+      "contact_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "hand_acceleration_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": -2.659164810549377e-08,
+        "ci": [
+          -8.196483621339172e-08,
+          1.955013401324398e-09
+        ],
+        "n": 28
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": -7.312535824055183e-11,
+        "ci": [
+          -2.2400150942448323e-10,
+          4.9540729230229674e-12
+        ],
+        "n": 28
+      },
+      "hand_velocity_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "human_occupied_fraction": {
+        "delta": -1.0629264371735659e-05,
+        "ci": [
+          -3.1887793115206975e-05,
+          0.0
+        ],
+        "n": 28
+      },
+      "human_scene_residual_cm": {
+        "delta": 0.0003063949990738782,
+        "ci": [
+          0.000143904576052716,
+          0.00048688787605841226
+        ],
+        "n": 28
+      },
+      "joint_speed_m_per_s": {
+        "delta": -8.11320837257918e-06,
+        "ci": [
+          -2.2360189108266633e-05,
+          1.2782990273561419e-06
+        ],
+        "n": 28
+      },
+      "near_stationary_fraction": {
+        "delta": -5.0247372460684604e-05,
+        "ci": [
+          -0.00013914656925148196,
+          0.0
+        ],
+        "n": 28
+      },
+      "root_path_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "source_normalized_sum": {
+        "delta": -0.00028667512088569405,
+        "ci": [
+          -0.0007355698233236103,
+          -2.847372140780138e-05
+        ],
+        "n": 28
+      },
+      "support_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "support_speed_m_per_s": {
+        "delta": -6.248917031501001e-05,
+        "ci": [
+          -0.00016083092395482483,
+          -4.7368618347571066e-08
+        ],
+        "n": 28
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": -2.127844954327321e-05,
+        "ci": [
+          -0.00014642439686002038,
+          9.325302893384071e-05
+        ],
+        "n": 28
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": -2.475946513610131e-06,
+        "ci": [
+          -6.3429879039658885e-06,
+          -2.353188493019049e-07
+        ],
+        "n": 28
+      },
+      "velocity_normalized": {
+        "delta": -5.908525262956266e-05,
+        "ci": [
+          -0.00015136718045884978,
+          -5.615579166622653e-06
+        ],
+        "n": 28
+      }
+    },
+    "B2_quality": {
+      "acceleration_error_m2_per_s4": {
+        "delta": -0.015535506699386824,
+        "ci": [
+          -0.020217276290307687,
+          -0.01117099898615739
+        ],
+        "n": 28
+      },
+      "acceleration_normalized": {
+        "delta": -0.005474241695560667,
+        "ci": [
+          -0.0071239553997579416,
+          -0.003936321461179145
+        ],
+        "n": 28
+      },
+      "contact_anchor_cm": {
+        "delta": 1.828536882181349e-06,
+        "ci": [
+          -2.501791767099428e-06,
+          5.959412248643996e-06
+        ],
+        "n": 28
+      },
+      "contact_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "hand_acceleration_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": 1.3261079364997273e-07,
+        "ci": [
+          -5.474117946204638e-08,
+          3.8256787289931243e-07
+        ],
+        "n": 28
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": 1.8112410277080158e-10,
+        "ci": [
+          -4.3867017211617423e-10,
+          9.215720618068914e-10
+        ],
+        "n": 28
+      },
+      "hand_velocity_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "human_occupied_fraction": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "human_scene_residual_cm": {
+        "delta": 0.0005438676034258794,
+        "ci": [
+          0.0001741124468310703,
+          0.0010082933543484483
+        ],
+        "n": 28
+      },
+      "joint_speed_m_per_s": {
+        "delta": 0.0002773986274034388,
+        "ci": [
+          0.00018547858721354002,
+          0.0003726782029824036
+        ],
+        "n": 28
+      },
+      "near_stationary_fraction": {
+        "delta": 0.00011788806864171333,
+        "ci": [
+          -0.00024543906624395663,
+          0.00045415893643318357
+        ],
+        "n": 28
+      },
+      "root_path_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "source_normalized_sum": {
+        "delta": -0.007595200772177532,
+        "ci": [
+          -0.009801787965865028,
+          -0.005518630562765695
+        ],
+        "n": 28
+      },
+      "support_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 28
+      },
+      "support_speed_m_per_s": {
+        "delta": 0.00035397956388540097,
+        "ci": [
+          -0.00020072823947890755,
+          0.000989683483454848
+        ],
+        "n": 28
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": 0.009146291077878232,
+        "ci": [
+          0.006922511598998052,
+          0.011389854028175538
+        ],
+        "n": 28
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": -8.88780363550788e-05,
+        "ci": [
+          -0.00011319687013871234,
+          -6.54228226336297e-05
+        ],
+        "n": 28
+      },
+      "velocity_normalized": {
+        "delta": -0.002120959076616864,
+        "ci": [
+          -0.002701296507116215,
+          -0.0015612308189205727
+        ],
+        "n": 28
+      }
+    }
+  },
+  "paired_scene": {
+    "B1_no_hsi": {
+      "acceleration_error_m2_per_s4": {
+        "delta": -0.0006458837807386158,
+        "ci": [
+          -0.0014022991948550645,
+          -0.00017156821965095154
+        ],
+        "n": 4
+      },
+      "acceleration_normalized": {
+        "delta": -0.0002275898682561314,
+        "ci": [
+          -0.0004941277340139625,
+          -6.045544054790438e-05
+        ],
+        "n": 4
+      },
+      "contact_anchor_cm": {
+        "delta": -1.3641706842897365e-08,
+        "ci": [
+          -1.898757096526003e-07,
+          1.312266607982873e-07
+        ],
+        "n": 4
+      },
+      "contact_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "hand_acceleration_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": -2.6591648105499857e-08,
+        "ci": [
+          -7.869099745156254e-08,
+          4.197059442754663e-11
+        ],
+        "n": 4
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": -7.312535824145525e-11,
+        "ci": [
+          -2.1343848899694687e-10,
+          -6.484468368747624e-13
+        ],
+        "n": 4
+      },
+      "hand_velocity_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "human_occupied_fraction": {
+        "delta": -1.0629264371736155e-05,
+        "ci": [
+          -3.1887793115208465e-05,
+          0.0
+        ],
+        "n": 4
+      },
+      "human_scene_residual_cm": {
+        "delta": 0.0003063949990738941,
+        "ci": [
+          0.0001872108983142001,
+          0.00042557909983358816
+        ],
+        "n": 4
+      },
+      "joint_speed_m_per_s": {
+        "delta": -8.113208372600988e-06,
+        "ci": [
+          -1.9208501492229413e-05,
+          7.370575552112513e-07
+        ],
+        "n": 4
+      },
+      "near_stationary_fraction": {
+        "delta": -5.024737246068459e-05,
+        "ci": [
+          -0.00011595547299033824,
+          0.0
+        ],
+        "n": 4
+      },
+      "root_path_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "source_normalized_sum": {
+        "delta": -0.00028667512088569405,
+        "ci": [
+          -0.0006201992934790976,
+          -7.585970162555677e-05
+        ],
+        "n": 4
+      },
+      "support_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "support_speed_m_per_s": {
+        "delta": -6.2489170315011e-05,
+        "ci": [
+          -0.00013839179827344894,
+          -1.0576542644052944e-06
+        ],
+        "n": 4
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": -2.1278449543027378e-05,
+        "ci": [
+          -0.0001237998393419648,
+          8.124294025591006e-05
+        ],
+        "n": 4
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": -2.4759465136101305e-06,
+        "ci": [
+          -5.282983895831132e-06,
+          -6.455100860628405e-07
+        ],
+        "n": 4
+      },
+      "velocity_normalized": {
+        "delta": -5.908525262956265e-05,
+        "ci": [
+          -0.00012607155946513514,
+          -1.5404261077652387e-05
+        ],
+        "n": 4
+      }
+    },
+    "B2_quality": {
+      "acceleration_error_m2_per_s4": {
+        "delta": -0.01553550669938682,
+        "ci": [
+          -0.017921052342196653,
+          -0.01314996105657699
+        ],
+        "n": 4
+      },
+      "acceleration_normalized": {
+        "delta": -0.005474241695560668,
+        "ci": [
+          -0.0063148356766406745,
+          -0.0046336477144806616
+        ],
+        "n": 4
+      },
+      "contact_anchor_cm": {
+        "delta": 1.8285368821814498e-06,
+        "ci": [
+          -1.8318114587399272e-06,
+          4.7694818270484825e-06
+        ],
+        "n": 4
+      },
+      "contact_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "hand_acceleration_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": 1.3261079364996955e-07,
+        "ci": [
+          -1.0323556456816341e-08,
+          3.0727999461610346e-07
+        ],
+        "n": 4
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": 1.8112410277110298e-10,
+        "ci": [
+          -8.70079267110916e-11,
+          5.514949618735036e-10
+        ],
+        "n": 4
+      },
+      "hand_velocity_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "human_occupied_fraction": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "human_scene_residual_cm": {
+        "delta": 0.0005438676034258596,
+        "ci": [
+          0.00011828485876322001,
+          0.0010418834886988231
+        ],
+        "n": 4
+      },
+      "joint_speed_m_per_s": {
+        "delta": 0.00027739862740347454,
+        "ci": [
+          0.00018859534543387568,
+          0.0003591746269238083
+        ],
+        "n": 4
+      },
+      "near_stationary_fraction": {
+        "delta": 0.00011788806864171343,
+        "ci": [
+          -0.0001662028302061593,
+          0.00040197896748958616
+        ],
+        "n": 4
+      },
+      "root_path_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "source_normalized_sum": {
+        "delta": -0.007595200772177534,
+        "ci": [
+          -0.00877045413674027,
+          -0.006419947407614797
+        ],
+        "n": 4
+      },
+      "support_count": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 4
+      },
+      "support_speed_m_per_s": {
+        "delta": 0.00035397956388539403,
+        "ci": [
+          -0.0002660513228299813,
+          0.0008775880218160337
+        ],
+        "n": 4
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": 0.009146291077878177,
+        "ci": [
+          0.007746056058653195,
+          0.010286448477944632
+        ],
+        "n": 4
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": -8.88780363550788e-05,
+        "ci": [
+          -0.00010290181888802176,
+          -7.485425382213586e-05
+        ],
+        "n": 4
+      },
+      "velocity_normalized": {
+        "delta": -0.002120959076616864,
+        "ci": [
+          -0.002455618460099594,
+          -0.0017862996931341337
+        ],
+        "n": 4
+      }
+    }
+  },
+  "limitation": "Window replay is not a causally consistent task rollout; no native15 or completion claim.",
+  "runtime_commit": "b87bd8e",
+  "preregistration_commit": "fe2ac5e",
+  "run_root": "results/experiments/p2-mixer-temporal-preservation-s42-20260907",
+  "summary_path": "docs/phase_summaries/PHASE_2Q_TEMPORAL_PRESERVATION.md",
+  "result_tag": "exp/p2q-temporal-preservation-v1",
+  "solver_diagnosis": {
+    "B1_no_hsi": {
+      "total_trials": 18786,
+      "rejections": {
+        "stance": 10849,
+        "human_scene": 370,
+        "domain": 200
+      },
+      "sole_rejections": {
+        "stance": 10813,
+        "human_scene": 334,
+        "domain": 200
+      },
+      "step_reasons": {
+        "search_exhausted": 1684,
+        "accepted": 796
+      },
+      "rms_percentiles_mm": [
+        0.0,
+        3.9177495636977255e-05,
+        0.13150426819920538,
+        0.9786469340324402
+      ],
+      "task_balanced_rms_mm": 0.02492899138339444,
+      "worst_support_windows": [
+        {
+          "task": 375,
+          "window": 6,
+          "delta_m_per_s": 0.0006316006183624268
+        },
+        {
+          "task": 334,
+          "window": 4,
+          "delta_m_per_s": 0.0003368854522705078
+        },
+        {
+          "task": 20,
+          "window": 2,
+          "delta_m_per_s": 0.00031131505966186523
+        },
+        {
+          "task": 371,
+          "window": 3,
+          "delta_m_per_s": 0.00028677284717559814
+        },
+        {
+          "task": 372,
+          "window": 5,
+          "delta_m_per_s": 0.00017851591110229492
+        }
+      ]
+    },
+    "B2_quality": {
+      "total_trials": 12945,
+      "rejections": {
+        "feet": 2725,
+        "stance": 4972,
+        "human_scene": 1566,
+        "domain": 200
+      },
+      "sole_rejections": {
+        "feet": 2725,
+        "stance": 4935,
+        "human_scene": 1529,
+        "domain": 200
+      },
+      "step_reasons": {
+        "accepted": 1447,
+        "search_exhausted": 1033
+      },
+      "rms_percentiles_mm": [
+        0.0,
+        0.4200729876756668,
+        1.5859207868576046,
+        2.5656063556671143
+      ],
+      "task_balanced_rms_mm": 0.5349552420679784,
+      "worst_support_windows": [
+        {
+          "task": 17,
+          "window": 3,
+          "delta_m_per_s": 0.014839708805084229
+        },
+        {
+          "task": 371,
+          "window": 4,
+          "delta_m_per_s": 0.008974432945251465
+        },
+        {
+          "task": 20,
+          "window": 2,
+          "delta_m_per_s": 0.0079173743724823
+        },
+        {
+          "task": 17,
+          "window": 2,
+          "delta_m_per_s": 0.007434934377670288
+        },
+        {
+          "task": 374,
+          "window": 3,
+          "delta_m_per_s": 0.007254078984260559
+        }
+      ]
+    }
+  },
+  "additional_comparisons": {
+    "scope": "descriptive task pairing of independent cached histories, not same-source HSI causal effect",
+    "paired_task_H1_minus_G1": {
+      "acceleration_error_m2_per_s4": {
+        "delta": 0.010687441408647337,
+        "ci": [
+          0.006109425206849941,
+          0.016422127722939057
+        ],
+        "n": 28
+      },
+      "acceleration_normalized": {
+        "delta": 0.0037659304269997244,
+        "ci": [
+          0.0021527762724705547,
+          0.005786660071684949
+        ],
+        "n": 28
+      },
+      "contact_anchor_cm": {
+        "delta": 0.009042625614691614,
+        "ci": [
+          0.006321314892603403,
+          0.012386114677113811
+        ],
+        "n": 28
+      },
+      "contact_count": {
+        "delta": -0.06666666666666668,
+        "ci": [
+          -0.130952380952381,
+          -0.015476190476190484
+        ],
+        "n": 28
+      },
+      "hand_acceleration_count": {
+        "delta": -0.0452380952380952,
+        "ci": [
+          -0.0904761904761904,
+          -0.010714285714285739
+        ],
+        "n": 28
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": -0.0009674589319428042,
+        "ci": [
+          -0.002924919866664422,
+          1.751563278291718e-05
+        ],
+        "n": 28
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": -3.6831929122408626e-06,
+        "ci": [
+          -1.1348687331440052e-05,
+          2.0531673682881232e-07
+        ],
+        "n": 28
+      },
+      "hand_velocity_count": {
+        "delta": -0.03809523809523815,
+        "ci": [
+          -0.07857142857142854,
+          -0.0071428571428571175
+        ],
+        "n": 28
+      },
+      "human_occupied_fraction": {
+        "delta": -0.0001286899285778233,
+        "ci": [
+          -0.00035267293969735297,
+          9.71816168926959e-05
+        ],
+        "n": 28
+      },
+      "human_scene_residual_cm": {
+        "delta": -0.013171556630951101,
+        "ci": [
+          -0.02112666663925993,
+          -0.006071426089065859
+        ],
+        "n": 28
+      },
+      "joint_speed_m_per_s": {
+        "delta": -0.0020100996287881734,
+        "ci": [
+          -0.0028967503022535594,
+          -0.001209398655856006
+        ],
+        "n": 28
+      },
+      "near_stationary_fraction": {
+        "delta": -0.0003036928947101867,
+        "ci": [
+          -0.0009778980375990212,
+          0.0003865527245277937
+        ],
+        "n": 28
+      },
+      "root_path_m": {
+        "delta": -0.0004926500956014764,
+        "ci": [
+          -0.0009873815926368496,
+          -3.5921850282908844e-05
+        ],
+        "n": 28
+      },
+      "source_normalized_sum": {
+        "delta": 0.0063621677637304,
+        "ci": [
+          0.004019345576634701,
+          0.009240371166227562
+        ],
+        "n": 28
+      },
+      "support_count": {
+        "delta": -0.15867346938775523,
+        "ci": [
+          -0.5931972789115646,
+          0.19336734693877464
+        ],
+        "n": 28
+      },
+      "support_speed_m_per_s": {
+        "delta": -0.0018324874357326694,
+        "ci": [
+          -0.007069909451917433,
+          0.0036664973506719835
+        ],
+        "n": 28
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": -0.047624313174335145,
+        "ci": [
+          -0.11987557984871133,
+          0.024699960597030453
+        ],
+        "n": 28
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": 0.00010879440293983813,
+        "ci": [
+          7.717954136827218e-05,
+          0.00014636456907775322
+        ],
+        "n": 28
+      },
+      "velocity_normalized": {
+        "delta": 0.0025962373367306767,
+        "ci": [
+          0.0018417896648861938,
+          0.0034928006289468086
+        ],
+        "n": 28
+      }
+    },
+    "paired_scene_H1_minus_G1": {
+      "acceleration_error_m2_per_s4": {
+        "delta": 0.010687441408647337,
+        "ci": [
+          0.006181214062694013,
+          0.01400580705358819
+        ],
+        "n": 4
+      },
+      "acceleration_normalized": {
+        "delta": 0.0037659304269997244,
+        "ci": [
+          0.002178072489423281,
+          0.00493522190401143
+        ],
+        "n": 4
+      },
+      "contact_anchor_cm": {
+        "delta": 0.009042625614691616,
+        "ci": [
+          0.0073922660056266,
+          0.01069298522375663
+        ],
+        "n": 4
+      },
+      "contact_count": {
+        "delta": -0.06666666666666465,
+        "ci": [
+          -0.10238095238094935,
+          -0.030952380952379954
+        ],
+        "n": 4
+      },
+      "hand_acceleration_count": {
+        "delta": -0.04523809523809419,
+        "ci": [
+          -0.0476190476190439,
+          -0.04285714285714448
+        ],
+        "n": 4
+      },
+      "hand_object_acceleration_error_m2_per_s4": {
+        "delta": -0.0009674589319428041,
+        "ci": [
+          -0.002925877856082737,
+          1.5451261192142443e-05
+        ],
+        "n": 4
+      },
+      "hand_object_velocity_error_m2_per_s2": {
+        "delta": -3.6831929122408626e-06,
+        "ci": [
+          -1.1341812312142215e-05,
+          1.9336446099715933e-07
+        ],
+        "n": 4
+      },
+      "hand_velocity_count": {
+        "delta": -0.03809523809523707,
+        "ci": [
+          -0.04761904761904745,
+          -0.028571428571426694
+        ],
+        "n": 4
+      },
+      "human_occupied_fraction": {
+        "delta": -0.00012868992857782257,
+        "ci": [
+          -0.00029040651615086423,
+          2.1258503797331237e-05
+        ],
+        "n": 4
+      },
+      "human_scene_residual_cm": {
+        "delta": -0.01317155663095113,
+        "ci": [
+          -0.023261982751820242,
+          -0.005777421507186121
+        ],
+        "n": 4
+      },
+      "joint_speed_m_per_s": {
+        "delta": -0.002010099628788134,
+        "ci": [
+          -0.0022884668408557074,
+          -0.0017317324167205606
+        ],
+        "n": 4
+      },
+      "near_stationary_fraction": {
+        "delta": -0.00030369289471018674,
+        "ci": [
+          -0.0010016344081203383,
+          0.0004017028871184802
+        ],
+        "n": 4
+      },
+      "root_path_m": {
+        "delta": -0.0004926500956014684,
+        "ci": [
+          -0.0007726082096801146,
+          -0.00021269198152282232
+        ],
+        "n": 4
+      },
+      "source_normalized_sum": {
+        "delta": 0.0063621677637304,
+        "ci": [
+          0.0038325524236967226,
+          0.008011384628799195
+        ],
+        "n": 4
+      },
+      "support_count": {
+        "delta": -0.1586734693877574,
+        "ci": [
+          -0.4773809523809547,
+          0.1600340136054399
+        ],
+        "n": 4
+      },
+      "support_speed_m_per_s": {
+        "delta": -0.0018324874357326729,
+        "ci": [
+          -0.007893863950102102,
+          0.006009590124305936
+        ],
+        "n": 4
+      },
+      "toe_height_above_fixed_floor_cm": {
+        "delta": -0.04762431317433535,
+        "ci": [
+          -0.07979749236255906,
+          -0.015451133986111643
+        ],
+        "n": 4
+      },
+      "velocity_error_m2_per_s2": {
+        "delta": 0.00010879440293983811,
+        "ci": [
+          7.04528170957615e-05,
+          0.00013333994458959676
+        ],
+        "n": 4
+      },
+      "velocity_normalized": {
+        "delta": 0.0025962373367306767,
+        "ci": [
+          0.001681265113638442,
+          0.0031819848564502433
+        ],
+        "n": 4
+      }
+    }
+  },
+  "object_strata": {
+    "B1_no_hsi": {
+      "before": {
+        "clothesstand": {
+          "support_speed_m_per_s": 0.19203389451528588,
+          "support_count": 40.489583333333336,
+          "contact_anchor_cm": 0.0011911199353065172,
+          "contact_count": 21.46875,
+          "human_scene_residual_cm": 0.05790813205142816,
+          "human_occupied_fraction": 0.003565228241010724,
+          "toe_height_above_fixed_floor_cm": 1.9824441391974685,
+          "joint_speed_m_per_s": 0.40449956424223876,
+          "root_path_m": 0.5156821279476086,
+          "near_stationary_fraction": 0.007677218740961205,
+          "hand_object_velocity_error_m2_per_s2": 3.920472552799064e-07,
+          "hand_object_acceleration_error_m2_per_s4": 0.00011857262319203815,
+          "hand_velocity_count": 21.104166666666668,
+          "hand_acceleration_count": 20.90625,
+          "velocity_error_m2_per_s2": 3.271786564773959e-06,
+          "acceleration_error_m2_per_s4": 0.0007327168009510457,
+          "velocity_normalized": 7.807694336975414e-05,
+          "acceleration_normalized": 0.0002581871927590463,
+          "source_normalized_sum": 0.00033626413612880047
+        },
+        "floorlamp": {
+          "support_speed_m_per_s": 0.18153172532717388,
+          "support_count": 43.266666666666666,
+          "contact_anchor_cm": 0.0006597789926606387,
+          "contact_count": 18.666666666666668,
+          "human_scene_residual_cm": 0.07275719270110131,
+          "human_occupied_fraction": 0.0026785715483129023,
+          "toe_height_above_fixed_floor_cm": 1.818355302202205,
+          "joint_speed_m_per_s": 0.4064462498451273,
+          "root_path_m": 0.5397139495238662,
+          "near_stationary_fraction": 0.005898268317105248,
+          "hand_object_velocity_error_m2_per_s2": 7.538132847126804e-08,
+          "hand_object_acceleration_error_m2_per_s4": 1.198933199732429e-05,
+          "hand_velocity_count": 18.616666666666667,
+          "hand_acceleration_count": 18.566666666666666,
+          "velocity_error_m2_per_s2": 1.707141198571156e-07,
+          "acceleration_error_m2_per_s4": 3.3007858896328806e-05,
+          "velocity_normalized": 4.073871080714061e-06,
+          "acceleration_normalized": 1.163096904065563e-05,
+          "source_normalized_sum": 1.570484012136969e-05
+        },
+        "monitor": {
+          "support_speed_m_per_s": 0.1248542720451951,
+          "support_count": 39.3875,
+          "contact_anchor_cm": 5.351040961443232e-05,
+          "contact_count": 22.825,
+          "human_scene_residual_cm": 0.15020204354077576,
+          "human_occupied_fraction": 0.00450148823147174,
+          "toe_height_above_fixed_floor_cm": 2.1928193347528575,
+          "joint_speed_m_per_s": 0.380406304076314,
+          "root_path_m": 0.43492655977606776,
+          "near_stationary_fraction": 0.001623376621864736,
+          "hand_object_velocity_error_m2_per_s2": 3.568493341262174e-11,
+          "hand_object_acceleration_error_m2_per_s4": 5.7822571904175835e-09,
+          "hand_velocity_count": 22.2875,
+          "hand_acceleration_count": 21.8,
+          "velocity_error_m2_per_s2": 3.902430470632481e-07,
+          "acceleration_error_m2_per_s4": 0.00010799034439994009,
+          "velocity_normalized": 9.312644233595522e-06,
+          "acceleration_normalized": 3.8052524289757565e-05,
+          "source_normalized_sum": 4.736516852335309e-05
+        },
+        "smallbox": {
+          "support_speed_m_per_s": 0.16437798244878649,
+          "support_count": 37.925,
+          "contact_anchor_cm": 2.5516755286503212e-05,
+          "contact_count": 24.45,
+          "human_scene_residual_cm": 0.009793614037334919,
+          "human_occupied_fraction": 0.0002976190531626344,
+          "toe_height_above_fixed_floor_cm": 2.2249118864536284,
+          "joint_speed_m_per_s": 0.44301901319995524,
+          "root_path_m": 0.5340960504487157,
+          "near_stationary_fraction": 0.002719155847444199,
+          "hand_object_velocity_error_m2_per_s2": 2.807703449890422e-12,
+          "hand_object_acceleration_error_m2_per_s4": 7.82073902166891e-10,
+          "hand_velocity_count": 24.075,
+          "hand_acceleration_count": 23.7,
+          "velocity_error_m2_per_s2": 5.888122632759803e-08,
+          "acceleration_error_m2_per_s4": 1.7730849259532468e-05,
+          "velocity_normalized": 1.4051241065106464e-06,
+          "acceleration_normalized": 6.247813875170524e-06,
+          "source_normalized_sum": 7.65293798168117e-06
+        },
+        "smalltable": {
+          "support_speed_m_per_s": 0.18181886008630196,
+          "support_count": 37.90416666666667,
+          "contact_anchor_cm": 0.0364090489059817,
+          "contact_count": 25.0625,
+          "human_scene_residual_cm": 0.5812823557915787,
+          "human_occupied_fraction": 0.02088293714041356,
+          "toe_height_above_fixed_floor_cm": 2.0207187794769803,
+          "joint_speed_m_per_s": 0.44819108409186204,
+          "root_path_m": 0.5653414680312077,
+          "near_stationary_fraction": 0.001663961023829567,
+          "hand_object_velocity_error_m2_per_s2": 4.5452839017558545e-05,
+          "hand_object_acceleration_error_m2_per_s4": 0.010147362558082506,
+          "hand_velocity_count": 24.954166666666666,
+          "hand_acceleration_count": 24.929166666666667,
+          "velocity_error_m2_per_s2": 1.997092819736878e-05,
+          "acceleration_error_m2_per_s4": 0.004404260418853476,
+          "velocity_normalized": 0.00047658030224080784,
+          "acceleration_normalized": 0.0015519278829796257,
+          "source_normalized_sum": 0.0020285081852204332
+        },
+        "suitcase": {
+          "support_speed_m_per_s": 0.17295909904475723,
+          "support_count": 41.43214285714286,
+          "contact_anchor_cm": 2.7754651461753794e-05,
+          "contact_count": 25.754761904761903,
+          "human_scene_residual_cm": 0.07811285386837663,
+          "human_occupied_fraction": 0.0027990363582613923,
+          "toe_height_above_fixed_floor_cm": 1.5764228505570264,
+          "joint_speed_m_per_s": 0.438351728039838,
+          "root_path_m": 0.5506532745169742,
+          "near_stationary_fraction": 0.0022843227771643018,
+          "hand_object_velocity_error_m2_per_s2": 3.4475047803599615e-12,
+          "hand_object_acceleration_error_m2_per_s4": 9.700246152618183e-10,
+          "hand_velocity_count": 25.754761904761903,
+          "hand_acceleration_count": 25.754761904761903,
+          "velocity_error_m2_per_s2": 2.2436820960885986e-07,
+          "acceleration_error_m2_per_s4": 5.756096909778168e-05,
+          "velocity_normalized": 5.35425635162554e-06,
+          "acceleration_normalized": 2.028274089601419e-05,
+          "source_normalized_sum": 2.5636997247639732e-05
+        },
+        "tripod": {
+          "support_speed_m_per_s": 0.16972819352522492,
+          "support_count": 40.233333333333334,
+          "contact_anchor_cm": 0.0002782055817007745,
+          "contact_count": 14.4375,
+          "human_scene_residual_cm": 0.04508246624221404,
+          "human_occupied_fraction": 0.0011036706457768256,
+          "toe_height_above_fixed_floor_cm": 2.226206298917532,
+          "joint_speed_m_per_s": 0.39431384975711503,
+          "root_path_m": 0.502291144647946,
+          "near_stationary_fraction": 0.002705627714749426,
+          "hand_object_velocity_error_m2_per_s2": 8.577778298861983e-08,
+          "hand_object_acceleration_error_m2_per_s4": 2.573526488690118e-05,
+          "hand_velocity_count": 14.291666666666668,
+          "hand_acceleration_count": 14.145833333333332,
+          "velocity_error_m2_per_s2": 4.706582117489115e-06,
+          "acceleration_error_m2_per_s4": 0.0010527318125501126,
+          "velocity_normalized": 0.00011231647852850794,
+          "acceleration_normalized": 0.00037095078351917824,
+          "source_normalized_sum": 0.00048326726204768613
+        }
+      },
+      "after": {
+        "clothesstand": {
+          "support_speed_m_per_s": 0.19196672326264283,
+          "support_count": 40.489583333333336,
+          "contact_anchor_cm": 0.0011917737695673243,
+          "contact_count": 21.46875,
+          "human_scene_residual_cm": 0.05794138306130966,
+          "human_occupied_fraction": 0.003565228241010724,
+          "toe_height_above_fixed_floor_cm": 1.9823218509554863,
+          "joint_speed_m_per_s": 0.4044928385410458,
+          "root_path_m": 0.5156821279476086,
+          "near_stationary_fraction": 0.007677218740961205,
+          "hand_object_velocity_error_m2_per_s2": 3.920550558720917e-07,
+          "hand_object_acceleration_error_m2_per_s4": 0.0001185757615809798,
+          "hand_velocity_count": 21.104166666666668,
+          "hand_acceleration_count": 20.90625,
+          "velocity_error_m2_per_s2": 2.1062568935022375e-06,
+          "acceleration_error_m2_per_s4": 0.0004084438041829641,
+          "velocity_normalized": 5.026308927565693e-05,
+          "acceleration_normalized": 0.00014392321708052493,
+          "source_normalized_sum": 0.00019418630635618185
+        },
+        "floorlamp": {
+          "support_speed_m_per_s": 0.1815323190142711,
+          "support_count": 43.266666666666666,
+          "contact_anchor_cm": 0.0006602847813634108,
+          "contact_count": 18.666666666666668,
+          "human_scene_residual_cm": 0.07326925583183766,
+          "human_occupied_fraction": 0.0026785715483129023,
+          "toe_height_above_fixed_floor_cm": 1.8183540295809508,
+          "joint_speed_m_per_s": 0.4064471260334055,
+          "root_path_m": 0.5397139495238662,
+          "near_stationary_fraction": 0.005898268317105248,
+          "hand_object_velocity_error_m2_per_s2": 7.539185068944329e-08,
+          "hand_object_acceleration_error_m2_per_s4": 1.1993481302246859e-05,
+          "hand_velocity_count": 18.616666666666667,
+          "hand_acceleration_count": 18.566666666666666,
+          "velocity_error_m2_per_s2": 1.242844457403503e-07,
+          "acceleration_error_m2_per_s4": 1.9838510436945108e-05,
+          "velocity_normalized": 2.9658871199873095e-06,
+          "acceleration_normalized": 6.990489793038214e-06,
+          "source_normalized_sum": 9.956376913025524e-06
+        },
+        "monitor": {
+          "support_speed_m_per_s": 0.1248377114534378,
+          "support_count": 39.3875,
+          "contact_anchor_cm": 5.3669834851888254e-05,
+          "contact_count": 22.825,
+          "human_scene_residual_cm": 0.15047517009079456,
+          "human_occupied_fraction": 0.00450148823147174,
+          "toe_height_above_fixed_floor_cm": 2.1928712973371147,
+          "joint_speed_m_per_s": 0.3804050039499998,
+          "root_path_m": 0.43492655977606776,
+          "near_stationary_fraction": 0.001623376621864736,
+          "hand_object_velocity_error_m2_per_s2": 3.513177786879096e-11,
+          "hand_object_acceleration_error_m2_per_s4": 5.65326843185443e-09,
+          "hand_velocity_count": 22.2875,
+          "hand_acceleration_count": 21.8,
+          "velocity_error_m2_per_s2": 3.198289745323055e-07,
+          "acceleration_error_m2_per_s4": 8.677520571419745e-05,
+          "velocity_normalized": 7.632303708750808e-06,
+          "acceleration_normalized": 3.057695242603597e-05,
+          "source_normalized_sum": 3.8209256134786774e-05
+        },
+        "smallbox": {
+          "support_speed_m_per_s": 0.16437445525079966,
+          "support_count": 37.925,
+          "contact_anchor_cm": 2.5301314217074378e-05,
+          "contact_count": 24.45,
+          "human_scene_residual_cm": 0.010144655779004096,
+          "human_occupied_fraction": 0.0002976190531626344,
+          "toe_height_above_fixed_floor_cm": 2.2248904019594193,
+          "joint_speed_m_per_s": 0.4430191126652062,
+          "root_path_m": 0.5340960504487157,
+          "near_stationary_fraction": 0.002719155847444199,
+          "hand_object_velocity_error_m2_per_s2": 2.6492364454521607e-12,
+          "hand_object_acceleration_error_m2_per_s4": 7.283898928456268e-10,
+          "hand_velocity_count": 24.075,
+          "hand_acceleration_count": 23.7,
+          "velocity_error_m2_per_s2": 3.02052464013425e-09,
+          "acceleration_error_m2_per_s4": 2.415714909272609e-07,
+          "velocity_normalized": 7.208090338588516e-08,
+          "acceleration_normalized": 8.512247161819076e-08,
+          "source_normalized_sum": 1.5720337500407594e-07
+        },
+        "smalltable": {
+          "support_speed_m_per_s": 0.18173215876643856,
+          "support_count": 37.90416666666667,
+          "contact_anchor_cm": 0.036408653006757184,
+          "contact_count": 25.0625,
+          "human_scene_residual_cm": 0.5819349060766399,
+          "human_occupied_fraction": 0.02080853228981141,
+          "toe_height_above_fixed_floor_cm": 2.0204368538844086,
+          "joint_speed_m_per_s": 0.44817366780092316,
+          "root_path_m": 0.5653414680312077,
+          "near_stationary_fraction": 0.0015827921869155642,
+          "hand_object_velocity_error_m2_per_s2": 4.545232172940541e-05,
+          "hand_object_acceleration_error_m2_per_s4": 0.010147172085322616,
+          "hand_velocity_count": 24.954166666666666,
+          "hand_acceleration_count": 24.929166666666667,
+          "velocity_error_m2_per_s2": 8.160183644068978e-06,
+          "acceleration_error_m2_per_s4": 0.0012814499550483796,
+          "velocity_normalized": 0.00019473220017601753,
+          "acceleration_normalized": 0.0004515441247228235,
+          "source_normalized_sum": 0.000646276324898841
+        },
+        "suitcase": {
+          "support_speed_m_per_s": 0.17297152804122085,
+          "support_count": 41.43214285714286,
+          "contact_anchor_cm": 2.7671978723257478e-05,
+          "contact_count": 25.754761904761903,
+          "human_scene_residual_cm": 0.07843769465883572,
+          "human_occupied_fraction": 0.0027990363582613923,
+          "toe_height_above_fixed_floor_cm": 1.5764483538057124,
+          "joint_speed_m_per_s": 0.4383536100210178,
+          "root_path_m": 0.5506532745169742,
+          "near_stationary_fraction": 0.0022843227771643018,
+          "hand_object_velocity_error_m2_per_s2": 3.4797919674001577e-12,
+          "hand_object_acceleration_error_m2_per_s4": 9.771983537830233e-10,
+          "hand_velocity_count": 25.754761904761903,
+          "hand_acceleration_count": 25.754761904761903,
+          "velocity_error_m2_per_s2": 1.5230337782333723e-07,
+          "acceleration_error_m2_per_s4": 4.017237586857259e-05,
+          "velocity_normalized": 3.634522597948414e-06,
+          "acceleration_normalized": 1.4155527672499739e-05,
+          "source_normalized_sum": 1.7790050270448155e-05
+        },
+        "tripod": {
+          "support_speed_m_per_s": 0.1694517070117096,
+          "support_count": 40.233333333333334,
+          "contact_anchor_cm": 0.0002774850545842848,
+          "contact_count": 14.4375,
+          "human_scene_residual_cm": 0.04508035772790511,
+          "human_occupied_fraction": 0.0011036706457768256,
+          "toe_height_above_fixed_floor_cm": 2.2264068548878035,
+          "joint_speed_m_per_s": 0.39427964178224406,
+          "root_path_m": 0.502291144647946,
+          "near_stationary_fraction": 0.0024350649444386365,
+          "hand_object_velocity_error_m2_per_s2": 8.576555015907196e-08,
+          "hand_object_acceleration_error_m2_per_s4": 2.5732483915218152e-05,
+          "hand_velocity_count": 14.291666666666668,
+          "hand_acceleration_count": 14.145833333333332,
+          "velocity_error_m2_per_s2": 5.960000269104169e-07,
+          "acceleration_error_m2_per_s4": 4.789116609592063e-05,
+          "velocity_normalized": 1.42227677228302e-05,
+          "acceleration_normalized": 1.6875395399987674e-05,
+          "source_normalized_sum": 3.109816312281787e-05
+        }
+      }
+    },
+    "B2_quality": {
+      "before": {
+        "clothesstand": {
+          "support_speed_m_per_s": 0.18977174543154737,
+          "support_count": 39.28125,
+          "contact_anchor_cm": 0.008170226765328673,
+          "contact_count": 21.135416666666664,
+          "human_scene_residual_cm": 0.043335891949633755,
+          "human_occupied_fraction": 0.003100198470444108,
+          "toe_height_above_fixed_floor_cm": 1.8220697763996818,
+          "joint_speed_m_per_s": 0.4019700934489568,
+          "root_path_m": 0.5148205726097027,
+          "near_stationary_fraction": 0.008421266245325873,
+          "hand_object_velocity_error_m2_per_s2": 4.21401447345736e-07,
+          "hand_object_acceleration_error_m2_per_s4": 9.400552831811959e-05,
+          "hand_velocity_count": 20.937499999999996,
+          "hand_acceleration_count": 20.739583333333332,
+          "velocity_error_m2_per_s2": 0.00021610704116265995,
+          "acceleration_error_m2_per_s4": 0.031540092070138116,
+          "velocity_normalized": 0.005157114280108258,
+          "acceleration_normalized": 0.011113772497615877,
+          "source_normalized_sum": 0.016270886777724133
+        },
+        "floorlamp": {
+          "support_speed_m_per_s": 0.1794390890126427,
+          "support_count": 43.06666666666666,
+          "contact_anchor_cm": 0.006597504396073836,
+          "contact_count": 18.641666666666666,
+          "human_scene_residual_cm": 0.0667933963239193,
+          "human_occupied_fraction": 0.002604166779201478,
+          "toe_height_above_fixed_floor_cm": 1.8076424868156513,
+          "joint_speed_m_per_s": 0.405244432327648,
+          "root_path_m": 0.5399080113818249,
+          "near_stationary_fraction": 0.0056277056709708026,
+          "hand_object_velocity_error_m2_per_s2": 1.2533946011781184e-07,
+          "hand_object_acceleration_error_m2_per_s4": 1.4097543876568733e-05,
+          "hand_velocity_count": 18.566666666666666,
+          "hand_acceleration_count": 18.491666666666667,
+          "velocity_error_m2_per_s2": 0.00022300807067668148,
+          "acceleration_error_m2_per_s4": 0.030202233494467653,
+          "velocity_normalized": 0.005321798399897866,
+          "acceleration_normalized": 0.010642351684673371,
+          "source_normalized_sum": 0.015964150084571235
+        },
+        "monitor": {
+          "support_speed_m_per_s": 0.12476553553715349,
+          "support_count": 39.45,
+          "contact_anchor_cm": 0.0025584652971133437,
+          "contact_count": 22.825,
+          "human_scene_residual_cm": 0.13904032595455645,
+          "human_occupied_fraction": 0.004538690613117069,
+          "toe_height_above_fixed_floor_cm": 2.1692778335884215,
+          "joint_speed_m_per_s": 0.3788070833310485,
+          "root_path_m": 0.43464454878121617,
+          "near_stationary_fraction": 0.0015422078024130315,
+          "hand_object_velocity_error_m2_per_s2": 2.0549759267122505e-08,
+          "hand_object_acceleration_error_m2_per_s4": 2.1799205584024926e-06,
+          "hand_velocity_count": 22.2875,
+          "hand_acceleration_count": 21.8,
+          "velocity_error_m2_per_s2": 6.254307422979747e-05,
+          "acceleration_error_m2_per_s4": 0.006547359956310275,
+          "velocity_normalized": 0.00149250935784914,
+          "acceleration_normalized": 0.0023070912048264655,
+          "source_normalized_sum": 0.0037996005626756064
+        },
+        "smallbox": {
+          "support_speed_m_per_s": 0.15986833651550114,
+          "support_count": 37.8875,
+          "contact_anchor_cm": 0.0098198574093189,
+          "contact_count": 24.45,
+          "human_scene_residual_cm": 0.0028206117451190947,
+          "human_occupied_fraction": 0.0001488095265813172,
+          "toe_height_above_fixed_floor_cm": 2.177991937100887,
+          "joint_speed_m_per_s": 0.44072201047092674,
+          "root_path_m": 0.5335370539687574,
+          "near_stationary_fraction": 0.0017857142811408266,
+          "hand_object_velocity_error_m2_per_s2": 1.4585173137073047e-07,
+          "hand_object_acceleration_error_m2_per_s4": 1.6479049746176422e-05,
+          "hand_velocity_count": 24.075,
+          "hand_acceleration_count": 23.7,
+          "velocity_error_m2_per_s2": 0.00024869024010936,
+          "acceleration_error_m2_per_s4": 0.038348903057153355,
+          "velocity_normalized": 0.00593467006762727,
+          "acceleration_normalized": 0.013512991121349696,
+          "source_normalized_sum": 0.019447661188976964
+        },
+        "smalltable": {
+          "support_speed_m_per_s": 0.1764450996182859,
+          "support_count": 38.02916666666667,
+          "contact_anchor_cm": 0.05290905164059723,
+          "contact_count": 24.954166666666666,
+          "human_scene_residual_cm": 0.5503678839032848,
+          "human_occupied_fraction": 0.020920139038935304,
+          "toe_height_above_fixed_floor_cm": 1.969395831041038,
+          "joint_speed_m_per_s": 0.4455675025160114,
+          "root_path_m": 0.5644295016924541,
+          "near_stationary_fraction": 0.0005275973962852731,
+          "hand_object_velocity_error_m2_per_s2": 1.918646989256637e-05,
+          "hand_object_acceleration_error_m2_per_s4": 0.00335970816532951,
+          "hand_velocity_count": 24.90416666666667,
+          "hand_acceleration_count": 24.854166666666668,
+          "velocity_error_m2_per_s2": 0.00023165032550788821,
+          "acceleration_error_m2_per_s4": 0.028877025898778552,
+          "velocity_normalized": 0.005528034603783533,
+          "acceleration_normalized": 0.010175388693638047,
+          "source_normalized_sum": 0.01570342329742158
+        },
+        "suitcase": {
+          "support_speed_m_per_s": 0.17449291846936657,
+          "support_count": 41.371428571428574,
+          "contact_anchor_cm": 0.006405083678380325,
+          "contact_count": 25.754761904761903,
+          "human_scene_residual_cm": 0.06949126143895444,
+          "human_occupied_fraction": 0.002586451320288082,
+          "toe_height_above_fixed_floor_cm": 1.6086108112707733,
+          "joint_speed_m_per_s": 0.4348919373449116,
+          "root_path_m": 0.5496710515448026,
+          "near_stationary_fraction": 0.0010513296217790672,
+          "hand_object_velocity_error_m2_per_s2": 6.154048496343995e-08,
+          "hand_object_acceleration_error_m2_per_s4": 5.668538770668763e-06,
+          "hand_velocity_count": 25.754761904761903,
+          "hand_acceleration_count": 25.754761904761903,
+          "velocity_error_m2_per_s2": 0.00012329075060432893,
+          "acceleration_error_m2_per_s4": 0.012872103635786917,
+          "velocity_normalized": 0.0029421738742342815,
+          "acceleration_normalized": 0.004535739180968203,
+          "source_normalized_sum": 0.007477913055202484
+        },
+        "tripod": {
+          "support_speed_m_per_s": 0.16677860921869675,
+          "support_count": 40.44166666666666,
+          "contact_anchor_cm": 0.015470230097918147,
+          "contact_count": 14.4375,
+          "human_scene_residual_cm": 0.029426082270219922,
+          "human_occupied_fraction": 0.0009548611191955085,
+          "toe_height_above_fixed_floor_cm": 2.089346736428949,
+          "joint_speed_m_per_s": 0.39195545356099804,
+          "root_path_m": 0.5022452842444182,
+          "near_stationary_fraction": 0.002313311674515717,
+          "hand_object_velocity_error_m2_per_s2": 2.6080441689565146e-07,
+          "hand_object_acceleration_error_m2_per_s4": 3.82016252231133e-05,
+          "hand_velocity_count": 14.291666666666668,
+          "hand_acceleration_count": 14.145833333333332,
+          "velocity_error_m2_per_s2": 0.0002898794506609202,
+          "acceleration_error_m2_per_s4": 0.037057731232442166,
+          "velocity_normalized": 0.006917597161437016,
+          "acceleration_normalized": 0.013058021304417616,
+          "source_normalized_sum": 0.01997561846585463
+        }
+      },
+      "after": {
+        "clothesstand": {
+          "support_speed_m_per_s": 0.1899084757703046,
+          "support_count": 39.28125,
+          "contact_anchor_cm": 0.008175724152999683,
+          "contact_count": 21.135416666666664,
+          "human_scene_residual_cm": 0.04315216063211361,
+          "human_occupied_fraction": 0.003100198470444108,
+          "toe_height_above_fixed_floor_cm": 1.8338979774465163,
+          "joint_speed_m_per_s": 0.40223918156698346,
+          "root_path_m": 0.5148205726097027,
+          "near_stationary_fraction": 0.00848890693790357,
+          "hand_object_velocity_error_m2_per_s2": 4.2325816274753315e-07,
+          "hand_object_acceleration_error_m2_per_s4": 9.45414072842099e-05,
+          "hand_velocity_count": 20.937499999999996,
+          "hand_acceleration_count": 20.739583333333332,
+          "velocity_error_m2_per_s2": 0.00013587349578552378,
+          "acceleration_error_m2_per_s4": 0.014901854326857051,
+          "velocity_normalized": 0.00324244477011898,
+          "acceleration_normalized": 0.005250961804835871,
+          "source_normalized_sum": 0.008493406574954851
+        },
+        "floorlamp": {
+          "support_speed_m_per_s": 0.17923424759258827,
+          "support_count": 43.06666666666666,
+          "contact_anchor_cm": 0.006600431013386773,
+          "contact_count": 18.641666666666666,
+          "human_scene_residual_cm": 0.06703160628676415,
+          "human_occupied_fraction": 0.002604166779201478,
+          "toe_height_above_fixed_floor_cm": 1.8171915255486966,
+          "joint_speed_m_per_s": 0.4054778803760807,
+          "root_path_m": 0.5399080113818249,
+          "near_stationary_fraction": 0.004734848567750305,
+          "hand_object_velocity_error_m2_per_s2": 1.2581614755821488e-07,
+          "hand_object_acceleration_error_m2_per_s4": 1.4239294130632963e-05,
+          "hand_velocity_count": 18.566666666666666,
+          "hand_acceleration_count": 18.491666666666667,
+          "velocity_error_m2_per_s2": 0.00013296818636000755,
+          "acceleration_error_m2_per_s4": 0.01680232562286263,
+          "velocity_normalized": 0.0031731133284137306,
+          "acceleration_normalized": 0.005920630288208903,
+          "source_normalized_sum": 0.009093743616622633
+        },
+        "monitor": {
+          "support_speed_m_per_s": 0.12471708264201879,
+          "support_count": 39.45,
+          "contact_anchor_cm": 0.002552782118243613,
+          "contact_count": 22.825,
+          "human_scene_residual_cm": 0.14074710048735142,
+          "human_occupied_fraction": 0.004538690613117069,
+          "toe_height_above_fixed_floor_cm": 2.1749922527000307,
+          "joint_speed_m_per_s": 0.3790953250601888,
+          "root_path_m": 0.43464454878121617,
+          "near_stationary_fraction": 0.001988636373425834,
+          "hand_object_velocity_error_m2_per_s2": 2.0676921572154598e-08,
+          "hand_object_acceleration_error_m2_per_s4": 2.2256658798222582e-06,
+          "hand_velocity_count": 22.2875,
+          "hand_acceleration_count": 21.8,
+          "velocity_error_m2_per_s2": 3.0176289949394735e-05,
+          "acceleration_error_m2_per_s4": 0.0022491723004742555,
+          "velocity_normalized": 0.000720118025685135,
+          "acceleration_normalized": 0.0007925401485773388,
+          "source_normalized_sum": 0.0015126581742624736
+        },
+        "smallbox": {
+          "support_speed_m_per_s": 0.16215354800224305,
+          "support_count": 37.8875,
+          "contact_anchor_cm": 0.009815608295475897,
+          "contact_count": 24.45,
+          "human_scene_residual_cm": 0.0028297413140535355,
+          "human_occupied_fraction": 0.0001488095265813172,
+          "toe_height_above_fixed_floor_cm": 2.1825638100504876,
+          "joint_speed_m_per_s": 0.4408950417302549,
+          "root_path_m": 0.5335370539687574,
+          "near_stationary_fraction": 0.0019886363588739187,
+          "hand_object_velocity_error_m2_per_s2": 1.4447581896278292e-07,
+          "hand_object_acceleration_error_m2_per_s4": 1.6177810632022477e-05,
+          "hand_velocity_count": 24.075,
+          "hand_acceleration_count": 23.7,
+          "velocity_error_m2_per_s2": 0.00016356708530632156,
+          "acceleration_error_m2_per_s4": 0.020826273868032867,
+          "velocity_normalized": 0.0039033163697521703,
+          "acceleration_normalized": 0.007338547688055188,
+          "source_normalized_sum": 0.011241864057807357
+        },
+        "smalltable": {
+          "support_speed_m_per_s": 0.1764152235041062,
+          "support_count": 38.02916666666667,
+          "contact_anchor_cm": 0.05290489024337338,
+          "contact_count": 24.954166666666666,
+          "human_scene_residual_cm": 0.5516803003226718,
+          "human_occupied_fraction": 0.020920139038935304,
+          "toe_height_above_fixed_floor_cm": 1.9795832676502565,
+          "joint_speed_m_per_s": 0.44588092615207037,
+          "root_path_m": 0.5644295016924541,
+          "near_stationary_fraction": 0.0005275973962852731,
+          "hand_object_velocity_error_m2_per_s2": 1.9186397684759427e-05,
+          "hand_object_acceleration_error_m2_per_s4": 0.0033601460352806053,
+          "hand_velocity_count": 24.90416666666667,
+          "hand_acceleration_count": 24.854166666666668,
+          "velocity_error_m2_per_s2": 0.0001144545263879853,
+          "acceleration_error_m2_per_s4": 0.008052918430818415,
+          "velocity_normalized": 0.002731308842520461,
+          "acceleration_normalized": 0.00283760437930712,
+          "source_normalized_sum": 0.0055689132218275815
+        },
+        "suitcase": {
+          "support_speed_m_per_s": 0.17498989719010535,
+          "support_count": 41.371428571428574,
+          "contact_anchor_cm": 0.0064136311748424785,
+          "contact_count": 25.754761904761903,
+          "human_scene_residual_cm": 0.070167200196357,
+          "human_occupied_fraction": 0.002586451320288082,
+          "toe_height_above_fixed_floor_cm": 1.6181631130122003,
+          "joint_speed_m_per_s": 0.43517677619875894,
+          "root_path_m": 0.5496710515448026,
+          "near_stationary_fraction": 0.0016195114394317249,
+          "hand_object_velocity_error_m2_per_s2": 6.123035236625525e-08,
+          "hand_object_acceleration_error_m2_per_s4": 5.652608732901425e-06,
+          "hand_velocity_count": 25.754761904761903,
+          "hand_acceleration_count": 25.754761904761903,
+          "velocity_error_m2_per_s2": 6.491323922799334e-05,
+          "acceleration_error_m2_per_s4": 0.0038072839587339107,
+          "velocity_normalized": 0.0015490702717955232,
+          "acceleration_normalized": 0.0013415714721788298,
+          "source_normalized_sum": 0.0028906417439743533
+        },
+        "tripod": {
+          "support_speed_m_per_s": 0.16662071604902545,
+          "support_count": 40.44166666666666,
+          "contact_anchor_cm": 0.0154801520445839,
+          "contact_count": 14.4375,
+          "human_scene_residual_cm": 0.02947441757035752,
+          "human_occupied_fraction": 0.0009548611191955085,
+          "toe_height_above_fixed_floor_cm": 2.1019675037823617,
+          "joint_speed_m_per_s": 0.392335172307988,
+          "root_path_m": 0.5022452842444182,
+          "near_stationary_fraction": 0.0027462120992519583,
+          "hand_object_velocity_error_m2_per_s2": 2.6136997327989174e-07,
+          "hand_object_acceleration_error_m2_per_s4": 3.828582543791472e-05,
+          "hand_velocity_count": 14.291666666666668,
+          "hand_acceleration_count": 14.145833333333332,
+          "velocity_error_m2_per_s2": 0.00013106987544885833,
+          "acceleration_error_m2_per_s4": 0.010057073941590155,
+          "velocity_normalized": 0.003127812600333314,
+          "acceleration_normalized": 0.0035438080374013466,
+          "source_normalized_sum": 0.006671620637734661
+        }
+      }
+    }
+  },
+  "visual_review": {
+    "videos_complete": 28,
+    "curves_complete": 28,
+    "agent_frame_review": {
+      "tasks": [
+        14,
+        17,
+        329,
+        371,
+        372,
+        420
+      ],
+      "frames_per_video": 8,
+      "method": "eight evenly spaced frames plus task014 final frame and curve; no full-rate perceptual judgment",
+      "observations": [
+        "No clear visible before/after quality improvement in inspected skeletal frames.",
+        "Task329 crouching persists in all four panels.",
+        "Task372 foot differences are too small for sole-clearance or original-FS judgment.",
+        "Task420 preserves per-window object trajectory; completion is unevaluated.",
+        "Task017 worst support-speed worsening window is retained."
+      ]
+    },
+    "visual_review_pending": true,
+    "reason": "No independent blinded human video review; skeleton/object samples omit body/scene mesh clearance and cannot establish naturalness.",
+    "gate_decision": "NO-GO already determined by independent quantitative quality gate"
+  },
+  "verification": {
+    "component_passed": 29,
+    "full_passed": 995,
+    "full_skipped": 4,
+    "full_seconds": 171.96,
+    "registry_records": 377
+  },
+  "execution": {
+    "status": "completed",
+    "seconds": 393.28782081604004,
+    "jobs": [
+      {
+        "scene": 0,
+        "exitcode": 0,
+        "seconds": 389.95686078071594,
+        "command": [
+          "/data/yujinlun/anaconda3/envs/infbagel/bin/python",
+          "-u",
+          "-c",
+          "from mixer.scene_calibration import replay_temporal_scene; replay_temporal_scene('results/experiments/p2-mixer-foot-quality-guard-s42-20260907','results/experiments/p2-mixer-temporal-preservation-s42-20260907/scene-0','results/experiments/p2-mixer-temporal-preservation-s42-20260907/resolved.yaml','experiments/tasks/conditional_repair_native_development_s42_20260907.json','a3df624b-0917-46e9-ac15-fab766276c72','cuda:0')"
+        ]
+      },
+      {
+        "scene": 1,
+        "exitcode": 0,
+        "seconds": 281.62483310699463,
+        "command": [
+          "/data/yujinlun/anaconda3/envs/infbagel/bin/python",
+          "-u",
+          "-c",
+          "from mixer.scene_calibration import replay_temporal_scene; replay_temporal_scene('results/experiments/p2-mixer-foot-quality-guard-s42-20260907','results/experiments/p2-mixer-temporal-preservation-s42-20260907/scene-1','results/experiments/p2-mixer-temporal-preservation-s42-20260907/resolved.yaml','experiments/tasks/conditional_repair_native_development_s42_20260907.json','b1b053a9-b268-4f62-a06d-b9b9325c5092','cuda:1')"
+        ]
+      },
+      {
+        "scene": 2,
+        "exitcode": 0,
+        "seconds": 260.0661470890045,
+        "command": [
+          "/data/yujinlun/anaconda3/envs/infbagel/bin/python",
+          "-u",
+          "-c",
+          "from mixer.scene_calibration import replay_temporal_scene; replay_temporal_scene('results/experiments/p2-mixer-foot-quality-guard-s42-20260907','results/experiments/p2-mixer-temporal-preservation-s42-20260907/scene-2','results/experiments/p2-mixer-temporal-preservation-s42-20260907/resolved.yaml','experiments/tasks/conditional_repair_native_development_s42_20260907.json','4abcb667-c57f-4d8f-940a-d964152329d5','cuda:2')"
+        ]
+      },
+      {
+        "scene": 3,
+        "exitcode": 0,
+        "seconds": 195.37684059143066,
+        "command": [
+          "/data/yujinlun/anaconda3/envs/infbagel/bin/python",
+          "-u",
+          "-c",
+          "from mixer.scene_calibration import replay_temporal_scene; replay_temporal_scene('results/experiments/p2-mixer-foot-quality-guard-s42-20260907','results/experiments/p2-mixer-temporal-preservation-s42-20260907/scene-3','results/experiments/p2-mixer-temporal-preservation-s42-20260907/resolved.yaml','experiments/tasks/conditional_repair_native_development_s42_20260907.json','0aa05d5a-81d5-497b-832c-c90c3fe73a36','cuda:3')"
+        ]
+      }
+    ]
+  },
+  "schema_correction": "Only missing metadata added to initial hypothesis row; original row preserved at fe2ac5e; disclosed bytewise append-only exception.",
+  "cache_mask_availability": {
+    "contact_masks_compared": 248,
+    "quality_support_masks_compared": 124,
+    "legacy_B1_support_masks_missing": 124,
+    "legacy_B1_support_policy": "Rebuilt from original geometric proposal using unchanged definition; recovery.audit.stance_exact=True is vacuous when cache lacks repair_stance_mask, not an exact comparison with saved mask.",
+    "impact": "No candidate/gate rerun or change; B1 zero-parameter inputs and all candidate original-proposal guards pass."
+  }
+}
