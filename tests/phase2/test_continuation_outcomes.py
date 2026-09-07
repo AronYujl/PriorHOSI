@@ -187,6 +187,124 @@ def test_budget_refuses_unregistered_longer_horizon():
         branch_horizon(0,9,3)
 
 
+def test_sustained_route_keeps_signed_anchor_endpoints_and_bounded_offset():
+    from mixer.route_continuation import sustained_route
+    path=np.stack((np.linspace(0,4,201),np.zeros(201)),axis=1)
+    for sign in (-1,1):
+        anchor=path[60]+[0,sign*.1]
+        route,audit=sustained_route(path,60,anchor,.8)
+        assert np.array_equal(route[[0,-1]],path[[0,-1]])
+        assert np.array_equal(route[60],anchor)
+        assert np.max(np.linalg.norm(route-path,axis=1))<=.10000000001
+        assert audit['entry_arc_m']==pytest.approx(.4)
+        assert audit['exit_arc_m']==pytest.approx(2.8)
+        assert np.array_equal(route[path[:,0]>2.8],path[path[:,0]>2.8])
+        assert np.allclose(route-path,(route-path)*[0,1])
+        repeated,_=sustained_route(path,60,anchor,.8)
+        assert np.array_equal(repeated,route)
+
+
+def test_sustained_route_has_smooth_entry_and_returns_at_nearby_terminal():
+    from mixer.route_continuation import sustained_route,smoothstep
+    assert smoothstep(0.)==0. and smoothstep(1.)==1.
+    assert abs(smoothstep(.0001)/.0001)<1e-6
+    path=np.stack((np.linspace(0,1,101),np.zeros(101)),axis=1)
+    route,audit=sustained_route(path,90,path[90]+[0,.1],.8)
+    assert audit['exit_arc_m']==1.
+    assert np.array_equal(route[-1],path[-1])
+    assert np.isfinite(route).all()
+
+
+def test_route_anchor_contract_rejects_endpoint_and_changed_magnitude():
+    from mixer.route_continuation import sustained_route
+    path=np.array([[0.,0.],[1.,0.],[2.,0.]])
+    with pytest.raises(ValueError,match='interior'):
+        sustained_route(path,2,[2.,.1],.8)
+    with pytest.raises(ValueError,match='10cm'):
+        sustained_route(path,1,[1.,.2],.8)
+
+
+def test_sweep_samples_covers_object_path_at_two_centimetre_resolution():
+    from mixer.route_continuation import sweep_samples
+    path=np.array([[0.,0.],[1.,0.],[1.,1.]])
+    samples=sweep_samples(path,np.array([0.,1.,2.]),0.,2.)
+    assert np.array_equal(samples[0],path[0])
+    assert np.array_equal(samples[-1],path[-1])
+    assert np.linalg.norm(np.diff(samples,axis=0),axis=1).max()<=.020000001
+    assert len(samples)==101
+
+
+def test_route_goal_uses_actual_history_and_original_native_lookahead():
+    from mixer.route_continuation import route_goal
+    path=np.stack((np.linspace(0,4,201),np.zeros(201)),axis=1)
+    mat=torch.eye(4)[None]
+    mat[0,0,3]=1.
+    goal,audit=route_goal(path,mat,.8)
+    assert audit['nearest_index']==50 and audit['target_index']==91
+    assert goal[0,0].item()==pytest.approx(.82)
+    mat[0,0,3]=3.9
+    goal,audit=route_goal(path,mat,.8)
+    assert audit['target_index']==200
+    assert goal[0,0].item()==pytest.approx(.1,abs=1e-6)
+
+
+def test_route_model_audit_reads_the_executed_pelvis_goal():
+    from mixer.route_continuation import RouteControl
+    control=RouteControl({}, {}, {}, {}, None)
+    control.expected=torch.tensor([[.2,0.,.3]])
+    goals=torch.zeros(1,9);goals[:,:3]=control.expected
+    control.model_hook(None,(None,None,None,None,goals))
+    assert control.audit['model_calls_checked']==1
+    goals[0,0]+=.1
+    with pytest.raises(AssertionError,match='actual HOI'):
+        control.model_hook(None,(None,None,None,None,goals))
+
+
+def test_route_joint_gate_requires_scene_benefit_and_other_hand_protection(limits):
+    from mixer.route_continuation import route_verdict
+    state=state_metrics()
+    state.update(state_id='state-000',task=20,scene='scene',source_selected='Wplus',
+                 route={'commands':[{'world_goal_change_m':.05}]})
+    state['branches']['sustained']=copy.deepcopy(state['branches']['W0'])
+    for row in state['branches'].values():
+        row['terminal']=None
+        row['diagnostics']={'scene_proxy_protected':True}
+        for m in row['slices'].values():
+            for hand in m['hands']:hand['surface_mean_m']=hand['active_surface_mean_m']
+    pulse=state['branches']['Wplus']
+    pulse['slices']['next_1']['hands'][0]['coverage_5cm']=.6
+    new=state['branches']['sustained']
+    new['slices']['cumulative']['native_surface_HS_s_mean']=3.
+    result=route_verdict(state,limits,2.)
+    assert result['qualifying'] and result['future_improvements']
+    new['slices']['next_2']['hands'][1]['surface_mean_m']+=.02
+    assert not route_verdict(state,limits,2.)['qualifying']
+
+
+def test_route_mechanism_gain_requires_executed_motion_and_realized_commands(limits):
+    from mixer.route_continuation import route_verdict
+    state=state_metrics()
+    state.update(state_id='s',task=20,scene='scene',source_selected='Wplus',route={'commands':[{'world_goal_change_m':.005}]})
+    state['branches']['sustained']=copy.deepcopy(state['branches']['W0'])
+    for row in state['branches'].values():
+        row['terminal']=None
+        row['diagnostics']={'scene_proxy_protected':True}
+        for m in row['slices'].values():
+            for hand in m['hands']:hand['surface_mean_m']=hand['active_surface_mean_m']
+    assert not route_verdict(state,limits,2.)['realized']
+    state['route']['commands'][0]['world_goal_change_m']=.05
+    assert not route_verdict(state,limits,.5)['realized']
+
+
+def test_route_group_means_keep_each_hand_and_n_a_separate():
+    from mixer.route_continuation import grouped_means,METRICS
+    first=dict(task=1,**{k:0. for k in METRICS},hand0_coverage_5cm=.1,hand1_surface_mean_m=None)
+    second=dict(first,hand0_coverage_5cm=-.3,hand1_surface_mean_m=.02)
+    result=grouped_means([first,second],('task',))[0]
+    assert result['hand0_coverage_5cm']==pytest.approx(-.1)
+    assert result['hand1_surface_mean_m']==.02 and result['count']==2
+
+
 def test_pair_uses_same_prefix_reference_when_one_branch_is_shorter(limits):
     result=state_metrics();row=result['branches']['Wplus']
     row['paired_reference']=copy.deepcopy(row['slices'])

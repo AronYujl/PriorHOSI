@@ -1,0 +1,7 @@
+defaults: [config_sample_hosi_continuation, _self_]
+
+route_continuation:
+  enabled: false
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_route_continuation_s42_20260908.json
+  scene: null
+  state_ids: null

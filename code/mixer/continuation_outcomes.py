@@ -84,7 +84,7 @@ def _verify_world(decoded, saved):
 
 @torch.no_grad()
 def generate_branch(cfg, dataset, hoi, hsi, record, source_episode, cached,
-                    task, arm, output_dir, protocol):
+                    task, arm, output_dir, protocol, route_control=None):
     """Commit a cached current action, then call the shared native state advance."""
     import hydra
     from astar import get_path
@@ -125,10 +125,13 @@ def generate_branch(cfg, dataset, hoi, hsi, record, source_episode, cached,
         cond['text_emb'] = context['text_emb'].clone()
         trajectory = get_path(np.asarray(task['start_location'])[[0, 2]],
                               np.asarray(task['pelvis_goal'])[[0, 2]], dataset)
+        if route_control is not None:
+            trajectory = route_control.prepare(trajectory, context)
+            payload['route'] = route_control.audit
         steps, terminal = branch_horizon(record['window'], record['total_windows'],
                                          protocol['generation']['max_extra_windows'])
         hooks = [hoi.register_forward_pre_hook(count_hoi), hsi.register_forward_pre_hook(count_hsi)]
-        compatible = arm == record['selected']
+        compatible = arm == record['selected'] and route_control is None
         for step in steps:
             mat, fixed, object_points = prepare_next_window(
                 cfg, dataset, step, record['scene'], source_episode['test_idx'],
@@ -137,6 +140,8 @@ def generate_branch(cfg, dataset, hoi, hsi, record, source_episode, cached,
                 previous['points_orig'], previous['obj_trans_orig'],
                 previous['object_rot_mat'], previous['global_rot_6d'], previous['contact_label'])
             pi = torch.tensor([step * 42], device=device, dtype=torch.long)
+            if route_control is not None:
+                route_control.before_step(step, mat, fixed)
             calls['attempted_windows'] += 1
             torch.cuda.synchronize(device)
             start = time.perf_counter()
@@ -158,6 +163,8 @@ def generate_branch(cfg, dataset, hoi, hsi, record, source_episode, cached,
                         world=move_tree(world, 'cpu'), cached=False, generation_seconds=seconds,
                         editor=sampler.scene_editor.records[-1], sample_calls=sampler.inner_hoi.sample_calls)
             payload['windows'].append(item)
+            if route_control is not None:
+                route_control.after_step(item)
             if not torch.isfinite(clean).all():
                 raise FloatingPointError('nonfinite continuation')
             if not torch.equal(clean[:, :2], fixed):
@@ -713,6 +720,9 @@ def render_continuation_outcomes(run_root,device='cuda:7',comparison='waypoint',
         arms = ARMS if comparison == 'waypoint' else (state['source_selected'],
             'C1_'+state['source_selected'], 'C2_'+state['source_selected'])
         captions = arms if comparison == 'waypoint' else ('C0 B1', 'C1 local', 'C2 persistent')
+        if comparison == 'route':
+            arms = ('W0', state['source_selected'], 'sustained')
+            captions = ('W0 route', 'Pulse offset', 'Sustained detour')
         tracks = {a: tracks[a] for a in arms}
         full=np.concatenate([v['coarse_fk_human'].numpy().reshape(-1,3) for v in tracks.values()])
         lo=full.min(0)-[.5,.2,.5];hi=full.max(0)+[.5,.2,.5]

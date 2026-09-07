@@ -4601,3 +4601,15 @@ script, core/expert/evaluator-formula changes, training or full policy/441/469.
 One preregistration, logical implementation and completion commit; preserve actual
 operational failures and saved outputs. Deliver fixed five-case animations, paired
 reports and a phase summary regardless of direction of results.
+
+Implementation uses an optional route-control callback in the existing
+continuation generator; the native model/sampler/history/evaluation functions
+remain shared. The new default-off config dispatches one route lane. Registered
+quintic polyline, GPU full-object fixed-pose envelope, actual model-input checks,
+first-future non-route/history pairing, cached native scalar checks and descriptive
+state/task/scene summaries are implemented. Eight resolved configs match sealed
+B1 sampler/dataset/expert/native keys. All22 state inputs and44 baseline branches
+are present; input identities are referenced. Initial component fixtures lacked
+surface_mean_m; correcting those fixtures changes no physical metric or margin.
+The final component suite has34 passing checks. Full authority verification is
+archived under results/route-continuation-preflight-s42-20260908/.

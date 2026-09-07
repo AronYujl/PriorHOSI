@@ -564,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('route_continuation', {}).get('enabled', False):
+        from mixer.route_continuation import run_route_scene
+        run_route_scene(cfg)
+        return
     if cfg.get('relational_sampling', {}).get('enabled', False):
         from mixer.relational_sampling import run_relational_scene
         run_relational_scene(cfg)
