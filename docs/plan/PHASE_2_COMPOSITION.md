@@ -4273,3 +4273,33 @@ coverage uses paired task bootstrap (10,000 seed-42 replicates). No new waypoint
 offset search, HSI scoring, training, 441/469 evaluation or route-pool expansion
 is permitted. A pass establishes protected coverage only, never full-task quality
 or InfBaGel superiority.
+
+## 2026-09-07 — Phase 2.23 single-side waypoint decisions with W0 fallback
+
+User handoff `PriorHOSI_5557dbf_single_side_waypoint_codex_handoff.md` authorizes
+independent signed proposals and at most G28/H28 closed-loop native episodes.
+Phase2.21/2.22 remain sealed. A preliminary read of72 unique cached windows finds
+17 accepted sides on13/28 tasks;333,372,376,421,424 have accepted strict geometric
+improvements. This meets the handoff's entry condition; coverage alone is not the
+criterion. Complete the cache table, runtime and both native rows in this phase.
+
+Branch `phase/02u-single-side-waypoint`, protocol
+`experiments/protocols/p2_single_side_waypoint_s42_20260907.json`, default-off config
+`config_sample_hosi_single_side`. Reuse single-side margins unchanged. G minimizes
+the existing normalized human24/object128 voxel energy; H minimizes existing
+L_full inside G's original max(10%,.0066667) energy allowance. W0 has first tie
+priority and remains available even when its scene quality is poor. H score errors
+fall back to G and block promotion. All candidates use W0's original scoring
+conditions and their own clean scene queries; generation goals alone vary.
+
+Use isolated sampler/editor state and paired RNG; commit exactly one native
+window. Save rejected motions and per-hand diagnostics. Formal first windows
+must reproduce all72 available caches. Registered task372 interface checks include
+candidate-order reversal and default-off B1 equivalence. Full authority suite,
+registry validation, resolved configs and clean reportable runs are required.
+Primary H-G target is at least5% native HS improvement with negative task upperCI,
+scene-mean direction and frozen OS/FS/contact/completion/endpoint protections
+against G and B1. Report all native15, all28 tasks, both resampling units, B0/B1
+references, fallback and total generation/scoring costs. No new score, offset,
+expert/core/evaluator change, training or441/469. The finite registered interface
+workload is requested by the handoff and supplies real-data verification.
