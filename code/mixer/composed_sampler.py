@@ -415,10 +415,10 @@ class HOSIComposedSampler:
         current[..., 219:228] = project_to_so3(
             current[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
         ).reshape(batch, REPRESENTATION.window_frames, 9)
-        if self.relation_guidance is not None:
-            self.relation_guidance.finish_sampling(current)
         if self.scene_editor is not None and self.scene_editor.enabled:
             current[:, :REPRESENTATION.history_frames] = fixed_points
+            if self.relation_guidance is not None:
+                self.relation_guidance.finish_sampling(current)
             current = self.scene_editor.edit(
                 self, current, hoi_arguments, local_object_bps, hsi_context,
                 human_dict['rest_human_offsets'], generator.initial_seed(),

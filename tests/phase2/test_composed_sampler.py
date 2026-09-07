@@ -156,6 +156,29 @@ def _make_pair(timesteps=500, device='cpu'):
 
 
 class ComposedChainAnchorTests(unittest.TestCase):
+    def test_relation_recorder_observes_exact_editor_input_after_history_repin(self):
+        from types import SimpleNamespace
+        _, composed, _, _ = _make_pair()
+        arguments = _evaluator_arguments(batch=1)
+        arguments['human_dict'] = {'rest_human_offsets': torch.zeros(24, 3)}
+        # Deliberately nonorthonormal stored history: SO3 projection changes it,
+        # and the established editor boundary must restore its exact bytes.
+        arguments['fixed_points'][..., 219:228] = torch.arange(9).float()
+        observed = {}
+        def record(value):
+            observed['sampled'] = value.clone()
+        def edit(sampler, value, *args):
+            observed['editor_input'] = value.clone()
+            return value
+        composed.relation_guidance = SimpleNamespace(
+            begin_window=lambda *args: None, apply=lambda posterior, *args: posterior,
+            finish_sampling=record)
+        composed.scene_editor = SimpleNamespace(enabled=True, edit=edit)
+        output, _ = composed.p_sample_loop(**arguments)
+        self.assertTrue(torch.equal(observed['sampled'], observed['editor_input']))
+        self.assertTrue(torch.equal(observed['sampled'][:, :2], arguments['fixed_points']))
+        self.assertTrue(torch.equal(output[-1], observed['editor_input']))
+
     def test_c1_gate_zero_reproduces_hoi_alone_bitwise(self):
         """The whole point: G == 0 is not merely close to HOI alone, it IS it.
 

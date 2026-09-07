@@ -4513,3 +4513,24 @@ results/relational-sampling-preflight-s42-20260907/authority-final.log. Initial
 suite1076/4 passed before the final two checks and rendering/generalization edit.
 Registry390 records valid. Actual registered batch1 generation supplies functional
 verification and synchronized performance; no training microbatch is executed.
+
+Operational failure at35830de: four valid current windows generated (2064HOI,
+0HSI); saved recorder was taken after SO3 projection but before original history
+repin. Its history rotation differs by1.78814e-7; future source and all four final
+motions exactly equal their C0 caches (both initial hands unknown). The assertion
+stopped continuation and the controller stopped seven remaining lanes. Preserve
+failed manifest/logs/four .pt outputs. Move recorder to the actual editor input,
+after history repin; the reverse chain/editor output is unchanged. Add a real
+500-step chain regression with nonorthonormal history. Explicit r2 resume reuses
+these four current motions, corrects only their recorder's history bytes, restores
+native absolute sampler counters and the same initial relation state, then runs
+the remaining260 windows. Original264 total budget and all scientific parameters
+remain fixed. Current source equality, stage metrics and evaluation are recovered
+without another model call; resume source/costs remain visible per branch.
+
+Recorder/resume correction verified:1079 passed/4 historical skips,193.18s;
+authority-r2.log. Eight r2 resolved sampler/dataset configurations exactly match
+the first run; archived resume_inputs.json references all four immutable motions.
+First resumed lane generates20 new windows (four currents reused); remaining
+seven lanes generate240, total260 new plus4 retained. No generation-output or
+energy/threshold change was needed to correct the recorder boundary.

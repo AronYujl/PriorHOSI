@@ -134,7 +134,7 @@ class RelationalGuidance:
 
 @torch.no_grad()
 def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, task,
-                               arm, version, destination, protocol):
+                               arm, version, destination, protocol, resume_current=None):
     import hydra
     from astar import get_path
     from test_infbagel_hosi import (get_guidance_from_json, prepare_next_window,
@@ -145,6 +145,7 @@ def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, 
     cost = dict(HOI_calls=0, HSI_calls=0, generated_windows=0, attempted_windows=0)
     payload = dict(source=record, action=arm, version=version, training_allowed=False,
                    windows=[], costs=cost, consistency=[], failure=None)
+    reused_cost = None
     hooks = []
     try:
         seed_everything(record['rng']['episode_seed'])
@@ -166,6 +167,17 @@ def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, 
         else:
             evidence_clean, evidence_context = source[:, :2], context
         guide.memory.observe(relation_geometry(evidence_clean, dataset, offsets, evidence_context, rest))
+        if resume_current is not None:
+            recovered = torch.load(resume_current,map_location='cpu',weights_only=False)
+            saved = recovered['windows'][0]
+            if (len(recovered['windows']) != 1 or recovered['source']['state_id'] != record['state_id']
+                    or recovered['action'] != arm or recovered['version'] != version
+                    or recovered['failure']['message'] != 'pre-editor sample identity differs'):
+                raise ValueError('resume contract requires the retained current window from the recorder failure')
+            reused_cost = recovered['costs']
+            for key in ('HOI_calls','HSI_calls','generated_windows','attempted_windows'):
+                cost[key] = reused_cost[key]
+            payload['resume_source'] = str(resume_current)
         cond = get_guidance_from_json(cfg, task)
         cond['raw_text'] = dataset.text[task['data_idx']][0]
         cond['text_emb'] = context['text_emb'].clone()
@@ -188,9 +200,17 @@ def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, 
                     context['seq_name_dict'],dataset.obj_rest_verts,context['obj_rot_mat_ref'],context['obj_rot_mat_prefix'],
                     previous['points_orig'],previous['obj_trans_orig'],previous['object_rot_mat'],
                     previous['global_rot_6d'],previous['contact_label'])
-            cost['attempted_windows'] += 1
+            reuse = resume_current is not None and step == record['window']
+            cost['attempted_windows'] += int(not reuse)
             torch.cuda.synchronize(device); started = time.perf_counter()
-            if step == record['window']:
+            if reuse:
+                guide.raw_source = saved['raw_source'].clone()
+                guide.raw_source[:, :2] = saved['clean'][:, :2]
+                guide.window_records.append(copy.deepcopy(saved['relation']))
+                snapshot = dict(edited=saved['clean'],raw_source=guide.raw_source)
+                new_context = move_tree(saved['context'],device)
+                editor_record = saved['editor']
+            elif step == record['window']:
                 output = sampler.p_sample_loop(**arguments)
             else:
                 pi = torch.tensor([step*42], device=device, dtype=torch.long)
@@ -199,17 +219,23 @@ def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, 
                     context['seq_name_dict'],context['obj_rot_mat_ref'].clone(),
                     {'rest_human_offsets':offsets},context['obj_rot_mat_prefix'].clone())
             torch.cuda.synchronize(device); seconds = time.perf_counter()-started
-            cost['generated_windows'] += 1
-            snapshot = sampler.scene_editor.motion_records[-1]
+            cost['generated_windows'] += int(not reuse)
+            if reuse:
+                seconds = saved['generation_seconds']
+                sampler.inner_hoi.sample_calls = step + 1
+                sampler.compose_calls = (step + 1)*500
+            else:
+                snapshot = sampler.scene_editor.motion_records[-1]
+                new_context = sampler._window_context
+                editor_record = sampler.scene_editor.records[-1]
             clean = snapshot['edited'].to(device)
-            new_context = sampler._window_context
             world, previous = _world_record(cfg,dataset,clean,new_context)
             small_context = move_tree({k:v for k,v in new_context.items()
                 if k not in ('obj_rest_verts','obj_vert_normals','static_occ_cache')},'cpu')
             window_audit = guide.window_records[-1]
             payload['windows'].append(dict(absolute_window=step,clean=clean.cpu(),context=small_context,
                 world=move_tree(world,'cpu'),cached=False,generation_seconds=seconds,
-                editor=sampler.scene_editor.records[-1],raw_source=guide.raw_source,
+                editor=editor_record,raw_source=guide.raw_source,reused_generation=reuse,
                 relation=window_audit,sample_calls=sampler.inner_hoi.sample_calls))
             if step == record['window']:
                 payload['consistency'].append(dict(current_context_exact=exact_tree(small_context,cached['snapshot']['replay_context']),
@@ -236,6 +262,10 @@ def generate_relational_branch(cfg, dataset, hoi, hsi, record, episode, cached, 
         cost.update(wall_seconds=time.perf_counter()-start_wall,
                     generation_seconds=sum(w['generation_seconds'] for w in payload['windows']),
                     peak_allocated_bytes=torch.cuda.max_memory_allocated(device))
+        cost['new_generated_windows'] = cost['generated_windows'] - (reused_cost['generated_windows'] if reused_cost else 0)
+        cost['new_HOI_calls'] = cost['HOI_calls'] - (reused_cost['HOI_calls'] if reused_cost else 0)
+        if reused_cost:
+            cost['wall_seconds'] += reused_cost['wall_seconds']
         restore_random(ambient,device)
         with (Path(destination)/(version+'_'+arm+'.pt')).open('xb') as f:torch.save(payload,f)
     return payload
@@ -294,7 +324,9 @@ def run_relational_scene(cfg):
         for version in versions:
             for arm in order:
                 name=version+'_'+arm
-                branches[name]=generate_relational_branch(cfg,dataset,hoi,hsi,record,episode,cached[arm],task,arm,version,dest,protocol)
+                resume = (Path(cfg.relational_sampling.resume_source)/state_id/(name+'.pt')
+                          if state_id in cfg.relational_sampling.reuse_states else None)
+                branches[name]=generate_relational_branch(cfg,dataset,hoi,hsi,record,episode,cached[arm],task,arm,version,dest,protocol,resume)
                 record['cached_guard'][name]=record['cached_guard'][arm]
         errors = [name for name,b in branches.items() if b['failure']]
         torch.cuda.synchronize(device); began=time.perf_counter()
@@ -311,7 +343,7 @@ def run_relational_scene(cfg):
                 evaluation_failure=dict(type=type(error).__name__,message=str(error),traceback=traceback.format_exc()))
         torch.cuda.synchronize(device)
         result.update(evaluation_seconds=time.perf_counter()-began,source_records=[r['record_id'] for r in records if r['state_id']==state_id],
-                      new_generated_windows=sum(b['costs']['generated_windows'] for k,b in branches.items() if k.startswith('C')))
+                      new_generated_windows=sum(b['costs']['new_generated_windows'] for k,b in branches.items() if k.startswith('C')))
         write_json(dest/'outcomes.json',result);rows.append(result)
         print(json.dumps(dict(state=state_id,task=record['task'],generated=result['new_generated_windows'],errors=errors,
                               evaluation_failure=result.get('evaluation_failure'))),flush=True)
