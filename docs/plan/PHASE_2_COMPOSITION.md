@@ -4458,3 +4458,36 @@ next-phase execution, old-score/guard tuning, native28 policy or441/469 launch.
 Closure verification repeats the complete authority suite:1064 passed/4 skips,
 240.41s;389 registry records valid. Runtime source remains5bf15b7. All work in
 this session closes2.24; the next generation-side proposal remains unstarted.
+
+## 2026-09-07 — Phase2.25 history-conditioned relational sampling (authorized)
+
+Latest answer.txt authorizes a generation intervention from sealed7027ccb.
+Branch phase/02w-relational-sampling; protocol p2_relational_sampling_s42_20260907.json.
+C0 caches vs C1 locally refreshed and C2 persistent object-local anchors:22 actual
+states, W0/adopted direction, regenerate current+two native future windows,264
+new-window ceiling. P15/R2/ArmB/B1/seed42/waypoint10cm fixed. New module stays
+in mixer; shared core/expert code and evaluator formulas remain frozen.
+
+Trust requires both committed frames' full-surface FK proximity<=5cm, contact>.95
+and <=2cm object-local motion. Use previous submitted12:14, not carried14:16;
+initial window uses original2 source frames. Shared engagement transitions for
+C1/C2; contact prediction alone cannot release. Native tasks lack explicit timed
+per-hand release: retain zero confirmed releases and record uncertainty. Combined
+far geometry/low contact suspends as ambiguous; re-establishment flagged. C1
+refreshes references from executed history, C2 retains trusted reference. Same
+energy/weights/posterior scale/nine steps, no tuning or new foot controller.
+
+Protocol freezes numerical physical protections, distinct anchor/progress proxies,
+state/task/scene pairing, and >=2-task direct-quality-plus-scene upgrade gate.
+Evaluate all six branches against frozen C0 W0 activity/stance. Unknown states
+stay in denominator. Preserve pre/post B1 output and term/update telemetry.
+No separate smoke or hashes added; existing sealed provenance referenced, normal
+manifest lifecycle retained. First formal lane validates actual path within264;
+full pytest tests and registry validation before clean-worktree run, synchronized
+batch1 generation/allocator timings. Fixed333/376/421/20/375 visual cases.
+
+Scope split before implementation: this session closes2.25 bounded mechanism
+comparison; conditional full-native28 policy is2.26, separately registered after
+its concrete policy is determined. HSI learning/441/469 remain later stages.
+One preregistration, logical implementation, completion commit; actual failures
+retained. Historical2.24 gate and2.23 NO-GO remain their original definitions.

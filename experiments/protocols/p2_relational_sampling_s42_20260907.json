@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "phase": "2.25",
+  "component": "relational-sampling",
+  "base_commit": "7027ccb",
+  "handoff": "/data/yujinlun/report/answer.txt",
+  "seed": 42,
+  "state_manifest": "experiments/tasks/p2_continuation_states_s42_20260907.json",
+  "source_protocol": "experiments/protocols/p2_continuation_outcomes_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907",
+  "training_allowed": false,
+  "test_set_development": true,
+  "generation": {
+    "versions": [
+      "C1",
+      "C2"
+    ],
+    "conditions": [
+      "W0",
+      "original_selected"
+    ],
+    "states": 22,
+    "max_new_windows": 264,
+    "max_windows_per_branch": 3,
+    "extra_repeats": 0,
+    "seed": "42+task+absolute_window*1000003; same private stream",
+    "current": "Rebuild from exact cached decision-prehistory and full original arm conditions",
+    "future": "native prepare_next_window/sample_step, original B1 conditions",
+    "termination": "min(current+3,total_windows); original terminal only",
+    "weights": "P15 online/R2 saved state inherited; Arm B500, B1 editor unchanged; no HSI forwards",
+    "order": "C1,C2 even states; C2,C1 odd; W0 then adopted even, reverse odd"
+  },
+  "relation": {
+    "trust_distance_m": 0.05,
+    "trust_contact_threshold": 0.95,
+    "trust_anchor_step_m": 0.02,
+    "ambiguous_distance_m": 0.1,
+    "distance_tolerance_m": 0.05,
+    "anchor_tolerance_m": 0.02,
+    "distance_weight": 10.0,
+    "anchor_weight": 10.0,
+    "scale": 1000.0,
+    "last_steps": 10,
+    "update_clamp": 1.0,
+    "geometry": "Differentiable native FK palms22/23 and full object rest mesh in common world; object-local anchor",
+    "history": "Two most recent actually committed frames (previous window12:14), initial window fixed source2. The carried14:16 frames remain diffusion history but are excluded from relationship evidence.",
+    "trusted": "Both observed frames within5cm, both contact>.95, object-local displacement<=2cm.",
+    "release": "Only explicit per-hand release instruction with an executed-time condition releases. Native task JSON has no such field: zero confirmed releases; no inferred release from static object or ground support.",
+    "unknown": "No trusted evidence starts unknown. Previously trusted: two observed frames both >10cm and contact<=.95 -> ambiguous/suspend; otherwise retain contact requirement. Low predicted contact alone never releases.",
+    "reference": "C1 refreshes anchor from last committed history while engagement is retained, C2 keeps first trusted anchor. Same engagement transition rule and per-step energy/update budget; unknown has no anchor until trustworthy evidence. Reacquisition after unknown establishes fresh anchor and is marked regrasp-ambiguous.",
+    "energy": "mean over future14 frames and two hands of m*(10*relu(surface_distance-.05)^2+10*relu(anchor_distance-.02)^2). Negative gradient of clean, times1000*ArmB posterior variance, component clamp1; history pinned. Original ArmB update applied first; extra term same nine steps9..1.",
+    "audit": "Every window retains state/transitions, pre/post B1 outputs, energy terms, gradient/update magnitude and applied steps; no per-step host synchronization."
+  },
+  "evaluation": {
+    "reference": "Reuse C0 W0+adopted branches; all6 branches evaluated together with C0 W0 fixed activity/stance. Old labels retained as legacy proxy labels.",
+    "direct_quality": "Each active native hand coverage drop<=5pp/distance increase<=1cm, support speed increase<=.01m/s, joint speed>=.95 reference on each slice; native fragment FS continuous; HS/OS native surfaces.",
+    "proxies": "Anchor delta and intermediate human/object goal distance separate, never named physical/task failure.",
+    "primary": "C2 vs C1 same condition, plus C1/C2 vs C0 same condition. State pairs, equal-weight task averages, scene decomposition, no population significance claim.",
+    "joint": "Adopted C2 must have cumulative HS<C0W0 and OS<=C0W0; all direct quality protections vs C0W0; old scene proxy margins retained. Require old scene benefit retained when present; terminal completion cannot regress.",
+    "upgrade": "At least2 distinct tasks have joint candidates with improved future native contact (coverage>=5pp or distance>=1cm) or support speed>=.01m/s vs C0 adopted; C2 must add such direct improvement vs C1 in at least2 tasks without direct-quality regressions in more tasks; W0 direct-regression task count C2<=C1. Require trustworthy relationship evidence and no suspension/regrasp ambiguity for qualifying branches. Single375 benefit insufficient.",
+    "uncertainty": "selected22states nested12tasks/4scenes, descriptive paired task/scene table only",
+    "visuals": "fixed tasks333,376,421,20,375 first registeredstate; C0/C1/C2 adopted"
+  },
+  "verification": {
+    "authority": "pytest tests",
+    "functional": "first registered lane is within264 budget; no extra smoke",
+    "performance": "synchronized batch1 generation, gradients, memory, load/evaluation wall; no training microbatch path",
+    "gate": "Complete bounded mechanism evidence, preserve errors/missing/unknown denominators, no favorable-outcome requirement for closure"
+  },
+  "next_phase": "A successful upgrade gate prepares a separately registered fixed native28 complete policy; this session closes2.25 only. No learning/441/469/weight search."
+}
