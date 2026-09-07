@@ -33,6 +33,14 @@ def locked_encode(geometry, parameters):
     return result
 
 
+def project_local_pose(objective, parameters, gradient):
+    """The tangent solve owns63 local coordinates; fixed columns never enter SVD."""
+    jacobian, _ = contact_jacobian(objective, parameters)
+    local, _ = nullspace_projection(jacobian[..., 4:], gradient[:, 2:, 4:])
+    future = torch.cat((torch.zeros_like(gradient[:, 2:, :4]), local), -1)
+    return torch.cat((torch.zeros_like(gradient[:, :2]), future), 1)
+
+
 class ConstrainedPoseFit:
     """Finite FK guards, source anchors and local-only projected pose fitting."""
 
@@ -80,20 +88,19 @@ class ConstrainedPoseFit:
             local = geometry.local_rotation[..., 1:, :, :] @ transforms.axis_angle_to_matrix(delta)
             pose = ((local[:, 2:] - target_local[:, 2:, 1:]) / geometry.angle_scale).square().flatten(1).sum(1) / 2
             return pose + self.proposal_weight / 2 * bounded[..., 4:].square().flatten(1).sum(1)
-        def project(p, gradient):
-            jacobian, _ = contact_jacobian(self.objective, p)
-            jacobian[..., :4] = 0
-            gradient = gradient.clone()
-            gradient[..., :4] = 0
-            future, _ = nullspace_projection(jacobian, gradient[:, 2:])
-            return torch.cat((torch.zeros_like(gradient[:, :2]), future), 1)
+        guard_records = []
         def admissible(p):
-            return torch.stack(list(self.guards(p).values())).all(0)
+            checks = self.guards(p)
+            guard_records.append(checks)
+            return torch.stack(list(checks.values())).all(0)
         traces = []
         for _ in range(self.iterations):
+            guard_records.clear()
             parameters, trace = local_armijo(parameters, evaluate, admissible,
                 initial_step=self.initial_step, max_backtracks=self.max_backtracks,
-                gradient_transform=project)
+                gradient_transform=lambda p, g: project_local_pose(self.objective, p, g))
+            for trial, checks in zip(trace['trials'], guard_records):
+                trial['guards'] = {k:v.cpu().tolist() for k,v in checks.items()}
             traces.append(trace)
         return parameters, traces
 

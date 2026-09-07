@@ -129,3 +129,22 @@ def test_baseline_returns_actual_native_source_exactly():
     assert torch.equal(result,geometry.base)
     assert sampler.pairs==sampler.raw_inputs==[]
     assert editor.records[-1]['hsi_calls']==0
+
+
+def test_free_coordinate_projection_keeps_exact_locks_despite_svd_roundoff(monkeypatch):
+    import mixer.conditional_repair as repair
+    from mixer.relation_projection import nullspace_projection
+    generator=torch.Generator().manual_seed(42)
+    jacobian=torch.randn(1,14,6,67,generator=generator)
+    jacobian[...,:4]=0
+    gradient=torch.randn(1,16,67,generator=generator)
+    gradient[...,:4]=0
+    # Including zero columns in finite precision does not guarantee exact zeros.
+    old,_=nullspace_projection(jacobian,gradient[:,2:])
+    assert torch.count_nonzero(old[...,:4])>0
+    monkeypatch.setattr(repair,'contact_jacobian',lambda objective,p:(jacobian,torch.zeros(1,14,6)))
+    projected=repair.project_local_pose(None,torch.zeros_like(gradient),gradient)
+    assert torch.count_nonzero(projected[...,:4])==0
+    assert torch.count_nonzero(projected[:,:2])==0
+    assert projected[...,4:].abs().max()>0
+    torch.testing.assert_close((jacobian.double()@projected[:,2:].double().unsqueeze(-1)).squeeze(-1),torch.zeros(1,14,6,dtype=torch.float64),atol=1e-6,rtol=0)
