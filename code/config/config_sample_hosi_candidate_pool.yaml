@@ -5,6 +5,6 @@ sampler:
   pelvis:
     _target_: mixer.candidate_selection.CandidatePoolSampler
     candidate_seed_offset: 0
+    record_replay_context: true
     scene_editor:
       repair_enabled: false
-      record_replay_context: true

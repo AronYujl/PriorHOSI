@@ -4083,3 +4083,26 @@ Full authority suite and registry validation precede reportable workloads.
 Engineering closure requires full retained evidence and summary; scientific gate
 is separate. Any failure preserves original outputs and allows registered
 diagnostics only.
+
+Pre-outcome implementation corrections: registry id key corrected to required
+experiment_id (the initial validator rejection is retained in session log;
+original b5eb005 row remains in Git history). This is a disclosed schema-only
+append-only exception. Runtime inspection confirms first window adds0, not
+1000003: protocol formula corrected to zero-based window_index before any
+new candidate generation or scoring. Frozen offsets and all gates unchanged.
+
+Implementation verification:17 new component tests passed; final full authority
+1012 passed,4 historical skips,174.35s. An earlier full suite1012 passed173.23s
+preceded GPU geometry placement and separate query/selection timing completion;
+final suite covers those changes. All28 sealed B1 episodes/124 windows satisfy
+identity/seed/representation and exact edited=proposal/zero repair parameters.
+Resolved configs equal sealed B1 after removing only run/output identity, new
+sampler target and offset/context-capture options. Native evaluator seed stays42.
+Training mask source train_infbagel.get_mask(ind=-1,fixed_frame=2) and position
+loss models.infbagel:1013 establish all84 future position coordinates valid.
+Source checkpoint identities inherited verbatim; no full checkpoint audit added.
+No training microbatch benchmark applies to batch1 inference. Runtime archives
+synchronized query/geometry timing and allocator peaks; generation is sharded.
+Artifacts:results/candidate-selection-preflight-s42-20260907/ and prospective
+results/experiments/p2-mixer-candidate-selection-s42-20260907/. First full native
+scene is an actual registered candidate lane; no separate smoke workload.

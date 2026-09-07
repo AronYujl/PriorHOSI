@@ -22,7 +22,7 @@
       300000000
     ],
     "episode_seed": "42 + canonical_ordinal",
-    "window_seed": "episode_seed + candidate_seed_offset + (window_index+1)*1000003",
+    "window_seed": "episode_seed + candidate_seed_offset + window_index*1000003 (zero-based)",
     "native_seed": 42,
     "technical_retries": 0,
     "cache_reuse": "compatible B1 candidate0; missing/incompatible slots regenerated once with reason",
