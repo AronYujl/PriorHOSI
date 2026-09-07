@@ -208,6 +208,14 @@ class RelationalObjective:
         stance = heights < heights.new_tensor((0.08, 0.08, 0.04, 0.04))
         self.stance = stance[:, 2:] & stance[:, 1:-1]
 
+    def contact_residual(self, state):
+        """World-coordinate hand-anchor vectors, before fixed contact masking."""
+        hand_target = (
+            _apply_rotation(state['object_rotation_world'][..., None, :, :], self.hand_anchor)
+            + state['object_translation_world'][..., None, :]
+        )
+        return state['human'][:, 2:, 22:24] - hand_target[:, 2:]
+
     def evaluate(self, state):
         human = state['human']
         surface = state['object_surface']
@@ -218,11 +226,7 @@ class RelationalObjective:
             )
         self.last_scene_query = {'occupied': occupied, 'nearest': nearest}
         distance_squared = (points - nearest).square().sum(-1)
-        hand_target = (
-            _apply_rotation(state['object_rotation_world'][..., None, :, :], self.hand_anchor)
-            + state['object_translation_world'][..., None, :]
-        )
-        hand_squared = (human[:, 2:, 22:24] - hand_target[:, 2:]).square().sum(-1)
+        hand_squared = self.contact_residual(state).square().sum(-1)
         feet = human[..., (7, 8, 10, 11), :]
         velocity_squared = (feet[:, 2:, :, (0, 2)] - feet[:, 1:-1, :, (0, 2)]).square().sum(-1)
         foot_correction = feet - self.source_feet

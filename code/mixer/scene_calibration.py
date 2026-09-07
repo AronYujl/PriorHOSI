@@ -21,6 +21,51 @@ def save_development_episode(editor, record_start, output_dir, episode, windows,
     return payload
 
 
+def replay_development_episode(sampler, source_dir, ordinal, object_vertices, output_dir, device):
+    """Evaluate saved sources/conditions without sampling a new HOI trajectory."""
+    import time
+    paths = sorted(Path(source_dir).glob(f'*-shard*/episode-{ordinal:03d}.pt'))
+    if len(paths) != 1:
+        raise ValueError(f'expected one saved episode for ordinal {ordinal}, found {len(paths)}')
+    saved = torch.load(paths[0], map_location='cpu', weights_only=False)
+    metadata = json.loads(paths[0].with_suffix('.json').read_text())
+    if len(saved['corrections']) != len(metadata['records']):
+        raise ValueError('saved source/context coverage mismatch')
+    editor = sampler.scene_editor
+    start_record, started = len(editor.records), time.perf_counter()
+    def move(items):
+        if torch.is_tensor(items):
+            return items.to(device)
+        if isinstance(items, dict):
+            return {k: move(v) for k, v in items.items()}
+        return items
+    for snapshot, old_record in zip(saved['corrections'], metadata['records']):
+        context = move(snapshot['replay_context'])
+        context['obj_rest_verts'] = object_vertices
+        sampler.inner_hoi.sample_calls = snapshot['window']
+        bps = snapshot['local_bps']
+        output = editor.edit(sampler, snapshot['raw_source'].to(device), move(snapshot['hoi_arguments']),
+            None if bps is None else bps.to(device), context, snapshot['rest_offsets'].to(device),
+            old_record['seed'])
+        current = editor.motion_records[-1]
+        raw_equal = torch.equal(output.cpu(), snapshot['raw_source'])
+        reference_equal = torch.equal(current['reference'], snapshot['reference'])
+        mask_equal = torch.equal(current['contact_mask'], snapshot['contact_mask'])
+        if not (raw_equal and reference_equal and mask_equal):
+            raise AssertionError('saved replay source/reference/contact changed')
+        regression = None
+        if editor.diagnostics.get('probe') == 'relation_compatible':
+            old = next(p['parameters'] for p in snapshot['probe_motions'] if p['view'] == 'lambda0_short_edit')
+            new = next(p['parameters'] for p in current['probe_motions'] if p['view'] == 'G0_short_edit')
+            regression = torch.equal(old, new)
+            if not regression:
+                raise AssertionError('lambda0 saved real-window regression failed')
+        editor.records[-1]['replay_audit'] = dict(source_path=str(paths[0]), raw_source_exact=raw_equal,
+            reference_exact=reference_equal, contact_mask_exact=mask_equal, lambda0_parameters_exact=regression)
+    return save_development_episode(editor, start_record, output_dir, saved['episode'],
+                                    saved['windows'], time.perf_counter()-started)
+
+
 def estimate_global_scale(episodes, calibration_scenes, target_ratio=.1,
                           minimum_active_windows=6):
     """Scene-balanced median of positive-scene source gradient norm ratios.
@@ -63,3 +108,150 @@ def estimate_global_scale(episodes, calibration_scenes, target_ratio=.1,
                 active_windows={scene: len(values) for scene, values in by_scene.items()},
                 inactive_windows=inactive, zero_hsi_level_count=zero_signal,
                 rule='target times median(scene median(window median(level norm ratios))), two significant figures')
+
+
+def summarize_relation_compatible(source_root, output_dir, device='cuda:7'):
+    """Task-paired local screening; all outcomes and failure strata stay visible."""
+    episodes = [json.loads(p.read_text()) for p in sorted(Path(source_root).glob('*-shard*/episode-*.json'))]
+    directory = Path(output_dir)
+    directory.mkdir(parents=True, exist_ok=False)
+    groups = ('G0','G1','G2','G3')
+    short = {g: {} for g in groups}
+    rays = {str(s): {g: {} for g in groups[1:]} for s in (.001,.005)}
+    scene_by_task, window_rows, projection, ray_rows, short_rows = {}, [], [], [], []
+    def scalar_metrics(values):
+        return {k: float(v[0]) for k,v in values.items()}
+    def average(rows):
+        return {k: float(np.mean([r[k] for r in rows])) for k in rows[0]}
+    def write(name, value):
+        with (directory/name).open('x') as f:json.dump(value,f,indent=2,allow_nan=False)
+    seen = set()
+    for episode in episodes:
+        identity = episode['episode']; ordinal = identity['canonical_ordinal']; task = f'{ordinal:03d}'
+        if task in seen:raise ValueError('duplicate replay task')
+        seen.add(task);scene_by_task[task]=identity['scene_name']
+        task_short={g:[] for g in groups}
+        task_rays={s:{g:[] for g in groups[1:]} for s in rays}
+        for record in episode['records']:
+            audit=record['replay_audit']; diagnostic=record['view_diagnostic']
+            if not all(audit[k] for k in ('raw_source_exact','reference_exact','contact_mask_exact','lambda0_parameters_exact')):
+                raise ValueError('failed source or lambda0 pairing')
+            if not all(diagnostic[k] for k in ('ambient_rng_preserved','scene_storage_unchanged','context_unchanged','source_anchors_unchanged')):
+                raise ValueError('failed diagnostic purity')
+            if not record['history_exact'] or not record['contact_exact']:raise ValueError('changed history/contact')
+            source=scalar_metrics(record['source_metrics'])
+            window_rows.append(dict(task=task,scene=identity['scene_name'],object=identity['object_name'],
+                window=record['window'],source_metrics=source,source_domain=record['source_domain'],
+                active_anchors=diagnostic['source_contact_count']))
+            for g in groups:
+                item=diagnostic['short_edits'][g];r=item['record']
+                m=scalar_metrics(r['final_metrics'])
+                m.update(physical_rms_m=item['physical_rms_m'],accepted_steps=sum(i['solver']['accepted'][0] for i in r['iterations']),
+                    seconds=r['seconds'],teacher_seconds=r['teacher_seconds'],solver_seconds=r['solver_seconds'])
+                task_short[g].append(m)
+                short_rows.append(dict(task=task,scene=identity['scene_name'],object=identity['object_name'],window=record['window'],group=g,
+                    metrics=m,source_metrics=source,reasons=[i['solver']['reason'][0] for i in r['iterations']]))
+                if not r['history_exact'] or not r['contact_exact']:raise ValueError('short editor changed history/contact')
+                for i in r['iterations']:
+                    if 'projection' in i:projection.append(dict(kind='short',task=task,window=record['window'],group=g,level=i['level'],**i['projection']))
+            window_rays={s:{g:[] for g in groups[1:]} for s in rays}
+            for iteration in record['iterations']:
+                g=iteration['group']
+                if not iteration['static_conditions_equal'] or not iteration['base_prediction_equal']:raise ValueError('unpaired teacher')
+                if iteration['projection'] is not None:
+                    projection.append(dict(kind='ray',task=task,window=record['window'],group=g,level=iteration['level'],draw=iteration['draw'],**iteration['projection']))
+                for probe in iteration['physical_step_probes']:
+                    scale=str(probe['target_rms_m']);m=scalar_metrics(probe['metrics'])
+                    m.update(physical_rms_m=probe['actual_rms_m'],matched=float(probe['reason']=='matched'),admissible=float(probe['domain_admissible']))
+                    window_rays[scale][g].append(m)
+                    ray_rows.append(dict(task=task,scene=identity['scene_name'],object=identity['object_name'],window=record['window'],group=g,
+                        scale=scale,draw=iteration['draw'],level=iteration['level'],reason=probe['reason'],metrics=m,source_metrics=source,
+                        source_outside=record['source_domain']['outside_points'][0]>0))
+            for s in rays:
+                for g in groups[1:]:task_rays[s][g].append(average(window_rays[s][g]))
+        for g in groups:short[g][task]=average(task_short[g])
+        for s in rays:
+            for g in groups[1:]:rays[s][g][task]=average(task_rays[s][g])
+    if len(episodes)!=24 or len(window_rows)!=68:raise ValueError('incomplete registered24/68 coverage')
+    write('window_sources.json',window_rows);write('ray_rows.json',ray_rows);write('short_rows.json',short_rows);write('projection.json',projection)
+    def scene_means(source):
+        return {scene:average([m for task,m in source.items() if scene_by_task[task]==scene]) for scene in sorted(set(scene_by_task.values()))}
+    paired_results,means={},{}
+    for kind,cells in [('short',short)]+[('ray'+s,rows) for s,rows in rays.items()]:
+        means[kind]={g:average(list(rows.values())) for g,rows in cells.items()}
+        for unit in ('task','scene'):
+            data=cells if unit=='task' else {g:scene_means(rows) for g,rows in cells.items()}
+            write(f'{kind}_{unit}_inputs.json',data)
+            paired_results[kind+'_'+unit]={f'G2-{b}':paired_local_metrics(data[b],data['G2'],device) for b in cells if b!='G2'}
+    feasibility={}
+    for scale in rays:
+        rows=[r for r in ray_rows if r['scale']==scale]
+        keys=lambda r:(r['task'],r['window'],r['draw'],r['level'])
+        common=set(keys(r) for r in rows)
+        for g in groups[1:]:common &= {keys(r) for r in rows if r['group']==g and r['metrics']['matched'] and r['metrics']['admissible']}
+        feasibility[scale]={'common_queries':len(common),'total_queries':len(rows)//3,'groups':{}}
+        for g in groups[1:]:
+            own=[r for r in rows if r['group']==g]
+            reasons={k:sum(r['reason']==k for r in own) for k in sorted(set(r['reason'] for r in own))}
+            subset=[r['metrics'] for r in own if keys(r) in common]
+            feasibility[scale]['groups'][g]=dict(n=len(own),matched=sum(r['metrics']['matched'] for r in own),
+                admissible=sum(r['metrics']['admissible'] for r in own),reasons=reasons,
+                common_mean=average(subset) if subset else None)
+    ray_projection=[p for p in projection if p['kind']=='ray']
+    keep_fraction=sum(p['r_keep'] is not None and p['r_keep']>=.001 for p in ray_projection)/len(ray_projection)
+    hs,os,contact,stance='human_scene_residual_cm','object_scene_residual_cm','contact_anchor_drift_cm','stance_increment_cm'
+    raycontact=paired_results['ray0.005_task']['G2-G1'][contact]
+    gates={}
+    gates['contact_reduction']=means['ray0.005']['G2'][contact]<=.2*means['ray0.005']['G1'][contact] and raycontact['ci'][1]<0
+    gates['motion_retained']=keep_fraction>=.95 and all(feasibility[s]['groups'][g]['matched']/feasibility[s]['groups'][g]['n']>=.95 for s in rays for g in ('G2','G3'))
+    for b in ('G0','G3'):
+        contrast=paired_results['short_task']['G2-'+b]
+        gates['hs_gain_vs_'+b]=(contrast[hs]['delta']<=-max(.01,.05*means['short'][b][hs]) and contrast[hs]['ci'][1]<0
+                              and paired_results['short_scene']['G2-'+b][hs]['delta']<=0)
+        gates['os_protection_vs_'+b]=contrast[os]['delta']<=0 and contrast[os]['ci'][1]<=.02
+        for metric,point,upper in ((contact,.01,.05),(stance,.01,.05),('root_endpoint_shift_cm',.05,.10),('object_endpoint_shift_cm',.05,.10)):
+            gates[metric+'_protection_vs_'+b]=contrast[metric]['delta']<=point and contrast[metric]['ci'][1]<=upper
+    f=feasibility['0.005']['groups']
+    gates['domain_ray_protection']=f['G2']['admissible']/f['G2']['n']>=f['G1']['admissible']/f['G1']['n']-.02
+    gates['history_contact_and_pairing']=True
+    # Predefined complete strata; no group defines the main comparison.
+    strata={}
+    for label,selector in [('scene',lambda r:r['scene']),('object',lambda r:r['object']),
+                           ('source_domain',lambda r:'outside' if r['source_outside'] else 'inside'),
+                           ('role',lambda r:'calibration' if r['scene'] in ('004','006','055') else 'verification')]:
+        strata[label]={}
+        for value in sorted(set(selector(r) for r in ray_rows)):
+            strata[label][value]={}
+            for scale in rays:
+                strata[label][value][scale]={g:average([r['metrics'] for r in ray_rows if selector(r)==value and r['scale']==scale and r['group']==g]) for g in groups[1:]}
+    write('strata.json',strata);write('paired.json',paired_results);write('means.json',means);write('feasibility.json',feasibility)
+    worst=max(short['G2'],key=lambda t:(short['G2'][t][hs]-short['G0'][t][hs],-int(t)))
+    result=dict(schema_version=1,subphase='2.14a',decision='GO' if all(gates.values()) else 'NO-GO',gates=gates,
+        tasks=len(episodes),windows=len(window_rows),native_quality_evaluated=False,
+        means=means,paired=paired_results,feasibility=feasibility,
+        projection=dict(queries=len(projection),source_queries=len(ray_projection),keep_fraction=keep_fraction,
+            r_keep_mean=float(np.mean([p['r_keep'] for p in ray_projection if p['r_keep'] is not None])),
+            r_keep_median=float(np.median([p['r_keep'] for p in ray_projection if p['r_keep'] is not None])),
+            normalized_residual_max=max(p['normalized_residual'] for p in projection),
+            jv_after_max=max(p['jv_after'] for p in projection)),
+        teacher_forwards=dict(hsi=sum(r['hsi_teacher_calls'] for e in episodes for r in e['records']),
+                              hoi=sum(r['hoi_teacher_calls'] for e in episodes for r in e['records'])),
+        peak_allocated_bytes=max(r['peak_allocated_bytes'] for e in episodes for r in e['records']),
+        bootstrap=dict(replicates=10000,seed=42,percentiles=[2.5,97.5],primary_unit='task',device=device,dtype='float64'),
+        selected_failure_task=worst,all_failures_retained=True)
+    write('summary.json',result)
+    return result
+
+
+def paired_local_metrics(first, second, device):
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from tools.paired_bootstrap import pair_sequence_names, discover_metrics
+    names=pair_sequence_names(first,second)
+    metrics=discover_metrics(first,second,names)['analyzed']
+    index=torch.as_tensor(np.random.default_rng(42).integers(0,len(names),size=(10000,len(names))),device=device)
+    delta=torch.tensor([[second[n][k]-first[n][k] for k in metrics] for n in names],dtype=torch.float64,device=device)
+    if not torch.isfinite(delta).all():raise ValueError('nonfinite paired metric')
+    samples=delta[index].mean(1)
+    bounds=torch.quantile(samples,torch.tensor([.025,.975],dtype=torch.float64,device=device),dim=0)
+    return {k:dict(delta=float(delta[:,i].mean()),ci=[float(bounds[0,i]),float(bounds[1,i])],n=len(names)) for i,k in enumerate(metrics)}

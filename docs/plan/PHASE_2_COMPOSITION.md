@@ -3511,3 +3511,33 @@ GO/NO-GO/BLOCKED summary PHASE_2N_RELATION_COMPATIBLE_DP.md, then integrate/tag
 exp/p2n-relation-compatible-dp-v1 after the engineering gate. Negative science
 closes the diagnostic. Suggested conditional-denoising repair stays a separate
 unvalidated future mechanism, never implemented alongside this test.
+
+
+Implementation verification before the reportable replay: initial full authority
+suite965 passed/4 historical skips in174.58s; the added GPU paired-bootstrap check
+matches the established NumPy seed42 plan to1e-12. Numerical tests fix SVD rank
+rtol1e-6/atol1e-10 without changing the preregistration. Float32 common-motion
+projection differences are bounded by1e-5 in parameter coordinates; direction
+Jacobian finite differences use atol1e-4/rtol.005 and float64 nullspace residual
+checks. Initial overly tight float32 test assertions (3e-6) exposed rounding at
+3.10e-6 and common-motion components9.06e-6; the solver constants were unchanged.
+These are pre-run numerical implementation checks, not omitted experiments.
+The reusable saved-context replay is a dispatch in test_infbagel_hosi.py;
+no HOI sampling occurs. Statistical summaries live in scene_calibration.py,
+using established paired-bootstrap name/metric discovery and GPU float64 draws.
+
+Evaluation audit: all six raw LINGO mesh_low.obj files exist under
+/data/yujinlun/datasets/LINGO/Scene_mesh, distinct from the absent matching native
+Scene_sdf bundle. Record topology/bounds in evaluation_assets.json; do not infer
+signed native penetration from occupancy or unvalidated open surfaces. The sealed
+July InfBaGel evaluator06086f4 has no save_motion_params branch or serialization
+call despite its resolved flag=true. Its469 per-task metrics survive; no sealed
+motion files exist in that run directory. Historical world transforms/scale3/IK
+and pre-P12 conventions are readable in Git, but the requested motion-based
+comparability check is blocked by missing sealed trajectories. Keep the July row
+historical and paper Hybrid external; do not reload it into the repaired codec.
+
+Final implementation suite:966 passed/4 historical skips in174.41s; all six
+resolved configs differ from sealed views jobs only in output/run identity,
+saved-replay source and registered diagnostic selector/weak-direction threshold.
+Frozen core is unchanged from053eb13. No additional numerical/performance tuning.

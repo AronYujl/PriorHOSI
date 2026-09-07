@@ -92,12 +92,14 @@ class SceneEvidenceTeacher:
     """Pure raw-head queries using conditions prepared once by native generation."""
 
     def __init__(self, sampler, arguments, local_bps, context, source, seed,
-                 beta=1., lambda_dp=.1, teacher_scene_view='legacy_occupied'):
+                 beta=1., lambda_dp=.1, teacher_scene_view='legacy_occupied',
+                 mismatch_local_x_m=0.):
         self.sampler, self.arguments = sampler, arguments
         self.local_bps, self.context = local_bps, context
         self.source = source.detach()
         self.beta, self.lambda_dp = beta, lambda_dp
         self.teacher_scene_view = teacher_scene_view
+        self.mismatch_local_x_m = mismatch_local_x_m
         self.generator = torch.Generator(device=source.device).manual_seed(
             (int(seed) + 32452843) % (2**63 - 1))
         self.scene_generator = torch.Generator(device='cpu').manual_seed(
@@ -136,6 +138,10 @@ class SceneEvidenceTeacher:
                 from .scene_views import teacher_common
                 common = teacher_common(common, candidate, self.context,
                                         self.sampler.hsi_sampler, self.teacher_scene_view)
+            if self.mismatch_local_x_m:
+                from .scene_views import temporal_environment
+                common = temporal_environment(common, candidate, self.context,
+                    self.sampler.hsi_sampler, self.mismatch_local_x_m)[0]
             view = self.empty.for_step(z_edit, level)
             cond, base = self.sampler._hsi_predict_pair(view, masked_object_arguments(common))
             hsi_delta[..., :216] = (epsilon_from_x0(view, cond, alpha, sigma)
@@ -167,7 +173,8 @@ class SceneEvidenceEditor:
                  hoi_reference_weight=1., noise_levels=(300, 264, 229, 193, 157, 121, 86, 50),
                  initial_step=1., shrink=.5, c1=1e-4, max_backtracks=10,
                  prox_weight=1., record_motion=True,
-                 teacher_scene_view='legacy_occupied', diagnostics=None):
+                 teacher_scene_view='legacy_occupied', diagnostics=None,
+                 dp_proxy='motion', relation_projection=False, mismatch_local_x_m=0.):
         if mode not in ('edit', 'reconstruct_only', 'calibrate'):
             raise ValueError('scene_edit mode must be edit, reconstruct_only or calibrate')
         if not noise_levels or any(k <= 0 or k >= 499 for k in noise_levels):
@@ -178,6 +185,10 @@ class SceneEvidenceEditor:
         self.initial_step, self.shrink, self.c1 = initial_step, shrink, c1
         self.max_backtracks, self.prox_weight = max_backtracks, prox_weight
         self.record_motion = record_motion
+        if dp_proxy not in ('motion', 'parameter') or (relation_projection and dp_proxy != 'parameter'):
+            raise ValueError('relation projection requires the matched parameter DP proxy')
+        self.dp_proxy, self.relation_projection = dp_proxy, relation_projection
+        self.mismatch_local_x_m = mismatch_local_x_m
         if teacher_scene_view not in ('legacy_occupied', 'environment_only_temporal'):
             raise ValueError('mismatched teacher observations are diagnostic-only')
         self.teacher_scene_view = teacher_scene_view
@@ -206,7 +217,7 @@ class SceneEvidenceEditor:
                                         source_floor=True, source_stance_velocity=True)
         teacher = SceneEvidenceTeacher(sampler, arguments, local_bps, context, reference, seed,
                                         self.hoi_reference_weight, self.lambda_dp,
-                                        self.teacher_scene_view)
+                                        self.teacher_scene_view, self.mismatch_local_x_m)
         grid = sampler.dataset.scene_grid_torch.to(source)
         mask = editable_mask(source)
         denominator = mask.flatten(1).sum(1)
@@ -215,9 +226,10 @@ class SceneEvidenceEditor:
         initial_terms, initial_metrics = objective.evaluate(initial)
         diagnostic = None
         if self.diagnostics.get('enabled'):
-            from .scene_evidence_diagnostics import run_fixed_source_views
-            diagnostic = run_fixed_source_views(self, teacher, geometry, objective,
-                                                 parameters, reference, seed)
+            from .scene_evidence_diagnostics import run_fixed_source_views, run_relation_compatible
+            diagnostic = (run_relation_compatible if self.diagnostics.get('probe') == 'relation_compatible'
+                          else run_fixed_source_views)(self, teacher, geometry, objective,
+                                                       parameters, reference, seed)
             iterations = diagnostic.pop('iterations')
             teacher_seconds = diagnostic['teacher_seconds']
             solver_seconds = diagnostic['probe_seconds']
@@ -238,6 +250,10 @@ class SceneEvidenceEditor:
                 motion = geometry.encode(state, source[:, :2])
                 terms, _ = objective.evaluate(state)
                 linear = (direction * mask * (motion - candidate)).flatten(1).sum(1) / denominator
+                if self.dp_proxy == 'parameter' and self.lambda_dp:
+                    from .relation_projection import parameter_dp_proxy
+                    linear = (teacher.components['hoi_reference'] * mask * (motion-candidate)).flatten(1).sum(1) / denominator
+                    linear = linear + parameter_dp_proxy(dp_gradient, proposal, origin, self.lambda_dp)
                 proximal = .5 * self.prox_weight * (proposal - origin).square().flatten(1).sum(1)
                 return linear + sum(terms[key] for key in EXPLICIT_TERMS) + proximal
             def admissible(proposal):
@@ -253,7 +269,17 @@ class SceneEvidenceEditor:
                     scalar = (component * probe_motion).flatten(1).sum(1) / denominator
                     gradients[key], = torch.autograd.grad(scalar.sum(), probe, retain_graph=True)
                 gradients['explicit'], = torch.autograd.grad(
-                    sum(probe_terms[key] for key in EXPLICIT_TERMS).sum(), probe)
+                    sum(probe_terms[key] for key in EXPLICIT_TERMS).sum(), probe, retain_graph=True)
+                if self.dp_proxy == 'parameter':
+                    record['per_term_gradient_norms'] = {
+                        key: float(torch.autograd.grad(probe_terms[key].sum(), probe, retain_graph=True)[0].double().norm())
+                        for key in EXPLICIT_TERMS}
+            if self.dp_proxy == 'parameter' and self.lambda_dp:
+                dp_gradient = gradients['hsi_evidence'].detach() / self.lambda_dp
+                if self.relation_projection:
+                    from .relation_projection import project_dp_gradient
+                    dp_gradient, record['projection'] = project_dp_gradient(objective, parameters, dp_gradient)
+                gradients['hsi_evidence_projected'] = self.lambda_dp * dp_gradient
             record['parameter_gradient_norms'] = {
                 key: value.flatten(1).norm(dim=1).cpu().tolist()
                 for key, value in gradients.items()}
@@ -324,6 +350,8 @@ class SceneEvidenceEditor:
     def audit_dict(self):
         return dict(enabled=self.enabled, mode=self.mode, placement='post_window',
                     lambda_dp=self.lambda_dp, hoi_reference_weight=self.hoi_reference_weight,
+                    dp_proxy=self.dp_proxy, relation_projection=self.relation_projection,
+                    mismatch_local_x_m=self.mismatch_local_x_m,
                     teacher_scene_view=self.teacher_scene_view, diagnostics=self.diagnostics,
                     noise_levels=self.noise_levels, prediction_source='raw_x0',
                     weighting='alpha_over_sigma', explicit_terms=EXPLICIT_TERMS,

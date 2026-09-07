@@ -755,6 +755,13 @@ def main(cfg: DictConfig) -> None:
 
         for test_idx, test_item in enumerate(tqdm(test_data, desc=f"Processing {scene_name}")):
             canonical_ordinal = canonical_ordinals[(scene_name, test_idx)]
+            if development_mode and cfg.get('hosi_replay_source'):
+                from mixer.scene_calibration import replay_development_episode
+                diagnostic_episodes.append(replay_development_episode(
+                    sampler_body, str(cfg.hosi_replay_source), canonical_ordinal,
+                    obj_rest_verts, base_output_dir, device))
+                print(f'Fixed-source replay completed episode {canonical_ordinal}', flush=True)
+                continue
             if input_diagnostic_mode:
                 sampler_body.input_diagnostic.begin_episode({
                     'scene_name': scene_name, 'object_name': test_item['object_name'],
