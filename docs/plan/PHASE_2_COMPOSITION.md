@@ -4139,3 +4139,48 @@ p2_mixer_candidate_selection_s42_20260907.json. Engineering closure passes;
 scientific upgrade fails. Seal exp/p2r-candidate-selection-v1 and integrate
 phase/02-mixer. Stop before441/469, tuning, post-editing or training. Await new
 handoff on meaningful complete human-object proposal coverage and scene scoring.
+
+## 2026-09-07 — Phase2.21 waypoint control and proposal attribution (authorized)
+
+Handoff: /data/yujinlun/report/PriorHOSI_Codex_Handoff_after_ccd02dc.md.
+Base ccd02dc, branch phase/02s-waypoint-control. Split before implementation:
+2.21 covers A cached112-candidate attribution/three oracle levels, B actual
+retained-frame native3D object endpoint protection, C paired first-window
+waypoint control. Conditional2.22 covers D complete structured route pool;
+conditional2.23 covers E same-pool HSI selection. Close one subphase per session;
+old2.20 NO-GO remains sealed. User authorizes execution/publication.
+
+Frozen complete protocol: experiments/protocols/p2_waypoint_control_s42_20260907.json.
+28W0 first-window regenerations plus up to56 signed variants and4 exact repeats;
+no new complete native rollout or HSI forward. Original waypoint must be an
+intermediate path point; both signed.10m offsets require nonzero tangent, scene
+bounds and free static occupancy at initial pelvis height. All28 task identities
+remain visible, inapplicability is not a technical failure or substituted task.
+Actual goals, clean fixed history, first model latent and progress are recorded.
+BitwiseW0 against originalC0 and private-RNG matching precede interpretation.
+
+Useful control requires >=14 applicable task pairs, both signs/raw and edited
+mean directed root response>=1cm, positive response on>=75% tasks, task95% lower>0
+and nonnegative per-scene means, mean object directed response>=0. Both signs
+retain fixedW0 contact/feet/scene quality using registered margins and10000seed42
+task-paired CUDA float64 intervals; at least50% task pairs meet per-task useful
+response and quality. Contact anchor/surface1cm, contact5pp, support speed.01m/s,
+human/object voxelRMS.1cm and occupied.5pp, world joint speed retention95%.
+These new first-window practical thresholds are fixed decisions, not historical
+native gates. Missing independent visual assessment remains pending and blocks
+expansion; any response/quality failure stops route generation regardless.
+
+CacheA reports common-world and root-local coordinateRMS at raw/proposal/edited;
+first-window primary, later divergent histories descriptive. Ratio denominators
+<1micrometre are undefined. Three oracle levels remain separately named and
+never enter method selection. No additional ArmB-off diagnostic this phase.
+EndpointB uses actual retained output tracks, humanY0 and full3D object, both
+strict<.10m;112 sealed metrics only validate motion-derived values after computing
+them. Legacy selector default remains frozen; new endpoint mode only prospective.
+
+Full authority suite and registry validation precede clean-worktree manifests
+via experiment.py; no new tracked experiment script, hash machinery, standalone
+smoke, core/expert/evaluator edits, weights/guards/seed/offset sweeps or training.
+FirstW0 interface execution belongs to the registered28, with all failures kept.
+Full first-window evidence, all28 traces/animations and exact next entry required
+for engineering closure. Scientific and engineering outcomes are separate.
