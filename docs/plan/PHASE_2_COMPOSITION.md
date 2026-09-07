@@ -4197,3 +4197,21 @@ normalization is unchanged. Endpointv2 is opt-in; native metric comparisons are
 read after physical values are computed. No training microbatch benchmark applies;
 synchronized window runtime and allocator peaks are recorded. Full first scene
 supplies real-data interface evidence inside the registered workload.
+
+Operational failure at runtime f439dbb: first scene66 reaches the firstW0
+model-trace assertion; it wrongly expects only500 diffusion calls while the
+unchanged B1 editor adds16 HOI reference calls. The run manifest is failed,
+logs and task014 cacheA/endpointB records retained. No signed candidate or
+quality outcome was emitted; no route/HSI work began. Correct the count to
+500 plus actual geometry_edit.hoi_teacher_calls, preserve captures before
+assertions, add an independent516-call regression. Use a new r2 run id and
+full authority verification; this implementation-only restart exceeds the
+nominal no-retry execution by one already-generatedW0 window, explicitly
+retained as failed work. No offset/condition/quality/gate changes. The original
+failure did not preserve that one generated tensor before assertion; its log,
+manifest and source evidence remain, and it is never claimed as scored data.
+
+Corrected runtime verification:1028 passed,4 historical skips173.91s; registry381
+rows valid including retained failed run. New r2 manifest will start from the
+committed instrumentation correction. Exact source conditions, ArmB/B1 calls,
+offsets, hypothesis and numerical gates remain the preregistered ones.

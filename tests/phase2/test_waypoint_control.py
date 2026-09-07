@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from mixer.candidate_selection import retained_endpoint_features, saved_endpoint_features, select_candidates
-from mixer.waypoint_control import waypoint_variants, local_waypoint, coordinate_difference
+from mixer.waypoint_control import waypoint_variants, local_waypoint, coordinate_difference, validate_model_trace
 from utils import interpolate_joints, interp_object, transform_points
 
 
@@ -102,3 +102,13 @@ def test_coordinate_rms_is_per_coordinate_and_excludes_history():
     assert result['human_rms_mm']==pytest.approx(30/3**.5)
     assert result['object_rms_mm']==pytest.approx(60/3**.5)
     assert result['local_human_rms_mm']==0
+
+
+def test_model_trace_counts_diffusion_and_existing_B1_reference_calls():
+    goal=torch.tensor([[.1,.8,.2]])
+    trace=dict(calls=516,goals=torch.tensor([[.1,0.,.2,0.,0.,0.,1.,2.,3.]]))
+    record=dict(geometry_edit=dict(hoi_teacher_calls=16))
+    assert validate_model_trace(trace,goal,record)==dict(diffusion_calls=500,B1_reference_calls=16)
+    trace['calls']=500
+    with pytest.raises(AssertionError,match='observed 500, expected 516'):
+        validate_model_trace(trace,goal,record)

@@ -140,6 +140,16 @@ def _model_input_trace(model):
     return trace, model.register_forward_pre_hook(capture)
 
 
+def validate_model_trace(trace, pelvis_goal, editor_record):
+    expected_goal = pelvis_goal.clone(); expected_goal[:, 1] = 0
+    reference_calls = editor_record['geometry_edit']['hoi_teacher_calls']
+    expected_calls = 500 + reference_calls
+    if not torch.equal(trace['goals'][:, :3], expected_goal) or trace['calls'] != expected_calls:
+        raise AssertionError('HOI model interface mismatch: observed %d, expected %d calls' %
+                             (trace['calls'], expected_calls))
+    return dict(diffusion_calls=500, B1_reference_calls=reference_calls)
+
+
 def execute_waypoint_scene(run_root, scene_name, resolved_config, device='cuda:0'):
     """A/B/C in one scene, frozen cached first-window conditions and full B1."""
     import inspect
@@ -253,9 +263,11 @@ def execute_waypoint_scene(run_root, scene_name, resolved_config, device='cuda:0
             torch.cuda.synchronize(device); seconds = time.perf_counter()-began; generated += 1
             current = move_tree(sampler.scene_editor.motion_records[-1], device)
             record = sampler.scene_editor.records[-1]
-            expected_goal = conditions['pelvis_goal'].clone(); expected_goal[:, 1] = 0
-            if not torch.equal(trace['goals'][:, :3], expected_goal) or trace['calls'] != 500:
-                raise AssertionError('waypoint did not reach the fixed HOI model interface')
+            # Preserve generated motion and interface evidence before assertions.
+            with (out/f'task-{ordinal:03d}-{arm}-capture.pt').open('xb') as handle:
+                torch.save(dict(snapshot=move_tree(current, 'cpu'), model_trace=move_tree(trace, 'cpu'),
+                                editor=record), handle)
+            calls = validate_model_trace(trace, conditions['pelvis_goal'], record)
             if not torch.equal(current['edited'][:, :2], fixed) or not torch.isfinite(current['edited']).all():
                 raise AssertionError('fixed history/finite control failed')
             if arm == 'W0':
@@ -284,6 +296,7 @@ def execute_waypoint_scene(run_root, scene_name, resolved_config, device='cuda:0
             arm_results[arm] = current; arm_traces[arm] = trace
             row = dict(task=ordinal, arm=arm, scene=scene_name, object=task['object_name'],
                        seed=42+ordinal, seconds=seconds, model_calls=trace['calls'], metrics=metrics,
+                       call_breakdown=calls,
                        editor=record, applicable=proposal['applicable'],
                        integrity=dict(history=True, finite=True, goals=True, paired_inputs=True, W0_bitwise=arm=='W0', repeat_exact=arm=='Wplus_repeat'))
             _append(out/'control_results.jsonl', row)
