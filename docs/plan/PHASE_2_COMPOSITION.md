@@ -3859,3 +3859,35 @@ before other scenes launch. It is not used to tune scientific settings.
 Final implementation suite:981 passed,4 historical skips,169.63s. Registry374
 rows valid; core and both expert trees unchanged. Component tests, baseline
 numerical audit and full suite logs live in results/foot-quality-preflight-s42-20260907/.
+
+
+### Phase2.16 completion — foot-quality guard NO-GO (2026-09-07)
+
+Runtime ea161ca completes28 new native tasks/124 windows; all4 jobs exit0,
+620 HSI calls,411 accepted fit steps,379 accepted steps that the legacy guard
+would reject.88/124 windows reach1mm; task-balanced RMS2.7991mm;30 exact fallbacks.
+All fixed/common/history and finite checks pass. Primary HS improves1.88%
+(vs registered5%), delta−0.077019, task95%[-0.242772,+0.024704]. FS delta+0.009536
+[-0.013094,+0.043544] fails uncertainty protection; OS delta−1.021186
+[-3.727114,+0.519325] also fails its uncertainty protection. Completion21/28
+vs22/28 loses task420 (object endpoint10.04149cm), failing2pp protection.
+Contact/endpoints and total scene gains over B0 pass. Scene-unit checks agree.
+
+The dominant rejection reason is now2cm foot displacement (16191 trials;
+10850 sole-reason), followed by support energy9584. No further guard relaxation.
+Task372 native FS worsening is highly sensitive to its candidate-specific floor
+estimate; read-only counterfactual localization retains the original metric,
+all tasks and NO-GO. Five complete videos cover the four preregistered examples,
+worst HS/new completion failures and supplemental largest-FS case.
+
+981 tests passed/4 historical skips169.63s, full native coverage, no operational
+failure or rerun. Engineering closure is satisfied by the verified implementation
+and complete positive/negative evidence; scientific promotion fails. No static
+condition ablation,441 or469. Seal exp/p2p-foot-quality-guard-v1 and integrate
+closure into phase/02-mixer. Detail/next entry: PHASE_2P_FOOT_QUALITY_GUARD.md;
+compact result experiments/results/p2_mixer_foot_quality_guard_s42_20260907.json.
+
+Closure bookkeeping: the hypothesis occupied the canonical run id, so the
+register command refused a duplicate. Preserve it append-only and record a
+unique completion event linked to the same completed manifest/run_id. Registry375
+rows validates. No sampling rerun, result overwrite or scientific change.

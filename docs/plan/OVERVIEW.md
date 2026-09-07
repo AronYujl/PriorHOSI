@@ -3,15 +3,14 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-07 当前进度：Phase 2.16 已获授权，正在固定 native28 上验证足部质量非退化 guard。
-Phase 2.15 已完成，原生28任务开发门槛为 NO-GO。
-已按用户要求切换到 data/hosi_test 并使用完整原生 SDF 评价；完成一轮接口修复后，
-HSI 条件去噪修复平均仅改变约0.63mm，15/124窗口达到1mm；相对无 HSI 编辑器的
-FS 改善−0.00121且95%区间跨零，HS/OS额外收益也未确立。保留全部正负结果、
-启动失败和接口错误，停止当前候选，full469未启动。详见
-[Phase 2.15 交接](../phase_summaries/PHASE_2O_SCENE_PRIOR_TRANSFER.md)
-和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。目标仍是在原生469任务上超越 InfBaGel，
-本次结果尚未支持该结论。
+2026-09-07 当前进度：Phase 2.16 已完成，足部质量 guard 原生28任务结论为 NO-GO。
+新 guard 将任务平衡修复 RMS 从0.628增至2.799mm，88/124窗口达到1mm，
+但相对 B1 的 HS 仅改善1.88%且区间跨零，FS保护失败，完成任务从22降至21。
+最常见限制变为2cm足部位移；任务372的原生FS对地面估计变化敏感，
+任务420物体终点误差越过10cm。正式指标和既定门槛保持不变，未启动静态消融、441或469。
+详见 [Phase 2.16 总结](../phase_summaries/PHASE_2P_FOOT_QUALITY_GUARD.md)
+和 [Phase 2 计划](PHASE_2_COMPOSITION.md)。原有Phase2.15 NO-GO与完整证据保持封存。
+目标仍是在 data/hosi_test 的原生469任务上超越 InfBaGel；目前尚未建立该结果。
 
 ## 1. 主张、边界与接口
 
