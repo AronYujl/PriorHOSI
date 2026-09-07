@@ -4534,3 +4534,39 @@ the first run; archived resume_inputs.json references all four immutable motions
 First resumed lane generates20 new windows (four currents reused); remaining
 seven lanes generate240, total260 new plus4 retained. No generation-output or
 energy/threshold change was needed to correct the recorder boundary.
+
+## 2026-09-07 — Phase2.25 completion: no added jointly protected candidate
+
+264 unique new windows complete:4 retained currents plus260 new in r2,22states,
+88new branches and44cached C0 branches. All8lanes exit0. C0/C1/C2 each have14/22
+scene-beneficial states,18/22 with direct-quality failures, and the same1/22
+state passing this phase's relative quality/scene protections (376/state008).
+This candidate already exists in C0; new qualified alternatives0. Old2.24
+0/27 and0/44 keep their original anchor/progress-inclusive definition.
+
+Initial relation trust13/22states, ever-engaged17/22;5unknown remain in denominator.
+C1/C2 each846 applied steps with0nonfinite gradients. No qualifying future
+improvement task or extra C2 task; C2 adds task17 right-hand coverage regression
+in next2 (C0/C1/C2 87.5/82.5/72.5%). Sole threshold-sized future benefit is C2
+support speed on375, accompanied by worse native FS and higher HS/OS; joint gate
+fails. W0 regressions0tasks for both versions. Absolute contact and N/A remain
+visible; relative protection is not absolute physical certification.
+
+Record timing failure retained at35830de;533b587 moves capture after history
+repin and resumes four original currents without regeneration.1079tests/4skips,
+88current context/history checks,44C1/C2 first-window equalities and1056exact
+C0 native scalar values.136224HOI/0HSI calls;1490.284s cumulative generation;
+608.364s controller wall including failure. Five fixed videos/20frames plus
+mechanism plot and all task/scene tables retained.
+
+Engineering gate closes2.25; fixed-relation method NO-GO. Summary
+PHASE_2W_RELATIONAL_SAMPLING.md, compact p2_mixer_relational_sampling_s42_20260907.json,
+tag exp/p2w-relational-sampling-v1. Stop additional weight search;2.26 complete
+native28 policy, learning and441/469 unstarted. Future generation adaptation
+requires a new concrete independent-domain supervision contract; HSI value
+requires a matched no-HSI control. One subphase closed in this session.
+
+Closure verification:1079passed/4skips171.42s;392registry records valid. Frozen
+core/experts/native metric and original guidance loss files unchanged from7027ccb.
+107persistent active-hand transitions retain C2 anchors exactly; C1 refreshes107;
+264B1 editor records valid. Completion changes contain results/docs only.
