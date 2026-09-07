@@ -6,3 +6,4 @@ sampler:
     _target_: mixer.single_side_waypoint.SingleSideWaypointSampler
     waypoint_policy: off
     waypoint_protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_single_side_waypoint_s42_20260907.json
+    waypoint_output_dir: ${hosi_output_dir}/decisions

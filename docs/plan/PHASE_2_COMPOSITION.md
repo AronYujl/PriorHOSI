@@ -4303,3 +4303,11 @@ against G and B1. Report all native15, all28 tasks, both resampling units, B0/B1
 references, fallback and total generation/scoring costs. No new score, offset,
 expert/core/evaluator change, training or441/469. The finite registered interface
 workload is requested by the handoff and supplies real-data verification.
+
+Implementation verification: authority1039 passed/4 historical skips178.03s;
+28 focused component checks pass. Registered task372 interface completed13
+windows (off1, G3, reversedG3, H3, reversedH3): disabled B1 exact, both candidate
+orders and G/H candidate motions exact, H score/choice exact, CPU/CUDA RNG restored,
+one logical sample call and editor record committed. Cached72 inputs/IDs/finite
+and editor checks pass; all28 cache rows and per-hand traces are saved. Eight
+resolved configs archive exact P15 online/R2/ArmB/B1 compatibility by reference.
