@@ -82,7 +82,8 @@ def test_contact_guard_measures_real_source_anchors_and_fixed_mask():
 
 @pytest.mark.parametrize('mode', ['increment', 'quality'])
 @pytest.mark.parametrize('enabled,nonfinite', [(False,False),(True,False),(True,True)])
-def test_editor_full_condition_known_empty_private_rng_and_visible_fallback(enabled, nonfinite, mode):
+@pytest.mark.parametrize('temporal', [None, dict(enabled=True, lambda_v=0, lambda_a=0)])
+def test_editor_full_condition_known_empty_private_rng_and_visible_fallback(enabled, nonfinite, mode, temporal):
     geometry, context = fixture()
     sampler = QuerySampler()
     sampler.dataset = geometry.dataset
@@ -103,7 +104,7 @@ def test_editor_full_condition_known_empty_private_rng_and_visible_fallback(enab
         solver=DDIMSolver(sampler.inner_hoi.diffusion.sqrt_alpha_bar.square().numpy(),500,25))
     # Zero geometry step isolates repair; production uses its frozen positive step.
     editor = ConditionalRepairEditor(enabled=True, repair_enabled=enabled, lambda_dp=0,
-        mode='edit', noise_levels=(99,), initial_step=0., record_motion=True, foot_guard_mode=mode)
+        mode='edit', noise_levels=(99,), initial_step=0., record_motion=True, foot_guard_mode=mode, temporal=temporal)
     rng = torch.get_rng_state().clone()
     result = editor.edit(sampler, geometry.base, {}, None, context, geometry.offsets, 42)
     assert torch.equal(rng,torch.get_rng_state())

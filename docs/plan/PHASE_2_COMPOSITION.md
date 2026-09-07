@@ -3970,3 +3970,41 @@ Engineering closure requires valid implementation/full suite, registry validatio
 complete positive/negative fixed-window evidence and phase summary; scientific
 promotion is separate. On a failed A2, no native28/441, no tuning guards/weights,
 and no switch to candidate reranking. Publish negative results too.
+
+A0 recovery/calibration:248/248 windows from56 cached episodes recovered without
+expert calls. Source scales frozen at sV=0.2047062398122251m/s and
+sA=1.6846152474941332m/s² using registered equal-arm/task/window/coordinate RMS.
+Dataset stride3 and historical native30Hz establish .1s; all16 generated frames
+are real coarse-grid samples and first2 are available history. Interpolated tail
+padding never participates. Missing context recovered by exact recorded equations
+Rworld=mat.R Rlocal and Robject_world=prefix Rrelative Rreference. Rest offsets
+come from the task's data_idx/sequence mapping and repaired dataset loader.
+All replay errors must remain<=1e-5 in world metres/rotation entries/encoded units;
+saved original source hand anchors are restored verbatim. This is physical replay
+tolerance, while disabled output returns the saved incoming tensor bitwise.
+No cached motions or old results changed. Artifacts:results/temporal-preflight-s42-20260907/.
+
+Governance correction before outcomes: initial hypothesis row at fe2ac5e omitted
+created_at/config/results/conclusion and validator refused it. Add only those
+metadata fields in implementation commit; original fields and original committed
+row remain recoverable. This one explicit schema repair is an exception to bytewise
+append-only history, not a hypothesis/gate change; future events append normally.
+
+Recovered248-window audits before Temporal outcomes: max final/proposal FK error
+4.7684e-7m, source-anchor error6.5565e-7m, object-world error4.7684e-7m,
+rotation-entry error7.7486e-7, output reencoding error exactly0. All incoming
+guards/contact/support masks pass.29 component tests pass, including both legacy
+editor arms with zero Temporal weights and private-RNG checks. Source-time scale
+calibration made no candidate optimization or new native evaluation. No training
+microbatch benchmark applies; synchronized batch1 replay timing/memory will be
+recorded. Full task replay serves the real-data interface execution, with no
+separate smoke workload.
+
+Final authority suite:995 passed,4 historical skips,171.96s. Registry376 rows
+valid. Initial component fixture failures (strict binary decimal equality and
+using a terminal head rotation that moves no selected FK joint) were corrected
+in test inputs; no candidate parameters selected from outcomes. Full initial
+suite989 passed before extra six zero-weight editor cases; final suite includes
+all29 component cases. Runtime code/core/expert/evaluator scope verified before
+committing. Loss derivative and actual-direction changes use the existing solver
+with a Temporal-only option; legacy optimizer arithmetic remains unchanged.

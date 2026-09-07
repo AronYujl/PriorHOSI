@@ -140,7 +140,8 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
                  repair_timesteps=(99, 79, 59, 39, 19), repair_eta=0.,
                  repair_prediction_type='x0', fit_iterations=4, proposal_weight=.25,
                  fit_initial_step=.25, fit_max_backtracks=10,
-                 foot_guard_mode='increment', foot_energy_epsilon_m2=1e-12, **kwargs):
+                 foot_guard_mode='increment', foot_energy_epsilon_m2=1e-12,
+                 temporal=None, temporal_dt_seconds=None, **kwargs):
         super().__init__(**kwargs)
         if self.lambda_dp != 0 or self.mode != 'edit':
             raise ValueError('conditional repair requires the frozen lambda0 edit proposal')
@@ -151,9 +152,14 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
         self.fit_options = dict(iterations=fit_iterations, proposal_weight=proposal_weight,
             initial_step=fit_initial_step, max_backtracks=fit_max_backtracks,
             foot_guard_mode=foot_guard_mode, foot_energy_epsilon_m2=foot_energy_epsilon_m2)
+        from .temporal_preservation import TemporalPreservation
+        self.temporal = TemporalPreservation(**(temporal or {}))
+        self.temporal_dt_seconds = temporal_dt_seconds
         self.cell = 'B0_hoi' if baseline_hoi else ('B2_hsi_repair' if repair_enabled else 'B1_no_hsi')
         if repair_enabled and not baseline_hoi and foot_guard_mode == 'quality':
             self.cell = 'B2_quality'
+        if self.temporal.enabled:
+            self.cell = 'H1_temporal' if repair_enabled else 'G1_temporal'
 
     @torch.no_grad()
     def edit(self, sampler, source, arguments, local_bps, context, offsets, seed):
@@ -234,6 +240,17 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
             if enabled:
                 # Constrained clean prediction determines both epsilon and scheduler update.
                 current = ddim_repair_step(diffusion, solver, current, result, level, 4-index)
+        temporal_record = None
+        if self.temporal.enabled:
+            incoming, incoming_parameters = result.clone(), parameters.clone()
+            timestamps = valid_frames = valid_links = None
+            if self.temporal_dt_seconds is not None:
+                timestamps = (torch.arange(source.shape[1], device=source.device, dtype=torch.float64)
+                              * self.temporal_dt_seconds)[None].expand(len(source), -1)
+                valid_frames = torch.ones(source.shape[:2], device=source.device, dtype=torch.bool)
+                valid_links = valid_frames[:, 1:].clone()
+            result, parameters, temporal_record = self.temporal.apply(
+                fitter, result, parameters, timestamps, valid_frames, valid_links)
         final_state = geometry.decode(parameters)
         _, final_metrics = source_objective.evaluate(final_state)
         _, proposal_metrics = source_objective.evaluate(fitter.proposal)
@@ -258,6 +275,8 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
             peak_allocated_bytes=torch.cuda.max_memory_allocated(source.device) if source.is_cuda else None)
         synchronize(source)
         record['seconds'] = time.perf_counter()-started
+        if temporal_record is not None:
+            record['temporal'] = temporal_record
         if self.baseline_hoi:
             self.records.append(record)
             if self.record_motion:
@@ -271,6 +290,15 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
                 repair_parameters=parameters.cpu(), source_anchor=source_objective.hand_anchor.cpu(),
                 contact_mask=source_objective.contact.cpu(), proposal_fk=fitter.proposal['human'].cpu(),
                 final_fk=final_state['human'].cpu(), repair_stance_mask=fitter.protection.stance.cpu())
+            if self.temporal.enabled:
+                self.motion_records[-1].update(temporal_incoming=incoming.cpu(),
+                    temporal_incoming_parameters=incoming_parameters.cpu(),
+                    timestamps_seconds=None if timestamps is None else timestamps.cpu(),
+                    valid_frames=None if valid_frames is None else valid_frames.cpu(),
+                    valid_links=None if valid_links is None else valid_links.cpu(),
+                    replay_context={k:v.detach().cpu() if torch.is_tensor(v) else v
+                        for k,v in context.items() if k not in ('obj_rest_verts','static_occ_cache')},
+                    rest_offsets=offsets.detach().cpu())
         return result
 
     def audit_dict(self):

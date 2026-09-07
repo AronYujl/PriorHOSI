@@ -1,0 +1,16 @@
+# Phase2.17: scales filled once from frozen raw-source statistics before replay.
+defaults: [config_sample_hosi_foot_quality, _self_]
+
+sampler:
+  pelvis:
+    scene_editor:
+      temporal_dt_seconds: 0.1
+      temporal:
+        enabled: false
+        lambda_v: 1.0
+        lambda_a: 1.0
+        velocity_scale_m_per_s: 0.2047062398122251
+        acceleration_scale_m_per_s2: 1.6846152474941332
+        iterations: 20
+        initial_step: 0.25
+        max_backtracks: 10

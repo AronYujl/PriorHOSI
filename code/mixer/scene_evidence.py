@@ -50,7 +50,8 @@ def domain_accepts(current, trial):
 
 
 def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
-                 c1=1e-4, max_backtracks=10, gradient_transform=None):
+                 c1=1e-4, max_backtracks=10, gradient_transform=None,
+                 projected_slope=False):
     """One independently accepted step per cell, returning the last valid state."""
     with torch.enable_grad():
         origin = parameters.detach().requires_grad_(True)
@@ -59,10 +60,15 @@ def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
     if not torch.isfinite(gradient).all() or not torch.isfinite(value).all():
         raise FloatingPointError('nonfinite scene-edit local objective/gradient')
     gradient = gradient.detach()
+    original_gradient = gradient
     if gradient_transform is not None:
         gradient = gradient_transform(parameters, gradient)
     norm2 = gradient.square().flatten(1).sum(1)
+    decrease = ((original_gradient * gradient).flatten(1).sum(1)
+                if projected_slope else norm2)
     active = norm2 > 0
+    if projected_slope:
+        active &= decrease > 0
     accepted = torch.zeros_like(active)
     result = parameters.detach().clone()
     trials = []
@@ -76,7 +82,7 @@ def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
             valid = admissible(proposal)
             take = (active & valid & torch.isfinite(trial_value)
                     & (trial_value < value.detach())
-                    & (trial_value <= value.detach() - c1 * step * norm2))
+                    & (trial_value <= value.detach() - c1 * step * decrease))
             result[take] = proposal[take]
         trials.append(dict(step=step, value=trial_value.detach().cpu().tolist(),
                            admissible=valid.cpu().tolist(), accepted=take.cpu().tolist()))
@@ -84,6 +90,7 @@ def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
         active &= ~take
         step *= shrink
     return result, dict(value=value.detach().cpu().tolist(),
+                        directional_slope=(-decrease).cpu().tolist(),
                         gradient_norm=norm2.sqrt().cpu().tolist(),
                         accepted=accepted.cpu().tolist(),
                         reason=['accepted' if a else ('zero_gradient' if n == 0 else 'search_exhausted')

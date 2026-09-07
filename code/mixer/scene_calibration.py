@@ -427,3 +427,203 @@ def summarize_conditional_repair(source_root, output_dir, task_manifest, device=
             sub=directory/(g+'_'+unit);sub.mkdir()
             write(str(sub.relative_to(directory)/'per_sequence_metrics.json'),data[g])
     return result
+
+
+def recover_temporal_window(dataset, saved, snapshot, world_window, task, object_points, device):
+    """Recover omitted context from redundant saved world/local rigid transforms.
+
+    Saved global rotations obey R_world = mat.R @ R_local. Object rotations obey
+    R_object_world = prefix @ R_relative @ R_reference. Invert those equations;
+    never infer a heading from coordinate names or another arm's trajectory.
+    """
+    from pytorch3d import transforms
+    from .relational import RelationalGeometry
+    from .conditional_repair import ConstrainedPoseFit, locked_encode
+    c = {k:v.to(device) if torch.is_tensor(v) else v for k,v in snapshot.items()}
+    w = {k:v.to(device) if torch.is_tensor(v) else v for k,v in world_window.items()}
+    local = transforms.rotation_6d_to_matrix(c['edited'][...,84:216].reshape(1,16,22,6))
+    world = transforms.rotation_6d_to_matrix(w['global_rot_6d'].reshape(1,16,22,6))
+    mat = torch.eye(4,device=device)[None]
+    mat[:,:3,:3] = world[:,0,0] @ local[:,0,0].transpose(-1,-2)
+    position = dataset.denormalize_torch(c['edited'][...,:84]).reshape(1,16,28,3)
+    mat[:,:3,3] = (w['points_world'].reshape(1,16,28,3)[:,0,0]
+                   - (mat[:,:3,:3] @ position[:,0,0,:,None]).squeeze(-1))
+    index = task['data_idx']
+    sequence = dataset.ori_sequence_idx[index]
+    offsets = torch.tensor(dataset.rest_human_offsets[sequence].astype(np.float32),device=device)
+    start = int(dataset.start_ind[index])
+    reference = torch.tensor(dataset.object_rot_mat[start],device=device,dtype=torch.float32)[None]
+    relative = c['edited'][0,0,219:228].reshape(3,3)
+    prefix = (w['object_rotation_world'][0,0].reshape(3,3)
+              @ torch.linalg.inv(reference[0]) @ torch.linalg.inv(relative))
+    context = dict(mat=mat,obj_rot_mat_ref=reference,obj_rot_mat_prefix=prefix[None],
+                   scene_flag=torch.tensor([0],device=device))
+    geometry = RelationalGeometry(c['proposal'],dataset,offsets,context,object_points)
+    source = RelationalGeometry(c['raw_source'],dataset,offsets,context,object_points)
+    fitter = ConstrainedPoseFit(geometry,source,context['scene_flag'],foot_guard_mode='quality')
+    state = geometry.decode(c['repair_parameters'])
+    audit = dict(fk_max_abs_m=float((state['human']-c['final_fk']).abs().max()),
+        proposal_fk_max_abs_m=float((fitter.proposal['human']-c['proposal_fk']).abs().max()),
+        source_anchor_max_abs_m=float((fitter.objective.hand_anchor-c['source_anchor']).abs().max()),
+        object_world_max_abs_m=float((state['object_translation_world']-w['object_translation_world']).abs().max()),
+        object_rotation_max_abs=float((state['object_rotation_world']-w['object_rotation_world'].reshape(1,16,3,3)).abs().max()),
+        output_reencode_max_abs=float((locked_encode(geometry,c['repair_parameters'])-c['edited']).abs().max()),
+        contact_exact=torch.equal(fitter.objective.contact,c['contact_mask']),
+        stance_exact=('repair_stance_mask' not in c or torch.equal(fitter.protection.stance,c['repair_stance_mask'])))
+    if any(audit[k]>1e-5 for k in audit if k.endswith(('_m','_abs'))) or not audit['contact_exact'] or not audit['stance_exact']:
+        raise AssertionError('Temporal cache recovery mismatch: '+str(audit))
+    # Use the actual saved source anchor, retaining its original finite precision.
+    fitter.objective.hand_anchor = c['source_anchor'].clone()
+    fitter.contact_distance = fitter.objective.contact_residual(fitter.proposal).norm(dim=-1)
+    fitter.contact_limit = fitter.contact_distance.clamp_min(.005)+.001
+    return fitter,c,audit,context,offsets
+
+
+def temporal_window_metrics(fitter, parameters, dt=.1):
+    """Independent world/contact proxies, explicitly separate from native15."""
+    from .temporal_preservation import physical_derivatives, masked_square_mean
+    state=fitter.geometry.decode(parameters)
+    human=state['human']; mask=fitter.protection.stance
+    speed=(human[:,2:,(7,8,10,11),:]-human[:,1:-1,(7,8,10,11),:])[...,(0,2)].norm(dim=-1)/dt
+    contact=fitter.objective.contact
+    distance=fitter.objective.contact_residual(state).norm(dim=-1)
+    _,metrics=fitter.protection.evaluate(state)
+    relative=(state['object_rotation_world'].transpose(-1,-2)[...,None,:,:] @
+              (human[...,22:24,:]-state['object_translation_world'][...,None,:])[...,None]).squeeze(-1)
+    source=fitter.objective.hand_anchor
+    # Derivatives cross only continuous active grasp segments, including history.
+    active=fitter.geometry.base[...,228:230]>.95
+    vmask=active[:,2:] & active[:,1:-1]
+    amask=vmask & active[:,:-2]
+    v=((relative[:,2:]-relative[:,1:-1])-(source[:,2:]-source[:,1:-1]))/dt
+    a=((relative[:,2:]-2*relative[:,1:-1]+relative[:,:-2])-(source[:,2:]-2*source[:,1:-1]+source[:,:-2]))/dt**2
+    def masked(value,m):return float(torch.where(m,value,torch.zeros_like(value)).sum()/m.sum().clamp_min(1))
+    return dict(support_speed_m_per_s=masked(speed,mask),support_count=int(mask.sum()),
+        contact_anchor_cm=masked(distance,contact)*100,contact_count=int(contact.sum()),
+        human_scene_residual_cm=float(metrics['human_scene_residual_cm']),
+        human_occupied_fraction=float(metrics['human_occupied_fraction']),
+        toe_height_above_fixed_floor_cm=float((human[:,2:,(10,11),1]-fitter.protection.floor_height[:,None,None]).mean()*100),
+        joint_speed_m_per_s=float((human[:,2:,:22]-human[:,1:-1,:22]).norm(dim=-1).mean()/dt),
+        root_path_m=float((human[:,2:,0]-human[:,1:-1,0]).norm(dim=-1).sum()),
+        near_stationary_fraction=float(((human[:,2:,:22]-human[:,1:-1,:22]).norm(dim=-1)/dt<.01).float().mean()),
+        hand_object_velocity_error_m2_per_s2=masked(v.square().mean(-1),vmask),
+        hand_object_acceleration_error_m2_per_s4=masked(a.square().mean(-1),amask),
+        hand_velocity_count=int(vmask.sum()),hand_acceleration_count=int(amask.sum()))
+
+
+def replay_temporal_scene(source_root, output_dir, resolved_config, task_manifest, scene_name, device):
+    """Fixed cached windows, no expert forward and no stitched native score."""
+    import subprocess
+    from omegaconf import OmegaConf
+    from datasets.infbagel import InfBaGelDataset
+    from .temporal_preservation import TemporalPreservation
+    if subprocess.check_output(['git','status','--porcelain'],text=True).strip():
+        raise RuntimeError('Reportable Temporal replay requires clean worktree')
+    config=OmegaConf.load(resolved_config)
+    options=OmegaConf.to_container(config.sampler.pelvis.scene_editor.temporal,resolve=True)
+    module=TemporalPreservation(**options)
+    config.dataset.device=device;config.dataset.vis=True;config.dataset.load_object_payload=False
+    config.dataset.test_scene_name=scene_name
+    dataset=InfBaGelDataset(**config.dataset)
+    root=Path(source_root);out=Path(output_dir);out.mkdir(parents=True,exist_ok=False)
+    selection=json.loads(Path(task_manifest).read_text())
+    tasks=[t for t in selection['tasks'] if t['scene_name']==scene_name]
+    native=json.loads((Path(config.dataset.folder).parent/'hosi_test/data'/ (scene_name+'.json')).read_text())
+    records=[]
+    with torch.no_grad():
+        for arm in ('B1_no_hsi','B2_quality'):
+            for task in tasks:
+                ordinal=task['canonical_ordinal']
+                path=next(root.glob(f'{arm}-*/episode-motion-{ordinal:03d}.pt'))
+                saved=torch.load(path,map_location='cpu',weights_only=False)
+                points=dataset.obj_rest_verts[task['object_name']].to(device)
+                points=points[torch.linspace(0,len(points)-1,128,device=device).long()][None]
+                motions=[]
+                for snapshot,window in zip(saved['corrections'],saved['windows']):
+                    fitter,c,audit,context,offsets=recover_temporal_window(dataset,saved,snapshot,window,native[task['test_idx']],points,device)
+                    timestamps=torch.arange(16,device=device,dtype=torch.float64)[None]*.1
+                    valid=torch.ones(1,16,device=device,dtype=torch.bool);links=valid[:,1:].clone()
+                    incoming=fitter.geometry.decode(c['repair_parameters'])
+                    before=temporal_window_metrics(fitter,c['repair_parameters'])
+                    output,parameters,trace=module.apply(fitter,c['edited'],c['repair_parameters'],timestamps,valid,links)
+                    after=temporal_window_metrics(fitter,parameters)
+                    state=fitter.geometry.decode(parameters)
+                    final_guards={k:bool(v.all()) for k,v in fitter.guards(parameters).items()}
+                    record=dict(arm=arm,task=ordinal,scene=scene_name,object=task['object_name'],window=c['window'],
+                        recovery=audit,before=before,after=after,temporal=trace,final_guards=final_guards,
+                        history_exact=torch.equal(output[:,:2],c['edited'][:,:2]),
+                        common_exact=all(torch.equal(output[...,a:b],c['edited'][...,a:b]) for a,b in ((0,3),(84,90),(216,232))),
+                        temporal_rms_mm=float((state['human'][:,2:]-incoming['human'][:,2:]).square().mean().sqrt()*1000))
+                    records.append(record)
+                    motions.append(dict(window=c['window'],raw_source=c['raw_source'].cpu(),proposal=c['proposal'].cpu(),
+                        incoming=c['edited'].cpu(),output=output.cpu(),incoming_parameters=c['repair_parameters'].cpu(),parameters=parameters.cpu(),
+                        source_human=fitter.objective.anchor['human'].cpu(),incoming_human=incoming['human'].cpu(),output_human=state['human'].cpu(),
+                        object_translation_world=state['object_translation_world'].cpu(),object_rotation_world=state['object_rotation_world'].cpu(),
+                        timestamps_seconds=timestamps.cpu(),valid_frames=valid.cpu(),valid_links=links.cpu(),
+                        source_anchor=fitter.objective.hand_anchor.cpu(),stance_mask=fitter.protection.stance.cpu(),
+                        context={k:v.cpu() for k,v in context.items()},rest_offsets=offsets.cpu()))
+                    with (out/'per_window.jsonl').open('a') as handle:handle.write(json.dumps(record,allow_nan=False)+'\n')
+                torch.save(dict(arm=arm,task=task,mode='independent_window_replay',windows=motions),out/f'{arm}-{ordinal:03d}.pt')
+                print(arm,ordinal,len(motions),'complete',flush=True)
+    (out/'summary.json').write_text(json.dumps(dict(windows=len(records),tasks=len(tasks),expert_calls=0),indent=2))
+    return records
+
+
+def summarize_temporal_replay(run_root, task_manifest, device='cuda:7'):
+    """Task-paired A2 decision; cached independent windows never native episodes."""
+    root=Path(run_root)
+    records=[json.loads(line) for p in sorted(root.glob('scene-*/per_window.jsonl')) for line in p.read_text().splitlines()]
+    tasks=json.loads(Path(task_manifest).read_text())['tasks']
+    arms=('B1_no_hsi','B2_quality');tables={};scene_tables={};paired={};scene_paired={};means={}
+    for arm in arms:
+        tables[arm]={};scene_tables[arm]={};means[arm]={}
+        for stage in ('before','after'):
+            table={}
+            for task in tasks:
+                subset=[r for r in records if r['arm']==arm and r['task']==task['canonical_ordinal']]
+                if not subset:raise ValueError('Missing preregistered Temporal task')
+                table[str(task['canonical_ordinal'])]={k:float(np.mean([r[stage][k] for r in subset])) for k in subset[0][stage]}
+                for k in ('velocity_error_m2_per_s2','acceleration_error_m2_per_s4','velocity_normalized','acceleration_normalized'):
+                    table[str(task['canonical_ordinal'])][k]=float(np.mean([r['temporal'][stage][k][0] for r in subset]))
+                table[str(task['canonical_ordinal'])]['source_normalized_sum']=sum(table[str(task['canonical_ordinal'])][k] for k in ('velocity_normalized','acceleration_normalized'))
+            tables[arm][stage]=table
+            scene_tables[arm][stage]={scene:{k:float(np.mean([table[str(t['canonical_ordinal'])][k] for t in tasks if t['scene_name']==scene])) for k in next(iter(table.values()))} for scene in sorted({t['scene_name'] for t in tasks})}
+            means[arm][stage]={k:float(np.mean([t[k] for t in table.values()])) for k in next(iter(table.values()))}
+        paired[arm]=paired_local_metrics(tables[arm]['before'],tables[arm]['after'],device)
+        scene_paired[arm]=paired_local_metrics(scene_tables[arm]['before'],scene_tables[arm]['after'],device)
+    independent={}
+    for arm in arms:
+        independent[arm]={}
+        other=arms[1] if arm==arms[0] else arms[0]
+        for key in ('support_speed_m_per_s','contact_anchor_cm'):
+            independent[arm][key]=(means[arm]['before'][key]>0 and
+                means[arm]['after'][key]<=.95*means[arm]['before'][key] and
+                paired[arm][key]['ci'][1]<0 and scene_paired[arm][key]['delta']<=0 and
+                paired[other][key]['ci'][0]<=0)
+    gates=dict(coverage=len(records)==248 and all(sum(r['arm']==arm for r in records)==124 for arm in arms),
+        hard_guards=all(all(r['final_guards'].values()) for r in records),
+        fixed_history_common=all(r['history_exact'] and r['common_exact'] for r in records),
+        finite_execution=all(r['temporal']['reason']=='optimized' for r in records),
+        source_dynamics=all(means[a]['after']['source_normalized_sum']<means[a]['before']['source_normalized_sum'] for a in arms),
+        nonzero_changes=all(any(r['temporal']['changed'] for r in records if r['arm']==a) for a in arms),
+        independent_quality=any(v for arm in independent.values() for v in arm.values()))
+    for arm in arms:
+        b,a=means[arm]['before'],means[arm]['after']
+        gates[arm+'_scene_retained']=a['human_scene_residual_cm']<=b['human_scene_residual_cm']+.01 and a['human_occupied_fraction']<=b['human_occupied_fraction']
+        gates[arm+'_no_toe_lift']=a['toe_height_above_fixed_floor_cm']<=b['toe_height_above_fixed_floor_cm']+.1
+        gates[arm+'_motion_retained']=a['joint_speed_m_per_s']>=.95*b['joint_speed_m_per_s']
+    counts={arm:dict(windows=sum(r['arm']==arm for r in records),
+        changed=sum(r['temporal']['changed'] for r in records if r['arm']==arm),
+        accepted_steps=sum(sum(s['accepted']) for r in records if r['arm']==arm for s in r['temporal']['steps']),
+        mean_rms_mm=float(np.mean([r['temporal_rms_mm'] for r in records if r['arm']==arm])),
+        mean_seconds=float(np.mean([r['temporal']['seconds'] for r in records if r['arm']==arm]))) for arm in arms}
+    result=dict(phase='2.17',mode='independent_window_replay',test_set_development=True,
+        tasks=28,scenes=4,windows=248,expert_calls=0,native_rollouts_started=0,
+        decision='NUMERICAL-PASS-VISUAL-PENDING' if all(gates.values()) else 'NO-GO',
+        visual_review_pending=True,gates=gates,independent_quality=independent,means=means,
+        counts=counts,paired_task=paired,paired_scene=scene_paired,
+        limitation='Window replay is not a causally consistent task rollout; no native15 or completion claim.')
+    output=root/'analysis';output.mkdir(exist_ok=False)
+    for name,value in [('summary.json',result),('task_metrics.json',tables),('scene_metrics.json',scene_tables)]:
+        (output/name).write_text(json.dumps(value,indent=2,allow_nan=False))
+    return result
