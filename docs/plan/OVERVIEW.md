@@ -302,3 +302,5 @@ read PHASE_2M_DP_EVIDENCE_VIEWS.md before teacher reconsideration. Development
 rollout/full469 and learned training remain deferred; this closes only2.13.
 
 2026-09-07：Phase 2.14 按执行范围拆为 2.14a 固定源关系投影诊断、通过后的 2.14b 开发闭环；本次只关闭 2.14a。方案与冻结门槛见 PHASE_2_COMPOSITION.md 最新日期节。
+
+2026-09-07: Phase2.15 scene-prior conditional repair authorized; one candidate with full development rollout and gated469. See latest Phase2 plan; prior DP NO-GO remains unchanged.

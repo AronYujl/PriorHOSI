@@ -3565,3 +3565,90 @@ is missing. July InfBaGel469 task identities match, but its sealed evaluator
 never serialized the trajectories needed for unified motion re-evaluation.
 Any conditional-denoising-repair mechanism is a separately registered next
 proposal; it remains unvalidated and is not executed in this session.
+
+## 2026-09-07 — Phase 2.15 scene-prior conditional repair
+
+User authorizes implementing the latest scene_prior_transfer handoff (actual file
+/data/yujinlun/report/PriorHOSI_scene_prior_transfer_codex_plan.md), without further
+approval. Base44a33a6; branch phase/02o-scene-prior-transfer. One candidate, frozen
+P15 online ArmB500 and R2 EMA; no expert/core edits or old DP searches. This phase
+includes implementation,24-task complete development rollouts, and conditional
+full469 only if the frozen development conjunction below passes. Close once at
+the development NO-GO or completed full469. No external baseline/asset engineering.
+
+B0 is native HOI; B1 existing eight-refresh lambda0 geometry followed by the same
+constrained pose fitter with proposal target; B2 substitutes full-condition HSI
+clean targets. Development B0 must be newly evaluated with the same native motion
+decoder; historical proxy-only development files cannot supply native FS. Full469
+B0 may reuse p2-hosi-hoi-alone-g0-p15-guided-armb-s42-20260829 if unchanged.
+Use existing24-task manifest scene_evidence_development_s42_20260907.json (six
+scenes/four objects; previously used development, not untouched evaluation).
+Every method generates its own future from actual submitted history. Independent
+HOI episode/window seeds follow existing per-episode scheme; additional HSI noise
+and CPU occupancy subsampling use private generators. Preserve all tasks/failures.
+
+Configuration: canonical500-step linear beta[0.0001,0.02], x0 prediction;
+existing DDIMSolver(500,25), start99, timesteps[99,79,59,39,19], eta0; finish with
+clean x0 through solver's alpha_previous=1. KnownEmptyObjectView; original occupied
+scene view; full condition only, CFG0, no cond-uncond query or posterior guidance.
+Both geometry query states are the latest accepted clean candidate, with actual
+object retained. q_sample initializes proposal; scheduler updates the full state
+using constrained x0, so future locks remain at the appropriate noise level.
+Each of five targets receives4 projected-gradient pose-fit iterations with local
+Armijo(initial step0.25, shrink0.5,10 trials,c1=1e-4). Loss: summed local-rotation
+chord distance/(2*10deg^2) +0.25/2 summed squared tanh residuals. The21 local
+rotations use inherited10deg/component bounds. Translation/yaw parameters stay0;
+root rotation, position, object and contact channels copy proposal exactly.
+Source anchors/contact>0.95 remain from raw HOI, never proposal-reanchored.
+Six-VJP hand Jacobian (common columns zero) + existing thin float64 SVD projects
+the fitting direction; actual finite FK guards decide acceptance. No density-ratio
+or DP-gradient interpretation. B1 executes the identical5x4 fit budget targeting
+proposal and consumes no HSI RNG; exact zero gradient is a recorded stop.
+
+Hard repair guards against fixed proposal: history/root/object/contact exact;
+source active hand distance each <= max(proposal distance,0.005m)+0.001m;
+HS voxel RMS <= proposal+0.01cm; stance correction RMS <=0.05cm;
+foot displacement per frame <=2cm; no increased scene-domain violation per point.
+Source anchors with proposal drift>5cm mark invalid proposal/task failure. Existing
+outside-domain proposals stay visible and obey inherited nonexpansion rule, never
+called collision-free. Nonfinite predictions/fit failures retain last feasible
+state and explicit reason. Record every solver/teacher step, actual modification,
+accepted/fallback windows, timing and complete source/proposal/submitted motions.
+
+Development evaluator reuses native scale3/IK/SMPL-X and FS/contact/object-SDF/
+endpoint/completion functions. Missing scene SDF gives explicit null native HS/OS;
+complete-sequence FK/voxel proxies separately retain window protection scope.
+SMPL-X/FK reconstruction agreement must be measured before native interpretation;
+if incompatible, record unavailable native metrics and block promotion without
+building a new asset system. No metric renaming. All15 native fields retained.
+
+Frozen development gate (all conditions): no missing/failed tasks; immutable
+history and common-motion checks all pass; >=50% B2 windows differ from proposal
+by>=1mm future FK RMS, <=50% windows fall back unchanged. B2-B1 mean native FS
+improvement >=0.10 native units (existing FS reports cm); nominal95% task-paired
+upper CI<0 and scene mean delta<=0. Absolute0.10cm threshold exceeds rounding and
+small decimal-only movement; no borrowed5%/10% improvement rule. Task/scene
+bootstrap10000 seed42; all comparisons/metrics reported, never frames as samples.
+Against BOTH B0/B1, contact/completion nominal95% lower bounds>=-0.02 at task/scene
+units (inherited2.12), endpoint upper deltas<=1cm. Against B1 HS/OS proxy upper
+<=0.02cm and point<=0; against B0 both scene proxies must have point<=0 and at least
+one upper CI<0. Geometry gain retention and FS are read with engagement, root
+travel, joint motion and boundary jumps. Preselected full-sequence videos tasks
+007(006/suitcase),012(036/clothesstand), and all-task seam/displacement tables
+must show no patterned freezing/release/collision regression. Native scene limits
+are stated explicitly; development passes authorize full469 native confirmation.
+
+Only one interface correction is permitted if a measured implementation defect
+appears; retain failed manifests, use a new run id and identical scientific values.
+No optional low-noise search is scheduled. If science fails, stop this candidate.
+If passed, freeze and execute B1/B2 full469; use native HS/OS/contact/completion,
+FS, all endpoints and paired task/scene uncertainties; no test-based changes.
+Full469 HSI success requires same FS practical/statistical criterion and inherited
+contact/completion protection, native HS/OS nonpositive point and upper<=0.02
+native units versus B1, total scene benefit vs B0 upper<0 for at least one HS/OS
+with other nonpositive point. Preserve all unfavorable contrasts and failure rows.
+
+Use tools/experiment.py lifecycle and existing evaluator/bootstrap entry points;
+no new experiment script. Full authority tests and registry validation required.
+Actual complete development runs provide functional/performance evidence; user
+prohibits separate smoke tests. GPUs0..5 scene lanes; GPU7 paired statistics.
