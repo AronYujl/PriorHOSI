@@ -3764,3 +3764,81 @@ experiments/results/p2_mixer_scene_prior_transfer_s42_20260907.json.
 Seal engineering/development closure at exp/p2o-scene-prior-transfer-v1 and retain
 unresolved scene-prior transfer quality. The next entry is review of the measured
 pose-target/stance-constraint compatibility under the same native benchmark goal.
+
+
+## 2026-09-07 — Phase2.16 quality-preserving foot guard (authorized)
+
+User handoff: /data/yujinlun/report/PriorHOSI_next_experiment_Codex_af8f0d1.md.
+Base af8f0d1; branch phase/02p-foot-quality-guard. One candidate, foot-quality-guard-v1.
+Phase2.15 and its NO-GO remain sealed. This phase delivers native28 and its
+quality decision. A successful candidate permits separately numbered2.17 static
+condition ablation/441 confirmation, preregistered before those workloads; close
+one phase per session. No expert training, new assets, root/object unlock or solver
+search. Native data/hosi_test remains development-used (test_set_development=true).
+
+Only replace the repair-local stance acceptance predicate, with explicit
+foot_guard_mode=quality and foot_energy_epsilon_m2=1e-12. Legacy default remains
+increment with RMS<=.05cm. Keep the geometry proposal, objectives, all other
+constraints, P15/R2 EMA, ArmB500, five DDIM levels, seeds and actual-history
+rollout unchanged. Do not AND the old predicate with the new one.
+
+Reference mask is protection.stance, built from the current fixed proposal's
+source-floor height: joints7/8 heights<.08m,10/11<.04m, both ends of each frame
+pair active. Y is vertical, X/Z horizontal in world metres. Pairs are [1->2,...,
+14->15], including the history/future boundary. Cache proposal energy once.
+Compute squared X/Z displacement summed over2 axes then average over active
+frame-foot pairs, in float64 from the same float32 FK coordinates. Empty masks
+have energy0, count0 and a vacuous quality predicate; they convey no improvement
+evidence. Nonfinite human FK remains rejected by the existing finite guard.
+Epsilon1e-12m² is a numerical allowance (1micrometre RMS at a stationary
+reference), not a physical relaxation. Identity must be exact; verify repeated
+and reordered float64 reductions are within epsilon before native runs. No
+outcome-based epsilon selection. Preserve legacy increment diagnostics and log
+both predicates, proposal/candidate energies, difference, active count, other
+rejections and accepted steps that legacy would disallow.
+
+Fixed protocol before candidate outcomes:
+- Reuse the exact native28 manifest from2.15, scene shards0/22/44/66, seven
+  objects each. New B2_quality gets28 complete episodes. Reuse compatible B0/B1
+  and corrected r2 B2_hsi_repair by reference after output/RNG regression.
+- Primary: B2_quality minus B1_no_hsi, native
+  scene_human_penetration_s_mean. Require >=5% reduction of the sealed B1
+  mean4.104416241811123 (absolute reduction>=0.2052208120905562), task paired
+  95% upper<0, scene mean delta<=0. Five percent is the declared minimum useful
+  scene gain; old r2's2.27% gain is insufficient. No post-result metric choice.
+- OS protection versus B1: point<=0 and95% upper<=.02 native s_mean, retaining
+  the old margin for both task and scene units. Total HS/OS versus B0: both
+  points<=0 and at least one upper<0, also both units.
+- FS is now a protection metric:95% upper<=+.01 native cm versus B0 and B1
+  for task and scene units. This explicitly replaces the previous primary
+  FS improvement requirement for this new candidate only; .01cm is the same
+  previous practical-effect scale, now a maximum tolerated deterioration.
+- Retain contact/completion95% lower>=-.02 and root/object endpoint95%
+  upper<=1cm versus B0/B1, task and scene units. Complete28 pairs, all hard
+  final/history guards pass, no invalid proposals/nonfinite steps/task failures,
+  world history discrepancy<=1e-5m. Repair amplitude/1mm coverage/fallback are
+  diagnostics without quality gates. Report all original15 metrics.
+- Comparisons: new-B1 primary, new-old mechanism, new-B0 total; also retain
+  baseline/old contrasts. Paired10000 seed42 bootstrap, float64 CUDA7; task
+  units plus four scene means, no frame/window pseudo-replication. Report all
+  seven object strata and per-task deltas. Nominal95%, no cross-seed claim.
+- All operational/scientific failures and missing tasks retained. Missing or
+  nonfinite metrics block promotion; no complete-case pruning. Invalid proposals
+  and fallback remain in denominators; native task_failed remains visible.
+- Visualize preselected tasks014/329/371/420 in full, all four arms; add the
+  largest new-minus-B1 HS worsening and any newly failed completion case.
+  Review foot lift/penetration, hand loss, jitter, freezing and seams. Numerical
+  passage also requires visual review; proxy improvement alone never promotes.
+
+Tests cover identity, cancellation vs old rejection, worsening, frozen mask,
+empty/nonfinite, metres/squared reduction/boundary, other guards, legacy and
+B1 output/RNG. Full authority suite and registry validation required. Small
+real-data interface checks use sealed inputs and the initial complete native
+scene lane before remaining lanes; no separate unrequested smoke suite. Record
+synchronized native editor timing/peak memory, explicitly sharded timing; no
+training microbatch benchmark applies to batch1 inference. Preserve launchers
+only in ignored run artifacts, use experiment.py start and archived resolved
+Hydra configs on a clean committed worktree. Use screen for persistent workloads.
+
+Stop with insufficient evidence if primary practical/statistical gain or any
+protection fails. Do not relax more guards, change targets or run441 on failure.
