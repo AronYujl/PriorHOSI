@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "phase": "2.27",
+  "component": "route-continuation",
+  "base_commit": "7fe9fa4",
+  "seed": 42,
+  "authorization": "User approved the same-current sustained-route experiment on 2026-09-08.",
+  "source_protocol": "experiments/protocols/p2_continuation_outcomes_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907",
+  "state_manifest": "experiments/tasks/p2_continuation_states_s42_20260907.json",
+  "checkpoint_and_asset_reference": "experiments/protocols/p2_candidate_selection_s42_20260907.json",
+  "source_resolved_config": "results/experiments/p2-mixer-relational-sampling-r2-s42-20260907/resolved/lane-00.yaml",
+  "config": "code/config/config_sample_hosi_route_continuation.yaml",
+  "training_allowed": false,
+  "test_set_development": true,
+  "generation": {
+    "max_extra_windows": 2,
+    "max_new_windows": 44,
+    "states": 22,
+    "source_records": 26,
+    "new_branches_per_state": 1,
+    "current_regeneration": 0,
+    "extra_repeats": 0,
+    "arms": "Cached W0, cached original adopted pulse, new sustained route from exactly the same adopted current.",
+    "fixed": "P15 online, R2 frozen saved weights loaded with zero forwards, Arm B500, B1, seed42, native16/2 frame ownership/termination and final goals.",
+    "rng": "Existing generate_branch private seeds42+task+absolute_window*1000003; same sample counters; branch caller RNG restored.",
+    "future": "Native prepare_next_window and sample_step; replace only the persistent trajectory array. Next lookahead uses actual new history."
+  },
+  "route": {
+    "offset_m": 0.1,
+    "exit_lookaheads": 2.0,
+    "smoothstep": "q(u)=6u^5-15u^4+10u^3",
+    "construction": "Use the original A* sampled polyline and cached decision path_index j. s is cumulative original arc length. s_in=max(0,s_j-lookahead); s_out=min(s_end,s_j+2*lookahead). Offset vector is cached selected world waypoint minus original path[j], retaining its original sign and measured float32 value. Weight is q((s-s_in)/(s_j-s_in)) before j and 1-q((s-s_j)/(s_out-s_j)) after j, zero outside. Preserve original first/last points and exact cached selected anchor. One fixed polyline for the whole branch; no curve search or path rejection.",
+    "contract": "j is interior, original cached W0 world waypoint matches original path[j] within1e-5m, selected displacement norm matches10cm within1e-5m. Numerical tolerance validates cached coordinates only; no physical margin is enlarged.",
+    "geometry_audit": "GPU occupancy audit along both original and detour segments from s_in through s_out, linearly sampled at<=2cm. Translate the actual committed current frame13 FK24 body and FULL object mesh along the route, keeping height/orientation and object-root relation fixed. Report body/object occupancy, out-of-domain fraction and sweep-point counts. This fixed-pose envelope is a diagnostic proxy, not a whole-body motion feasibility certificate; no filtering or post-hoc exclusion.",
+    "manipulation": "Per future window save original and changed world/local pelvis lookahead at the SAME actual history, actual model goals, unchanged object/text/BPS/progress/history, route and root response. Meaningful command coverage>=1cm, future mean root displacement vs pulse>=1mm; coverage cutoffs are diagnostics and part of promotion interpretation."
+  },
+  "evaluation": {
+    "reference": "Reuse original evaluator functions and Phase2.25 direct_quality/future_improvement. Every arm evaluated together with fixed C0 W0 activity/stance. Preserve legacy anchor/progress labels as separately named diagnostics.",
+    "primary": "Paired sustained minus pulse in current/next1/next2/cumulative; also each vs W0. Absolute per-hand5cm coverage/distance, support speed, native-compatible fragment FS, HS/OS, terminal3D goals. No native FS threshold is imported from whole-task results.",
+    "joint": "Cumulative HS<W0 and OS<=W0; old cumulative scene-proxy protections; no direct-quality margin violations vs W0 or pulse in any observed slice; observed completion cannot regress vs either reference; valid fixed active-hand evidence required. Anchors/intermediate goal distance remain proxies.",
+    "upgrade": "At least2 distinct tasks have joint candidates and future direct improvement vs pulse (>=5pp per-hand coverage, >=1cm surface distance reduction, or >=.01m/s support-speed reduction), with meaningful realized command/motion coverage. New direct-regression task count must not exceed improved joint task count. A lone task375 win is insufficient. This is a gate to DISCUSS a full fixed policy, not permission to execute it.",
+    "subgroups": "Report all22 and fixed delayed-new14 from source frame_ownership_attribution: delayed_component_group true AND current_cached_available exceeds_registered_hand_margin false. Remaining7 immediate/1 cached-tail retained; no new quality-based selection.",
+    "uncertainty": "22 targeted states nested in12tasks/4scenes: descriptive state-paired values, task means then scene means; no independent-window/population or cross-seed confidence claim.",
+    "censor": "Original terminal only at original total_windows; no additional windows or time budget."
+  },
+  "verification": {
+    "authority": "Full pytest tests and registry validation before formal start.",
+    "functional": "First formal lane within44 verifies current identity, first future non-route conditions against cached pulse, actual model route conditions and state advance. Zero added smoke/extra generation.",
+    "performance": "Synchronized inference generation and GPU geometry/evaluation timing with allocator peaks on8RTX3090. Batch1 workload only, training microbatch benchmark inapplicable.",
+    "provenance": "Existing experiment.py manifest lifecycle; reference sealed input identities, add no hash scheme and do not rehash unchanged checkpoints.",
+    "failures": "Retain every failed manifest/output. Reuse successfully saved windows on any explicit same-protocol implementation recovery; no automatic regeneration."
+  },
+  "reporting": {
+    "fixed_visual_tasks": [
+      333,
+      376,
+      421,
+      20,
+      375
+    ],
+    "deliverables": "Paired state/task/scene tables; route command/envelope audits; fixed animations and mechanism figure; compact result, phase summary and completion record."
+  },
+  "next_phase": "Close only2.27. Reserved2.26 remains unstarted. No training, HSI ranking, full native28 policy, 441/469, extra curve/weight/offset search."
+}

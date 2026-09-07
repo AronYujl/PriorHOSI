@@ -4570,3 +4570,34 @@ Closure verification:1079passed/4skips171.42s;392registry records valid. Frozen
 core/experts/native metric and original guidance loss files unchanged from7027ccb.
 107persistent active-hand transitions retain C2 anchors exactly; C1 refreshes107;
 264B1 editor records valid. Completion changes contain results/docs only.
+
+## 2026-09-08 — Phase2.27 sustained-route continuation (authorized)
+
+The user approved the same-current route experiment after7fe9fa4. Branch
+phase/02x-route-continuation; protocol p2_route_continuation_s42_20260908.json.
+Reserved2.26 remains the unstarted conditional relational policy. Close only2.27.
+
+Reuse26 source links/22states and both cached W0/adopted-pulse branches. Commit
+exactly the cached adopted current, then generate at most2 windows per state,
+44 total. Freeze P15/R2/ArmB/B1/seed42/native16/2/final goals/time budget. The only
+intervention is one persistent deformed A* polyline. Its cached signed10cm anchor
+is fixed; quintic smoothstep enters over one original lookahead and exits over
+up to two lookaheads, preserving endpoints. No curve, amplitude or weight search.
+Actual-history native lookahead and all non-route conditions are recorded.
+
+GPU fixed-pose sweeps carry current committed FK24 and full object mesh along
+both routes, reporting occupancy/domain exposure without rejecting samples or
+claiming exact joint-motion feasibility. Native surface/contact/FS evaluation
+and fixed W0 support/activity remain shared; original anchor/progress labels are
+separate. Report all22, the previously identified14new-prediction-risk subgroup,
+state/task/scene pairs and original-terminal vs censored outcomes. The explicit
+joint improvement and >=2-task discussion gate is in the frozen protocol.
+
+Full authority suite, registry validation and exact resolved configs precede a
+clean-worktree formal run. The first registered lane provides real-data checks
+within44; no extra smoke or training microbatch path. Record synchronized timings,
+allocator peaks and8RTX3090 allocation. Reuse sealed input provenance. No new tools
+script, core/expert/evaluator-formula changes, training or full policy/441/469.
+One preregistration, logical implementation and completion commit; preserve actual
+operational failures and saved outputs. Deliver fixed five-case animations, paired
+reports and a phase summary regardless of direction of results.
