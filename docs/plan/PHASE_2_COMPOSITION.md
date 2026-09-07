@@ -4613,3 +4613,21 @@ are present; input identities are referenced. Initial component fixtures lacked
 surface_mean_m; correcting those fixtures changes no physical metric or margin.
 The final component suite has34 passing checks. Full authority verification is
 archived under results/route-continuation-preflight-s42-20260908/.
+
+## 2026-09-08 — Phase2.27 completion: sustained route joint gate unmet
+
+All22states/44new windows complete;8jobs exit0. Cached current/non-route first
+future histories match22/22;1408baseline native scalars exact;1088tests pass/4skips.
+15states/8tasks show meaningful commands and28.35mm mean future root movement.
+Scene-benefit coverage14->16;18states still violate direct protections. Two new
+states pass W0-relative joint protection (both task375); only375/state005 also
+passes protection vs the pulse, with no threshold-sized future gain. Qualifying
+tasks0;8states across5tasks trigger direct regression. Task375 accounts for97.73%
+of task-balanced HS net improvement. Six new branches reach original terminal,
+five complete as before;16are censored. No HSI forwards or training.
+
+Registered method gate fails; engineering deliverable closes. Stop this fixed
+curve without tuning. See PHASE_2X_ROUTE_CONTINUATION.md and compact
+p2_mixer_route_continuation_s42_20260908.json. Source4943a60, tag
+exp/p2x-route-continuation-v1. One subphase only;2.26/full policy/441/469 remain
+unstarted. Next proposal requires independent-domain valid-future supervision.

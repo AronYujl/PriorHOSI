@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "phase": "2.27",
+  "component": "route-continuation",
+  "experiment_id": "p2-mixer-route-continuation-s42-20260908",
+  "status": "completed",
+  "engineering_integrity": true,
+  "decision": "DO_NOT_UPGRADE_SUSTAINED_ROUTE",
+  "upgrade_full_policy": false,
+  "conclusion": "The fixed sustained route changes15states and increases scene-benefit coverage14to16, but18states still fail direct protections. One state passes both-reference joint protections with no threshold-sized future gain; zero qualifying tasks and five regression tasks. Stop this curve without additional search.",
+  "baseline_commit": "7fe9fa4",
+  "preregistration_commit": "1765595",
+  "runtime_commit": "4943a60",
+  "git_commit": "4943a606b95e605f55419f643741d84e41625d9f",
+  "config": "code/config/config_sample_hosi_route_continuation.yaml",
+  "protocol": "experiments/protocols/p2_route_continuation_s42_20260908.json",
+  "run_root": "results/experiments/p2-mixer-route-continuation-s42-20260908",
+  "phase_summary": "docs/phase_summaries/PHASE_2X_ROUTE_CONTINUATION.md",
+  "tag": "exp/p2x-route-continuation-v1",
+  "checkpoints": {
+    "ckpt_path": "/data/yujinlun/InfBaGel-visualization-artifacts/source-checkpoints/hoi/p15/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth",
+    "checkpoint_sha256": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c",
+    "hsi_ckpt_path": "/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth",
+    "hsi_checkpoint_sha256": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe"
+  },
+  "training_allowed": false,
+  "test_set_development": true,
+  "additional441": false,
+  "full469": false,
+  "counts": {
+    "source_links": 26,
+    "states": 22,
+    "tasks": 12,
+    "scenes": 4,
+    "new_windows": 44,
+    "cached_branches": 44,
+    "new_branches": 22,
+    "realized_states": 15,
+    "realized_tasks": 8,
+    "command_windows_at_least1cm": 22,
+    "delayed_new_states": 14,
+    "delayed_realized": 11,
+    "regression_states": 8,
+    "regression_tasks": 5,
+    "new_terminal_branches": 6,
+    "new_terminal_completed": 5,
+    "new_censored_branches": 16
+  },
+  "comparisons": {
+    "pulse": {
+      "scene_benefit": 14,
+      "direct_failed": 18,
+      "joint_vs_W0": 1,
+      "terminal": 6,
+      "completed": 5
+    },
+    "sustained": {
+      "scene_benefit": 16,
+      "direct_failed": 18,
+      "joint_vs_W0": 2,
+      "terminal": 6,
+      "completed": 5
+    }
+  },
+  "joint_vs_W0_states": [
+    {
+      "task": 375,
+      "state": "state-005"
+    },
+    {
+      "task": 375,
+      "state": "state-018"
+    }
+  ],
+  "registered_both_reference_joint_states": [
+    {
+      "task": 375,
+      "state": "state-005"
+    }
+  ],
+  "qualifying_tasks": [],
+  "regression_tasks": [
+    334,
+    374,
+    375,
+    376,
+    424
+  ],
+  "task_balanced_cumulative_deltas": {
+    "W0": {
+      "native_surface_HS_s_mean": -2.9652206562621157,
+      "native_surface_OS_s_mean": -7.864802269244541,
+      "native_fragment_FS_cm": -0.0060623274153384,
+      "contact_any_5cm": -0.015733613011838815,
+      "support_speed_m_per_s": 0.004559260218287028
+    },
+    "pulse": {
+      "native_surface_HS_s_mean": -1.2138170233358525,
+      "native_surface_OS_s_mean": -0.6825492968838868,
+      "native_fragment_FS_cm": -0.0016723873677892507,
+      "contact_any_5cm": 0.0008400537634408617,
+      "support_speed_m_per_s": -0.00048345699730134025
+    }
+  },
+  "task375_share_of_net_task_HS_delta": 0.9772925854599616,
+  "realized_future_root_mean_displacement_mm": 28.34605941772461,
+  "scope": "Relative gates are not absolute physical certification; selected developmental states, real terminal only, descriptive task/scene nesting. Fixed-pose FK/full-object envelope is a diagnostic proxy. HSI forwards0; no HSI value inference.",
+  "key_cases": [
+    {
+      "state": "state-003",
+      "task": 372,
+      "horizon": "next_2",
+      "W0": {
+        "native_surface_HS_s_mean": 3.8141937255859375,
+        "native_surface_OS_s_mean": 1.0221010446548462,
+        "native_fragment_FS_cm": 0.42540030321106315,
+        "support_speed_m_per_s": 0.1109640420311027,
+        "hand_surface_mean_m": [
+          0.5779318884015083,
+          0.014756648892944214
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.9
+        ]
+      },
+      "pulse": {
+        "native_surface_HS_s_mean": 2.304784059524536,
+        "native_surface_OS_s_mean": 0.14471754431724548,
+        "native_fragment_FS_cm": 0.5701828794553876,
+        "support_speed_m_per_s": 0.4855396642039219,
+        "hand_surface_mean_m": [
+          0.5978260442614556,
+          0.01457664417102933
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.9
+        ]
+      },
+      "sustained": {
+        "native_surface_HS_s_mean": 1.566787600517273,
+        "native_surface_OS_s_mean": 0.0,
+        "native_fragment_FS_cm": 0.5070853349752724,
+        "support_speed_m_per_s": 0.4281848210117055,
+        "hand_surface_mean_m": [
+          0.5852643921971321,
+          0.012053439569717739
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.9750000000000001
+        ]
+      }
+    },
+    {
+      "state": "state-005",
+      "task": 375,
+      "horizon": "next_2",
+      "W0": {
+        "native_surface_HS_s_mean": 543.2260131835938,
+        "native_surface_OS_s_mean": 765.2311401367188,
+        "native_fragment_FS_cm": 0.6196019891649485,
+        "support_speed_m_per_s": 0.47328813024321376,
+        "hand_surface_mean_m": [
+          0.07602868508547544,
+          0.01182929725619033
+        ],
+        "hand_coverage_5cm": [
+          0.05,
+          1.0
+        ]
+      },
+      "pulse": {
+        "native_surface_HS_s_mean": 434.1236267089844,
+        "native_surface_OS_s_mean": 545.06982421875,
+        "native_fragment_FS_cm": 0.5854036752134562,
+        "support_speed_m_per_s": 0.45743181016676276,
+        "hand_surface_mean_m": [
+          0.06199035989120603,
+          0.011378454725490884
+        ],
+        "hand_coverage_5cm": [
+          0.25,
+          1.0
+        ]
+      },
+      "sustained": {
+        "native_surface_HS_s_mean": 391.7174987792969,
+        "native_surface_OS_s_mean": 595.0516967773438,
+        "native_fragment_FS_cm": 0.5433731898665428,
+        "support_speed_m_per_s": 0.4674293014924137,
+        "hand_surface_mean_m": [
+          0.06447265492752195,
+          0.013842889555962757
+        ],
+        "hand_coverage_5cm": [
+          0.225,
+          1.0
+        ]
+      }
+    },
+    {
+      "state": "state-008",
+      "task": 376,
+      "horizon": "next_2",
+      "W0": {
+        "native_surface_HS_s_mean": 0.0,
+        "native_surface_OS_s_mean": 0.0,
+        "native_fragment_FS_cm": 0.2812609449028969,
+        "support_speed_m_per_s": 0.14134157538689948,
+        "hand_surface_mean_m": [
+          0.08159881215542555,
+          0.061608352418988946
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.2
+        ]
+      },
+      "pulse": {
+        "native_surface_HS_s_mean": 0.0,
+        "native_surface_OS_s_mean": 0.0,
+        "native_fragment_FS_cm": 0.2736493106931448,
+        "support_speed_m_per_s": 0.1356506236328709,
+        "hand_surface_mean_m": [
+          0.08099361071363093,
+          0.058848423836752775
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.225
+        ]
+      },
+      "sustained": {
+        "native_surface_HS_s_mean": 0.0,
+        "native_surface_OS_s_mean": 0.0,
+        "native_fragment_FS_cm": 0.2147848205640912,
+        "support_speed_m_per_s": 0.10753652080893517,
+        "hand_surface_mean_m": [
+          0.07817316809669138,
+          0.05967687275260687
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          0.25
+        ]
+      }
+    },
+    {
+      "state": "state-020",
+      "task": 375,
+      "horizon": "next_2",
+      "W0": {
+        "native_surface_HS_s_mean": 481.5592956542969,
+        "native_surface_OS_s_mean": 800.6351928710938,
+        "native_fragment_FS_cm": 0.6285675521939993,
+        "support_speed_m_per_s": 0.4614681243440326,
+        "hand_surface_mean_m": [
+          0.08872993048280478,
+          0.01553565814101603
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          1.0
+        ]
+      },
+      "pulse": {
+        "native_surface_HS_s_mean": 452.1515197753906,
+        "native_surface_OS_s_mean": 706.9775390625,
+        "native_fragment_FS_cm": 0.5949530750513077,
+        "support_speed_m_per_s": 0.40904543252319703,
+        "hand_surface_mean_m": [
+          0.09016334488987923,
+          0.012600854155607522
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          1.0
+        ]
+      },
+      "sustained": {
+        "native_surface_HS_s_mean": 388.8133239746094,
+        "native_surface_OS_s_mean": 688.5030517578125,
+        "native_fragment_FS_cm": 0.5742011358961463,
+        "support_speed_m_per_s": 0.4344433917074787,
+        "hand_surface_mean_m": [
+          0.0843994882889092,
+          0.016300411801785233
+        ],
+        "hand_coverage_5cm": [
+          0.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "cost": {
+    "HOI_calls": 22704,
+    "HSI_calls": 0,
+    "generated_windows": 44,
+    "attempted_windows": 44,
+    "wall_seconds": 249.75331617332995,
+    "generation_seconds": 226.60936523601413,
+    "peak_allocated_bytes": 956363776,
+    "evaluation_seconds": 25.860904613509774,
+    "controller_seconds": 123.804707063362,
+    "envelope_seconds": 0.6149751450866461,
+    "hardware": "8x RTX3090; first lane then7parallel lanes",
+    "timing_scope": "Synchronized batch1 generation includes actual model-input checks. Planning/preparation/envelope within branch wall; cached baseline latency is not a matched current latency control."
+  },
+  "verification": {
+    "authority_passed": 1088,
+    "authority_skipped": 4,
+    "authority_seconds": 192.08,
+    "component_checks": 34,
+    "config_pairs": 8,
+    "cached_current_exact": 22,
+    "first_future_nonroute_and_history_exact": 22,
+    "baseline_native_scalars_exact": 1408,
+    "actual_model_calls_checked": 22704,
+    "all_lane_exit0": true,
+    "formal_failures": 0,
+    "logs": "results/route-continuation-preflight-s42-20260908"
+  },
+  "failures": [],
+  "implementation_work": "Two initial new test fixtures lacked surface_mean_m; fixtures corrected before the formal run. Scientific definitions and runtime candidate unchanged.",
+  "visualization": {
+    "videos": 5,
+    "frames": 20,
+    "figure": "visualizations/route-summary.png",
+    "inspected": [
+      "route-summary.png",
+      "task-375-frame2.png"
+    ],
+    "human_blind_review_pending": true
+  },
+  "artifacts": {
+    "summary": "analysis/summary.json",
+    "paired": "analysis/paired_components.csv",
+    "task_means": "analysis/task_means.json",
+    "scene_means": "analysis/scene_means.json",
+    "envelopes": "analysis/envelope_audits.json",
+    "additional_verification": "analysis/additional_verification.json",
+    "visualizations": "visualizations"
+  },
+  "next_action": "Close2.27 only. Stop this fixed route, no native28 policy/training/441/469. Next proposal should define an independent-domain trajectory-conditioned HOI adaptation and valid future supervision; require matched no-HSI controls for later transfer."
+}
