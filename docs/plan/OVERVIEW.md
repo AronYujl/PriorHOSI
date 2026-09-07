@@ -3,13 +3,15 @@
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
-2026-09-07 当前进度：Phase2.17源动态Temporal模块及固定输入验证完成，结论NO-GO。
-两组各124窗口，源动态误差下降68.15%/53.90%，但独立足部/接触质量改善不足。
-全部硬约束和场景保留通过；995项测试通过、4项历史跳过；全部28任务视频/曲线保存。
-未启动2.18闭环native28、441或469，旧2.15/2.16负结果保持封存。
-详见 [Phase2.17总结](../phase_summaries/PHASE_2Q_TEMPORAL_PRESERVATION.md)
-及 [Phase2计划](PHASE_2_COMPOSITION.md)。下一步等待新的实验交接。
-目标仍是在 data/hosi_test 的原生469任务上超越InfBaGel，目前尚未建立该结果。
+2026-09-07 当前进度：Phase2.20固定K4完整HOI候选池与HSI选择完成，结论NO-GO。
+112候选/496窗口全部有效（28复用+84新增），CF相对同池CG的原生HS恶化.0935%、
+OS恶化.4027%，完成22/28→21/28。26任务有多候选，保护定义下oracle的HS提升仅.0414%；
+新候选相对C0人体坐标RMS平均3.63mm，候选覆盖有限。task420暴露XZ终点代理与原生
+三维完成保护之间的缺口。1012 tests通过/4历史skips，完整结果、五视频和代码封存。
+详见 [Phase2.20总结](../phase_summaries/PHASE_2R_CANDIDATE_SELECTION.md)
+及 [Phase2计划](PHASE_2_COMPOSITION.md)。旧Temporal负结果保持封存，未扩大441/469。
+下一入口等待新交接，讨论候选覆盖、三维目标保护和场景兼容性表示；不自动调参/训练。
+目标仍是在data/hosi_test上超越InfBaGel，目前未建立完整469上的这一结论。
 
 ## 1. 主张、边界与接口
 

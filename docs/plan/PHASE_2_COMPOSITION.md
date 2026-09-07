@@ -4106,3 +4106,36 @@ synchronized query/geometry timing and allocator peaks; generation is sharded.
 Artifacts:results/candidate-selection-preflight-s42-20260907/ and prospective
 results/experiments/p2-mixer-candidate-selection-s42-20260907/. First full native
 scene is an actual registered candidate lane; no separate smoke workload.
+
+
+### Phase2.20 completion — fixed candidate pool NO-GO (2026-09-07)
+
+Runtime38fcaa3 completes112/112 candidates (28 compatible B1 reused,84 new),
+496 valid windows;12 generation and4 scoring jobs exit0, no technical retry.
+All112 motion files immutable;372 captured contexts agree with reconstruction
+within1.431e-6; legacy124 contexts recovered with previously disclosed mask
+availability caveat.140 selected outputs link to exact existing candidate files.
+
+CF-CG native HS +.00373478 (task95%[+.00003460,+.00927786]),.0935% worse;
+OS +.10946594[+.02440425,+.22930376],.4027% worse; completion22/28→21/28.
+HS primary and OS/completion protection fail. FS/contact/endpoints satisfy their
+registered margins; contact nevertheless has a small resolved mean decline.
+CF-CS HS improvement unconfirmed; correct-vs-mismatch HS improvement mostly
+comes from task375.26 tasks permit multiple candidates, no empty acceptable set;
+9 candidates excluded by support speed, geometry budget excludes no extra ones.
+Protected oracle HS improvement overCG only.0414%, new candidates' mean human
+coordinate RMS fromC0=3.633mm: limited proposal coverage and scoring utility.
+Task420 CF object endpoint10.080928cm vsCG9.631516cm; registered coarse XZ
+proxy6.420175cm passes while vertical error7.772160cm makes native3D fail.
+This finite protection gap is retained, not revised after viewing outcomes.
+
+1012 passed/4 historical skips174.35s; registry379 valid. Controller672.47s;
+K4 cumulative generation2615.86s incl cachedC0, HSI3-branch153.26s/11904
+forwards (3968 required CF,3968 each static/mismatch); no per-head time claim.
+Five complete videos and40 reviewed frames show no clear quality gain;329
+crouching persists. Human blind review remains pending, numerical NO-GO independent.
+Full evidence and next entry: PHASE_2R_CANDIDATE_SELECTION.md; compact JSON
+p2_mixer_candidate_selection_s42_20260907.json. Engineering closure passes;
+scientific upgrade fails. Seal exp/p2r-candidate-selection-v1 and integrate
+phase/02-mixer. Stop before441/469, tuning, post-editing or training. Await new
+handoff on meaningful complete human-object proposal coverage and scene scoring.
