@@ -4332,3 +4332,40 @@ pending. Summary `PHASE_2U_SINGLE_SIDE_WAYPOINT.md`, compact result
 `exp/p2u-single-side-waypoint-v1`. Engineering deliverable closes; method NO-GO.
 Next discussion must address joint feasibility across generated histories;
 do not tune current score/offset/margins or start further phases/441/469/training.
+
+## 2026-09-07 — Phase 2.24 paired continuation outcomes (authorized)
+
+Latest user handoff `PriorHOSI_f202825_next_experiment_plan_codex.md` authorizes
+a bounded counterfactual diagnostic from sealed f202825, branch
+`phase/02v-continuation-outcomes`. Read-only inventory verifies all26 adopted
+decisions (G12/H14),12 tasks,4 scenes, all78 current candidates available.
+Exact physical/condition/history and candidate equality yields22 states; four
+duplicate source links remain visible. Plan132 new windows, hard ceiling156,
+three cached candidates then at most two frozen B1 windows each. No current
+regeneration, extra repeat calls, longer tails, training or441/469 is budgeted.
+
+Protocol `experiments/protocols/p2_continuation_outcomes_s42_20260907.json` freezes
+source identities, per-hand diagnostic margins, horizon labels, N/A, costs and
+termination semantics before outcomes. Source fingerprints use existing lifecycle
+helpers only; sealed expert/config assets are referenced. Recover the exact native
+world decode/history update by extracting shared functions from the original
+evaluator; use its sample_step for route/progress conditions. Original episodes
+have fixed seg_len and no early-goal termination. Label budget censor separately
+from genuine original terminal; native_retained_v2 and object3D stay frozen.
+
+Current/next1/next2/cumulative separate actual retained frames; native-compatible
+fragment surface metrics and FS stay distinct from whole-task native metrics
+and FK/voxel proxies. Diagnose per-hand fixed-source relationships and predicted
+contact transitions; ambiguous release remains explicit. Branches have fresh
+sampler/editor/caches and paired private per-window RNG. Cached compatible old
+B1 futures provide real replay checks within the132 formal windows. Full authority
+suite and registry validation precede clean-worktree manifests and execution.
+No separate smoke workload; synchronized timing/allocator measurements cover
+batch1 inference, with no training microbatch benchmark path.
+
+Gate is complete reproducible consequence evidence, all26 source/missing/error
+records and state/task/scene tables, fixed animations/render entry and one-page
+mechanism decision. It requires no favorable mean and cannot upgrade Phase2.23.
+One preregistration, one logical implementation, one completion commit; close
+only2.24. Prepare a future independent-domain learning protocol only if measured
+feasible candidates and labels support it; no next-phase execution this session.

@@ -1,0 +1,8 @@
+# Paired outcome diagnostic; explicitly enabled through hosi_mode.
+defaults: [config_sample_hosi_candidate_pool, _self_]
+
+continuation:
+  enabled: false
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_continuation_outcomes_s42_20260907.json
+  scene: null
+  state_ids: null

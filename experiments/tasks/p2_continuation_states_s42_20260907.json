@@ -1,0 +1,1570 @@
+{
+  "schema_version": 1,
+  "phase": "2.24",
+  "baseline_commit": "f202825",
+  "source_protocol": "experiments/protocols/p2_single_side_waypoint_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907",
+  "records": [
+    {
+      "record_id": "G-020-001",
+      "state_id": "state-000",
+      "policy": "G",
+      "task": 20,
+      "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "object": "tripod",
+      "window": 1,
+      "total_windows": 4,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "contact_anchor_m",
+            "contact_surface_distance_m",
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "object_occupied_fraction",
+            "contact_fraction",
+            "world_joint_speed_retention"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-020-window-001-decision.json",
+        "sha256": "e5d2aeb43cfda8788e4702f25d3718d1c707e342f70c6fc0cb837bc1a49b3c70"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard66of67/episode-motion-020.pt",
+        "sha256": "4f165e0fbb8da80d0230fae61d485bdcb70e9dc32f8e3a1cc40fcac76f35ba21"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-020-window-001-W0.pt",
+          "sha256": "ff2e85d33c817bbc37deece9c5ca6a3173659f7d53b33a7bc313cf30c8bf7e85"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-020-window-001-Wplus.pt",
+          "sha256": "5c712f4c4c8f12c2a019fb38c6717fd6fed623852361607f83500a18a76f0282"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-020-window-001-Wminus.pt",
+          "sha256": "9f05623d085321e30364e15e18777c59a9b95e464682eecaa36cef6d969e4562"
+        }
+      },
+      "state_fingerprint": "ff2e85d33c817bbc37deece9c5ca6a3173659f7d53b33a7bc313cf30c8bf7e85",
+      "rng": {
+        "episode_seed": 62,
+        "current_seed": 1000065,
+        "sample_calls": 1
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-333-000",
+      "state_id": "state-001",
+      "policy": "G",
+      "task": 333,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 3,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "world_joint_speed_retention"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-333-window-000-decision.json",
+        "sha256": "1f313850c8e9c9320ef538782369012fb186f0f871fef1fe5715688f85ff1407"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard44of67/episode-motion-333.pt",
+        "sha256": "7602bd9cfc7d78f6cfc8eec1fe79801cc5776df4909d5d33904f35ac66cb0555"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-333-window-000-W0.pt",
+          "sha256": "42d29aee047a96f3cde22a9e691306061182fa0d6ac4afd4b5f5c2838bffa981"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-333-window-000-Wplus.pt",
+          "sha256": "a595540dd64b9180a4a062df8fae0d8e93a4c10f694d19de8b9f70276d67cf7c"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-333-window-000-Wminus.pt",
+          "sha256": "3bbd3a869ca59c34a2eae7bc751e4c876c8fb3768335e720914c197aaaa6ac99"
+        }
+      },
+      "state_fingerprint": "42d29aee047a96f3cde22a9e691306061182fa0d6ac4afd4b5f5c2838bffa981",
+      "rng": {
+        "episode_seed": 375,
+        "current_seed": 375,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-334-003",
+      "state_id": "state-002",
+      "policy": "G",
+      "task": 334,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "suitcase",
+      "window": 3,
+      "total_windows": 6,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-334-window-003-decision.json",
+        "sha256": "ccb1da50ec65f4dfd79705a65a02888926eadaa8510cd893e484464b67c6aa93"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard44of67/episode-motion-334.pt",
+        "sha256": "d09654080befcd39bc6d9529f32583567e3ee121e37f40b7ce52bfe248e21421"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-334-window-003-W0.pt",
+          "sha256": "a44155f6ebcff774748161000bbf7169c0069047ceb88f7373c75f88e8f0f463"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-334-window-003-Wplus.pt",
+          "sha256": "13eaf95b9dc2adbda56deb67e71cef5f77ed4f72ba08b409d8cd12147a5289d6"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-334-window-003-Wminus.pt",
+          "sha256": "b9c8b5365c285819512e8f5f74025cd69309dfc9f84ed8dcad1e6c8fbf5c22c2"
+        }
+      },
+      "state_fingerprint": "a44155f6ebcff774748161000bbf7169c0069047ceb88f7373c75f88e8f0f463",
+      "rng": {
+        "episode_seed": 376,
+        "current_seed": 3000385,
+        "sample_calls": 3
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-372-000",
+      "state_id": "state-003",
+      "policy": "G",
+      "task": 372,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "floorlamp",
+      "window": 0,
+      "total_windows": 5,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s",
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "object_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-000-decision.json",
+        "sha256": "39ffeab546aae0b9b4b6025af1ec66af49e41a2339558ff708a212c821ddaa8e"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-372.pt",
+        "sha256": "fb719896f21ae28d6ea9b663ad1e68591b0be47d6431a3296522a5116eea9042"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-000-W0.pt",
+          "sha256": "88a5723fd95577344ec75800756842a276ee6fa4b000f120b4bd5c3f51342bbe"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-000-Wplus.pt",
+          "sha256": "163a80be5135f7f0dae5ef6980403b9dd0e8d5609be50575037ed4eed9159498"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-000-Wminus.pt",
+          "sha256": "57005ddf88c9ca57d0bef8e61e7777cf278a7e670800a2af86fafcbc86896087"
+        }
+      },
+      "state_fingerprint": "88a5723fd95577344ec75800756842a276ee6fa4b000f120b4bd5c3f51342bbe",
+      "rng": {
+        "episode_seed": 414,
+        "current_seed": 414,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-372-002",
+      "state_id": "state-004",
+      "policy": "G",
+      "task": 372,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "floorlamp",
+      "window": 2,
+      "total_windows": 5,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "human_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-002-decision.json",
+        "sha256": "f5533551193270d47503ce699bd91150b4ffb49e261da0b9526069a1807bd4e8"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-372.pt",
+        "sha256": "fb719896f21ae28d6ea9b663ad1e68591b0be47d6431a3296522a5116eea9042"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-002-W0.pt",
+          "sha256": "b01ea56c07243fdfad58e4e95a11d9ec017b7b69c52889066cc758e54788f399"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-002-Wplus.pt",
+          "sha256": "7ce08c332ae69e79b53917c56f594dad9447c19ae8c6e9cee43846959b5f3729"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-372-window-002-Wminus.pt",
+          "sha256": "d98ffa71c74553fc5afcad69f113588a5c7f53e5e31cf9c372f464bec5bfd29c"
+        }
+      },
+      "state_fingerprint": "b01ea56c07243fdfad58e4e95a11d9ec017b7b69c52889066cc758e54788f399",
+      "rng": {
+        "episode_seed": 414,
+        "current_seed": 2000420,
+        "sample_calls": 2
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-375-005",
+      "state_id": "state-005",
+      "policy": "G",
+      "task": 375,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "smalltable",
+      "window": 5,
+      "total_windows": 10,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "human_occupied_fraction",
+            "object_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-375-window-005-decision.json",
+        "sha256": "16c89ee45462f69bc1fcabd446cc6c6bbcf4c5aae51f1be35cec1814eae29aa8"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-375.pt",
+        "sha256": "71f9e804b54b9700581b5c8ce47c2763dad9ef6e081eae0c66194b904cc2e934"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-375-window-005-W0.pt",
+          "sha256": "c8297b4ff87147f75d33c191f91e275de6f9ad3c4eef1e26c9ff082524579744"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-375-window-005-Wplus.pt",
+          "sha256": "89e5ea11ea031209cc5a2ce76f9fe5a8a4bd5dbad44c4aff2c18b2d6f2d1045b"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-375-window-005-Wminus.pt",
+          "sha256": "eed4b0a31c0f3e9f4a906e4565ad857c9bed6a9ab103631a02a49101454935ce"
+        }
+      },
+      "state_fingerprint": "c8297b4ff87147f75d33c191f91e275de6f9ad3c4eef1e26c9ff082524579744",
+      "rng": {
+        "episode_seed": 417,
+        "current_seed": 5000432,
+        "sample_calls": 5
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-376-000",
+      "state_id": "state-006",
+      "policy": "G",
+      "task": 376,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "suitcase",
+      "window": 0,
+      "total_windows": 7,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "world_joint_speed_retention"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-000-decision.json",
+        "sha256": "75941c7420ffbc7b7d95cba2f82f68792285fa9a40af1e434f49a20f902ece53"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-376.pt",
+        "sha256": "2a70cc1d6396c8969091182fef20a87b9317be7f3acb6da2001406a44dd5e560"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-000-W0.pt",
+          "sha256": "29ad41198fb22a86449707713c2e1cc7c81d8d1093f5ea2453c6a801a26edd96"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-000-Wplus.pt",
+          "sha256": "001bef7033e7ea46c259d7cdc0fe3bbf1679f2b2d7dc4e6b8dcbe8a06e1396f0"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-000-Wminus.pt",
+          "sha256": "d9760a83b2e14d0f3259eb128ee847df4a306bbba44373ba764a75754d6cf462"
+        }
+      },
+      "state_fingerprint": "29ad41198fb22a86449707713c2e1cc7c81d8d1093f5ea2453c6a801a26edd96",
+      "rng": {
+        "episode_seed": 418,
+        "current_seed": 418,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-376-001",
+      "state_id": "state-007",
+      "policy": "G",
+      "task": 376,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "suitcase",
+      "window": 1,
+      "total_windows": 7,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-001-decision.json",
+        "sha256": "6554ddeeb2e178a90ead72fca19276ec3b91e4ae2f6525b5fe47028e89a269b4"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-376.pt",
+        "sha256": "2a70cc1d6396c8969091182fef20a87b9317be7f3acb6da2001406a44dd5e560"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-001-W0.pt",
+          "sha256": "cf697fa0c12001ceec38c1d94e91e7794e8c6b0311cc40107f619e7bc1f1b73f"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-001-Wplus.pt",
+          "sha256": "a23035756880daeb598971dbea62a1d0c551f4becf1a661242e8dad230792309"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-001-Wminus.pt",
+          "sha256": "209358a31fec460b22a73c16f37f9ce4c574161cdf1b2e429ae28ee95c320a01"
+        }
+      },
+      "state_fingerprint": "cf697fa0c12001ceec38c1d94e91e7794e8c6b0311cc40107f619e7bc1f1b73f",
+      "rng": {
+        "episode_seed": 418,
+        "current_seed": 1000421,
+        "sample_calls": 1
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-376-003",
+      "state_id": "state-008",
+      "policy": "G",
+      "task": 376,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "suitcase",
+      "window": 3,
+      "total_windows": 7,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm",
+            "human_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-003-decision.json",
+        "sha256": "07d9bce432f136adf21c07cb2db9754038b2ba96abd0c7cb882b1e225ad2d6a4"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard00of67/episode-motion-376.pt",
+        "sha256": "2a70cc1d6396c8969091182fef20a87b9317be7f3acb6da2001406a44dd5e560"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-003-W0.pt",
+          "sha256": "bcb2ce9b5fc673e8d1c1ce09bb5e917c312fbf6b98a869aedf7ccb01eb2b8ab3"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-003-Wplus.pt",
+          "sha256": "78d616599e617a11c5980fdad08545c8538c4a8a0abdca1be48d86173c9e0456"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-376-window-003-Wminus.pt",
+          "sha256": "fe659fdf96df445082ec12263bf3df5010010d3b06e2f7c6325f35621705f48a"
+        }
+      },
+      "state_fingerprint": "bcb2ce9b5fc673e8d1c1ce09bb5e917c312fbf6b98a869aedf7ccb01eb2b8ab3",
+      "rng": {
+        "episode_seed": 418,
+        "current_seed": 3000427,
+        "sample_calls": 3
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-421-000",
+      "state_id": "state-009",
+      "policy": "G",
+      "task": 421,
+      "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "object": "floorlamp",
+      "window": 0,
+      "total_windows": 10,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm",
+            "human_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-000-decision.json",
+        "sha256": "6b5de95d32574ed141c4a4eaba7358a6dae003bfc5cba3ef52daf060731ceb1f"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard22of67/episode-motion-421.pt",
+        "sha256": "89860a5b77b52e3b06fa6a4e89b522343362818bdb46a1abf72364b347e52609"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-000-W0.pt",
+          "sha256": "1b2c146de396c81543e01ecbe886179292c57646291659512fe4c4a9b8ab5ecd"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-000-Wplus.pt",
+          "sha256": "90e64c2374d2582db9600c9c5106471c8d9ff910fe7e1a2f499f580a936d7eef"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-000-Wminus.pt",
+          "sha256": "1b93b97ac918618bd7fd0e5028b2021ba946dffbef008b53eaef222dac08885b"
+        }
+      },
+      "state_fingerprint": "1b2c146de396c81543e01ecbe886179292c57646291659512fe4c4a9b8ab5ecd",
+      "rng": {
+        "episode_seed": 463,
+        "current_seed": 463,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-421-001",
+      "state_id": "state-010",
+      "policy": "G",
+      "task": 421,
+      "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "object": "floorlamp",
+      "window": 1,
+      "total_windows": 10,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-001-decision.json",
+        "sha256": "22ea3ad7f6026af165d302c8e20c82c46c4c2e4eb7d9b7e1dc339a395458282c"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard22of67/episode-motion-421.pt",
+        "sha256": "89860a5b77b52e3b06fa6a4e89b522343362818bdb46a1abf72364b347e52609"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-001-W0.pt",
+          "sha256": "eeb9f537899bbb699192bdbdd07ba66eb4ab44ecb84ac69d07933ddd4a3b3ad5"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-001-Wplus.pt",
+          "sha256": "a0d1b3335fea1f4f4b92d65939915d907b90a954aa8046250e04cc69fa25ac08"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-421-window-001-Wminus.pt",
+          "sha256": "68193eb421c5d643622cd3fa69cd2df0b30b4b4ee8d8bad56ecaee6955804852"
+        }
+      },
+      "state_fingerprint": "eeb9f537899bbb699192bdbdd07ba66eb4ab44ecb84ac69d07933ddd4a3b3ad5",
+      "rng": {
+        "episode_seed": 463,
+        "current_seed": 1000466,
+        "sample_calls": 1
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "G-424-000",
+      "state_id": "state-011",
+      "policy": "G",
+      "task": 424,
+      "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 4,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-424-window-000-decision.json",
+        "sha256": "adbcd3e56a5b306d2ff2d61f80f01a0d61d1957f7178d4335e2df514837ad886"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G-shard22of67/episode-motion-424.pt",
+        "sha256": "3481c7c157422b5bec2004e2632b4ebfbad221dea4df178bc5143ac1b6695dc9"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-424-window-000-W0.pt",
+          "sha256": "077efca312b553bd5af6ccc3d2cb4a60bd292b74942feec74b6670ba482b3cfb"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-424-window-000-Wplus.pt",
+          "sha256": "7a0ccddadf6de40a9550452db9413126ef595390f9c8566ce5be557e699f38c0"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/G/decisions/task-424-window-000-Wminus.pt",
+          "sha256": "8ca73e993fafa73a89496304a461d95198fb3ae49f6f179f5998f979d12188b7"
+        }
+      },
+      "state_fingerprint": "077efca312b553bd5af6ccc3d2cb4a60bd292b74942feec74b6670ba482b3cfb",
+      "rng": {
+        "episode_seed": 466,
+        "current_seed": 466,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-017-000",
+      "state_id": "state-012",
+      "policy": "H",
+      "task": 17,
+      "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "object": "smallbox",
+      "window": 0,
+      "total_windows": 4,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "contact_anchor_m"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-017-window-000-decision.json",
+        "sha256": "cd1a136579b2b133caaf38fa64410a88e4fe5168a38074d97bd24b1ec06f397c"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard66of67/episode-motion-017.pt",
+        "sha256": "e883f65cb40a8b20f841efa0be9f1d72325ed66fec10712c487949d0f7cb0571"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-017-window-000-W0.pt",
+          "sha256": "f67ae8f0bfc47d49a483278d13c575409e5d489b58caee4264938cd009ea3da6"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-017-window-000-Wplus.pt",
+          "sha256": "7fc91d19b94f9b3b41992df9b42c18adc2bd5bd1997b91d3e6571e7e6c8ad4c2"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-017-window-000-Wminus.pt",
+          "sha256": "53be550c735575d31cc0d094cbd6d905cf23c69eeb420fb6dc944161e9f7791e"
+        }
+      },
+      "state_fingerprint": "f67ae8f0bfc47d49a483278d13c575409e5d489b58caee4264938cd009ea3da6",
+      "rng": {
+        "episode_seed": 59,
+        "current_seed": 59,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-018-000",
+      "state_id": "state-013",
+      "policy": "H",
+      "task": 18,
+      "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 4,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-018-window-000-decision.json",
+        "sha256": "eef7e7b41a1f3e9e63d82274e7d3abb07c7b877434dd80d11be3780abf49959d"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard66of67/episode-motion-018.pt",
+        "sha256": "fd31f77dbbc27841c4a749c1d6a04e9aef24d0ba3eb1a58a591ac37516b3b3a8"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-018-window-000-W0.pt",
+          "sha256": "d85499b2b25527ff3067c69f146e982bbe119d6093838bef806a268c7e1b718a"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-018-window-000-Wplus.pt",
+          "sha256": "d9cfba4abf7c6aec797683d95608647fce54d3332b61273fa642f4b43ebeda20"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-018-window-000-Wminus.pt",
+          "sha256": "bb31236a05d11ea6b12a5a9c71bbd905fab62d6fa115c6e6d811c293f6c33177"
+        }
+      },
+      "state_fingerprint": "d85499b2b25527ff3067c69f146e982bbe119d6093838bef806a268c7e1b718a",
+      "rng": {
+        "episode_seed": 60,
+        "current_seed": 60,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-020-001",
+      "state_id": "state-000",
+      "policy": "H",
+      "task": 20,
+      "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "object": "tripod",
+      "window": 1,
+      "total_windows": 4,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "contact_anchor_m",
+            "contact_surface_distance_m",
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "object_occupied_fraction",
+            "contact_fraction",
+            "world_joint_speed_retention"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-020-window-001-decision.json",
+        "sha256": "b960b02db01f09dcd88a9a855cd0ba7332150f44320068ed2238a54b63c7359b"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard66of67/episode-motion-020.pt",
+        "sha256": "3d7740213c37865bc18d24a61a6629e5bae748858fd1f938494a9ca2d6685783"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-020-window-001-W0.pt",
+          "sha256": "d8521144b7578c99bc303082703aa35ae574e9c858732fb249df0036efbc7142"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-020-window-001-Wplus.pt",
+          "sha256": "f885c3d4945a97deda943138289210bc09e270ad006c73da1492f6227254fc31"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-020-window-001-Wminus.pt",
+          "sha256": "093f57add7e83232a088894239dfefcf0939798e6bf95ff6a200665ac6b5a336"
+        }
+      },
+      "state_fingerprint": "d8521144b7578c99bc303082703aa35ae574e9c858732fb249df0036efbc7142",
+      "rng": {
+        "episode_seed": 62,
+        "current_seed": 1000065,
+        "sample_calls": 1
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-330-000",
+      "state_id": "state-014",
+      "policy": "H",
+      "task": 330,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "floorlamp",
+      "window": 0,
+      "total_windows": 3,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-330-window-000-decision.json",
+        "sha256": "1c72cfb3b67e42e41351072dfd8c3115b702449ad437cbdfca2c4f4be2555ccf"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard44of67/episode-motion-330.pt",
+        "sha256": "a8edba24404a23058609e9f164cf76cd676b1edc6ffe563865421bd3ee73a587"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-330-window-000-W0.pt",
+          "sha256": "ab6c7e6f9c5cbe783054ddc8e775ef4610d3fa333ea0a01c81f160543da009ac"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-330-window-000-Wplus.pt",
+          "sha256": "dc4ab6cb683c7d28aa701a7f505dd9a4e71d2e0e1223c6f1c7f21e48bd5e827f"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-330-window-000-Wminus.pt",
+          "sha256": "dd0afbd608957566eaf118c728c8dacb0cf27bb7df6e5a521cb98ad7e0f78793"
+        }
+      },
+      "state_fingerprint": "ab6c7e6f9c5cbe783054ddc8e775ef4610d3fa333ea0a01c81f160543da009ac",
+      "rng": {
+        "episode_seed": 372,
+        "current_seed": 372,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-333-000",
+      "state_id": "state-001",
+      "policy": "H",
+      "task": 333,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 3,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "world_joint_speed_retention"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-333-window-000-decision.json",
+        "sha256": "7de21097272070b0b11512b43ccb41c3e25f1538f2da51cd20f26641bd60a438"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard44of67/episode-motion-333.pt",
+        "sha256": "cf1b7936bc63a916f05e3f77571ff06db4ca6b39107e6191e8263b5ed5e0578d"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-333-window-000-W0.pt",
+          "sha256": "fcf329493aa3feb2069d7233bdf436d2b50abc2bc967f194eb3d5bba013259db"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-333-window-000-Wplus.pt",
+          "sha256": "bf326e1dfc71e7aa59898877a0d3f38039b546e0ac14ddd877286e1f37178f6e"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-333-window-000-Wminus.pt",
+          "sha256": "a5a221fd72b97e1c4fcf5520c315b987cb055c7c7f841a35c3d81022bdd0b98a"
+        }
+      },
+      "state_fingerprint": "fcf329493aa3feb2069d7233bdf436d2b50abc2bc967f194eb3d5bba013259db",
+      "rng": {
+        "episode_seed": 375,
+        "current_seed": 375,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-334-000",
+      "state_id": "state-015",
+      "policy": "H",
+      "task": 334,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "suitcase",
+      "window": 0,
+      "total_windows": 6,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-000-decision.json",
+        "sha256": "3828bcbaf383c88883586356598f579ea82d45ffa3a44a72d4a76b2373a057c3"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard44of67/episode-motion-334.pt",
+        "sha256": "c29d5f33eb538f6750ce3cac4df61576f03135eb7cac46d66aeb756f5763f52b"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-000-W0.pt",
+          "sha256": "1260f2f743c32bd58139d1d32e7ca404e0803c3fa738e7d7aad339429aa9d9ca"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-000-Wplus.pt",
+          "sha256": "86b19f5ef982b09c32a8256d72129e52d0e2103d1fcfed72d28e6bb9512e1f54"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-000-Wminus.pt",
+          "sha256": "5b258c0112692f0662dcbf2face2c10413b22ddfe4d348196ad7ce4d36f8ab0f"
+        }
+      },
+      "state_fingerprint": "1260f2f743c32bd58139d1d32e7ca404e0803c3fa738e7d7aad339429aa9d9ca",
+      "rng": {
+        "episode_seed": 376,
+        "current_seed": 376,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-334-002",
+      "state_id": "state-016",
+      "policy": "H",
+      "task": 334,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "object": "suitcase",
+      "window": 2,
+      "total_windows": 6,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-002-decision.json",
+        "sha256": "79350baf13da6792df937dd35b87e842bbbbfe3110c75bdc440e77ebbc7d3916"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard44of67/episode-motion-334.pt",
+        "sha256": "c29d5f33eb538f6750ce3cac4df61576f03135eb7cac46d66aeb756f5763f52b"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-002-W0.pt",
+          "sha256": "51b16ad22df4ac5206d9a61d4e988a5534dc6cba20eb689607c6fc94f8b911a4"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-002-Wplus.pt",
+          "sha256": "f25754616cf7e6053852b2178f2b4795401899bd37b34c536c8f1b890e9f86ed"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-334-window-002-Wminus.pt",
+          "sha256": "dd840b8b5737390435949828ab53f44df0581c53488caa8675594948a56cc9f9"
+        }
+      },
+      "state_fingerprint": "51b16ad22df4ac5206d9a61d4e988a5534dc6cba20eb689607c6fc94f8b911a4",
+      "rng": {
+        "episode_seed": 376,
+        "current_seed": 2000382,
+        "sample_calls": 2
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-372-000",
+      "state_id": "state-003",
+      "policy": "H",
+      "task": 372,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "floorlamp",
+      "window": 0,
+      "total_windows": 5,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s",
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "object_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-372-window-000-decision.json",
+        "sha256": "86f16fab22dfb7741df18d3f8c0d41722cae6419c7cead5912c5e5dd070a7f68"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-372.pt",
+        "sha256": "98faff52c8809ff786fe3b02469d1c4b26dc647d2946e11baf88481bcd404a01"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-372-window-000-W0.pt",
+          "sha256": "cb93717288ab9d714b3895e3002554229f43acffd781fc46ec9bcfd29ada9e6c"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-372-window-000-Wplus.pt",
+          "sha256": "1f10f47a5dec9f7c8bc705c3e97b7396a3d137adb59b6fc7d50f413ab0dbaa79"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-372-window-000-Wminus.pt",
+          "sha256": "6982e62b13db4cb57044584cdf556bdde932324a9d6a8d816c20c1a8a2e15454"
+        }
+      },
+      "state_fingerprint": "cb93717288ab9d714b3895e3002554229f43acffd781fc46ec9bcfd29ada9e6c",
+      "rng": {
+        "episode_seed": 414,
+        "current_seed": 414,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-374-000",
+      "state_id": "state-017",
+      "policy": "H",
+      "task": 374,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "smallbox",
+      "window": 0,
+      "total_windows": 4,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-374-window-000-decision.json",
+        "sha256": "8a14c2c09185154cac11419b410935d0b6aa8a568200f8f9413d85939a29b02f"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-374.pt",
+        "sha256": "2005f9ab8dde6c1e54ba8ef6fa20cbee5feaebb3de79316a6574a6fb5f6c6a0d"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-374-window-000-W0.pt",
+          "sha256": "3a8b4ecd842b51e56f8ede035caadba43bd5372b492caff46ba5a9c14144961b"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-374-window-000-Wplus.pt",
+          "sha256": "7e074ca89b04be893f5a79ee3eeff15199f6aed22c28b1c635d4340dc05c9b68"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-374-window-000-Wminus.pt",
+          "sha256": "ea14a87a2c523d158590cccacc106bc22fb73692425319fde9c7fe7c85e0df29"
+        }
+      },
+      "state_fingerprint": "3a8b4ecd842b51e56f8ede035caadba43bd5372b492caff46ba5a9c14144961b",
+      "rng": {
+        "episode_seed": 416,
+        "current_seed": 416,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-375-000",
+      "state_id": "state-018",
+      "policy": "H",
+      "task": 375,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 10,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-000-decision.json",
+        "sha256": "10b9b9a176e24176b830ae3185384f9ec99c8e36d3da0e74b46689fee92a4e4c"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-375.pt",
+        "sha256": "10dd604d2d2c8b7b5c4f431440eb561bf6661c7f9a5766b1599bbb82ceee8b51"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-000-W0.pt",
+          "sha256": "1fb98c0bfdddad027531665eaeae359a7d337c3052c0d1d5175925ebc7142cd3"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-000-Wplus.pt",
+          "sha256": "b47ba58d156a98ef3c10f6a8c76012d01fd14aa5800f58cd13011cfbf17bfd5e"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-000-Wminus.pt",
+          "sha256": "f689d68d165f3f9172857b9a331150565d40ea412b1576fd7e2f54d26cb7a798"
+        }
+      },
+      "state_fingerprint": "1fb98c0bfdddad027531665eaeae359a7d337c3052c0d1d5175925ebc7142cd3",
+      "rng": {
+        "episode_seed": 417,
+        "current_seed": 417,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-375-003",
+      "state_id": "state-019",
+      "policy": "H",
+      "task": 375,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "smalltable",
+      "window": 3,
+      "total_windows": 10,
+      "selected": "Wplus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": true,
+          "failures": []
+        },
+        "Wminus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s"
+          ]
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-003-decision.json",
+        "sha256": "e709dd19446c3777b2e0504baf070b5afae85ecde7cd59d8a879860d3d8c68dd"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-375.pt",
+        "sha256": "10dd604d2d2c8b7b5c4f431440eb561bf6661c7f9a5766b1599bbb82ceee8b51"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-003-W0.pt",
+          "sha256": "85e17ae178924799f93a928e721843385108a3b6ed8acf21b4878f580752e6f2"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-003-Wplus.pt",
+          "sha256": "28b409fe0a5c4e9f36c8189bd74c06b2ce02778d434f19920bb49530b9490c98"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-003-Wminus.pt",
+          "sha256": "862bf8dec75a7e178a0c03c96f72aa3899a45cbd7ba640445969450dc363f3fa"
+        }
+      },
+      "state_fingerprint": "85e17ae178924799f93a928e721843385108a3b6ed8acf21b4878f580752e6f2",
+      "rng": {
+        "episode_seed": 417,
+        "current_seed": 3000426,
+        "sample_calls": 3
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-375-005",
+      "state_id": "state-020",
+      "policy": "H",
+      "task": 375,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "smalltable",
+      "window": 5,
+      "total_windows": 10,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm",
+            "object_scene_RMS_cm",
+            "human_occupied_fraction",
+            "object_occupied_fraction"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-005-decision.json",
+        "sha256": "848be286315c4bc7d7f43c3c8ee8947750f8909c2889f46ea4b3f42ed9b31c10"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-375.pt",
+        "sha256": "10dd604d2d2c8b7b5c4f431440eb561bf6661c7f9a5766b1599bbb82ceee8b51"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-005-W0.pt",
+          "sha256": "165704a705f79bd96dfa07809756facb1a6d78650d5c6e703df40a66886ec814"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-005-Wplus.pt",
+          "sha256": "c375a196a979641a61557254a0d65a133ee1023b92b1397d326d871099d6dc97"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-375-window-005-Wminus.pt",
+          "sha256": "6955d47ec6c95e613bf423c0c85a19e56ebb9491c55838485dfd92ae4ad993f0"
+        }
+      },
+      "state_fingerprint": "165704a705f79bd96dfa07809756facb1a6d78650d5c6e703df40a66886ec814",
+      "rng": {
+        "episode_seed": 417,
+        "current_seed": 5000432,
+        "sample_calls": 5
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-376-004",
+      "state_id": "state-021",
+      "policy": "H",
+      "task": 376,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "object": "suitcase",
+      "window": 4,
+      "total_windows": 7,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "support_speed_m_per_s"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-376-window-004-decision.json",
+        "sha256": "883636caa126713afae9fcbe6a7e90addecc74ca74423655c43cd877c3a13673"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard00of67/episode-motion-376.pt",
+        "sha256": "efb4fde4a601edef26ad1ff6e3e764d7c3d71f3514d7a9c33687ed0ad6968dee"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-376-window-004-W0.pt",
+          "sha256": "792d2a2f8e9ad58047b888c35ffe6682bb1eef88f797bc15ae0770a8a2c81bc5"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-376-window-004-Wplus.pt",
+          "sha256": "43d94596dba2e08b52a3a17a3d9dbc726f38acbdf949561adb144dc15b828b39"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-376-window-004-Wminus.pt",
+          "sha256": "da74a6ddbfe48aea71db19bc8c1a3319cd321ac72a9eb9fadae7adce4dae1478"
+        }
+      },
+      "state_fingerprint": "792d2a2f8e9ad58047b888c35ffe6682bb1eef88f797bc15ae0770a8a2c81bc5",
+      "rng": {
+        "episode_seed": 418,
+        "current_seed": 4000430,
+        "sample_calls": 4
+      },
+      "missing": [],
+      "training_allowed": false
+    },
+    {
+      "record_id": "H-424-000",
+      "state_id": "state-011",
+      "policy": "H",
+      "task": 424,
+      "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "object": "smalltable",
+      "window": 0,
+      "total_windows": 4,
+      "selected": "Wminus",
+      "cached_guard": {
+        "W0": {
+          "accepted": false,
+          "failures": [
+            "root_directed_m"
+          ]
+        },
+        "Wplus": {
+          "accepted": false,
+          "failures": [
+            "human_scene_RMS_cm"
+          ]
+        },
+        "Wminus": {
+          "accepted": true,
+          "failures": []
+        }
+      },
+      "decision": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-424-window-000-decision.json",
+        "sha256": "0a77beb56116a73d7d7c0faa3b5eaf5871e3726b0f50fbe555c769d9dbb1c039"
+      },
+      "episode": {
+        "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H-shard22of67/episode-motion-424.pt",
+        "sha256": "4dda31bd65e3ef0f01d01aa27855270ed7104adac9b76fd9e8a83129d5aac82c"
+      },
+      "candidates": {
+        "W0": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-424-window-000-W0.pt",
+          "sha256": "5ae1d4b55c18f620617302e295763f998eeb0bfda2de0cbe167bc666851787f9"
+        },
+        "Wplus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-424-window-000-Wplus.pt",
+          "sha256": "d99d06349c99ac250f501b8bffea796ff0579aad214ae55922c5e56d3c7184b4"
+        },
+        "Wminus": {
+          "path": "results/experiments/p2-mixer-single-side-waypoint-s42-20260907/H/decisions/task-424-window-000-Wminus.pt",
+          "sha256": "c2cb2eb62697fcf8ae602cbdb267cc015ce824775e8c9f64ad45a70859b998c0"
+        }
+      },
+      "state_fingerprint": "5ae1d4b55c18f620617302e295763f998eeb0bfda2de0cbe167bc666851787f9",
+      "rng": {
+        "episode_seed": 466,
+        "current_seed": 466,
+        "sample_calls": 0
+      },
+      "missing": [],
+      "training_allowed": false
+    }
+  ],
+  "record_count": 26,
+  "unique_states": 22,
+  "tasks": 12,
+  "scenes": 4,
+  "missing_candidates": 0,
+  "training_allowed": false,
+  "test_set_development": true,
+  "deduplication": "Exact dtype/shape/value equality of task/window/budget, full W0 context, fixed history, rest offsets, all candidate motions/contexts, and all committed prefix motion/contexts. Conditions contain original scene/text/BPS/progress/object reference. RNG episode+window semantics also identical. File fingerprints identify evidence; equality determines sharing.",
+  "planned_new_windows": 132
+}
