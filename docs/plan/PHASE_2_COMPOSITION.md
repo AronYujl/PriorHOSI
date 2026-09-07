@@ -4184,3 +4184,16 @@ smoke, core/expert/evaluator edits, weights/guards/seed/offset sweeps or trainin
 FirstW0 interface execution belongs to the registered28, with all failures kept.
 Full first-window evidence, all28 traces/animations and exact next entry required
 for engineering closure. Scientific and engineering outcomes are separate.
+
+Implementation gate before new outputs:32 component checks passed (15 endpoint/
+waypoint cases plus17 existing candidate cases); full authority1027 passed,
+4 historical skips169.78s. Registry380 rows valid. Hydra resolved config equals
+sealed candidateB1 after removing the probe block/run identity and setting the
+candidate offset0. Existing expert/core/native evaluator trees unchanged.
+W0 and signed probes invoke the existing composed sampler with identical saved
+first-window conditions; actual HOI model pre-hook captures goals/latent/text/
+BPS/progress without random draws. Pelvis goals use local metres,Y0; object goal
+normalization is unchanged. Endpointv2 is opt-in; native metric comparisons are
+read after physical values are computed. No training microbatch benchmark applies;
+synchronized window runtime and allocator peaks are recorded. Full first scene
+supplies real-data interface evidence inside the registered workload.

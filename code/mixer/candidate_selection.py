@@ -215,8 +215,33 @@ def recover_score_context(sampler, cfg, saved, index, task, data, trajectory, ge
     return capture.context, error
 
 
+def retained_endpoint_features(human_world, object_world, task, retained_frames):
+    """Native endpoint definitions on the actual emitted, interpolated tracks."""
+    if not 0 < retained_frames <= min(len(human_world), len(object_world)):
+        raise ValueError('retained frame count is outside the output tracks')
+    root = human_world[retained_frames - 1, 0].clone()
+    root[1] = 0
+    obj = object_world[retained_frames - 1]
+    root_error = (root - root.new_tensor(task['pelvis_goal'])).norm()
+    object_error = (obj - obj.new_tensor(task['object_goal'])).norm()
+    return dict(root_endpoint_m=float(root_error), object_endpoint_m=float(object_error),
+                completed=bool(float(root_error) * 100 < 10. and float(object_error) * 100 < 10.),
+                retained_frames=retained_frames, endpoint_frame=retained_frames - 1)
+
+
+def saved_endpoint_features(saved, task, device):
+    """Retained SMPL-X joints and native object interpolation, no metric input."""
+    from utils import interp_object
+    translated, _ = interp_object(saved['stitched']['object_translation_world'],
+                                 saved['stitched']['object_rotation_world'], saved['interp_s'])
+    human = saved['evaluated_joints_world'].to(device)
+    obj = torch.as_tensor(translated, device=device, dtype=torch.float32)
+    return retained_endpoint_features(human, obj, task, len(human))
+
+
 @torch.no_grad()
-def candidate_features(dataset, saved, contexts, offsets, task, records):
+def candidate_features(dataset, saved, contexts, offsets, task, records,
+                       endpoint_mode='legacy_XZ'):
     from .relational import RelationalGeometry
     from .relational import source_floor_height
     points = dataset.obj_rest_verts[saved['object_name']].to(contexts[0]['mat'].device)
@@ -248,12 +273,17 @@ def candidate_features(dataset, saved, contexts, offsets, task, records):
     # External goal geometry, calculated directly before native report loading.
     root=all_humans[-1][0,-1,0]
     obj=state['object_translation_world'][0,-1]
-    return dict(valid=valid,energy=float(torch.cat(energies,1).mean()),
+    features = dict(valid=valid,energy=float(torch.cat(energies,1).mean()),
         root_endpoint_m=float((root[[0,2]]-root.new_tensor(task['pelvis_goal'])[[0,2]]).norm()),
         object_endpoint_m=float((obj[[0,2]]-obj.new_tensor(task['object_goal'])[[0,2]]).norm()),
         contact_distance_m=float(contact.mean()),contact_fraction=float((contact<.10).float().mean()),
         contact_frame_count=len(contact),support_speed_m_per_s=float(support.mean()) if len(support) else 0.,
         support_pair_count=len(support),history_world_max_abs_m=seam)
+    if endpoint_mode == 'native_retained_v2':
+        features.update(saved_endpoint_features(saved, task, points.device))
+    elif endpoint_mode != 'legacy_XZ':
+        raise ValueError('unknown endpoint mode: ' + endpoint_mode)
+    return features
 
 
 def _task_data(dataset, task):
