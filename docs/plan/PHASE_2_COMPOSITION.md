@@ -3704,3 +3704,31 @@ stance protection. Freeze0.01 native FS units instead (8.28% of that historical
 scale), with the same negative paired95% upper CI and scene mean protection.
 This supersedes0.10 in both development/full469 FS rules only. This is based on
 sealed historical evidence, never the new28/469 outcomes; all other gates stay.
+
+### Registered interface correction after first complete native attempt
+
+r1 completes all84 episodes/372 windows with no nonfinite values or invalid
+proposals. B2 makes620 HSI calls but accepts0/2480 fit steps (0/24800 trials),
+returning B1 exactly. A post-run isolated implementation check on a zero-common-
+column6x67 Jacobian and zero-common input produces56/56 nonzero common output
+entries, max2.5213e-16, from float64 SVD roundoff. The common-motion guard requires
+exact zero; including fixed columns in the SVD violates that representation
+contract. Retain all r1 outcomes and this diagnosis; do not interpret r1 as evidence
+that HSI targets are useless.
+
+Use the handoff's ONE interface correction: SVD only the6x63 free-local Jacobian,
+then concatenate exact common/history zeros. This is the intended constrained
+parameter space, with unchanged solver, rank thresholds, schedule, objective,
+step budget and hard/quality gates. Add per-trial guard reasons to the existing
+trace for actual rejection attribution. No threshold relaxation or low-noise
+search. Component test must expose the zero-column roundoff and verify exact
+common/history locks for the corrected free-coordinate solve.
+
+Rerun only B2 on all28 tasks using a new r2 manifest. Reuse r1 B0/B1 by reference:
+B0 does not call this solver; all2480 B1 fit gradients were exactly zero and every
+B1 output equalled its geometric proposal, so solving a zero63-vector preserves
+its exact old output and RNG. Verify this from saved records and component tests.
+The startup failure is operational orchestration, not the one model-interface
+correction. A remaining scientific failure after this correction stops the
+candidate. The r1 videos remain retained as identical B1/B2 evidence; render the
+same four preselected task identities for r2.
