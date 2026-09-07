@@ -3421,3 +3421,93 @@ All probes attain the target; B is domain-admissible in949/1632 queries. Preserv
 both serialization failures and the independent successful recovery. Engineering
 is complete; H1 is not supported, H2/H3 remain inconclusive, and no development
 rollout is promoted. See PHASE_2M_DP_EVIDENCE_VIEWS.md and the compact result.
+
+
+## 2026-09-07 — Phase 2.14a relation-compatible DP, fixed-source gate
+
+User approved direct execution of the latest handoff (actual path:
+/data/yujinlun/report/PriorHOSI_Phase2_14_Relation_Compatible_DP_Codex_Plan.md).
+Base exp/p2m-dp-evidence-views-v1 / 053eb13; branch phase/02n-relation-compatible-dp.
+Split before implementation: 2.14a delivers the complete local mechanism gate,
+replay, evaluation-asset audit and summary; 2.14b is conditional development
+closed-loop rollout in a subsequent session, and full469 requires its own frozen
+candidate gate. Close only 2.14a here. Prior negative findings remain unchanged.
+
+Hypothesis: projecting only the unscaled DP parameter gradient into the active
+source hand-anchor residual Jacobian nullspace may preserve manipulation while
+providing useful scene evidence beyond the same editor without HSI. Extract the
+existing world-coordinate hand residual (hands22/23, source contact>0.95, future
+frames2:). Keep source anchors/masks fixed. Euclidean projection in unchanged
+67D tanh parameter coordinates, no damping. Use per-frame6x67 Jacobian blocks
+with six VJPs; verify no temporal dependencies against full-window derivatives.
+Float32 decode/autograd, float64 SVD and solve, relative rank tolerance1e-6,
+absolute tolerance1e-10; validate these numerical constants before performance
+runs, never tune on scene outcomes. Cast projected directions back to float32.
+Record numerical rank, active rows, free dimensions, residuals, norms and timings.
+Zero/no-active/rank-zero directions have explicit reasons; nonfinite/solve errors
+are technical failures. Recompute Jacobian at every nonzero editor refresh.
+
+Only DP changes to a frozen parameter-linear proxy; G1 uses the same proxy with
+identity projection. HOI reference retains its original motion-space proxy;
+six explicit terms, proximal term, Armijo and domain guards are unchanged.
+Default production uses the old proxy and legacy view. G0 skips HSI and must
+match the saved Phase2.13 lambda0 short parameters bitwise on all68 windows.
+No frozen core, expert, native metric, planner or source-generation changes.
+A reusable replay dispatch in the existing evaluator consumes saved raw sources,
+contexts, offsets and HOI arguments; no new experiment runner or HOI generation.
+
+Data: all24 existing development tasks /68 saved windows from
+p2-mixer-evidence-views-r1-s42-20260907. Keep calibration004/006/055 and
+verification023/037/036 roles; four objects; same P15 online ArmB500/R2 EMA,
+lambda26, beta1, eight levels300/264/229/193/157/121/86/50 and seed42 protocol.
+G0 lambda0; G1 correct environment B identity; G2 B projected; G3 projected C
+(+2m window-local X temporal view only). No static/world/context change.
+
+A: DP-only rays G1/G2/G3 at source,3 draws/level with existing1000003 draw offset,
+shared noisy tensors, known-empty trajectory, query stream and HOI pair. Match
+1mm/5mm equal-weight human/object future RMS. Preserve existing bracket limit
+2**20 and20 bisections. If projected norm/raw norm<1e-3, retain the direction in
+logs but mark probes weak and return the source instead of amplifying it. All
+failures/inadmissible rays remain in the full table. Common-feasible subsets
+require all3 arms to attain amplitude and pass domain guards for a query/scale.
+B: G0/G1/G2/G3 short editors each use the same8-refresh budget and draw0 seed;
+queries are paired by refresh but candidates evolve separately. Report actual
+RMS, all terms, explicit/HOI/DP norms and dots, group changes, decisions/timings.
+Save all first-level/draw ray states and all final short states. Preselected
+illustrations: first windows036/clothesstand and006/suitcase; failure illustration
+is the task with largest task-mean G2-G0 short HS increase (ordinal breaks ties).
+These are local edits and do not enter rollout history.
+Budget:6528 HSI+3264 HOI source forwards;3264 HSI+4352 HOI short-edit forwards.
+Total9792 HSI/7616 HOI,0 source generation. Six persistent GPU lanes0..5 by scene;
+GPU7 float64 paired resampling. Real batch1 replay supplies functional and runtime
+measurements; no additional smoke/performance run. Full authority suite required.
+
+**Frozen decision rules (voxel/FK cm, never native HS/OS).** Average draws/levels
+per window, windows per task; task means primary, six-scene means sensitivity.
+10000 paired seed42 bootstrap replicates, nominal95% intervals, all metrics and
+all comparisons published. This is a conjunctive development screen, not a
+native benchmark claim. Technical failure/missing pairing => BLOCKED, preserve
+all failure records. Otherwise GO requires every following condition:
+1. G2 5mm ray task-mean contact drift <=20% G1, paired upper CI<0;
+   >=95% of projected G2/G3 rays attain amplitude and >=95% retain norm ratio>=1e-3.
+2. Primary short-edit HS: G2-G0 and G2-G3 each <=-max(0.01cm,5% comparator mean),
+   task95% upper<0 and scene mean difference<=0. Absolute0.01cm rule is frozen
+   for small denominators. G2-G1 HS and all other contrasts are reported.
+3. For both short comparators G0/G3: OS point delta<=0 and upper CI<=0.02cm;
+   contact and stance-increment point delta<=0.01cm and upper<=0.05cm;
+   root/object endpoint point delta<=0.05cm and upper<=0.10cm.
+4. G2 domain-feasible ray rate >=G1 rate-0.02; every short update obeys the
+   existing domain guard, exact history/contact channels and finite outputs.
+NO-GO if any scientific condition fails. No lambda/noise/step search follows.
+Contact protection alone does not establish teacher utility. If GO, prepare
+only a2.14b development rollout candidate/protocol (HS>=5% versus paired lambda0,
+OS nondegradation plus registered native protections); no automatic full469.
+
+Audit development surface assets and sealed InfBaGel outputs/decoder provenance
+independently of scientific outcome. Use no full469 task for tuning. If assets
+are missing, state the precise gap; paper Hybrid remains external unpaired.
+Deliver aggregate JSON, all local per-window/paired inputs, animations, one-page
+GO/NO-GO/BLOCKED summary PHASE_2N_RELATION_COMPATIBLE_DP.md, then integrate/tag
+exp/p2n-relation-compatible-dp-v1 after the engineering gate. Negative science
+closes the diagnostic. Suggested conditional-denoising repair stays a separate
+unvalidated future mechanism, never implemented alongside this test.
