@@ -211,7 +211,7 @@ def native_tracks(cfg, dataset, world, task, terminal, smpl_cache):
     """Native interpolation/SMPL-X on actual observed frames, without censored padding."""
     from utils import (interpolate_joints, interp_object, interp_jrot,
                        create_smplx_model, run_smplx_model)
-    from constants import SMPLX_JOINTS_28
+    from utils import SMPLX_JOINTS_28
     import pytorch3d.transforms as transforms
     device = torch.device(cfg.device)
     index = dataset.ori_sequence_idx[task['data_idx']]
@@ -559,7 +559,19 @@ def run_continuation_scene(cfg):
         cached={a:torch.load(root/record['candidates'][a]['path'],map_location='cpu',weights_only=False) for a in ARMS}
         recovery_seconds=time.perf_counter()-recovered_at
         order=ARMS if int(state_id.split('-')[-1])%2==0 else tuple(reversed(ARMS))
-        branches={a:generate_branch(cfg,dataset,hoi,hsi,record,episode,cached[a],task,a,dest,protocol) for a in order}
+        if state_id in cfg.continuation.reuse_states:
+            previous=Path(cfg.continuation.resume_source)/state_id
+            branches={}
+            for arm in order:
+                old=previous/(arm+'.pt')
+                payload=torch.load(old,map_location='cpu',weights_only=False)
+                if payload['failure'] or payload['source']['state_id']!=state_id or payload['action']!=arm:
+                    raise ValueError('resume requires a successful matching generated branch')
+                branches[arm]=payload
+                (dest/(arm+'.pt')).symlink_to(old.resolve())
+            write_json(dest/'generation_source.json',dict(source=str(previous),new_HOI_calls=0,new_HSI_calls=0))
+        else:
+            branches={a:generate_branch(cfg,dataset,hoi,hsi,record,episode,cached[a],task,a,dest,protocol) for a in order}
         torch.cuda.synchronize(device);evaluate_at=time.perf_counter()
         try:
             result,arrays=evaluate_state(cfg,dataset,record,task,branches,smpl_cache,sdf,sdf_info,protocol)
@@ -569,7 +581,9 @@ def run_continuation_scene(cfg):
                         evaluation_failure=dict(type=type(error).__name__,message=str(error),traceback=traceback.format_exc()))
         torch.cuda.synchronize(device)
         result.update(recovery_seconds=recovery_seconds,evaluation_seconds=time.perf_counter()-evaluate_at,
-                      source_records=[r['record_id'] for r in records if r['state_id']==state_id],branch_order=list(order))
+                      evaluation_peak_allocated_bytes=torch.cuda.max_memory_allocated(device),
+                      source_records=[r['record_id'] for r in records if r['state_id']==state_id],branch_order=list(order),
+                      reused_generation=state_id in cfg.continuation.reuse_states)
         write_json(dest/'outcomes.json',result)
         rows.append(result)
         print(json.dumps(dict(state=state_id,task=record['task'],
@@ -580,9 +594,19 @@ def run_continuation_scene(cfg):
     write_json(out/'lane.json',dict(technical_errors=errors,commit_at_start=commit,commit_at_completion=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
         scene=scene,states=list(selected),wall_seconds=time.perf_counter()-started,
         generated_windows=sum(r['branches'][a]['costs']['generated_windows'] for r in rows for a in r['branches']),
+        new_generated_windows=sum(r['branches'][a]['costs']['generated_windows'] for r in rows if not r['reused_generation'] for a in r['branches']),
         training_allowed=False))
     if errors:
         raise RuntimeError(f'{errors} states retain technical failures; inspect saved outcomes')
+
+
+def accumulate_branch_cost(total, cost):
+    """Calls and elapsed work add; a device allocation peak is a maximum."""
+    for key,value in cost.items():
+        if key == 'peak_allocated_bytes':
+            total[key]=max(total.get(key,0),value)
+        else:
+            total[key]=total.get(key,0)+value
 
 
 def summarize_continuation_outcomes(run_root):
@@ -604,7 +628,7 @@ def summarize_continuation_outcomes(run_root):
         if state.get('evaluation_failure') or state.get('error'):
             errors.append(dict(state=state['state_id'],error=state.get('evaluation_failure',state.get('error'))))
         for arm,row in state['branches'].items():
-            cost.update(row['costs'])
+            accumulate_branch_cost(cost,row['costs'])
             if row.get('failure'):errors.append(dict(state=state['state_id'],arm=arm,error=row['failure']))
             checks.extend(row.get('consistency',[]))
             if 'diagnostics' not in row:continue

@@ -4402,3 +4402,22 @@ Hydra compose/struct regression. Eight r2 jobs resolve explicit loader options;
 B1 sampling and source physical conditions remain unchanged. The first failed
 run consumed0 of132 planned windows. No runtime source edit occurred while its
 controller was active; the controller had already exited before this correction.
+
+Second operational failure at8c1b09e: six branches/two states generate12 finite
+B1 windows; all4 compatible old B1 context/motion checks exact. Fragment
+evaluation then fails because SMPLX_JOINTS_28 lives in utils, not constants.
+No scientific metric or label emitted. All branch .pt files remain immutable.
+Correct only the import and add native-fragment decode/censor coverage. r3
+explicitly reuses state000/013 from r2, evaluates them with0 new HOI calls and
+generates only the remaining120 windows. Across runs the planned132-window
+generation budget is unchanged. Resolve resume inputs beside the new manifest;
+no overwrite, automatic regeneration or changed metric/label threshold.
+
+r3 verification:25 continuation checks; full authority1064 passed/4 historical
+skips169.61s. Native-fragment execution covers the actual SMPL-X joint-index
+import and7 observed vs9 terminal-held frames on a three-frame example.
+A cost regression sums calls/work and takes the maximum memory peak. Eight r3
+configs match r2 generation/dataset exactly; the generation function is unchanged.
+Resume input identities and separate12 reused/120 new costs are archived beside
+the new manifest. Scientific thresholds and the132 total generated-window budget
+remain the original preregistration.

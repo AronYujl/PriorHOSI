@@ -304,3 +304,32 @@ def test_hydra_struct_resolves_loader_options_before_reportable_entry():
     assert resolved['dataset']['vis'] is True
     assert resolved['dataset']['test_scene_name']==scene
     assert cfg.sampler.pelvis.candidate_seed_offset==0
+
+
+@pytest.mark.parametrize('terminal,expected',[(False,7),(True,9)])
+def test_native_fragment_decode_uses_real_joint_indices_and_censor_tail(monkeypatch,terminal,expected):
+    from mixer.continuation_outcomes import native_tracks
+    import utils
+    cfg=SimpleNamespace(device='cpu',interp_s=3)
+    dataset=SimpleNamespace(ori_sequence_idx=[0],betas=np.zeros((1,16),dtype=np.float32),
+        transl=np.zeros((1,3),dtype=np.float32),gender=['male'],quat_ik_torch=lambda x:x)
+    world=dict(points_world=torch.arange(3)[:,None,None].float().expand(3,28,3).clone(),
+        object_translation_world=torch.arange(3)[:,None].float().expand(3,3).clone(),
+        object_rotation_world=torch.eye(3).expand(3,3,3).clone(),
+        global_rot_6d=transforms.matrix_to_rotation_6d(torch.eye(3)).expand(3,22,6).clone())
+    monkeypatch.setattr(utils,'create_smplx_model',lambda *a,**k:object())
+    def body(pose,translation,betas,gender,joints_ind,smpl_model):
+        assert joints_ind==utils.SMPLX_JOINTS_28 and len(joints_ind)==28
+        return translation[:,None].expand(-1,100,3).clone(),translation[:,None].expand(-1,28,3).clone()
+    monkeypatch.setattr(utils,'run_smplx_model',body)
+    result=native_tracks(cfg,dataset,world,{'data_idx':0},terminal,{})
+    assert all(len(v)==expected for v in result.values())
+    assert result['object_translation'][:,0].tolist()==pytest.approx([0,1/3,2/3,1,4/3,5/3,2]+([2,2] if terminal else []))
+
+
+def test_costs_add_work_but_take_maximum_device_memory_peak():
+    from mixer.continuation_outcomes import accumulate_branch_cost
+    total={}
+    accumulate_branch_cost(total,dict(generated_windows=2,HOI_calls=1032,peak_allocated_bytes=1000))
+    accumulate_branch_cost(total,dict(generated_windows=2,HOI_calls=1032,peak_allocated_bytes=2000))
+    assert total==dict(generated_windows=4,HOI_calls=2064,peak_allocated_bytes=2000)
