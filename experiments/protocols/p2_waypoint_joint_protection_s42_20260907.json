@@ -1,0 +1,24 @@
+{
+  "phase": "2.22-diagnostic",
+  "base_protocol": "experiments/protocols/p2_waypoint_control_s42_20260907.json",
+  "scope": "Replay completed first-window waypoint outputs through a fixed joint human-object/scene acceptance gate",
+  "seed": 42,
+  "input_run": "results/experiments/p2-mixer-waypoint-control-r2-s42-20260907",
+  "tasks": "all 22 applicable signed pairs; retain 6 inapplicable tasks",
+  "gate": {
+    "both_signed_conditions_required": true,
+    "root_directed_m_min": 0.01,
+    "object_directed_m_min": 0.0,
+    "contact_anchor_increase_m_max": 0.01,
+    "contact_surface_distance_increase_m_max": 0.01,
+    "support_speed_increase_m_per_s_max": 0.01,
+    "human_scene_RMS_increase_cm_max": 0.1,
+    "object_scene_RMS_increase_cm_max": 0.1,
+    "occupied_fraction_increase_max": 0.005,
+    "contact_fraction_drop_max": 0.05,
+    "world_joint_speed_retention_min": 0.95
+  },
+  "analysis": {"paired_units": "task", "bootstrap_replicates": 10000, "bootstrap_seed": 42},
+  "claims": "diagnostic acceptance coverage only; no native quality improvement or HSI value claim",
+  "stop_rule": "do not generate new waypoints, expand offset, score HSI, train, or launch 441/469"
+}

@@ -4257,3 +4257,19 @@ exp/p2s-waypoint-control-v1. Engineering closure passes with retained failure;
 next unique priority is jointly feasible waypoint conditions preserving grasp
 relations and scene quality under a new bounded protocol, not larger offsets,
 unregistered gate changes or automatic complete-route generation/training.
+## 2026-09-07 — Phase 2.22 bounded waypoint joint-protection diagnostic
+
+Phase 2.21 established signed waypoint response but only 4/22 applicable task
+pairs passed all grasp and scene proxy margins. This subphase tests a deterministic
+condition-side gate: retain a signed waypoint pair only when both generated first
+windows pass the frozen W0-relative hand-object, contact, support-speed,
+human-scene and object-scene margins. It reports rejection reasons and does not
+alter generated motion after the fact.
+
+The diagnostic replays the completed `p2-mixer-waypoint-control-r2-s42-20260907`
+records for all 22 applicable pairs and retains the six inapplicable tasks.
+Registered limits remain those of Phase 2.21, with both signs required to pass;
+coverage uses paired task bootstrap (10,000 seed-42 replicates). No new waypoint,
+offset search, HSI scoring, training, 441/469 evaluation or route-pool expansion
+is permitted. A pass establishes protected coverage only, never full-task quality
+or InfBaGel superiority.

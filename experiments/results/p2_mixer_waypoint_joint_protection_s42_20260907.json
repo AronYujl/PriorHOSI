@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p2-mixer-waypoint-joint-protection-s42-20260907",
+  "status": "completed",
+  "source_run": "results/experiments/p2-mixer-waypoint-control-r2-s42-20260907",
+  "applicable_pairs": 22,
+  "signed_pass_counts": {"Wplus": 9, "Wminus": 8},
+  "accepted_pairs": 4,
+  "coverage": 0.18181818181818182,
+  "rejection_labels": {
+    "speed_retention": 4,
+    "support_speed_m_per_s": 6,
+    "contact_anchor_m": 13,
+    "human_scene_RMS_cm": 6,
+    "object_scene_RMS_cm": 5,
+    "object_occupied_fraction": 4,
+    "contact_surface_distance_m": 1,
+    "contact_fraction": 1,
+    "human_occupied_fraction": 3
+  },
+  "accepted_tasks": [18, 334, 374, 375],
+  "decision": "NO-GO_FOR_EXPANSION",
+  "conclusion": "The frozen joint gate retains 4/22 signed waypoint pairs (18.18%), exactly the Phase 2.21 protected coverage. It preserves conditions by rejection but supplies insufficient coverage for route-pool expansion. No native quality or HSI gain is claimed.",
+  "diagnostic_only": true
+}
