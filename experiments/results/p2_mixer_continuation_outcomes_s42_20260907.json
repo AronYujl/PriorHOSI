@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "phase": "2.24",
+  "component": "continuation-outcomes",
+  "experiment_id": "p2-mixer-continuation-outcomes-r3-s42-20260907",
+  "status": "completed",
+  "engineering_integrity": true,
+  "decision": "DO_NOT_ENTER_RESULT_PREDICTION_HEAD",
+  "conclusion": "Bounded paired continuations expose substantial history-dependent hand/contact risks. No signed candidate satisfies all preregistered scene and quality protections. Prioritize generation-side joint feasibility and relationship semantics in a new independently approved protocol.",
+  "baseline_commit": "f202825",
+  "preregistration_commit": "5e3d3e1",
+  "implementation_commit": "ecea024",
+  "generation_commits": [
+    "8c1b09e",
+    "5bf15b7"
+  ],
+  "runtime_commit": "5bf15b7",
+  "protocol": "experiments/protocols/p2_continuation_outcomes_s42_20260907.json",
+  "state_manifest": "experiments/tasks/p2_continuation_states_s42_20260907.json",
+  "config": "code/config/config_sample_hosi_continuation.yaml",
+  "run_root": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907",
+  "checkpoints": {
+    "ckpt_path": "/data/yujinlun/InfBaGel-visualization-artifacts/source-checkpoints/hoi/p15/p1-hoi-p15-geom-perhand-equalized-s42-20260825_windows299520000.pth",
+    "checkpoint_sha256": "ed8cf16916f476349c53a9403c9a22415eeba7f8c9694ec91c44e55b70f6c11c",
+    "hsi_ckpt_path": "/data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth",
+    "hsi_checkpoint_sha256": "7a81a0a2627967a396e54aa08c0bad4612e294a4df33aac9ada4b063058740fe",
+    "HOI_weight_selection": "online",
+    "HSI_weight_selection": "saved R2 state dictionary via unchanged init_model"
+  },
+  "recovery": {
+    "source_records": 26,
+    "unique_states": 22,
+    "source_tasks": 12,
+    "source_scenes": 4,
+    "cached_current_candidates": 78,
+    "unique_current_candidates": 66,
+    "missing": 0,
+    "deduplicated_source_records": 4,
+    "identity": "Exact history, original full conditioning, object reference, task/progress/budget and candidate equality; G/H375 window5 kept distinct",
+    "distinct_G_H_375_window5": {
+      "task": 375,
+      "window": 5,
+      "G_state": "state-005",
+      "H_state": "state-020",
+      "root_history_mean_distance_m": 0.01890166476368904,
+      "object_history_mean_distance_m": 0.025064945220947266,
+      "human_history_coordinate_RMS_m": 0.024384673684835434
+    }
+  },
+  "counts": {
+    "branches": 66,
+    "signed_branches": 44,
+    "original_guard_accepted_sides": 27,
+    "original_guard_rejected_diagnostic_sides": 17,
+    "generated_windows": 132,
+    "reused_from_failed_r2": 12,
+    "new_in_r3": 120,
+    "HOI_calls": 68112,
+    "HSI_calls": 0,
+    "current_world_exact": 22,
+    "same_state_B1_motion_context_exact": 42,
+    "valid_B1_future_editor_records": 132,
+    "terminal_branches": 18,
+    "budget_censored_branches": 48,
+    "terminal_status": "Each of6 actual terminal states has the same completion classification across all3 branches;5 states complete and task330 remains incomplete."
+  },
+  "preregistered_categories": {
+    "adopted_unique_states": {
+      "categories": {
+        "immediate_damage": 16,
+        "delayed_damage": 5,
+        "recovery": 1
+      },
+      "flags": {
+        "immediate_damage": 17,
+        "delayed_damage": 5,
+        "recovery": 1,
+        "beneficial_compatible": 0,
+        "scene_benefit": 14,
+        "diagnostic_beneficial_compatible": 0
+      },
+      "current_failure_terms": {
+        "hand1:anchor_vs_W0_m": 2,
+        "human_goal_error_cm": 9,
+        "object_goal_error_3D_cm": 12,
+        "hand0:anchor_vs_W0_m": 1,
+        "hand0:coverage_5cm": 2,
+        "hand1:coverage_5cm": 3
+      },
+      "future_failure_terms": {
+        "hand1:anchor_vs_W0_m": 34,
+        "hand1:coverage_5cm": 11,
+        "hand0:anchor_vs_W0_m": 33,
+        "human_goal_error_cm": 21,
+        "object_goal_error_3D_cm": 19,
+        "hand0:coverage_5cm": 6,
+        "support_speed": 13,
+        "hand1:active_surface_mean_m": 5,
+        "world_joint_speed_retention": 5,
+        "hand0:active_surface_mean_m": 6
+      }
+    },
+    "all_signed_branches": {
+      "categories": {
+        "recovery": 3,
+        "immediate_damage": 30,
+        "delayed_damage": 11
+      },
+      "flags": {
+        "immediate_damage": 32,
+        "delayed_damage": 12,
+        "recovery": 3,
+        "beneficial_compatible": 0,
+        "scene_benefit": 18,
+        "diagnostic_beneficial_compatible": 0
+      },
+      "current_failure_terms": {
+        "hand1:anchor_vs_W0_m": 4,
+        "world_joint_speed_retention": 3,
+        "human_goal_error_cm": 19,
+        "object_goal_error_3D_cm": 22,
+        "hand0:anchor_vs_W0_m": 2,
+        "hand0:coverage_5cm": 3,
+        "hand1:coverage_5cm": 4,
+        "support_speed": 3
+      },
+      "future_failure_terms": {
+        "hand1:anchor_vs_W0_m": 70,
+        "support_speed": 35,
+        "hand1:coverage_5cm": 18,
+        "hand0:anchor_vs_W0_m": 69,
+        "world_joint_speed_retention": 10,
+        "human_goal_error_cm": 31,
+        "object_goal_error_3D_cm": 33,
+        "hand0:coverage_5cm": 14,
+        "hand1:active_surface_mean_m": 8,
+        "hand0:active_surface_mean_m": 9
+      }
+    }
+  },
+  "mechanism_decomposition": {
+    "adopted": {
+      "adopted": 22,
+      "cached_guard_accepted": 22,
+      "current_hand_relation": 7,
+      "delayed_hand_or_motion": 15,
+      "current_native_contact": 4,
+      "future_native_contact": 14,
+      "future_support": 9,
+      "future_joint_speed": 4,
+      "future_anchor": 21,
+      "only_goal_current": 10,
+      "scene_benefit": 14
+    },
+    "all_sides": {
+      "adopted": 22,
+      "cached_guard_accepted": 27,
+      "current_hand_relation": 16,
+      "delayed_hand_or_motion": 28,
+      "current_native_contact": 6,
+      "future_native_contact": 23,
+      "future_support": 24,
+      "future_joint_speed": 9,
+      "future_anchor": 43,
+      "only_goal_current": 16,
+      "scene_benefit": 18
+    },
+    "current_committed_hand_or_relation_failure": 7,
+    "cached_current_tail_additional_failure": 1,
+    "first_failure_requires_new_B1_predictions": 14,
+    "new_B1_prediction_failures_in_all15_output_delayed_states": 15,
+    "note": "Descriptive decomposition of unchanged registered failure terms and frame ownership, not replacement labels. Ten of17 current composite failures concern goal progress only. Relation deviation is a diagnostic rather than proof of lost physical contact."
+  },
+  "feasibility": {
+    "registered_beneficial_compatible_sides": 0,
+    "eligible_sides": 27,
+    "all_diagnostic_sides": 44,
+    "useful_scene_sides": 18,
+    "useful_scene_adopted_states": 14,
+    "no_useful_alternative_states": 22,
+    "scope": "Fixed waypoint pool and registered relationship/progress/scene protections over two B1 windows. These bounds do not establish general physical impossibility or performance of every future policy."
+  },
+  "validity": {
+    "inactive_hand_slices": 60,
+    "support_NA_slices": 15,
+    "ambiguity_branches": 7,
+    "all_three_branches_complete": true,
+    "current_world_exact_checks": 22
+  },
+  "cost": {
+    "synchronized_generation_seconds": 687.1454430837184,
+    "cumulative_branch_wall_seconds": 740.2395701725036,
+    "current_cache_recovery_seconds": 0.4534713514149189,
+    "fragment_evaluation_seconds": 25.67914866283536,
+    "maximum_measured_allocator_bytes": 956363264,
+    "controller_seconds": {
+      "first_failed": 4.017952786758542,
+      "r2": 79.75508263334632,
+      "r3": 223.42530628107488
+    },
+    "total_controller_seconds": 307.19834170117974,
+    "hardware": "8 RTX3090; first diagnostic lane precedes seven concurrent lanes",
+    "accounting": "12 generated windows from r2 counted once and reused without regeneration; no extra repeats, current-window reconstruction, extended tails or training. Rendering wall time and isolated CUDA-kernel-only time unavailable; synchronized generation timing includes CPU scheduling within sample_step."
+  },
+  "failures": [
+    {
+      "run_id": "p2-mixer-continuation-outcomes-s42-20260907",
+      "reason": "Hydra undeclared dataset payload option",
+      "generated_windows": 0,
+      "retained": true
+    },
+    {
+      "run_id": "p2-mixer-continuation-outcomes-r2-s42-20260907",
+      "reason": "SMPL-X joint-index import in fragment evaluator",
+      "generated_windows": 12,
+      "reused_windows": 12,
+      "retained": true
+    }
+  ],
+  "verification": {
+    "authority_passed": 1064,
+    "authority_skipped": 4,
+    "authority_seconds": 169.61,
+    "continuation_component_tests": 25,
+    "logs": "results/continuation-preflight-s42-20260907",
+    "resolved_config_lanes": 8,
+    "complete_source_native_aggregate_checks": 2,
+    "max_native_aggregate_difference": 5.364418029785156e-07,
+    "derived_joint_max_difference_m": 0.0007375478744506836,
+    "native_compatibility": "GPU fragment kinematics have sub-millimetre differences at the fixed first frame of333; normalized motion/context/world-history replay checks are bitwise exact. Native aggregate checks do not establish bitwise SMPL-X equality."
+  },
+  "artifacts": {
+    "summary": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/summary.json",
+    "paired_components": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/paired_components.csv",
+    "attribution": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/attribution.json",
+    "frame_ownership": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/frame_ownership_attribution.json",
+    "native_verification": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/native_verification_final.json",
+    "editor_integrity": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/analysis/editor_integrity.json",
+    "figures": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/visualizations",
+    "visual_review": "results/experiments/p2-mixer-continuation-outcomes-r3-s42-20260907/visualizations/review.json"
+  },
+  "visualization": {
+    "videos": 5,
+    "frames": 20,
+    "tasks": [
+      333,
+      376,
+      421,
+      20,
+      375
+    ],
+    "inspected_frames": [
+      "task-333-frame2",
+      "task-375-frame2"
+    ],
+    "human_blind_review_pending": true,
+    "limits": "Skeleton/128 object points/sparse scene surface show temporal differences; numerical per-hand contact uses the full object surface."
+  },
+  "next_action": "Close2.24. Prepare a new generation-side joint-feasibility proposal, addressing delayed history effects and valid grasp/release semantics; require a concrete new authorization before implementation. Result-head Phase B not entered.",
+  "training_allowed": false,
+  "test_set_development": true,
+  "additional441": false,
+  "full469": false,
+  "shared_parameter_training": false,
+  "phase_summary": "docs/phase_summaries/PHASE_2V_CONTINUATION_OUTCOMES.md",
+  "tag": "exp/p2v-continuation-outcomes-v1"
+}

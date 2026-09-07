@@ -4421,3 +4421,40 @@ configs match r2 generation/dataset exactly; the generation function is unchange
 Resume input identities and separate12 reused/120 new costs are archived beside
 the new manifest. Scientific thresholds and the132 total generated-window budget
 remain the original preregistration.
+
+## 2026-09-07 — Phase2.24 completion: consequences recovered, result-head entry unmet
+
+All22 states/66 branches complete with132 newly generated B1 windows total,
+including12 retained from r2 and120 new in r3.42 same-state B1 motion/context
+checks and22 current world-history checks are exact;132 editor records valid.
+No missing state or final execution/evaluation error.18 branches reach the
+original terminal,48 retain budget censoring.1064 tests pass/4 historical skips.
+
+Original adopted-state categories16 immediate/5 delayed/1 recovery remain as
+registered. Ten of17 current composite failure flags concern goal progress
+only. Hand/relationship decomposition finds7 current submitted failures,
+1 additional cached-tail failure,14 first detected in new B1 predictions.
+All15 output-delayed states also fail hand protection in genuinely new
+predicted frames after excluding carried history.14 adopted states have
+future native hand-contact/distance failures;9 have future support-speed
+failures.44 signed alternatives include27 locally eligible and17 rejected
+diagnostic branches;18 have cumulative HS<0/OS<=0, but0 meet all protections.
+
+Two operational failures retained: undeclared Hydra loader option (0 windows),
+then fragment joint-index import (12 valid windows reused without regeneration).
+68,112 HOI/0 HSI forwards,687.15 cumulative synchronized generation seconds,
+307.20 controller seconds across all three runs.5 fixed comparison videos/20
+frames and full state/task/scene tables retained. Native-compatible fragment
+metrics stay separate from whole-task metrics; relationship deviation has
+explicit grasp/release ambiguity and is not proof of physical contact loss.
+
+Summary PHASE_2V_CONTINUATION_OUTCOMES.md and compact result
+p2_mixer_continuation_outcomes_s42_20260907.json close this diagnostic, tag
+exp/p2v-continuation-outcomes-v1. Priority is a new generation-side joint
+feasibility proposal using actual histories and valid relationship semantics;
+the result-head entry conditions are unmet. No PhaseB training protocol or
+next-phase execution, old-score/guard tuning, native28 policy or441/469 launch.
+
+Closure verification repeats the complete authority suite:1064 passed/4 skips,
+240.41s;389 registry records valid. Runtime source remains5bf15b7. All work in
+this session closes2.24; the next generation-side proposal remains unstarted.
