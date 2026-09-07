@@ -1,0 +1,24 @@
+# Frozen scene-prior transfer candidate; B1 toggles repair_enabled, B0 baseline_hoi.
+defaults: [config_sample_hosi_scene_edit, _self_]
+
+hosi_mode: evaluate
+hosi_shard_count: 67
+hosi_expected_episodes: null
+hosi_per_episode_seeding: true
+mixer_hsi_w: 0
+sampler:
+  pelvis:
+    scene_editor:
+      _target_: mixer.conditional_repair.ConditionalRepairEditor
+      mode: edit
+      lambda_dp: 0.0
+      repair_enabled: true
+      baseline_hoi: false
+      repair_start_step: 99
+      repair_timesteps: [99, 79, 59, 39, 19]
+      repair_eta: 0.0
+      repair_prediction_type: x0
+      fit_iterations: 4
+      proposal_weight: 0.25
+      fit_initial_step: 0.25
+      fit_max_backtracks: 10

@@ -3683,3 +3683,24 @@ contains the28 development-used tasks; explicitly report test-set development,
 never untouched-test selection. Historical InfBaGel/paper values are external
 reference rows with their original protocol and representation labels. This
 scope correction does not authorize loading released weights into repaired code.
+
+Implementation clarification before native workloads: the four indices refer to
+existing `select_shard_scenes(...,67)` bins, whose exact UUIDs and28 canonical task
+keys are tracked in experiments/tasks/conditional_repair_native_development_s42_20260907.json.
+Replace the previous LINGO video identities with test_idx0 in each of these four
+fixed native scenes (four full-sequence B0/B1/B2 videos). Reuse native interpolation,
+SMPL-X and all15 metrics unchanged; add only task_failed for invalid proposals.
+The reportable evaluator now applies its existing clean-worktree check to run_id
+native runs as well. DDIMSolver previous-alpha buffers are float64; cast its result
+back to the current float32 state before the next frozen expert call. Initial unit
+failures identified that interface dtype and an invalid empty-budget test fixture;
+all7 repair tests then pass without scientific parameter changes. The partial
+LINGO metric branch was removed after the user's scope correction.
+
+Pre-run scale correction (no candidate outcomes exist): sealed2.12 native FS is
+0.1208 for lambda0. The provisional0.10 absolute criterion would demand82.78%
+improvement and is inconsistent with a local coordination repair under strict
+stance protection. Freeze0.01 native FS units instead (8.28% of that historical
+scale), with the same negative paired95% upper CI and scene mean protection.
+This supersedes0.10 in both development/full469 FS rules only. This is based on
+sealed historical evidence, never the new28/469 outcomes; all other gates stay.

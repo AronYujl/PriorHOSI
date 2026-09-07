@@ -50,7 +50,7 @@ def domain_accepts(current, trial):
 
 
 def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
-                 c1=1e-4, max_backtracks=10):
+                 c1=1e-4, max_backtracks=10, gradient_transform=None):
     """One independently accepted step per cell, returning the last valid state."""
     with torch.enable_grad():
         origin = parameters.detach().requires_grad_(True)
@@ -59,6 +59,8 @@ def local_armijo(parameters, evaluate, admissible, initial_step=1., shrink=.5,
     if not torch.isfinite(gradient).all() or not torch.isfinite(value).all():
         raise FloatingPointError('nonfinite scene-edit local objective/gradient')
     gradient = gradient.detach()
+    if gradient_transform is not None:
+        gradient = gradient_transform(parameters, gradient)
     norm2 = gradient.square().flatten(1).sum(1)
     active = norm2 > 0
     accepted = torch.zeros_like(active)

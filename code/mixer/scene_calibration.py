@@ -255,3 +255,110 @@ def paired_local_metrics(first, second, device):
     samples=delta[index].mean(1)
     bounds=torch.quantile(samples,torch.tensor([.025,.975],dtype=torch.float64,device=device),dim=0)
     return {k:dict(delta=float(delta[:,i].mean()),ci=[float(bounds[0,i]),float(bounds[1,i])],n=len(names)) for i,k in enumerate(metrics)}
+
+
+def summarize_conditional_repair(source_root, output_dir, task_manifest, device='cuda:7'):
+    """Complete development rollouts, paired by task and by scene, with fixed gates."""
+    directory = Path(output_dir)
+    directory.mkdir(parents=True, exist_ok=False)
+    groups = ('B0_hoi', 'B1_no_hsi', 'B2_hsi_repair')
+    tasks, records, motions, scene_by_task = {g:{} for g in groups}, {g:[] for g in groups}, [], {}
+    def write(name, value):
+        with (directory/name).open('x') as handle:
+            json.dump(value, handle, indent=2, allow_nan=False)
+    def average(rows):
+        return {k:float(np.mean([r[k] for r in rows])) for k in rows[0]}
+    selection = json.loads(Path(task_manifest).read_text())['tasks']
+    expected = {'%03d'%r['canonical_ordinal'] for r in selection}
+    native_unavailable = set()
+    for g in groups:
+        paths = sorted(Path(source_root).glob(f'{g}-shard*/episode-audit-*.json'))
+        for path in paths:
+            ep = json.loads(path.read_text())
+            identity = ep['metrics']; task = '%03d' % identity['canonical_ordinal']
+            saved_path = path.with_name(path.name.replace('episode-audit-', 'episode-motion-')).with_suffix('.pt')
+            saved = torch.load(saved_path, map_location='cpu', weights_only=False)
+            ep['records'] = ep['sampler_audit']['composition']['scene_edit']['records'][-len(saved['windows']):]
+            if task in tasks[g]:
+                raise ValueError('duplicate conditional-repair task')
+            scene_by_task[task] = identity['scene_name']
+            native_unavailable.update(k for k,v in ep['metrics'].items() if v is None)
+            metrics = {k:float(v) for k,v in ep['metrics'].items()
+                       if isinstance(v,(float,int,bool)) and k not in ('canonical_ordinal','test_idx')}
+            proxy = average([{k:float(v[0]) for k,v in r['final_metrics'].items()} for r in ep['records']])
+            metrics.update({'proxy_'+k:v for k,v in proxy.items()})
+            metrics['generation_seconds'] = ep['generation_seconds']
+            metrics['mean_repair_rms_mm'] = float(np.mean([r['repair_rms_mm'] for r in ep['records']]))
+            metrics['invalid_proposal_fraction'] = float(np.mean([r['invalid_proposal'] for r in ep['records']]))
+            for r in ep['records']:
+                records[g].append(dict(r,task=task,scene=identity['scene_name'],object=identity['object_name']))
+            joints = saved['evaluated_joints_world'].to(device)
+            velocity = (joints[1:]-joints[:-1]).norm(dim=-1)
+            root_velocity = velocity[:,0]
+            metrics.update(root_path_cm=float(root_velocity.sum()*100),
+                mean_joint_frame_displacement_cm=float(velocity.mean()*100),
+                near_stationary_root_fraction=float((root_velocity<.001).float().mean()))
+            seams = []
+            for previous,current in zip(saved['windows'],saved['windows'][1:]):
+                a=previous['points_world'].to(device).reshape(1,16,28,3)
+                b=current['points_world'].to(device).reshape(1,16,28,3)
+                seams.append(float((a[:,-2:]-b[:,:2]).abs().max()))
+            metrics['history_world_max_abs_m'] = max(seams,default=0.)
+            tasks[g][task] = metrics
+            motions.append(dict(group=g,task=task,scene=identity['scene_name'],object=identity['object_name'],
+                frame_count=len(joints),history_world_max_abs_m=metrics['history_world_max_abs_m'],
+                generation_seconds=ep['generation_seconds']))
+        if set(tasks[g]) != expected:
+            raise ValueError(f'incomplete registered task coverage: {g}, {len(tasks[g])}')
+    scene = {g:{s:average([r for n,r in tasks[g].items() if scene_by_task[n]==s])
+                for s in sorted(set(scene_by_task.values()))} for g in groups}
+    means = {g:average(list(tasks[g].values())) for g in groups}
+    contrasts = {}
+    for unit,data in (('task',tasks),('scene',scene)):
+        contrasts[unit]={f'{b}-{a}':paired_local_metrics(data[a],data[b],device)
+                        for a,b in ((groups[0],groups[1]),(groups[0],groups[2]),(groups[1],groups[2]))}
+    repair=records[groups[2]]
+    audit={g:dict(windows=len(records[g]),
+        modified_windows=sum(r['modified'] for r in records[g]),
+        fallback_windows=sum(r['fallback'] for r in records[g]),
+        invalid_proposals=sum(r['invalid_proposal'] for r in records[g]),
+        hsi_calls=sum(r['hsi_calls'] for r in records[g]),
+        accepted_fit_steps=sum(sum(sum(t['accepted']) for t in s.get('fit',[])) for r in records[g] for s in r['steps']),
+        nonfinite_steps=sum(s['reason'].startswith('nonfinite') for r in records[g] for s in r['steps']),
+        history_common_contact_exact=all(r['history_exact'] and r['common_exact'] and r['contact_exact'] for r in records[g]),
+        final_guards=all(all(r['final_guards'].values()) for r in records[g]),
+        timing_mean_seconds={k:float(np.mean([r[k] for r in records[g]]))
+                             for k in ('geometry_seconds','hsi_seconds','fit_seconds','seconds')},
+        peak_allocated_bytes=max(r['peak_allocated_bytes'] or 0 for r in records[g])) for g in groups}
+    gates=dict(complete_tasks=True, no_invalid_proposals=all(a['invalid_proposals']==0 for a in audit.values()),
+        history_common_contact=all(a['history_common_contact_exact'] and a['final_guards'] for a in audit.values()),
+        world_history_continuity=all(m['history_world_max_abs_m']<=1e-5 for m in motions),
+        repair_occurs=sum(r['modified'] for r in repair)/len(repair)>=.5,
+        fallback_fraction=sum(r['fallback'] for r in repair)/len(repair)<=.5)
+    primary=contrasts['task']['B2_hsi_repair-B1_no_hsi']['foot_sliding']
+    gates['native_fs_gain']=primary['delta']<=-.01 and primary['ci'][1]<0 and contrasts['scene']['B2_hsi_repair-B1_no_hsi']['foot_sliding']['delta']<=0
+    for unit in ('task','scene'):
+        for b in groups[:2]:
+            contrast=contrasts[unit]['B2_hsi_repair-'+b]
+            for k in ('contact_percent','completed'):
+                gates[f'{unit}_{k}_vs_{b}']=contrast[k]['ci'][0]>=-.02
+            for k in ('xy_points_err','end_obj_trans_err'):
+                gates[f'{unit}_{k}_vs_{b}']=contrast[k]['ci'][1]<=1.
+        c1=contrasts[unit]['B2_hsi_repair-B1_no_hsi'];c0=contrasts[unit]['B2_hsi_repair-B0_hoi']
+        scene_keys=('scene_human_penetration_s_mean','scene_obj_penetration_s_mean')
+        gates[unit+'_scene_protection_B1']=all(c1[k]['delta']<=0 and c1[k]['ci'][1]<=.02 for k in scene_keys)
+        gates[unit+'_total_scene_gain_B0']=all(c0[k]['delta']<=0 for k in scene_keys) and any(c0[k]['ci'][1]<0 for k in scene_keys)
+    result=dict(phase='2.15',tasks=len(expected),scenes=len(scene[groups[0]]),groups=groups,means=means,audit=audit,gates=gates,
+        numerical_gate_passed=all(gates.values()),
+        decision='REQUIRES_FULL_MOTION_REVIEW' if all(gates.values()) else 'NO-GO',
+        full469_started=False,native_unavailable=sorted(native_unavailable),
+        metric_scope='complete native HOSI metrics; window FK/voxel proxies separately named',
+        bootstrap=dict(replicates=10000,seed=42,confidence=.95,units=['task','scene']))
+    for name,data in (('task_metrics.json',tasks),('scene_metrics.json',scene),('paired.json',contrasts),
+                      ('window_records.json',records),('motion_audit.json',motions),('summary.json',result)):
+        write(name,data)
+    for g in groups:
+        for unit,data in (('task',tasks),('scene',scene)):
+            sub=directory/(g+'_'+unit);sub.mkdir()
+            write(str(sub.relative_to(directory)/'per_sequence_metrics.json'),data[g])
+    return result

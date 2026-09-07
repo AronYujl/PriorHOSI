@@ -522,7 +522,7 @@ def main(cfg: DictConfig) -> None:
         return
     input_diagnostic_mode = str(cfg.get('hosi_mode', 'evaluate')) in ('input_diagnostic', 'relational_prototype')
     development_mode = str(cfg.get('hosi_mode', 'evaluate')) == 'scene_evidence_development'
-    if input_diagnostic_mode or development_mode:
+    if input_diagnostic_mode or development_mode or cfg.get('run_id'):
         if subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
             raise RuntimeError('registered input diagnostics require a clean worktree')
         diagnostic_commit = subprocess.check_output(
@@ -1143,6 +1143,9 @@ def main(cfg: DictConfig) -> None:
             # what catches a short merge, which would otherwise read as a complete
             # result -- and it identifies an episode across runs and shard counts.
             metrics['canonical_ordinal'] = int(canonical_ordinal)
+            if hasattr(motion_corrector, 'repair_enabled'):
+                episode_records = motion_corrector.records[-len(recorded_windows):]
+                metrics['task_failed'] = any(r['invalid_proposal'] for r in episode_records)
             if record_relational_motion:
                 with open(os.path.join(base_output_dir, f'episode-motion-{canonical_ordinal:03d}.pt'), 'xb') as handle:
                     torch.save({

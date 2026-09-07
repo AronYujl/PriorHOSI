@@ -1,0 +1,193 @@
+{
+  "seed": 42,
+  "selection": "Existing native benchmark shard bins0,22,44,66; all7 objects; fixed before runs",
+  "test_set_development": true,
+  "scenes": [
+    {
+      "shard": 0,
+      "scene": "a3df624b-0917-46e9-ac15-fab766276c72"
+    },
+    {
+      "shard": 22,
+      "scene": "b1b053a9-b268-4f62-a06d-b9b9325c5092"
+    },
+    {
+      "shard": 44,
+      "scene": "4abcb667-c57f-4d8f-940a-d964152329d5"
+    },
+    {
+      "shard": 66,
+      "scene": "0aa05d5a-81d5-497b-832c-c90c3fe73a36"
+    }
+  ],
+  "tasks": [
+    {
+      "canonical_ordinal": 371,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 372,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 373,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 374,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 375,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 376,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 377,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 420,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 421,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 422,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 423,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 424,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 425,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 426,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 329,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 330,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 331,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 332,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 333,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 334,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 335,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 14,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 15,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 16,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 17,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 18,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 19,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 20,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 6,
+      "object_name": "tripod"
+    }
+  ]
+}
