@@ -257,11 +257,43 @@ def paired_local_metrics(first, second, device):
     return {k:dict(delta=float(delta[:,i].mean()),ci=[float(bounds[0,i]),float(bounds[1,i])],n=len(names)) for i,k in enumerate(metrics)}
 
 
-def summarize_conditional_repair(source_root, output_dir, task_manifest, device='cuda:7'):
+def foot_quality_gates(contrasts, audit, motions, means):
+    """Phase2.16's preregistered HS primary and native noninferiority gates."""
+    candidate = 'B2_quality'
+    primary = contrasts['task'][candidate+'-B1_no_hsi']['scene_human_penetration_s_mean']
+    gates = dict(complete_tasks=True,
+        native_hs_gain=primary['delta'] <= -.2052208120905562 and primary['ci'][1] < 0
+            and contrasts['scene'][candidate+'-B1_no_hsi']['scene_human_penetration_s_mean']['delta'] <= 0,
+        no_invalid_proposals=all(a['invalid_proposals']==0 for a in audit.values()),
+        no_nonfinite_steps=all(a['nonfinite_steps']==0 for a in audit.values()),
+        no_task_failures=all(m['task_failed']==0 for m in means.values()),
+        history_common_contact=all(a['history_common_contact_exact'] and a['final_guards'] for a in audit.values()),
+        world_history_continuity=all(m['history_world_max_abs_m']<=1e-5 for m in motions))
+    for unit in ('task', 'scene'):
+        for baseline in ('B0_hoi', 'B1_no_hsi'):
+            c = contrasts[unit][candidate+'-'+baseline]
+            gates[f'{unit}_fs_vs_{baseline}'] = c['foot_sliding']['ci'][1] <= .01
+            for k in ('contact_percent','completed'):
+                gates[f'{unit}_{k}_vs_{baseline}'] = c[k]['ci'][0] >= -.02
+            for k in ('xy_points_err','end_obj_trans_err'):
+                gates[f'{unit}_{k}_vs_{baseline}'] = c[k]['ci'][1] <= 1.
+        c1 = contrasts[unit][candidate+'-B1_no_hsi']
+        os = c1['scene_obj_penetration_s_mean']
+        gates[unit+'_os_protection_B1'] = os['delta'] <= 0 and os['ci'][1] <= .02
+        c0 = contrasts[unit][candidate+'-B0_hoi']
+        keys = ('scene_human_penetration_s_mean','scene_obj_penetration_s_mean')
+        gates[unit+'_total_scene_gain_B0'] = all(c0[k]['delta']<=0 for k in keys) and any(c0[k]['ci'][1]<0 for k in keys)
+    return gates
+
+
+def summarize_conditional_repair(source_root, output_dir, task_manifest, device='cuda:7',
+                                 foot_quality=False):
     """Complete development rollouts, paired by task and by scene, with fixed gates."""
     directory = Path(output_dir)
     directory.mkdir(parents=True, exist_ok=False)
     groups = ('B0_hoi', 'B1_no_hsi', 'B2_hsi_repair')
+    if foot_quality:
+        groups += ('B2_quality',)
     tasks, records, motions, scene_by_task = {g:{} for g in groups}, {g:[] for g in groups}, [], {}
     def write(name, value):
         with (directory/name).open('x') as handle:
@@ -316,7 +348,7 @@ def summarize_conditional_repair(source_root, output_dir, task_manifest, device=
     contrasts = {}
     for unit,data in (('task',tasks),('scene',scene)):
         contrasts[unit]={f'{b}-{a}':paired_local_metrics(data[a],data[b],device)
-                        for a,b in ((groups[0],groups[1]),(groups[0],groups[2]),(groups[1],groups[2]))}
+                        for i,a in enumerate(groups) for b in groups[i+1:]}
     repair=records[groups[2]]
     audit={g:dict(windows=len(records[g]),
         modified_windows=sum(r['modified'] for r in records[g]),
@@ -354,6 +386,39 @@ def summarize_conditional_repair(source_root, output_dir, task_manifest, device=
         full469_started=False,native_unavailable=sorted(native_unavailable),
         metric_scope='complete native HOSI metrics; window FK/voxel proxies separately named',
         bootstrap=dict(replicates=10000,seed=42,confidence=.95,units=['task','scene']))
+    if foot_quality:
+        gates = foot_quality_gates(contrasts, audit, motions, means)
+        gates['complete_native_metrics'] = not native_unavailable
+        result.update(phase='2.16', gates=gates, numerical_gate_passed=all(gates.values()),
+            decision='REQUIRES_FULL_MOTION_REVIEW' if all(gates.values()) else 'NO-GO',
+            primary_metric='scene_human_penetration_s_mean', minimum_absolute_hs_gain=.2052208120905562,
+            foot_energy_epsilon_m2=1e-12, test_set_development=True)
+        diagnosis = {}
+        for g in groups:
+            trials = [t for r in records[g] for s in r['steps'] for f in s.get('fit',[]) for t in f['trials']]
+            rejected = [t for t in trials if not all(t['admissible'])]
+            reasons = {k:sum(not all(t['guards'][k]) for t in rejected)
+                       for k in ('domain','contact','human_scene','stance','feet','common','finite')}
+            rms = np.array([r['repair_rms_mm'] for r in records[g]])
+            diagnosis[g] = dict(trials=len(trials), rejected_trials=len(rejected),
+                rejection_reasons_cooccurring=reasons,
+                rejection_single_reason={k:sum(not all(t['guards'][k]) and
+                    sum(not all(v) for v in t['guards'].values())==1 for t in rejected) for k in reasons},
+                search_exhausted=sum(f['reason'].count('search_exhausted') for r in records[g]
+                    for s in r['steps'] for f in s.get('fit',[])),
+                rms_mm=dict(mean=float(rms.mean()),median=float(np.median(rms)),
+                    p95=float(np.quantile(rms,.95)),max=float(rms.max())),
+                legacy_disallowed_but_new_admissible=sum(all(t['admissible']) and
+                    not all(t['foot']['legacy_pass']) for t in trials if 'foot' in t),
+                legacy_disallowed_but_new_accepted=sum(any(t['accepted']) and
+                    not all(t['foot']['legacy_pass']) for t in trials if 'foot' in t),
+                empty_support_windows=sum(r['foot']['active_count']==[0] for r in records[g] if 'foot' in r))
+        object_by_task = {'%03d'%r['canonical_ordinal']:r['object_name'] for r in selection}
+        objects = {g:{obj:average([row for task,row in tasks[g].items() if object_by_task[task]==obj])
+                    for obj in sorted(set(object_by_task.values()))} for g in groups}
+        # Task rows are the statistical units, also within each object stratum.
+        write('object_means.json', objects)
+        write('repair_diagnosis.json', diagnosis)
     for name,data in (('task_metrics.json',tasks),('scene_metrics.json',scene),('paired.json',contrasts),
                       ('window_records.json',records),('motion_audit.json',motions),('summary.json',result)):
         write(name,data)

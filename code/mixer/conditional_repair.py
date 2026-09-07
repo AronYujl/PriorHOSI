@@ -41,12 +41,28 @@ def project_local_pose(objective, parameters, gradient):
     return torch.cat((torch.zeros_like(gradient[:, :2]), future), 1)
 
 
+def support_foot_energy(human, stance):
+    """World X/Z displacement energy in m²; fixed pairs1->2 through14->15.
+
+    Average over active frame-foot pairs, summing the two horizontal axes.
+    Empty support is vacuous (energy0/count0), never evidence of improvement.
+    """
+    feet = human[..., (7, 8, 10, 11), :].double()
+    squared = (feet[:, 2:, :, (0, 2)] - feet[:, 1:-1, :, (0, 2)]).square().sum(-1)
+    count = stance.flatten(1).sum(1)
+    energy = torch.where(stance, squared, torch.zeros_like(squared)).flatten(1).sum(1)
+    return energy / count.clamp_min(1), count
+
+
 class ConstrainedPoseFit:
     """Finite FK guards, source anchors and local-only projected pose fitting."""
 
     def __init__(self, geometry, source_geometry, scene_flag, iterations=4,
-                 proposal_weight=.25, initial_step=.25, max_backtracks=10):
+                 proposal_weight=.25, initial_step=.25, max_backtracks=10,
+                 foot_guard_mode='increment', foot_energy_epsilon_m2=1e-12):
         self.geometry = geometry
+        self.foot_guard_mode = foot_guard_mode
+        self.foot_energy_epsilon_m2 = foot_energy_epsilon_m2
         self.iterations, self.proposal_weight = iterations, proposal_weight
         self.initial_step, self.max_backtracks = initial_step, max_backtracks
         self.zero = geometry.base.new_zeros(*geometry.base.shape[:2], geometry.dimension)
@@ -61,6 +77,8 @@ class ConstrainedPoseFit:
         self.contact_distance = self.objective.contact_residual(self.proposal).norm(dim=-1)
         self.contact_limit = self.contact_distance.clamp_min(.005) + .001
         _, self.metrics = self.protection.evaluate(self.proposal)
+        self.proposal_foot_energy, self.support_count = support_foot_energy(
+            self.proposal['human'], self.protection.stance)
         self.invalid_proposal = bool(((self.contact_distance > .05) & self.objective.contact).any())
 
     def guards(self, parameters):
@@ -69,11 +87,20 @@ class ConstrainedPoseFit:
         contact = self.objective.contact_residual(state).norm(dim=-1)
         feet = (state['human'][:, 2:, (7, 8, 10, 11)]
                 - self.proposal['human'][:, 2:, (7, 8, 10, 11)]).norm(dim=-1)
+        energy, count = support_foot_energy(state['human'], self.protection.stance)
+        legacy = metrics['stance_increment_cm'] <= .05
+        quality = energy <= self.proposal_foot_energy + self.foot_energy_epsilon_m2
+        self.last_foot_metrics = dict(active_count=count,
+            proposal_energy_m2=self.proposal_foot_energy, candidate_energy_m2=energy,
+            energy_delta_m2=energy-self.proposal_foot_energy,
+            stance_increment_cm=metrics['stance_increment_cm'],
+            legacy_pass=legacy, quality_pass=quality,
+            max_foot_displacement_cm=feet.flatten(1).max(1).values*100)
         checks = dict(
             domain=domain_accepts(self.domain, domain_state(state, self.grid)),
             contact=((contact <= self.contact_limit) | ~self.objective.contact).flatten(1).all(1),
             human_scene=metrics['human_scene_residual_cm'] <= self.metrics['human_scene_residual_cm'] + .01,
-            stance=metrics['stance_increment_cm'] <= .05,
+            stance={'increment': legacy, 'quality': quality}[self.foot_guard_mode],
             feet=(feet <= .02).flatten(1).all(1),
             common=(parameters[..., :4] == 0).flatten(1).all(1),
             finite=torch.isfinite(state['human']).flatten(1).all(1))
@@ -91,7 +118,7 @@ class ConstrainedPoseFit:
         guard_records = []
         def admissible(p):
             checks = self.guards(p)
-            guard_records.append(checks)
+            guard_records.append((checks, self.last_foot_metrics))
             return torch.stack(list(checks.values())).all(0)
         traces = []
         for _ in range(self.iterations):
@@ -99,8 +126,9 @@ class ConstrainedPoseFit:
             parameters, trace = local_armijo(parameters, evaluate, admissible,
                 initial_step=self.initial_step, max_backtracks=self.max_backtracks,
                 gradient_transform=lambda p, g: project_local_pose(self.objective, p, g))
-            for trial, checks in zip(trace['trials'], guard_records):
+            for trial, (checks, foot) in zip(trace['trials'], guard_records):
                 trial['guards'] = {k:v.cpu().tolist() for k,v in checks.items()}
+                trial['foot'] = {k:v.cpu().tolist() for k,v in foot.items()}
             traces.append(trace)
         return parameters, traces
 
@@ -111,7 +139,8 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
     def __init__(self, repair_enabled=True, baseline_hoi=False, repair_start_step=99,
                  repair_timesteps=(99, 79, 59, 39, 19), repair_eta=0.,
                  repair_prediction_type='x0', fit_iterations=4, proposal_weight=.25,
-                 fit_initial_step=.25, fit_max_backtracks=10, **kwargs):
+                 fit_initial_step=.25, fit_max_backtracks=10,
+                 foot_guard_mode='increment', foot_energy_epsilon_m2=1e-12, **kwargs):
         super().__init__(**kwargs)
         if self.lambda_dp != 0 or self.mode != 'edit':
             raise ValueError('conditional repair requires the frozen lambda0 edit proposal')
@@ -120,8 +149,11 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
         self.repair_enabled, self.baseline_hoi = repair_enabled, baseline_hoi
         self.repair_timesteps = list(repair_timesteps)
         self.fit_options = dict(iterations=fit_iterations, proposal_weight=proposal_weight,
-            initial_step=fit_initial_step, max_backtracks=fit_max_backtracks)
+            initial_step=fit_initial_step, max_backtracks=fit_max_backtracks,
+            foot_guard_mode=foot_guard_mode, foot_energy_epsilon_m2=foot_energy_epsilon_m2)
         self.cell = 'B0_hoi' if baseline_hoi else ('B2_hsi_repair' if repair_enabled else 'B1_no_hsi')
+        if repair_enabled and not baseline_hoi and foot_guard_mode == 'quality':
+            self.cell = 'B2_quality'
 
     @torch.no_grad()
     def edit(self, sampler, source, arguments, local_bps, context, offsets, seed):
@@ -211,13 +243,16 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
         if not history_exact or not common_exact:
             raise AssertionError('conditional repair changed immutable history/common motion')
         values = lambda d: {k: v.detach().cpu().tolist() for k,v in d.items()}
+        final_guards = fitter.guards(parameters)
         record = dict(window=sampler.inner_hoi.sample_calls, seed=int(seed), cell=self.cell,
             history_exact=history_exact, common_exact=common_exact, contact_exact=torch.equal(result[..., 228:], source[..., 228:]),
             source_metrics=values(source_metrics), proposal_metrics=values(proposal_metrics), final_metrics=values(final_metrics),
             repair_rms_mm=rms, modified=rms>=1., fallback=bool(torch.equal(result, proposal)),
             invalid_proposal=fitter.invalid_proposal, hsi_calls=calls, hsi_seconds=hsi_seconds,
             fit_seconds=fit_seconds, geometry_seconds=geometry_seconds, steps=steps,
-            final_guards={k: bool(v.all()) for k,v in fitter.guards(parameters).items()},
+            final_guards={k: bool(v.all()) for k,v in final_guards.items()},
+            foot=values(fitter.last_foot_metrics), foot_guard_mode=fitter.foot_guard_mode,
+            foot_energy_epsilon_m2=fitter.foot_energy_epsilon_m2,
             max_source_anchor_cm=float((source_objective.contact_residual(final_state).norm(dim=-1)*source_objective.contact).max()*100),
             source_outside_points=int((~fitter.domain[1]).sum()),
             peak_allocated_bytes=torch.cuda.max_memory_allocated(source.device) if source.is_cuda else None)
@@ -235,7 +270,7 @@ class ConditionalRepairEditor(SceneEvidenceEditor):
             self.motion_records[-1].update(raw_source=source.cpu().clone(), proposal=proposal.cpu(), edited=result.cpu(),
                 repair_parameters=parameters.cpu(), source_anchor=source_objective.hand_anchor.cpu(),
                 contact_mask=source_objective.contact.cpu(), proposal_fk=fitter.proposal['human'].cpu(),
-                final_fk=final_state['human'].cpu())
+                final_fk=final_state['human'].cpu(), repair_stance_mask=fitter.protection.stance.cpu())
         return result
 
     def audit_dict(self):

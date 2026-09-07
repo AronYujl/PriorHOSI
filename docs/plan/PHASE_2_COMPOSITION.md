@@ -3842,3 +3842,20 @@ Hydra configs on a clean committed worktree. Use screen for persistent workloads
 
 Stop with insufficient evidence if primary practical/statistical gain or any
 protection fails. Do not relax more guards, change targets or run441 on failure.
+
+
+Implementation verification before native outcomes:15 component tests pass.
+All124 sealed B1 proposals equal outputs and all2480 fit gradients are exactly
+zero; new-mode no-HSI/RNG regression passes. Float64 foot-energy identity delta
+is exactly0 and maximum reverse-reduction discrepancy on those proposals is
+8.673617379884035e-19m². Proposal energies range0..0.008176423223049857m²,
+active counts0..56. Epsilon1e-12 is retained as registered. Four resolved configs
+match sealed r2 after removing only run/output identity and the two new foot
+options. No new sampling/noise/objective/checkpoint differences. The first full
+scene lane supplies the requested real-data interface check, contributes its
+seven actual episodes to native28, and must pass interface/finite/lock checks
+before other scenes launch. It is not used to tune scientific settings.
+
+Final implementation suite:981 passed,4 historical skips,169.63s. Registry374
+rows valid; core and both expert trees unchanged. Component tests, baseline
+numerical audit and full suite logs live in results/foot-quality-preflight-s42-20260907/.
