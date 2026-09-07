@@ -4491,3 +4491,25 @@ comparison; conditional full-native28 policy is2.26, separately registered after
 its concrete policy is determined. HSI learning/441/469 remain later stages.
 One preregistration, logical implementation, completion commit; actual failures
 retained. Historical2.24 gate and2.23 NO-GO remain their original definitions.
+
+Implementation fixes the relation-only intervention as an optional composed-sampler
+hook; existing CandidatePoolSampler remains the entry, with no extra sampler
+class or tools script. Differentiable full-mesh object-coordinate palms match
+existing native FK geometry, including the fixed object prefix. Fourteen component
+checks cover trust/unknown/release, frame invariance, finite coupled gradients,
+immutable history, quality/proxy separation and Hydra composition. All eight final
+resolved sampler and dataset trees exactly equal sealed B1. C1/C2 current actions
+have identical initial relation state; their first generated window is checked
+pairwise, alongside exact cached arm conditions/history for all88 new branches.
+
+All six outputs use one unchanged native fragment evaluator and fixed C0 W0
+activity/stance. Legacy composite labels are explicitly archived as proxy labels.
+Joint physical candidates are counted independently from the additional requirement
+that trustworthy relation engagement occurred without suspension/regrasp ambiguity.
+Intermediate goal distance and anchor error remain visible in paired tables.
+
+Final implementation verification:1078 passed/4 historical skips,201.14s;
+results/relational-sampling-preflight-s42-20260907/authority-final.log. Initial
+suite1076/4 passed before the final two checks and rendering/generalization edit.
+Registry390 records valid. Actual registered batch1 generation supplies functional
+verification and synchronized performance; no training microbatch is executed.

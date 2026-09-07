@@ -77,7 +77,8 @@ class HOSIComposedSampler:
                  channel_mask='human', hsi_object_voxel_mode='occupied',
                  body_composer=None, hsi_guidance_scale=1.0,
                  inference_engineering=False, input_diagnostic=None,
-                 hsi_input_view=None, relational_corrector=None, scene_editor=None):
+                 hsi_input_view=None, relational_corrector=None, scene_editor=None,
+                 relation_guidance=None):
         if state is not None:
             raise NotImplementedError(
                 'HOSIComposedSampler accepts `state` only as a reserved '
@@ -106,6 +107,7 @@ class HOSIComposedSampler:
         self.hsi_input_view = hsi_input_view
         self.relational_corrector = relational_corrector
         self.scene_editor = scene_editor
+        self.relation_guidance = relation_guidance
         if scene_editor is not None and scene_editor.enabled:
             if (not gate_is_identity(self.gate, 0) or body_composer is not None
                     or relational_corrector is not None or input_diagnostic is not None
@@ -330,6 +332,8 @@ class HOSIComposedSampler:
         if self.input_diagnostic is not None:
             self.input_diagnostic.begin_window(current)
         imgs = []
+        if self.relation_guidance is not None:
+            self.relation_guidance.begin_window(self, hsi_context, human_dict, hoi_guidance)
         for step in reversed(range(diffusion.timesteps)):
             timesteps = torch.full((batch,), step, dtype=torch.long, device=device)
             hoi_clean = self._hoi_x0(
@@ -404,11 +408,15 @@ class HOSIComposedSampler:
                 )
             if hoi_guidance is not None and step:
                 current = hoi_guidance.apply(current, clean, fixed_points, step)
+            if self.relation_guidance is not None and step:
+                current = self.relation_guidance.apply(current, clean, fixed_points, step)
             imgs.append(current)
 
         current[..., 219:228] = project_to_so3(
             current[..., 219:228].reshape(batch, REPRESENTATION.window_frames, 3, 3)
         ).reshape(batch, REPRESENTATION.window_frames, 9)
+        if self.relation_guidance is not None:
+            self.relation_guidance.finish_sampling(current)
         if self.scene_editor is not None and self.scene_editor.enabled:
             current[:, :REPRESENTATION.history_frames] = fixed_points
             current = self.scene_editor.edit(

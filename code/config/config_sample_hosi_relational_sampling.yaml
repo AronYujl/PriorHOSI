@@ -5,7 +5,3 @@ relational_sampling:
   protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_relational_sampling_s42_20260907.json
   scene: null
   state_ids: null
-
-sampler:
-  pelvis:
-    _target_: mixer.relational_sampling.RelationalSamplingSampler

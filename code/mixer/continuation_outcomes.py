@@ -693,7 +693,7 @@ def summarize_continuation_outcomes(run_root):
     return summary
 
 
-def render_continuation_outcomes(run_root,device='cuda:7'):
+def render_continuation_outcomes(run_root,device='cuda:7',comparison='waypoint',tasks=None):
     """Fixed representative states, side-by-side actual W0/W+/W− continuations."""
     import matplotlib
     matplotlib.use('Agg')
@@ -707,9 +707,13 @@ def render_continuation_outcomes(run_root,device='cuda:7'):
     out=root/'visualizations';out.mkdir(exist_ok=False)
     parents=[-1,0,0,0,1,2,3,4,5,6,7,8,9,9,9,12,13,14,16,17,18,19,20,20,20,21,21,21]
     records=[]
-    for task in protocol['reporting']['representative_tasks']:
+    for task in (tasks if tasks is not None else protocol['reporting']['representative_tasks']):
         path,state=min((p,s) for p,s in states if s['task']==task)
         tracks=torch.load(path.parent/'tracks.pt',map_location='cpu',weights_only=False)
+        arms = ARMS if comparison == 'waypoint' else (state['source_selected'],
+            'C1_'+state['source_selected'], 'C2_'+state['source_selected'])
+        captions = arms if comparison == 'waypoint' else ('C0 B1', 'C1 local', 'C2 persistent')
+        tracks = {a: tracks[a] for a in arms}
         full=np.concatenate([v['coarse_fk_human'].numpy().reshape(-1,3) for v in tracks.values()])
         lo=full.min(0)-[.5,.2,.5];hi=full.max(0)+[.5,.2,.5]
         scene=state['scene'];sdf_root=repo/'data/hosi_test/Scene_sdf'
@@ -722,7 +726,7 @@ def render_continuation_outcomes(run_root,device='cuda:7'):
         surface=surface.cpu().numpy()
         fig=plt.figure(figsize=(13,4.6));lines=[];objects=[];titles=[]
         colors=['#666666','#2271ad','#1d9963'];center=(lo+hi)/2;radius=max(hi-lo)/2
-        for i,arm in enumerate(ARMS):
+        for i,arm in enumerate(arms):
             ax=fig.add_subplot(1,3,i+1,projection='3d')
             ax.scatter(surface[:,0],surface[:,2],surface[:,1],s=.5,c='#aaaaaa',alpha=.15)
             lines.append([ax.plot([],[],[],color=colors[i],lw=2)[0] for _ in parents[1:]])
@@ -733,7 +737,7 @@ def render_continuation_outcomes(run_root,device='cuda:7'):
             ax.view_init(elev=20,azim=-55);ax.set_box_aspect((1,1,1))
         title=fig.suptitle('')
         def update(frame):
-            for i,arm in enumerate(ARMS):
+            for i,arm in enumerate(arms):
                 t=tracks[arm];available=frame<len(t['native_joints'])
                 j=t['native_joints'][frame].numpy() if available else None
                 o=t['object_points128'][min(frame//3,len(t['object_points128'])-1)].numpy() if available else np.empty((0,3))
@@ -741,9 +745,10 @@ def render_continuation_outcomes(run_root,device='cuda:7'):
                     seg=j[[k,parents[k]]] if available else np.empty((0,3))
                     line.set_data(seg[:,0],seg[:,2]);line.set_3d_properties(seg[:,1])
                 objects[i]._offsets3d=(o[:,0],o[:,2],o[:,1])
-                label=state['branches'][arm]['diagnostics']['category']
-                titles[i].set_text(f'{arm}: {label}' if available else f'{arm}: observed interval ended')
-            stage='current' if frame<42 else 'next_1 B1' if frame<84 else 'next_2 B1'
+                label=(state['branches'][arm]['diagnostics']['category'] if comparison == 'waypoint'
+                       else state['branches'][arm]['termination'])
+                titles[i].set_text(f'{captions[i]}: {label}' if available else f'{captions[i]}: observed interval ended')
+            stage='current' if frame<42 else 'next_1' if frame<84 else 'next_2'
             title.set_text(f'Targeted task {task:03d} / {state["state_id"]} / {frame/30:.2f}s / {stage}')
         frames=list(range(0,max(len(t['native_joints']) for t in tracks.values()),3))
         animation=FuncAnimation(fig,update,frames=frames,interval=100)
