@@ -4369,3 +4369,21 @@ mechanism decision. It requires no favorable mean and cannot upgrade Phase2.23.
 One preregistration, one logical implementation, one completion commit; close
 only2.24. Prepare a future independent-domain learning protocol only if measured
 feasible candidates and labels support it; no next-phase execution this session.
+
+Implementation verification:21 continuation component tests pass; full authority
+1060 passed/4 historical skips189.72s. Existing B1/G/H default paths share the
+mechanically extracted native decode/next-history functions. Native metric formulas
+and frozen core/expert code are unchanged. Eight fully resolved lane configs match
+sealed B1 sampler, dataset and generation settings exactly after removing only old
+waypoint-policy and output identity fields. Archive: results/continuation-preflight-
+s42-20260907/ and prospective run results/experiments/p2-mixer-continuation-outcomes-
+s42-20260907/. First lane is part of the132 formal windows; its captured B1 comparisons
+must pass before the remaining seven lanes start. No extra repetition workload.
+
+Descriptive paired state/component CSV, adopted-state task means and scene means
+preserve nesting; no population-effect confidence interval or bootstrap gate is
+claimed for these deliberately selected states. Native fragment FS applies the
+unchanged floor estimator to each actual slice, with floor values retained.
+Both native contact hands and fixed-source FK anchors are saved, including N/A.
+Representative rendering selects the lexicographically first registered state for
+each fixed task333/376/421/20/375, independently of the outcomes.

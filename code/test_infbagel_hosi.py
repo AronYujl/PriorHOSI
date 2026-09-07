@@ -152,16 +152,20 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
         samples, occs = sampler.p_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
                                             object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, obj_rot_mat_prefix=obj_rot_mat_prefix)
 
-    points_gene = samples[-1]
+    return decode_sample_window(cfg, samples[-1], sampler.dataset, mat)
+
+
+def decode_sample_window(cfg, points_gene, dataset, mat):
+    """Decode the native sample output into the actual world history channels."""
 
     points = points_gene[:, :, :cfg.dataset.nb_joints*3].reshape(cfg.batch_size, cfg.max_window_size, cfg.dataset.nb_joints*3)
-    points_orig = transform_points(sampler.dataset.denormalize_torch(points), mat)
+    points_orig = transform_points(dataset.denormalize_torch(points), mat)
 
     global_rot_6d = points_gene[:, :, 84:216].reshape(cfg.batch_size, cfg.max_window_size, 22*6)
 
     obj_trans = points_gene[:, :, 216:219].reshape(cfg.batch_size, cfg.max_window_size, 3)
     obj_rot = points_gene[:, :, 219:228].reshape(cfg.batch_size, cfg.max_window_size, 3, 3)
-    obj_trans_orig = transform_points(sampler.dataset.denormalize_torch(obj_trans, is_object=True), mat)
+    obj_trans_orig = transform_points(dataset.denormalize_torch(obj_trans, is_object=True), mat)
 
     contact_label = points_gene[:, :, 228:232].reshape(cfg.batch_size, cfg.max_window_size, 4)
 
@@ -202,6 +206,61 @@ def get_mat(cfg, points, t):
     mat = torch.from_numpy(trans_mats).to(device=cfg.device, dtype=torch.float32)
 
     return mat
+
+
+def prepare_next_window(cfg, dataset, step, scene_name, test_idx, seq_name_dict,
+                        obj_rest_verts, obj_rot_mat_ref, obj_rot_mat_prefix,
+                        points, obj_trans, object_rot_mat, global_rot_6d, contact_label):
+    """Original native history/heading/object-footprint update, shared by replay."""
+    device = cfg.device
+    obj_name = seq_name_dict[0].split('_')[1]
+    pred_obj_rot_mat_seg = (obj_rot_mat_prefix @ object_rot_mat[:, -cfg.auto_regre_num, :].reshape(1, 3, 3) @ obj_rot_mat_ref).reshape(-1, 3, 3)
+    pred_seq_com_pos_seg = obj_trans[:, -cfg.auto_regre_num, :].reshape(-1, 3)
+    obj_rest_verts_seg = load_object_geometry_w_rest_geo(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name])
+    obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, -1, 3)
+    # Same as the step==0 branch above, same seed scheme, same reason.
+    object_points_generator = torch.Generator(device='cpu')
+    object_points_generator.manual_seed(
+        _subsample_seed(int(cfg.seed), f'{scene_name}|objpts', test_idx * 10000 + step)
+    )
+    indices = torch.randperm(
+        obj_rest_verts_seg.shape[1], generator=object_points_generator
+    ).to(obj_rest_verts_seg.device)[:1024]
+    object_points = obj_rest_verts_seg[:, indices, :].reshape(1, 1024, 3)
+
+    mat = get_mat(cfg, points, -cfg.auto_regre_num)
+    global_rot_6d = global_rot_6d.reshape(1, cfg.max_window_size, 22, 6)
+
+    init_global_rot_mat = transforms.rotation_6d_to_matrix(global_rot_6d[:, -cfg.auto_regre_num, 0, :]).reshape(1, 3, 3)
+    init_global_orient = transforms.matrix_to_axis_angle(init_global_rot_mat).cpu().numpy()
+    init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
+    shift_euler = np.zeros_like(init_global_orient_euler)
+    shift_euler[:, 2] = -init_global_orient_euler[:, 2]
+    shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix()
+
+    global_jrot_mat = transforms.rotation_6d_to_matrix(global_rot_6d)
+    global_jrot_mat = torch.from_numpy(shift_rot_matrix).float()[:, None, None].to(device) @ global_jrot_mat
+
+    mat[:, :3, :3] = torch.from_numpy(np.linalg.inv(shift_rot_matrix)).float().to(device)
+    init_joints = points.reshape(cfg.batch_size, cfg.max_window_size, -1, 3)[:, -cfg.auto_regre_num, 0, :].float()
+    mat[:, 0, 3] = init_joints[:, 0]
+    mat[:, 2, 3] = init_joints[:, 2]
+
+    fixed_points = points[:, -cfg.auto_regre_num:, :].reshape(cfg.batch_size, cfg.auto_regre_num, cfg.dataset.nb_joints*3)
+    fixed_points = dataset.normalize_torch(transform_points(fixed_points, torch.inverse(mat)))
+
+    obj_fixed = obj_trans[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
+    obj_fixed = dataset.normalize_torch(transform_points(obj_fixed, torch.inverse(mat)), is_object=True)
+
+    obj_rot_fixed = object_rot_mat[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
+
+    global_rot_6d = transforms.matrix_to_rotation_6d(global_jrot_mat).reshape(cfg.batch_size, cfg.max_window_size, 22*6)
+    global_rot_6d_fixed = global_rot_6d[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
+
+    fixed_contact_label = contact_label[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
+
+    fixed_points = torch.cat([fixed_points, global_rot_6d_fixed, obj_fixed, obj_rot_fixed, fixed_contact_label], dim=-1)
+    return mat, fixed_points, object_points
 
 def get_guidance_from_json(cfg, test_item, max_episode=10):
     """Build guidance conditions from JSON test data"""
@@ -505,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('continuation', {}).get('enabled', False):
+        from mixer.continuation_outcomes import run_continuation_scene
+        run_continuation_scene(cfg)
+        return
     if str(cfg.get('hosi_mode', 'evaluate')) in ('merge_input_diagnostics', 'merge_relational_prototype'):
         from mixer.diagnostics import write_analysis_inputs
         kwargs = {}
@@ -946,53 +1009,10 @@ def main(cfg: DictConfig) -> None:
 
                     pi = data_dict['pi']
                 else:
-                    obj_name = seq_name_dict[0].split('_')[1]
-                    pred_obj_rot_mat_seg = (MAT @ mat_T @ object_rot_mat[:, -cfg.auto_regre_num, :].reshape(1, 3, 3) @ obj_rot_mat_ref).reshape(-1, 3, 3)
-                    pred_seq_com_pos_seg = obj_trans[:, -cfg.auto_regre_num, :].reshape(-1, 3)
-                    obj_rest_verts_seg = load_object_geometry_w_rest_geo(pred_obj_rot_mat_seg, pred_seq_com_pos_seg, obj_rest_verts[obj_name])
-                    obj_rest_verts_seg = obj_rest_verts_seg.reshape(1, -1, 3)
-                    # Same as the step==0 branch above, same seed scheme, same reason.
-                    object_points_generator = torch.Generator(device='cpu')
-                    object_points_generator.manual_seed(
-                        _subsample_seed(int(cfg.seed), f'{scene_name}|objpts', test_idx * 10000 + step)
-                    )
-                    indices = torch.randperm(
-                        obj_rest_verts_seg.shape[1], generator=object_points_generator
-                    ).to(obj_rest_verts_seg.device)[:1024]
-                    object_points = obj_rest_verts_seg[:, indices, :].reshape(1, 1024, 3)
-
-                    mat = get_mat(cfg, points, -cfg.auto_regre_num)
-                    global_rot_6d = global_rot_6d.reshape(1, cfg.max_window_size, 22, 6)
-
-                    init_global_rot_mat = transforms.rotation_6d_to_matrix(global_rot_6d[:, -cfg.auto_regre_num, 0, :]).reshape(1, 3, 3)
-                    init_global_orient = transforms.matrix_to_axis_angle(init_global_rot_mat).cpu().numpy()
-                    init_global_orient_euler = R.from_rotvec(init_global_orient).as_euler('zxy')
-                    shift_euler = np.zeros_like(init_global_orient_euler)
-                    shift_euler[:, 2] = -init_global_orient_euler[:, 2]
-                    shift_rot_matrix = R.from_euler('zxy', shift_euler).as_matrix()
-
-                    global_jrot_mat = transforms.rotation_6d_to_matrix(global_rot_6d)
-                    global_jrot_mat = torch.from_numpy(shift_rot_matrix).float()[:, None, None].to(device) @ global_jrot_mat
-
-                    mat[:, :3, :3] = torch.from_numpy(np.linalg.inv(shift_rot_matrix)).float().to(device)
-                    init_joints = points.reshape(cfg.batch_size, cfg.max_window_size, -1, 3)[:, -cfg.auto_regre_num, 0, :].float()
-                    mat[:, 0, 3] = init_joints[:, 0]
-                    mat[:, 2, 3] = init_joints[:, 2]
-
-                    fixed_points = points[:, -cfg.auto_regre_num:, :].reshape(cfg.batch_size, cfg.auto_regre_num, cfg.dataset.nb_joints*3)
-                    fixed_points = sampler_body.dataset.normalize_torch(transform_points(fixed_points, torch.inverse(mat)))
-
-                    obj_fixed = obj_trans[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
-                    obj_fixed = sampler_body.dataset.normalize_torch(transform_points(obj_fixed, torch.inverse(mat)), is_object=True)
-
-                    obj_rot_fixed = object_rot_mat[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
-
-                    global_rot_6d = transforms.matrix_to_rotation_6d(global_jrot_mat).reshape(cfg.batch_size, cfg.max_window_size, 22*6)
-                    global_rot_6d_fixed = global_rot_6d[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
-
-                    fixed_contact_label = contact_label[:, -cfg.auto_regre_num:].reshape(cfg.batch_size, cfg.auto_regre_num, -1)
-
-                    fixed_points = torch.cat([fixed_points, global_rot_6d_fixed, obj_fixed, obj_rot_fixed, fixed_contact_label], dim=-1)
+                    mat, fixed_points, object_points = prepare_next_window(
+                        cfg, sampler_body.dataset, step, scene_name, test_idx, seq_name_dict,
+                        obj_rest_verts, obj_rot_mat_ref, MAT @ mat_T,
+                        points, obj_trans, object_rot_mat, global_rot_6d, contact_label)
 
                 phase = 0
                 speed_inter = 3
