@@ -3652,3 +3652,34 @@ Use tools/experiment.py lifecycle and existing evaluator/bootstrap entry points;
 no new experiment script. Full authority tests and registry validation required.
 Actual complete development runs provide functional/performance evidence; user
 prohibits separate smoke tests. GPUs0..5 scene lanes; GPU7 paired statistics.
+
+### 2026-09-07 user scope correction before any reportable run
+
+The user explicitly directs development to data/hosi_test, with the final aim of
+exceeding InfBaGel on that benchmark. Replace the above24 LINGO development tasks
+with the already-exploratory28 native benchmark tasks: sorted scene bins0,22,44,66,
+all7 objects each. These bins are the same fixed subset used in prior diagnostics;
+no outcome-based subset selection. The supplied InfBaGel-release/data/hosi_test/
+Scene_sdf is the SAME directory as our linked native asset;67/67 benchmark scenes
+have SDF,0/6 LINGO development scenes match. Use the unchanged complete native
+motion/scene evaluator. No development asset engineering or partial-metric branch
+is needed. The interrupted pre-run full suite and initial unit failures remain
+implementation records, not experimental failures.
+
+Keep the five-step candidate and physical guards unchanged. Development primary
+native FS delta<=-0.10cm, task95% upper<0, scene delta<=0. Replace only the scene
+proxy promotion endpoints by native scene_human_penetration_s_mean and
+scene_obj_penetration_s_mean: against B1 each point<=0 and95% upper<=0.02 native
+units; against B0 both point<=0 and at least one upper<0, at both task and scene
+units. Contact/completion lower>=-.02 and endpoint upper<=1cm remain. The same
+>=50%1mm modification and<=50%unchanged fallback rule applies, with all history/
+common-motion guards and no task failure. Report proxies only as mechanism logs.
+Four GPU scene lanes0..3; GPU7 statistics. All28 tasks receive B0/B1/B2 full
+rollouts. Record fixed manifest of actual UUID scenes and canonical ordinals.
+Per-episode seeding=true isolates HOI streams from differing previous episode
+lengths; therefore the historical per_episode_seeding=false B0 cannot supply this
+campaign's full469 paired baseline: regenerate B0/B1/B2 if promoted. Full469 then
+contains the28 development-used tasks; explicitly report test-set development,
+never untouched-test selection. Historical InfBaGel/paper values are external
+reference rows with their original protocol and representation labels. This
+scope correction does not authorize loading released weights into repaired code.
