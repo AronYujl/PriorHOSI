@@ -4944,3 +4944,9 @@ HSI drives27/28 motions (root21.93mm,object32.76mm versus geometry) with exact t
 实现检查：24组件检查通过（4.74s），413条registry有效，9份正式配置完全解析，旧/新均引用同一冻结R2 epoch222。世界坐标/物体旋转编码和零教师残差恒等已验证；投影组件保持字节原样。
 
 验证资源事件：第一次全套检查在已有真实LINGO数据构造处耗时559.20s，466 passed/2 skips后主动中断，栈位于NumPy数组读取，进程128线程；原日志保留。当前以OMP/MKL/OpenBLAS各4线程重跑同一完整测试，未改变测试项或源码。新增接口已通过组件检查，因此固定实现提交后，登记中的完整375 GPU任务与该独立CPU数据检查并行；余27任务等待375与完整authority双通过。正式机器预检明确记录authority pending，完成记录补齐其结果；不把尚未完成的检查记作通过。正式前无额外GPU试跑。
+
+### Phase2.32 execution-resource interruption and fixed-method retry
+
+首轮ea4bcbf正式375在517.53s后因执行资源瓶颈主动中断，manifest failed已封存；40次当前HSI前向、全部查询/原生粗帧审计及目标保留，投影未完成，无科学结论。两次完整测试分别在559.20s（466/2）和1466.05s（469/2）于既有NumPy数组读取处中断，原日志均保留。采样证据：authority/375进程内核CPU时间占91.79%/87.74%，同一采样区间565次compact_stall全部失败；全局THP为madvise。
+
+仅对本任务新进程设PR_SET_THP_DISABLE=1、NUMPY_MADVISE_HUGEPAGE=0，以定位/消除直接内存整理阻塞；不改全局内核或其他训练。新run id为p2-mixer-hsi-geometry-increment-r1-s42-20260908，算法、权重、模型、噪声、投影预算、阈值和测试项保持原样。本次额外提交用于实际运行失败与执行契约变更，属于governance-only；完整测试和375在此进程级内存设置下重试，余27仍等待双通过。依据与原始数据在hugepage_compaction_evidence.json及首轮operational_failure.json。内核进程级控制文档：https://www.kernel.org/doc/html/latest/admin-guide/mm/transhuge.html 。

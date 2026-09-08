@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "phase": "2.32",
+  "component": "hsi-geometry-increment",
+  "run_id": "p2-mixer-hsi-geometry-increment-s42-20260908",
+  "source_commit": "ea4bcbf",
+  "manifest": "results/experiments/p2-mixer-hsi-geometry-increment-s42-20260908/manifest.json",
+  "failure": {
+    "status": "operational_interruption",
+    "reason": "Observed transparent-hugepage compaction stalls; own full suite and pilot interrupted to apply process-local memory profile.",
+    "execution": {
+      "exits": [
+        {
+          "name": "lane-00",
+          "gpu": 0,
+          "tasks": [
+            375
+          ],
+          "exitcode": -2,
+          "seconds": 517.5342475231737
+        }
+      ],
+      "seconds": 517.5348434243351,
+      "unstarted": [
+        "lane-01",
+        "lane-02",
+        "lane-03",
+        "lane-04",
+        "lane-05",
+        "lane-06",
+        "lane-07",
+        "lane-08"
+      ]
+    },
+    "completed_tasks": 0,
+    "hsi_calls": 40,
+    "completed_teacher_windows": 10,
+    "current_query_audit": {
+      "hsi_calls": 40,
+      "root_reconstruction_bias_m": [
+        1.0457704775035381e-05,
+        4.225969314575195e-05,
+        -8.529052138328552e-05
+      ],
+      "encoded_windows": [
+        {
+          "position_world_max_error_m": 3.8743019104003906e-07,
+          "rotation_world_max_error": 3.5762786865234375e-07,
+          "object_world_max_error_m": 2.5331974029541016e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 3.3390767574310303
+        },
+        {
+          "position_world_max_error_m": 2.980232238769531e-07,
+          "rotation_world_max_error": 4.172325134277344e-07,
+          "object_world_max_error_m": 2.384185791015625e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 8.645148277282715
+        },
+        {
+          "position_world_max_error_m": 3.8743019104003906e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 2.682209014892578e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 3.8472163677215576
+        },
+        {
+          "position_world_max_error_m": 4.172325134277344e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 3.427267074584961e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 5.07792329788208
+        },
+        {
+          "position_world_max_error_m": 3.5762786865234375e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 3.2782554626464844e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 3.388620615005493
+        },
+        {
+          "position_world_max_error_m": 3.5762786865234375e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 3.5762786865234375e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 11.035938262939453
+        },
+        {
+          "position_world_max_error_m": 4.76837158203125e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 2.384185791015625e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 26.870712280273438
+        },
+        {
+          "position_world_max_error_m": 4.76837158203125e-07,
+          "rotation_world_max_error": 4.172325134277344e-07,
+          "object_world_max_error_m": 2.384185791015625e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 26.034339904785156
+        },
+        {
+          "position_world_max_error_m": 2.384185791015625e-07,
+          "rotation_world_max_error": 4.76837158203125e-07,
+          "object_world_max_error_m": 2.384185791015625e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 18.361827850341797
+        },
+        {
+          "position_world_max_error_m": 4.76837158203125e-07,
+          "rotation_world_max_error": 2.980232238769531e-07,
+          "object_world_max_error_m": 2.384185791015625e-07,
+          "object_rotation_world_max_error": 1.1920928955078125e-07,
+          "world_position_difference_from_legacy_cm": 14.569948196411133
+        }
+      ],
+      "native_coarse_body_max_error_m": 9.417533874511719e-05,
+      "native_all_frame_body_roundtrip_max_error_m": 0.004327058792114258,
+      "native_all_frame_body_roundtrip_mean_error_cm": 0.053132593631744385,
+      "identity_lift_max_error": 0.0
+    },
+    "science_conclusion": null,
+    "resource_evidence": "results/hsi-geometry-increment-preflight-s42-20260908/hugepage_compaction_evidence.json",
+    "retained_partial_outputs": [
+      "lanes/lane-00/task-375/teacher.pt",
+      "lanes/lane-00/task-375/teacher.json",
+      "lanes/lane-00/task-375/teacher_body.pt",
+      "lanes/lane-00/task-375/current_motion_query.json"
+    ],
+    "retry": "new run id; identical numeric code,checkpoint,targets,projection,gates; disable THP only for this task process tree"
+  }
+}
