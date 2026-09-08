@@ -283,3 +283,16 @@ def test_hsi_target_loss_has_physical_scale_and_chunk_independent_gradient():
     expected=-2*.25/159/torch.tensor([.05,-.05,math.radians(10)])
     torch.testing.assert_close(control.grad[:,:3],expected.expand(53,3))
     assert torch.equal(control.grad[:,3:],torch.zeros(53,3))
+
+
+def test_hsi_goal_query_condition_matches_model_and_keeps_object_world():
+    from mixer.hsi_motion_target import human_goal_context
+    context=dict(is_object=torch.ones(1,dtype=torch.bool),
+                 obj_rot_mat_prefix=torch.eye(3)[None],obj_rest_verts=dict(box=torch.ones(12,3)),
+                 object_goal=torch.tensor([[1.,.8,2.]]),pelvis_goal=torch.tensor([[.3,0.,.7]]),
+                 static_occ_cache=dict(goal='object goal patch'))
+    corrected=human_goal_context(context)
+    assert not corrected['is_object'].any() and context['is_object'].all()
+    for key in ('obj_rot_mat_prefix','obj_rest_verts','object_goal','pelvis_goal'):
+        assert corrected[key] is context[key]
+    assert corrected['static_occ_cache']=={} and context['static_occ_cache']['goal']=='object goal patch'

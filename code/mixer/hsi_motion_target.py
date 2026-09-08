@@ -68,6 +68,15 @@ def rotated_scene_context(context,start):
     return changed
 
 
+def human_goal_context(context):
+    """HSI uses its human-goal query while retaining the actual object geometry."""
+    changed = dict(context)
+    changed['is_object'] = torch.zeros_like(context['is_object'])
+    if 'static_occ_cache' in changed:
+        changed['static_occ_cache'] = {}
+    return changed
+
+
 def observation_outside(dataset,common,context,clean,anchor_frame):
     """Full native query-grid coverage, for the rotated-scene stress control."""
     from utils import transform_points
@@ -123,6 +132,8 @@ class MotionTargetTeacher:
                 dataset,saved,snapshot,world,task,points,self.device)
             context,error = recover_score_context(sampler,cfg,saved,index,task,data,
                                                    trajectory,geometry_context,offsets)
+            legacy_context = context
+            context = human_goal_context(context)
             clean = c['edited']
             level = self.protocol['teacher']['level']
             timestep = torch.full((len(clean),),level,device=self.device,dtype=torch.long)
@@ -137,6 +148,17 @@ class MotionTargetTeacher:
             for k in range(17):
                 if k not in (0,15) and not torch.equal(common['correct'][k],common['wrong'][k]):
                     raise AssertionError('wrong-scene query changed non-scene argument '+str(k))
+            with torch.random.fork_rng(devices=[self.device.index]):
+                torch.set_rng_state(torch.Generator().manual_seed(scene_seed).get_state())
+                legacy = masked_object_arguments(sampler._hsi_model_arguments(clean,clean,timestep,legacy_context))
+            for k in range(17):
+                if k not in (0,16) and not torch.equal(common['correct'][k],legacy[k]):
+                    raise AssertionError('human-goal query changed a non-goal argument '+str(k))
+            human_goal = common['correct'][3]
+            expected_goal = human_goal/(human_goal.norm(dim=-1,keepdim=True)+1e-6)*.8
+            goal_error = float((common['correct'][16][0]-expected_goal[:,[0,2]]).abs().max())
+            if goal_error>1e-6:
+                raise AssertionError('HSI scene goal query differs from native human goal')
             samples = {name:[] for name in common}
             raw = {name:[] for name in common}
             noisy_inputs = []
@@ -167,6 +189,10 @@ class MotionTargetTeacher:
             difference = coarse['correct'][indices]-coarse['wrong'][indices]
             row = dict(window=index,frames=indices.cpu().tolist(),source_recovery=audit,
                 context_world_error_m=error,scene_seed=scene_seed,level=level,
+                goal_query=dict(native_human_max_error_m=goal_error,
+                    legacy_human_gap_m=float((legacy[16][0]-expected_goal[:,[0,2]]).norm()),
+                    occupancy_changed_fraction=float((common['correct'][0]!=legacy[0]).float().mean()),
+                    other_arguments_exact=True,dynamic_object_observations_exact=True),
                 root_scene_difference_rms_m=float(difference[:,:2].square().mean().sqrt()),
                 heading_scene_difference_mean_deg=float(difference[:,2].abs().mean()*180/math.pi),
                 observations_changed_fraction={str(k):float((common['correct'][k]!=common['wrong'][k]).float().mean())

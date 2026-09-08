@@ -4878,3 +4878,9 @@ terminal logic and entry gates stay fixed. Retain f4e7248 results as the legacy-
 arm and execute one fresh corrected native28 campaign. This is the single evidence-
 driven condition correction within the approved root/heading mechanism. No additional
 view/parameter search or shared reverse-chain implementation follows a failure.
+
+Human-goal query correction verification:19 component checks and full authority
+1107 passed/4 existing skips,261.46s (authority-goal-query.log). The runtime records
+the native human query-position error and verifies unchanged dynamic object/other
+arguments against a same-seed legacy scene query. Noise, targets' weight/bounds,
+optimizer, terminal rule and promotion thresholds remain fixed.
