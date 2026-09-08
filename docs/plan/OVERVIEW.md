@@ -24,6 +24,8 @@ r2新增260窗口。88组当前条件/历史、44组C1/C2首窗、1056个C0原�
 [Phase2计划](PHASE_2_COMPOSITION.md)。工程封存；2.26完整native28策略、训练和
 441/469未启动。下次先设计新的生成端轻量适配方案及正确未来监督契约。
 
+2026-09-08 Phase2.30完成：完整HSI身体比planar有额外几何收益，但接触/支撑大降，直接迁移门槛失败。正确场景优势任务区间仍跨零。下一入口是保持交互、支撑与跨窗连续性的身体残差读出诊断。[总结](../phase_summaries/PHASE_2AA_HSI_BODY_READOUT.md)。
+
 ## 1. 主张、边界与接口
 
 InfBaGel 的 synthesized-OMOMO scene 由真实 motion 反推，训练条件分布与真实场景下
