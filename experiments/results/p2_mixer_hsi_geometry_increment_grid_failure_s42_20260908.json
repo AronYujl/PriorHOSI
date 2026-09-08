@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "phase": "2.32",
+  "component": "hsi-geometry-increment",
+  "run_id": "p2-mixer-hsi-geometry-increment-r1-s42-20260908",
+  "failure": {
+    "status": "verification_grid_failure",
+    "reason": "Input coarse-pose validation was evaluated after native temporal interpolation; inherited near-parallel quaternion interpolation can move the coarse-grid sample. Actual encoded world position/rotation checks passed. Residual lifting already cancels clean roundtrip effects.",
+    "completed_tasks": [
+      375,
+      377,
+      329,
+      15,
+      372
+    ],
+    "completed_teacher_tasks": 12,
+    "hsi_calls": 268,
+    "failures": [
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-08.log",
+        "error_m": 0.0009694099426269531
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-05.log",
+        "error_m": 0.0006203055381774902
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-07.log",
+        "error_m": 0.00014257431030273438
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-02.log",
+        "error_m": 0.0014986991882324219
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-04.log",
+        "error_m": 0.0010724067687988281
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-03.log",
+        "error_m": 0.0006244182586669922
+      },
+      {
+        "log": "results/experiments/p2-mixer-hsi-geometry-increment-r1-s42-20260908/logs/lane-01.log",
+        "error_m": 0.001047372817993164
+      }
+    ],
+    "execution": {
+      "exits": [
+        {
+          "name": "lane-00",
+          "gpu": 0,
+          "tasks": [
+            375
+          ],
+          "exitcode": 0,
+          "seconds": 98.49378768913448
+        },
+        {
+          "name": "lane-01",
+          "gpu": 0,
+          "tasks": [
+            372,
+            422,
+            332,
+            18
+          ],
+          "exitcode": 1,
+          "seconds": 83.87651494145393
+        },
+        {
+          "name": "lane-02",
+          "gpu": 1,
+          "tasks": [
+            373,
+            423,
+            333,
+            19
+          ],
+          "exitcode": 1,
+          "seconds": 22.32550904713571
+        },
+        {
+          "name": "lane-03",
+          "gpu": 2,
+          "tasks": [
+            374,
+            424,
+            334,
+            20
+          ],
+          "exitcode": 1,
+          "seconds": 19.26231344603002
+        },
+        {
+          "name": "lane-04",
+          "gpu": 3,
+          "tasks": [
+            371,
+            425,
+            335
+          ],
+          "exitcode": 1,
+          "seconds": 21.957331515848637
+        },
+        {
+          "name": "lane-05",
+          "gpu": 4,
+          "tasks": [
+            376,
+            426,
+            14
+          ],
+          "exitcode": 1,
+          "seconds": 21.565826401114464
+        },
+        {
+          "name": "lane-06",
+          "gpu": 5,
+          "tasks": [
+            377,
+            329,
+            15
+          ],
+          "exitcode": 0,
+          "seconds": 237.19420072622597
+        },
+        {
+          "name": "lane-07",
+          "gpu": 6,
+          "tasks": [
+            420,
+            330,
+            16
+          ],
+          "exitcode": 1,
+          "seconds": 19.16787412390113
+        },
+        {
+          "name": "lane-08",
+          "gpu": 7,
+          "tasks": [
+            421,
+            331,
+            17
+          ],
+          "exitcode": 1,
+          "seconds": 24.23330182209611
+        }
+      ],
+      "seconds": 691.0035240519792,
+      "unstarted": []
+    },
+    "authority": {
+      "passed": true,
+      "authority_passed": 1112,
+      "authority_skipped": 4,
+      "seconds": 231.44,
+      "log": "results/hsi-geometry-increment-preflight-s42-20260908/authority-no-thp.log",
+      "source_commit": "8863153",
+      "numeric_source_commit": "ea4bcbf",
+      "completed_at": "2026-09-08T11:15:20.475689+00:00",
+      "memory_profile": {
+        "PR_GET_THP_DISABLE": 1,
+        "NUMPY_MADVISE_HUGEPAGE": 0,
+        "threads": 4
+      }
+    },
+    "source_commit": "8863153",
+    "numeric_source_commit": "ea4bcbf",
+    "scientific_conclusion": null,
+    "retry": "Validate native body decoding before interpolation; keep interpolated roundtrip error as a recorded quantity; same teacher,target lift,projection and scientific gates."
+  }
+}

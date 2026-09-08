@@ -4950,3 +4950,13 @@ HSI drives27/28 motions (root21.93mm,object32.76mm versus geometry) with exact t
 首轮ea4bcbf正式375在517.53s后因执行资源瓶颈主动中断，manifest failed已封存；40次当前HSI前向、全部查询/原生粗帧审计及目标保留，投影未完成，无科学结论。两次完整测试分别在559.20s（466/2）和1466.05s（469/2）于既有NumPy数组读取处中断，原日志均保留。采样证据：authority/375进程内核CPU时间占91.79%/87.74%，同一采样区间565次compact_stall全部失败；全局THP为madvise。
 
 仅对本任务新进程设PR_SET_THP_DISABLE=1、NUMPY_MADVISE_HUGEPAGE=0，以定位/消除直接内存整理阻塞；不改全局内核或其他训练。新run id为p2-mixer-hsi-geometry-increment-r1-s42-20260908，算法、权重、模型、噪声、投影预算、阈值和测试项保持原样。本次额外提交用于实际运行失败与执行契约变更，属于governance-only；完整测试和375在此进程级内存设置下重试，余27仍等待双通过。依据与原始数据在hugepage_compaction_evidence.json及首轮operational_failure.json。内核进程级控制文档：https://www.kernel.org/doc/html/latest/admin-guide/mm/transhuge.html 。
+
+### Phase2.32 coarse-grid audit correction
+
+进程级THP关闭后，完整authority1112 passed/4 skips（231.44s），375完整任务98.49s；首轮40个HSI输入和预测与重跑逐项相同（误差0），内存策略未改变数值。r1随后完成375/372/377/329/15五任务，七lane在插值后粗网格验证处失败；12任务268次教师前向及全部部分结果保留，manifest failed封存。
+
+根因是把原生时间插值后的粗索引当作编码输入：既有quaternion_slerp近同向线性分支在t=0混入相邻帧。编码的世界位置/旋转验证已通过；需在时间插值前直接解码当前姿态到原生SMPL-X，仍按1e-4m检查输入身体，而将插值后0.14–1.50mm误差作为记录项。原生插值定义与历史基线保持原样，clean/预测双路径及零残差还原机制也保持原样。该变更修正验证网格，不改变教师、目标、投影或科学门槛。新r2使用同一进程级内存策略，完整测试及正式全28重跑；原r1部分结果不用于挑选任务。
+
+r2首作业包含375与373：分别覆盖非零几何编辑和原先最大1.50mm插值后检查误差；通过后8GPU运行余26。每个任务/噪声/算法预算保持原样，仅改变执行分组。
+
+修正验证：25组件检查通过（4.75s），415条registry有效。新增测试以小角度序列复现原生插值后的粗索引变化，并验证插值前原生姿态直接解码逐帧正确；零残差还原继续严格恒等。仅新增直接粗帧解码审计，旧的插值后误差继续记录，所有教师与投影数值路径保持原样。完整authority和r2前两条正式任务在no-THP进程上下文中执行，余26等待双通过。

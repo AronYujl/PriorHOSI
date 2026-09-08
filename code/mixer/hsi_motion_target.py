@@ -310,6 +310,13 @@ def lift_native_prediction(base,reference,prediction):
     return pose,translation
 
 
+def native_coarse_pose(global_rot_6d,dataset):
+    """Decode the encoded samples themselves, before native time interpolation."""
+    rotation=transforms.rotation_6d_to_matrix(global_rot_6d.double().reshape(-1,22,6))
+    local=dataset.quat_ik_torch(rotation)
+    return transforms.matrix_to_axis_angle(local).to(global_rot_6d)
+
+
 class CurrentMotionTeacher(MotionTargetTeacher):
     """Fresh full HSI targets conditioned on the current native geometry."""
     def recover_window(self,saved,snapshot,world,index,task,data,trajectory,points):
@@ -375,15 +382,19 @@ class CurrentMotionTeacher(MotionTargetTeacher):
             dest=slice(0,16) if index==0 else slice(index*14+2,index*14+16)
             world['points_world'][dest]=w['points_world'].reshape(-1,28,3)[keep].cpu()
             world['global_rot_6d'][dest]=w['global_rot_6d'].reshape(-1,22,6)[keep].cpu()
+        model=smpl_cache[source['gender']]
+        coarse_motion=dict(source,pose=native_coarse_pose(world['global_rot_6d'],dataset).to(self.device),
+                           translation=world['points_world'][:,0].to(self.device)+dataset_translation)
+        _,coarse_joints=decode_body(coarse_motion,model)
+        encoded_coarse_error=float((coarse_joints-source['joints'][::3]).abs().max())
+        assert encoded_coarse_error<=1e-4,encoded_coarse_error
         roundtrip = native_tracks(cfg,dataset,world,task,True,smpl_cache,body_parameters=True)
         coarse_error = float((roundtrip['joints'][::3]-source['joints'][::3]).abs().max())
-        assert coarse_error<=1e-4,coarse_error
         pose,translation = lift_native_prediction(source,roundtrip,roundtrip)
         identity_error = max(float((pose-source['pose']).abs().max()),float((translation-source['translation']).abs().max()))
         assert identity_error<=1e-6,identity_error
         cache=dict(source=dict(joints=source['joints']))
         lifted_states={};raw_states={}
-        model=smpl_cache[source['gender']]
         for view in ('correct','wrong'):
             for draw in range(2):
                 predicted_world={k:v.clone() for k,v in world.items()}
@@ -401,7 +412,8 @@ class CurrentMotionTeacher(MotionTargetTeacher):
                 lifted_states[key]={k:v.cpu() for k,v in lifted.items() if torch.is_tensor(v) and k!='verts'}
                 raw_states[key]={k:v.cpu() for k,v in predicted.items() if torch.is_tensor(v) and k!='verts'}
         audit=dict(hsi_calls=len(corrected['windows'])*4,root_reconstruction_bias_m=root_bias.tolist(),
-            encoded_windows=encoding_audits,native_coarse_body_max_error_m=coarse_error,
+            encoded_windows=encoding_audits,encoded_coarse_body_max_error_m=encoded_coarse_error,
+            native_coarse_body_max_error_m=coarse_error,
             native_all_frame_body_roundtrip_max_error_m=float((roundtrip['joints']-source['joints']).abs().max()),
             native_all_frame_body_roundtrip_mean_error_cm=float((roundtrip['joints']-source['joints']).norm(dim=-1).mean()*100),
             identity_lift_max_error=identity_error)
