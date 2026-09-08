@@ -1,0 +1,2822 @@
+{
+  "seed": 42,
+  "selection": "All native469 tasks in canonical source enumeration",
+  "test_set_development": true,
+  "prior_use": "All tasks have historical use; native28 selects the bound",
+  "tasks": [
+    {
+      "canonical_ordinal": 0,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 1,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 2,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 3,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 4,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 5,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 6,
+      "scene_name": "00add26c-7a26-4a61-b192-b97aa493b3f3",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 7,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 8,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 9,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 10,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 11,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 12,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 13,
+      "scene_name": "0a761819-05d1-4647-889b-a726747201b1",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 14,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 15,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 16,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 17,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 18,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 19,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 20,
+      "scene_name": "0aa05d5a-81d5-497b-832c-c90c3fe73a36",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 21,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 22,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 23,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 24,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 25,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 26,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 27,
+      "scene_name": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 28,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 29,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 30,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 31,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 32,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 33,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 34,
+      "scene_name": "0ab19ed6-debc-4c6e-857b-29290fb111d9",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 35,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 36,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 37,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 38,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 39,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 40,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 41,
+      "scene_name": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 42,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 43,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 44,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 45,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 46,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 47,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 48,
+      "scene_name": "0ac97866-dccb-47c3-b220-79712041e187",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 49,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 50,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 51,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 52,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 53,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 54,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 55,
+      "scene_name": "0adb88db-02a3-43ca-9a69-76dcf25740d6",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 56,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 57,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 58,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 59,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 60,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 61,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 62,
+      "scene_name": "1a1e205b-3f54-49fb-8154-e2d61c3682ae",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 63,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 64,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 65,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 66,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 67,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 68,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 69,
+      "scene_name": "1a8dbd8d-0025-4373-8b94-ee9dd9fa7295",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 70,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 71,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 72,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 73,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 74,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 75,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 76,
+      "scene_name": "1d076f8c-e01d-4a2e-96f9-7676001a0d8c",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 77,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 78,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 79,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 80,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 81,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 82,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 83,
+      "scene_name": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 84,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 85,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 86,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 87,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 88,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 89,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 90,
+      "scene_name": "1d43e076-fc80-4d55-a07d-1b7a8c6dc6e7",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 91,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 92,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 93,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 94,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 95,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 96,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 97,
+      "scene_name": "1d58e654-b0c2-4a5c-a1b1-ba34eb31b380",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 98,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 99,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 100,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 101,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 102,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 103,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 104,
+      "scene_name": "1d89a45b-bb91-40af-9182-6dbb87517097",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 105,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 106,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 107,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 108,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 109,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 110,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 111,
+      "scene_name": "1e12ac7d-0584-47a4-8f90-b6086554e128",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 112,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 113,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 114,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 115,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 116,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 117,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 118,
+      "scene_name": "1e14f65e-f86d-4d18-ad71-aa2456e9a7c1",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 119,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 120,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 121,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 122,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 123,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 124,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 125,
+      "scene_name": "2a11bfd4-f3df-4ef2-9d0b-6536b0c6510a",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 126,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 127,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 128,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 129,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 130,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 131,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 132,
+      "scene_name": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 133,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 134,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 135,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 136,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 137,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 138,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 139,
+      "scene_name": "2a6d5f03-79ed-4fde-83c4-1548ef7082d0",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 140,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 141,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 142,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 143,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 144,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 145,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 146,
+      "scene_name": "2a7c04c7-f1a1-4b41-9e01-2607e7c8f0ae",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 147,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 148,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 149,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 150,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 151,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 152,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 153,
+      "scene_name": "2a7c0764-8e9c-4b0b-8f1f-e8e37d0d595f",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 154,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 155,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 156,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 157,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 158,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 159,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 160,
+      "scene_name": "2a8a1191-d4cc-46e4-b5ea-65e01954dbfa",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 161,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 162,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 163,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 164,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 165,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 166,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 167,
+      "scene_name": "2b4c9b84-eede-4ef8-b850-d3cd58fa61f7",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 168,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 169,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 170,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 171,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 172,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 173,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 174,
+      "scene_name": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 175,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 176,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 177,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 178,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 179,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 180,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 181,
+      "scene_name": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 182,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 183,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 184,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 185,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 186,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 187,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 188,
+      "scene_name": "2c1acd46-3c34-4f04-879d-0a0cb7aa7354",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 189,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 190,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 191,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 192,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 193,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 194,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 195,
+      "scene_name": "2c213709-c572-4f58-92c8-d2a42199314a",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 196,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 197,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 198,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 199,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 200,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 201,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 202,
+      "scene_name": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 203,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 204,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 205,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 206,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 207,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 208,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 209,
+      "scene_name": "2cb63f1b-2839-4be4-aa39-b19dc377c8fc",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 210,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 211,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 212,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 213,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 214,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 215,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 216,
+      "scene_name": "2d2070db-89e5-4ade-84e5-0f446ee02e27",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 217,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 218,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 219,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 220,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 221,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 222,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 223,
+      "scene_name": "2d38c33c-6311-4497-b68e-018b544912a2",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 224,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 225,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 226,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 227,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 228,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 229,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 230,
+      "scene_name": "2d485e95-fb65-44eb-ba85-0de22a0b80f6",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 231,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 232,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 233,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 234,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 235,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 236,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 237,
+      "scene_name": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 238,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 239,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 240,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 241,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 242,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 243,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 244,
+      "scene_name": "3a19c7bb-bc35-44e3-8d48-4fb00b9789ff",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 245,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 246,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 247,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 248,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 249,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 250,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 251,
+      "scene_name": "3a253a31-c5df-44d6-8834-25760cf833b6",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 252,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 253,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 254,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 255,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 256,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 257,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 258,
+      "scene_name": "3a3f479b-3fc5-4bf5-a60b-637492422f45",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 259,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 260,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 261,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 262,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 263,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 264,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 265,
+      "scene_name": "3a55f775-fc7c-4c6f-ab9f-59e31c04e093",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 266,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 267,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 268,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 269,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 270,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 271,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 272,
+      "scene_name": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 273,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 274,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 275,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 276,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 277,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 278,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 279,
+      "scene_name": "3a7b704b-fdf3-4d01-8437-a9519e9d76e2",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 280,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 281,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 282,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 283,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 284,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 285,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 286,
+      "scene_name": "3a88f9c1-9db1-4b97-a08e-c6bf36024363",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 287,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 288,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 289,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 290,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 291,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 292,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 293,
+      "scene_name": "3a9a1c7e-f4cd-46f7-8449-466cbfd82c08",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 294,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 295,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 296,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 297,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 298,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 299,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 300,
+      "scene_name": "3a9bdb50-7fe5-45a5-8071-f5ab3c8e2a44",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 301,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 302,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 303,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 304,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 305,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 306,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 307,
+      "scene_name": "4a080499-fc48-4d7c-ac74-4ea7500a0214_lph_ng",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 308,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 309,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 310,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 311,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 312,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 313,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 314,
+      "scene_name": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 315,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 316,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 317,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 318,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 319,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 320,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 321,
+      "scene_name": "4a44797a-9a10-4d38-bab1-fb8c196f94df",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 322,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 323,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 324,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 325,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 326,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 327,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 328,
+      "scene_name": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 329,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 330,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 331,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 332,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 333,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 334,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 335,
+      "scene_name": "4abcb667-c57f-4d8f-940a-d964152329d5",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 336,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 337,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 338,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 339,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 340,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 341,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 342,
+      "scene_name": "4ac2c1b3-798f-488d-b93f-4fae52366cba",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 343,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 344,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 345,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 346,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 347,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 348,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 349,
+      "scene_name": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 350,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 351,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 352,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 353,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 354,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 355,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 356,
+      "scene_name": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 357,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 358,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 359,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 360,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 361,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 362,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 363,
+      "scene_name": "5a2a7c8d-8a68-47b2-9193-69d73c9e2d95",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 364,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 365,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 366,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 367,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 368,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 369,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 370,
+      "scene_name": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 371,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 372,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 373,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 374,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 375,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 376,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 377,
+      "scene_name": "a3df624b-0917-46e9-ac15-fab766276c72",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 378,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 379,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 380,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 381,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 382,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 383,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 384,
+      "scene_name": "a3fcee3e-ce5e-41be-ae6d-451de83542bb",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 385,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 386,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 387,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 388,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 389,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 390,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 391,
+      "scene_name": "a4e28b69-2a4e-47fe-910e-c0df5879dcd5",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 392,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 393,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 394,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 395,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 396,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 397,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 398,
+      "scene_name": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 399,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 400,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 401,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 402,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 403,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 404,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 405,
+      "scene_name": "a7a7529d-7799-4213-9ed2-384be3540fe1",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 406,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 407,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 408,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 409,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 410,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 411,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 412,
+      "scene_name": "a8b4f748-b37e-4037-afd1-c245833ef11d",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 413,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 414,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 415,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 416,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 417,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 418,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 419,
+      "scene_name": "b0a8d497-5e4d-4aa4-837b-276a34e9987c",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 420,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 421,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 422,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 423,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 424,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 425,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 426,
+      "scene_name": "b1b053a9-b268-4f62-a06d-b9b9325c5092",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 427,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 428,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 429,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 430,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 431,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 432,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 433,
+      "scene_name": "b2c03fce-6b4e-4297-8937-c618d62df42e",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 434,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 435,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 436,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 437,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 438,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 439,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 440,
+      "scene_name": "b858c92c-9aa4-4767-99a8-661ef1afbd9e",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 441,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 442,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 443,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 444,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 445,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 446,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 447,
+      "scene_name": "b928ca3b-7b8d-4ecd-a992-41f1960ca1dd",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 448,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 449,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 450,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 451,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 452,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 453,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 454,
+      "scene_name": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 455,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 456,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 457,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 458,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 459,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 460,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 461,
+      "scene_name": "cf536225-9a90-4fde-9175-f453e2436c29",
+      "test_idx": 6,
+      "object_name": "tripod"
+    },
+    {
+      "canonical_ordinal": 462,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 0,
+      "object_name": "clothesstand"
+    },
+    {
+      "canonical_ordinal": 463,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 1,
+      "object_name": "floorlamp"
+    },
+    {
+      "canonical_ordinal": 464,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 2,
+      "object_name": "monitor"
+    },
+    {
+      "canonical_ordinal": 465,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 3,
+      "object_name": "smallbox"
+    },
+    {
+      "canonical_ordinal": 466,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 4,
+      "object_name": "smalltable"
+    },
+    {
+      "canonical_ordinal": 467,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 5,
+      "object_name": "suitcase"
+    },
+    {
+      "canonical_ordinal": 468,
+      "scene_name": "cfa7ff85-8109-4ff4-9b06-c2d64224b3d5",
+      "test_idx": 6,
+      "object_name": "tripod"
+    }
+  ]
+}

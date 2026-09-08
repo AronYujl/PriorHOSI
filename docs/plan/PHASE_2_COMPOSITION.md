@@ -4715,3 +4715,34 @@ Native-source correction verification:45 focused checks pass; full authority
 1099 passed/4 existing skips,167.63s (authority-native-final.log). The initial
 verification was interrupted to add the new helper's local transform import, then
 rerun on the final code. All9 r3 job configs resolve. Scientific settings stay fixed.
+
+### Phase2.28 development decision and authorized full evaluation
+
+Completed112 edits on28 unchanged B0 sources, all9 jobs exit0. Both relation bounds
+pass the registered development point gates; select relation_20 by lower OS. Source
+HS4.764332/OS31.093625 become1.177500/11.607790; contact.668160 and22/28 completion
+are unchanged, FS.173899->.176571cm. Independent20 has HS1.165812/OS8.685489 but
+contact.599414. Source/edited poses, all outcomes, task/scene paired intervals and
+selection are sealed in p2-mixer-surface-edit-r3-s42-20260908. Native source joint
+recovery is exact; all metric differences meet the registered tolerance.
+
+Freeze20cm per horizontal coordinate,20deg yaw/leg bounds, source-risk20/40 steps
+and every loss/selection rule before full469 outcomes. Recreate the full P15 B0 row
+with per-episode seeding (the older full469 uses scene-level seeds), then edit the
+same469 sources with matched independent20/relation20 and separately registered
+terminal repair. The28 repeated source identities provide a compatibility check;
+all469 remain a single benchmark denominator. InfBaGel stays the direct paper row.
+
+Before terminal execution, its activity mask now uses direct coordinate-distance
+reduction exactly as the native contact function, replacing cdist's matrix-product
+distance approximation. A large-world-coordinate regression fixes the5cm predicate;
+main relation/independent paths are unchanged. Terminal input metrics and the frozen
+selected arm are recorded separately. The approved candidate/acceptance rules stay
+fixed; no weight/bound search beyond10/20 is added.
+
+Terminal-ready source: successful inputs reuse their exact saved metrics as well
+as motion; attempted/recovered counts are reported separately.12 component checks
+and the final full suite1100 passed/4 skipped,190.82s pass (authority-frozen-full.log).
+Development visualization produced5 fixed full-motion clips,20 frames and the native
+metric figure; the figure and a375 comparison frame were inspected. These skeletal
+views support coarse comparison; no perceptual-quality claim is added.

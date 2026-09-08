@@ -39,6 +39,16 @@ def test_native_pose_decode_is_independent_of_input_tensor_device():
         assert torch.equal(actual,expected)
 
 
+def test_native_hand_activity_uses_direct_distance_at_large_world_coordinates():
+    from mixer.surface_edit import native_hand_distances
+    joints=torch.ones(1,28,3)*100
+    joints[0,24,0]+=.049;joints[0,26,0]+=.051
+    vertices=torch.ones(1,30,3)*100
+    vertices[:,1:,0]+=torch.arange(1,30)
+    distances=native_hand_distances(joints,vertices)
+    assert torch.equal(distances<.05,torch.tensor([[True,False]]))
+
+
 @pytest.mark.parametrize('length',[48,90,342])
 def test_cubic_field_partition_and_exact_initial_terminal_locks(length):
     basis=spline_basis(length,'cpu')

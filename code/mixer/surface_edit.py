@@ -64,6 +64,11 @@ def object_frame_hands(joints, position, rotation):
             (joints[:, HANDS]-position[:, None])[..., None]).squeeze(-1)
 
 
+def native_hand_distances(joints,object_vertices):
+    """Direct coordinate differences match the native 5cm contact calculation."""
+    return (joints[:,HANDS,None]-object_vertices[:,None]).norm(dim=-1).amin(-1)
+
+
 def terminal_displacements(joints, obj, task):
     """Use supplied goals with their original planar-human/3D-object semantics."""
     pelvis = joints[-1,0].clone(); pelvis[1] = 0
@@ -116,7 +121,7 @@ class SurfaceProblem:
             for lo in range(0,self.length,24):
                 hi = min(lo+24,self.length)
                 vertices = self.objects(source['object_translation'][lo:hi], source['object_rotation'][lo:hi])
-                distances = torch.cdist(source['joints'][lo:hi,HANDS],vertices).amin(-1)
+                distances = native_hand_distances(source['joints'][lo:hi],vertices)
                 self.hand_mask[lo:hi] = distances < .05
             self.envelope = terminal_envelope(self.length,self.device)
             self.basis[-3:] = self.basis[-3].clone()
@@ -381,7 +386,7 @@ def run_surface_tasks(cfg):
                 else:
                     result,solve = problem.solve(steps)
                 solve['source_mean_depth_m'] = risk
-            candidate_metrics = evaluate(result)
+            candidate_metrics = before if arm=='terminal' and before['completed'] else evaluate(result)
             accepted,reasons = (terminal_acceptance(before,candidate_metrics) if arm=='terminal' and not before['completed'] else (True,[]))
             candidate = result
             if not accepted: result = base
@@ -474,6 +479,10 @@ def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False, 
         paper_reference=dict(method='InfBaGel paper Hybrid HOSI-test',HS=3.17,OS=12.45,FS=.15,contact_percent=76.96,success_percent=81.45,
                              comparison='User-authorized direct external aggregate comparison; no paired InfBaGel significance.'),
         test_set_development=True,training_allowed=False)
+    if 'terminal' in arms:
+        result['terminal_attempts'] = sum(not r['arms']['terminal']['input_metrics']['completed'] for r in records)
+        result['terminal_recovered_tasks'] = sum(not r['arms']['terminal']['input_metrics']['completed'] and
+            r['arms']['terminal']['metrics']['completed'] for r in records)
     write_json(directory/'summary.json',result)
     return result
 
