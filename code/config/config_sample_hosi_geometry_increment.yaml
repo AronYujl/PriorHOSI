@@ -1,0 +1,6 @@
+defaults: [config_sample_hosi_body_projection, _self_]
+
+hsi_body_projection:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_geometry_increment_s42_20260908.json
+  geometry_root: ${oc.env:ROOT_DIR}/results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908
+  geometry_arm: relation_20

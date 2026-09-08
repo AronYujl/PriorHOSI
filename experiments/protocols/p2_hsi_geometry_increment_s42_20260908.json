@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "phase": "2.32",
+  "component": "hsi-geometry-increment",
+  "seed": 42,
+  "authorization": "User approved testing the fixed constrained HSI readout for incremental value on the strong geometry solution on2026-09-08.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "body_cache": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908",
+  "teacher_reference": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908/input_references.json",
+  "arms": [
+    "source",
+    "correct_smooth",
+    "correct_projected",
+    "wrong_smooth",
+    "wrong_projected"
+  ],
+  "training_allowed": false,
+  "test_set_development": true,
+  "scope": "One native28 development experiment on the sealed relation_20 geometry solution, before terminal repair. Fresh496 full-condition R2 EMA teacher forwards on current geometry; no HOI generation, expert training, geometry reoptimization, terminal change or469.",
+  "target": "For each cached full native prediction remove its world root XZ/yaw displacement. Keep vertical root change and remaining local rotations. Express local SO3 residuals relative to source, clip translation coordinates to10cm and each local axis-angle vector norm to20degrees, fit one cubic B-spline over the full30Hz task with15frame knot spacing, and apply the existing first6/final3 lock and quintic entrance/exit envelope. The smooth arm directly decodes this target with the original HOI object.",
+  "projection": {
+    "coordinates": "Root XYZ translation plus22 local rotations,69 normalized tangent coordinates; translation scale.05m,rotation scale10deg. Object is frozen to HOI. RootXZ/yaw have zero teacher targets and may move only as projection compensations; full first6/final3 body state is fixed.",
+    "geometry": "Exact beta-dependent native SMPL-X rest joints and FK; finger means zero as in the evaluator. Pin source world hands native28 indices24/26 and all four feet7/8/10/11 at every frame. Native reconstruction checks source FK anchors within1e-5m.",
+    "solver": "80 projected pose-fitting iterations from exact source, step1/37. Squared translation/SO3 target distance plus weight9 adjacent source-relative displacement/rotation differences. Analytic scaled FK Jacobian, Moore-Penrose pseudoinverse of18x18 Gram matrix (float64,rtol1e-10) removes anchor-normal motion; right-local rotation updates. Five Newton anchor restorations after each step. Each update limited uniformly per frame to5mm root and2deg per joint. No scene SDF or native metric enters projection.",
+    "feasibility": "After fitting, evaluate fixed amplitudes1,1/2,1/4,1/8,1/16,1/32,1/64,0 in order, interpolating source-to-fitted pose and restoring anchors with20 Newton iterations. Choose the first satisfying anchor max1e-6m in native FK, total root displacement<=10cm and every local rotation change<=20deg, all-marker source-relative velocity-change max<=30cm/s, all-frame mean<=10cm/s and window-seam mean<=10cm/s. This is a geometry/continuity feasibility line search, not native-score selection. Save all attempts and reasons; zero is the exact feasible source. Rebuild chosen body through native SMPL-X and require six-anchor max error<=1e-5m; preserve original object and first6/final3 state.",
+    "support": "All four foot positions are pinned throughout, stronger than source-stance-only protection; free swing-foot retiming is outside this diagnostic. Hand constraints preserve both hands throughout, including inactive frames."
+  },
+  "evaluation": "All15 native metrics plus numeric completion for every task/draw/arm; source-floor support,source-stance foot displacement,hand-object drift,seam/all joint speed from previous diagnostic; source-relative correction speeds,retained-body displacement and target fraction,amplitude and solver traces. Source native16 and joints must reproduce cache within1e-5; previous unbounded raw body results retained by reference. Correct/wrong share source,draw,bounds,solver and feasibility rule.",
+  "decision": "Retain Phase2.31 point entry relative to geometry: correct_projectedHS<=.99G and<=wrong_projectedHS-.005G; same motion coverage and all protections. Also preregister evidence-breadth checks: after separating375, both remaining27 mean HS differences versusG andwrong must be<=0, and task improvements must be at least as numerous as worsenings in each full28 comparison (ties neutral). Report entry and breadth separately with task/scene95% intervals. Full28 remains primary and every task is retained. No condition authorizes automatic469 or a next experiment; stop this fixed setting and report whether incremental value is supported.",
+  "uncertainty": "10000 seed42 paired task and scene bootstrap using existing tools.paired_bootstrap helpers on GPU; all task/draw values retained, never best-of-two, no unseen-test or cross-seed claims.",
+  "execution": "Nine jobs: first375 then eightGPU lanes for remaining27; existing otherHSI training remains running and contention is recorded. Fresh teacher/query cost separated from projection cost. No extra smoke or new hashing mechanism.",
+  "completion": "Preregistration, logical implementation and completion commits; immutable formal manifest/configs/inputs/logs/attempts/motions/statistics, compact result, phase summary, figure and one-page report; integrate phase2.31 only.",
+  "geometry_run": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "geometry_arm": "relation_20",
+  "projection_protocol_reference": "experiments/protocols/p2_hsi_body_projection_s42_20260908.json",
+  "teacher": {
+    "level": 199,
+    "draws": 2
+  },
+  "current_encoding": "Sample the current native pose/translation/object at every third frame, preserving the same16/2 window ownership. Native SMPL-X/FK-derived positions replace the legacy raw HOI position predictions; subtract the fixed native root reconstruction offset from the position channel so native decoding returns the current root. Derive global rotations from current local pose, reframe using the native get_mat pelvis rule, normalize with the actual dataset. Encode current object positions and rotations with identity prefix and the fixed task object reference. Retain source predicted contact channels as symbolic history; known-empty future object/contact masking unchanged. Reconstruct text,goals,progress and scene queries through native sample_step capture on the current clean window. Audit root/position/object/world rotation roundtrip and the native0.8m human-goal patch; pair all non-scene arguments and noise for correct/wrong.",
+  "teacher_targets": "Fresh teacher predicts full x0 atlevel199 with the same two paired noise seeds. Build each full coarse prediction usingownedlocal2..15, retain source first2. Decode both the clean encoded geometry and prediction through the same native30Hz path. Transfer their root displacement and localSO3 differences onto the exact native geometry baseline, cancelling any coarsening/interpolation effect; then use the unchanged Phase2.31 smooth_body_target and NativeBodyProjection. Save raw queries/predictions,roundtrip source,lifted targets and input-channel differences from legacy source. This encoding change is explicit; differences versus2.31 cannot be attributed solely to a stronger source.",
+  "verification": "Geometry source native16 must reproduce the sealed relation_20 row within1e-5; current encoded world positions/object/rotations within1e-5, native decoded coarse body joints within1e-4m. Quantify all-frame interpolation error and show a zero teacher residual lifts to identity on the exact native source. Keep Phase2.31 native six-anchor1e-5m,endpoint/object invariants and all candidate retention. Full authority and registry validation; source375 is the first complete formal task because it exercises actual nonzero geometry edits, and supplies the full-length functional/performance profile."
+}

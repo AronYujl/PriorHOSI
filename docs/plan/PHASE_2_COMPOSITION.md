@@ -4932,3 +4932,11 @@ HSI drives27/28 motions (root21.93mm,object32.76mm versus geometry) with exact t
 下一入口是在强几何解上测同一受约束身体读出的额外收益并核对当前动作查询条件，预先报告任务覆盖与375敏感性。当前工程门槛完成，下一实验/469/训练均未自动启动。详见PHASE_2AB_HSI_BODY_PROJECTION总结、对应紧凑结果及原始全体记录。
 
 最终封存检查：1110 passed/4历史skips，279.17s；412条registry有效，正式manifest已完成，图表已检查。Phase2.31工程门槛和登记点入口完成，保留375敏感性与区间跨零的科学限制。完成提交整合至本地phase/02-mixer，exp/p2ab-hsi-body-projection-v1定位本次交付。
+
+## 2026-09-08 — Phase2.32 强几何解上的HSI增量（用户批准）
+
+分支phase/02ac-hsi-geometry-increment。固定同28任务、relation_20终点修复前强解、2.31全部投影参数和五臂，重新以当前几何动作查询R2 EMA（level199，两配对draw，496前向）。当前native姿态重建位置/旋转通道、原生get_mat窗口框架与sample_step条件，保留实际物体几何和原生human-goal场景块；旧HOI原始位置预测通道与nativeFK的差异明确记录为输入契约变化。
+
+先同时解码当前clean窗口与HSI输出，再将两者的身体位移/旋转差施加到精确30Hz强解，抵消重采样误差；不把coarse往返产生的差异当成HSI信号。所有原生基线、世界坐标/物体、native粗帧身体、零残差恒等与六锚点保护须验证。先正式执行非零几何编辑的375完整任务，记录功能/性能，再8GPU完成余27；其他HSI训练保留，耗时不作公平速度结论。
+
+协议experiments/protocols/p2_hsi_geometry_increment_s42_20260908.json固定细节。点入口沿用2.31、参照改为强几何解；另登记覆盖条件：375单列后其余27对来源和错配的HS均值差均<=0，两项全28比较的改善数>=退化数（平局中立）。正式28分母及所有指标/候选保留，入口与覆盖分别报告；没有自动469、训练或下一阶段。当前nativeFK重新编码同时改变输入表示，不能把与2.31的差异全归因于源动作变强。工程门槛是本固定增量诊断完整封存。
