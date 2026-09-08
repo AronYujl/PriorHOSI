@@ -4746,3 +4746,25 @@ and the final full suite1100 passed/4 skipped,190.82s pass (authority-frozen-ful
 Development visualization produced5 fixed full-motion clips,20 frames and the native
 metric figure; the figure and a375 comparison frame were inspected. These skeletal
 views support coarse comparison; no perceptual-quality claim is added.
+
+### Phase2.28 complete motions and completion-interval correction
+
+All469 source,938 main-arm outputs and469 terminal outputs completed and their
+manifests are sealed at49ac532. Relation20 givesHS2.890980/OS12.102161 with unchanged
+contact.692011 and357/469 completion; terminal recovers45/112 failures to402/469,
+HS2.886076/OS12.070963/C.692397/FS.171446cm. All original outputs remain immutable.
+
+During aggregation, completed was a JSON boolean and the existing generic metric
+discovery excluded it from task-level bootstrap; scene-level means already made
+it numeric. Point completion and all native15 metrics are correct. Normalize native
+outcome tables, including terminal input, to floats before discovery. A regression
+covers completion entering both task/scene contrasts. Recompute only the registered
+10000-replicate seed42 summaries in a separate statistics addendum for development,
+development-terminal,full469 andterminal469; preserve original summaries and verify
+identical means and existing intervals. This is completion of the registered
+uncertainty reporting, with zero new motions or optimizer changes. No separate
+physical performance run is needed because its executed path is unchanged.
+
+Statistics correction verified:13 component checks and full authority1101 passed,
+4 existing skips,210.80s (authority-statistics-final.log). Motion-generation and
+optimization settings remain the frozen49ac532 version.

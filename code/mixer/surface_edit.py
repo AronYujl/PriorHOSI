@@ -429,9 +429,12 @@ def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False, 
     if len(records)!=len(expected) or {r['task'] for r in records}!=expected:
         raise ValueError('incomplete or duplicate surface-edit task coverage')
     arms = list(records[0]['arms'])
-    tasks = {a:{str(r['task']):r['arms'][a]['metrics'] for r in records} for a in arms}
+    # Completion is a numeric outcome for bootstrap metric discovery.
+    tasks = {a:{str(r['task']):{k:float(v) for k,v in r['arms'][a]['metrics'].items()}
+                for r in records} for a in arms}
     if 'terminal' in arms:
-        tasks['terminal_input'] = {str(r['task']):r['arms']['terminal']['input_metrics'] for r in records}
+        tasks['terminal_input'] = {str(r['task']):{k:float(v) for k,v in
+            r['arms']['terminal']['input_metrics'].items()} for r in records}
     table_arms = list(tasks)
     names = {str(r['task']):r['scene'] for r in records}
     def average(rows):

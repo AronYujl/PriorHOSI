@@ -179,3 +179,33 @@ def test_pose_editor_preserves_native_hand_relations_and_locked_frames_with_leg_
     result['verts'].sum().backward()
     assert torch.isfinite(parameters.grad).all()
     assert parameters.grad[:,:3].abs().sum()>0
+
+
+def test_native_completion_enters_task_and_scene_paired_analysis(tmp_path,monkeypatch):
+    from mixer.surface_edit import summarize_surface
+    from tools.paired_bootstrap import discover_metrics
+    def paired(first,second,device):
+        names=sorted(first)
+        metrics=discover_metrics(first,second,names)['analyzed']
+        return {k:dict(delta=sum(second[n][k]-first[n][k] for n in names)/len(names),
+                       n=len(names)) for k in metrics}
+    monkeypatch.setattr('mixer.scene_calibration.paired_local_metrics',paired)
+    tasks=[]
+    for ordinal in range(2):
+        before=dict(completed=bool(ordinal),contact_percent=.7,foot_sliding=.1,
+                    scene_human_penetration_s_mean=2.,scene_obj_penetration_s_mean=5.)
+        after=dict(before,completed=True)
+        audit=dict(mean_joint_change_mm=0.)
+        row=dict(task=ordinal,scene=f'scene-{ordinal}',object='box',arms=dict(
+            source=dict(metrics=before,audit=audit),
+            terminal=dict(metrics=after,input_metrics=before,audit=audit,accepted=True)))
+        dest=tmp_path/f'lanes/one/task-{ordinal:03d}'
+        dest.mkdir(parents=True)
+        (dest/'complete.json').write_text(json.dumps(row))
+        tasks.append(dict(canonical_ordinal=ordinal))
+    manifest=tmp_path/'tasks.json';manifest.write_text(json.dumps(dict(tasks=tasks)))
+    result=summarize_surface(tmp_path,manifest,device='cpu')
+    for unit in ('task','scene'):
+        comparison=result['contrasts'][unit]['terminal-minus-terminal_input']
+        assert comparison['completed']==dict(delta=.5,n=2)
+    assert result['terminal_attempts']==result['terminal_recovered_tasks']==1
