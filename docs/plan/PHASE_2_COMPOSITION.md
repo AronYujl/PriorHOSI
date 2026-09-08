@@ -4798,3 +4798,38 @@ exp/p2y-surface-edit-v1. The next entry is paper preparation from the actual mea
 scope. Any new algorithmic direction requires a separate concrete proposal.
 
 封存检查：1101 passed/4 existing skips，190.93s（authority-completion.log）；404条registry有效，9份manifest全部封存，完整469任务/67场景的每项对比均含全部16个结果。PNG/PDF主图已检查，工程交付按本phase完成门槛封存并快进整合至phase/02-mixer。
+
+## 2026-09-08 — Phase2.29 full-HSI root/heading targets (approved)
+
+The user restores HSIPrior scene-knowledge transfer as the core necessary claim,
+and approves the proposed first-route experiment. Phase2.28 remains a strong
+geometry-only baseline. Branchphase/02z-hsi-motion-target implements one fixed
+full-condition root/heading target inside its relation-preserving native editor.
+No expert training or shared reverse-chain redesign is included.
+
+Protocol: experiments/protocols/p2_hsi_motion_target_s42_20260908.json. Reuse exact
+Phase2.28 P15 B0 sources. Four main arms: same-budget relation geometry, correct
+HSI relation, wrong-scene HSI relation, and correct HSI independent transforms.
+Read R2 raw full x0 atlevel199 with2 paired draws on each source window; recover
+its native conditions and training-compatible known-empty object view. The wrong
+teacher rotates all world scene queries+90deg about the fixed task start while
+preserving local motion/conditions/noise and the real evaluation scene.
+
+World root XZ/yaw differences become bounded30Hz targets on the unchanged cubic
+editing fields; HSI limbs and vertical/root/object channels are not copied.
+Persistent target loss weight.25, scales5cm/10deg, original20/40 Adam steps and
+all geometry/support settings fixed. Relation mapping moves human/object together.
+Apply the same frozen terminal repair to every arm and report its separate gain.
+
+Develop on fixed native28. Entry requires>=1% extra HS gain over no-HSI and>=.5%
+of baseline HS advantage over wrong-scene HSI, plus registered OS/FS/contact/
+completion/relationship protections. These are prospective point-estimate gates;
+all task/scene10000-pair intervals remain reported. A passing candidate automatically
+enters the already-approved fixed469 comparison. A failure closes this mechanism;
+no new target strength, noise level, sign, or second route starts under this phase.
+
+Read HSIPRIOR_DESIGN_PRIORS.md and Phase2Y/OVERVIEW before implementation. New
+runtime work stays outsidecore/ andexpert directories, with one config fragment,
+component tests and the existingHydra/manifest/bootstrap lifecycle. Full authority
+suite is required; formal native tasks supply physical validation/timing. Input
+identities are reused by reference; no additional smoke or hashing workflow.

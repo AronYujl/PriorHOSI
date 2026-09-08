@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "phase": "2.29",
+  "component": "hsi-motion-target",
+  "seed": 42,
+  "authorization": "User approved the proposed root/heading HSI target with relation-preserving joint editing on 2026-09-08.",
+  "scope": "One fixed native28 development experiment, four main arms with identical terminal repair, followed automatically by the frozen full469 comparison if the preregistered development entry passes. No expert training, shared reverse-chain redesign or hyperparameter search.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "full_task_manifest": "experiments/tasks/p2_surface_edit_full469_s42_20260908.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "input_identity_reference": "results/experiments/p2-mixer-surface-source469-s42-20260908/input_references.json",
+  "baseline_result": "experiments/results/p2_mixer_surface_edit_s42_20260908.json",
+  "baseline_run": "results/experiments/p2-mixer-surface-full469-s42-20260908",
+  "test_set_development": true,
+  "training_allowed": false,
+  "arms": [
+    "relation_20",
+    "relation_hsi_20",
+    "relation_wrong_20",
+    "independent_hsi_20"
+  ],
+  "source": "Exact saved P15 online/ArmB500 B0 motions, original per-episode seed42 + canonical ordinal convention; native30Hz representation and metric formulas unchanged.",
+  "teacher": {
+    "checkpoint": "Frozen R2 EMA, inherited config/input identity; full conditional raw x0, CFG0 and posterior guidance off.",
+    "level": 199,
+    "draws": 2,
+    "seed": "42+900000000+10000*canonical_ordinal+100*window_index+draw",
+    "view": "Known-empty object/contact forward-noise marginal and masked object conditions, history pinned to the same source. Full native static and dynamic scene observations queried from clean source motion.",
+    "wrong_scene": "Rotate every world scene query by +90deg around the fixed task start in the horizontal plane, using wrong_mat=R90 about start composed with actual window mat. All query blocks use this same global transform across the task. Motion, local task conditions, source, real evaluator geometry and paired noise stay fixed. This is a registered correspondence stress control, with changed scene/unchanged non-scene arguments audited.",
+    "output": "Per window/draw: full x0 world root difference and closest world-Y yaw from predicted/source root rotations. Keep newly predicted local2..15 at global14*window+2..15; first2 source frames receive zero target; no duplicated history targets. Average two draws; clamp root X/Z to+-0.20m and yaw to+-20deg, interpolate to original30Hz grid and multiply by the same source edit envelope.",
+    "readout": "Root X/Z and yaw only. HSI local limbs, arms, object predictions and vertical root do not enter the optimizer. Save raw predictions, target components, scene-response/noise-draw differences and final target alignment."
+  },
+  "editing": {
+    "base_protocol": "experiments/protocols/p2_surface_edit_s42_20260908.json",
+    "bound_m_per_horizontal_coordinate": 0.2,
+    "yaw_degrees": 20,
+    "leg_rotation_component_degrees": 20,
+    "initial_parameters": "zero, identical to baseline; no extra warm-start optimization",
+    "objective": "Original full-surface/support/residual/temporal/domain objective plus persistent hsi_target term. Correct/independent share the same correct target; wrong uses the paired wrong target; baseline has no target term.",
+    "target_weight": 0.25,
+    "target_position_scale_m": 0.05,
+    "target_yaw_scale_degrees": 10,
+    "target_reduction": "Mean over full native frames of ((dx-target_x)/.05)^2+((dz-target_z)/.05)^2+((yaw-target_yaw)/rad10)^2, divided by3, times.25; applied throughout every existing20/40 iteration. Targets already carry the source entrance/exit envelope.",
+    "optimizer": "Unchanged Adam lr.05, same source-risk20/40 steps and lowest complete objective among source/visited iterates; source risk0 remains identity. Same cubic fields,24-frame chunks and first6/final3 locks.",
+    "coupling": "Relation arms share horizontal/yaw control for human and object. Independent HSI arm has separate object controls, with identical human target/geometry budget.",
+    "terminal": "Apply the exact frozen Phase2.28 final1s/5cm/20-step terminal rule separately to all four outputs; record main and terminal metrics/candidates/rejection reasons separately. Terminal gains never count toward HSI development entry."
+  },
+  "evaluation": {
+    "primary": "Native HS s_mean, HSI-specific correct relation versus same-budget no-HSI relation; scene dependence against paired wrong-scene relation.",
+    "development_entry": "Correct relation HS <=0.99*no-HSI relation HS and < wrong-scene relation HS by at least0.005*no-HSI relation HS; OS<=1.01*no-HSI OS, FS<=no-HSI+.01cm, contact>=no-HSI-.002, completion>=no-HSI. All initial/final position locks<=1e-5m and hand/object relation drift<=1e-4m. Complete28 task coverage and finite execution. Point-estimate entry; all task/scene intervals reported without a confidence-upper-bound entry requirement.",
+    "selection": "Only one fixed HSI candidate; no bound/weight/noise-sign/scene-control search. The independent arm is an ablation, not an alternative selected for promotion.",
+    "full469": "If entry passes, run exact frozen four arms and common terminal processing over all469 cached sources. Every task remains in denominator; all tasks historically development-used. If entry fails, seal the negative and stop this fixed mechanism.",
+    "uncertainty": "10000 paired bootstrap replicates seed42, task and scene units, all15 native metrics plus numeric completion. Primary full results and all ablations retained; intervals do not correct adaptive benchmark use.",
+    "cost": "Record actual teacher forwards and logical per-method target cost, synchronized optimizer/evaluation times and memory. Compare same SDF iteration budgets; no converged-optimizer or equal-wall-time superiority claim.",
+    "paper": "Authorized external InfBaGel Hybrid row remains unpaired reference. Current geometry-only and terminal benefits are separate from HSI contribution."
+  },
+  "verification": "Full authority pytest tests and registry validation; exact cached source recovery, baseline relation reproduction, native query-context recovery and condition/noise pairing; root/yaw readout units/frame ownership; differentiable target loss; unchanged relation and endpoint invariants. Real-data execution and timing inside formal runs; no extra smoke workload or new hashing mechanism.",
+  "completion": "Preregistration, logical implementation, complete registered workload, paired statistics, all failures/outputs, compact result and phase summary; actual operational source transitions retained if needed."
+}
