@@ -118,6 +118,44 @@ def test_terminal_acceptance_keeps_all_native_constraints_and_does_not_upgrade_s
     assert not terminal_acceptance(candidate,candidate)[0]
 
 
+def test_terminal_stage_preserves_rejected_state_and_completed_identity(monkeypatch):
+    from mixer.surface_edit import apply_terminal_repair
+    monkeypatch.setattr(torch.cuda,'synchronize',lambda *args:None)
+    source=dict(pose=torch.zeros(60,22,3),translation=torch.zeros(60,3),
+        verts=torch.zeros(60,28,3),joints=torch.zeros(60,28,3),
+        object_translation=torch.ones(60,3)*.1,object_rotation=torch.eye(3).repeat(60,1,1))
+    calls=[]
+    monkeypatch.setattr('mixer.surface_edit.decode_body',lambda state,model:(state['verts']+1,state['joints']))
+    class Problem:
+        def __init__(self,base,model,obj,sdf,info,floor,task,arm):
+            assert arm=='terminal'
+            assert torch.equal(base['verts'],source['verts']+1)
+            self.base=base
+        def solve(self,steps):
+            calls.append(steps)
+            candidate=dict(self.base,joints=self.base['joints']+.01)
+            return candidate,dict(trace=[dict(iteration=20)],steps=steps,best_iteration=20,
+                optimization_seconds=0.,parameters=torch.ones(2,3))
+    monkeypatch.setattr('mixer.surface_edit.SurfaceProblem',Problem)
+    before=dict(completed=False,feet_height=0.,contact_percent=.7,foot_sliding=.1,
+                scene_human_penetration_s_mean=1.,scene_obj_penetration_s_mean=2.)
+    result,row,candidate,parameters=apply_terminal_repair(source,before,None,None,None,None,{},
+        lambda state:dict(before,completed=True))
+    assert row['accepted'] and row['attempted'] and row['metrics']['completed']
+    assert torch.equal(result['joints'],candidate['joints']) and torch.equal(parameters,torch.ones(2,3))
+    result,row,candidate,_=apply_terminal_repair(source,before,None,None,None,None,{},
+        lambda state:dict(before,completed=True,scene_human_penetration_s_mean=1.1))
+    assert not row['accepted'] and row['rejection_reasons']==['scene_human_penetration_s_mean']
+    assert row['metrics']==before and row['candidate_metrics']['completed']
+    assert torch.equal(result['joints'],source['joints']) and not torch.equal(candidate['joints'],source['joints'])
+    completed=dict(before,completed=True)
+    def unexpected(state):raise AssertionError('completed identity must reuse its metrics')
+    result,row,_,parameters=apply_terminal_repair(source,completed,None,None,None,None,{},unexpected)
+    assert row['accepted'] and not row['attempted'] and row['metrics']==completed
+    assert parameters is None and calls==[20,20]
+    assert torch.equal(result['pose'],source['pose']) and torch.equal(result['object_translation'],source['object_translation'])
+
+
 def test_chunked_support_and_field_derivatives_count_each_frame_pair_once():
     problem=SurfaceProblem.__new__(SurfaceProblem)
     problem.motion_target=None

@@ -466,7 +466,7 @@ def run_body_projection(cfg):
     from datasets.infbagel import InfBaGelDataset
     from test_infbagel_hosi import seed_everything
     from .continuation_outcomes import native_tracks, write_json
-    from .surface_edit import load_object_sdf, native_metrics, decode_body
+    from .surface_edit import load_object_sdf, native_metrics, decode_body, apply_terminal_repair
     from .body_projection import NativeBodyProjection, native_rest_offsets, smooth_body_target, NATIVE_ANCHORS
     if cfg.get('run_id') and subprocess.check_output(['git','status','--porcelain'],text=True).strip():
         raise RuntimeError('reportable cached projection requires a clean worktree')
@@ -484,6 +484,7 @@ def run_body_projection(cfg):
     smpl_cache = {}; current_scene = None; records = []
     geometry_root = cfg.hsi_body_projection.get('geometry_root')
     direction_probe = cfg.hsi_body_projection.get('direction_probe',False)
+    integrated_terminal = cfg.hsi_body_projection.get('integrated_terminal',False)
     teacher = None
     if geometry_root is not None and not direction_probe:
         from .hsi_motion_target import CurrentMotionTeacher
@@ -492,6 +493,7 @@ def run_body_projection(cfg):
     torch.cuda.reset_peak_memory_stats(device)
     for item in tasks:
         ordinal,scene = item['canonical_ordinal'],item['scene_name']
+        task_started=time.perf_counter()
         if scene!=current_scene:
             dc = OmegaConf.merge(cfg.dataset,dict(device=str(device),vis=True,load_object_payload=False,test_scene_name=scene))
             dataset = InfBaGelDataset(**dc)
@@ -526,6 +528,7 @@ def run_body_projection(cfg):
         def evaluate(track):
             return native_metrics(track,task,obj,obj_sdf,obj_info,sdf,info,model.faces,42)
         baseline=evaluate(source)
+        native_keys=tuple(baseline)
         previous=(json.loads(path.with_name(f'episode-audit-{ordinal:03d}.json').read_text())['metrics']
                   if geometry_payload is None else geometry_payload['metrics'])
         reference_joints=(saved['evaluated_joints_world'].to(device) if geometry_payload is None
@@ -543,6 +546,25 @@ def run_body_projection(cfg):
         baseline['initial_final_max_error_m']=0.
         baseline['object_max_error_m']=0.
         dest=out/f'task-{ordinal:03d}';dest.mkdir()
+        terminal_reference=None;terminal_replay=None;terminal_rows=[]
+        if integrated_terminal:
+            terminal_path,=Path(cfg.hsi_body_projection.terminal_reference).glob(f'lanes/*/task-{ordinal:03d}/terminal.pt')
+            terminal_reference=torch.load(terminal_path,map_location=device,weights_only=False)
+            final_baseline=dict(source,**terminal_reference['motion'])
+            terminal_input_error=max(abs(float(baseline[k])-float(terminal_reference['input_metrics'][k])) for k in native_keys)
+            assert terminal_input_error<=1e-5,terminal_input_error
+            if ordinal in cfg.hsi_body_projection.terminal_replay_tasks:
+                replay,replay_row,_,_=apply_terminal_repair(source,{k:baseline[k] for k in native_keys},
+                    model,obj,sdf,info,task,evaluate)
+                terminal_replay=dict(metric_max_error=max(abs(float(replay_row['metrics'][k])-
+                    float(terminal_reference['metrics'][k])) for k in native_keys),
+                    joint_max_error_m=float((replay['joints']-final_baseline['joints']).abs().max()),
+                    object_max_error_m=float((replay['object_translation']-final_baseline['object_translation']).abs().max()),
+                    accepted=replay_row['accepted'],reference_accepted=terminal_reference['accepted'],
+                    solver=replay_row['solver'])
+                write_json(dest/'terminal_baseline_replay.json',terminal_replay)
+                assert terminal_replay['metric_max_error']<=1e-5 and terminal_replay['joint_max_error_m']<=1e-5
+                assert terminal_replay['object_max_error_m']<=1e-5 and replay_row['accepted']==terminal_reference['accepted']
         if direction_probe:
             cache_path,=(root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/motion.pt')
             cache=torch.load(cache_path,map_location=device,weights_only=False)
@@ -578,6 +600,8 @@ def run_body_projection(cfg):
             return motion
         for draw in range(2):
             arms=dict(source=dict(baseline))
+            if integrated_terminal:
+                arms['source_terminal']={k:terminal_reference['metrics'][k] for k in native_keys}
             for view in ('correct','wrong'):
                 target_rotation,target_translation=smooth_body_target(source,cache[f'{view}_full_draw{draw}'])
                 smooth=decode(target_rotation,target_translation)
@@ -587,6 +611,9 @@ def run_body_projection(cfg):
                 for factor,track,rot,trans in [('smooth',smooth,target_rotation,target_translation),
                                               ('projected',projected,rotation,translation)]:
                     arm=view+'_'+factor
+                    if integrated_terminal and factor=='smooth':
+                        motions[f'{arm}_draw{draw}']={k:v.cpu() for k,v in track.items() if torch.is_tensor(v) and k!='verts'}
+                        continue
                     metrics=evaluate(track)
                     metrics.update(body_readout_measures(track,source,floor,length))
                     metrics.update(projector.measures(rot,trans))
@@ -598,6 +625,24 @@ def run_body_projection(cfg):
                         assert metrics['initial_final_max_error_m']==0 and metrics['object_max_error_m']==0
                     arms[arm]=metrics
                     motions[f'{arm}_draw{draw}']={k:v.cpu() for k,v in track.items() if torch.is_tensor(v) and k!='verts'}
+                if integrated_terminal:
+                    terminal_result,terminal_row,terminal_candidate,terminal_parameters=apply_terminal_repair(
+                        projected,{k:arms[view+'_projected'][k] for k in native_keys},
+                        model,obj,sdf,info,task,evaluate)
+                    arms[view+'_terminal']=terminal_row['metrics']
+                    motions[f'{view}_terminal_draw{draw}']={k:v.cpu() for k,v in terminal_result.items()
+                        if torch.is_tensor(v) and k!='verts'}
+                    if not terminal_row['accepted']:
+                        motions[f'{view}_terminal_rejected_draw{draw}']={k:v.cpu() for k,v in terminal_candidate.items()
+                            if torch.is_tensor(v) and k!='verts'}
+                    motions[f'{view}_terminal_parameters_draw{draw}']=terminal_parameters
+                    delta=terminal_result['joints']-final_baseline['joints']
+                    terminal_row.update(draw=draw,view=view,
+                        body24_displacement_cm_vs_final_baseline=float(delta[:,list(range(22))+[24,26]].norm(dim=-1).mean()*100),
+                        body28_displacement_cm_vs_final_baseline=float(delta.norm(dim=-1).mean()*100),
+                        object_displacement_cm_vs_final_baseline=float((terminal_result['object_translation']-
+                            final_baseline['object_translation']).norm(dim=-1).mean()*100))
+                    terminal_rows.append(terminal_row)
                 target_change=(smooth['joints']-source['joints']).norm(dim=-1).mean()
                 actual_change=(projected['joints']-source['joints']).norm(dim=-1).mean()
                 solve.update(draw=draw,view=view,target_body_displacement_cm=float(target_change*100),
@@ -613,8 +658,18 @@ def run_body_projection(cfg):
             source_joint_error_m=joint_error,source_metric_error=metric_error,source_fk_anchor_error_m=fk_error,
             draws=rows,means=means,solves=solves,query_audit=query_audit,
             hsi_calls=0 if query_audit is None else query_audit['hsi_calls'])
-        write_json(dest/'metrics.json',record)
+        if integrated_terminal:
+            old_paths=list((root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/metrics.json'))
+            compatibility=None
+            if old_paths:
+                old=json.loads(old_paths[0].read_text())['means']
+                compatibility={arm:max(abs(float(means[arm][k])-float(old[arm][k])) for k in native_keys)
+                    for arm in ('source','correct_projected','wrong_projected')}
+            record.update(terminal=terminal_rows,terminal_reference=str(terminal_path),
+                terminal_input_metric_error=terminal_input_error,terminal_replay=terminal_replay,
+                development28_compatibility=compatibility,seconds=time.perf_counter()-task_started)
         with (dest/'motion.pt').open('xb') as handle:torch.save(motions,handle)
+        write_json(dest/'metrics.json',record)
         records.append(record)
         print(json.dumps(dict(task=ordinal,completed=True)),flush=True)
     torch.cuda.synchronize(device)
@@ -886,5 +941,85 @@ def summarize_feasible_directions(run_root,task_manifest,device='cuda:7'):
             write_json(out/f'{arm}-{unit}.json',dict(metrics=values))
     write_json(out/'direction_tasks.json',direction_tables)
     write_json(out/'direction_scenes.json',direction_scenes)
+    write_json(out/'summary.json',summary);write_json(out/'records.json',records)
+    return summary
+
+
+def summarize_integrated_body(run_root,task_manifest,device='cuda:7'):
+    """Full-chain native comparisons with frozen baseline and paired scene control."""
+    from .continuation_outcomes import write_json
+    from .scene_calibration import paired_local_metrics
+    run_root=Path(run_root);records={}
+    for path in run_root.glob('lanes/*/task-*/metrics.json'):
+        row=json.loads(path.read_text());records[row['task']]=row
+    tasks=json.loads(Path(task_manifest).read_text())['tasks']
+    assert set(records)=={t['canonical_ordinal'] for t in tasks}
+    arms=list(next(iter(records.values()))['means'])
+    by_task={a:{str(k):r['means'][a] for k,r in records.items()} for a in arms}
+    scenes=sorted({r['scene'] for r in records.values()})
+    by_scene={a:{scene:{m:sum(r['means'][a][m] for r in records.values() if r['scene']==scene)/
+        sum(r['scene']==scene for r in records.values()) for m in next(iter(by_task[a].values()))}
+        for scene in scenes} for a in arms}
+    means={a:{m:sum(v[m] for v in by_task[a].values())/len(records) for m in next(iter(by_task[a].values()))} for a in arms}
+    pairs=[('correct_projected','source'),('wrong_projected','source'),('correct_projected','wrong_projected'),
+        ('correct_terminal','source_terminal'),('wrong_terminal','source_terminal'),('correct_terminal','wrong_terminal'),
+        ('source_terminal','source'),('correct_terminal','correct_projected'),('wrong_terminal','wrong_projected')]
+    contrasts={a+'__minus__'+b:{unit:paired_local_metrics(data[b],data[a],device)
+        for unit,data in [('task',by_task),('scene',by_scene)]} for a,b in pairs}
+    hs='scene_human_penetration_s_mean';oskey='scene_obj_penetration_s_mean'
+    baseline,correct,wrong=(means[a] for a in ('source_terminal','correct_terminal','wrong_terminal'))
+    conditions=dict(improves_baseline=correct[hs]<=.99*baseline[hs],
+        correct_scene_benefit=correct[hs]<=wrong[hs]-.005*baseline[hs],
+        contact=correct['contact_percent']>=baseline['contact_percent']-.002,
+        foot_sliding=correct['foot_sliding']<=baseline['foot_sliding']+.01,
+        object_scene=correct[oskey]<=1.01*baseline[oskey],completion=correct['completed']>=baseline['completed'])
+    coverage={};remaining={}
+    for ref in ('source_terminal','wrong_terminal'):
+        values=[r['means']['correct_terminal'][hs]-r['means'][ref][hs] for r in records.values()]
+        coverage[ref]=dict(improved=sum(v<0 for v in values),worsened=sum(v>0 for v in values),equal=sum(v==0 for v in values))
+        a={k:v for k,v in by_task[ref].items() if k!='375'}
+        b={k:v for k,v in by_task['correct_terminal'].items() if k!='375'}
+        remaining[ref]=paired_local_metrics(a,b,device)
+    development={str(k) for k,r in records.items() if r['development28_compatibility'] is not None}
+    strata={}
+    for name,ids in [('development28',development),('remaining441',set(by_task['source'])-development)]:
+        strata[name]=dict(tasks=len(ids),means={a:{m:sum(by_task[a][k][m] for k in ids)/len(ids)
+            for m in means[a]} for a in arms},contrasts={a+'__minus__'+b:paired_local_metrics(
+                {k:by_task[b][k] for k in ids},{k:by_task[a][k] for k in ids},device)
+                for a,b in [('correct_terminal','source_terminal'),('correct_terminal','wrong_terminal')]})
+    terminal={}
+    for view in ('correct','wrong'):
+        rows=[v for r in records.values() for v in r['terminal'] if v['view']==view]
+        terminal[view]=dict(attempted=sum(v['attempted'] for v in rows),
+            recovered=sum(v['attempted'] and v['metrics']['completed'] for v in rows),
+            rejected=sum(v['attempted'] and not v['accepted'] for v in rows),
+            body24_displacement_cm_vs_final_baseline=sum(v['body24_displacement_cm_vs_final_baseline'] for v in rows)/len(rows),
+            body28_displacement_cm_vs_final_baseline=sum(v['body28_displacement_cm_vs_final_baseline'] for v in rows)/len(rows),
+            object_displacement_cm_vs_final_baseline=sum(v['object_displacement_cm_vs_final_baseline'] for v in rows)/len(rows),
+            completed_by_draw=[sum(r['draws'][d]['arms'][view+'_terminal']['completed'] for r in records.values()) for d in range(2)],
+            lost_baseline_completion_by_draw=[sum(r['draws'][d]['arms']['source_terminal']['completed'] and
+                not r['draws'][d]['arms'][view+'_terminal']['completed'] for r in records.values()) for d in range(2)],
+            gained_baseline_completion_by_draw=[sum(not r['draws'][d]['arms']['source_terminal']['completed'] and
+                r['draws'][d]['arms'][view+'_terminal']['completed'] for r in records.values()) for d in range(2)])
+    pre=[d['arms'][a] for r in records.values() for d in r['draws'] for a in ('correct_projected','wrong_projected')]
+    replay={str(k):r['terminal_replay'] for k,r in records.items() if r['terminal_replay'] is not None}
+    summary=dict(tasks=len(records),scenes=len(scenes),windows=sum(r['windows'] for r in records.values()),draws=2,
+        declared_draw_arm_rows=len(records)*12,expert_forwards=sum(r['hsi_calls'] for r in records.values()),
+        means=means,contrasts=contrasts,scene_utility_conditions=conditions,scene_utility=all(conditions.values()),
+        task_coverage=coverage,remaining468=remaining,strata=strata,terminal=terminal,
+        baseline_completed=sum(r['means']['source_terminal']['completed'] for r in records.values()),
+        meaningful_preterminal_body_tasks=sum(r['means']['correct_projected']['body_displacement_cm']>=.5 for r in records.values()),
+        audit=dict(source_joint_max_error_m=max(r['source_joint_error_m'] for r in records.values()),
+            source_metric_max_error=max(r['source_metric_error'] for r in records.values()),
+            source_fk_anchor_max_error_m=max(r['source_fk_anchor_error_m'] for r in records.values()),
+            terminal_input_metric_max_error=max(r['terminal_input_metric_error'] for r in records.values()),
+            preterminal_native_anchor_max_error_m=max(r['native_anchor_max_error_m'] for r in pre),
+            preterminal_endpoint_max_error_m=max(r['initial_final_max_error_m'] for r in pre),
+            preterminal_object_max_error_m=max(r['object_max_error_m'] for r in pre),terminal_replay=replay,
+            development28_compatibility={str(k):r['development28_compatibility'] for k,r in records.items() if r['development28_compatibility'] is not None}),
+        training_allowed=False,test_set_development=True,quality_regression_allowed_by_user=True)
+    out=run_root/'analysis';out.mkdir()
+    for a in arms:
+        for unit,values in [('task',by_task[a]),('scene',by_scene[a])]:write_json(out/f'{a}-{unit}.json',dict(metrics=values))
     write_json(out/'summary.json',summary);write_json(out/'records.json',records)
     return summary

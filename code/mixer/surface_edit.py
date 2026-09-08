@@ -303,6 +303,34 @@ def terminal_acceptance(before, after):
     return not failures,failures
 
 
+@torch.no_grad()
+def apply_terminal_repair(source,before,model,object_vertices,sdf,info,task,evaluate):
+    """Frozen external terminal stage, with both accepted and rejected states."""
+    torch.cuda.synchronize(source['pose'].device)
+    started=time.perf_counter()
+    base=dict(source)
+    base['verts'],_=decode_body(base,model)
+    if before['completed']:
+        candidate=base
+        solve=dict(trace=[],steps=0,optimization_seconds=0.,best_iteration=0,parameters=None)
+        candidate_metrics=dict(before)
+        accepted,reasons=True,[]
+    else:
+        problem=SurfaceProblem(base,model,object_vertices,sdf,info,float(before['feet_height'])/100,
+                               task,'terminal')
+        candidate,solve=problem.solve(20)
+        candidate_metrics=evaluate(candidate)
+        accepted,reasons=terminal_acceptance(before,candidate_metrics)
+    result=candidate if accepted else base
+    metrics=candidate_metrics if accepted else dict(before)
+    torch.cuda.synchronize(source['pose'].device)
+    solve['arm_seconds_including_evaluation']=time.perf_counter()-started
+    row=dict(metrics=metrics,input_metrics=dict(before),candidate_metrics=candidate_metrics,
+        accepted=accepted,attempted=not bool(before['completed']),rejection_reasons=reasons,
+        audit=motion_audit(base,result),solver={k:v for k,v in solve.items() if k!='parameters'})
+    return result,row,candidate,solve['parameters']
+
+
 def run_surface_tasks(cfg):
     """Hydra native-evaluation entry; every saved task is independently resumable."""
     from omegaconf import OmegaConf
