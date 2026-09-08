@@ -78,6 +78,7 @@ RESUME_GEOMETRY_FIELDS = (
     'sample_type',
     'precision',
     'hsi_chain_rebase_mode',
+    'cm_fixed_cfg_scale',
 )
 
 
@@ -203,6 +204,8 @@ CFG_DIAGNOSTIC_FIELDS = (
     'cfg_param_delta_rel',
     'cfg_student_target_dist',
     'cfg_student_target_rel',
+    'loss_consistency',
+    'loss_fk',
 )
 
 
@@ -327,6 +330,7 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'sample_type': str(cfg.sample_type),
         'precision': str(cfg.get('precision', 'fp32')),
         'hsi_chain_rebase_mode': str(cfg.get('hsi_chain_rebase_mode', 'off')),
+        'cm_fixed_cfg_scale': cfg.get('cm_fixed_cfg_scale', None),
     }
 
 
@@ -631,6 +635,13 @@ def train_ddp(rank, world_size, cfg):
     last_loss = None
     stop_training = False
     torch.cuda.reset_peak_memory_stats(device)
+    benchmark_start = None
+    benchmark_seconds = None
+    benchmark_warmup = int(cfg.get('benchmark_warmup_updates', 0))
+    benchmark_initial_update = optimizer_updates
+    if cfg.benchmark_metrics_path is not None and benchmark_warmup == 0:
+        torch.cuda.synchronize(device)
+        benchmark_start = time.perf_counter()
     if resume_path is None:
         # The resume branch above already zeroed the gradients and then restored
         # the pending accumulation group; do not wipe it here.
@@ -840,6 +851,9 @@ def train_ddp(rank, world_size, cfg):
                             (cfg_parameter_delta / (cfg_parameter_norm + 1e-12)).float(),
                             cfg_student_target_distance.float(),
                             (cfg_student_target_distance / (cfg_parameter_norm + 1e-12)).float(),
+                            loss_consistency.detach().float(),
+                            (loss_fk.detach().float() if loss_fk is not None
+                             else torch.zeros_like(loss).float()),
                         ],
                     ))
                     if len(cfg_diagnostic_buffer) == 128:
@@ -847,7 +861,14 @@ def train_ddp(rank, world_size, cfg):
                 optimizer.zero_grad(set_to_none=True)
                 optimizer_updates += 1
                 lr_scheduler.step()
+                if (cfg.benchmark_metrics_path is not None and
+                        optimizer_updates == benchmark_initial_update + benchmark_warmup):
+                    torch.cuda.synchronize(device)
+                    benchmark_start = time.perf_counter()
                 if cfg.max_optimizer_updates is not None and optimizer_updates >= int(cfg.max_optimizer_updates):
+                    if benchmark_start is not None:
+                        torch.cuda.synchronize(device)
+                        benchmark_seconds = time.perf_counter() - benchmark_start
                     stop_training = True
                     break
 
@@ -892,6 +913,8 @@ def train_ddp(rank, world_size, cfg):
             break
 
     torch.cuda.synchronize(device)
+    if benchmark_start is not None and benchmark_seconds is None:
+        benchmark_seconds = time.perf_counter() - benchmark_start
     local_peaks = torch.tensor(
         [torch.cuda.max_memory_allocated(device), torch.cuda.max_memory_reserved(device)],
         dtype=torch.float64,
@@ -926,6 +949,9 @@ def train_ddp(rank, world_size, cfg):
             'optimizer_updates': optimizer_updates,
             'micro_steps': micro_steps,
             'last_loss': last_loss,
+            'benchmark_warmup_updates': benchmark_warmup,
+            'measured_optimizer_updates': optimizer_updates - benchmark_initial_update - benchmark_warmup,
+            'synchronized_training_seconds': benchmark_seconds,
             'peak_memory_allocated_bytes_by_rank': [int(value[0]) for value in peak_values],
             'peak_memory_reserved_bytes_by_rank': [int(value[1]) for value in peak_values],
             'max_peak_memory_allocated_bytes': int(max(value[0] for value in peak_values)),

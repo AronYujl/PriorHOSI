@@ -187,6 +187,8 @@ class Sampler:
         self.solver = DDIMSolver(self.alpha_cumprod.numpy(), self.timesteps, self.ddim_timesteps).to(self.device)
         self.cm_timesteps = cm_timesteps
         self.w = kwargs.get('w', 0)
+        self.cm_fixed_cfg_scale = kwargs.get('cm_fixed_cfg_scale', None)
+        self.hsi_cm_guidance_x0_coef = bool(kwargs.get('hsi_cm_guidance_x0_coef', False))
         self.is_mix = kwargs.get('is_mix', False)
         # None = off, and p_sample then emits exactly the released arithmetic.
         # See config_sample_infbagel_lingo_hsi.yaml: hsi_guidance_norm_cap.
@@ -708,8 +710,13 @@ class Sampler:
         else:
             occ = None
         
-        # sample CFG scale
-        w, is_uncond = self.sample_cfg_scale_mixed(x_start.shape[0], x_start.device)
+        # One operating point uses the same requested scale in all three models.
+        if self.cm_fixed_cfg_scale is None:
+            w, _ = self.sample_cfg_scale_mixed(x_start.shape[0], x_start.device)
+        else:
+            w = torch.full(
+                (x_start.shape[0], 1), float(self.cm_fixed_cfg_scale), device=x_start.device
+            )
         
         # Student model prediction (with CFG scale)
         pred_x_0 = self.student_model(x_start_noisy, occ, start_timestep, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, cfg_scale=w)
@@ -770,6 +777,9 @@ class Sampler:
 
         # Calculate loss
         mask_inv = torch.logical_not(mask)
+        mask_inv[:, :, 216:232] &= is_object.to(
+            device=mask_inv.device, dtype=torch.bool
+        ).reshape(-1, 1, 1)
         if loss_type == 'l1':
             loss = F.l1_loss(model_pred[mask_inv].float(), target[mask_inv].float())
         elif loss_type == 'l2':
@@ -785,26 +795,24 @@ class Sampler:
             hand_idx_24 = [20, 21, 22, 23]
             foot_idx = [7, 8, 10, 11]
             
-            gt_global_jpos = transform_points(self.dataset.denormalize_torch(joints), mat).reshape(joints.shape[0], -1, 28, 3)
+            model_pred[mask] = x_start[mask]
+            if self.geometry_loss_fp32:
+                with torch.autocast(device_type=model_pred.device.type, enabled=False):
+                    gt_global_jpos = transform_points(
+                        self.dataset.denormalize_torch(joints.float()), mat.float()
+                    ).reshape(joints.shape[0], -1, 28, 3)
+                    global_jpos, human_jnts = self._compute_human_joints(
+                        model_pred.float(), joints.float(), mat.float(), rest_human_offsets.float()
+                    )
+            else:
+                gt_global_jpos = transform_points(
+                    self.dataset.denormalize_torch(joints), mat
+                ).reshape(joints.shape[0], -1, 28, 3)
+                global_jpos, human_jnts = self._compute_human_joints(
+                    model_pred, joints, mat, rest_human_offsets
+                )
             gt_global_hand_jpos = gt_global_jpos[:, :, hand_idx_28, :]
             gt_global_foot_jpos = gt_global_jpos[:, :, foot_idx, :]
-
-            model_pred[mask] = x_start[mask]
-            
-            global_jpos = transform_points(self.dataset.denormalize_torch(model_pred[:, :, :84]), mat).reshape(joints.shape[0], -1, 28, 3)
-
-            # FK to get joint positions.
-            curr_seq_local_jpos = rest_human_offsets[:, None].repeat(1, global_jpos.shape[1], 1, 1) # [b, t, 24, 3]
-            curr_seq_local_jpos = curr_seq_local_jpos.reshape(-1, 24, 3) # [b*t, 24, 3]
-            curr_seq_local_jpos[:, 0, :] = global_jpos.reshape(-1, 28, 3)[:, 0, :]
-
-            global_jrot_6d = model_pred[:, :, 84:216].reshape(joints.shape[0], -1, 22, 6)
-            global_jrot_mat = transforms.rotation_6d_to_matrix(global_jrot_6d) # [b, t, 22, 3, 3]
-            global_jrot_mat = mat[:, None, None, :3, :3] @ global_jrot_mat
-            
-            local_jrot_mat = self.dataset.quat_ik_torch(global_jrot_mat.reshape(-1, 22, 3, 3)) # [b*t, 22, 3, 3]
-            _, human_jnts = self.dataset.quat_fk_torch(local_jrot_mat, curr_seq_local_jpos) # [b*t, 24, 3]
-            human_jnts = human_jnts.reshape(joints.shape[0], -1, 24, 3) # [b, t, 24, 3]
 
             pred_global_hand_jpos = human_jnts[:, :, hand_idx_24, :]
             pred_global_foot_jpos = human_jnts[:, :, foot_idx, :] # [b, t, 4, 3]
@@ -1206,9 +1214,10 @@ class Sampler:
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
                 # penetration_gradient = torch.autograd.grad(-penetration_loss, x_start)[0]
                 
-                alpha_cumprod = extract(self.alpha_cumprod, end_timesteps, x_start.shape)
-                
-                x_prev = x_prev + gradient # * (1 - alpha_cumprod)
+                # At fixed noise, the CM clean-prediction Jacobian is sqrt(alpha_prev).
+                if self.hsi_cm_guidance_x0_coef and not is_object.any():
+                    gradient = alpha_cumprod_prev.sqrt() * gradient
+                x_prev = x_prev + gradient
         else:
             start_timestep = self.solver.ddim_timesteps[t]
 
@@ -1866,7 +1875,7 @@ class Unet(nn.Module):
         
         # if a CFG scale is provided, add the CFG embedding
         if cfg_scale is not None:
-            if int(timesteps[0]) == 499 or is_uncondition: # todo: this should adapt to the timestep
+            if is_uncondition:
                 cfg_scale = torch.full((self.batch_size, 1), -1.0, device=x.device)
             cfg_emb = self.cfg_scale_embedding(cfg_scale)
             # add the CFG embedding to the timestep embedding
@@ -1922,18 +1931,15 @@ class Unet(nn.Module):
                     scene_emb_3 += self.encode_2d_coordinate(occ_pos[3], self.dim_model)
                     scene_embs = [scene_emb_0, scene_emb_1, scene_emb_2, scene_emb_3]
 
-                # handle dropout during sampling (temporal voxels only)
-                if is_sample:
-                    if int(timesteps[0]) == 499 or is_uncondition:
-                        for i in range(1, len(scene_embs)):
-                            scene_embs[i] = torch.zeros_like(t_emb)
-                # when cfg_scale=-1, mask the scene condition (unconditional generation), Training
-                elif cfg_scale is not None:
-                    is_uncond = (cfg_scale == -1).squeeze(1)
-                    if is_uncond.any():
-                        mask = is_uncond.unsqueeze(1).unsqueeze(2)
-                        for i in range(1, len(scene_embs)):
-                            scene_embs[i] = torch.where(mask, torch.zeros_like(scene_embs[i]), scene_embs[i])
+                # Initial-noise temporal crops are unavailable per row. Explicit CFG
+                # sentinels share this mask across teacher, student, and EMA target.
+                if is_sample or cfg_scale is not None:
+                    is_uncond = (timesteps == 499) | is_uncondition
+                    if cfg_scale is not None:
+                        is_uncond = is_uncond | (cfg_scale == -1).squeeze(1)
+                    mask = is_uncond[:, None, None]
+                    for i in range(1, len(scene_embs)):
+                        scene_embs[i] = torch.where(mask, torch.zeros_like(scene_embs[i]), scene_embs[i])
                 else:
                     prob_mask = (torch.rand(scene_embs[0].size(0), 1, 1, device=scene_embs[0].device) < 0.1)
                     for i in range(1, len(scene_embs)):

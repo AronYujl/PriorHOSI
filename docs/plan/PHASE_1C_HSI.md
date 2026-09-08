@@ -13294,3 +13294,18 @@ R@3沿用冻结gallery及其occurrence重采样单位，明确与独立episode�
 95%配对区间上界<=1.05；R@3/成功率/接触参与量的比值区间下界>=0.95；保持已冻结
 安全限制；guided warm generation >=20FPS。完整报告未通过或不确定项，不用删指标
 使gate通过。R2+CG在候选通过前继续是工作基线。失败只允许保留诊断；新训练方向需另行批准。
+
+
+### CM1.1 实现验证（首个正式GPU负载前）
+
+固定CFG通过sampler配置进入consistency目标；Unet的CFG与scene条件已消除首行决定整批
+的路径；最高噪声的scene屏蔽逐样本保留。CM几何增量按实际重加噪alpha映射；一致性
+监督排除无物体行的216:232，FK调用既有fp32几何函数。恢复合同记录cm_fixed_cfg_scale。
+既有梯度JSONL追加consistency/FK分项；性能输出追加CUDA同步的预热后时间与更新数。
+
+六项新组件测试通过，覆盖teacher/student重排及拆分、最高噪声scene条件、固定CFG与
+监督梯度、三个噪声区间的生产CM更新。Authority首次444 passed、3 skipped，两个新测试
+失败来自fixture的Identity返回输入别名，导致模型加入坐标时污染下一次测试输入；改为
+返回独立特征后组件6/6通过，合计446 passed、3 skipped。此前组件入口缺少code路径、
+测试构造缺少nb_voxels及float64 solver参考dtype也已修正；均为manifest前实现工作。
+生产source未因这些fixture修正变化。Registry及resolved config检查通过。
