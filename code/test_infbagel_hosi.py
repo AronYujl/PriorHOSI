@@ -564,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('hsi_body_projection', {}).get('enabled', False):
+        from mixer.diagnostics import run_body_projection
+        run_body_projection(cfg)
+        return
     if cfg.get('hsi_body_readout', {}).get('enabled', False):
         from mixer.diagnostics import run_body_readout
         run_body_readout(cfg)

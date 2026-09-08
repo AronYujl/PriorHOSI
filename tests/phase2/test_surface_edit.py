@@ -329,3 +329,45 @@ def test_full_body_factorization_recovers_planar_motion_and_articulation():
     planar = factors['planar']
     assert torch.allclose(object_frame_hands(planar['joints'],planar['object_translation'],planar['object_rotation']),ref,atol=1e-6)
     assert torch.equal(factors['full']['joints'],full['joints'])
+
+
+def test_native_anchor_jacobian_matches_finite_rotation_differences():
+    from mixer.body_projection import NativeBodyProjection
+    torch.manual_seed(42)
+    frames=60
+    source=dict(pose=torch.randn(frames,22,3,dtype=torch.float64)*.2,
+                translation=torch.randn(frames,3,dtype=torch.float64))
+    offsets=torch.randn(24,3,dtype=torch.float64)*.1
+    projection=NativeBodyProjection(source,offsets)
+    global_rotation,points=projection.forward(projection.rotation,projection.translation)
+    jac=projection.jacobian(global_rotation,points)
+    direction=torch.randn(frames,69,dtype=torch.float64)
+    h=1e-5
+    def step(sign):
+        rot=projection.rotation@transforms.axis_angle_to_matrix(direction[:,3:].reshape(frames,22,3)*projection.angle_scale*h*sign)
+        trans=projection.translation+direction[:,:3]*projection.position_scale*h*sign
+        return projection.forward(rot,trans)[1][:,(22,23,7,8,10,11)]
+    actual=((step(1)-step(-1))/(2*h)).flatten(1)
+    expected=(jac@direction[...,None]).squeeze(-1)
+    torch.testing.assert_close(actual,expected,atol=1e-8,rtol=1e-7)
+    inverse=projection.inverse(jac)
+    tangent=direction-(inverse@(jac@direction[...,None])).squeeze(-1)
+    assert (jac@tangent[...,None]).abs().max()<1e-8
+
+
+def test_native_anchor_restoration_preserves_non_anchor_body_changes():
+    from mixer.body_projection import NativeBodyProjection
+    torch.manual_seed(42)
+    frames=60
+    source=dict(pose=torch.randn(frames,22,3,dtype=torch.float64)*.15,
+                translation=torch.zeros(frames,3,dtype=torch.float64))
+    offsets=torch.randn(24,3,dtype=torch.float64)*.1
+    projection=NativeBodyProjection(source,offsets)
+    direction=torch.randn(frames,69,dtype=torch.float64)*.03
+    rotation,translation=projection.update(projection.rotation,projection.translation,direction)
+    rotation,translation=projection.restore(rotation,translation,20)
+    _,points=projection.forward(rotation,translation)
+    assert (points[:,(22,23,7,8,10,11)]-projection.reference).norm(dim=-1).max()<1e-6
+    assert (points-projection.points).norm(dim=-1).mean()>1e-5
+    assert torch.equal(rotation[projection.fixed],projection.rotation[projection.fixed])
+    assert torch.equal(translation[projection.fixed],projection.translation[projection.fixed])
