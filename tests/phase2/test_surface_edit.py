@@ -296,3 +296,36 @@ def test_hsi_goal_query_condition_matches_model_and_keeps_object_world():
     for key in ('obj_rot_mat_prefix','obj_rest_verts','object_goal','pelvis_goal'):
         assert corrected[key] is context[key]
     assert corrected['static_occ_cache']=={} and context['static_occ_cache']['goal']=='object goal patch'
+
+
+def test_full_body_factorization_recovers_planar_motion_and_articulation():
+    from mixer.diagnostics import factor_body_prediction
+    from mixer.surface_edit import yaw_matrix, object_frame_hands
+    from pytorch3d import transforms
+    torch.manual_seed(42)
+    frames = 5
+    joints = torch.randn(frames, 28, 3)
+    verts = torch.randn(frames, 40, 3)
+    pose = torch.zeros(frames, 22, 3)
+    source = dict(joints=joints, verts=verts, pose=pose,
+        object_translation=torch.randn(frames,3), object_rotation=torch.eye(3).repeat(frames,1,1))
+    yaw = torch.linspace(-.4,.4,frames)
+    rotation = yaw_matrix(yaw)
+    shift = torch.tensor([.12,0.,-.08]).repeat(frames,1)
+    pivot = joints[:, :1]
+    full = dict(source)
+    for key in ('joints','verts'):
+        full[key] = pivot+(rotation[:,None]@(source[key]-pivot)[...,None]).squeeze(-1)+shift[:,None]
+        full[key][:,:,1] += .06
+    full['joints'][:, 20] += torch.tensor([.02, .03, -.01])
+    full['pose'] = pose.clone()
+    full['pose'][:,0] = transforms.matrix_to_axis_angle(rotation)
+    factors,error = factor_body_prediction(source,full)
+    assert error < 1e-6
+    assert torch.allclose(factors['residual']['joints'][:,0,:][:,[0,2]],joints[:,0,:][:,[0,2]],atol=1e-6)
+    assert torch.allclose(factors['residual']['joints'][:,0,1],joints[:,0,1]+.06,atol=1e-6)
+    assert torch.allclose(factors['residual']['object_translation'],source['object_translation'])
+    ref = object_frame_hands(source['joints'],source['object_translation'],source['object_rotation'])
+    planar = factors['planar']
+    assert torch.allclose(object_frame_hands(planar['joints'],planar['object_translation'],planar['object_rotation']),ref,atol=1e-6)
+    assert torch.equal(factors['full']['joints'],full['joints'])

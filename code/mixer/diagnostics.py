@@ -228,3 +228,229 @@ class HSIInputDiagnostic:
         with path.open('x') as handle:
             json.dump(payload, handle, indent=2, allow_nan=False)
         return {'path': str(path), **self.episode, 'windows': self.window_index + 1}
+
+
+def factor_body_prediction(source, full):
+    """Factor native full-body geometry into planar motion and its remainder."""
+    from .hsi_motion_target import planar_yaw
+    from .surface_edit import yaw_matrix, shared_object_transform
+    pivot = source['joints'][:, 0]
+    shift = full['joints'][:, 0]-pivot
+    shift = shift.clone(); shift[:, 1] = 0
+    original_rotation = transforms.axis_angle_to_matrix(source['pose'][:, 0])
+    predicted_rotation = transforms.axis_angle_to_matrix(full['pose'][:, 0])
+    yaw = planar_yaw(predicted_rotation@original_rotation.transpose(-1, -2))
+    rotation = yaw_matrix(yaw)
+    obj, obj_rot = shared_object_transform(pivot, source['object_translation'],
+                                         source['object_rotation'], shift, yaw)
+    planar, residual = {}, {}
+    for key in ('joints', 'verts'):
+        planar[key] = pivot[:, None]+(rotation[:, None]@
+            (source[key]-pivot[:, None])[..., None]).squeeze(-1)+shift[:, None]
+        residual[key] = pivot[:, None]+(rotation[:, None].transpose(-1, -2)@
+            (full[key]-pivot[:, None]-shift[:, None])[..., None]).squeeze(-1)
+    planar.update(object_translation=obj, object_rotation=obj_rot)
+    residual.update(object_translation=source['object_translation'], object_rotation=source['object_rotation'])
+    combined = dict(full, object_translation=obj, object_rotation=obj_rot)
+    rebuilt = pivot[:, None]+(rotation[:, None]@
+        (residual['verts']-pivot[:, None])[..., None]).squeeze(-1)+shift[:, None]
+    return dict(planar=planar, residual=residual, full=combined), float((rebuilt-full['verts']).abs().max())
+
+
+def body_readout_measures(track, source, floor, coarse_length):
+    """Support uses the source floor, so lifting the body cannot redefine it."""
+    from .surface_edit import FEET, object_frame_hands
+    feet, reference = track['joints'][:, FEET], source['joints'][:, FEET]
+    limits = feet.new_tensor((.08, .08, .04, .04))
+    stance = reference[..., 1]-floor < limits
+    support = feet[..., 1]-floor < limits
+    displacement = (feet-reference).norm(dim=-1)
+    relative = object_frame_hands(track['joints'], track['object_translation'], track['object_rotation'])
+    original = object_frame_hands(source['joints'], source['object_translation'], source['object_rotation'])
+    seam = torch.arange(16, coarse_length, 14, device=feet.device)*3
+    speed = (track['joints'][1:]-track['joints'][:-1]).norm(dim=-1)*30
+    root_y = track['joints'][:, 0, 1]-source['joints'][:, 0, 1]
+    return dict(source_floor_support_fraction=float(support.float().mean()),
+        source_stance_foot_displacement_cm=float((displacement*stance).sum()/stance.sum()*100),
+        root_y_change_cm=float(root_y.mean()*100), root_y_abs_change_cm=float(root_y.abs().mean()*100),
+        hand_object_mean_drift_cm=float((relative-original).norm(dim=-1).mean()*100),
+        hand_object_max_drift_cm=float((relative-original).norm(dim=-1).max()*100),
+        seam_joint_speed_cm_s=float(speed[seam-1].mean()*100),
+        mean_joint_speed_cm_s=float(speed.mean()*100))
+
+
+@torch.no_grad()
+def run_body_readout(cfg):
+    """Named cached probe: full_body_readout, with the native evaluator."""
+    import subprocess
+    import time
+    import numpy as np
+    from omegaconf import OmegaConf
+    from datasets.infbagel import InfBaGelDataset
+    from test_infbagel_hosi import decode_sample_window, seed_everything
+    from utils import interpolate_joints
+    from .continuation_outcomes import native_tracks, write_json
+    from .surface_edit import load_object_sdf, native_metrics
+    if cfg.get('run_id') and subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
+        raise RuntimeError('reportable cached diagnostic requires a clean worktree')
+    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    protocol_path = Path(cfg.hsi_body_readout.protocol)
+    root = protocol_path.resolve().parents[2]
+    protocol = json.loads(protocol_path.read_text())
+    tasks = json.loads((root/protocol['task_manifest']).read_text())['tasks']
+    if cfg.hsi_body_readout.task_ids is not None:
+        tasks = [t for t in tasks if t['canonical_ordinal'] in cfg.hsi_body_readout.task_ids]
+    out = Path(cfg.hosi_output_dir); out.mkdir(parents=True, exist_ok=False)
+    OmegaConf.save(OmegaConf.create(OmegaConf.to_container(cfg, resolve=True)), out/'resolved.yaml')
+    seed_everything(42)
+    device = torch.device(cfg.device)
+    smpl_cache = {}; current_scene = None; records = []
+    torch.cuda.synchronize(device); started = time.perf_counter()
+    torch.cuda.reset_peak_memory_stats(device)
+    for item in tasks:
+        ordinal, scene = item['canonical_ordinal'], item['scene_name']
+        if scene != current_scene:
+            dc = OmegaConf.merge(cfg.dataset, dict(device=str(device), vis=True,
+                                 load_object_payload=False, test_scene_name=scene))
+            dataset = InfBaGelDataset(**dc)
+            dataset.obj_rest_verts = {k:v.to(device) for k,v in dataset.obj_rest_verts.items()}
+            native = json.loads((root/'data/hosi_test/data'/(scene+'.json')).read_text())
+            key = scene+'_sdf'; sdf_root = root/'data/hosi_test/Scene_sdf'
+            sdf = np.load(sdf_root/(key+'.npy'))
+            info = json.loads((sdf_root/(key+'_info.json')).read_text())
+            current_scene = scene
+        task = dict(native[item['test_idx']], test_idx=item['test_idx'])
+        path, = (root/protocol['source_run']).glob(f"{protocol['source_arm']}-shard*/episode-motion-{ordinal:03d}.pt")
+        saved = torch.load(path, map_location='cpu', weights_only=False)
+        world = {k:torch.as_tensor(v).reshape(-1,28,3) if k=='points_world' else torch.as_tensor(v)
+                 for k,v in saved['stitched'].items()}
+        source = native_tracks(cfg, dataset, world, task, True, smpl_cache, body_parameters=True)
+        obj = dataset.obj_rest_verts[item['object_name']]
+        obj_sdf, obj_info = load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files', item['object_name'])
+        model = smpl_cache[source['gender']]
+        def evaluate(track):
+            return native_metrics(track, task, obj, obj_sdf, obj_info, sdf, info, model.faces, 42)
+        baseline = evaluate(source)
+        previous = json.loads(path.with_name(f'episode-audit-{ordinal:03d}.json').read_text())['metrics']
+        joint_error = float((source['joints'].cpu()-saved['evaluated_joints_world']).abs().max())
+        metric_error = max(abs(float(baseline[k])-float(previous[k])) for k in baseline)
+        assert joint_error <= 1e-5 and metric_error <= 1e-5, (joint_error, metric_error)
+        teacher_path, = (root/protocol['teacher_run']).glob(f'lanes/*/task-{ordinal:03d}/teacher.pt')
+        teacher = torch.load(teacher_path, map_location='cpu', weights_only=False)
+        length = len(world['points_world'])
+        floor = baseline['feet_height']/100
+        baseline.update(body_readout_measures(source, source, floor, length))
+        def raw_fk_error(points, track):
+            raw = interpolate_joints(points.reshape(-1,84).to(device), cfg.interp_s).reshape(-1,28,3)
+            raw = raw-raw[:, :1]
+            fk = track['joints']-track['joints'][:, :1]
+            return float((raw-fk).norm(dim=-1).mean()*100)
+        baseline['raw_fk_relative_error_cm'] = raw_fk_error(world['points_world'], source)
+        task_rows = []; full_tracks = {}; factor_errors = []
+        motions = dict(source={k:v.cpu() for k,v in source.items() if torch.is_tensor(v) and k!='verts'})
+        for draw in range(2):
+            arms = dict(source=dict(baseline))
+            for scene_view in ('correct', 'wrong'):
+                predicted_world = {k:v.clone() for k,v in world.items()}
+                source_decode_error = 0.
+                for window in teacher['windows']:
+                    idx = window['window']; dest = slice(14*idx+2,14*idx+16)
+                    decoded = decode_sample_window(cfg, window['predictions'][scene_view][draw].to(device),
+                                                   dataset, window['mat'].to(device))
+                    original = decode_sample_window(cfg, window['source'].to(device), dataset, window['mat'].to(device))
+                    for key, decoded_key, shape in (('points_world','points_orig',(-1,28,3)),
+                                                   ('global_rot_6d','global_rot_6d',(-1,22,6))):
+                        value = decoded[decoded_key].cpu().reshape(shape)[2:]
+                        reference = original[decoded_key].cpu().reshape(shape)[2:]
+                        target_shape = predicted_world[key][dest].shape
+                        source_decode_error = max(source_decode_error,
+                            float((reference.reshape(target_shape)-world[key][dest]).abs().max()))
+                        predicted_world[key][dest] = value.reshape(target_shape)
+                assert source_decode_error < 1e-5, source_decode_error
+                full = native_tracks(cfg, dataset, predicted_world, task, True, smpl_cache, body_parameters=True)
+                factors, error = factor_body_prediction(source, full)
+                assert error < 1e-5, error
+                factor_errors.append(error)
+                raw_error = raw_fk_error(predicted_world['points_world'], full)
+                for factor, track in factors.items():
+                    arm = scene_view+'_'+factor
+                    metrics = evaluate(track)
+                    metrics.update(body_readout_measures(track, source, floor, length))
+                    # Position-channel agreement belongs to the original full prediction.
+                    if factor == 'full': metrics['raw_fk_relative_error_cm'] = raw_error
+                    arms[arm] = metrics
+                    motions[f'{arm}_draw{draw}'] = {k:v.cpu() for k,v in track.items()
+                        if torch.is_tensor(v) and k!='verts'}
+                assert arms[scene_view+'_planar']['hand_object_max_drift_cm'] < .001
+                full_tracks[scene_view, draw] = full['joints'].clone()
+            task_rows.append(dict(draw=draw, arms=arms, source_decode_error=source_decode_error))
+        response = {}
+        groups = dict(all=tuple(range(28)), legs=(1,2,4,5,7,8,10,11), torso=(3,6,9,12,15), arms=(16,17,18,19,20,21), hands=(24,26))
+        for group, indices in groups.items():
+            response[group] = dict(scene_difference_cm=float(torch.stack([
+                (full_tracks['correct', d][:,indices]-full_tracks['wrong', d][:,indices]).norm(dim=-1).mean() for d in range(2)]).mean()*100),
+                draw_difference_cm=float((full_tracks['correct',0][:,indices]-full_tracks['correct',1][:,indices]).norm(dim=-1).mean()*100))
+        means = {arm:{k:sum(float(r['arms'][arm][k]) for r in task_rows)/2
+                      for k in task_rows[0]['arms'][arm]} for arm in protocol['arms']}
+        record = dict(task=ordinal, scene=scene, object=item['object_name'], windows=len(teacher['windows']),
+            source_joint_error_m=joint_error, source_metric_error=metric_error,
+            factorization_error_m=max(factor_errors), draws=task_rows, means=means, response=response)
+        dest = out/f'task-{ordinal:03d}'; dest.mkdir()
+        write_json(dest/'metrics.json',record)
+        with (dest/'motion.pt').open('xb') as handle: torch.save(motions, handle)
+        records.append(record)
+        print(json.dumps(dict(task=ordinal, completed=True, source_error=metric_error,
+            full_hs=means['correct_full']['scene_human_penetration_s_mean'])), flush=True)
+    torch.cuda.synchronize(device)
+    write_json(out/'metrics.json',dict(commit=commit,
+        git_commit_at_completion=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+        tasks=len(records), windows=sum(r['windows'] for r in records), seconds=time.perf_counter()-started,
+        peak_memory_gib=torch.cuda.max_memory_allocated(device)/1024**3, expert_forwards=0))
+
+
+def summarize_body_readout(run_root, task_manifest, device='cuda:7'):
+    from .continuation_outcomes import write_json
+    from .scene_calibration import paired_local_metrics
+    run_root = Path(run_root)
+    tasks = json.loads(Path(task_manifest).read_text())['tasks']
+    records = {}
+    for path in run_root.glob('lanes/*/task-*/metrics.json'):
+        row = json.loads(path.read_text()); records[row['task']] = row
+    assert set(records) == {t['canonical_ordinal'] for t in tasks}
+    arms = list(next(iter(records.values()))['means'])
+    by_task = {arm:{str(k):r['means'][arm] for k,r in records.items()} for arm in arms}
+    scenes = sorted({r['scene'] for r in records.values()})
+    by_scene = {arm:{scene:{metric:sum(r['means'][arm][metric] for r in records.values() if r['scene']==scene)/
+        sum(r['scene']==scene for r in records.values()) for metric in next(iter(by_task[arm].values()))}
+        for scene in scenes} for arm in arms}
+    means = {arm:{metric:sum(v[metric] for v in by_task[arm].values())/len(records)
+                  for metric in next(iter(by_task[arm].values()))} for arm in arms}
+    pairs = [(arm,'source') for arm in arms if arm!='source']
+    pairs += [(view+'_full',view+'_'+factor) for view in ('correct','wrong') for factor in ('planar','residual')]
+    pairs += [('correct_'+factor,'wrong_'+factor) for factor in ('planar','residual','full')]
+    contrasts = {a+'__minus__'+b:{unit:paired_local_metrics(data[b],data[a],device)
+                 for unit,data in (('task',by_task),('scene',by_scene))} for a,b in pairs}
+    source, full, planar, wrong = (means[k] for k in ('source','correct_full','correct_planar','wrong_full'))
+    hs = 'scene_human_penetration_s_mean'; os = 'scene_obj_penetration_s_mean'
+    geometry = dict(full_improves_source=full[hs]<=.99*source[hs],
+                    full_improves_planar=full[hs]<=.99*planar[hs],
+                    correct_scene_benefit=full[hs]<=wrong[hs]-.005*source[hs])
+    protection = dict(contact=full['contact_percent']>=source['contact_percent']-.002,
+        foot_sliding=full['foot_sliding']<=source['foot_sliding']+.01,
+        feet_height=abs(full['feet_height']-source['feet_height'])<=1,
+        source_floor_support=full['source_floor_support_fraction']>=source['source_floor_support_fraction']-.02,
+        object_scene=full[os]<=1.01*source[os], completion=full['completed']>=source['completed'])
+    summary = dict(tasks=len(records),windows=sum(r['windows'] for r in records.values()),draws=2,
+        means=means,geometry_conditions=geometry,protection_conditions=protection,
+        geometry_signal=all(geometry.values()),body_transfer_entry=all(geometry.values()) and all(protection.values()),
+        audit=dict(source_joint_max_error_m=max(r['source_joint_error_m'] for r in records.values()),
+                   source_metric_max_error=max(r['source_metric_error'] for r in records.values()),
+                   factorization_max_error_m=max(r['factorization_error_m'] for r in records.values())),
+        contrasts=contrasts, expert_forwards=0, training_allowed=False,test_set_development=True)
+    out=run_root/'analysis';out.mkdir()
+    for arm in arms:
+        for unit,values in (('task',by_task[arm]),('scene',by_scene[arm])):
+            write_json(out/f'{arm}-{unit}.json',dict(metrics=values))
+    write_json(out/'summary.json',summary)
+    write_json(out/'records.json',records)
+    return summary
