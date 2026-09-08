@@ -1,0 +1,8 @@
+defaults: [config_sample_hosi_geometry_increment, _self_]
+
+hsi_body_projection:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_integrated469_s42_20260908.json
+  geometry_root: ${oc.env:ROOT_DIR}/results/experiments/p2-mixer-surface-full469-s42-20260908
+  integrated_terminal: true
+  terminal_reference: ${oc.env:ROOT_DIR}/results/experiments/p2-mixer-surface-terminal469-s42-20260908
+  terminal_replay_tasks: [19, 358, 375]

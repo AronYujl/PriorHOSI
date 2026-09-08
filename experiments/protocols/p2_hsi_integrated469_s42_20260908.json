@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "phase": "2.34",
+  "component": "hsi-integrated469",
+  "seed": 42,
+  "authorization": "User approved HSI integration into the best chain and full469paired evaluation on2026-09-08,accepting modest metric regression.",
+  "task_manifest": "experiments/tasks/p2_surface_edit_full469_s42_20260908.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "body_cache": "results/experiments/p2-mixer-hsi-geometry-increment-r2-s42-20260908",
+  "teacher_reference": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "input_identity_reference": "results/experiments/p2-mixer-surface-full469-s42-20260908/full_input_references.json",
+  "arms": [
+    "source",
+    "correct_projected",
+    "wrong_projected",
+    "source_terminal",
+    "correct_terminal",
+    "wrong_terminal"
+  ],
+  "training_allowed": false,
+  "test_set_development": true,
+  "scope": "Full469/67scene integration of fixedP15+ArmB source,relation_20 geometry,current-motion fullHSI body readout,and frozen terminal repair. Two fixed paired draws,correct/wrong scene; no new HOI generation,training,geometry reoptimization or hyperparameter search. The2.33small-step diagnostic is not the integration method.",
+  "target": "Use the exact Phase2.32 fixed current-native encoding,lifted full body target,rootXZ/yaw removal,10cm/20deg bounds,15frame cubic B-spline and69coordinate/80step/six-anchor/continuity projection. Evaluate projected bodies; keep all teacher,raw/lifted/smooth states and candidates. Smooth-target native scores already served the diagnostic; this integration evaluates source/projected/final chain arms.",
+  "projection": {
+    "coordinates": "Root XYZ translation plus22 local rotations,69 normalized tangent coordinates; translation scale.05m,rotation scale10deg. Object is frozen to HOI. RootXZ/yaw have zero teacher targets and may move only as projection compensations; full first6/final3 body state is fixed.",
+    "geometry": "Exact beta-dependent native SMPL-X rest joints and FK; finger means zero as in the evaluator. Pin source world hands native28 indices24/26 and all four feet7/8/10/11 at every frame. Native reconstruction checks source FK anchors within1e-5m.",
+    "solver": "80 projected pose-fitting iterations from exact source, step1/37. Squared translation/SO3 target distance plus weight9 adjacent source-relative displacement/rotation differences. Analytic scaled FK Jacobian, Moore-Penrose pseudoinverse of18x18 Gram matrix (float64,rtol1e-10) removes anchor-normal motion; right-local rotation updates. Five Newton anchor restorations after each step. Each update limited uniformly per frame to5mm root and2deg per joint. No scene SDF or native metric enters projection.",
+    "feasibility": "After fitting, evaluate fixed amplitudes1,1/2,1/4,1/8,1/16,1/32,1/64,0 in order, interpolating source-to-fitted pose and restoring anchors with20 Newton iterations. Choose the first satisfying anchor max1e-6m in native FK, total root displacement<=10cm and every local rotation change<=20deg, all-marker source-relative velocity-change max<=30cm/s, all-frame mean<=10cm/s and window-seam mean<=10cm/s. This is a geometry/continuity feasibility line search, not native-score selection. Save all attempts and reasons; zero is the exact feasible source. Rebuild chosen body through native SMPL-X and require six-anchor max error<=1e-5m; preserve original object and first6/final3 state.",
+    "support": "All four foot positions are pinned throughout, stronger than source-stance-only protection; free swing-foot retiming is outside this diagnostic. Hand constraints preserve both hands throughout, including inactive frames."
+  },
+  "evaluation": "Six declared arms,each2draws,469tasks:5628task-draw-arm rows. Source/source_terminal identical acrossdraws and reused. All15native metrics+completion,preterminal anchor/endpoint/object/contact/support/continuity,motion amplitudes,postterminal24point body/object differences versus sealed finalbaseline,terminal recovery/loss and allcandidates. Correct/wrong sharecurrentstate,t199,2noise draws,projection/terminal budgets. Full469primary,old28andremaining441descriptivehistorical-use strata; predeclare375remaining468 sensitivity andpairedtaskcoverage.",
+  "decision": "Complete the full469comparison regardless of small quality decreases; the userauthorized integration is not gated on positive HSI benefit. Report geometric/interaction/foot/endpoint tradeoffs and real HSI motion influence separately from scene utility. Scene-utility evidence retains predeclared point comparisons: finalC HS<=.99baselineFinal and <=finalW-.005baselineFinal,contact>=baseline-.002,FS<=baseline+.01cm,OS<=1.01baseline,completion>=baseline; report every condition andpaired95%interval,coverage and375sensitivity without relabeling a failure as success. No outcome-driven tuning,directionfiltering,best-of-twoornewtraining follows.",
+  "uncertainty": "10000seed42paired task andscene bootstrap with existingGPUhelpers; average the2draws onlyafter each fullnativeevaluation. Report per-draw completion counts as well as average rate. All67scenes/469tasks havehistoricaluse; 28recentlydeveloped tasks remain countedonce; no unseen-generalization or cross-seed claim.",
+  "execution": "Ninepersistentjobs: pilot19/358/375then8GPUlanes forremaining466,balanced bywhole-scene frame totals. All469freshHSIqueries=8344forwards/2086windows; same8RTX3090with existingHSItraining retained. Process-localTHPdisabled,NUMPY_MADVISE_HUGEPAGE0,OMP/MKL/OpenBLAS4. Formalfull-lengthpilotprovidesfunctional/performance/memory evidence; noextra smoke/newhash. Save each task motion beforemetrics as a durable completed-task checkpoint; retain allpartials/failures. Controller records all exits andautomatically summarizes/seals the clean-source run afterall469complete. No uninterrupted interactiveconnection required.",
+  "completion": "Preregistration,one logicalimplementation,completion. Deliver active integrated config,full469native outcomes,allpairedstatistics,summary/figure/onepage,registry/manifestandlocalphase02integration/tag. A long persistent run may be handed off after the formalpilot and durable task outputs are verified; this changes monitoring cadence only. Completiondocumentation/commit remains required. No next phase or training starts from this result.",
+  "geometry_run": "results/experiments/p2-mixer-surface-full469-s42-20260908",
+  "geometry_arm": "relation_20",
+  "projection_protocol_reference": "experiments/protocols/p2_hsi_geometry_increment_s42_20260908.json",
+  "teacher": {
+    "level": 199,
+    "draws": 2
+  },
+  "current_encoding": "Sample the current native pose/translation/object at every third frame, preserving the same16/2 window ownership. Native SMPL-X/FK-derived positions replace the legacy raw HOI position predictions; subtract the fixed native root reconstruction offset from the position channel so native decoding returns the current root. Derive global rotations from current local pose, reframe using the native get_mat pelvis rule, normalize with the actual dataset. Encode current object positions and rotations with identity prefix and the fixed task object reference. Retain source predicted contact channels as symbolic history; known-empty future object/contact masking unchanged. Reconstruct text,goals,progress and scene queries through native sample_step capture on the current clean window. Audit root/position/object/world rotation roundtrip and the native0.8m human-goal patch; pair all non-scene arguments and noise for correct/wrong.",
+  "teacher_targets": "Fresh teacher predicts full x0 atlevel199 with the same two paired noise seeds. Build each full coarse prediction usingownedlocal2..15, retain source first2. Decode both the clean encoded geometry and prediction through the same native30Hz path. Transfer their root displacement and localSO3 differences onto the exact native geometry baseline, cancelling any coarsening/interpolation effect; then use the unchanged Phase2.31 smooth_body_target and NativeBodyProjection. Save raw queries/predictions,roundtrip source,lifted targets and input-channel differences from legacy source. This encoding change is explicit; differences versus2.31 cannot be attributed solely to a stronger source.",
+  "verification": "AllsamePhase2.32current-world/nativecoarse/zero-residual/source/anchor contracts. Nativefirst6/final3 andobject identity checked beforeterminal; finalrepair appliesits existing goal/quality criteria. First19exercises recovery,358the longest468frames,375knownnonzeroedit. Fullauthorityandregistryvalidation; exactresolvedjobconfigs,machinepreflight andcachedbaseline references archived.",
+  "terminal_reference": "results/experiments/p2-mixer-surface-terminal469-s42-20260908",
+  "terminal": "Apply the frozen Phase2.28external terminal recipe independently to each correct/wrong draw: rebuild source vertices from native pose as the original terminal stage did; successful inputs are identity. Failed inputs receive the same final-second8cm goal-margin/5cm displacement cap,20Adam steps and original objective; accept only recovered completion with contact drop<=.02,FS increase<=.02cm,andHS/OS increase<=.05. Retain every rejected candidate,trace andreason. Final metrics are native15+numeric completion; pre-terminal projection invariants and post-terminal changes are reported separately.",
+  "baseline": "Reuse all469sealed relation_20 and terminal rows by reference. Every current source matches all16native geometry metrics/joints within1e-5 and cachedterminal inputmetrics within1e-5. First19/358/375also replay no-HSI terminal stage and require native16/joints within1e-5 plus identicalacceptance to the sealed final baseline. Old28 preterminal body results are a reported compatibility check,not a selection condition."
+}
