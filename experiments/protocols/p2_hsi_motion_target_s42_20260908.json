@@ -56,5 +56,12 @@
     "paper": "Authorized external InfBaGel Hybrid row remains unpaired reference. Current geometry-only and terminal benefits are separate from HSI contribution."
   },
   "verification": "Full authority pytest tests and registry validation; exact cached source recovery, baseline relation reproduction, native query-context recovery and condition/noise pairing; root/yaw readout units/frame ownership; differentiable target loss; unchanged relation and endpoint invariants. Real-data execution and timing inside formal runs; no extra smoke workload or new hashing mechanism.",
-  "completion": "Preregistration, logical implementation, complete registered workload, paired statistics, all failures/outputs, compact result and phase summary; actual operational source transitions retained if needed."
+  "completion": "Preregistration, logical implementation, complete registered workload, paired statistics, all failures/outputs, compact result and phase summary; actual operational source transitions retained if needed.",
+  "interface_correction_20260908": {
+    "reason": "Model object condition is disabled, while all124 legacy static goal queries selected object goal; mean human-goal discrepancy1.147710m, max5.358083m. Align the scene-goal query with the actual HSI condition before judging target utility.",
+    "evidence": "results/experiments/p2-mixer-hsi-motion-target-s42-20260908/analysis/goal_patch_contract.json",
+    "original_run": "results/experiments/p2-mixer-hsi-motion-target-s42-20260908/manifest.json",
+    "change": "Set is_object=false in the HSI query context as well as model arguments. Native is_mix=false chooses normalized0.8m human goal. Preserve clean source/current world, dynamic object geometry, source text/progress, noise199/draws2, weight.25, budgets, arms, controls, terminal rule and entry thresholds.",
+    "audit": "Same-seed legacy/new queries must match all arguments except static goal occupancy and goal-query position. Actual new goal position must match the native HSI normalized human goal. Preserve the legacy negative; one corrected-view rerun, no further parameter or view search."
+  }
 }

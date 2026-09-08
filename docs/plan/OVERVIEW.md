@@ -341,3 +341,12 @@ correct-scene relation, wrong-scene relation and correct-scene independent trans
 all share terminal repair. Frozen469 follows only the dated Phase2.29 entry gate.
 Phase2.28 remains the geometry-only baseline; joint reverse-chain redesign/training
 is outside this experiment. See the latest PHASE_2_COMPOSITION.md section.
+
+## 2026-09-08 — Phase2.29 HSI motion-target experiment complete
+
+HSI root/heading targets affect27/28 native motions and preserve contact through the joint carrier, but HS/OS means worsen5.41%/9.73% versus geometry and correct scene does not beat the paired wrong scene. The fixed entry fails;469 HSI expansion is stopped. Read [PHASE_2Z_HSI_MOTION_TARGET](../phase_summaries/PHASE_2Z_HSI_MOTION_TARGET.md) before another proposal. Full HSI body predictions remain available for a separately specified readout/physical-quality diagnostic. Phase2.28 remains the strong geometry-only baseline.
+
+Phase2.29 closure review found the legacy HSI goal-patch query still selected the
+object goal although the model object condition is disabled (124/124 windows).
+One same-setting input-contract correction is now registered; the legacy negative
+remains complete. Final phase closure follows the corrected human-goal query run.

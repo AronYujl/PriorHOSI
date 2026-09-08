@@ -4855,3 +4855,26 @@ unit fixture bypassing __init__ lacked the new optional field; corrected before
 any formal run. Nine exact job configs resolve. Runtime physical validation and
 performance measurements are contained in the registered workload. All8RTX3090
 were idle at preparation. No expert/core code, extra smoke or hashing scheme added.
+
+### Phase2.29 closure — HSI transfer executes; quality entry fails
+
+All28 tasks/four main arms and shared terminal repairs completed atf4e7248,9jobs exit0,496HSI forwards and0newHOI windows. Correct HSI changes27/28 motions with source contact exact, root21.70mm andobject33.14mm mean changes versus geometry. HS1.177500→1.241234 andOS11.607790→12.737616; wrong-scene HS1.226711/OS12.734426. Extra-HS,scene-dependence andOS gates fail; other protections pass. All terminal arms recover the same1/6 task to23/28. Full469 is not started.
+
+Correct/wrong target response24.01mm exceeds noise-repeat2.23mm, but final useful scene transfer is unestablished. Geometrically edited9 tasks carry most conflict; the19 unchanged tasks improve on geometry yet do not beat wrong-scene HSI. These strata are descriptive, not a new routed method. Raw full HSI predictions and all native outputs/intervals are retained. See [PHASE_2Z_HSI_MOTION_TARGET](../phase_summaries/PHASE_2Z_HSI_MOTION_TARGET.md) and experiments/results/p2_mixer_hsi_motion_target_s42_20260908.json. Engineering completion is sealed; method promotion is NO-GO, prior geometry baseline remains. No next phase, hyperparameter search or expert training is started.
+
+### Phase2.29 input-contract correction before final closure
+
+The preserved first run is complete and negative. Final readout review identifies
+an inherited query/condition inconsistency:124/124 static goal patches use the object
+goal, while124/124 model calls disable the object condition. Their centres differ
+from the supplied human goal by1.147710m mean,5.358083m max. Native HSI with
+is_mix=false/is_object=false selects the normalized0.8m human goal instead.
+
+Align is_object=false at HSI scene-query construction as well as model input.
+Actual carried-object geometry still participates in dynamic observations. Verify
+same-noise legacy/new queries differ only in the static goal patch and its position;
+all other inputs, dynamic observations, targets' noise/weights/bounds, optimization,
+terminal logic and entry gates stay fixed. Retain f4e7248 results as the legacy-query
+arm and execute one fresh corrected native28 campaign. This is the single evidence-
+driven condition correction within the approved root/heading mechanism. No additional
+view/parameter search or shared reverse-chain implementation follows a failure.
