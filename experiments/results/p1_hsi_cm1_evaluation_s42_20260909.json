@@ -1,0 +1,2404 @@
+{
+  "schema_version": 1,
+  "component": "hsi-cm1.2",
+  "status": "completed",
+  "scientific_verdict": "FAIL_QUALITY_AND_GUIDED_FPS_GATES",
+  "promoted": false,
+  "working_baseline": "R2 final EMA + posterior-coefficient CG",
+  "seed": 42,
+  "branch": "phase/01c-cm1",
+  "commits": {
+    "preregistration": "de28b3c",
+    "execution": "407ff7b"
+  },
+  "training": {
+    "run_id": "p1-hsi-cm1-r2-fixed-w-s42-20260908",
+    "updates": 58678,
+    "processed_windows": 120172544,
+    "diagnostic_records": 469424,
+    "all_finite": true,
+    "clipped_updates": 11,
+    "checkpoint": {
+      "path": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-cm1-r2-fixed-w-s42-20260908/checkpoints/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089.pth",
+      "bytes": 179662353,
+      "selection": "fixed final student at update58678; no best-checkpoint selection"
+    },
+    "wall_seconds": 28103.204179
+  },
+  "evaluation_counts": {
+    "quality_sequences": 870,
+    "quality_windows": 5270,
+    "internal_per_arm": 60,
+    "final_per_arm": 375,
+    "native_walk": 130,
+    "native_interactive": 245,
+    "latency_target_windows": 70,
+    "latency_actual_windows": 69,
+    "latency_sequences": 19,
+    "latency_warmup_sequences": 5,
+    "latency_timed_sequences": 14
+  },
+  "gate": {
+    "passed": false,
+    "unmet_bounds": [
+      "full375/pen_ratio:FAIL",
+      "full375/pene_pct_scene:FAIL",
+      "full375/fs_nemf:INCONCLUSIVE",
+      "full375/boundary_jerk:INCONCLUSIVE",
+      "full375/contact_count_exterior:FAIL",
+      "locomotion/pene_pct_scene:FAIL",
+      "locomotion/pene_sum_mean_floorexcl:INCONCLUSIVE",
+      "locomotion/pene_sum_max_floorexcl:INCONCLUSIVE",
+      "locomotion/fs_nemf:FAIL",
+      "interactive/last_dist:INCONCLUSIVE",
+      "interactive/boundary_jerk:INCONCLUSIVE",
+      "interactive/contact_count_exterior:FAIL",
+      "interactive/R-Precision@3:INCONCLUSIVE",
+      "guided_generation_fps:FAIL"
+    ],
+    "guided_fps": 19.25867860273184,
+    "required_guided_fps": 20,
+    "baseline": "R2+CG until every registered bound passes"
+  },
+  "quality_bound_counts": {
+    "FAIL": 6,
+    "PASS": 12,
+    "INCONCLUSIVE": 7
+  },
+  "paired_ratios": {
+    "unguided": {
+      "full375": {
+        "pen_ratio": {
+          "student_over_teacher": 1.0876630319807412,
+          "ci95": [
+            1.044088802553074,
+            1.132185898660657
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.030174204776440096,
+          "student_mean": 0.0328193670547506,
+          "sequences": 375
+        },
+        "pene_pct_scene": {
+          "student_over_teacher": 1.0353665296300743,
+          "ci95": [
+            1.00907627572463,
+            1.062631896216786
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.05739229402383236,
+          "student_mean": 0.059422060290964175,
+          "sequences": 375
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 1.0861446922454996,
+          "ci95": [
+            0.9923030686906217,
+            1.1872389081237043
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 12.341525167826688,
+          "student_mean": 13.404682055249213,
+          "sequences": 375
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 1.09512594081253,
+          "ci95": [
+            0.9879608985099682,
+            1.2253286649792732
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 34.98302610783444,
+          "student_mean": 38.310819378811495,
+          "sequences": 375
+        },
+        "fs_nemf": {
+          "student_over_teacher": 1.0690220695420274,
+          "ci95": [
+            1.0516496147777374,
+            1.086823186058129
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.2965905434037461,
+          "student_mean": 0.3170618365160671,
+          "sequences": 375
+        },
+        "boundary_jerk": {
+          "student_over_teacher": 1.253707132049648,
+          "ci95": [
+            1.2188175803200807,
+            1.2888443248739272
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 124.67728587195377,
+          "student_mean": 156.3088025022613,
+          "sequences": 375
+        },
+        "interior_jerk": {
+          "student_over_teacher": 1.0232506266759915,
+          "ci95": [
+            1.0115878709697104,
+            1.0351483053451802
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 63.24177315753592,
+          "student_mean": 64.71218401554952,
+          "sequences": 375
+        },
+        "goal_planar_err_m": {
+          "student_over_teacher": 1.1234537118503862,
+          "ci95": [
+            1.0655958616598853,
+            1.18587112988002
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.04519399468122672,
+          "student_mean": 0.05077336107797077,
+          "sequences": 375
+        },
+        "contact_count": {
+          "student_over_teacher": 1.0132071936904206,
+          "ci95": [
+            0.9900306179005872,
+            1.0384446646164325
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 916.8300260540518,
+          "student_mean": 928.938777789341,
+          "sequences": 375
+        },
+        "contact_count_exterior": {
+          "student_over_teacher": 0.9710021439400645,
+          "ci95": [
+            0.9401310588887601,
+            1.0049076485687247
+          ],
+          "larger_is_better": true,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 315.6457461544078,
+          "student_mean": 306.49269624149133,
+          "sequences": 375
+        }
+      },
+      "locomotion": {
+        "pene_pct_scene": {
+          "student_over_teacher": 1.0424178558548567,
+          "ci95": [
+            1.0268419394989217,
+            1.0595743970802354
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.0351820980068543,
+          "student_mean": 0.03667444716878047,
+          "sequences": 130
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 1.2326082081817746,
+          "ci95": [
+            1.0925545079347627,
+            1.4213646568549148
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.8629937311465826,
+          "student_mean": 1.0637331566206931,
+          "sequences": 130
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 1.0539718486808862,
+          "ci95": [
+            0.9841481976453911,
+            1.140499871916485
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 10.218791963156177,
+          "student_mean": 10.770319056693097,
+          "sequences": 130
+        },
+        "fs_nemf": {
+          "student_over_teacher": 1.0554376981110438,
+          "ci95": [
+            1.0313220464253787,
+            1.0812988275202515
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.3791137145735576,
+          "student_mean": 0.40013090623184294,
+          "sequences": 130
+        }
+      },
+      "interactive": {
+        "last_dist": {
+          "student_over_teacher": 1.0587131699032115,
+          "ci95": [
+            0.97620723789223,
+            1.1454677463611254
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.02715871968880829,
+          "student_mean": 0.028753294212250983,
+          "sequences": 245
+        },
+        "success_last_5cm": {
+          "student_over_teacher": 0.9906976744186047,
+          "ci95": [
+            0.9454483188044832,
+            1.0382775119617225
+          ],
+          "larger_is_better": true,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.8775510204081634,
+          "student_mean": 0.8693877551020409,
+          "sequences": 245
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 1.0825060631243588,
+          "ci95": [
+            0.9857425556269664,
+            1.1866115140710218
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 18.43217450157532,
+          "student_mean": 19.95294065452149,
+          "sequences": 245
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 1.0997629191191094,
+          "ci95": [
+            0.9822036165959892,
+            1.24612142816908
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 48.12323198052087,
+          "student_mean": 52.92414608034371,
+          "sequences": 245
+        },
+        "interior_jerk": {
+          "student_over_teacher": 1.0462537815034152,
+          "ci95": [
+            1.0306586120007692,
+            1.0630882801695642
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 57.83752902403494,
+          "student_mean": 60.51273345421009,
+          "sequences": 245
+        },
+        "boundary_jerk": {
+          "student_over_teacher": 1.2721933854711622,
+          "ci95": [
+            1.2229067769410884,
+            1.3228746122636177
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 126.34151397695105,
+          "student_mean": 160.73083839188962,
+          "sequences": 245
+        },
+        "contact_count": {
+          "student_over_teacher": 1.011584740137572,
+          "ci95": [
+            0.9833257152119966,
+            1.0442633454080674
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 1106.3468907858528,
+          "student_mean": 1119.1636320176178,
+          "sequences": 245
+        },
+        "contact_count_exterior": {
+          "student_over_teacher": 0.9700506373701794,
+          "ci95": [
+            0.9331202559555714,
+            1.0116140285878428
+          ],
+          "larger_is_better": true,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 381.7147152693931,
+          "student_mean": 370.28260284065124,
+          "sequences": 245
+        },
+        "MM-Dist": {
+          "student_over_teacher": 0.8184726604483179,
+          "ci95": [
+            0.7574160965614309,
+            0.881011453596765
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 9.238607013347199,
+          "student_mean": 7.56154726105077,
+          "sequences": 245
+        },
+        "FID": {
+          "student_over_teacher": 0.5257103972212211,
+          "ci95": [
+            0.41193144787942326,
+            0.6812160063580506
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 38.415147962664406,
+          "student_mean": 20.19524269476429,
+          "sequences": 245
+        },
+        "R-Precision@3": {
+          "student_over_teacher": 1.2473118279569892,
+          "ci95": [
+            1.0967741935483872,
+            1.435897435897436
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 0.4151785714285714,
+          "student_mean": 0.5178571428571428,
+          "query_occurrences": 224,
+          "unique_sequences": 148
+        }
+      }
+    },
+    "guided": {
+      "full375": {
+        "pen_ratio": {
+          "student_over_teacher": 1.2831035227184107,
+          "ci95": [
+            1.2194656034198683,
+            1.3526606345705003
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.021416264461055958,
+          "student_mean": 0.027479284373450007,
+          "sequences": 375
+        },
+        "pene_pct_scene": {
+          "student_over_teacher": 1.1081123201866347,
+          "ci95": [
+            1.079751484560951,
+            1.1372659412689206
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.050142080146104044,
+          "student_mean": 0.05556305676968353,
+          "sequences": 375
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 0.9459531468362905,
+          "ci95": [
+            0.8615796959609252,
+            1.035576288597639
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 10.920156880775634,
+          "student_mean": 10.32995676531568,
+          "sequences": 375
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 0.9025211249213614,
+          "ci95": [
+            0.8134675692501476,
+            0.9988017616422378
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 35.558978201772675,
+          "student_mean": 32.09272900771804,
+          "sequences": 375
+        },
+        "fs_nemf": {
+          "student_over_teacher": 1.0778274647757926,
+          "ci95": [
+            1.047483252411297,
+            1.1105682128417658
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.2764823437320907,
+          "student_mean": 0.2980002636000286,
+          "sequences": 375
+        },
+        "boundary_jerk": {
+          "student_over_teacher": 1.040543140046245,
+          "ci95": [
+            1.0018256746754302,
+            1.080480242309071
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 159.0831753348866,
+          "student_mean": 165.53290679149023,
+          "sequences": 375
+        },
+        "interior_jerk": {
+          "student_over_teacher": 0.9110394948689,
+          "ci95": [
+            0.8897592019934537,
+            0.9337029746475691
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 72.41524473938536,
+          "student_mean": 65.97314798817742,
+          "sequences": 375
+        },
+        "goal_planar_err_m": {
+          "student_over_teacher": 0.8734255740749071,
+          "ci95": [
+            0.8143385329812297,
+            0.9375743094188091
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 0.05830621412961495,
+          "student_mean": 0.0509261385482934,
+          "sequences": 375
+        },
+        "contact_count": {
+          "student_over_teacher": 1.0110059612641724,
+          "ci95": [
+            0.9907084363007546,
+            1.0329110978035256
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 893.0890492206053,
+          "student_mean": 902.9183527017838,
+          "sequences": 375
+        },
+        "contact_count_exterior": {
+          "student_over_teacher": 0.8723519649915459,
+          "ci95": [
+            0.8428143488212261,
+            0.90261141969283
+          ],
+          "larger_is_better": true,
+          "status": "FAIL",
+          "teacher_mean": 367.85075969016543,
+          "student_mean": 320.8953330393488,
+          "sequences": 375
+        }
+      },
+      "locomotion": {
+        "pene_pct_scene": {
+          "student_over_teacher": 1.1936728129807854,
+          "ci95": [
+            1.1635809283181275,
+            1.2273060555955015
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.029258628802465627,
+          "student_mean": 0.034925229746599784,
+          "sequences": 130
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 1.1053925326403182,
+          "ci95": [
+            0.9472377005682859,
+            1.2897788109991268
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.8353530119359764,
+          "student_mean": 0.923392981512627,
+          "sequences": 130
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 1.0566137400632338,
+          "ci95": [
+            0.9676188772156059,
+            1.172984048743436
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 9.795267739138442,
+          "student_mean": 10.349814480771805,
+          "sequences": 130
+        },
+        "fs_nemf": {
+          "student_over_teacher": 1.1009509014813774,
+          "ci95": [
+            1.0533009700501623,
+            1.153468801932132
+          ],
+          "larger_is_better": false,
+          "status": "FAIL",
+          "teacher_mean": 0.3316669539375193,
+          "student_mean": 0.3651490319290944,
+          "sequences": 130
+        }
+      },
+      "interactive": {
+        "last_dist": {
+          "student_over_teacher": 0.9885135372670476,
+          "ci95": [
+            0.894713566698202,
+            1.0884060628494114
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.0293282306962684,
+          "student_mean": 0.02899135306735228,
+          "sequences": 245
+        },
+        "success_last_5cm": {
+          "student_over_teacher": 1.027906976744186,
+          "ci95": [
+            0.972972972972973,
+            1.0869565217391306
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 0.8775510204081634,
+          "student_mean": 0.9020408163265307,
+          "sequences": 245
+        },
+        "pene_sum_mean_floorexcl": {
+          "student_over_teacher": 0.9416098323452454,
+          "ci95": [
+            0.8555884853501811,
+            1.034615158076769
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 16.27127730097627,
+          "student_mean": 15.321194691415263,
+          "sequences": 245
+        },
+        "pene_sum_max_floorexcl": {
+          "student_over_teacher": 0.886252538550289,
+          "ci95": [
+            0.7894329909043818,
+            0.9891552389075396
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 49.229518447252076,
+          "student_mean": 43.62978569548543,
+          "sequences": 245
+        },
+        "interior_jerk": {
+          "student_over_teacher": 0.913456493595691,
+          "ci95": [
+            0.8847387183204813,
+            0.9420966442328229
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 68.23257917701272,
+          "student_mean": 62.32749252402442,
+          "sequences": 245
+        },
+        "boundary_jerk": {
+          "student_over_teacher": 1.0501543727573084,
+          "ci95": [
+            0.9945032687835225,
+            1.1082708498215441
+          ],
+          "larger_is_better": false,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 165.616402843195,
+          "student_mean": 173.92278964611714,
+          "sequences": 245
+        },
+        "contact_count": {
+          "student_over_teacher": 1.0084295568171628,
+          "ci95": [
+            0.9831611376626935,
+            1.0367163155057362
+          ],
+          "larger_is_better": true,
+          "status": "PASS",
+          "teacher_mean": 1074.3945700364366,
+          "student_mean": 1083.4512401086097,
+          "sequences": 245
+        },
+        "contact_count_exterior": {
+          "student_over_teacher": 0.8929469001908248,
+          "ci95": [
+            0.8577475462004782,
+            0.9293764462333469
+          ],
+          "larger_is_better": true,
+          "status": "FAIL",
+          "teacher_mean": 433.0826483949779,
+          "student_mean": 386.7198084107284,
+          "sequences": 245
+        },
+        "MM-Dist": {
+          "student_over_teacher": 0.9275024109687263,
+          "ci95": [
+            0.8603149964874037,
+            0.998206359529401
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 8.900054415817165,
+          "student_mean": 8.25482192842328,
+          "sequences": 245
+        },
+        "FID": {
+          "student_over_teacher": 0.5718846359304506,
+          "ci95": [
+            0.4597665433435883,
+            0.7180068816685443
+          ],
+          "larger_is_better": false,
+          "status": "PASS",
+          "teacher_mean": 40.04967810525568,
+          "student_mean": 22.903795582355883,
+          "sequences": 245
+        },
+        "R-Precision@3": {
+          "student_over_teacher": 1.041237113402062,
+          "ci95": [
+            0.9107142857142857,
+            1.193556616194865
+          ],
+          "larger_is_better": true,
+          "status": "INCONCLUSIVE",
+          "teacher_mean": 0.43303571428571425,
+          "student_mean": 0.4508928571428571,
+          "query_occurrences": 224,
+          "unique_sequences": 148
+        }
+      }
+    }
+  },
+  "safety": {
+    "unguided": {
+      "full375": {
+        "sequences": 375,
+        "walk_sequences": 130,
+        "over5g_episodes": 0,
+        "over5g_frames": 0,
+        "low_walk_episodes": 1,
+        "over5g_ids": [],
+        "low_walk_ids": [
+          "046-new_loco:009710"
+        ]
+      },
+      "holdout355": {
+        "sequences": 355,
+        "walk_sequences": 126,
+        "over5g_episodes": 0,
+        "over5g_frames": 0,
+        "low_walk_episodes": 1,
+        "over5g_ids": [],
+        "low_walk_ids": [
+          "046-new_loco:009710"
+        ]
+      },
+      "passed": true
+    },
+    "guided": {
+      "full375": {
+        "sequences": 375,
+        "walk_sequences": 130,
+        "over5g_episodes": 4,
+        "over5g_frames": 11,
+        "low_walk_episodes": 1,
+        "over5g_ids": [
+          "044:004170",
+          "044:004178",
+          "044:004219",
+          "071-write:007258"
+        ],
+        "low_walk_ids": [
+          "045-new_loco:009708"
+        ]
+      },
+      "holdout355": {
+        "sequences": 355,
+        "walk_sequences": 126,
+        "over5g_episodes": 1,
+        "over5g_frames": 2,
+        "low_walk_episodes": 1,
+        "over5g_ids": [
+          "044:004219"
+        ],
+        "low_walk_ids": [
+          "045-new_loco:009708"
+        ]
+      },
+      "passed": true
+    }
+  },
+  "native_table3": {
+    "teacher": {
+      "unguided": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.03518209800685428,
+            "ci95": [
+              0.034169323714547756,
+              0.036194066896573764
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 0.8629937311465826,
+            "ci95": [
+              0.5800525942325523,
+              1.1989456765412898
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 10.218791963156177,
+            "ci95": [
+              7.136158636277206,
+              13.758787262116293
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.3791137145735576,
+            "ci95": [
+              0.3538194306769042,
+              0.40441145305228327
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.027158719688808293,
+            "ci95": [
+              0.02489530730243456,
+              0.02954819711310543
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.8775510204081632,
+            "ci95": [
+              0.8367346938775511,
+              0.9183673469387755
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 18.432174501575318,
+            "ci95": [
+              13.78155401704334,
+              23.687363045120286
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 48.12323198052086,
+            "ci95": [
+              36.14788019136124,
+              61.59689650472195
+            ]
+          },
+          "interior_jerk": {
+            "mean": 57.83752902403494,
+            "ci95": [
+              55.72594779023668,
+              59.99013173498954
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 126.34151397695105,
+            "ci95": [
+              118.50190426646057,
+              134.5754042180586
+            ]
+          },
+          "contact_count": {
+            "mean": 1106.346890785853,
+            "ci95": [
+              1007.0021447241656,
+              1213.5682226496463
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 381.71471526939297,
+            "ci95": [
+              340.1264813997175,
+              426.51773098053434
+            ]
+          },
+          "MM-Dist": {
+            "mean": 9.238607013347197,
+            "ci95": [
+              8.391772015456644,
+              10.102192579760235
+            ]
+          },
+          "FID": {
+            "mean": 38.415147962664406,
+            "ci95": [
+              29.810608416958914,
+              51.31598010414583
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.41517857142857145,
+            "ci95": [
+              0.3482142857142857,
+              0.48214285714285715
+            ]
+          }
+        }
+      },
+      "guided": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.029258628802465624,
+            "ci95": [
+              0.028228942563710804,
+              0.030302794096539642
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 0.8353530119359764,
+            "ci95": [
+              0.5751122184806361,
+              1.1407698783267266
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 9.79526773913844,
+            "ci95": [
+              6.843965392817873,
+              13.106725650177843
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.33166695393751927,
+            "ci95": [
+              0.31066685889907875,
+              0.3527106720541807
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.029328230696268397,
+            "ci95": [
+              0.026920396609345913,
+              0.031773881540142504
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.8775510204081632,
+            "ci95": [
+              0.8367346938775511,
+              0.9183673469387755
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 16.27127730097627,
+            "ci95": [
+              12.305406808542648,
+              20.59309245258577
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 49.22951844725207,
+            "ci95": [
+              36.35468641036453,
+              63.46550301435107
+            ]
+          },
+          "interior_jerk": {
+            "mean": 68.23257917701272,
+            "ci95": [
+              65.40911414599331,
+              71.22334094653847
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 165.616402843195,
+            "ci95": [
+              155.05506720154605,
+              177.24910223577956
+            ]
+          },
+          "contact_count": {
+            "mean": 1074.3945700364363,
+            "ci95": [
+              978.7134029670142,
+              1176.1428773482373
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 433.08264839497787,
+            "ci95": [
+              391.7636522325434,
+              476.1902075426911
+            ]
+          },
+          "MM-Dist": {
+            "mean": 8.900054415817163,
+            "ci95": [
+              8.046030928810335,
+              9.7772549820889
+            ]
+          },
+          "FID": {
+            "mean": 40.04967810525568,
+            "ci95": [
+              30.642041684456505,
+              53.17715046033896
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.4330357142857143,
+            "ci95": [
+              0.3705357142857143,
+              0.4955357142857143
+            ]
+          }
+        }
+      }
+    },
+    "student": {
+      "unguided": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.036674447168780475,
+            "ci95": [
+              0.035538689275946035,
+              0.03785418807006315
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 1.063733156620693,
+            "ci95": [
+              0.7156174784304968,
+              1.4633716869733704
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 10.770319056693097,
+            "ci95": [
+              7.475648419868588,
+              14.510041968983586
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.4001309062318429,
+            "ci95": [
+              0.3756166133235925,
+              0.42563157159779264
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.028753294212250976,
+            "ci95": [
+              0.026152137164548988,
+              0.03148929148479571
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.8693877551020408,
+            "ci95": [
+              0.8244897959183674,
+              0.9102040816326531
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 19.952940654521488,
+            "ci95": [
+              15.06884461525561,
+              25.446910022805458
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 52.9241460803437,
+            "ci95": [
+              39.50449427096075,
+              68.02638395836702
+            ]
+          },
+          "interior_jerk": {
+            "mean": 60.51273345421009,
+            "ci95": [
+              58.57661561795175,
+              62.46586262984479
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 160.7308383918896,
+            "ci95": [
+              154.08379380966196,
+              167.54920643905382
+            ]
+          },
+          "contact_count": {
+            "mean": 1119.1636320176178,
+            "ci95": [
+              1023.9794606494223,
+              1220.9614785805043
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 370.2826028406512,
+            "ci95": [
+              332.75817351402554,
+              409.7144223343039
+            ]
+          },
+          "MM-Dist": {
+            "mean": 7.5615472610507695,
+            "ci95": [
+              6.789499160595694,
+              8.363715727105737
+            ]
+          },
+          "FID": {
+            "mean": 20.19524269476429,
+            "ci95": [
+              14.699830786800877,
+              28.082598898037762
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.5178571428571429,
+            "ci95": [
+              0.45535714285714285,
+              0.5848214285714286
+            ]
+          }
+        }
+      },
+      "guided": {
+        "locomotion": {
+          "pene_pct_scene": {
+            "mean": 0.034925229746599784,
+            "ci95": [
+              0.033954504309109124,
+              0.0359091910162712
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 0.9233929815126269,
+            "ci95": [
+              0.6236844305603866,
+              1.2788873453991851
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 10.349814480771805,
+            "ci95": [
+              7.209387194775545,
+              13.929224837578715
+            ]
+          },
+          "fs_nemf": {
+            "mean": 0.3651490319290944,
+            "ci95": [
+              0.34455482667850573,
+              0.38676838478502457
+            ]
+          }
+        },
+        "interactive": {
+          "last_dist": {
+            "mean": 0.028991353067352277,
+            "ci95": [
+              0.026451070868680662,
+              0.03167262865167791
+            ]
+          },
+          "success_last_5cm": {
+            "mean": 0.9020408163265307,
+            "ci95": [
+              0.8612244897959184,
+              0.9387755102040817
+            ]
+          },
+          "pene_sum_mean_floorexcl": {
+            "mean": 15.321194691415261,
+            "ci95": [
+              11.616377363141634,
+              19.538917295191634
+            ]
+          },
+          "pene_sum_max_floorexcl": {
+            "mean": 43.62978569548543,
+            "ci95": [
+              32.678372561725276,
+              55.98971205469488
+            ]
+          },
+          "interior_jerk": {
+            "mean": 62.327492524024414,
+            "ci95": [
+              59.88825882582455,
+              64.8997784317884
+            ]
+          },
+          "boundary_jerk": {
+            "mean": 173.92278964611717,
+            "ci95": [
+              163.82654444869226,
+              185.01460352130908
+            ]
+          },
+          "contact_count": {
+            "mean": 1083.4512401086097,
+            "ci95": [
+              988.1552719592088,
+              1186.5364582506443
+            ]
+          },
+          "contact_count_exterior": {
+            "mean": 386.7198084107284,
+            "ci95": [
+              343.8082299432519,
+              432.72743860193833
+            ]
+          },
+          "MM-Dist": {
+            "mean": 8.254821928423278,
+            "ci95": [
+              7.455120642896818,
+              9.073665160710107
+            ]
+          },
+          "FID": {
+            "mean": 22.903795582355883,
+            "ci95": [
+              16.814770947623572,
+              31.91589924481713
+            ]
+          },
+          "R-Precision@3": {
+            "mean": 0.45089285714285715,
+            "ci95": [
+              0.38392857142857145,
+              0.5178571428571429
+            ]
+          }
+        }
+      }
+    }
+  },
+  "walking_engagement_means": {
+    "R2_unguided": {
+      "contact_count": 559.6636271364267,
+      "contact_count_exterior": 191.13115051462808
+    },
+    "R2_guided": {
+      "contact_count": 551.3978753753847,
+      "contact_count_exterior": 244.91373866955735
+    },
+    "CM1_unguided": {
+      "contact_count": 570.4380909745117,
+      "contact_count_exterior": 186.27325688153624
+    },
+    "CM1_guided": {
+      "contact_count": 562.6832956658433,
+      "contact_count_exterior": 196.84151407021048
+    }
+  },
+  "geometry_comparison": {
+    "unguided": {
+      "geometry": {
+        "pen_ratio": {
+          "teacher": 0.0301742047764401,
+          "student": 0.0328193670547506,
+          "relative_change_percent": 8.766303198074121,
+          "paired_delta": {
+            "ci": [
+              0.0014195336491079932,
+              0.003944148802905218
+            ],
+            "crosses_zero": false,
+            "difference": 0.002645162278310504,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "pene_pct_scene": {
+          "teacher": 0.05739229402383237,
+          "student": 0.059422060290964175,
+          "relative_change_percent": 3.536652963007425,
+          "paired_delta": {
+            "ci": [
+              0.0005755897612055295,
+              0.003591483459499988
+            ],
+            "crosses_zero": false,
+            "difference": 0.0020297662671318085,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "pene_sum_mean_floorexcl": {
+          "teacher": 12.341525167826692,
+          "student": 13.404682055249213,
+          "relative_change_percent": 8.614469224549982,
+          "paired_delta": {
+            "ci": [
+              -0.0727050693362361,
+              2.270863949379978
+            ],
+            "crosses_zero": true,
+            "difference": 1.0631568874225217,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        },
+        "pene_sum_max_floorexcl": {
+          "teacher": 34.98302610783444,
+          "student": 38.310819378811495,
+          "relative_change_percent": 9.512594081253,
+          "paired_delta": {
+            "ci": [
+              -0.47930047329777903,
+              7.6887338360382556
+            ],
+            "crosses_zero": true,
+            "difference": 3.327793270977054,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        },
+        "fs_nemf": {
+          "teacher": 0.2965905434037461,
+          "student": 0.3170618365160671,
+          "relative_change_percent": 6.902206954202739,
+          "paired_delta": {
+            "ci": [
+              0.015614614599067704,
+              0.02533587693678846
+            ],
+            "crosses_zero": false,
+            "difference": 0.020471293112321015,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "boundary_jerk": {
+          "teacher": 124.67728587195379,
+          "student": 156.3088025022613,
+          "relative_change_percent": 25.370713204964822,
+          "paired_delta": {
+            "ci": [
+              28.14947366172551,
+              35.068180019013546
+            ],
+            "crosses_zero": false,
+            "difference": 31.631516630307505,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "interior_jerk": {
+          "teacher": 63.24177315753592,
+          "student": 64.71218401554952,
+          "relative_change_percent": 2.3250626675991537,
+          "paired_delta": {
+            "ci": [
+              0.7599154229981959,
+              2.191470301186506
+            ],
+            "crosses_zero": false,
+            "difference": 1.4704108580136137,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "goal_planar_err_m": {
+          "teacher": 0.04519399468122673,
+          "student": 0.05077336107797078,
+          "relative_change_percent": 12.345371185038623,
+          "paired_delta": {
+            "ci": [
+              0.003021552509088586,
+              0.008122898148663234
+            ],
+            "crosses_zero": false,
+            "difference": 0.005579366396744054,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "contact_count": {
+          "teacher": 916.8300260540518,
+          "student": 928.9387777893411,
+          "relative_change_percent": 1.320719369042056,
+          "paired_delta": {
+            "ci": [
+              -9.085748774120946,
+              35.516152167970674
+            ],
+            "crosses_zero": true,
+            "difference": 12.108751735289195,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        },
+        "contact_count_exterior": {
+          "teacher": 315.6457461544078,
+          "student": 306.49269624149133,
+          "relative_change_percent": -2.8997856059935545,
+          "paired_delta": {
+            "ci": [
+              -19.608103431413497,
+              1.7211022330826737
+            ],
+            "crosses_zero": true,
+            "difference": -9.153049912916494,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        }
+      },
+      "safety": {
+        "full375": {
+          "episodes": 375,
+          "walk_episodes": 130,
+          "over5g_episodes": 0,
+          "over5g_frames": 0,
+          "low_walk_episodes": 1,
+          "over5g_ids": [],
+          "low_walk_ids": [
+            "046-new_loco:009710"
+          ]
+        },
+        "holdout355": {
+          "episodes": 355,
+          "walk_episodes": 126,
+          "over5g_episodes": 0,
+          "over5g_frames": 0,
+          "low_walk_episodes": 1,
+          "over5g_ids": [],
+          "low_walk_ids": [
+            "046-new_loco:009710"
+          ]
+        }
+      }
+    },
+    "guided": {
+      "geometry": {
+        "pen_ratio": {
+          "teacher": 0.021416264461055958,
+          "student": 0.02747928437345001,
+          "relative_change_percent": 28.31035227184109,
+          "paired_delta": {
+            "ci": [
+              0.005025086467908835,
+              0.0071216026440872335
+            ],
+            "crosses_zero": false,
+            "difference": 0.006063019912394049,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "pene_pct_scene": {
+          "teacher": 0.050142080146104044,
+          "student": 0.055563056769683546,
+          "relative_change_percent": 10.811232018663475,
+          "paired_delta": {
+            "ci": [
+              0.004136984839900728,
+              0.006712070238551201
+            ],
+            "crosses_zero": false,
+            "difference": 0.0054209766235795015,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "pene_sum_mean_floorexcl": {
+          "teacher": 10.920156880775634,
+          "student": 10.329956765315682,
+          "relative_change_percent": -5.40468531637095,
+          "paired_delta": {
+            "ci": [
+              -1.5834698942430872,
+              0.34991847531712006
+            ],
+            "crosses_zero": true,
+            "difference": -0.5902001154599529,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        },
+        "pene_sum_max_floorexcl": {
+          "teacher": 35.558978201772675,
+          "student": 32.09272900771804,
+          "relative_change_percent": -9.747887507863862,
+          "paired_delta": {
+            "ci": [
+              -7.2301141301473635,
+              -0.1482771053221681
+            ],
+            "crosses_zero": false,
+            "difference": -3.466249194054634,
+            "direction": "negative",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "fs_nemf": {
+          "teacher": 0.27648234373209074,
+          "student": 0.2980002636000286,
+          "relative_change_percent": 7.782746477579261,
+          "paired_delta": {
+            "ci": [
+              0.013171804643461881,
+              0.029936671375538106
+            ],
+            "crosses_zero": false,
+            "difference": 0.021517919867937895,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "boundary_jerk": {
+          "teacher": 159.08317533488662,
+          "student": 165.53290679149026,
+          "relative_change_percent": 4.054314004624482,
+          "paired_delta": {
+            "ci": [
+              0.14769893380819288,
+              12.598677508967796
+            ],
+            "crosses_zero": false,
+            "difference": 6.449731456603642,
+            "direction": "positive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "interior_jerk": {
+          "teacher": 72.41524473938536,
+          "student": 65.97314798817742,
+          "relative_change_percent": -8.896050513109987,
+          "paired_delta": {
+            "ci": [
+              -8.036839593753948,
+              -4.799303243505334
+            ],
+            "crosses_zero": false,
+            "difference": -6.442096751207941,
+            "direction": "negative",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "goal_planar_err_m": {
+          "teacher": 0.05830621412961495,
+          "student": 0.0509261385482934,
+          "relative_change_percent": -12.657442592509295,
+          "paired_delta": {
+            "ci": [
+              -0.011187795502110319,
+              -0.0035279308560906926
+            ],
+            "crosses_zero": false,
+            "difference": -0.007380075581321558,
+            "direction": "negative",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        },
+        "contact_count": {
+          "teacher": 893.0890492206053,
+          "student": 902.9183527017839,
+          "relative_change_percent": 1.1005961264172415,
+          "paired_delta": {
+            "ci": [
+              -8.192344733937718,
+              29.404002101175106
+            ],
+            "crosses_zero": true,
+            "difference": 9.82930348117866,
+            "direction": "inconclusive",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": false
+          }
+        },
+        "contact_count_exterior": {
+          "teacher": 367.85075969016543,
+          "student": 320.8953330393488,
+          "relative_change_percent": -12.764803500845389,
+          "paired_delta": {
+            "ci": [
+              -56.92457601119448,
+              -36.171447700229194
+            ],
+            "crosses_zero": false,
+            "difference": -46.95542665081661,
+            "direction": "negative",
+            "n": 375,
+            "n_dropped_nonfinite": 0,
+            "n_sequences": 375,
+            "nan_replicates": 0,
+            "significant": true
+          }
+        }
+      },
+      "safety": {
+        "full375": {
+          "episodes": 375,
+          "walk_episodes": 130,
+          "over5g_episodes": 4,
+          "over5g_frames": 11,
+          "low_walk_episodes": 1,
+          "over5g_ids": [
+            "044:004170",
+            "044:004178",
+            "044:004219",
+            "071-write:007258"
+          ],
+          "low_walk_ids": [
+            "045-new_loco:009708"
+          ]
+        },
+        "holdout355": {
+          "episodes": 355,
+          "walk_episodes": 126,
+          "over5g_episodes": 1,
+          "over5g_frames": 2,
+          "low_walk_episodes": 1,
+          "over5g_ids": [
+            "044:004219"
+          ],
+          "low_walk_ids": [
+            "045-new_loco:009708"
+          ]
+        }
+      }
+    }
+  },
+  "internal_diagnostic": {
+    "population": 375,
+    "sample": 60,
+    "windows": 364,
+    "aggregation": "frozen B_n60 population stratum weights",
+    "means": {
+      "pen_ratio": {
+        "a00": {
+          "mean": 0.03336729228202287,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 0.02308905045066978,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 0.033322126535596595,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 0.02543997415084667,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "pene_pct_scene": {
+        "a00": {
+          "mean": 0.060734325923145635,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 0.05213578323303347,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 0.06087443713901853,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 0.05428416037982167,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "pene_sum_mean_floorexcl": {
+        "a00": {
+          "mean": 13.43795445471272,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 11.632334123556664,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 14.24047678110515,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 11.612855632444132,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "fs_nemf": {
+        "a00": {
+          "mean": 0.29313789665114,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 0.2708616631415589,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 0.2809286108948846,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 0.2585056522414374,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "boundary_jerk": {
+        "a00": {
+          "mean": 126.52527549375446,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 154.4626605818325,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 139.37357288596112,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 157.5598739144765,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "interior_jerk": {
+        "a00": {
+          "mean": 63.70290487531219,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 72.66025478287597,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 64.27294595312104,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 66.15844511770672,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "goal_planar_err_m": {
+        "a00": {
+          "mean": 0.04723034467837483,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 0.05828489066997041,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 0.05131531722778441,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 0.058815243941103275,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "contact_count": {
+        "a00": {
+          "mean": 983.2174724606303,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 954.9864867747955,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 983.3629202779127,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 939.9037553347077,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      },
+      "contact_count_exterior": {
+        "a00": {
+          "mean": 347.0254084156797,
+          "n_observed": 60
+        },
+        "a01": {
+          "mean": 408.8641574087698,
+          "n_observed": 60
+        },
+        "a10": {
+          "mean": 345.7031912466937,
+          "n_observed": 60
+        },
+        "a11": {
+          "mean": 371.27717535607576,
+          "n_observed": 60
+        },
+        "complete_case_n": 60
+      }
+    },
+    "guided_student_minus_teacher": {
+      "pen_ratio": {
+        "ci": [
+          0.00017764884198307054,
+          0.0048173706484426655
+        ],
+        "crosses_zero": false,
+        "difference": 0.0023509237001768913,
+        "direction": "positive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "pene_pct_scene": {
+        "ci": [
+          -0.0007278480547737678,
+          0.0057097220216111196
+        ],
+        "crosses_zero": true,
+        "difference": 0.0021483771467882026,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "pene_sum_mean_floorexcl": {
+        "ci": [
+          -1.493057666676295,
+          1.7520418069695178
+        ],
+        "crosses_zero": true,
+        "difference": -0.01947849111253208,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "fs_nemf": {
+        "ci": [
+          -0.027395157138765457,
+          0.003047362887186073
+        ],
+        "crosses_zero": true,
+        "difference": -0.012356010900121488,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "boundary_jerk": {
+        "ci": [
+          -7.439448016666601,
+          13.74774780237725
+        ],
+        "crosses_zero": true,
+        "difference": 3.097213332643978,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "interior_jerk": {
+        "ci": [
+          -9.054784536462277,
+          -3.866474523908328
+        ],
+        "crosses_zero": false,
+        "difference": -6.501809665169235,
+        "direction": "negative",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": true
+      },
+      "goal_planar_err_m": {
+        "ci": [
+          -0.00698667411563381,
+          0.008458030842177975
+        ],
+        "crosses_zero": true,
+        "difference": 0.0005303532711328726,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "contact_count": {
+        "ci": [
+          -63.23779221578604,
+          37.366363638217756
+        ],
+        "crosses_zero": true,
+        "difference": -15.082731440087699,
+        "direction": "inconclusive",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": false
+      },
+      "contact_count_exterior": {
+        "ci": [
+          -61.66530051245832,
+          -15.499349769493282
+        ],
+        "crosses_zero": false,
+        "difference": -37.58698205269414,
+        "direction": "negative",
+        "n": 60,
+        "n_dropped_nonfinite": 0,
+        "n_sequences": 60,
+        "nan_replicates": 0,
+        "significant": true
+      }
+    },
+    "source": "/data/yujinlun/InfBaGel-hsi/results/cm1_evaluation_setup_20260909/internal_factorial_r1.json"
+  },
+  "latency": {
+    "student_unguided": {
+      "source": "/data/yujinlun/InfBaGel-hsi/results/lingo_hsi/cm1_latency_unguided/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-20931020c736/evaluation/per_sequence_metrics.json",
+      "timing": {
+        "per_window_wall_seconds": 0.33200904524520686,
+        "total_sampling_seconds": 22.908624121919274,
+        "window_count": 69,
+        "denoiser_calls_per_window": 16,
+        "sampler_steps_per_window": 16,
+        "cuda_synchronized": true,
+        "batch_size": 1,
+        "aits": 1.1376296903139778,
+        "avg_fps": 132.0632649989935,
+        "aggregate_fps": 131.85309883974728,
+        "rtf": 4.3951032946582425,
+        "total_generation_seconds": 15.92681566439569,
+        "timed_sequence_count": 14,
+        "avg_frames_per_seq": 150.0,
+        "avg_end_to_end_episode_seconds": 1.2087375256898147,
+        "warmup_sequences_required": 5,
+        "warmup_sequences_excluded": 5,
+        "protocol_complete": true,
+        "timing_valid": true,
+        "timing_invalid_reason": null
+      },
+      "generation_protocol": {
+        "sample_type": "consistency",
+        "sampler_steps": 16,
+        "guided": false,
+        "seed": 42
+      }
+    },
+    "student_guided": {
+      "source": "/data/yujinlun/InfBaGel-hsi/results/lingo_hsi/cm1_latency_guided/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-20931020c736/evaluation/per_sequence_metrics.json",
+      "timing": {
+        "per_window_wall_seconds": 2.1722515472683352,
+        "total_sampling_seconds": 149.88535676151514,
+        "window_count": 69,
+        "denoiser_calls_per_window": 16,
+        "sampler_steps_per_window": 16,
+        "cuda_synchronized": true,
+        "batch_size": 1,
+        "aits": 7.764710200019181,
+        "avg_fps": 19.25867860273184,
+        "aggregate_fps": 19.31817107606018,
+        "rtf": 0.6439390358686727,
+        "total_generation_seconds": 108.70594280026853,
+        "timed_sequence_count": 14,
+        "avg_frames_per_seq": 150.0,
+        "avg_end_to_end_episode_seconds": 7.848558822380645,
+        "warmup_sequences_required": 5,
+        "warmup_sequences_excluded": 5,
+        "protocol_complete": true,
+        "timing_valid": true,
+        "timing_invalid_reason": null
+      },
+      "generation_protocol": {
+        "sample_type": "consistency",
+        "sampler_steps": 16,
+        "guided": true,
+        "seed": 42
+      }
+    },
+    "teacher_unguided": {
+      "source": "/data/yujinlun/InfBaGel-hsi/results/lingo_hsi/cm1_r2_latency_unguided/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json",
+      "timing": {
+        "per_window_wall_seconds": 16.29927308868239,
+        "total_sampling_seconds": 1124.6498431190848,
+        "window_count": 69,
+        "denoiser_calls_per_window": 1000,
+        "sampler_steps_per_window": 500,
+        "cuda_synchronized": true,
+        "batch_size": 1,
+        "aits": 55.88369472125279,
+        "avg_fps": 2.689739526013967,
+        "aggregate_fps": 2.6841460778174784,
+        "rtf": 0.08947153592724928,
+        "total_generation_seconds": 782.3717260975391,
+        "timed_sequence_count": 14,
+        "avg_frames_per_seq": 150.0,
+        "avg_end_to_end_episode_seconds": 55.97800217010081,
+        "warmup_sequences_required": 5,
+        "warmup_sequences_excluded": 5,
+        "protocol_complete": true,
+        "timing_valid": true,
+        "timing_invalid_reason": null
+      },
+      "generation_protocol": {
+        "sample_type": "diffusion",
+        "sampler_steps": 500,
+        "guided": false,
+        "seed": 42
+      }
+    },
+    "teacher_guided": {
+      "source": "/data/yujinlun/InfBaGel-hsi/results/lingo_hsi/cm1_r2_latency_guided/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json",
+      "timing": {
+        "per_window_wall_seconds": 57.965967652644366,
+        "total_sampling_seconds": 3999.6517680324614,
+        "window_count": 69,
+        "denoiser_calls_per_window": 1000,
+        "sampler_steps_per_window": 500,
+        "cuda_synchronized": true,
+        "batch_size": 1,
+        "aits": 197.20465152138578,
+        "avg_fps": 0.7621893759329144,
+        "aggregate_fps": 0.7606311455778887,
+        "rtf": 0.025354371519262956,
+        "total_generation_seconds": 2760.865121299401,
+        "timed_sequence_count": 14,
+        "avg_frames_per_seq": 150.0,
+        "avg_end_to_end_episode_seconds": 197.33332991906042,
+        "warmup_sequences_required": 5,
+        "warmup_sequences_excluded": 5,
+        "protocol_complete": true,
+        "timing_valid": true,
+        "timing_invalid_reason": null
+      },
+      "generation_protocol": {
+        "sample_type": "diffusion",
+        "sampler_steps": 500,
+        "guided": true,
+        "seed": 42
+      }
+    }
+  },
+  "speedups": {
+    "unguided": 49.12292215741071,
+    "guided": 25.397554633899748
+  },
+  "cost_gpu_hours_reserved": {
+    "internal_unguided": 0.11534097777777778,
+    "internal_guided": 0.2733469533333333,
+    "final_unguided": 0.3257057755555556,
+    "final_guided": 1.230687648888889,
+    "table3": 0.2847568175,
+    "latency_unguided": 0.012960485,
+    "latency_guided": 0.048523718055555554,
+    "latency_r2_unguided": 0.3193206847222222,
+    "latency_r2_guided": 1.1187694188888888,
+    "gate": 0.002020878888888889,
+    "training": 62.451564842222226,
+    "benchmark": 0.34080606444444445
+  },
+  "total_gpu_hours_reserved": 66.52380426527779,
+  "budget_gpu_hours": 160,
+  "verification": {
+    "authority_passed": 450,
+    "authority_skipped": 3,
+    "component_passed": 72,
+    "paired_latency_inputs_match": true,
+    "all_quality_motion_finite": true,
+    "all_gpu_workloads_exit_zero": true
+  },
+  "operational_failures": [
+    {
+      "log": "/data/yujinlun/InfBaGel-hsi/results/cm1_evaluation_setup_20260909/internal_factorial.log",
+      "reason": "Unfiltered375teacher payloads differed from fixed60student IDs; tool refused intersection.",
+      "resolution": "Explicitly projected sealed teacher records onto the preregistered frozen60 IDs and reran to internal_factorial_r1.json; motions unchanged."
+    }
+  ],
+  "failure_examples": {
+    "pen_ratio": [
+      {
+        "sequence_id": "031:002600",
+        "teacher": 0.1745514010430478,
+        "student": 0.2437607177583311,
+        "delta": 0.0692093167152833,
+        "teacher_contact_count": 4023.986111111111,
+        "student_contact_count": 4464.601851851851
+      },
+      {
+        "sequence_id": "031:002589",
+        "teacher": 0.18929505878193228,
+        "student": 0.24966984884645982,
+        "delta": 0.060374790064527534,
+        "teacher_contact_count": 4364.259259259259,
+        "student_contact_count": 4450.384259259259
+      },
+      {
+        "sequence_id": "015:000944",
+        "teacher": 0.20357662207914745,
+        "student": 0.2535645963996966,
+        "delta": 0.04998797432054913,
+        "teacher_contact_count": 3535.9457364341083,
+        "student_contact_count": 4602.232558139534
+      },
+      {
+        "sequence_id": "010:000361",
+        "teacher": 0.002519102329281604,
+        "student": 0.03931435126084624,
+        "delta": 0.036795248931564634,
+        "teacher_contact_count": 750.4961240310078,
+        "student_contact_count": 2676.717054263566
+      },
+      {
+        "sequence_id": "027:002210",
+        "teacher": 0.02068636326228294,
+        "student": 0.05492277727484707,
+        "delta": 0.03423641401256412,
+        "teacher_contact_count": 1272.9482758620688,
+        "student_contact_count": 2038.316091954023
+      },
+      {
+        "sequence_id": "015:000917",
+        "teacher": 0.023290373906125695,
+        "student": 0.05746093874303898,
+        "delta": 0.03417056483691329,
+        "teacher_contact_count": 614.9133333333334,
+        "student_contact_count": 831.2366666666667
+      },
+      {
+        "sequence_id": "082-wash-brush_teeth:008089",
+        "teacher": 0.022629687542863416,
+        "student": 0.048433873755246486,
+        "delta": 0.02580418621238307,
+        "teacher_contact_count": 848.183908045977,
+        "student_contact_count": 947.316091954023
+      },
+      {
+        "sequence_id": "031:002567",
+        "teacher": 0.12006396181384249,
+        "student": 0.14575751789976135,
+        "delta": 0.02569355608591886,
+        "teacher_contact_count": 4062.2000000000003,
+        "student_contact_count": 4447.636666666667
+      },
+      {
+        "sequence_id": "071-write:007243",
+        "teacher": 0.017429018187803475,
+        "student": 0.04251282473321812,
+        "delta": 0.025083806545414648,
+        "teacher_contact_count": 667.4425287356322,
+        "student_contact_count": 1000.7988505747127
+      },
+      {
+        "sequence_id": "097-drum_kit:009385",
+        "teacher": 0.03169362680102537,
+        "student": 0.05671439936356404,
+        "delta": 0.025020772562538672,
+        "teacher_contact_count": 1263.9629629629628,
+        "student_contact_count": 1528.1157407407406
+      }
+    ],
+    "fs_nemf": [
+      {
+        "sequence_id": "044:004170",
+        "teacher": 0.6713965414920294,
+        "student": 0.9790841559243757,
+        "delta": 0.30768761443234627,
+        "teacher_contact_count": 615.5977011494252,
+        "student_contact_count": 662.8390804597701
+      },
+      {
+        "sequence_id": "031:002588",
+        "teacher": 0.10111733981001245,
+        "student": 0.384510373115422,
+        "delta": 0.28339303330540955,
+        "teacher_contact_count": 4574.411458333333,
+        "student_contact_count": 4627.46875
+      },
+      {
+        "sequence_id": "027:002236",
+        "teacher": 0.17329503789889683,
+        "student": 0.44786708059813013,
+        "delta": 0.2745720426992333,
+        "teacher_contact_count": 1104.6805555555554,
+        "student_contact_count": 1209.5694444444443
+      },
+      {
+        "sequence_id": "027:002214",
+        "teacher": 0.2464305831430327,
+        "student": 0.5102534567018693,
+        "delta": 0.2638228735588366,
+        "teacher_contact_count": 753.0632183908045,
+        "student_contact_count": 830.4252873563219
+      },
+      {
+        "sequence_id": "044:004181",
+        "teacher": 0.17982186242355092,
+        "student": 0.4399114308020636,
+        "delta": 0.26008956837851266,
+        "teacher_contact_count": 1485.0116279069766,
+        "student_contact_count": 1737.9728682170542
+      },
+      {
+        "sequence_id": "015:000917",
+        "teacher": 0.09911915674835052,
+        "student": 0.35536620232261756,
+        "delta": 0.25624704557426703,
+        "teacher_contact_count": 614.9133333333334,
+        "student_contact_count": 831.2366666666667
+      },
+      {
+        "sequence_id": "071-write:007199",
+        "teacher": 0.0923648210110134,
+        "student": 0.33393219911030314,
+        "delta": 0.24156737809928974,
+        "teacher_contact_count": 561.7241379310344,
+        "student_contact_count": 573.6264367816092
+      },
+      {
+        "sequence_id": "027:002188",
+        "teacher": 0.198569635717484,
+        "student": 0.4362764179440172,
+        "delta": 0.23770678222653321,
+        "teacher_contact_count": 532.3833333333333,
+        "student_contact_count": 543.0333333333334
+      },
+      {
+        "sequence_id": "027:002213",
+        "teacher": 0.228122018043022,
+        "student": 0.46226214997756243,
+        "delta": 0.23414013193454042,
+        "teacher_contact_count": 593.1954022988506,
+        "student_contact_count": 613.0574712643678
+      },
+      {
+        "sequence_id": "015:000948",
+        "teacher": 0.06665700545687622,
+        "student": 0.29437130273697804,
+        "delta": 0.2277142972801018,
+        "teacher_contact_count": 728.9883040935672,
+        "student_contact_count": 851.5643274853801
+      }
+    ],
+    "boundary_jerk": [
+      {
+        "sequence_id": "044:004219",
+        "teacher": 221.66246027639954,
+        "student": 570.5910814507239,
+        "delta": 348.92862117432435,
+        "teacher_contact_count": 880.7170542635658,
+        "student_contact_count": 809.0697674418604
+      },
+      {
+        "sequence_id": "044:004231",
+        "teacher": 256.7831033850681,
+        "student": 600.6223088794294,
+        "delta": 343.8392054943613,
+        "teacher_contact_count": 2049.921296296296,
+        "student_contact_count": 1760.2407407407406
+      },
+      {
+        "sequence_id": "044:004146",
+        "teacher": 197.15367729034392,
+        "student": 524.2657205206931,
+        "delta": 327.1120432303492,
+        "teacher_contact_count": 1756.2546296296296,
+        "student_contact_count": 1927.3888888888887
+      },
+      {
+        "sequence_id": "015:000961",
+        "teacher": 446.44789058682863,
+        "student": 642.9315420838905,
+        "delta": 196.48365149706183,
+        "teacher_contact_count": 1468.4398148148148,
+        "student_contact_count": 1307.1018518518517
+      },
+      {
+        "sequence_id": "044:004128",
+        "teacher": 174.0749733329407,
+        "student": 360.5341399038952,
+        "delta": 186.45916657095452,
+        "teacher_contact_count": 911.8720930232558,
+        "student_contact_count": 952.5387596899225
+      },
+      {
+        "sequence_id": "097-drum_kit:009440",
+        "teacher": 156.11510974813208,
+        "student": 297.9970007777981,
+        "delta": 141.88189102966604,
+        "teacher_contact_count": 1883.3472222222222,
+        "student_contact_count": 2060.25
+      },
+      {
+        "sequence_id": "044:004229",
+        "teacher": 176.57951019791017,
+        "student": 317.6280555131214,
+        "delta": 141.04854531521124,
+        "teacher_contact_count": 957.412037037037,
+        "student_contact_count": 744.9259259259259
+      },
+      {
+        "sequence_id": "044:004182",
+        "teacher": 284.95865780643237,
+        "student": 415.4454823306162,
+        "delta": 130.48682452418382,
+        "teacher_contact_count": 2044.4367816091954,
+        "student_contact_count": 1841.7643678160919
+      },
+      {
+        "sequence_id": "071-write:007266",
+        "teacher": 96.48268532180693,
+        "student": 206.50146042379606,
+        "delta": 110.01877510198914,
+        "teacher_contact_count": 484.44827586206895,
+        "student_contact_count": 507.1551724137931
+      },
+      {
+        "sequence_id": "082-wash-brush_teeth:008004",
+        "teacher": 165.66211473586247,
+        "student": 268.5192999695873,
+        "delta": 102.8571852337248,
+        "teacher_contact_count": 865.6034482758621,
+        "student_contact_count": 860.6666666666666
+      }
+    ]
+  },
+  "artifacts": {
+    "manifests": {
+      "internal_unguided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-internal-unguided-s42-20260909/manifest.json",
+      "internal_guided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-internal-guided-s42-20260909/manifest.json",
+      "final_unguided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-final-unguided-s42-20260909/manifest.json",
+      "final_guided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-final-guided-s42-20260909/manifest.json",
+      "table3": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-table3-s42-20260909/manifest.json",
+      "latency_unguided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-latency-unguided-s42-20260909/manifest.json",
+      "latency_guided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-latency-guided-s42-20260909/manifest.json",
+      "latency_r2_unguided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-latency-r2-unguided-s42-20260909/manifest.json",
+      "latency_r2_guided": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-latency-r2-guided-s42-20260909/manifest.json",
+      "gate": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-gate-s42-20260909/manifest.json"
+    },
+    "full_factorial": "/data/yujinlun/InfBaGel-hsi/results/cm1_evaluation_setup_20260909/final_factorial.json",
+    "internal_factorial": "/data/yujinlun/InfBaGel-hsi/results/cm1_evaluation_setup_20260909/internal_factorial_r1.json",
+    "gate": "/data/yujinlun/InfBaGel-hsi/results/hsi_cm1_gate_s42_20260909/summary.json",
+    "student_table3": "/data/yujinlun/InfBaGel-hsi/results/hsi_cm1_table3_s42_20260909/summary.json",
+    "teacher_table3": "/data/yujinlun/InfBaGel-hsi/results/hsi_r2_table3_s42_20260906/summary.json"
+  },
+  "limitations": [
+    "One training seed42; uncertainty resamples episodes or the frozen R@3 gallery occurrences, not training seeds.",
+    "Internal LINGO encoder; feature metrics are not directly comparable to external published evaluators.",
+    "Teacher500-step diffusion and student16-step consistency are different operating points; the comparison combines weights and sampler effects.",
+    "Geometry guidance remains external; this run does not test distillation of the guided teacher into an unguided student.",
+    "Safety guard uses preregistered holdout355; all375 failures are also retained."
+  ],
+  "next_action": "Retain R2+CG as the quality baseline and preserve CM1 as an unpromoted speed/semantic tradeoff. Any new training or diagnostic direction requires a separate concrete proposal."
+}

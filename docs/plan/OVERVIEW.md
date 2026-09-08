@@ -130,6 +130,10 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 完成（`phase/01c-cm1`；见 PHASE_1C_HSI.md 当日节）。CM1.1 为实现、资源验证及正式
 训练稳定启动，CM1.2 为固定中途诊断与终点原生评估；本轮保持 Phase 1C 开放。
 
+2026-09-09：CM1.2 完成全部固定评估。CM1 有引导加速 25.40×、FID 改善，
+穿透与非穿透接触保真门失败，19.26 FPS 低于 20 FPS 目标；继续保留 R2+CG。
+交接：[CM1 评估总结](../phase_summaries/PHASE_1C_CM1_EVAL.md)。Phase 1C 保持开放。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的

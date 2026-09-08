@@ -13402,3 +13402,36 @@ Protocol标签从artifact读取；root safety读出复用native FK joints；CM p
 定向72项通过；authority450 passed、3 skipped。八个准备中的质量/latency配置均通过
 Hydra完整解析。主机Python3.8的本地预览命令最初用了3.9的字符串方法，已改为切片；
 该错误发生在任何本轮run id/manifest创建之前。Registry validation通过。
+
+
+### CM1.2 完成与判定：质量门及 guided FPS 门失败，保留 R2+CG
+
+四格质量全部完成，870条/5270窗口均有限。epoch004 internal60只用于固定分层诊断；
+epoch089 full375为唯一终点。10个本轮GPU任务（四格quality、Table3、四格latency、
+综合gate）均exit0并封存。首次internal统计用了375条teacher对60条student，工具按
+合同拒绝；显式投影到冻结60条身份后r1完成，错误日志保留，动作没有重跑。
+
+有引导R2→CM1：FID40.049678→22.903796，R@3 0.433036→0.450893，MM-Dist
+8.900054→8.254822。全375 pen_ratio0.0214163→0.0274793（+28.31%，比值95%CI
+[1.21947,1.35266]），fs_nemf0.276482→0.298000；walk子集FS比值1.10095，CI
+[1.05330,1.15347]。总contact_count893.089→902.918差异不显著，exterior contact
+367.851→320.895（-12.76%，比值CI[0.84281,0.90261]），说明总计数掩盖了穿透点。
+内部jerk和goal error改善；完整分组与指标均保留。25个相对质量门12通过、6失败、
+7不确定。holdout355安全门通过：G中1个episode/2帧>5g、1个低骨盆walk；full375
+仍有4个episode/11帧>5g及1个低骨盆walk，未从结果中删除。
+
+latency70固定选择器实际选择19条/69窗口，排除5条预热后14条计时，四格身份及窗口数
+一致。单3090、batch1、CUDA同步，启动/结束GPU进程快照为空；检查中只使用GPU0。
+R2 U/G平均FPS为2.689740/0.762189，CM1 U/G为132.063265/19.258679；按总生成时间
+计算加速49.1229x/25.3976x。guided FPS低于预注册20目标，因此速度门也失败。
+端到端平均每序列秒：R2 U/G55.9780/197.3333，CM1 U/G1.20874/7.84856；无planning。
+质量分片时间继续标记无效。
+
+组件72项通过，authority450 passed/3 skipped，registry及resolved configs有效。
+总预留成本66.5238GPU-h（含训练、benchmark、全部评估），低于160GPU-h上限。
+Report与compact：experiments/results/p1_hsi_cm1_evaluation_s42_20260909.{md,json}。
+交接：docs/phase_summaries/PHASE_1C_CM1_EVAL.md。
+
+本轮以FAIL_QUALITY_AND_GUIDED_FPS_GATES收止。保留全部改善、退化、不确定区间及
+失败案例；CM1不晋级，R2+CG仍为工作基线。Phase1C保持open，无merge/tag及下一phase。
+后续从本总结与具体新方案进入，本次结果不自动授权重训或w/steps/guidance调参。
