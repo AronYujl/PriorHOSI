@@ -4884,3 +4884,11 @@ Human-goal query correction verification:19 component checks and full authority
 the native human query-position error and verifies unchanged dynamic object/other
 arguments against a same-seed legacy scene query. Noise, targets' weight/bounds,
 optimizer, terminal rule and promotion thresholds remain fixed.
+
+### Phase2.29 final closure after native human-goal query correction
+
+Corrected runafc7712 completes28 tasks/9jobs with124/124 exact native human-goal query positions and unchanged dynamic object/other arguments. Geometry baseline native16 and source joints reproduce exactly. Correct HSI HS1.227326/OS12.766820/FS.179713/C.668160,wrongHS1.223961/OS12.738105. ExtraHS,scene-dependence andOS gates still fail; all other protections pass. Every terminal arm recovers the same1 task to23/28. No469 HSI expansion, additional tuning, expert training or next-phase workload follows.
+
+HSI drives27/28 motions (root21.93mm,object32.76mm versus geometry) with exact task contact and hand-relative error7.11e-7m. The original legacy-goal negative and correction both remain sealed. The corrected run shares GPUs with existing HSI training; preflight/contention record retained and timings excluded from speed comparison. Final result: experiments/results/p2_mixer_hsi_motion_target_native_goal_s42_20260908.json; summary PHASE_2Z_HSI_MOTION_TARGET.md. Engineering completion passes; scientific promotion is NO-GO.
+
+最终封存检查：1107 passed/4 existing skips，230.10s（authority-completion.log）；408条registry有效。修正前后manifest均完成，原始及修正后图表已检查。工程交付完成并快进整合至phase/02-mixer，固定HSI目标的科学升级门槛未通过，469扩展保持未启动。
