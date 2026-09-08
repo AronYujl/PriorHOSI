@@ -4682,3 +4682,14 @@ The initial suite had2 setup errors because INFBAGEL_PYTHON was not exported; th
 corrected command passes.9 formal job configs resolve; all28 B0 source files exist.
 Formal source-geometry/metric recovery and optimization stability remain to be
 checked by the first registered task, followed by8GPU execution.
+
+First formal start stopped before dataset loading or editing: CUDA allocator peak
+reset preceded lazy context initialization. The failed manifest/trace are sealed in
+p2-mixer-surface-edit-s42-20260908 (0 edits/0 native evaluations). The runner now
+synchronizes/initializes its device before timed work and allocator reset. A fresh
+r1 run retains identical task/arm/optimizer settings; no scientific retuning.
+
+Recovery source also records terminal input metrics for its separate paired contrast,
+allows the development-selected terminal input arm to stay fixed on full469, and
+records synchronized arm time including evaluation. Final unchanged-science suite:
+1097 passed/4 skipped,166.36s (authority-runtime-final.log).

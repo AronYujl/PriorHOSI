@@ -302,6 +302,7 @@ def run_surface_tasks(cfg):
     device = torch.device(cfg.device)
     source_root = root/protocol['source_run'] if cfg.surface_edit.source_root is None else Path(cfg.surface_edit.source_root)
     dataset = None; current_scene = None; smpl_cache = {}; records = []
+    torch.cuda.synchronize(device)
     started = time.perf_counter()
     torch.cuda.reset_peak_memory_stats(device)
     for item in tasks:
@@ -340,11 +341,14 @@ def run_surface_tasks(cfg):
         write_json(dest/'source.json',dict(metrics=source_metrics,motion_path=str(path),joint_error_m=joint_error,metric_error=metric_error))
         task_rows = dict(source=dict(metrics=source_metrics,audit=motion_audit(source,source)))
         for arm in cfg.surface_edit.arms:
+            torch.cuda.synchronize(device)
+            arm_started = time.perf_counter()
             base = source
             before = source_metrics
             if arm=='terminal' and cfg.surface_edit.terminal_source is not None:
                 previous = Path(cfg.surface_edit.terminal_source)
-                selected = json.loads((previous/'selection.json').read_text())['arm']
+                selected = (str(cfg.surface_edit.terminal_arm) if cfg.surface_edit.terminal_arm is not None
+                            else json.loads((previous/'selection.json').read_text())['arm'])
                 if selected!='source':
                     prior, = previous.glob(f'lanes/*/task-{ordinal:03d}/{selected}.pt')
                     data = torch.load(prior,map_location=device,weights_only=False)
@@ -377,11 +381,13 @@ def run_surface_tasks(cfg):
             audit = motion_audit(base,result)
             motion = {k:v.detach().cpu() for k,v in result.items() if torch.is_tensor(v) and k not in ('verts','betas')}
             candidate_motion = None if accepted else {k:v.detach().cpu() for k,v in candidate.items() if torch.is_tensor(v) and k not in ('verts','betas')}
-            payload = dict(motion=motion,metrics=metrics,candidate_motion=candidate_motion,candidate_metrics=candidate_metrics,
+            torch.cuda.synchronize(device)
+            solve['arm_seconds_including_evaluation'] = time.perf_counter()-arm_started
+            payload = dict(motion=motion,metrics=metrics,input_metrics=before,candidate_motion=candidate_motion,candidate_metrics=candidate_metrics,
                            solver=solve,audit=audit,accepted=accepted,rejection_reasons=reasons)
             with (dest/(arm+'.pt')).open('xb') as f: torch.save(payload,f)
             trace = {k:v for k,v in solve.items() if k!='parameters'}
-            row = dict(metrics=metrics,candidate_metrics=candidate_metrics,audit=audit,solver=trace,accepted=accepted,rejection_reasons=reasons)
+            row = dict(metrics=metrics,input_metrics=before,candidate_metrics=candidate_metrics,audit=audit,solver=trace,accepted=accepted,rejection_reasons=reasons)
             write_json(dest/(arm+'.json'),row)
             task_rows[arm] = row
             print(json.dumps(dict(task=ordinal,arm=arm,metrics=metrics,seconds=solve['optimization_seconds']),allow_nan=False),flush=True)
@@ -401,7 +407,7 @@ def decode_body(motion,model):
     return torch.cat([p[0] for p in parts]),torch.cat([p[1] for p in parts])
 
 
-def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False):
+def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False, frozen_arm=None):
     """Task/scene paired native tables, fixed development selection and all failures."""
     from .scene_calibration import paired_local_metrics
     run_root = Path(run_root)
@@ -411,16 +417,20 @@ def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False):
         raise ValueError('incomplete or duplicate surface-edit task coverage')
     arms = list(records[0]['arms'])
     tasks = {a:{str(r['task']):r['arms'][a]['metrics'] for r in records} for a in arms}
+    if 'terminal' in arms:
+        tasks['terminal_input'] = {str(r['task']):r['arms']['terminal']['input_metrics'] for r in records}
+    table_arms = list(tasks)
     names = {str(r['task']):r['scene'] for r in records}
     def average(rows):
         return {k:sum(float(v[k]) for v in rows)/len(rows) for k in rows[0]}
     scenes = {a:{s:average([row for task,row in tasks[a].items() if names[task]==s])
-                 for s in sorted(set(names.values()))} for a in arms}
-    means = {a:average(list(tasks[a].values())) for a in arms}
+                 for s in sorted(set(names.values()))} for a in table_arms}
+    means = {a:average(list(tasks[a].values())) for a in table_arms}
     contrasts = {}
     pairs = [('source',a) for a in arms if a!='source']
     pairs += [(a.replace('relation','independent'),a) for a in arms
               if a.startswith('relation') and a.replace('relation','independent') in arms]
+    if 'terminal' in arms: pairs += [('terminal_input','terminal')]
     for unit,data in (('task',tasks),('scene',scenes)):
         contrasts[unit] = {b+'-minus-'+a:paired_local_metrics(data[a],data[b],device) for a,b in pairs}
     base = means['source']; eligibility = {}
@@ -438,8 +448,11 @@ def summarize_surface(run_root, task_manifest, device='cuda:7', terminal=False):
         eligibility[arm] = dict(eligible=not failures,failures=failures)
     available = [a for a in eligibility if eligibility[a]['eligible']]
     selected = min(available,key=lambda a:(means[a]['scene_obj_penetration_s_mean'],a)) if available else 'source'
+    if frozen_arm is not None:
+        selected = frozen_arm
     selection = dict(arm=selected,full469_entry=bool(available),eligibility=eligibility,
-                     selection_scope='registered development point estimates; all task/scene intervals reported')
+                     selection_scope=('fixed before full469 outcomes' if frozen_arm is not None else
+                                      'registered development point estimates; all task/scene intervals reported'))
     directory = run_root/'analysis'; directory.mkdir()
     for name,value in [('tasks',tasks),('scenes',scenes),('means',means),('paired',contrasts),('selection',selection)]:
         write_json(directory/(name+'.json'),value)

@@ -6,6 +6,7 @@ surface_edit:
   task_ids: null
   arms: [independent_10, relation_10, independent_20, relation_20]
   terminal_source: null
+  terminal_arm: null
   source_root: null
   task_manifest: null
 
