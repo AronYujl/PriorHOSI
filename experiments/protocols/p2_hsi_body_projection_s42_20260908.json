@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "phase": "2.31",
+  "component": "hsi-body-projection",
+  "seed": 42,
+  "authorization": "User approved continuing with hand-object, ground-support and cross-window constrained body residual readout on 2026-09-08.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "body_cache": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908",
+  "teacher_reference": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908/input_references.json",
+  "arms": [
+    "source",
+    "correct_smooth",
+    "correct_projected",
+    "wrong_smooth",
+    "wrong_projected"
+  ],
+  "training_allowed": false,
+  "test_set_development": true,
+  "scope": "One fixed native28 cached diagnostic, two paired predictions evaluated separately and averaged. Zero expert forward, new sampling or training; no469 or automatic next experiment.",
+  "target": "For each cached full native prediction remove its world root XZ/yaw displacement. Keep vertical root change and remaining local rotations. Express local SO3 residuals relative to source, clip translation coordinates to10cm and each local axis-angle vector norm to20degrees, fit one cubic B-spline over the full30Hz task with15frame knot spacing, and apply the existing first6/final3 lock and quintic entrance/exit envelope. The smooth arm directly decodes this target with the original HOI object.",
+  "projection": {
+    "coordinates": "Root XYZ translation plus22 local rotations,69 normalized tangent coordinates; translation scale.05m,rotation scale10deg. Object is frozen to HOI. RootXZ/yaw have zero teacher targets and may move only as projection compensations; full first6/final3 body state is fixed.",
+    "geometry": "Exact beta-dependent native SMPL-X rest joints and FK; finger means zero as in the evaluator. Pin source world hands native28 indices24/26 and all four feet7/8/10/11 at every frame. Native reconstruction checks source FK anchors within1e-5m.",
+    "solver": "80 projected pose-fitting iterations from exact source, step1/37. Squared translation/SO3 target distance plus weight9 adjacent source-relative displacement/rotation differences. Analytic scaled FK Jacobian, Moore-Penrose pseudoinverse of18x18 Gram matrix (float64,rtol1e-10) removes anchor-normal motion; right-local rotation updates. Five Newton anchor restorations after each step. Each update limited uniformly per frame to5mm root and2deg per joint. No scene SDF or native metric enters projection.",
+    "feasibility": "After fitting, evaluate fixed amplitudes1,1/2,1/4,1/8,1/16,1/32,1/64,0 in order, interpolating source-to-fitted pose and restoring anchors with20 Newton iterations. Choose the first satisfying anchor max1e-6m in native FK, total root displacement<=10cm and every local rotation change<=20deg, all-marker source-relative velocity-change max<=30cm/s, all-frame mean<=10cm/s and window-seam mean<=10cm/s. This is a geometry/continuity feasibility line search, not native-score selection. Save all attempts and reasons; zero is the exact feasible source. Rebuild chosen body through native SMPL-X and require six-anchor max error<=1e-5m; preserve original object and first6/final3 state.",
+    "support": "All four foot positions are pinned throughout, stronger than source-stance-only protection; free swing-foot retiming is outside this diagnostic. Hand constraints preserve both hands throughout, including inactive frames."
+  },
+  "evaluation": "All15 native metrics plus numeric completion for every task/draw/arm; source-floor support,source-stance foot displacement,hand-object drift,seam/all joint speed from previous diagnostic; source-relative correction speeds,retained-body displacement and target fraction,amplitude and solver traces. Source native16 and joints must reproduce cache within1e-5; previous unbounded raw body results retained by reference. Correct/wrong share source,draw,bounds,solver and feasibility rule.",
+  "decision": "Correct projected HS<=.99 source HS and <=wrong projected HS-.005 source HS. Contact>=source-.002,FS<=source+.01cm,OS<=1.01source,completion>=source,source-floor support>=source-.002; native six-anchor<=1e-5m and exact endpoint/object invariants. Also require mean projected body-joint displacement>=.5cm and at least14/28 tasks>=.5cm, avoiding an identity projection masquerading as usable signal. Report every condition separately. If insufficient motion survives, classify projection restrictive/inconclusive; if meaningful motion survives but scene entry fails, stop this fixed readout. No weight,bound,iteration or anchor-mask search follows.",
+  "uncertainty": "10000 seed42 paired task and scene bootstrap using existing tools.paired_bootstrap helpers on GPU; all task/draw values retained, never best-of-two, no unseen-test or cross-seed claims.",
+  "execution": "Nine jobs: first complete source371 at full native length then eight GPU lanes for remaining27. Existing8GPU HSI training remains running; record shared hardware. The formal first task supplies real-data functional verification and synchronized full-length projection throughput/memory measurement for the changed compute path; no additional smoke workload or new hashing. Full authority suite and registry validation before run and closure.",
+  "completion": "Preregistration, logical implementation and completion commits; immutable formal manifest/configs/inputs/logs/attempts/motions/statistics, compact result, phase summary, figure and one-page report; integrate phase2.31 only."
+}

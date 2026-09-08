@@ -1,0 +1,6 @@
+defaults: [config_sample_hosi_body_readout, _self_]
+
+hsi_body_projection:
+  enabled: true
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_body_projection_s42_20260908.json
+  task_ids: null
