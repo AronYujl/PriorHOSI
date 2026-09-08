@@ -126,6 +126,10 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 
 ### Phase 6：Consistency 与实时化
 
+2026-09-08：用户批准的 R2 固定 w=1、16-step HSI 蒸馏先在 Phase 1C-CM1
+完成（`phase/01c-cm1`；见 PHASE_1C_HSI.md 当日节）。CM1.1 为实现、资源验证及正式
+训练稳定启动，CM1.2 为固定中途诊断与终点原生评估；本轮保持 Phase 1C 开放。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
@@ -267,4 +271,3 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   1024/3072，最多允许一次不改变专家接口的几何 contact fallback。正式重训仍只用 seed 42、
   scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
   同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
-

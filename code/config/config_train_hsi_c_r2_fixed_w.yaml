@@ -1,0 +1,28 @@
+# CM1: distill the sealed R2 final EMA at one CFG operating point.
+defaults: [config_train_hsi_c_lingo_cm, _self_]
+
+exp_name: p1-hsi-cm1-r2-fixed-w-s42-20260908
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+occ_permute_fix: true
+geometry_loss_fp32: true
+w: 1
+cm_fixed_cfg_scale: 1.0
+
+num_gpus: 8
+batch_size: 256
+effective_batch_size: 2048
+gradient_accumulation_steps: 1
+max_optimizer_updates: 58678
+epochs: 90
+lr: 0.0002
+warmup_updates: 2000
+ckpt_interval: 1
+log_grad_norm: true
+
+sampler:
+  pelvis:
+    cm_fixed_cfg_scale: ${cm_fixed_cfg_scale}
+    hsi_cm_guidance_x0_coef: true
+
+# Only the final student is eligible for promotion. Epoch 004 is the fixed
+# 3,280-update internal rollout checkpoint; other cadences are recovery state.

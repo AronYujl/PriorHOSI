@@ -13223,3 +13223,74 @@ lie_03/lie_04末尾仍呈直立姿态；这些结果完整保留。
 Compact：experiments/results/p1_hsi_r2_qualitative_s42_20260906.json。交接：
 docs/phase_summaries/PHASE_1C_R2_QUALITATIVE.md。此轮完成可视化筛选，Phase1C gate
 状态保持原记录；进一步换例或论文最终美术排版从用户对这五例的反馈进入。
+
+
+## 2026-09-08（Phase 1C-CM1：R2 固定 CFG 蒸馏；用户已批准）
+
+用户批准上一轮的具体方案：R2 final EMA → 16-step consistency student，固定 w=1，
+推理保留外部人景几何引导，修复 batch 首样本控制整批 w 的缺陷并适配 CM 更新系数。
+工作分支 phase/01c-cm1 从 phase/01c-hsi 切出，全部修改属于 HSI，本轮不修改 core。
+
+### 编号交付与入口
+
+- CM1.1 / component hsi-cm1.1：预注册、实现、组件及 authority 验证、正式形状性能测量、
+  独立正式训练稳定启动。gate 为配置完全解析、真实训练损失及 trunk/CFG 梯度有限、
+  每卡显存 headroom >=2 GiB、warmup 后稳定到 update 3,280、可读取完整 epoch 恢复状态。
+  此 gate 只允许交付后台训练状态，不构成质量晋级或 Phase 1C 关闭。
+- CM1.2 / component hsi-cm1.2：下一 session 从本节及 CM1.1 交接进入；固定 epoch004
+  （3,280 updates）的 generated-history internal rollout，以及正式终点的固定 native 评估。
+  内部读数为机制描述，禁止据此换 checkpoint、调 w 或提前挑选终点。
+
+### 唯一候选与实现约束
+
+teacher、student、EMA target 均从已封存 R2 final EMA epoch222 初始化；student 是新的
+蒸馏训练，optimizer/RNG 冷启动，teacher/target 保持既有 train-mode dropout，参数冻结。
+沿用 CM 的可训练模块、EMA rate 0.95、MSE consistency + 1*FK，保持既有 clipping=1、
+Adam lr=2e-4、warmup=2000，固定 requested CFG=1。无 continuous-w sweep、无架构扩展。
+R2 的 seam 能力由 teacher 传递，不另加 student seam objective。
+
+- 消除 Unet 内 timestep 首行触发整批 CFG 覆盖。显式 unconditional 请求才把 CFG 设为 -1。
+  首噪声 t=499 的未来 scene 屏蔽保留，但依据每条样本自己的 timestep；训练 student/target
+  与 teacher 条件屏蔽遵循同一逐行规则。CFG=1 的嵌入在 t=499 仍为 1。
+- teacher/student/target 的 occupancy 轴序统一 occ_permute_fix=true。
+- HSI consistency 的 object/contact 216:232 通道从监督排除，与 R2 和冻结 HSI 合同一致；
+  保持既有 noised input/采样 object 通道路径。CM FK 使用 R2 的 fp32 几何路径。
+- CM 使用 x_prev=sqrt(alpha_prev)*pred_x0+sqrt(1-alpha_prev)*noise。
+  在相同噪声下，pred_x0 的几何增量映射为 sqrt(alpha_prev)*gradient；直接使用当前
+  solver 实际索引提取的 alpha_prev（含终步 alpha_prev=1），不套 DDPM posterior 系数。
+  新 CM sampler 选项 hsi_cm_guidance_x0_coef=true；既有 CM 配置默认保持旧公式，
+  历史 checkpoint 的 w 路径需配其历史提交复现。冻结 R2 batch1 diffusion 路径保持等价。
+
+### 数据、预算、资源与验证
+
+LINGO v3 seed42 固定 scene-family split、原训练过滤、16帧/2历史/stride3/232维保持原值。
+正式预算 120,172,544 windows = 58,678 updates * effective batch 2048，与既有 CM 相等。
+8×RTX3090，micro-batch256（该 tier 的最大8卡等分值），accum1；OMP_NUM_THREADS=4。
+资源检查当前八卡空闲。先用相同执行路径做160-update full-batch性能测量，前32步预热，
+第33--160步前后 CUDA synchronize；记录每rank峰值及显存余量，至少2GiB。
+性能测量结果单独保留，不初始化正式训练。该真实工作负载承担运行验证，不添加 smoke。
+正式训练与测量都走 clean Git → resolved config → experiment.py start。
+若8×256容量失败，本实验停止并保留失败，不擅自更改batch/预算。总成本上限160 GPU-h
+（含训练、一次性能测量及固定评估）；启动前按实测吞吐核对预测预算。
+
+组件测试验证 CFG/scene 对 batch 排序和拆分的独立性、fixed w 在三模型间一致、
+HSI通道排除和几何梯度、CM clean increment 与实际 solver 更新的等价性；首次GPU负载
+前执行一次 authority suite 与 registry validation。使用既有 manifest 身份引用固定数据、
+teacher和封存R2输出；不新增哈希工具或重复扫描不可变大文件。
+
+### 评估与停止规则
+
+固定内部 frozen60（沿用已封存清单）的 generated-history rollout，student U/G 两格，
+固定 seed42/w1/16 steps；全部记录，包括失败，不依 teacher-forced loss 选择模型。
+终点 student 58,678 updates（预计epoch089）是唯一正式评估 checkpoint。
+终点评估375条（130 walk、245其余），U/G两格均导出motion；R2 U/CG 对照复用封存输出，
+不重新生成。报告全部既有13项Table3指标，以及 boundary/interior jerk、FS、penetration、
+contact engagement、goal、安全诊断；序列配对bootstrap10000次/seed42，FID2000次。
+R@3沿用冻结gallery及其occurrence重采样单位，明确与独立episode的差别。
+独立单3090/batch1 latency70 记录 warm generation / end-to-end（planning不涉及），
+禁止把8卡分片吞吐作为实时延迟。w和guidance scale固定1，无best-of-N。
+
+晋级要求：有引导学生相对R2+CG在穿透、FS、jerk、FID、MM-Dist及goal误差的比值
+95%配对区间上界<=1.05；R@3/成功率/接触参与量的比值区间下界>=0.95；保持已冻结
+安全限制；guided warm generation >=20FPS。完整报告未通过或不确定项，不用删指标
+使gate通过。R2+CG在候选通过前继续是工作基线。失败只允许保留诊断；新训练方向需另行批准。
