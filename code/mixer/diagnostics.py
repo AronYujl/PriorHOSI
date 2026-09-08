@@ -482,6 +482,11 @@ def run_body_projection(cfg):
     seed_everything(42)
     device = torch.device(cfg.device)
     smpl_cache = {}; current_scene = None; records = []
+    geometry_root = cfg.hsi_body_projection.get('geometry_root')
+    teacher = None
+    if geometry_root is not None:
+        from .hsi_motion_target import CurrentMotionTeacher
+        teacher = CurrentMotionTeacher(cfg,protocol)
     torch.cuda.synchronize(device);started=time.perf_counter()
     torch.cuda.reset_peak_memory_stats(device)
     for item in tasks:
@@ -490,6 +495,8 @@ def run_body_projection(cfg):
             dc = OmegaConf.merge(cfg.dataset,dict(device=str(device),vis=True,load_object_payload=False,test_scene_name=scene))
             dataset = InfBaGelDataset(**dc)
             dataset.obj_rest_verts = {k:v.to(device) for k,v in dataset.obj_rest_verts.items()}
+            if teacher is not None:
+                teacher.set_dataset(dataset)
             native = json.loads((root/'data/hosi_test/data'/(scene+'.json')).read_text())
             key=scene+'_sdf';sdf_root=root/'data/hosi_test/Scene_sdf'
             sdf=np.load(sdf_root/(key+'.npy'));info=json.loads((sdf_root/(key+'_info.json')).read_text())
@@ -501,13 +508,28 @@ def run_body_projection(cfg):
                for k,v in saved['stitched'].items()}
         source=native_tracks(cfg,dataset,world,task,True,smpl_cache,body_parameters=True)
         model=smpl_cache[source['gender']]
+        raw_source=source
+        geometry_payload=None
+        if geometry_root is not None:
+            geometry_path,=Path(geometry_root).glob(f'lanes/*/task-{ordinal:03d}/{cfg.hsi_body_projection.geometry_arm}.pt')
+            geometry_payload=torch.load(geometry_path,map_location=device,weights_only=False)
+            if geometry_payload['solver']['best_iteration']!=0:
+                source=dict(geometry_payload['motion'],betas=raw_source['betas'],gender=raw_source['gender'])
+                source['verts'],decoded_joints=decode_body(source,model)
+                from .surface_edit import edit_envelope
+                fixed=edit_envelope(len(source['pose']),device)==0
+                source['verts'][fixed]=raw_source['verts'][fixed]
+                assert (decoded_joints-source['joints']).abs().max()<=1e-5
         obj=dataset.obj_rest_verts[item['object_name']]
         obj_sdf,obj_info=load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files',item['object_name'])
         def evaluate(track):
             return native_metrics(track,task,obj,obj_sdf,obj_info,sdf,info,model.faces,42)
         baseline=evaluate(source)
-        previous=json.loads(path.with_name(f'episode-audit-{ordinal:03d}.json').read_text())['metrics']
-        joint_error=float((source['joints'].cpu()-saved['evaluated_joints_world']).abs().max())
+        previous=(json.loads(path.with_name(f'episode-audit-{ordinal:03d}.json').read_text())['metrics']
+                  if geometry_payload is None else geometry_payload['metrics'])
+        reference_joints=(saved['evaluated_joints_world'].to(device) if geometry_payload is None
+                          else geometry_payload['motion']['joints'])
+        joint_error=float((source['joints']-reference_joints).abs().max())
         metric_error=max(abs(float(baseline[k])-float(previous[k])) for k in baseline)
         assert joint_error<=1e-5 and metric_error<=1e-5,(joint_error,metric_error)
         projector=NativeBodyProjection(source,native_rest_offsets(model,source['betas']))
@@ -519,8 +541,13 @@ def run_body_projection(cfg):
         baseline['native_anchor_max_error_m']=0.
         baseline['initial_final_max_error_m']=0.
         baseline['object_max_error_m']=0.
-        body_path,=(root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/motion.pt')
-        cache=torch.load(body_path,map_location=device,weights_only=False)
+        dest=out/f'task-{ordinal:03d}';dest.mkdir()
+        query_audit=None
+        if teacher is None:
+            body_path,=(root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/motion.pt')
+            cache=torch.load(body_path,map_location=device,weights_only=False)
+        else:
+            cache,query_audit=teacher.query_current_task(saved,task,ordinal,dest,source,projector,smpl_cache)
         assert torch.equal(cache['source']['joints'],source['joints'])
         rows=[];solves=[]
         motions=dict(source={k:v.cpu() for k,v in source.items() if torch.is_tensor(v) and k!='verts'})
@@ -568,8 +595,8 @@ def run_body_projection(cfg):
                for arm in protocol['arms']}
         record=dict(task=ordinal,scene=scene,object=item['object_name'],windows=len(saved['windows']),
             source_joint_error_m=joint_error,source_metric_error=metric_error,source_fk_anchor_error_m=fk_error,
-            draws=rows,means=means,solves=solves)
-        dest=out/f'task-{ordinal:03d}';dest.mkdir()
+            draws=rows,means=means,solves=solves,query_audit=query_audit,
+            hsi_calls=0 if query_audit is None else query_audit['hsi_calls'])
         write_json(dest/'metrics.json',record)
         with (dest/'motion.pt').open('xb') as handle:torch.save(motions,handle)
         records.append(record)
@@ -578,7 +605,7 @@ def run_body_projection(cfg):
     write_json(out/'metrics.json',dict(commit=commit,
         git_commit_at_completion=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
         tasks=len(records),windows=sum(r['windows'] for r in records),seconds=time.perf_counter()-started,
-        peak_memory_gib=torch.cuda.max_memory_allocated(device)/1024**3,expert_forwards=0))
+        peak_memory_gib=torch.cuda.max_memory_allocated(device)/1024**3,expert_forwards=0 if teacher is None else teacher.calls))
 
 
 def summarize_body_projection(run_root,task_manifest,device='cuda:7'):
@@ -622,8 +649,22 @@ def summarize_body_projection(run_root,task_manifest,device='cuda:7'):
         audit=dict(source_joint_max_error_m=max(r['source_joint_error_m'] for r in records.values()),
             source_metric_max_error=max(r['source_metric_error'] for r in records.values()),
             source_fk_anchor_max_error_m=max(r['source_fk_anchor_error_m'] for r in records.values()),
-            native_anchor_max_error_m=max_anchor),contrasts=contrasts,expert_forwards=0,
+            native_anchor_max_error_m=max_anchor),contrasts=contrasts,
+        expert_forwards=sum(r.get('hsi_calls',0) for r in records.values()),
         training_allowed=False,test_set_development=True)
+    if summary['expert_forwards']:
+        coverage={};sensitivity={};breadth={}
+        for reference in ('source','wrong_projected'):
+            delta={k:row['means']['correct_projected'][hs]-row['means'][reference][hs] for k,row in records.items()}
+            counts=dict(improved=sum(v<0 for v in delta.values()),worsened=sum(v>0 for v in delta.values()),equal=sum(v==0 for v in delta.values()))
+            coverage[reference]=counts
+            a={str(k):row['means'][reference] for k,row in records.items() if k!=375}
+            b={str(k):row['means']['correct_projected'] for k,row in records.items() if k!=375}
+            sensitivity[reference]=paired_local_metrics(a,b,device)
+            breadth[reference+'_remaining27']=sensitivity[reference][hs]['delta']<=0
+            breadth[reference+'_task_coverage']=counts['improved']>=counts['worsened']
+        summary.update(task_coverage=coverage,remaining27=sensitivity,evidence_breadth_conditions=breadth,
+                       incremental_evidence=summary['entry'] and all(breadth.values()))
     out=run_root/'analysis';out.mkdir()
     for arm in arms:
         for unit,values in [('task',by_task[arm]),('scene',by_scene[arm])]:

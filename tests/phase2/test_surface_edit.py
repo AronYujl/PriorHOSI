@@ -371,3 +371,41 @@ def test_native_anchor_restoration_preserves_non_anchor_body_changes():
     assert (points-projection.points).norm(dim=-1).mean()>1e-5
     assert torch.equal(rotation[projection.fixed],projection.rotation[projection.fixed])
     assert torch.equal(translation[projection.fixed],projection.translation[projection.fixed])
+
+
+def test_current_native_window_encoding_roundtrips_world_geometry():
+    from types import SimpleNamespace
+    from mixer.hsi_motion_target import encode_native_window
+    from test_infbagel_hosi import decode_sample_window
+    class Normalization:
+        def normalize_torch(self,x,is_object=False):return x*.5+1
+        def denormalize_torch(self,x,is_object=False):return (x-1)*2
+    torch.manual_seed(42)
+    points=torch.randn(1,16,28,3)
+    rotation=transforms.axis_angle_to_matrix(torch.randn(1,16,22,3)*.2)
+    obj=torch.randn(1,16,3)
+    obj_rotation=transforms.axis_angle_to_matrix(torch.randn(1,16,3)*.2)
+    reference=transforms.axis_angle_to_matrix(torch.tensor([[.2,.4,-.1]]))
+    mat=torch.eye(4)[None];mat[:,:3,:3]=yaw_matrix(torch.tensor([.7]));mat[:,:3,3]=torch.tensor([[1.,0.,-2.]])
+    dataset=Normalization()
+    encoded=encode_native_window(dataset,points,rotation,obj,obj_rotation,torch.zeros(1,16,4),mat,reference)
+    cfg=SimpleNamespace(batch_size=1,max_window_size=16,dataset=SimpleNamespace(nb_joints=28))
+    decoded=decode_sample_window(cfg,encoded,dataset,mat)
+    torch.testing.assert_close(decoded['points_orig'].reshape_as(points),points,atol=2e-6,rtol=1e-6)
+    torch.testing.assert_close(decoded['obj_trans_orig'],obj,atol=2e-6,rtol=1e-6)
+    torch.testing.assert_close(transforms.rotation_6d_to_matrix(decoded['global_rot_6d'].reshape(1,16,22,6)),rotation,atol=1e-6,rtol=1e-6)
+    torch.testing.assert_close(decoded['object_rot_mat'].reshape(1,16,3,3)@reference[:,None],obj_rotation,atol=1e-6,rtol=1e-6)
+
+
+def test_teacher_residual_lifting_cancels_reference_resampling_error():
+    from mixer.hsi_motion_target import lift_native_prediction
+    torch.manual_seed(42)
+    base=dict(pose=torch.randn(12,22,3)*.2,translation=torch.randn(12,3))
+    reference=dict(pose=base['pose']+.02,translation=base['translation']+.01)
+    pose,translation=lift_native_prediction(base,reference,reference)
+    assert torch.equal(pose,base['pose'])
+    assert torch.equal(translation,base['translation'])
+    prediction=dict(pose=reference['pose'].clone(),translation=reference['translation']+torch.tensor([0.,.03,0.]))
+    pose,translation=lift_native_prediction(base,reference,prediction)
+    assert torch.equal(pose,base['pose'])
+    torch.testing.assert_close(translation,base['translation']+torch.tensor([0.,.03,0.]))
