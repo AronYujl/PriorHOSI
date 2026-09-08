@@ -1,0 +1,6 @@
+defaults: [config_sample_hosi_surface_edit, _self_]
+
+hsi_body_readout:
+  enabled: true
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_body_readout_s42_20260908.json
+  task_ids: null

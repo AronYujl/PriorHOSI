@@ -4892,3 +4892,11 @@ Corrected runafc7712 completes28 tasks/9jobs with124/124 exact native human-goal
 HSI drives27/28 motions (root21.93mm,object32.76mm versus geometry) with exact task contact and hand-relative error7.11e-7m. The original legacy-goal negative and correction both remain sealed. The corrected run shares GPUs with existing HSI training; preflight/contention record retained and timings excluded from speed comparison. Final result: experiments/results/p2_mixer_hsi_motion_target_native_goal_s42_20260908.json; summary PHASE_2Z_HSI_MOTION_TARGET.md. Engineering completion passes; scientific promotion is NO-GO.
 
 最终封存检查：1107 passed/4 existing skips，230.10s（authority-completion.log）；408条registry有效。修正前后manifest均完成，原始及修正后图表已检查。工程交付完成并快进整合至phase/02-mixer，固定HSI目标的科学升级门槛未通过，469扩展保持未启动。
+
+## 2026-09-08 — Phase2.30 完整HSI预测与身体读出诊断（用户批准）
+
+分支phase/02aa-hsi-body-readout。复用2.29修正轮28任务、124窗口、两次配对预测；新专家前向和优化均为0。协议experiments/protocols/p2_hsi_body_readout_s42_20260908.json固定7臂：source及正确/错配各自planar、residual、full。原生30Hz解码后，将完整身体精确分为root XZ/yaw刚体部分与剩余高度/倾斜/姿态，物体始终来自HOI并随planar部分共同移动。全部指标逐任务逐draw保存，再平均两个draw，做任务与场景配对区间。
+
+这是无边界、无终点锁定的诊断反事实，不能作为采样或可部署组合改进；接触、源地面支撑、脚高和滑动与穿透同时报告。另查预测位置通道与原生FK的一致性及窗口接缝。full必须比source和planar各降低HS至少1%，并优于错配.5%source HS，才支持完整身体包含被丢弃的几何收益；进一步身体迁移建议还须满足协议中的交互与足部保护。条件不满足则停止身体自由度扩展，定位教师/条件域后再提新方案。不会自动开始训练、共同去噪或469。
+
+当前8GPU与另一HSI训练共享，记录占用，短时GPU几何和统计不作速度比较。全套测试、原生来源复现和分解恒等验证；正式数据运行提供功能验证，生成/训练/优化路径保持原样，跳过额外性能基准。工程门槛是完整诊断和结论封存。

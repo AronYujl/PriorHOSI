@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "phase": "2.30",
+  "component": "hsi-body-readout",
+  "seed": 42,
+  "authorization": "User agreed to distinguishing full HSI prediction value from root/heading readout loss and requested execution on 2026-09-08.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "teacher_run": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908/input_references.json",
+  "probe": "full_body_readout",
+  "training_allowed": false,
+  "test_set_development": true,
+  "scope": "Cached native28/124 windows, both paired draws at noise199, corrected native human-goal queries; zero expert forwards, optimization, training or new sampling. No469 expansion.",
+  "arms": [
+    "source",
+    "correct_planar",
+    "correct_residual",
+    "correct_full",
+    "wrong_planar",
+    "wrong_residual",
+    "wrong_full"
+  ],
+  "construction": "Decode each full prediction independently through the native 30Hz SMPL-X evaluator. Own local2..15 at global14*w+2..15, first2 coarse history from source. Object channels always come from HOI. On the decoded native grid define planar transform using full-minus-source root XZ and closest world-Y root relative rotation. Planar arm rigidly transforms source body and object; residual arm undoes that planar transform on full body and retains source object; full arm keeps full body and carries object by the same planar transform. This exactly factors full human geometry into planar and remaining height/tilt/articulation; source and object reference are identical. No bounds/envelope, optimizer or final locks are applied: these are diagnostic counterfactuals, not publishable composed rollouts.",
+  "evaluation": "All15 native metrics plus numeric completion on every task/draw/arm. Means across the two fixed draws, never best-of-two. Additional source-floor support fraction, source-stance foot displacement, mean root-Y change, object-frame hand drift, raw position-channel versus native FK root-relative discrepancy, window seam speeds, per-body-part scene-response and draw-noise differences. Full task denominator. Source native16 scalars/joints must reproduce cache within1e-5. Geometric factorization and root-only hand-object invariance are checked.",
+  "uncertainty": "10000 seed42 task/scene paired bootstrap via existing tools.paired_bootstrap helpers on GPU; retain all metrics. Contrasts full-source, planar-source, residual-source, full-planar, full-residual, correct-wrong per factor. Descriptive development analysis, no held-out or rollout improvement claim.",
+  "decision": "A full-body geometry signal requires correct full HS <=.99 source and <=.99 correct planar and <=wrong full HS-.005 source HS. To recommend a body-transfer implementation also require contact>=source-.002, FS<=source+.01cm, absolute feet-height shift<=1cm, source-floor support>=source-.02, OS<=1.01source, completion>=source. Report individual conditions and all intervals. If geometry signal alone passes, identify protection failures before any implementation proposal. If geometry signal fails, stop broad body-copy expansion; diagnose the frozen teacher/conditioning domain before architecture or shared-denoising changes. No automatic next experiment.",
+  "execution": "Eight GPU lanes, cached decoding/evaluation only. Record current shared HSI training occupancy; no timing comparison. Native small CPU rotation interpolation retained for evaluator fidelity; SMPL-X/SDF and statistics GPU. Full authority suite and registry validation, formal data run supplies functional validation; no extra smoke, new hashes or performance benchmark because generation/training/optimizer paths are unchanged.",
+  "completion": "One preregistration, one logical implementation, one completion commit; compact result, full task/draw outputs, plot and phase summary; source/expert/core files untouched except mixer diagnostic and existing evaluator dispatch."
+}
