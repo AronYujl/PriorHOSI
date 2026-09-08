@@ -1,0 +1,5498 @@
+{
+  "schema_version": 1,
+  "phase": "2.32",
+  "component": "hsi-geometry-increment",
+  "run_id": "p2-mixer-hsi-geometry-increment-r2-s42-20260908",
+  "protocol": "experiments/protocols/p2_hsi_geometry_increment_s42_20260908.json",
+  "manifest": "results/experiments/p2-mixer-hsi-geometry-increment-r2-s42-20260908/manifest.json",
+  "source_commit": "f75781e",
+  "preregistration_commit": "fa82a4e",
+  "implementation_commit": "ea4bcbf",
+  "resource_contract_commit": "8863153",
+  "result": {
+    "tasks": 28,
+    "windows": 124,
+    "draws": 2,
+    "means": {
+      "source": {
+        "feet_height": 4.039939386504037,
+        "foot_sliding": 0.17657122186452695,
+        "hand_pen_loss_omomo": 0.5184619522456809,
+        "hand_pen_ratio": 0.1999050523487053,
+        "human_pen_loss_infbagel": 8.270207561640522,
+        "human_pen_ratio": 0.2002357401818569,
+        "xy_points_err": 3.3004593902400563,
+        "end_obj_trans_err": 8.119794949223953,
+        "contact_percent": 0.6681600647022209,
+        "scene_human_penetration_s_mean": 1.1775001730981915,
+        "scene_human_penetration_s_max": 13.379016262379341,
+        "scene_human_penetration_frame_ratio": 0.37471029262191485,
+        "scene_obj_penetration_s_mean": 11.607790385747128,
+        "scene_obj_penetration_s_max": 98.74048978941781,
+        "scene_obj_penetration_frame_ratio": 0.2511901817883232,
+        "completed": 0.7857142857142857,
+        "source_floor_support_fraction": 0.6142445156749871,
+        "source_stance_foot_displacement_cm": 0.0,
+        "root_y_change_cm": 0.0,
+        "root_y_abs_change_cm": 0.0,
+        "hand_object_mean_drift_cm": 0.0,
+        "hand_object_max_drift_cm": 0.0,
+        "seam_joint_speed_cm_s": 55.08025319235666,
+        "mean_joint_speed_cm_s": 44.4847537449428,
+        "anchor_max_error_m": 0.0,
+        "root_max_change_m": 0.0,
+        "rotation_max_change_deg": 0.0,
+        "correction_speed_max_cm_s": 0.0,
+        "correction_speed_mean_cm_s": 0.0,
+        "correction_seam_speed_mean_cm_s": 0.0,
+        "body_displacement_cm": 0.0,
+        "native_anchor_max_error_m": 0.0,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      },
+      "correct_smooth": {
+        "feet_height": 3.2865374216011594,
+        "foot_sliding": 0.04667237890409976,
+        "hand_pen_loss_omomo": 0.2792976451993517,
+        "hand_pen_ratio": 0.1379387897572347,
+        "human_pen_loss_infbagel": 4.493130448864387,
+        "human_pen_ratio": 0.139213078206272,
+        "xy_points_err": 3.3004593902400563,
+        "end_obj_trans_err": 8.119794949223953,
+        "contact_percent": 0.4811247102715698,
+        "scene_human_penetration_s_mean": 0.7162037855928897,
+        "scene_human_penetration_s_max": 8.176817573074784,
+        "scene_human_penetration_frame_ratio": 0.29719147784635425,
+        "scene_obj_penetration_s_mean": 11.607790385747128,
+        "scene_obj_penetration_s_max": 98.74048978941781,
+        "scene_obj_penetration_frame_ratio": 0.2511901817883232,
+        "completed": 0.7857142857142857,
+        "source_floor_support_fraction": 0.29775597567537,
+        "source_stance_foot_displacement_cm": 6.048341844763074,
+        "root_y_change_cm": 2.79533066706998,
+        "root_y_abs_change_cm": 2.817117778318269,
+        "hand_object_mean_drift_cm": 13.592198746544975,
+        "hand_object_max_drift_cm": 34.030390569141936,
+        "seam_joint_speed_cm_s": 51.991180181503296,
+        "mean_joint_speed_cm_s": 45.59267578806196,
+        "anchor_max_error_m": 0.3412467177425112,
+        "root_max_change_m": 0.05546573230198452,
+        "rotation_max_change_deg": 20.000005415507726,
+        "correction_speed_max_cm_s": 126.07779107775006,
+        "correction_speed_mean_cm_s": 15.603088123457772,
+        "correction_seam_speed_mean_cm_s": 19.9664021219526,
+        "body_displacement_cm": 6.904186981064933,
+        "native_anchor_max_error_m": 0.34124668847237316,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      },
+      "correct_projected": {
+        "feet_height": 4.039938960756574,
+        "foot_sliding": 0.17657106270973802,
+        "hand_pen_loss_omomo": 0.5135128025269101,
+        "hand_pen_ratio": 0.19605653147612298,
+        "human_pen_loss_infbagel": 8.220253540645015,
+        "human_pen_ratio": 0.1962218753926988,
+        "xy_points_err": 3.3004593902400563,
+        "end_obj_trans_err": 8.119794949223953,
+        "contact_percent": 0.6681600647022209,
+        "scene_human_penetration_s_mean": 1.1973546736532756,
+        "scene_human_penetration_s_max": 13.459038351429626,
+        "scene_human_penetration_frame_ratio": 0.38749897240528036,
+        "scene_obj_penetration_s_mean": 11.607790385747128,
+        "scene_obj_penetration_s_max": 98.74048978941781,
+        "scene_obj_penetration_frame_ratio": 0.2511901817883232,
+        "completed": 0.7857142857142857,
+        "source_floor_support_fraction": 0.6142445156749871,
+        "source_stance_foot_displacement_cm": 1.4976355471065159e-05,
+        "root_y_change_cm": 0.36978361050465275,
+        "root_y_abs_change_cm": 0.3858924705002989,
+        "hand_object_mean_drift_cm": 2.497997310716268e-05,
+        "hand_object_max_drift_cm": 7.604928318219859e-05,
+        "seam_joint_speed_cm_s": 55.48371178763254,
+        "mean_joint_speed_cm_s": 44.80721071788243,
+        "anchor_max_error_m": 5.943249047187951e-07,
+        "root_max_change_m": 0.030892988849830414,
+        "rotation_max_change_deg": 9.613963919026512,
+        "correction_speed_max_cm_s": 21.770494597298757,
+        "correction_speed_mean_cm_s": 2.861497216991016,
+        "correction_seam_speed_mean_cm_s": 3.8426893055438995,
+        "body_displacement_cm": 1.2177996401275908,
+        "native_anchor_max_error_m": 7.588256798791398e-07,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      },
+      "wrong_smooth": {
+        "feet_height": 3.285525526319231,
+        "foot_sliding": 0.051958316185676166,
+        "hand_pen_loss_omomo": 0.26334190747832054,
+        "hand_pen_ratio": 0.1343238579242357,
+        "human_pen_loss_infbagel": 4.229436873967073,
+        "human_pen_ratio": 0.14109440648462623,
+        "xy_points_err": 3.3004593902400563,
+        "end_obj_trans_err": 8.119794949223953,
+        "contact_percent": 0.46189086318125067,
+        "scene_human_penetration_s_mean": 0.8314342090577286,
+        "scene_human_penetration_s_max": 8.32782757455217,
+        "scene_human_penetration_frame_ratio": 0.3151186540323709,
+        "scene_obj_penetration_s_mean": 11.607790385747128,
+        "scene_obj_penetration_s_max": 98.74048978941781,
+        "scene_obj_penetration_frame_ratio": 0.2511901817883232,
+        "completed": 0.7857142857142857,
+        "source_floor_support_fraction": 0.3093911413369434,
+        "source_stance_foot_displacement_cm": 6.315716036728451,
+        "root_y_change_cm": 2.7973717025348117,
+        "root_y_abs_change_cm": 3.0196354729788646,
+        "hand_object_mean_drift_cm": 13.387655173029218,
+        "hand_object_max_drift_cm": 33.67244304929461,
+        "seam_joint_speed_cm_s": 51.99531510898045,
+        "mean_joint_speed_cm_s": 45.734255926949636,
+        "anchor_max_error_m": 0.33964236000818865,
+        "root_max_change_m": 0.05936438058103834,
+        "rotation_max_change_deg": 20.000005313328334,
+        "correction_speed_max_cm_s": 127.46014254433769,
+        "correction_speed_mean_cm_s": 15.875478982925415,
+        "correction_seam_speed_mean_cm_s": 20.133004222597396,
+        "body_displacement_cm": 6.9409501893179755,
+        "native_anchor_max_error_m": 0.3396423320685114,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      },
+      "wrong_projected": {
+        "feet_height": 4.039938960756574,
+        "foot_sliding": 0.1765710030504321,
+        "hand_pen_loss_omomo": 0.5106066940933423,
+        "hand_pen_ratio": 0.19633533645953452,
+        "human_pen_loss_infbagel": 8.16379266000136,
+        "human_pen_ratio": 0.19650068037611032,
+        "xy_points_err": 3.3004593902400563,
+        "end_obj_trans_err": 8.119794949223953,
+        "contact_percent": 0.6681600647022209,
+        "scene_human_penetration_s_mean": 1.1859042006679894,
+        "scene_human_penetration_s_max": 13.500254423332601,
+        "scene_human_penetration_frame_ratio": 0.38284031501305954,
+        "scene_obj_penetration_s_mean": 11.607790385747128,
+        "scene_obj_penetration_s_max": 98.74048978941781,
+        "scene_obj_penetration_frame_ratio": 0.2511901817883232,
+        "completed": 0.7857142857142857,
+        "source_floor_support_fraction": 0.6142445156749871,
+        "source_stance_foot_displacement_cm": 1.4983884917845508e-05,
+        "root_y_change_cm": 0.3136964890374137,
+        "root_y_abs_change_cm": 0.36292187230927603,
+        "hand_object_mean_drift_cm": 2.4915627948627973e-05,
+        "hand_object_max_drift_cm": 7.534599710977221e-05,
+        "seam_joint_speed_cm_s": 55.42992309161595,
+        "mean_joint_speed_cm_s": 44.76496485301426,
+        "anchor_max_error_m": 5.786457504898732e-07,
+        "root_max_change_m": 0.0274936997531248,
+        "rotation_max_change_deg": 8.997378928320748,
+        "correction_speed_max_cm_s": 20.799945848328726,
+        "correction_speed_mean_cm_s": 2.623235813208989,
+        "correction_seam_speed_mean_cm_s": 3.6039185417549953,
+        "body_displacement_cm": 1.1252031124063901,
+        "native_anchor_max_error_m": 7.535675002096858e-07,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      }
+    },
+    "geometry_conditions": {
+      "improves_source": false,
+      "correct_scene_benefit": false
+    },
+    "motion_conditions": {
+      "mean_displacement": true,
+      "task_coverage": true
+    },
+    "protection_conditions": {
+      "contact": true,
+      "foot_sliding": true,
+      "object_scene": true,
+      "completion": true,
+      "source_floor_support": true,
+      "native_anchors": true,
+      "endpoint_locks": true,
+      "object_identity": true
+    },
+    "meaningful_task_count": 28,
+    "entry": false,
+    "audit": {
+      "source_joint_max_error_m": 0.0,
+      "source_metric_max_error": 0.0,
+      "source_fk_anchor_max_error_m": 7.633119025740598e-07,
+      "native_anchor_max_error_m": 1.2502775916800601e-06
+    },
+    "contrasts": {
+      "correct_smooth__minus__source": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 0.3412467177425112,
+            "ci": [
+              0.321925593180848,
+              0.36159100531201277
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": 6.904186981064933,
+            "ci": [
+              6.321708851626941,
+              7.633002222010066
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": -0.18703535443065133,
+            "ci": [
+              -0.2583726073998632,
+              -0.11382327546590179
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 19.9664021219526,
+            "ci": [
+              17.626569168056758,
+              22.44545986822673
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 126.07779107775006,
+            "ci": [
+              117.17299735205513,
+              135.72039509841372
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 15.603088123457772,
+            "ci": [
+              14.354461913023675,
+              16.922701257893017
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": -0.7534019649028778,
+            "ci": [
+              -1.4551028848758765,
+              -0.26024720498493764
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": -0.12989884296042717,
+            "ci": [
+              -0.18539310213284843,
+              -0.08085159243528753
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 34.03039056914193,
+            "ci": [
+              32.03600867986679,
+              36.1140133355345
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 13.592198746544973,
+            "ci": [
+              12.44022378197738,
+              14.813606648359977
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.23916430704632927,
+            "ci": [
+              -0.4512434214304964,
+              -0.0645260336133597
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": -0.06196626259147056,
+            "ci": [
+              -0.12019484324680109,
+              -0.01071267153518942
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -3.7770771127761344,
+            "ci": [
+              -7.12745104311703,
+              -1.0091698914754021
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.061022661975584924,
+            "ci": [
+              -0.11909523362410254,
+              -0.009741064682436606
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 1.107922043119158,
+            "ci": [
+              0.453453517811639,
+              1.710643351929528
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.3412466884723731,
+            "ci": [
+              0.3219255636978362,
+              0.36159094759662236
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": 0.05546573230198451,
+            "ci": [
+              0.0491189287177154,
+              0.06222945435770919
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": 2.8171177783182686,
+            "ci": [
+              2.4295789401978256,
+              3.280969102148499
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": 2.79533066706998,
+            "ci": [
+              2.3983256191015245,
+              3.2696621324334822
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 20.000005415507726,
+            "ci": [
+              20.00000500679016,
+              20.000005824225287
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.07751881477556058,
+            "ci": [
+              -0.12549565746116317,
+              -0.029750638827681544
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -5.202198689304558,
+            "ci": [
+              -12.177973282512642,
+              0.13082221982019338
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.4612963875053018,
+            "ci": [
+              -1.1403619891686891,
+              0.029823829611580335
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -3.0890730108533586,
+            "ci": [
+              -5.31318660378456,
+              -1.0784944704600745
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.31648853999961696,
+            "ci": [
+              -0.39114849386470657,
+              -0.2401046588551253
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 6.048341844763074,
+            "ci": [
+              5.368262084041323,
+              6.66042675354651
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 0.3412467177425112,
+            "ci": [
+              0.3216239831277302,
+              0.3621593852128301
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": 6.904186981064933,
+            "ci": [
+              6.190015230860029,
+              7.706787671361651
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": -0.18703535443065133,
+            "ci": [
+              -0.2444298236685719,
+              -0.1296408851927308
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 19.9664021219526,
+            "ci": [
+              17.97573033400944,
+              22.360958899770466
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 126.07779107775006,
+            "ci": [
+              112.75828661237443,
+              139.3972955431257
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 15.603088123457772,
+            "ci": [
+              14.236554912158422,
+              17.16257071495056
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": -0.7534019649028778,
+            "ci": [
+              -1.1979074350425174,
+              -0.37030790533338287
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": -0.12989884296042717,
+            "ci": [
+              -0.1510644665213559,
+              -0.10625913352397492
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 34.030390569141936,
+            "ci": [
+              31.973840168544225,
+              36.21593083654131
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 13.592198746544973,
+            "ci": [
+              12.426776477268763,
+              15.279110738209315
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.23916430704632927,
+            "ci": [
+              -0.3444976072704061,
+              -0.10652371517738046
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": -0.06196626259147056,
+            "ci": [
+              -0.08198443640555655,
+              -0.04194808877738458
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -3.777077112776135,
+            "ci": [
+              -5.428714725318377,
+              -1.6642768848734695
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.06102266197558492,
+            "ci": [
+              -0.08028645136593178,
+              -0.04211343269396041
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 1.1079220431191583,
+            "ci": [
+              0.5884994779314319,
+              1.6273446083068848
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.34124668847237316,
+            "ci": [
+              0.32162397461278097,
+              0.3621593037886279
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": 0.05546573230198451,
+            "ci": [
+              0.04907806217670441,
+              0.06424191381250109
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": 2.817117778318269,
+            "ci": [
+              2.489694056766374,
+              3.1694973834923337
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": 2.7953306670699805,
+            "ci": [
+              2.4485053845814297,
+              3.163578997765269
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 20.000005415507722,
+            "ci": [
+              20.000004802431377,
+              20.000005790165492
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.07751881477556061,
+            "ci": [
+              -0.11144367858235327,
+              -0.04455947370401453
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -5.2021986893045575,
+            "ci": [
+              -9.981304870818608,
+              -0.058059506251343374
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.4612963875053018,
+            "ci": [
+              -0.7374757192155812,
+              -0.1851170557950224
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -3.089073010853358,
+            "ci": [
+              -4.5438303606850745,
+              -1.5875461442129968
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.31648853999961696,
+            "ci": [
+              -0.40352062588291504,
+              -0.22439241402649454
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 6.048341844763074,
+            "ci": [
+              5.350258316312518,
+              6.647879907063075
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "correct_projected__minus__source": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 5.943249047187951e-07,
+            "ci": [
+              5.229920811470176e-07,
+              6.708621390468952e-07
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": 1.2177996401275906,
+            "ci": [
+              1.0936896513881427,
+              1.3477523015279853
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 3.8426893055438995,
+            "ci": [
+              3.4830567885722434,
+              4.199000936107976
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 21.770494597298757,
+            "ci": [
+              20.466708946228025,
+              23.062476428491724
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 2.861497216991016,
+            "ci": [
+              2.6204443202487058,
+              3.0992062531411646
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": -4.257474626813616e-07,
+            "ci": [
+              -2.3416110447474888e-06,
+              1.2772423880440847e-06
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": -1.5915478892104136e-07,
+            "ci": [
+              -4.3301820532808545e-07,
+              8.362254970211146e-08
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.604928318219857e-05,
+            "ci": [
+              6.980993248362209e-05,
+              8.268889719472229e-05
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 2.497997310716268e-05,
+            "ci": [
+              2.3721458676716012e-05,
+              2.6278044273502536e-05
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.004949149718770838,
+            "ci": [
+              -0.014591258345615999,
+              0.005066556129764063
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": -0.0038485208725822823,
+            "ci": [
+              -0.00836426310956345,
+              -0.0001653439165758235
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -0.04995402099550818,
+            "ci": [
+              -0.22219439422578344,
+              0.15579682243393372
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.004013864789158106,
+            "ci": [
+              -0.008518058474042585,
+              -0.000330687833151647
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.3224569729396275,
+            "ci": [
+              0.19088481834956575,
+              0.47077473231724326
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 7.588256798791398e-07,
+            "ci": [
+              6.967032150687454e-07,
+              8.248288138089167e-07
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": 0.030892988849830414,
+            "ci": [
+              0.025963880823941767,
+              0.03582638123480137
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.3858924705002989,
+            "ci": [
+              0.269838036530252,
+              0.5592015329216206
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": 0.36978361050465275,
+            "ci": [
+              0.24994668981526047,
+              0.5447596413682081
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 9.61396391902651,
+            "ci": [
+              8.585481829941273,
+              10.747829639485902
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.012788679783365555,
+            "ci": [
+              0.0012725183008504765,
+              0.028649200944762143
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 0.08002208905028445,
+            "ci": [
+              -0.33649871359645783,
+              0.5696574625060228
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.019854500555084087,
+            "ci": [
+              -0.02540064390731069,
+              0.07632900013980229
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.4034585952758789,
+            "ci": [
+              -0.04964985166277204,
+              0.8485072936330522
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 1.4976355471065159e-05,
+            "ci": [
+              1.338991692421132e-05,
+              1.636933378798793e-05
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 5.943249047187951e-07,
+            "ci": [
+              4.735371759474154e-07,
+              7.273127684876661e-07
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": 1.2177996401275908,
+            "ci": [
+              1.0514767318964005,
+              1.3841225483587811
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 3.8426893055438995,
+            "ci": [
+              3.497037623609815,
+              4.188340987477984
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 21.770494597298757,
+            "ci": [
+              21.133438842637197,
+              22.660621966634476
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 2.861497216991016,
+            "ci": [
+              2.556514471769333,
+              3.1745562148945674
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": -4.257474628399649e-07,
+            "ci": [
+              -1.915863582002686e-06,
+              1.0643686563227561e-06
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": -1.5915478891043167e-07,
+            "ci": [
+              -3.559795043253655e-07,
+              6.550669619242999e-08
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.604928318219859e-05,
+            "ci": [
+              6.73221315342484e-05,
+              8.667100077478349e-05
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 2.497997310716268e-05,
+            "ci": [
+              2.3690730618649726e-05,
+              2.6602348043525126e-05
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.004949149718770834,
+            "ci": [
+              -0.015237556880265374,
+              0.004238431537422538
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": -0.0038485208725822853,
+            "ci": [
+              -0.006055008287408528,
+              -0.0013227515986987542
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -0.04995402099550894,
+            "ci": [
+              -0.24628744775877687,
+              0.1507482642269653
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.004013864789158106,
+            "ci": [
+              -0.006431306113622012,
+              -0.0013227515986987542
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.3224569729396265,
+            "ci": [
+              0.2194025857107995,
+              0.49270132609776063
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 7.588256798791399e-07,
+            "ci": [
+              6.717396904118037e-07,
+              8.652575504340478e-07
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": 0.030892988849830418,
+            "ci": [
+              0.022968267323449254,
+              0.03881771037621158
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.3858924705002989,
+            "ci": [
+              0.2397340541439397,
+              0.5320508868566581
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": 0.36978361050465275,
+            "ci": [
+              0.2202781531959772,
+              0.5192890678133283
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 9.61396391902651,
+            "ci": [
+              8.343814654009684,
+              11.326292991638184
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.01278867978336555,
+            "ci": [
+              0.005291930532881198,
+              0.020064020462866317
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 0.08002208905028496,
+            "ci": [
+              -0.31379275223506253,
+              0.5241918984268392
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.01985450055508406,
+            "ci": [
+              0.003320723734629827,
+              0.03638827737553829
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.4034585952758789,
+            "ci": [
+              -0.13729769842965212,
+              0.8502754483904162
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 1.4976355471065159e-05,
+            "ci": [
+              1.3977542916368941e-05,
+              1.6014842507112398e-05
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "wrong_smooth__minus__source": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 0.33964236000818865,
+            "ci": [
+              0.3166764556297234,
+              0.36332178631398293
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": 6.9409501893179755,
+            "ci": [
+              6.333849148878029,
+              7.680765268419468
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": -0.2062692015209703,
+            "ci": [
+              -0.2728566483361783,
+              -0.14087696976165687
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 20.133004222597393,
+            "ci": [
+              17.89710698000022,
+              22.53727798930236
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 127.46014254433767,
+            "ci": [
+              117.13855201857429,
+              138.30122795104978
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 15.875478982925415,
+            "ci": [
+              14.558239411030495,
+              17.251222096596447
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": -0.7544138601848057,
+            "ci": [
+              -1.4387680696589604,
+              -0.2623167075216771
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": -0.12461290567885075,
+            "ci": [
+              -0.18090031395096776,
+              -0.07375004741436644
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 33.67244304929461,
+            "ci": [
+              31.160272075448717,
+              36.192851963213506
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 13.387655173029218,
+            "ci": [
+              12.187099016138484,
+              14.721780082157679
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.2551200447673604,
+            "ci": [
+              -0.45057574580988147,
+              -0.09303543359519857
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": -0.06558119442446955,
+            "ci": [
+              -0.12045848814138609,
+              -0.020170658618111976
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -4.04077068767345,
+            "ci": [
+              -7.131718649773409,
+              -1.4707242605544453
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.05914133369723069,
+            "ci": [
+              -0.11569216437887267,
+              -0.011011261064309764
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 1.249502182006836,
+            "ci": [
+              0.6688535281590052,
+              1.7770566804068422
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.3396423320685114,
+            "ci": [
+              0.31667644563796266,
+              0.3633217846176454
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": 0.05936438058103834,
+            "ci": [
+              0.05232030887688909,
+              0.06667051682514803
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": 3.019635472978864,
+            "ci": [
+              2.642147845295923,
+              3.4603260516588175
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": 2.7973717025348117,
+            "ci": [
+              2.2823509101888964,
+              3.3240095273192436
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 20.000005313328334,
+            "ci": [
+              20.00000487055097,
+              20.00000575695719
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.05959163858954395,
+            "ci": [
+              -0.10382865816687366,
+              -0.014017135576744189
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -5.051188687827172,
+            "ci": [
+              -12.281480208223051,
+              0.5928502260108608
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.34606596404046286,
+            "ci": [
+              -1.0567812804161283,
+              0.177348725968477
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -3.084938083376203,
+            "ci": [
+              -5.12074299624988,
+              -1.3392977893352518
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.30485337433804355,
+            "ci": [
+              -0.3801790265033819,
+              -0.22998011668512067
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 6.31571603672845,
+            "ci": [
+              5.5893197155424525,
+              6.974304029345512
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 0.33964236000818865,
+            "ci": [
+              0.31195499455290177,
+              0.37114992578114786
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": 6.9409501893179755,
+            "ci": [
+              6.189115371022906,
+              7.922708587987082
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": -0.2062692015209704,
+            "ci": [
+              -0.25245475299350195,
+              -0.15877379965144378
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 20.133004222597393,
+            "ci": [
+              17.845274141856603,
+              22.420734303338186
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 127.46014254433769,
+            "ci": [
+              116.91862079075403,
+              139.44958455221993
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 15.875478982925415,
+            "ci": [
+              14.173509785107203,
+              17.478998950549535
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": -0.7544138601848058,
+            "ci": [
+              -1.1825573231492723,
+              -0.3901513559477672
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": -0.12461290567885075,
+            "ci": [
+              -0.14450289861420462,
+              -0.102582477674793
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 33.67244304929461,
+            "ci": [
+              30.320122820990424,
+              37.11499387877328
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 13.387655173029218,
+            "ci": [
+              12.477715049471172,
+              15.07445674283164
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.2551200447673604,
+            "ci": [
+              -0.3021321908314738,
+              -0.1904763199352796
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": -0.06558119442446955,
+            "ci": [
+              -0.07007669627533428,
+              -0.06037561442436916
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -4.04077068767345,
+            "ci": [
+              -4.794127927580355,
+              -3.0614427435164266
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.05914133369723069,
+            "ci": [
+              -0.06822109505135035,
+              -0.050061572343111024
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 1.2495021820068342,
+            "ci": [
+              0.91257177080427,
+              1.604821273258752
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.3396423320685114,
+            "ci": [
+              0.31195493042469025,
+              0.37114993802138735
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": 0.05936438058103834,
+            "ci": [
+              0.052243709564208984,
+              0.06648505159786769
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": 3.019635472978864,
+            "ci": [
+              2.7648321773324693,
+              3.399473166891507
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": 2.7973717025348117,
+            "ci": [
+              2.3561089166573117,
+              3.292806719030653
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 20.000005313328337,
+            "ci": [
+              20.00000480243138,
+              20.00000582422529
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.059591638589543965,
+            "ci": [
+              -0.09281163862241167,
+              -0.03291007078119688
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -5.051188687827172,
+            "ci": [
+              -10.246221622086262,
+              0.7959660602999585
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.34606596404046286,
+            "ci": [
+              -0.645592482338543,
+              -0.13323243572709287
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -3.0849380833762012,
+            "ci": [
+              -4.497114658355709,
+              -1.6727615083966931
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.3048533743380436,
+            "ci": [
+              -0.38120903939540896,
+              -0.2284977092806782
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 6.315716036728451,
+            "ci": [
+              5.49798913512911,
+              6.966837661606926
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "wrong_projected__minus__source": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 5.786457504898732e-07,
+            "ci": [
+              5.155200450270213e-07,
+              6.44806156697391e-07
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": 1.12520311240639,
+            "ci": [
+              0.9962600660643407,
+              1.2643462673095718
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 3.603918541754995,
+            "ci": [
+              3.326975677215627,
+              3.867729602541242
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 20.799945848328726,
+            "ci": [
+              19.432078226549283,
+              22.208785255466186
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 2.623235813208989,
+            "ci": [
+              2.427739611001951,
+              2.8147235941674027
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": -4.257474626813616e-07,
+            "ci": [
+              -2.76735850742885e-06,
+              1.915863582066127e-06
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": -2.188140947866942e-07,
+            "ci": [
+              -5.324775451648314e-07,
+              6.927143320085476e-08
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.53459971097722e-05,
+            "ci": [
+              6.917679301068346e-05,
+              8.19124143812847e-05
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 2.4915627948627973e-05,
+            "ci": [
+              2.3726435365948157e-05,
+              2.6121862903697284e-05
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.007855258152338658,
+            "ci": [
+              -0.0172921096622198,
+              -0.00038159819563280247
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": -0.003569715889170766,
+            "ci": [
+              -0.007473669458912419,
+              -0.0006157628127506801
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -0.10641490163916245,
+            "ci": [
+              -0.26028676675538304,
+              0.029614850585886476
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.003735059805746589,
+            "ci": [
+              -0.007697611714580229,
+              -0.0007275121419557503
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.28021110807146343,
+            "ci": [
+              0.18194415909903391,
+              0.3859775168555123
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 7.535675002096858e-07,
+            "ci": [
+              6.918640495813731e-07,
+              8.193255097615243e-07
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": 0.0274936997531248,
+            "ci": [
+              0.02303973924634712,
+              0.03221783836322304
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.36292187230927603,
+            "ci": [
+              0.2540427327156067,
+              0.5362485326693526
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": 0.31369648903741365,
+            "ci": [
+              0.2004459274433819,
+              0.48974194066582377
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 8.997378928320748,
+            "ci": [
+              8.080489495822361,
+              9.95648982546159
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.008130022391144718,
+            "ci": [
+              -0.0012061519032743357,
+              0.0221532931567968
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 0.12123816095325829,
+            "ci": [
+              -0.3660761624156813,
+              0.7659450679036247
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.008404027569797887,
+            "ci": [
+              -0.036379833578939716,
+              0.06501062408541265
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.34966989925929476,
+            "ci": [
+              -0.0835110741002219,
+              0.7716739927019391
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 1.4983884917845508e-05,
+            "ci": [
+              1.3433577546655735e-05,
+              1.6304273274516035e-05
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 5.786457504898732e-07,
+            "ci": [
+              4.733804687922267e-07,
+              6.968468737917582e-07
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": 1.12520311240639,
+            "ci": [
+              0.9868705315249306,
+              1.2948323605316026
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 3.6039185417549953,
+            "ci": [
+              3.3845713308879306,
+              3.89441454410553
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 20.799945848328726,
+            "ci": [
+              18.934420534542628,
+              21.784817184720723
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 2.623235813208989,
+            "ci": [
+              2.4723623267241885,
+              2.8871843899999345
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": -4.257474627289426e-07,
+            "ci": [
+              -3.7252902985729364e-06,
+              2.022300447990233e-06
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": -2.1881409477397806e-07,
+            "ci": [
+              -6.798033131139025e-07,
+              1.0860199747830812e-07
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.534599710977221e-05,
+            "ci": [
+              6.576567921001697e-05,
+              8.688129368498006e-05
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 2.4915627948627973e-05,
+            "ci": [
+              2.3619545637692288e-05,
+              2.6403777805431412e-05
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": -0.007855258152338632,
+            "ci": [
+              -0.01803210889599019,
+              0.0011818607958958005
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": -0.003569715889170766,
+            "ci": [
+              -0.005328063986131136,
+              -0.002025174243109551
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": -0.10641490163916245,
+            "ci": [
+              -0.29438123403508065,
+              0.056703851295836216
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.0037350598057465864,
+            "ci": [
+              -0.005444945368383622,
+              -0.002025174243109551
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.28021110807146066,
+            "ci": [
+              0.23857770647321175,
+              0.3514259202139698
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 7.535675002096859e-07,
+            "ci": [
+              6.577943178090859e-07,
+              8.698461816233508e-07
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": 0.0274936997531248,
+            "ci": [
+              0.021549736049824526,
+              0.035907530009613504
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.3629218723092761,
+            "ci": [
+              0.23041925659137114,
+              0.5329786330195411
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": 0.31369648903741365,
+            "ci": [
+              0.2023275748360902,
+              0.4979154244065285
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 8.99737892832075,
+            "ci": [
+              8.525640819753919,
+              9.320031974996839
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.008130022391144714,
+            "ci": [
+              1.5718596322197853e-05,
+              0.01709769752674868
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 0.1212381609532589,
+            "ci": [
+              -0.3329640156339979,
+              0.7282988785633018
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.008404027569797905,
+            "ci": [
+              -0.018777121775201536,
+              0.035585176914797345
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.34966989925929326,
+            "ci": [
+              -0.10482328278678033,
+              0.7672279902866883
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": 1.4983884917845508e-05,
+            "ci": [
+              1.4118759379146337e-05,
+              1.5969260094347453e-05
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "correct_projected__minus__correct_smooth": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": -0.34124612341760646,
+            "ci": [
+              -0.36159046794413524,
+              -0.3219250058740653
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": -5.686387340937341,
+            "ci": [
+              -6.33981667461672,
+              -5.161260642989405
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.18703535443065133,
+            "ci": [
+              0.11382327546590174,
+              0.2583726073998631
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -16.123712816408702,
+            "ci": [
+              -18.410962709890942,
+              -13.944868811752116
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -104.3072964804513,
+            "ci": [
+              -113.69500780020441,
+              -95.48800438259329
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -12.741590906466756,
+            "ci": [
+              -13.96775014027953,
+              -11.550293785333633
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": 0.7534015391554151,
+            "ci": [
+              0.2602467286799635,
+              1.4551012963056562
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": 0.12989868380563824,
+            "ci": [
+              0.08085153755243882,
+              0.18539279621052826
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": -34.03031451985875,
+            "ci": [
+              -36.11393851836736,
+              -32.03592840555984
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": -13.592173766571866,
+            "ci": [
+              -14.813580891963918,
+              -12.440199454099227
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.23421515732755843,
+            "ci": [
+              0.06480720230563007,
+              0.43958865907424427
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": 0.05811774171888828,
+            "ci": [
+              0.00910702853330544,
+              0.11368998849232272
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 3.7271230917806264,
+            "ci": [
+              1.0552640625431104,
+              6.961369098597408
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": 0.05700879718642682,
+            "ci": [
+              0.007838365739111657,
+              0.11283304815338589
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.7854650701795305,
+            "ci": [
+              -1.389457847390856,
+              -0.13037592938968118
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": -0.34124592964669326,
+            "ci": [
+              -0.3615902492592187,
+              -0.32192480045091804
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": -0.0245727434521541,
+            "ci": [
+              -0.030480130357318558,
+              -0.018556557768273967
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": -2.4312253078179697,
+            "ci": [
+              -2.7800238613771007,
+              -2.1017394656115878
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": -2.425547056565327,
+            "ci": [
+              -2.781839264629941,
+              -2.089179779549262
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": -10.386041496481214,
+            "ci": [
+              -11.414523919352463,
+              -9.252175439681325
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.09030749455892613,
+            "ci": [
+              0.042240740150945,
+              0.14023552579871779
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 5.2822207783548425,
+            "ci": [
+              0.022673054582472665,
+              12.236639035089004
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.48115088806038586,
+            "ci": [
+              -0.031316523625615184,
+              1.205591939925268
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 3.4925316061292375,
+            "ci": [
+              1.5719294641699109,
+              5.583921601942607
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.31648853999961696,
+            "ci": [
+              0.2401046588551253,
+              0.39114849386470657
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -6.048326868407603,
+            "ci": [
+              -6.660412054394886,
+              -5.368248388044074
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": -0.3412461234176065,
+            "ci": [
+              -0.3621588491713962,
+              -0.3216234694397012
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": -5.686387340937342,
+            "ci": [
+              -6.424451101039137,
+              -5.138538498963628
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.18703535443065133,
+            "ci": [
+              0.1296408851927308,
+              0.2444298236685719
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -16.123712816408702,
+            "ci": [
+              -18.477727591991425,
+              -14.257984242268972
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -104.30729648045131,
+            "ci": [
+              -117.8798725605011,
+              -90.73472040040153
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -12.741590906466755,
+            "ci": [
+              -14.204297891684941,
+              -11.543678932956285
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": 0.753401539155415,
+            "ci": [
+              0.3703068409647259,
+              1.1979058384895325
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": 0.12989868380563824,
+            "ci": [
+              0.10625893399795971,
+              0.1510645320280521
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": -34.03031451985875,
+            "ci": [
+              -36.21586256011837,
+              -31.973768927549827
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": -13.592173766571866,
+            "ci": [
+              -15.27908704787949,
+              -12.426750859755364
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.23421515732755843,
+            "ci": [
+              0.1106606873837076,
+              0.3292600503901407
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": 0.058117741718888276,
+            "ci": [
+              0.03689655022961752,
+              0.07933893320815905
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 3.7271230917806255,
+            "ci": [
+              1.8274719777402275,
+              5.169980448919808
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": 0.05700879718642681,
+            "ci": [
+              0.036731206313041706,
+              0.07728638805981192
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.7854650701795318,
+            "ci": [
+              -1.3725568907601513,
+              -0.16013639313834105
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": -0.34124592964669326,
+            "ci": [
+              -0.3621586230319035,
+              -0.3216232637243743
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": -0.0245727434521541,
+            "ci": [
+              -0.0298626962383943,
+              -0.018551356491765807
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": -2.4312253078179697,
+            "ci": [
+              -2.629661439518843,
+              -2.217082314991525
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": -2.4255470565653274,
+            "ci": [
+              -2.634461886382529,
+              -2.2020526444539428
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": -10.386041496481214,
+            "ci": [
+              -11.656190999916621,
+              -8.673711810793195
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.09030749455892614,
+            "ci": [
+              0.06396204366215638,
+              0.1186389773418861
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 5.2822207783548425,
+            "ci": [
+              0.5822514046781826,
+              9.898301674884612
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.48115088806038586,
+            "ci": [
+              0.19973587862997577,
+              0.763213577848676
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 3.492531606129237,
+            "ci": [
+              2.2456616674150744,
+              4.7394015448434
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.31648853999961696,
+            "ci": [
+              0.22439241402649454,
+              0.40352062588291504
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -6.048326868407603,
+            "ci": [
+              -6.647864425038636,
+              -5.350244558192294
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "wrong_projected__minus__wrong_smooth": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": -0.33964178136243817,
+            "ci": [
+              -0.36332122022572333,
+              -0.3166758459974569
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": -5.8157470769115855,
+            "ci": [
+              -6.491284721690629,
+              -5.259558881499937
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.2062692015209703,
+            "ci": [
+              0.14087696976165687,
+              0.2728566483361783
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -16.5290856808424,
+            "ci": [
+              -18.86774700145636,
+              -14.367628880430544
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -106.66019669600895,
+            "ci": [
+              -117.07886842446668,
+              -96.85947774095195
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -13.252243169716426,
+            "ci": [
+              -14.616922957396932,
+              -11.955895160298262
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": 0.754413434437343,
+            "ci": [
+              0.2623145708015987,
+              1.4387684954064228
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": 0.12461268686475596,
+            "ci": [
+              0.07374986117202019,
+              0.18089967306759935
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": -33.672367703297496,
+            "ci": [
+              -36.19277698649968,
+              -31.160194341163805
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": -13.38763025740127,
+            "ci": [
+              -14.72175604703349,
+              -12.187072957583931
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.24726478661502174,
+            "ci": [
+              0.08914653776979467,
+              0.4380606691950613
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": 0.062011478535298786,
+            "ci": [
+              0.019006736109232796,
+              0.11373222560588533
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 3.934355786034287,
+            "ci": [
+              1.4150183023961762,
+              6.975568047672464
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": 0.055406273891484094,
+            "ci": [
+              0.009575004036222318,
+              0.10931210770421393
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.9692910739353724,
+            "ci": [
+              -1.5199536791869572,
+              -0.37532282641955794
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": -0.3396415785010112,
+            "ci": [
+              -0.3633210604775923,
+              -0.3166756583048944
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": -0.031870680827913535,
+            "ci": [
+              -0.03841744318072285,
+              -0.025301458519035286
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": -2.656713600669588,
+            "ci": [
+              -2.9773225995412624,
+              -2.335732042107598
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": -2.483675213497398,
+            "ci": [
+              -2.8947782396505186,
+              -2.0388294665192785
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": -11.002626385007586,
+            "ci": [
+              -11.919515644652503,
+              -10.04351535077606
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.06772166098068867,
+            "ci": [
+              0.02348145007521712,
+              0.11057472035421853
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 5.17242684878043,
+            "ci": [
+              -0.33790782465470587,
+              12.38776762664451
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.3544699916102607,
+            "ci": [
+              -0.18447116890472118,
+              1.0978156335306004
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 3.434607982635498,
+            "ci": [
+              1.7186824917793273,
+              5.4521843092782145
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.30485337433804355,
+            "ci": [
+              0.22998011668512067,
+              0.3801790265033819
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -6.315701052843532,
+            "ci": [
+              -6.974288550609511,
+              -5.589305689719361
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": -0.33964178136243817,
+            "ci": [
+              -0.3711493325964835,
+              -0.31195452117243305
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": -5.8157470769115855,
+            "ci": [
+              -6.627876227455479,
+              -5.12857216170856
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.2062692015209704,
+            "ci": [
+              0.15877379965144378,
+              0.25245475299350195
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -16.5290856808424,
+            "ci": [
+              -18.69524814401354,
+              -14.36292321767126
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -106.66019669600895,
+            "ci": [
+              -117.71562426430837,
+              -96.9993289198194
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -13.252243169716428,
+            "ci": [
+              -14.595517550195968,
+              -11.660596338765963
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": 0.7544134344373431,
+            "ci": [
+              0.3901490143367221,
+              1.182556365217481
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": 0.12461268686475596,
+            "ci": [
+              0.10258218317868094,
+              0.14450254622698375
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": -33.672367703297496,
+            "ci": [
+              -37.11491682743177,
+              -30.320057055311217
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": -13.38763025740127,
+            "ci": [
+              -15.074432788162994,
+              -12.477688837760914
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.24726478661502174,
+            "ci": [
+              0.19124687785928732,
+              0.296978530598478
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": 0.06201147853529879,
+            "ci": [
+              0.05856937868520619,
+              0.06463735178112984
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 3.9343557860342875,
+            "ci": [
+              3.118146594812263,
+              4.712560605402112
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": 0.0554062738914841,
+            "ci": [
+              0.04803639810000147,
+              0.06277614968296673
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.9692910739353735,
+            "ci": [
+              -1.3410511016845703,
+              -0.5975310461861767
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": -0.3396415785010112,
+            "ci": [
+              -0.37114916664414266,
+              -0.31195427263037245
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": -0.03187068082791354,
+            "ci": [
+              -0.034863130089693835,
+              -0.02887823156613324
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": -2.656713600669588,
+            "ci": [
+              -2.8731585184910466,
+              -2.534412920741098
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": -2.4836752134973983,
+            "ci": [
+              -2.8015942562903677,
+              -2.119455933271508
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": -11.002626385007586,
+            "ci": [
+              -11.47436398267746,
+              -10.679973508630479
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.06772166098068869,
+            "ci": [
+              0.04019888384001596,
+              0.0960969853747104
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": 5.172426848780431,
+            "ci": [
+              -0.06766718173665676,
+              10.15354684312063
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.35446999161026077,
+            "ci": [
+              0.14146309184434358,
+              0.6810028233719225
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 3.4346079826354945,
+            "ci": [
+              2.369616031646725,
+              4.606322697230745
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.3048533743380436,
+            "ci": [
+              0.2284977092806782,
+              0.38120903939540896
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -6.315701052843532,
+            "ci": [
+              -6.966822151273423,
+              -5.497974693020621
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "correct_projected__minus__wrong_projected": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 1.5679154228921884e-08,
+            "ci": [
+              -7.062472714583884e-09,
+              3.9864346287491304e-08
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": 0.09259652772120067,
+            "ci": [
+              0.013989906252494884,
+              0.18476852827838489
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 0.23877076378890444,
+            "ci": [
+              -0.051566078247768536,
+              0.586028180058513
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 0.9705487489700317,
+            "ci": [
+              -0.6154685390847069,
+              2.751248354571204
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 0.2382614037820271,
+            "ci": [
+              0.0419358376945768,
+              0.4778994558645145
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": 0.0,
+            "ci": [
+              -2.128737313406808e-06,
+              2.0223004477364673e-06
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": 5.965930586565285e-08,
+            "ci": [
+              -2.13307126591491e-07,
+              3.398542611901503e-07
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.032860724263757e-07,
+            "ci": [
+              -2.341757096603812e-06,
+              3.7970942993784507e-06
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 6.434515853470657e-08,
+            "ci": [
+              -1.3956591828900856e-07,
+              2.699782872436376e-07
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.002906108433567819,
+            "ci": [
+              -0.001080084597658372,
+              0.008116137883169875
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": -0.00027880498341151645,
+            "ci": [
+              -0.002155172505549022,
+              0.001289679535797664
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 0.05646088064365427,
+            "ci": [
+              -0.012473728238932476,
+              0.15353561065557103
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.00027880498341151645,
+            "ci": [
+              -0.002155172505549022,
+              0.001289679535797664
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.04224586486816406,
+            "ci": [
+              -0.03251475436346871,
+              0.11950885908944266
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 5.258179669453966e-09,
+            "ci": [
+              -2.5373125213588664e-08,
+              3.6464361638114204e-08
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": 0.0033992890967056155,
+            "ci": [
+              0.0009624800283095932,
+              0.006290458201380843
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.022970598191022873,
+            "ci": [
+              -0.004969630563365558,
+              0.055352620161803694
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": 0.056087121467239084,
+            "ci": [
+              0.0072169492836110325,
+              0.12409834734280593
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 0.6165849907057626,
+            "ci": [
+              -0.015561210470540179,
+              1.4441906780004494
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.0046586573922208375,
+            "ci": [
+              -0.00026846328816775754,
+              0.009678166156767734
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -0.04121607190297384,
+            "ci": [
+              -0.22756221276317123,
+              0.09067857427476798
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.011450472985286198,
+            "ci": [
+              -0.0019064659367618983,
+              0.02806121178143386
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.05378869601658412,
+            "ci": [
+              -0.1460372303213392,
+              0.25778154901095796
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -7.529446780348994e-09,
+            "ci": [
+              -2.085179756607301e-07,
+              1.9694076261852646e-07
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 1.567915422892187e-08,
+            "ci": [
+              1.4122970729398915e-09,
+              2.994601138490385e-08
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": 0.0925965277212007,
+            "ci": [
+              -0.014875901596886787,
+              0.2964471387011665
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": 0.23877076378890427,
+            "ci": [
+              -0.09118860534259254,
+              0.7292898978505813
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": 0.9705487489700317,
+            "ci": [
+              -0.6625511475971759,
+              3.7373742376055024
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": 0.2382614037820271,
+            "ci": [
+              -0.01904572759355816,
+              0.6730415757213319
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": -1.1102230246251565e-16,
+            "ci": [
+              -1.27724238829785e-06,
+              1.7029898505827035e-06
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": 5.96593058635464e-08,
+            "ci": [
+              -1.3706138089070175e-07,
+              3.3046442593498426e-07
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 7.032860724263777e-07,
+            "ci": [
+              -1.5735461472234236e-06,
+              2.515317776539761e-06
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 6.434515853470657e-08,
+            "ci": [
+              -7.671974344703073e-08,
+              1.9857023809371395e-07
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.0029061084335677972,
+            "ci": [
+              0.0014067957506215256,
+              0.00451697753435705
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": -0.00027880498341151944,
+            "ci": [
+              -0.0019071570464542845,
+              0.0012896795357976581
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 0.05646088064365351,
+            "ci": [
+              0.027244442723527662,
+              0.09413468075301967
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.00027880498341151944,
+            "ci": [
+              -0.0019071570464542845,
+              0.0012896795357976581
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": 0.04224586486816584,
+            "ci": [
+              -0.02967153276715706,
+              0.1378735133579827
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 5.258179669453966e-09,
+            "ci": [
+              -1.8254272252501587e-08,
+              2.436511944584445e-08
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": 0.0033992890967056173,
+            "ci": [
+              0.00030680809036961847,
+              0.008472527926122506
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": 0.02297059819102286,
+            "ci": [
+              -0.023702925337212438,
+              0.08329992235771246
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": 0.05608712146723909,
+            "ci": [
+              -0.002845702593081742,
+              0.16405293478497435
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 0.6165849907057626,
+            "ci": [
+              -0.2285827057702201,
+              2.146530636719295
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": 0.004658657392220836,
+            "ci": [
+              0.0030009174453360654,
+              0.007065102724092345
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -0.04121607190297394,
+            "ci": [
+              -0.22754001904312227,
+              0.0894703801189145
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": 0.011450472985286154,
+            "ci": [
+              -7.119400730256492e-05,
+              0.022097845509831363
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": 0.053788696016585646,
+            "ci": [
+              -0.03247441564287179,
+              0.1107930455889008
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -7.529446780349237e-09,
+            "ci": [
+              -2.0873845382344123e-07,
+              1.9367956026274275e-07
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      },
+      "correct_smooth__minus__wrong_smooth": {
+        "task": {
+          "anchor_max_error_m": {
+            "delta": 0.001604357734322548,
+            "ci": [
+              -0.014957016526854465,
+              0.01889309814598943
+            ],
+            "n": 28
+          },
+          "body_displacement_cm": {
+            "delta": -0.036763208253043037,
+            "ci": [
+              -0.1799465911728995,
+              0.09992842227220532
+            ],
+            "n": 28
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "contact_percent": {
+            "delta": 0.019233847090319,
+            "ci": [
+              -0.01474246371557991,
+              0.05624183899494488
+            ],
+            "n": 28
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -0.16660210064479283,
+            "ci": [
+              -1.0132797083684375,
+              0.6689297722918642
+            ],
+            "n": 28
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -1.3823514665876115,
+            "ci": [
+              -8.811042952537536,
+              6.348869153431481
+            ],
+            "n": 28
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -0.27239085946764263,
+            "ci": [
+              -0.670070948771068,
+              0.12567774312836752
+            ],
+            "n": 28
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "feet_height": {
+            "delta": 0.0010118952819279262,
+            "ci": [
+              -0.024214698267834525,
+              0.03011769482067653
+            ],
+            "n": 28
+          },
+          "foot_sliding": {
+            "delta": -0.005285937281576409,
+            "ci": [
+              -0.011192961008148816,
+              -0.0003163473149814116
+            ],
+            "n": 28
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 0.35794751984732487,
+            "ci": [
+              -1.4002229401043482,
+              2.178841429948806
+            ],
+            "n": 28
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 0.20454357351575578,
+            "ci": [
+              -0.18444603426115852,
+              0.6122888803482055
+            ],
+            "n": 28
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.015955737721031125,
+            "ci": [
+              -0.05977349028864661,
+              0.09021291074179973
+            ],
+            "n": 28
+          },
+          "hand_pen_ratio": {
+            "delta": 0.003614931832998991,
+            "ci": [
+              -0.014900278885449682,
+              0.025322449699576408
+            ],
+            "n": 28
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 0.2636935748973152,
+            "ci": [
+              -0.9423593887715884,
+              1.4702280721856482
+            ],
+            "n": 28
+          },
+          "human_pen_ratio": {
+            "delta": -0.001881328278354236,
+            "ci": [
+              -0.016824122365298014,
+              0.014614373332421677
+            ],
+            "n": 28
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.14158013888767787,
+            "ci": [
+              -0.5610592901706695,
+              0.22178641727992449
+            ],
+            "n": 28
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.001604356403861727,
+            "ci": [
+              -0.014957071614584752,
+              0.018893020733126566
+            ],
+            "n": 28
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "root_max_change_m": {
+            "delta": -0.003898648279053824,
+            "ci": [
+              -0.009245765741382327,
+              -7.76469707489018e-05
+            ],
+            "n": 28
+          },
+          "root_y_abs_change_cm": {
+            "delta": -0.20251769466059547,
+            "ci": [
+              -0.3829934167010443,
+              -0.021532828733325148
+            ],
+            "n": 28
+          },
+          "root_y_change_cm": {
+            "delta": -0.002041035464831761,
+            "ci": [
+              -0.23268289480890544,
+              0.2728969048708674
+            ],
+            "n": 28
+          },
+          "rotation_max_change_deg": {
+            "delta": 1.0217939104352678e-07,
+            "ci": [
+              -4.4277736118861603e-07,
+              6.130763462611607e-07
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.017927176186016625,
+            "ci": [
+              -0.03248051507398486,
+              -0.00517521836528821
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -0.15101000147738627,
+            "ci": [
+              -0.9391427411498235,
+              0.682133728501919
+            ],
+            "n": 28
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.11523042346483894,
+            "ci": [
+              -0.22274732975118758,
+              -0.016756720882092166
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -0.0041349274771554125,
+            "ci": [
+              -0.9681614671434674,
+              0.932864298139299
+            ],
+            "n": 28
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.01163516566157341,
+            "ci": [
+              -0.047950081394187036,
+              0.01772876836891683
+            ],
+            "n": 28
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -0.2673741919653756,
+            "ci": [
+              -0.5148314397249902,
+              -0.019205894427640192
+            ],
+            "n": 28
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 28
+          }
+        },
+        "scene": {
+          "anchor_max_error_m": {
+            "delta": 0.001604357734322548,
+            "ci": [
+              -0.014026094760213575,
+              0.01723481022885867
+            ],
+            "n": 4
+          },
+          "body_displacement_cm": {
+            "delta": -0.03676320825304291,
+            "ci": [
+              -0.20676847015108346,
+              0.09557898555483146
+            ],
+            "n": 4
+          },
+          "completed": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "contact_percent": {
+            "delta": 0.01923384709031903,
+            "ci": [
+              0.0015922727864598335,
+              0.03630848498047383
+            ],
+            "n": 4
+          },
+          "correction_seam_speed_mean_cm_s": {
+            "delta": -0.16660210064479308,
+            "ci": [
+              -1.4129681416920246,
+              0.6948477540697358
+            ],
+            "n": 4
+          },
+          "correction_speed_max_cm_s": {
+            "delta": -1.3823514665876075,
+            "ci": [
+              -6.873014313834048,
+              3.784817695617676
+            ],
+            "n": 4
+          },
+          "correction_speed_mean_cm_s": {
+            "delta": -0.2723908594676434,
+            "ci": [
+              -0.7305433239255645,
+              0.20108348982674684
+            ],
+            "n": 4
+          },
+          "end_obj_trans_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "feet_height": {
+            "delta": 0.0010118952819280214,
+            "ci": [
+              -0.026209013802664494,
+              0.031119052852903062
+            ],
+            "n": 4
+          },
+          "foot_sliding": {
+            "delta": -0.0052859372815764125,
+            "ci": [
+              -0.012089268930020072,
+              0.0012590542287333533
+            ],
+            "n": 4
+          },
+          "hand_object_max_drift_cm": {
+            "delta": 0.3579475198473263,
+            "ci": [
+              -1.5911632265363416,
+              2.307058266230994
+            ],
+            "n": 4
+          },
+          "hand_object_mean_drift_cm": {
+            "delta": 0.20454357351575547,
+            "ci": [
+              -0.15946928092411605,
+              0.5471853188105991
+            ],
+            "n": 4
+          },
+          "hand_pen_loss_omomo": {
+            "delta": 0.015955737721031114,
+            "ci": [
+              -0.07289654698711598,
+              0.08510316800993677
+            ],
+            "n": 4
+          },
+          "hand_pen_ratio": {
+            "delta": 0.003614931832998991,
+            "ci": [
+              -0.017113320130322664,
+              0.024343183796320646
+            ],
+            "n": 4
+          },
+          "human_pen_loss_infbagel": {
+            "delta": 0.2636935748973154,
+            "ci": [
+              -1.1619733333948088,
+              1.3971658586429572
+            ],
+            "n": 4
+          },
+          "human_pen_ratio": {
+            "delta": -0.0018813282783542336,
+            "ci": [
+              -0.01752382929303816,
+              0.013761172736329694
+            ],
+            "n": 4
+          },
+          "initial_final_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "mean_joint_speed_cm_s": {
+            "delta": -0.14158013888767584,
+            "ci": [
+              -0.5026856149945953,
+              0.09356910841806076
+            ],
+            "n": 4
+          },
+          "native_anchor_max_error_m": {
+            "delta": 0.001604356403861723,
+            "ci": [
+              -0.014026067086628513,
+              0.01723477989435196
+            ],
+            "n": 4
+          },
+          "object_max_error_m": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "root_max_change_m": {
+            "delta": -0.003898648279053821,
+            "ci": [
+              -0.00783338717051914,
+              -0.0012918731995991313
+            ],
+            "n": 4
+          },
+          "root_y_abs_change_cm": {
+            "delta": -0.20251769466059544,
+            "ci": [
+              -0.3509228272097451,
+              -0.05411256211144577
+            ],
+            "n": 4
+          },
+          "root_y_change_cm": {
+            "delta": -0.0020410354648316975,
+            "ci": [
+              -0.31747684947081967,
+              0.3935207341398511
+            ],
+            "n": 4
+          },
+          "rotation_max_change_deg": {
+            "delta": 1.02179390282231e-07,
+            "ci": [
+              -5.449567535009692e-07,
+              7.493155340654312e-07
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_frame_ratio": {
+            "delta": -0.017927176186016636,
+            "ci": [
+              -0.024228787315743322,
+              -0.01162556505628995
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_max": {
+            "delta": -0.15101000147738636,
+            "ci": [
+              -1.1587850297135964,
+              0.8567650267588238
+            ],
+            "n": 4
+          },
+          "scene_human_penetration_s_mean": {
+            "delta": -0.11523042346483894,
+            "ci": [
+              -0.21606582390709908,
+              -0.05188462006792954
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_frame_ratio": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_max": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "scene_obj_penetration_s_mean": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          },
+          "seam_joint_speed_cm_s": {
+            "delta": -0.0041349274771569355,
+            "ci": [
+              -0.7405606678553998,
+              0.7402517454964741
+            ],
+            "n": 4
+          },
+          "source_floor_support_fraction": {
+            "delta": -0.011635165661573417,
+            "ci": [
+              -0.03749763100807156,
+              0.014227299684924727
+            ],
+            "n": 4
+          },
+          "source_stance_foot_displacement_cm": {
+            "delta": -0.2673741919653758,
+            "ci": [
+              -0.36428007057734924,
+              -0.14540286575044892
+            ],
+            "n": 4
+          },
+          "xy_points_err": {
+            "delta": 0.0,
+            "ci": [
+              0.0,
+              0.0
+            ],
+            "n": 4
+          }
+        }
+      }
+    },
+    "expert_forwards": 496,
+    "training_allowed": false,
+    "test_set_development": true,
+    "task_coverage": {
+      "source": {
+        "improved": 10,
+        "worsened": 14,
+        "equal": 4
+      },
+      "wrong_projected": {
+        "improved": 6,
+        "worsened": 18,
+        "equal": 4
+      }
+    },
+    "remaining27": {
+      "source": {
+        "anchor_max_error_m": {
+          "delta": 5.818395020764068e-07,
+          "ci": [
+            5.134985485842368e-07,
+            6.556182862448589e-07
+          ],
+          "n": 27
+        },
+        "body_displacement_cm": {
+          "delta": 1.2143733545585915,
+          "ci": [
+            1.0839421802096896,
+            1.3465321750276618
+          ],
+          "n": 27
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "contact_percent": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "correction_seam_speed_mean_cm_s": {
+          "delta": 3.85088543538694,
+          "ci": [
+            3.474195266211474,
+            4.218211855491003
+          ],
+          "n": 27
+        },
+        "correction_speed_max_cm_s": {
+          "delta": 21.683855374654133,
+          "ci": [
+            20.34287948608398,
+            23.0495162681297
+          ],
+          "n": 27
+        },
+        "correction_speed_mean_cm_s": {
+          "delta": 2.8597633286758706,
+          "ci": [
+            2.6011033419657634,
+            3.1067919234434758
+          ],
+          "n": 27
+        },
+        "end_obj_trans_err": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "feet_height": {
+          "delta": -4.415158872251157e-07,
+          "ci": [
+            -2.4283373797381366e-06,
+            1.3245476616753472e-06
+          ],
+          "n": 27
+        },
+        "foot_sliding": {
+          "delta": -1.6508179892888606e-07,
+          "ci": [
+            -4.4833657140898833e-07,
+            8.032082841745289e-08
+          ],
+          "n": 27
+        },
+        "hand_object_max_drift_cm": {
+          "delta": 7.519182839098869e-05,
+          "ci": [
+            6.896960405558478e-05,
+            8.188516238718605e-05
+          ],
+          "n": 27
+        },
+        "hand_object_mean_drift_cm": {
+          "delta": 2.4822760173669343e-05,
+          "ci": [
+            2.3558592169205507e-05,
+            2.6136789621752406e-05
+          ],
+          "n": 27
+        },
+        "hand_pen_loss_omomo": {
+          "delta": -0.005104444405198457,
+          "ci": [
+            -0.015164212225634533,
+            0.005116499693679508
+          ],
+          "n": 27
+        },
+        "hand_pen_ratio": {
+          "delta": -0.0039910586826779225,
+          "ci": [
+            -0.008727264194749295,
+            -0.00017146776533789103
+          ],
+          "n": 27
+        },
+        "human_pen_loss_infbagel": {
+          "delta": -0.05217151244641661,
+          "ci": [
+            -0.23119937961549783,
+            0.15781517233205491
+          ],
+          "n": 27
+        },
+        "human_pen_ratio": {
+          "delta": -0.004162526448015813,
+          "ci": [
+            -0.008904498484399583,
+            -0.00034293553067578207
+          ],
+          "n": 27
+        },
+        "initial_final_max_error_m": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "mean_joint_speed_cm_s": {
+          "delta": 0.3278989438657407,
+          "ci": [
+            0.1874540434943305,
+            0.47835862018443914
+          ],
+          "n": 27
+        },
+        "native_anchor_max_error_m": {
+          "delta": 7.502552724266327e-07,
+          "ci": [
+            6.884189144468816e-07,
+            8.167422880102616e-07
+          ],
+          "n": 27
+        },
+        "object_max_error_m": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "root_max_change_m": {
+          "delta": 0.03082603007486021,
+          "ci": [
+            0.025733057102964568,
+            0.03610182721771438
+          ],
+          "n": 27
+        },
+        "root_y_abs_change_cm": {
+          "delta": 0.385885841316647,
+          "ci": [
+            0.2646083518862724,
+            0.563468575587979
+          ],
+          "n": 27
+        },
+        "root_y_change_cm": {
+          "delta": 0.36918035687671763,
+          "ci": [
+            0.24368829109395543,
+            0.5504349478727413
+          ],
+          "n": 27
+        },
+        "rotation_max_change_deg": {
+          "delta": 9.608880122502644,
+          "ci": [
+            8.549221527355687,
+            10.776729094761388
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_frame_ratio": {
+          "delta": 0.01061062218138465,
+          "ci": [
+            -0.0003707673331653625,
+            0.026147424655587028
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_s_max": {
+          "delta": 0.05411525222438353,
+          "ci": [
+            -0.3796467523331995,
+            0.5707605345623077
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_s_mean": {
+          "delta": 0.015663532951967443,
+          "ci": [
+            -0.031312313333101985,
+            0.0736149475486686
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_s_max": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "seam_joint_speed_cm_s": {
+          "delta": 0.3770708154748987,
+          "ci": [
+            -0.09284870006419993,
+            0.8424291646039044
+          ],
+          "n": 27
+        },
+        "source_floor_support_fraction": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "source_stance_foot_displacement_cm": {
+          "delta": 1.5531035303326832e-05,
+          "ci": [
+            1.4443457787702183e-05,
+            1.6652592333449084e-05
+          ],
+          "n": 27
+        },
+        "xy_points_err": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        }
+      },
+      "wrong_projected": {
+        "anchor_max_error_m": {
+          "delta": 1.4400719629116388e-08,
+          "ci": [
+            -8.926907910820234e-09,
+            3.951636210680825e-08
+          ],
+          "n": 27
+        },
+        "body_displacement_cm": {
+          "delta": 0.09547184242142571,
+          "ci": [
+            0.012784530746716039,
+            0.1933549067488423
+          ],
+          "n": 27
+        },
+        "completed": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "contact_percent": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "correction_seam_speed_mean_cm_s": {
+          "delta": 0.24398995108074611,
+          "ci": [
+            -0.058643334717662234,
+            0.6123212410344017
+          ],
+          "n": 27
+        },
+        "correction_speed_max_cm_s": {
+          "delta": 0.9288033556055139,
+          "ci": [
+            -0.7454156473830893,
+            2.7835641176612285
+          ],
+          "n": 27
+        },
+        "correction_speed_mean_cm_s": {
+          "delta": 0.24651313490337795,
+          "ci": [
+            0.040745305683877735,
+            0.4932174875228492
+          ],
+          "n": 27
+        },
+        "end_obj_trans_err": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "feet_height": {
+          "delta": 0.0,
+          "ci": [
+            -2.099959938614454e-06,
+            2.0972004643192997e-06
+          ],
+          "n": 27
+        },
+        "foot_sliding": {
+          "delta": 6.186890978660295e-08,
+          "ci": [
+            -2.1540726863137736e-07,
+            3.479369229959975e-07
+          ],
+          "n": 27
+        },
+        "hand_object_max_drift_cm": {
+          "delta": 1.1575837696134975e-06,
+          "ci": [
+            -1.9233450428954608e-06,
+            4.256870436249839e-06
+          ],
+          "n": 27
+        },
+        "hand_object_mean_drift_cm": {
+          "delta": 5.5492448693796715e-08,
+          "ci": [
+            -1.5128561059369798e-07,
+            2.674576914311425e-07
+          ],
+          "n": 27
+        },
+        "hand_pen_loss_omomo": {
+          "delta": 0.002983344853014892,
+          "ci": [
+            -0.0011494781323630444,
+            0.008311058833762082
+          ],
+          "n": 27
+        },
+        "hand_pen_ratio": {
+          "delta": -0.0002891310939082393,
+          "ci": [
+            -0.002234993709458245,
+            0.001278909820097464
+          ],
+          "n": 27
+        },
+        "human_pen_loss_infbagel": {
+          "delta": 0.057828465395275495,
+          "ci": [
+            -0.01348020675919967,
+            0.15835562304528147
+          ],
+          "n": 27
+        },
+        "human_pen_ratio": {
+          "delta": -0.0002891310939082393,
+          "ci": [
+            -0.002234993709458245,
+            0.001278909820097464
+          ],
+          "n": 27
+        },
+        "initial_final_max_error_m": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "mean_joint_speed_cm_s": {
+          "delta": 0.04118841665762442,
+          "ci": [
+            -0.035190271448206016,
+            0.12121927473280163
+          ],
+          "n": 27
+        },
+        "native_anchor_max_error_m": {
+          "delta": 9.839434748452428e-09,
+          "ci": [
+            -2.0984188582647053e-08,
+            4.095098668067797e-08
+          ],
+          "n": 27
+        },
+        "object_max_error_m": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "root_max_change_m": {
+          "delta": 0.0035512138468523817,
+          "ci": [
+            0.001060697075445205,
+            0.006636837884542286
+          ],
+          "n": 27
+        },
+        "root_y_abs_change_cm": {
+          "delta": 0.02368751333819495,
+          "ci": [
+            -0.005336102218953547,
+            0.05712666144870497
+          ],
+          "n": 27
+        },
+        "root_y_change_cm": {
+          "delta": 0.05803057451353029,
+          "ci": [
+            0.0063821958283100414,
+            0.13109682100928488
+          ],
+          "n": 27
+        },
+        "rotation_max_change_deg": {
+          "delta": 0.6194490238472267,
+          "ci": [
+            -0.03804314026126155,
+            1.4922258701589368
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_frame_ratio": {
+          "delta": 0.00326625547475285,
+          "ci": [
+            -0.0012009444956978161,
+            0.007339428779151703
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_s_max": {
+          "delta": -0.061821589530963034,
+          "ci": [
+            -0.255850376073202,
+            0.06527980887481975
+          ],
+          "n": 27
+        },
+        "scene_human_penetration_s_mean": {
+          "delta": 0.005869542316456014,
+          "ci": [
+            -0.004591913091658002,
+            0.01706865790639077
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_frame_ratio": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_s_max": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "scene_obj_penetration_s_mean": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "seam_joint_speed_cm_s": {
+          "delta": 0.031003634134928383,
+          "ci": [
+            -0.17135547796885173,
+            0.2363017965246129
+          ],
+          "n": 27
+        },
+        "source_floor_support_fraction": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        },
+        "source_stance_foot_displacement_cm": {
+          "delta": -7.808315179621179e-09,
+          "ci": [
+            -2.099170274050266e-07,
+            2.0986734794119167e-07
+          ],
+          "n": 27
+        },
+        "xy_points_err": {
+          "delta": 0.0,
+          "ci": [
+            0.0,
+            0.0
+          ],
+          "n": 27
+        }
+      }
+    },
+    "evidence_breadth_conditions": {
+      "source_remaining27": false,
+      "source_task_coverage": false,
+      "wrong_projected_remaining27": false,
+      "wrong_projected_task_coverage": false
+    },
+    "incremental_evidence": false,
+    "secondary": {
+      "query_maxima": {
+        "encoded_coarse_body_max_error_m": 5.960464477539062e-07,
+        "native_coarse_body_max_error_m": 0.0014986991882324219,
+        "native_all_frame_body_roundtrip_max_error_m": 0.005975157022476196,
+        "identity_lift_max_error": 0.0
+      },
+      "encoded_window_maxima": {
+        "position_world_max_error_m": 4.76837158203125e-07,
+        "rotation_world_max_error": 4.76837158203125e-07,
+        "object_world_max_error_m": 4.76837158203125e-07,
+        "object_rotation_world_max_error": 3.5762786865234375e-07
+      },
+      "legacy_position_difference_mean_cm": 4.12174260712439,
+      "native_human_query_error": 0.0,
+      "query_other_arguments_exact": true,
+      "dynamic_object_observations_exact": true,
+      "context_world_max_error_m": 0.0,
+      "query_windows": 124,
+      "projection_count": 112,
+      "amplitude_counts": {
+        "correct": {
+          "0.5": 44,
+          "0.25": 7,
+          "1.0": 5
+        },
+        "wrong": {
+          "0.5": 44,
+          "0.25": 10,
+          "1.0": 2
+        }
+      },
+      "retained_smooth_fraction_mean": {
+        "correct": 0.1815109376662544,
+        "wrong": 0.1674621920766575
+      },
+      "global_projection_maxima": {
+        "anchor_max_error_m": 9.991558727051597e-07,
+        "native_anchor_max_error_m": 1.2502775916800601e-06,
+        "root_max_change_m": 0.05701802670955658,
+        "rotation_max_change_deg": 18.35748291015625,
+        "correction_speed_max_cm_s": 29.7149658203125,
+        "correction_speed_mean_cm_s": 4.990081310272217,
+        "correction_seam_speed_mean_cm_s": 7.014006614685059,
+        "initial_final_max_error_m": 0.0,
+        "object_max_error_m": 0.0
+      },
+      "correct_contact_task_max_difference": 0.0,
+      "correct_support_task_max_difference": 0.0,
+      "teacher_query_seconds_sum": 35.50659956783056,
+      "teacher_forward_seconds_sum": 18.221645621582866,
+      "projection_seconds_sum": 1820.9158779755235,
+      "peak_memory_gib": 1.4783711433410645,
+      "task375": {
+        "source": 5.862795829772949,
+        "correct_smooth": 2.5690906047821045,
+        "correct_projected": 5.995806455612183,
+        "wrong_smooth": 3.3922187089920044,
+        "wrong_projected": 5.8336708545684814
+      },
+      "lane_source_commits": [
+        "f75781e2a592059a27d463407edf28dda0cca017"
+      ],
+      "lane_completion_commits": [
+        "f75781e2a592059a27d463407edf28dda0cca017"
+      ]
+    },
+    "execution": {
+      "exits": [
+        {
+          "name": "lane-00",
+          "gpu": 0,
+          "tasks": [
+            375,
+            373
+          ],
+          "exitcode": 0,
+          "seconds": 165.32025063037872
+        },
+        {
+          "name": "lane-01",
+          "gpu": 0,
+          "tasks": [
+            372,
+            422,
+            332,
+            18
+          ],
+          "exitcode": 0,
+          "seconds": 315.655924545601
+        },
+        {
+          "name": "lane-02",
+          "gpu": 1,
+          "tasks": [
+            423,
+            333,
+            19
+          ],
+          "exitcode": 0,
+          "seconds": 233.6153769362718
+        },
+        {
+          "name": "lane-03",
+          "gpu": 2,
+          "tasks": [
+            374,
+            424,
+            334,
+            20
+          ],
+          "exitcode": 0,
+          "seconds": 329.04768699780107
+        },
+        {
+          "name": "lane-04",
+          "gpu": 3,
+          "tasks": [
+            371,
+            425,
+            335
+          ],
+          "exitcode": 0,
+          "seconds": 269.83138187229633
+        },
+        {
+          "name": "lane-05",
+          "gpu": 4,
+          "tasks": [
+            376,
+            426,
+            14
+          ],
+          "exitcode": 0,
+          "seconds": 242.18657764419913
+        },
+        {
+          "name": "lane-06",
+          "gpu": 5,
+          "tasks": [
+            377,
+            329,
+            15
+          ],
+          "exitcode": 0,
+          "seconds": 241.19100477918983
+        },
+        {
+          "name": "lane-07",
+          "gpu": 6,
+          "tasks": [
+            420,
+            330,
+            16
+          ],
+          "exitcode": 0,
+          "seconds": 238.26187688484788
+        },
+        {
+          "name": "lane-08",
+          "gpu": 7,
+          "tasks": [
+            421,
+            331,
+            17
+          ],
+          "exitcode": 0,
+          "seconds": 261.2951929345727
+        }
+      ],
+      "seconds": 789.6284899003804,
+      "unstarted": []
+    },
+    "registered_draw_arm_rows": 280,
+    "source_commit": "f75781e",
+    "resource_contention": true,
+    "timing_comparison_valid": false,
+    "verification": {
+      "component_passed": 25,
+      "authority_passed": 1113,
+      "authority_skipped": 4,
+      "authority_seconds": 233.86,
+      "registry_records": 415
+    },
+    "audit_fix_equivalence": {
+      "previous_run": "p2-mixer-hsi-geometry-increment-r1-s42-20260908",
+      "current_run": "p2-mixer-hsi-geometry-increment-r2-s42-20260908",
+      "teacher_tasks": [
+        {
+          "task": 375,
+          "exact_tensor_count": 444
+        },
+        {
+          "task": 372,
+          "exact_tensor_count": 224
+        },
+        {
+          "task": 422,
+          "exact_tensor_count": 180
+        },
+        {
+          "task": 373,
+          "exact_tensor_count": 224
+        },
+        {
+          "task": 374,
+          "exact_tensor_count": 180
+        },
+        {
+          "task": 371,
+          "exact_tensor_count": 356
+        },
+        {
+          "task": 376,
+          "exact_tensor_count": 312
+        },
+        {
+          "task": 15,
+          "exact_tensor_count": 92
+        },
+        {
+          "task": 329,
+          "exact_tensor_count": 136
+        },
+        {
+          "task": 377,
+          "exact_tensor_count": 268
+        },
+        {
+          "task": 420,
+          "exact_tensor_count": 136
+        },
+        {
+          "task": 421,
+          "exact_tensor_count": 444
+        }
+      ],
+      "teacher_tensor_count": 2996,
+      "all_teacher_tensors_exact": true,
+      "completed_tasks": [
+        15,
+        329,
+        372,
+        375,
+        377
+      ],
+      "native_and_auxiliary_metric_max_difference": 0.0
+    },
+    "prior_failed_runs": [
+      "p2-mixer-hsi-geometry-increment-s42-20260908",
+      "p2-mixer-hsi-geometry-increment-r1-s42-20260908"
+    ],
+    "total_actual_hsi_forwards_including_failed_runs": 804
+  },
+  "pilot_performance": {
+    "task": 375,
+    "native_frames": 426,
+    "coarse_frames": 142,
+    "windows": 10,
+    "simultaneous_task_batch": 1,
+    "full_native_grid_in_projection": true,
+    "pose_fitting_iterations": 80,
+    "newton_restorations_per_iteration": 5,
+    "draw_view_pairs": 4,
+    "projection_seconds": [
+      12.169842671602964,
+      7.40838891454041,
+      21.355493435636163,
+      20.04755720309913
+    ],
+    "mean_projection_seconds": 15.245320556219667,
+    "teacher_query_seconds": 2.7857842687517405,
+    "teacher_forward_seconds": 1.350382249802351,
+    "pilot_two_task_lane_seconds": 158.8558413013816,
+    "pilot_two_task_lane_peak_memory_gib": 1.4783711433410645,
+    "source_native_metric_error": 0.0,
+    "direct_encoded_coarse_body_error_m": 4.76837158203125e-07,
+    "identity_lift_error": 0.0,
+    "resource_contention": true,
+    "timing_comparison_valid": false,
+    "includes": "Full source375 projection with native426-frame grid; GPU-synchronized timer includes fitting, restoration and feasibility checks. Lane timing/memory includes both373 and375."
+  },
+  "conclusion": "No incremental value over strong geometry: C HS+1.69%, worse than W, all breadth gates fail; meaningful body motion and all protections pass.",
+  "limitations": [
+    "28 repeatedly used development tasks across4scenes; no independent generalization or cross-seed claim.",
+    "Current native-FK input encoding differs from2.31; valid comparison is paired C/W on current G.",
+    "Smooth correct-scene signal survives before projection but loses engagement; this experiment does not isolate teacher-direction versus feasible-space responsibility.",
+    "Two failed runs retained;804actual teacher forwards across attempts.",
+    "Shared eight3090GPUs; timing is descriptive and not a fair speed comparison."
+  ],
+  "completion_verification": {
+    "authority_passed": 1113,
+    "authority_skipped": 4,
+    "authority_seconds": 217.34,
+    "authority_log": "results/hsi-geometry-increment-preflight-s42-20260908/authority-completion.log",
+    "registry_records": 416,
+    "git_diff_check": true,
+    "figure_reviewed": true,
+    "process_local_thp_disabled": true
+  }
+}
