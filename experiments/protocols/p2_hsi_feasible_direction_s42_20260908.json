@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "phase": "2.33",
+  "component": "hsi-feasible-direction",
+  "seed": 42,
+  "authorization": "User approved the single feasible-direction diagnostic on2026-09-08.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "geometry_run": "results/experiments/p2-mixer-hsi-motion-target-r1-s42-20260908",
+  "geometry_arm": "relation_20",
+  "body_cache": "results/experiments/p2-mixer-hsi-geometry-increment-r2-s42-20260908",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-geometry-increment-r2-s42-20260908/input_references.json",
+  "arms": [
+    "source",
+    "correct_quarter",
+    "correct_unit",
+    "wrong_quarter",
+    "wrong_unit",
+    "geometry_quarter",
+    "geometry_unit"
+  ],
+  "training_allowed": false,
+  "test_set_development": true,
+  "scope": "One cached native28 diagnostic at the strong geometry solution before terminal repair; correct/wrong retain both existing draws. No new expert forwards, training,HOI generation,terminal or469.",
+  "coordinates": "Same69 normalized tangent coordinates and native beta-dependent FK as2.32: rootXYZ/.05m and22 right-local SO3 increments/10deg. First6/final3 fixed. Same native six hands/feet anchors,object fixed.",
+  "directions": "For each of2 correct/wrong cached smooth targets use root translation difference and Log(Rsource.T Rtarget), in normalized coordinates. Compute exact current native full-body HS gradient g through native SMPL-X and scene SDF,all vertices/all frames,in24-frame chunks. g uses the same native HS sum-over-vertices/time-mean scale. Raw geometry direction is -g. Apply P=I-J^+J at the source,with fixed endpoint rows zero,to each of5 directions. This is the same first-iteration tangent projection as2.32; no additional smoothing/filter/optimization is added.",
+  "normalization": "Normalize each nonzero projected direction to1mm linearized RMS displacement over the24 FK points and all frames; exact zero directions remain zero and are counted. Apply one common per-task scalar<=1 across all5 directions so linearized root max<=5mm,each joint angle max<=2deg,source-relative joint velocity max<=30cm/s and all-frame/seam mean<=10cm/s. Report achieved amplitude and every limiting quantity; this is kinematic normalization,not score selection.",
+  "steps": {
+    "primary": 1.0,
+    "secondary": 0.25,
+    "central_derivative_negative": -0.25
+  },
+  "retraction": "For each fixed positive step rotate/translate directly along its source direction,then exactly20 existing Newton anchor restorations. No pose-fitting loop,amplitude backtracking,score selection or iterative gradient refresh. Native SMPL-X reconstructs all results,source first6/final3 vertices/joints copied exactly. Keep every candidate including any feasibility failure. The -0.25 step is an HS-only central-derivative audit,with the same retraction; it is never selected.",
+  "evaluation": "All15 native metrics plus numeric completion for each positive step/view/draw and source; existing anchor,body displacement,contact,source-floor support,object/endpoints and correction-speed measures. Geometry/source are identical acrossdraws and evaluated once,duplicated only for the paired reporting layout. 28x2x7=392 declared rows,308unique positive/native evaluations. Save all source/direction/positive/negative retracted poses and all scalar audits.",
+  "audit": "Source native16/joints reproduce sealed geometry within1e-5. Exact zero coordinate decode is identity. Match differentiable HS scalar atq=0 to native HS within1e-5. Record g norms,projected norm ratios,Jd residuals,raw/projected directional derivatives,cosines to -Pg,per-frame derivatives,actual finite HS changes and central finite difference. Native six-anchor tolerance1e-5m; endpoint/object exact. Classify derivative-vs-finite disagreement explicitly; voxel/penetration kinks and finite scale preclude requiring every real central derivative to be exact.",
+  "protection": "Same2.32 native protections: contact drop<=.002,FS increase<=.01cm,OS<=1.01source,completion nondecrease,source-floor support drop<=.002,native anchors<=1e-5m,endpoint/object identity. Same final motion limits root10cm,joint20deg,correction speeds30/10/10cm/s. Every failed candidate stays in full denominator; no method routing or fallback replaces its result.",
+  "decision": "Primary step1 fixed before results;quarter step is scale sensitivity,never used to choose a winner. HSI local-use signal requires negative mean C-G and C-W HS differences atprimary,remaining27 also both negative,and at least as many improved as worsened tasks for both comparisons,ties neutral; require all protection conditions and report task/scene95% intervals. Geometry reference with negative mean and more improved than worsened tasks under protection establishes local feasible opportunity. If geometry opportunity exists but HSI signal fails,report teacher/readout misalignment. If HSI signal passes while2.32 finalprojection failed,report evidence for a limited-step readout proposal. If none improve,report only lack of demonstrated local opportunity under this normalization; do not claim global infeasibility. Native sourceHSzero and zero/weak gradient tasks remain visible.",
+  "uncertainty": "10000seed42 paired task andscene bootstrap via existing helpers onGPU,all native and direction metrics. Full28primary;predeclared375 remaining27 and task coverage. Only4scenes,repeated-development sample,no independent/generalization/cross-seed claim.",
+  "execution": "First formal375 full426frame task provides functional/full-length gradient/retraction performance; then8GPU lanes remaining27. Same process-local THPdisable and4CPUthreads as2.32;otherHSItraining untouched,contention recorded. No extra smoke or new hash mechanism. Full authority suite before release;all exact Hydra configs and machine preflight archived.",
+  "completion": "Preregistration,one logical implementation,completion;reuse existing evaluator/diagnostics and body projection utilities,component tests,full28artifacts,allfailedresults,compactJSON,phase summary,figure andone-page report;localphase02integration/tag. Stop after this diagnostic; neither integration of HSI into469 nor a next experiment is authorized by its scientific outcome."
+}
