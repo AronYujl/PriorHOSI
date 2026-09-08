@@ -13,6 +13,7 @@ LINGO scene takes two minutes to voxelize.
 import math
 import sys
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 import torch
@@ -24,6 +25,20 @@ from priors.hsi import metrics as M
 
 
 JOINTS = 28
+
+
+def test_root_safety_uses_pelvis_native_time_axis_and_y_height():
+    time = torch.arange(6, dtype=torch.float64) / 10
+    positions = torch.zeros(6, 28, 3, dtype=torch.float64)
+    positions[:, 0, 0] = 30 * time.square()
+    positions[:, 0, 1] = 0.55
+    values = M.root_safety_metrics(SimpleNamespace(frames=positions), fps=10)
+    assert abs(values["root_acc_max"] - 60) < 1e-10
+    assert values["frames_over_5g"] == 4
+    assert values["pelvis_h_min"] == 0.55
+    positions[:, 0, 0] = 0
+    positions[:, 1, 0] = 300 * time.square()
+    assert M.root_safety_metrics(SimpleNamespace(frames=positions), fps=10)["frames_over_5g"] == 0
 
 
 class HalfSpaceBelowZero:

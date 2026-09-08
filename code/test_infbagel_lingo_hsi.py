@@ -398,6 +398,7 @@ def compute_metric_record(
     record.update(hsi_metrics.goal_error_decomposition(joints.frames[:, 0], goal))
     record.update(hsi_metrics.jerk_metrics(joints, fps=fps))
     record.update(hsi_metrics.transition_distance(joints))
+    record.update(hsi_metrics.root_safety_metrics(joints, fps=fps))
     record["frame_count"] = float(len(joints))
     record["window_count"] = float(len(joints.window_lengths))
     record["finite_motion"] = float(bool(torch.isfinite(joints.frames).all()))
@@ -3595,6 +3596,9 @@ def main(cfg: DictConfig) -> None:
     elif mode == "table3":
         from priors.hsi.text_motion import table3_readout
         path = table3_readout(cfg)
+    elif mode == "cm_distillation_readout":
+        from priors.hsi.text_motion import cm_distillation_readout
+        path = cm_distillation_readout(cfg)
     elif mode == "qualitative_cache":
         from priors.hsi.visualization import prepare_paired_review
         path = prepare_paired_review(cfg)

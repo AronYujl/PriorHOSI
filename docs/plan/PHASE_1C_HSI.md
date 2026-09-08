@@ -13393,3 +13393,12 @@ teacher latency则复用；当前清单没有该结果，因此预备两条固�
 manifest。真实验证由正式评估首批执行承担。仅增加轻量指标读出，denoiser/采样数学与形状
 保持原值，训练性能benchmark不重跑，无新增smoke/哈希工具。最终交付完整表格、配对CI、
 固定失败分析、资源与协议差异、明确gate判定及CM1.2交接；不进入下一phase。
+
+
+### CM1.2 实现验证
+
+Protocol标签从artifact读取；root safety读出复用native FK joints；CM paired-ratio/gate
+位于HSI text_motion组件，由既有evaluator mode分发。所有采样/训练计算保持原值。
+定向72项通过；authority450 passed、3 skipped。八个准备中的质量/latency配置均通过
+Hydra完整解析。主机Python3.8的本地预览命令最初用了3.9的字符串方法，已改为切片；
+该错误发生在任何本轮run id/manifest创建之前。Registry validation通过。

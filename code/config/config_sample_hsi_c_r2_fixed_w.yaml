@@ -5,6 +5,7 @@ sample_type: consistency
 w: 1
 guidance_weight: 1
 use_guidance: true
+hsi_guidance_posterior_coef1: false
 hsi_progress_fix: true
 occ_permute_fix: true
 hsi_compute_rds: false

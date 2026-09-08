@@ -129,6 +129,18 @@ TOE_JOINTS: Tuple[int, ...] = (10, 11)
 FOOT_JOINTS: Tuple[int, ...] = (7, 8, 10, 11)
 PELVIS_JOINT = 0
 
+
+def root_safety_metrics(joints, fps):
+    """Frozen pelvis safety readout on the native y-up FK time axis."""
+    root = joints.frames[:, PELVIS_JOINT]
+    acceleration = (root[2:] - 2 * root[1:-1] + root[:-2]) * float(fps) ** 2
+    magnitude = torch.linalg.vector_norm(acceleration, dim=-1)
+    return {
+        "root_acc_max": float(magnitude.max()),
+        "frames_over_5g": float((magnitude > 5 * 9.81).sum()),
+        "pelvis_h_min": float(root[:, 1].min()),
+    }
+
 _EPS = 1e-12
 
 
