@@ -4631,3 +4631,38 @@ curve without tuning. See PHASE_2X_ROUTE_CONTINUATION.md and compact
 p2_mixer_route_continuation_s42_20260908.json. Source4943a60, tag
 exp/p2x-route-continuation-v1. One subphase only;2.26/full policy/441/469 remain
 unstarted. Next proposal requires independent-domain valid-future supervision.
+
+## 2026-09-08 — Phase2.28 native-surface whole-motion editing (authorized)
+
+User approves the subsequent benchmark-focused experiments, explicitly allowing direct
+InfBaGel paper HOSI-test metrics; generating its motions is optional. HSI-specific
+benefit and universal per-window improvement are removed from this new phase's
+entry criteria. Earlier registered failures remain unchanged.
+
+Branch phase/02y-surface-edit; protocol
+`experiments/protocols/p2_surface_edit_s42_20260908.json`. This single offline-editor
+phase contains native28 development, matched independent/common relation arms at
+fixed10/20cm bounds, separately reported terminal repair, and conditional fixed469
+evaluation. P15/ArmB sources, core, experts, native metrics and duration stay fixed.
+The editor replaces per-window geometry editing with complete native decoded motion
+optimization, using full human/object surfaces and Scene_sdf. Six leg joints provide
+support adjustment; source upper-body local pose and common human/object transforms
+preserve manipulation. New edits never become subsequent generation history.
+
+The protocol specifies all objective units/weights,20/40 source-risk-dependent steps,
+0.5s cubic fields, fixed first6/final3 frames, same-budget independent-motion ablation,
+a separate final1s/5cm goal correction and full task reporting. Source and every
+iterate use the same objective; select its minimum. No weight/score/curve search
+follows beyond the two registered bounds. Native28 eligibility uses OS>=10% reduction
+and aggregate HS/contact/completion/FS protections, not confidence-bound perfection.
+A qualifying relation arm automatically enters the already-authorized complete469
+comparison; its formula is frozen before remaining task outcomes. All469 have prior
+use, and development exposure is disclosed. Direct paper comparisons are unpaired.
+
+Before execution: resolved configs, full authority suite, registry validation and
+clean committed source. Use8RTX3090 for physical computation. Functional checks and
+synchronized timing are contained in the formal workload; no extra smoke or hashing
+scheme. Reuse sealed input identities. No core or expert modifications/training.
+Deliver every negative candidate, native15, task/scene uncertainty, saved motion,
+fixed visual evidence and phase summary. Phase2.27's adaptation-training suggestion
+is superseded in priority by this newly approved deadline-focused experiment.

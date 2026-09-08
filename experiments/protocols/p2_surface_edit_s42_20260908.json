@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "phase": "2.28",
+  "component": "surface-edit",
+  "seed": 42,
+  "authorization": "User approved the subsequent experiments on 2026-09-08; InfBaGel paper HOSI-test metrics may be directly cited; generating released-baseline motion is optional.",
+  "scope": "One offline-editing phase: fixed native28 development, same-budget relation ablation at two registered bounds, separate terminal repair, then conditional fixed full469 evaluation. No expert training or HSI contribution gate.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-conditional-repair-native-r1-s42-20260907",
+  "source_arm": "B0_hoi",
+  "source_resolved_config": "results/experiments/p2-mixer-conditional-repair-native-r1-s42-20260907/resolved/B0_hoi-0.yaml",
+  "input_identity_reference": "results/experiments/p2-mixer-conditional-repair-native-r1-s42-20260907/input_references.json",
+  "test_set_development": true,
+  "training_allowed": false,
+  "source": "Frozen P15 online + Arm B500, original 16/2 rollout and 30Hz native decode; reuse exact saved full B0 motions on native28. Subsequent full469 sources use the same per-episode seed42+canonical ordinal convention and original targets/time budget. Existing older scene-seeded full469 rows remain separate.",
+  "arms": [
+    "source",
+    "independent_10",
+    "relation_10",
+    "independent_20",
+    "relation_20",
+    "terminal"
+  ],
+  "editing": {
+    "representation": "Native decoded SMPL-X pose/translation and rigid object motion, fixed shape. Horizontal common translation and yaw about original pelvis; independent arm has separate object horizontal translation/yaw. Six hip/knee/ankle local rotations can adjust support, with upper-body local pose fixed.",
+    "temporal": "Cubic B-spline control field, knot spacing 0.5 seconds. Freeze first6 native frames and final3 held frames; quintic 0.5-second entrance/exit envelope. No generated-history feedback after editing.",
+    "bounds": [
+      {
+        "name": "10",
+        "translation_m": 0.1,
+        "yaw_deg": 10.0
+      },
+      {
+        "name": "20",
+        "translation_m": 0.2,
+        "yaw_deg": 20.0
+      }
+    ],
+    "leg_rotation_component_deg": 20.0,
+    "optimizer": "Adam",
+    "learning_rate": 0.05,
+    "steps_low_risk": 20,
+    "steps_high_risk": 40,
+    "risk_threshold_mean_depth_m": 0.005,
+    "risk": "Sum of source full-human/full-object mean negative SDF depths. Same source-dependent step count for every arm; zero penetration returns the source.",
+    "objective": {
+      "surface": "sum of full-human and full-object mean relu(-SDF)/0.01m; native Scene_sdf axes/scaling/interpolation",
+      "support_position": "fixed-source low ankle/toe mask; mean squared XYZ displacement/(0.02m)^2, weight1",
+      "support_velocity": "fixed-source adjacent support pairs; squared velocity-change/(0.03m/s)^2, weight0.2",
+      "residual": "mean squared bounded normalized horizontal/yaw/leg changes, weight0.05",
+      "temporal": "mean squared adjacent control-field changes, weight0.05",
+      "domain": "squared new/increased distance outside native SDF cube/(0.01m)^2, weight10"
+    },
+    "selection": "Lowest complete registered objective among source and visited iterates; no native metric table is used inside this choice. Save every optimized term, gradient finite state, control field and timing. Equal budgets for relation/independent arms.",
+    "geometry": "All SMPL-X vertices and full object mesh in objective; original native15 definitions unchanged, including official object subsampling, 5cm contact, 10cm completion, source task length and floor estimator. Native output geometry drives final evaluation.",
+    "memory": "GPU frame chunks24 with one-frame overlap for temporal derivatives; no approximate vertex subset or CPU physical optimization."
+  },
+  "terminal": {
+    "scope": "Separate arm after deterministic development selection; successful tasks are exact identity. If no editing arm meets entry protections use B0 as terminal source and retain failed scene edits.",
+    "target": "For each failing pelvis XZ/object XYZ endpoint, move toward its supplied goal, aiming8cm distance and capping each translation norm at5cm. Quintic ramp over final1 second, fixed first6 and held last3; original motion duration unchanged.",
+    "repair": "20 Adam steps, lr0.05, same surface/support terms, six upper-arm/elbow/wrist local rotations plus six leg rotations; joint bounds20deg. Active source native hands within5cm retain their object-frame anchors, squared error/(0.01m)^2, weight1. Transform endpoints are prescribed; no extra future or new object goal.",
+    "accept": "Retain corrected whole task iff completion changes false to true, contact loss<=2pp, FS increase<=0.02cm, and each native HS/OS increase<=0.05. Otherwise retain input. Report candidates and all reasons; these are task-level method choices, not erased experiments."
+  },
+  "evaluation": {
+    "primary": "OS s_mean on full tasks; HS s_mean, contact, completion, FS, endpoints and all other native15 fields retained. Realism audits and fixed videos are descriptive.",
+    "development_choice": "Eligible relation arm: OS at least10% below B0, HS mean<=B0, contact mean>=B0-0.02, completion count>=B0, FS mean<=B0+0.02cm, world hand-object maximum relation drift<=1e-4m, initial/final motion unchanged. Select lower OS, tie favors10cm. No confidence-bound or per-window all-improve gate.",
+    "full469_entry": "Automatic within user approval if a relation arm meets development_choice. Freeze bound/steps/objective/terminal rule. Evaluate source, selected independent ablation, selected relation and relation+terminal on all469; old28 remains development-used and remaining441 has historical use.",
+    "uncertainty": "10000 paired bootstrap replicates seed42; task and scene units; no frame independence or cross-training-seed inference. Fixed-method uncertainty does not correct adaptive test-set development.",
+    "paper_reference": {
+      "method": "InfBaGel Hybrid, paper HOSI-test",
+      "HS": 3.17,
+      "OS": 12.45,
+      "FS": 0.15,
+      "contact_percent": 76.96,
+      "success_percent": 81.45,
+      "comparison": "Direct paper reference authorized. External aggregate, unpaired, historical representation; no locally rerun significance claim."
+    }
+  },
+  "verification": "Full authority pytest tests and registry validation. Source native reconstruction/metric equality and differentiable surface/rigid-relation/end-lock checks. Real-data evaluation and synchronized compute timings inside registered workload; no additional smoke workload, new hashing mechanism or defensive wrappers. Frozen core/expert paths unchanged.",
+  "completion": "One preregistration, one logical implementation and one completion commit for this phase; preserve operational/scientific failures and immutable outputs. Deliver compact result, all task/scene tables, fixed videos, phase summary and next entry."
+}
