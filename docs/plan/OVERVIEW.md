@@ -320,3 +320,14 @@ rollout/full469 and learned training remain deferred; this closes only2.13.
 2026-09-07: Phase2.15 scene-prior conditional repair authorized; one candidate with full development rollout and gated469. See latest Phase2 plan; prior DP NO-GO remains unchanged.
 
 2026-09-07 user correction: Phase2.15 develops on fixed28 data/hosi_test tasks with complete native SDF metrics, then conditional469. Original24 LINGO development proposal is superseded before runs.
+
+## 2026-09-08 — Phase2.28 whole-motion surface editing complete
+
+The user-authorized benchmark-focused phase completes all469 tasks with frozen
+relation20 and separate terminal repair. FinalHS2.8861/OS12.0710/S85.7143% improve on
+the external InfBaGel Hybrid paper points; contact69.2397%,FS.1714cm andPbody6.1010
+retain deficits. Matched independent20 loses8.24pp contact relative to relation20.
+All native metrics, task/scene intervals, development exposure, fine-SDF/offline
+compute differences and failures are retained. Read
+[PHASE_2Y_SURFACE_EDIT](../phase_summaries/PHASE_2Y_SURFACE_EDIT.md) and the latest
+Phase2 plan before continuing. No next-phase experiment has started.

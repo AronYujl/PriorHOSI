@@ -4768,3 +4768,33 @@ physical performance run is needed because its executed path is unchanged.
 Statistics correction verified:13 component checks and full authority1101 passed,
 4 existing skips,210.80s (authority-statistics-final.log). Motion-generation and
 optimization settings remain the frozen49ac532 version.
+
+### Phase2.28 closure — measured benchmark gains, 2026-09-08
+
+All authorized work is complete: native28 relation ablation at10/20, separate
+terminal28, fresh469 source, matched independent20/relation20 and terminal469.
+The frozen relation20 passes full aggregate protections. SourceHS6.953108/OS32.001672
+becomes2.890980/12.102161 with exact contact.692011 and357/469 completion preservation.
+Independent20 reachesOS8.949761 butcontact.609641. Terminal restores45/112 failures,
+producing402/469 (.857143),HS2.886076/OS12.070963/C.692397/FS.171446cm.
+
+The final HS/OS/success point estimates improve upon the authorized external paper
+Hybrid3.17/12.45/.8145; contact/FS/Pbody retain their measured deficits. Native15 plus
+completion, all task/scene intervals, per-object outcomes and all failed candidates
+are preserved. Task completion gain95% CI is[.070362,.123667], scene[.072495,.121535].
+The registered statistics addendum at989eeb2 leaves all original means exact and
+existing intervals within1.39e-17. Three earlier operational failures remain sealed.
+No source/expert training, InfBaGel rerun or next-phase workload was added.
+
+Full source compatibility:28 repeated tasks reproduce original joints and metrics
+exactly. Main163/469 motions change; max hand-relative error7.7504e-7m and all locked
+endpoint/initial position errors0. HS improves136 tasks and increases21; OS improves160
+and increases0 at1e-6 tolerance. All469 have historical development use. Full SDF and
+offline compute distinguish this setup from the paper's direct generation row.
+
+Closure references: experiments/results/p2_mixer_surface_edit_s42_20260908.json and
+[PHASE_2Y_SURFACE_EDIT](../phase_summaries/PHASE_2Y_SURFACE_EDIT.md); tag
+exp/p2y-surface-edit-v1. The next entry is paper preparation from the actual measured
+scope. Any new algorithmic direction requires a separate concrete proposal.
+
+封存检查：1101 passed/4 existing skips，190.93s（authority-completion.log）；404条registry有效，9份manifest全部封存，完整469任务/67场景的每项对比均含全部16个结果。PNG/PDF主图已检查，工程交付按本phase完成门槛封存并快进整合至phase/02-mixer。
