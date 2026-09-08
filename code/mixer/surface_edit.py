@@ -18,6 +18,13 @@ FEET = (7, 8, 10, 11)
 HANDS = (24, 26)
 
 
+def load_object_sdf(directory,name):
+    """Use the native evaluator's object key for the author's multi-suffix assets."""
+    paths = {path.name.split('.')[0]:path for path in Path(directory).glob('*.npy')}
+    path = paths[name]
+    return np.load(path),json.loads(path.with_suffix('.json').read_text())
+
+
 def smoothstep(u):
     u = u.clamp(0, 1)
     return u**3 * (10 + u * (-15 + 6*u))
@@ -326,8 +333,7 @@ def run_surface_tasks(cfg):
         source = {k:v.detach() if torch.is_tensor(v) else v for k,v in source.items()}
         object_vertices = dataset.obj_rest_verts[item['object_name']]
         object_sdf_root = root/'data/object/rest_object_sdf_256_npy_files'
-        object_sdf = np.load(object_sdf_root/(item['object_name']+'.npy'))
-        object_info = json.loads((object_sdf_root/(item['object_name']+'.json')).read_text())
+        object_sdf,object_info = load_object_sdf(object_sdf_root,item['object_name'])
         model = smpl_cache[source['gender']]
         def evaluate(tracks):
             return native_metrics(tracks,task,object_vertices,object_sdf,object_info,sdf,info,model.faces,42)

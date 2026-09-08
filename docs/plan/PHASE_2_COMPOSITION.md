@@ -4693,3 +4693,10 @@ Recovery source also records terminal input metrics for its separate paired cont
 allows the development-selected terminal input arm to stay fixed on full469, and
 records synchronized arm time including evaluation. Final unchanged-science suite:
 1097 passed/4 skipped,166.36s (authority-runtime-final.log).
+
+r1 loaded and decoded its first source, then stopped before evaluation/editing:
+the new object loader assumed name.npy while the official assets are name.ply.npy.
+Use the native evaluator's actual first-dot object key and paired JSON filename;
+a regression covers that shipped naming contract. All7 benchmark object SDF pairs
+are present. The failed r1 manifest and12s execution are retained; r2 keeps the
+scientific protocol unchanged and no completed edits require replay.

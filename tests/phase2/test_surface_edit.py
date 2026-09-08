@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 
 import pytest
+import json
+import numpy as np
 import torch
 from pytorch3d import transforms
 
@@ -10,6 +12,15 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'code'))
 from mixer.surface_edit import (spline_basis,edit_envelope,yaw_matrix,
     shared_object_transform,object_frame_hands,terminal_displacements,
     terminal_envelope,terminal_acceptance,SurfaceProblem)
+
+
+def test_native_object_sdf_multi_suffix_asset_identity(tmp_path):
+    from mixer.surface_edit import load_object_sdf
+    np.save(tmp_path/'clothesstand.ply.npy',np.arange(8).reshape(2,2,2))
+    (tmp_path/'clothesstand.ply.json').write_text(json.dumps(dict(centroid=[1,2,3],extents=[4,4,4])))
+    data,info=load_object_sdf(tmp_path,'clothesstand')
+    assert data.shape==(2,2,2) and data[1,1,1]==7
+    assert info['centroid']==[1,2,3]
 
 
 @pytest.mark.parametrize('length',[48,90,342])
