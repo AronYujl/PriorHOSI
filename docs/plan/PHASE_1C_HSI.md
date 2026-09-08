@@ -13309,3 +13309,38 @@ R@3沿用冻结gallery及其occurrence重采样单位，明确与独立episode�
 返回独立特征后组件6/6通过，合计446 passed、3 skipped。此前组件入口缺少code路径、
 测试构造缺少nb_voxels及float64 solver参考dtype也已修正；均为manifest前实现工作。
 生产source未因这些fixture修正变化。Registry及resolved config检查通过。
+
+
+### CM1.1 完成：正式训练稳定启动，训练仍在后台运行
+
+预注册4669d33，实现a9319f3。160-update性能负载成功（独立于正式训练），预热32步后
+128步CUDA同步耗时58.4823s，即0.456893s/update；峰值allocated6,334,899,712 bytes，
+reserved7,417,626,624 bytes（6.908GiB）。八rank的1,280条loss/trunk/CFG记录均有限。
+权重为1的consistency/FK项实测中位数分别0.00066871/0.00054544，分别监督teacher动作
+保持与手足FK几何；object项在HSI上不参与。没有更换batch、LR、预算或初始化来源。
+
+正式run `p1-hsi-cm1-r2-fixed-w-s42-20260908` 从R2独立初始化，8x256、seed42、目标
+58,678 updates。前160步的8rank共1,280条诊断与性能负载逐项相等。观察完成3,280步，
+八rank共26,240条记录均有限、trunk与CFG梯度均非零。总loss中位数0.00109463；
+预热后loss中位数0.00110665，preclip梯度中位数0.272657、最大0.847555。
+全观察区间仅update1462触发既有clipping（preclip1.051382），预热后未触发。
+这只通过稳定启动门，不表示native quality或连续w控制通过。
+
+固定internal checkpoint为epoch004（3,280 updates）。同一epoch的恢复文件已读取并通过
+现有恢复合同，包含student/EMA target各218个tensor、102组Adam参数状态、8rank RNG、
+cm_fixed_cfg_scale=1，epoch_completed=true。正式训练由独立session1179173持有，
+trainer PID1179174；日志、恢复文件与退出状态都在本机，交互会话结束后继续运行。
+
+预热后wall throughput0.457348s/update，与CUDA同步benchmark一致；16:26时剩余约7.02h，
+按此前吞吐预计2026-09-08 23:28北京时间结束。16:26:13 GPU0另有进程1188496开始，
+观察到2020MiB额外占用；该竞争已记入compact/registry。观察时最小free11175MiB
+（10.913GiB），仍超过2GiB预留，后续竞争可能延长ETA。禁止把该竞争状态下的训练
+吞吐或后续分片质量评估当作单卡batch1 latency。
+
+CM1.1 gate已完成，正式training manifest保持running，Phase1C保持open，R2+CG继续
+作为工作基线。按后台长跑规则从此停止连续轮询，下一次检查由用户请求触发。
+CM1.2从 `docs/phase_summaries/PHASE_1C_CM1_LAUNCH.md` 与
+`results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/next_entry.json` 进入：
+先记录正式终点/失败，再执行固定epoch004 internal60和epoch089 full375 U/G。
+latency采用单卡专用latency70；R2若无已封存同协议读数，则补相同U/CG控制的latency70，
+用于真实加速比。R2质量动作继续复用，所有metric/CI/gate按本节预注册执行。

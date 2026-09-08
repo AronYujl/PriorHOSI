@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "component": "hsi-cm1.1",
+  "status": "stable_launch_complete",
+  "training_status": "running",
+  "run_id": "p1-hsi-cm1-r2-fixed-w-s42-20260908",
+  "created_at": "2026-09-08T16:26:47+08:00",
+  "branch": "phase/01c-cm1",
+  "preregistration_commit": "4669d33",
+  "execution_commit": "a9319f3",
+  "training_budget": {
+    "updates": 58678,
+    "processed_windows": 120172544,
+    "effective_batch": 2048,
+    "world_size": 8,
+    "micro_batch_per_gpu": 256,
+    "accumulation": 1,
+    "seed": 42
+  },
+  "stability": {
+    "updates": 3280,
+    "diagnostic_records": 26240,
+    "all_finite": true,
+    "required_gradients_present": true,
+    "clipped_updates_rank0": [
+      1462
+    ],
+    "all": {
+      "loss": {
+        "min": 0.0008797604823485017,
+        "median": 0.0010946278343908489,
+        "max": 0.0021217651665210724
+      },
+      "loss_consistency": {
+        "min": 0.0003737226070370525,
+        "median": 0.0004908812697976828,
+        "max": 0.0009823583532124758
+      },
+      "loss_fk": {
+        "min": 0.0004526003322098404,
+        "median": 0.0005936900852248073,
+        "max": 0.0013338967692106962
+      },
+      "grad_norm_preclip": {
+        "min": 0.00694596953690052,
+        "median": 0.202013298869133,
+        "max": 1.0513815879821777
+      },
+      "grad_norm_cfg": {
+        "min": 0.00018643777002580464,
+        "median": 0.00040391219954472035,
+        "max": 0.002871606731787324
+      }
+    },
+    "post_warmup": {
+      "loss": {
+        "min": 0.0008797604823485017,
+        "median": 0.0011066474253311753,
+        "max": 0.0021217651665210724
+      },
+      "loss_consistency": {
+        "min": 0.00037649451405741274,
+        "median": 0.0004802333714906126,
+        "max": 0.0009823583532124758
+      },
+      "loss_fk": {
+        "min": 0.00048182992031797767,
+        "median": 0.0006266639102250338,
+        "max": 0.0013338967692106962
+      },
+      "grad_norm_preclip": {
+        "min": 0.0230428334325552,
+        "median": 0.27265748381614685,
+        "max": 0.8475550413131714
+      },
+      "grad_norm_cfg": {
+        "min": 0.0002189498918596655,
+        "median": 0.0004795830027433112,
+        "max": 0.002871606731787324
+      }
+    }
+  },
+  "resume": {
+    "path": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-cm1-r2-fixed-w-s42-20260908/checkpoints/p1-hsi-cm1-r2-fixed-w-s42-20260908_resume.pth",
+    "validated_update": 3280,
+    "epoch": 4,
+    "epoch_completed": true,
+    "model_tensors": 218,
+    "target_tensors": 218,
+    "optimizer_parameter_states": 102,
+    "rng_ranks": 8,
+    "compatible": true
+  },
+  "fixed_internal_checkpoint": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-cm1-r2-fixed-w-s42-20260908/checkpoints/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch004.pth",
+  "resource": {
+    "benchmark_seconds_per_update": 0.4568929209635826,
+    "benchmark_reserved_gib": 6.908203125,
+    "post_warmup_wall_seconds_per_update": 0.45734783373773097,
+    "remaining_hours_at_snapshot": 7.015461687406939,
+    "estimated_completion_local": "2026-09-08T23:27:43+08:00",
+    "hardware": [
+      {
+        "gpu": 0,
+        "used_mib": 12961,
+        "free_mib": 11175,
+        "utilization_percent": 99
+      },
+      {
+        "gpu": 1,
+        "used_mib": 8340,
+        "free_mib": 15796,
+        "utilization_percent": 84
+      },
+      {
+        "gpu": 2,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 27
+      },
+      {
+        "gpu": 3,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 87
+      },
+      {
+        "gpu": 4,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 61
+      },
+      {
+        "gpu": 5,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 92
+      },
+      {
+        "gpu": 6,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 33
+      },
+      {
+        "gpu": 7,
+        "used_mib": 8342,
+        "free_mib": 15794,
+        "utilization_percent": 91
+      }
+    ],
+    "contention_at_handoff": {
+      "gpu": 0,
+      "external_pid": 1188496,
+      "process_started_local": "2026-09-08T16:26:13+08:00",
+      "observed_process_memory_mib": 2020,
+      "effect": "ETA uses preceding measured throughput; later contention can extend it. Formal run continues with observed free memory above 2 GiB."
+    }
+  },
+  "verification": {
+    "passed": 446,
+    "skipped": 3,
+    "failed": 0,
+    "first160_per_rank_exact_records": 1280
+  },
+  "artifacts": {
+    "manifest": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/manifest.json",
+    "resolved_config": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/config_resolved_job.yaml",
+    "preflight": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/preflight.json",
+    "run_log": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/run.log",
+    "exit_status": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/exit_status",
+    "next_entry": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-r2-fixed-w-s42-20260908/next_entry.json",
+    "benchmark_manifest": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm1-benchmark-s42-20260908/manifest.json"
+  },
+  "quality_status": "not_evaluated; R2+CG remains working baseline; Phase1C open",
+  "next_action": "Let the detached run finish. Next inspection is user-triggered; then retain final outcome and execute fixed CM1.2 internal/final native evaluation and dedicated latency."
+}
