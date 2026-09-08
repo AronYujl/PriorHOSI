@@ -1110,11 +1110,7 @@ def main(cfg: DictConfig) -> None:
 
             points_all = interpolate_joints(points_all.reshape(-1, 3*(cfg.dataset.nb_joints)), scale=cfg.interp_s)
 
-            global_rot_mat_all = transforms.rotation_6d_to_matrix(global_rot_6d_all.reshape(-1, 22, 6))
-            local_jrot_mat_all = sampler_body.dataset.quat_ik_torch(global_rot_mat_all.reshape(-1, 22, 3, 3))
-            local_rot_q_all = transforms.matrix_to_quaternion(local_jrot_mat_all)
-            local_rot_q_all = interp_jrot(local_rot_q_all, cfg.interp_s).reshape(-1, 22, 4)
-            local_rot_mat_all = transforms.quaternion_to_matrix(local_rot_q_all).reshape(-1, 22, 3, 3)
+            native_pose = native_body_pose(global_rot_6d_all, sampler_body.dataset, cfg.interp_s)
 
             # No frame transform on this path.  The released code ran SMPL-X in
             # the z-up world -- yup_to_zup on the translation and the pose, then
@@ -1127,7 +1123,7 @@ def main(cfg: DictConfig) -> None:
             # locals and the translation are already what SMPL-X's own y-up
             # template expects and the sandwich would reintroduce the error.
             root_trans = (points_all.reshape(-1, 28, 3)[:, 0, :].to(device) + transl)
-            pose_pred = transforms.matrix_to_axis_angle(local_rot_mat_all).reshape(-1, 22, 3).to(device)
+            pose_pred = native_pose.to(device)
 
             if gender not in smplx_model_cache:
                 smplx_model_cache[gender] = create_smplx_model(gender, device, batch_size=1)

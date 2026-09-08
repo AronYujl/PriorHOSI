@@ -23,6 +23,22 @@ def test_native_object_sdf_multi_suffix_asset_identity(tmp_path):
     assert info['centroid']==[1,2,3]
 
 
+def test_native_pose_decode_is_independent_of_input_tensor_device():
+    from utils import native_body_pose
+    class Kinematics:
+        def quat_ik_torch(self,rot):
+            return torch.cat((rot[:,:1],rot[:,:1].transpose(-1,-2)@rot[:,1:]),1)
+    torch.manual_seed(42)
+    rotations=transforms.axis_angle_to_matrix(torch.randn(16,22,3))
+    encoded=transforms.matrix_to_rotation_6d(rotations)
+    expected=native_body_pose(encoded,Kinematics())
+    assert expected.shape==(48,22,3) and expected.device.type=='cpu'
+    assert torch.isfinite(expected).all()
+    if torch.cuda.is_available():
+        actual=native_body_pose(encoded.cuda(),Kinematics())
+        assert torch.equal(actual,expected)
+
+
 @pytest.mark.parametrize('length',[48,90,342])
 def test_cubic_field_partition_and_exact_initial_terminal_locks(length):
     basis=spline_basis(length,'cpu')

@@ -4700,3 +4700,18 @@ Use the native evaluator's actual first-dot object key and paired JSON filename;
 a regression covers that shipped naming contract. All7 benchmark object SDF pairs
 are present. The failed r1 manifest and12s execution are retained; r2 keeps the
 scientific protocol unchanged and no completed edits require replay.
+
+r2 stopped at source equivalence: GPU fragment rotation decoding differed from
+saved full-native joints by1.257mm. Fixed-source diagnosis changes only rotation
+decode/interpolation to the original CPU path: joint discrepancy becomes exactly0;
+all native deltas vanish except a5.96e-8 object reduction difference. The full native
+CPU pose conversion is now factored into utils.native_body_pose and shared by the
+unchanged-formula full evaluator and replay helper. Object surface transformation
+also uses the original repeated-vertex bmm order. Large geometry/optimization stays
+on GPU. Earlier fragment results retain their original runtime and are not recomputed.
+The failed r2 and its2 diagnostic source repeats are retained; no edits were made.
+
+Native-source correction verification:45 focused checks pass; full authority
+1099 passed/4 existing skips,167.63s (authority-native-final.log). The initial
+verification was interrupted to add the new helper's local transform import, then
+rerun on the final code. All9 r3 job configs resolve. Scientific settings stay fixed.

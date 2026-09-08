@@ -71,6 +71,21 @@ def interp_jrot(local_jrot_q, interp_s=3):
 
     return local_jrot_q_interp
 
+
+def native_body_pose(global_rot_6d, dataset, interp_s=3):
+    """Match the full native evaluator's CPU rotation decode and interpolation.
+
+    The small rotation conversion stays on its original device: moving this
+    decode to GPU changed a recorded axis-angle component by 0.00224 radians.
+    SMPL-X surfaces and all editing/gradient work remain on the GPU.
+    """
+    from pytorch3d import transforms
+    global_rot = transforms.rotation_6d_to_matrix(global_rot_6d.cpu().reshape(-1,22,6))
+    local_rot = dataset.quat_ik_torch(global_rot)
+    local_q = transforms.matrix_to_quaternion(local_rot)
+    local_rot = transforms.quaternion_to_matrix(interp_jrot(local_q,interp_s))
+    return transforms.matrix_to_axis_angle(local_rot).reshape(-1,22,3)
+
 def load_object_geometry_w_rest_geo(obj_rot, obj_com_pos, rest_verts):
     # obj_rot: T X 3 X 3, obj_com_pos: T X 3, rest_verts: Nv X 3
     rest_verts = rest_verts[None].repeat(obj_rot.shape[0], 1, 1)

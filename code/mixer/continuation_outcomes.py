@@ -216,7 +216,7 @@ def _concat_world(payload):
 @torch.no_grad()
 def native_tracks(cfg, dataset, world, task, terminal, smpl_cache, body_parameters=False):
     """Native interpolation/SMPL-X on actual observed frames, without censored padding."""
-    from utils import (interpolate_joints, interp_object, interp_jrot,
+    from utils import (interpolate_joints, interp_object, native_body_pose,
                        create_smplx_model, run_smplx_model)
     from utils import SMPLX_JOINTS_28
     import pytorch3d.transforms as transforms
@@ -230,12 +230,8 @@ def native_tracks(cfg, dataset, world, task, terminal, smpl_cache, body_paramete
                                       world['object_rotation_world'].reshape(-1, 9).numpy(), cfg.interp_s)
     obj_trans = torch.from_numpy(obj_trans).to(device).float()
     obj_rot = torch.from_numpy(obj_rot).to(device).float().reshape(-1, 3, 3)
-    global_rot = transforms.rotation_6d_to_matrix(world['global_rot_6d'].to(device))
-    local_rot = dataset.quat_ik_torch(global_rot)
-    local_q = transforms.matrix_to_quaternion(local_rot)
-    local_rot = transforms.quaternion_to_matrix(interp_jrot(local_q, cfg.interp_s))
     root_trans = points.reshape(-1, 28, 3)[:, 0] + transl
-    pose = transforms.matrix_to_axis_angle(local_rot).reshape(-1, 22, 3)
+    pose = native_body_pose(world['global_rot_6d'], dataset, cfg.interp_s).to(device)
     if gender not in smpl_cache:
         smpl_cache[gender] = create_smplx_model(gender, device, batch_size=1)
     verts, joints = run_smplx_model(pose, root_trans, betas[None].repeat(len(pose), 1), gender,

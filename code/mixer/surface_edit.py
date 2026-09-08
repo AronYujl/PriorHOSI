@@ -128,7 +128,8 @@ class SurfaceProblem:
         return compute_signed_distances(self.sdf,self.centroid,self.extents,points)
 
     def objects(self, position, rotation):
-        return (rotation@self.object_vertices.T).transpose(-1,-2)+position[:,None]
+        vertices = self.object_vertices[None].repeat(len(rotation),1,1)
+        return (rotation.bmm(vertices.transpose(1,2))+position[:,:,None]).transpose(1,2)
 
     def outside(self, points):
         return ((self.lower-points).clamp_min(0)+(points-self.upper).clamp_min(0)).norm(dim=-1)
@@ -254,7 +255,8 @@ class SurfaceProblem:
 
 def native_metrics(tracks, task, object_vertices, object_sdf, object_info, sdf, info, faces, seed):
     from test_infbagel_hosi import compute_metrics_for_sample, _subsample_seed
-    obj = (tracks['object_rotation']@object_vertices.T).transpose(-1,-2)+tracks['object_translation'][:,None]
+    vertices = object_vertices[None].repeat(len(tracks['object_rotation']),1,1)
+    obj = (tracks['object_rotation'].bmm(vertices.transpose(1,2))+tracks['object_translation'][:,:,None]).transpose(1,2)
     name = task['object_name']; key = task['scene_name']+'_sdf'
     metrics = compute_metrics_for_sample(tracks['joints'].flatten(1),tracks['object_translation'],tracks['object_rotation'],
         task,{name:object_vertices},{name:object_sdf},{name:object_info},None,
