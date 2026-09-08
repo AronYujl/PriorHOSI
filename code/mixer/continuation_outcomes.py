@@ -214,7 +214,7 @@ def _concat_world(payload):
 
 
 @torch.no_grad()
-def native_tracks(cfg, dataset, world, task, terminal, smpl_cache):
+def native_tracks(cfg, dataset, world, task, terminal, smpl_cache, body_parameters=False):
     """Native interpolation/SMPL-X on actual observed frames, without censored padding."""
     from utils import (interpolate_joints, interp_object, interp_jrot,
                        create_smplx_model, run_smplx_model)
@@ -243,8 +243,11 @@ def native_tracks(cfg, dataset, world, task, terminal, smpl_cache):
     # A censored final coarse frame is observed once; the two held samples
     # manufactured by the native end-of-task interpolation are excluded here.
     n = len(verts) if terminal else (len(world['points_world'])-1)*cfg.interp_s+1
-    return dict(verts=verts[:n], joints=joints[:n], object_translation=obj_trans[:n],
-                object_rotation=obj_rot[:n])
+    result = dict(verts=verts[:n], joints=joints[:n], object_translation=obj_trans[:n],
+                  object_rotation=obj_rot[:n])
+    if body_parameters:
+        result.update(pose=pose[:n], translation=root_trans[:n], betas=betas, gender=gender)
+    return result
 
 
 def _mean(values, mask=None):

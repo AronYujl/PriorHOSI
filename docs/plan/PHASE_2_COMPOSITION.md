@@ -4666,3 +4666,19 @@ scheme. Reuse sealed input identities. No core or expert modifications/training.
 Deliver every negative candidate, native15, task/scene uncertainty, saved motion,
 fixed visual evidence and phase summary. Phase2.27's adaptation-training suggestion
 is superseded in priority by this newly approved deadline-focused experiment.
+
+Implementation-stage metadata correction: the preregistration row lacked its required
+next_action field; it is completed in the logical implementation commit. The first
+commit retains the original schema error; hypothesis and scientific settings stay fixed.
+
+Implementation ready: native decoded pose/translation reuse through an optional
+body-parameter return; complete-surface GPU objective, cubic rigid/leg fields,
+independent relation ablation, terminal candidate retention and native task summaries.
+Fixed frames copy source pose/object/geometry directly; terminal holds the last3
+frames.9 component checks pass, including analytic SDF gradients, articulated common
+transforms and chunk-boundary reductions. Final authority:1097 passed/4 existing
+skips,168.74s (results/surface-edit-preflight-s42-20260908/authority-final.log).
+The initial suite had2 setup errors because INFBAGEL_PYTHON was not exported; the
+corrected command passes.9 formal job configs resolve; all28 B0 source files exist.
+Formal source-geometry/metric recovery and optimization stability remain to be
+checked by the first registered task, followed by8GPU execution.
