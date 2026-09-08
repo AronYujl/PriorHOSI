@@ -1,0 +1,35 @@
+defaults: [config_sample_hsi_table3, _self_]
+
+lingo_hsi_mode: sample
+sample_type: consistency
+w: 1
+guidance_weight: 1
+use_guidance: true
+hsi_progress_fix: true
+occ_permute_fix: true
+hsi_compute_rds: false
+hsi_initial_heading: goal
+export_motion: true
+shard_count: 8
+ckpt_path: ${oc.env:ROOT_DIR}/results/p1-hsi-cm1-r2-fixed-w-s42-20260908/checkpoints/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089.pth
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_final_guided
+model_name: cm1_final_guided
+sampler:
+  pelvis:
+    hsi_cm_guidance_x0_coef: true
+
+table3_output: ${oc.env:ROOT_DIR}/results/hsi_cm1_table3_s42_20260909
+table3_inputs:
+  unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_final_unguided/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_final_guided/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-merged08/evaluation/per_sequence_metrics.json
+cm1_reference_readout: ${oc.env:ROOT_DIR}/results/hsi_r2_table3_s42_20260906
+cm1_reference_inputs:
+  unguided: /data/yujinlun/InfBaGel-hsi-r2/results/lingo_hsi/r2_fullbody_seam_unguided_shard8_on4/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_cg_guidance_coef1/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+cm1_gate_output: ${oc.env:ROOT_DIR}/results/hsi_cm1_gate_s42_20260909
+cm1_safety_exclusions: ${oc.env:ROOT_DIR}/.claude/scratch/normcap_20260823/worst20.json
+cm1_latency_inputs:
+  student_unguided: null
+  student_guided: null
+  teacher_unguided: null
+  teacher_guided: null

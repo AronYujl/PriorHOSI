@@ -13344,3 +13344,52 @@ CM1.2从 `docs/phase_summaries/PHASE_1C_CM1_LAUNCH.md` 与
 先记录正式终点/失败，再执行固定epoch004 internal60和epoch089 full375 U/G。
 latency采用单卡专用latency70；R2若无已封存同协议读数，则补相同U/CG控制的latency70，
 用于真实加速比。R2质量动作继续复用，所有metric/CI/gate按本节预注册执行。
+
+
+## 2026-09-09（CM1.2：固定中途／终点读出；沿用已批准方案）
+
+用户通知GPU任务结束，继续此前已批准的CM1.2。正式训练exit0，58,678updates /
+120,172,544windows全部完成，8rank共469,424条诊断均有限且trunk/CFG梯度非零，
+11个update触发既有clipping。2026-09-08 23:47:21北京时间退出，墙钟28103.2s，
+八卡预留成本62.4516GPU-h；预热后0.478304s/update。终点固定epoch089；恢复文件与
+全部中途checkpoint保留。本轮不训练、不选择checkpoint，Phase1C保持开放。
+训练manifest在其原执行提交a9319f3上收尾，然后返回phase/01c-cm1；没有修改训练源码。
+
+### 执行矩阵与成本
+
+一个config fragment config_sample_hsi_c_r2_fixed_w.yaml，复用existing evaluator的
+sample / merge_shards / table3，新增组件内cm_distillation_readout作为既有mode分发。
+固定epoch004 internal60（364windows）U/G两格、epoch089 full375（2271windows）U/G两格，
+每格8个单卡shard；所有条件、seed42、w1、16steps、外部几何scale1与CM映射保持CM1.1。
+quality输出完整保留；fixed60只作registered generated-history诊断，不作checkpoint选择。
+之后按单卡GPU0顺序运行student U/G、teacher R2 U/CG的latency70。若存在同协议封存
+teacher latency则复用；当前清单没有该结果，因此预备两条固定teacher控制。latency期间
+同机保持无其他GPU workload，记录开闭硬件快照。sharded质量输出的时间量保持无效。
+总成本沿用160GPU-h，已用训练62.4516及既有benchmark；本轮新增上限90GPU-h。
+
+### 读出实现（采样公式保持原值）
+
+- 已有Table3模块把generation写死为500-step diffusion，改从各arm payload的sample_type、
+  sampler_steps_per_window、guided、seed生成协议字段；encoder/gallery/FID/几何公式保持原值。
+- 在既有GPU重建后的30fps native joints上追加root acceleration max、frames_over_5g及
+  pelvis_h_min三个安全量，沿用旧审计的二阶差分、9.81m/s²和y-up定义，包含初始历史帧。
+  直接复用已生成关节，避免另做完整SMPL-X重建；旧指标和生成路径保持原值。
+- 配对ratio在GPU计算：同一cohort/metric共享10000个seed42样本索引，报告mean(student)/
+  mean(R2)及95%区间。全375额外guard覆盖pen_ratio、pene_pct_scene、两项floor-excluded
+  penetration、fs_nemf、boundary/interior jerk、goal_planar_err、contact_count/exterior；
+  原生130/245分组覆盖Table3全部几何/目标/接触项。更小更好上界<=1.05，更大更好下界>=0.95。
+  这把上一节的5%门按已冻结原生分组具体化；guided学生是晋级臂，U完整报告作机制对照。
+- FID使用封存R2 embeddings/2000 bootstrap值和新学生对应数组，确认相同245个sequence
+  顺序；两侧用相同seed42 NumPy resample矩阵。MM-Dist用245个episode配对；R@3用原
+  gallery/query/sequence三元组匹配的224个occurrence配对，保持历史统计单位。
+- 安全子句沿用2026-08-24冻结G1：holdout355（排除原worst20），>5g episode<=8、
+  >5g frames<=38、walk h_min<0.6 episode<=2；同时完整报告full375。不得将新原生130walk
+  计数混入旧126walk holdout子句。generated contact与penetration并列，失败例保留。
+- guided warm generation>=20FPS，全部质量子句与安全子句同时通过才晋级。任何失败/
+  不确定项都保留；R2+CG在此前继续为工作基线。配对difference仍走paired_bootstrap.py；
+  internal60另保留冻结分层权重的描述，native375及130/245用episode等权。
+
+执行前定向组件检查及一次authority suite，registry与exact resolved configs通过后创建
+manifest。真实验证由正式评估首批执行承担。仅增加轻量指标读出，denoiser/采样数学与形状
+保持原值，训练性能benchmark不重跑，无新增smoke/哈希工具。最终交付完整表格、配对CI、
+固定失败分析、资源与协议差异、明确gate判定及CM1.2交接；不进入下一phase。
