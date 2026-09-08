@@ -331,3 +331,13 @@ All native metrics, task/scene intervals, development exposure, fine-SDF/offline
 compute differences and failures are retained. Read
 [PHASE_2Y_SURFACE_EDIT](../phase_summaries/PHASE_2Y_SURFACE_EDIT.md) and the latest
 Phase2 plan before continuing. No next-phase experiment has started.
+
+## 2026-09-08 — Phase2.29 HSI motion targets active
+
+The user explicitly restores useful HSIPrior scene transfer as the necessary core
+claim and approves full-condition root/heading targets inside the proven native
+relation editor. The fixed four-arm native28 comparison includes no-HSI geometry,
+correct-scene relation, wrong-scene relation and correct-scene independent transforms;
+all share terminal repair. Frozen469 follows only the dated Phase2.29 entry gate.
+Phase2.28 remains the geometry-only baseline; joint reverse-chain redesign/training
+is outside this experiment. See the latest PHASE_2_COMPOSITION.md section.

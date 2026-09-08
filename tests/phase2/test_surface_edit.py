@@ -82,6 +82,7 @@ def test_common_world_transform_preserves_object_frame_hands_under_nontrivial_ro
 
 def test_signed_surface_axes_scale_and_gradient_match_analytic_world_plane():
     problem=SurfaceProblem.__new__(SurfaceProblem)
+    problem.motion_target=None
     xyz=torch.linspace(-1,1,9)
     # grid_sample query is permuted z,y,x: array axis0 therefore represents x.
     problem.sdf=xyz[:,None,None].expand(9,9,9)[None].clone()
@@ -119,6 +120,7 @@ def test_terminal_acceptance_keeps_all_native_constraints_and_does_not_upgrade_s
 
 def test_chunked_support_and_field_derivatives_count_each_frame_pair_once():
     problem=SurfaceProblem.__new__(SurfaceProblem)
+    problem.motion_target=None
     problem.length=53
     problem.foot_mask=torch.ones(53,4,dtype=torch.bool)
     problem.foot_pairs=torch.ones(52,4,dtype=torch.bool)
@@ -209,3 +211,75 @@ def test_native_completion_enters_task_and_scene_paired_analysis(tmp_path,monkey
         comparison=result['contrasts'][unit]['terminal-minus-terminal_input']
         assert comparison['completed']==dict(delta=.5,n=2)
     assert result['terminal_attempts']==result['terminal_recovered_tasks']==1
+
+
+def test_hsi_root_target_uses_world_metres_and_relative_yaw_only():
+    import math
+    from mixer.hsi_motion_target import root_heading_delta
+    class Dataset:
+        def denormalize_torch(self,value):return value*2+7
+    source=torch.zeros(1,16,232)
+    r=transforms.axis_angle_to_matrix(torch.tensor([.2,.3,.1]))
+    source[...,84:90]=transforms.matrix_to_rotation_6d(r)
+    prediction=source.clone()
+    prediction[...,:3]=torch.tensor([.04,.3,.02])
+    prediction[...,84:90]=transforms.matrix_to_rotation_6d(yaw_matrix(torch.tensor([.12]))[0]@r)
+    prediction[...,216:]=1000
+    mat=torch.eye(4)[None];mat[:,:3,:3]=yaw_matrix(torch.tensor([math.pi/2]));mat[:,:3,3]=3
+    delta=root_heading_delta(prediction,source,Dataset(),mat)
+    torch.testing.assert_close(delta,torch.tensor([.04,-.08,.12]).expand(1,16,3),atol=1e-6,rtol=1e-5)
+
+
+def test_hsi_heading_draw_average_respects_angle_wrap():
+    import math
+    from mixer.hsi_motion_target import mean_targets
+    values=torch.tensor([[[.1,.2,math.radians(179)]],[[.3,.4,math.radians(-179)]]])
+    result=mean_targets(values)
+    torch.testing.assert_close(result[0,:2],torch.tensor([.2,.3]))
+    assert abs(float(result[0,2]))==pytest.approx(math.pi)
+
+
+def test_hsi_target_interpolation_follows_native_clock_bounds_and_locks():
+    import math
+    from mixer.hsi_motion_target import native_target
+    coarse=torch.arange(20).float()[:,None]*torch.tensor([[.002,.003,.001]])
+    target=native_target(coarse)
+    expected=(coarse[10]*2/3+coarse[11]/3)*edit_envelope(60,'cpu')[31]
+    torch.testing.assert_close(target[31],expected)
+    assert torch.equal(target[:6],torch.zeros(6,3))
+    assert torch.equal(target[-3:],torch.zeros(3,3))
+    extreme=native_target(torch.full((20,3),10.))
+    assert bool((extreme.abs()<=torch.tensor([.2,.2,math.radians(20)])).all())
+
+
+def test_wrong_hsi_scene_rotates_entire_world_about_same_start():
+    import math
+    from mixer.hsi_motion_target import rotated_scene_context
+    rotation=yaw_matrix(torch.tensor([math.pi/2]))[0]
+    pivot=torch.tensor([2.,0.,-3.]);point=torch.tensor([.2,1.,.4,1.])
+    for offset in ([1.,0.,2.],[-1.,0.,5.]):
+        mat=torch.eye(4)[None];mat[:,:3,3]=torch.tensor(offset)
+        context=dict(mat=mat,obj_rot_mat_prefix=torch.eye(3)[None],
+                     pelvis_goal=torch.tensor([[.8,0,0]]),static_occ_cache=dict(goal=1))
+        before=mat.clone();wrong=rotated_scene_context(context,pivot)
+        actual=(wrong['mat'][0]@point)[:3]
+        expected=pivot+rotation@((mat[0]@point)[:3]-pivot)
+        torch.testing.assert_close(actual,expected)
+        assert torch.equal(context['mat'],before)
+        assert wrong['pelvis_goal'] is context['pelvis_goal']
+        assert wrong['static_occ_cache']=={} and context['static_occ_cache']==dict(goal=1)
+        torch.testing.assert_close(wrong['obj_rot_mat_prefix'][0],rotation)
+
+
+def test_hsi_target_loss_has_physical_scale_and_chunk_independent_gradient():
+    import math
+    from mixer.hsi_motion_target import root_target_loss
+    control=torch.zeros(53,6,requires_grad=True)
+    target=torch.tensor([.05,-.05,math.radians(10)]).expand(53,3)
+    loss=sum(root_target_loss(control[lo:lo+24,:3],target[lo:lo+24],53,.25)
+             for lo in range(0,53,24))
+    assert float(loss)==pytest.approx(.25)
+    loss.backward()
+    expected=-2*.25/159/torch.tensor([.05,-.05,math.radians(10)])
+    torch.testing.assert_close(control.grad[:,:3],expected.expand(53,3))
+    assert torch.equal(control.grad[:,3:],torch.zeros(53,3))

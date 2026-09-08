@@ -4833,3 +4833,25 @@ runtime work stays outsidecore/ andexpert directories, with one config fragment,
 component tests and the existingHydra/manifest/bootstrap lifecycle. Full authority
 suite is required; formal native tasks supply physical validation/timing. Input
 identities are reused by reference; no additional smoke or hashing workflow.
+
+Implementation ready: full x0 targets use paired level199 queries, circular heading
+averages, native non-overlapping future ownership and30Hz interpolation. A consistent
+wrong world query also rotates the carried-object prefix, keeping its relative
+observation intact while changing the environment. Both query sets retain identical
+non-scene arguments. Complete raw predictions, noisy inputs, observations, targets,
+query coverage and synchronized teacher timings are saved. Targets remain detached;
+only the existing joint-edit controls are optimized. HSI contribution is audited
+against the executed same-source geometry output, including object displacement.
+
+The standard native condition-recovery path is reused. Source caches lack their
+original complete context, so recovered conditions are not advertised as a comparison
+to absent captured fields. World/geometry recovery and same-budget native baseline
+are checked against actual saved data. All four outputs receive the same terminal
+repair with separate metrics, candidates, reasons and timing.
+
+18 component checks pass; full authority1106 passed/4 existing skips,192.86s
+(results/hsi-motion-target-preflight-s42-20260908/authority-final.log). One initial
+unit fixture bypassing __init__ lacked the new optional field; corrected before
+any formal run. Nine exact job configs resolve. Runtime physical validation and
+performance measurements are contained in the registered workload. All8RTX3090
+were idle at preparation. No expert/core code, extra smoke or hashing scheme added.

@@ -93,7 +93,7 @@ def terminal_envelope(length,device):
 class SurfaceProblem:
     """Native SMPL-X surfaces, source foot trajectories and full object geometry."""
     def __init__(self, source, model, object_vertices, sdf, info, floor, task,
-                 arm, bound=.1, yaw_degrees=10):
+                 arm, bound=.1, yaw_degrees=10, motion_target=None, target_weight=0.):
         self.source, self.model, self.object_vertices = source, model, object_vertices
         self.task, self.arm = task, arm
         self.terminal = arm == 'terminal'
@@ -104,6 +104,7 @@ class SurfaceProblem:
         self.joint_ids = LEGS+ARMS if self.terminal else LEGS
         self.dimensions = len(self.joint_ids)*3 if self.terminal else 24
         self.bound, self.yaw_bound = bound, math.radians(yaw_degrees)
+        self.motion_target, self.target_weight = motion_target, target_weight
         self.rotations = transforms.axis_angle_to_matrix(source['pose'])
         self.rotation_logs = transforms.matrix_to_axis_angle(self.rotations)
         self.sdf = torch.as_tensor(sdf, dtype=torch.float32, device=self.device)[None]
@@ -186,6 +187,8 @@ class SurfaceProblem:
 
     def objective(self, parameters, backward=False):
         totals = dict(surface=0.,support_position=0.,support_velocity=0.,residual=0.,temporal=0.,domain=0.,contact=0.)
+        if self.motion_target is not None:
+            totals['hsi_target'] = 0.
         for start in range(0,self.length,24):
             lo,hi = max(0,start-1),min(start+24,self.length)
             cut = start-lo
@@ -206,6 +209,11 @@ class SurfaceProblem:
             field = state['normalized']
             terms['residual'] = .05*field[cut:].square().sum()/(self.length*field.shape[1])
             terms['temporal'] = .05*(field[1:]-field[:-1]).square().sum()/((self.length-1)*field.shape[1])
+            if self.motion_target is not None:
+                from .hsi_motion_target import root_target_loss
+                control = field[cut:,:3]*field.new_tensor((self.bound,self.bound,self.yaw_bound))
+                terms['hsi_target'] = root_target_loss(control,self.motion_target[start:hi],
+                                                     self.length,self.target_weight)
             if self.hand_count:
                 relative = object_frame_hands(state['joints'][cut:],state['object_translation'][cut:],state['object_rotation'][cut:])
                 terms['contact'] = ((relative-self.hand_reference[start:hi]).square().sum(-1)*self.hand_mask[start:hi]).sum()/(3*self.hand_count*.01**2)
@@ -316,6 +324,11 @@ def run_surface_tasks(cfg):
     device = torch.device(cfg.device)
     source_root = root/protocol['source_run'] if cfg.surface_edit.source_root is None else Path(cfg.surface_edit.source_root)
     dataset = None; current_scene = None; smpl_cache = {}; records = []
+    hsi_options = cfg.get('hsi_motion', {})
+    motion_teacher = None
+    if hsi_options.get('enabled',False):
+        from .hsi_motion_target import MotionTargetTeacher
+        motion_teacher = MotionTargetTeacher(cfg,protocol)
     torch.cuda.synchronize(device)
     started = time.perf_counter()
     torch.cuda.reset_peak_memory_stats(device)
@@ -330,6 +343,8 @@ def run_surface_tasks(cfg):
             sdf_root = root/'data/hosi_test/Scene_sdf'
             sdf = np.load(sdf_root/(key+'.npy')); info = json.loads((sdf_root/(key+'_info.json')).read_text())
             current_scene = scene
+            if motion_teacher is not None:
+                motion_teacher.set_dataset(dataset)
         task = dict(native[item['test_idx']],test_idx=item['test_idx'])
         path, = source_root.glob(f"{protocol['source_arm']}-shard*/episode-motion-{ordinal:03d}.pt")
         saved = torch.load(path,map_location='cpu',weights_only=False)
@@ -352,7 +367,11 @@ def run_surface_tasks(cfg):
             raise AssertionError(f'native source recovery differs: joints={joint_error}, metrics={metric_error}')
         dest = out/f'task-{ordinal:03d}'; dest.mkdir()
         write_json(dest/'source.json',dict(metrics=source_metrics,motion_path=str(path),joint_error_m=joint_error,metric_error=metric_error))
+        targets = None
+        if motion_teacher is not None:
+            targets = motion_teacher.query_task(saved,task,ordinal,dest)
         task_rows = dict(source=dict(metrics=source_metrics,audit=motion_audit(source,source)))
+        geometry_reference = None
         for arm in cfg.surface_edit.arms:
             torch.cuda.synchronize(device)
             arm_started = time.perf_counter()
@@ -372,8 +391,12 @@ def run_surface_tasks(cfg):
                 result = base; solve = dict(trace=[],steps=0,optimization_seconds=0.,best_iteration=0,parameters=None)
             else:
                 bound = .2 if arm.endswith('_20') else .1
+                target = None
+                if targets is not None and arm!='relation_20':
+                    target = targets['wrong' if 'wrong' in arm else 'correct']
                 problem = SurfaceProblem(base,model,object_vertices,sdf,info,float(before['feet_height'])/100,
-                                         task,arm,bound,20 if bound==.2 else 10)
+                                         task,arm,bound,20 if bound==.2 else 10,
+                                         motion_target=target,target_weight=float(hsi_options.get('weight',0.)))
                 with torch.no_grad():
                     risk = 0.
                     for lo in range(0,len(base['joints']),24):
@@ -398,18 +421,66 @@ def run_surface_tasks(cfg):
             solve['arm_seconds_including_evaluation'] = time.perf_counter()-arm_started
             payload = dict(motion=motion,metrics=metrics,input_metrics=before,candidate_motion=candidate_motion,candidate_metrics=candidate_metrics,
                            solver=solve,audit=audit,accepted=accepted,rejection_reasons=reasons)
-            with (dest/(arm+'.pt')).open('xb') as f: torch.save(payload,f)
             trace = {k:v for k,v in solve.items() if k!='parameters'}
             row = dict(metrics=metrics,input_metrics=before,candidate_metrics=candidate_metrics,audit=audit,solver=trace,accepted=accepted,rejection_reasons=reasons)
+            if motion_teacher is not None:
+                from .hsi_motion_target import target_alignment
+                row['target_alignment'] = target_alignment(source,result,targets)
+                if arm=='relation_20':
+                    geometry_reference = result
+                    previous, = (root/protocol['baseline_run']).glob(f'lanes/*/task-{ordinal:03d}/relation_20.json')
+                    baseline = json.loads(previous.read_text())['metrics']
+                    row['baseline_metric_error'] = max(abs(float(metrics[k])-float(baseline[k])) for k in metrics)
+                    if row['baseline_metric_error']>1e-5:
+                        raise AssertionError('same-budget relation baseline differs: '+str(row['baseline_metric_error']))
+                row['motion_vs_geometry'] = motion_audit(geometry_reference,result)
+                row['object_shift_vs_geometry_mm'] = float((result['object_translation']-
+                    geometry_reference['object_translation']).norm(dim=-1).mean()*1000)
+                row['logical_hsi_calls'] = 0 if arm=='relation_20' else 2*len(saved['windows'])
+                payload.update({k:v for k,v in row.items() if k not in payload})
+            with (dest/(arm+'.pt')).open('xb') as f: torch.save(payload,f)
             write_json(dest/(arm+'.json'),row)
             task_rows[arm] = row
             print(json.dumps(dict(task=ordinal,arm=arm,metrics=metrics,seconds=solve['optimization_seconds']),allow_nan=False),flush=True)
+            if motion_teacher is not None:
+                torch.cuda.synchronize(device)
+                terminal_started = time.perf_counter()
+                terminal_base = dict(result)
+                if metrics['completed']:
+                    terminal_result = terminal_base
+                    terminal_solve = dict(trace=[],steps=0,optimization_seconds=0.,best_iteration=0,parameters=None)
+                else:
+                    terminal_problem = SurfaceProblem(terminal_base,model,object_vertices,sdf,info,
+                        float(metrics['feet_height'])/100,task,'terminal')
+                    terminal_result,terminal_solve = terminal_problem.solve(20)
+                terminal_metrics = metrics if metrics['completed'] else evaluate(terminal_result)
+                terminal_accepted,terminal_reasons = ((True,[]) if metrics['completed'] else
+                    terminal_acceptance(metrics,terminal_metrics))
+                terminal_candidate = terminal_result
+                if not terminal_accepted:
+                    terminal_result = terminal_base
+                final_metrics = terminal_metrics if terminal_accepted else metrics
+                terminal_name = arm+'_terminal'
+                torch.cuda.synchronize(device)
+                terminal_solve['arm_seconds_including_evaluation'] = time.perf_counter()-terminal_started
+                terminal_row = dict(metrics=final_metrics,input_metrics=metrics,candidate_metrics=terminal_metrics,
+                    audit=motion_audit(terminal_base,terminal_result),accepted=terminal_accepted,
+                    rejection_reasons=terminal_reasons,solver={k:v for k,v in terminal_solve.items() if k!='parameters'})
+                terminal_motion = {k:v.detach().cpu() for k,v in terminal_result.items()
+                    if torch.is_tensor(v) and k not in ('verts','betas')}
+                rejected_motion = None if terminal_accepted else {k:v.detach().cpu() for k,v in terminal_candidate.items()
+                    if torch.is_tensor(v) and k not in ('verts','betas')}
+                with (dest/(terminal_name+'.pt')).open('xb') as f:
+                    torch.save(dict(motion=terminal_motion,candidate_motion=rejected_motion,
+                                    parameters=terminal_solve['parameters'],**terminal_row),f)
+                write_json(dest/(terminal_name+'.json'),terminal_row)
+                task_rows[terminal_name] = terminal_row
         records.append(dict(task=ordinal,scene=scene,object=item['object_name'],arms=task_rows))
         write_json(dest/'complete.json',records[-1])
     torch.cuda.synchronize(device)
     write_json(out/'metrics.json',dict(git_commit=commit,live_head_at_completion=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
         tasks=records,seconds=time.perf_counter()-started,peak_allocated_bytes=torch.cuda.max_memory_allocated(device),
-        hoi_calls=0,hsi_calls=0))
+        hoi_calls=0,hsi_calls=0 if motion_teacher is None else motion_teacher.calls))
 
 
 @torch.no_grad()
