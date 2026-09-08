@@ -373,6 +373,72 @@ def test_native_anchor_restoration_preserves_non_anchor_body_changes():
     assert torch.equal(translation[projection.fixed],projection.translation[projection.fixed])
 
 
+def test_full_body_tangent_velocity_matches_finite_kinematics_and_has_descent_dual():
+    from mixer.body_projection import (NativeBodyProjection,body_direction_velocity,
+                                      tangent_body_direction,normalize_body_directions)
+    torch.manual_seed(42)
+    source=dict(pose=torch.randn(60,22,3,dtype=torch.float64)*.2,
+                translation=torch.randn(60,3,dtype=torch.float64))
+    projection=NativeBodyProjection(source,torch.randn(24,3,dtype=torch.float64)*.1)
+    raw=torch.randn(60,69,dtype=torch.float64)
+    tangent,jacobian=tangent_body_direction(projection,raw)
+    h=1e-5
+    def points(scale):
+        rotation=projection.rotation@transforms.axis_angle_to_matrix(tangent[:,3:].reshape(-1,22,3)*projection.angle_scale*scale)
+        return projection.forward(rotation,projection.translation+tangent[:,:3]*projection.position_scale*scale)[1]
+    actual=(points(h)-points(-h))/(2*h)
+    torch.testing.assert_close(body_direction_velocity(projection,tangent),actual,atol=1e-8,rtol=1e-6)
+    assert (jacobian@tangent[...,None]).abs().max()<1e-9
+    assert torch.equal(tangent[projection.fixed],torch.zeros_like(tangent[projection.fixed]))
+    gradient=-raw
+    assert float((gradient*tangent).sum())<0
+    torch.testing.assert_close((gradient*tangent).sum(),-tangent.square().sum(),rtol=1e-7,atol=1e-7)
+    values,audit=normalize_body_directions(projection,{'a':tangent,'b':tangent*.2,'zero':tangent*0})
+    torch.testing.assert_close(values['a'],values['b'],atol=1e-12,rtol=1e-10)
+    assert audit['directions']['zero']['zero_direction']
+    assert audit['directions']['zero']['achieved_linear_body_rms_m']==0
+    assert audit['directions']['a']['achieved_linear_body_rms_m']==pytest.approx(.001*audit['common_scale'])
+
+
+def test_native_increment_is_exact_identity_and_preserves_boundary_derivatives():
+    from mixer.body_projection import NativeBodyProjection,native_increment_pose
+    torch.manual_seed(42)
+    source=dict(pose=torch.randn(60,22,3)*.2,translation=torch.randn(60,3))
+    projection=NativeBodyProjection(source,torch.randn(24,3)*.1)
+    direction=torch.zeros(60,69,dtype=torch.float64,requires_grad=True)
+    pose,translation=native_increment_pose(projection,direction)
+    assert torch.equal(pose,source['pose']) and torch.equal(translation,source['translation'])
+    derivative=torch.autograd.grad(translation.sum()+pose.sum(),direction)[0]
+    assert torch.isfinite(derivative).all()
+    assert torch.equal(derivative[projection.fixed],torch.zeros_like(derivative[projection.fixed]))
+    torch.testing.assert_close(derivative[~projection.fixed,:3],torch.full_like(derivative[~projection.fixed,:3],.05))
+
+
+def test_native_scene_derivative_matches_plane_and_complete_temporal_denominator(monkeypatch):
+    from mixer.body_projection import NativeBodyProjection,NativeSceneDifferential
+    frames=53
+    local=torch.tensor([[-.02,.1,.03],[.01,-.05,.04]])
+    def body(pose,translation,*args,**kwargs):
+        rotation=transforms.axis_angle_to_matrix(pose[:,0])
+        vertices=(rotation[:,None]@local.to(pose)[None,:,:,None]).squeeze(-1)+translation[:,None]
+        return vertices,vertices
+    monkeypatch.setattr('utils.run_smplx_model',body)
+    source=dict(pose=torch.zeros(frames,22,3),translation=torch.tensor([[-.3,.2,.1]]).repeat(frames,1),
+                betas=torch.zeros(16),gender='neutral')
+    source['verts'],_=body(source['pose'],source['translation'])
+    projection=NativeBodyProjection(source,torch.zeros(24,3))
+    grid=torch.linspace(-1,1,9)[:,None,None].expand(9,9,9).clone()
+    problem=NativeSceneDifferential(projection,torch.nn.Linear(1,1),grid,
+                                    dict(centroid=[0,0,0],extents=[4,3,2]))
+    gradient,scalar=problem.gradient()
+    assert scalar==pytest.approx(.61,abs=1e-6)
+    expected=torch.zeros(frames,dtype=torch.float64)
+    expected[~projection.fixed]=-2*.05/frames
+    torch.testing.assert_close(gradient[:,0],expected,atol=1e-9,rtol=1e-6)
+    torch.testing.assert_close(gradient[:,1:3],torch.zeros_like(gradient[:,1:3]),atol=1e-8,rtol=0)
+    assert torch.isfinite(gradient).all()
+
+
 def test_current_native_window_encoding_roundtrips_world_geometry():
     from types import SimpleNamespace
     from mixer.hsi_motion_target import encode_native_window

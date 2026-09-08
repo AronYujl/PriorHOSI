@@ -483,8 +483,9 @@ def run_body_projection(cfg):
     device = torch.device(cfg.device)
     smpl_cache = {}; current_scene = None; records = []
     geometry_root = cfg.hsi_body_projection.get('geometry_root')
+    direction_probe = cfg.hsi_body_projection.get('direction_probe',False)
     teacher = None
-    if geometry_root is not None:
+    if geometry_root is not None and not direction_probe:
         from .hsi_motion_target import CurrentMotionTeacher
         teacher = CurrentMotionTeacher(cfg,protocol)
     torch.cuda.synchronize(device);started=time.perf_counter()
@@ -542,6 +543,21 @@ def run_body_projection(cfg):
         baseline['initial_final_max_error_m']=0.
         baseline['object_max_error_m']=0.
         dest=out/f'task-{ordinal:03d}';dest.mkdir()
+        if direction_probe:
+            cache_path,=(root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/motion.pt')
+            cache=torch.load(cache_path,map_location=device,weights_only=False)
+            assert torch.equal(cache['source']['joints'],source['joints'])
+            record=feasible_body_direction_probe(projector,model,sdf,info,evaluate,baseline,cache,
+                                                 floor,length,protocol,dest)
+            record.update(task=ordinal,scene=scene,object=item['object_name'],windows=len(saved['windows']),
+                source_joint_error_m=joint_error,source_metric_error=metric_error,
+                source_fk_anchor_error_m=fk_error,hsi_calls=0)
+            write_json(dest/'metrics.json',record)
+            records.append(record)
+            print(json.dumps(dict(task=ordinal,completed=True,seconds=record['seconds'],
+                gradient_norm=record['gradient_audit']['norm'],hs={a:m['scene_human_penetration_s_mean']
+                    for a,m in record['means'].items()})),flush=True)
+            continue
         query_audit=None
         if teacher is None:
             body_path,=(root/protocol['body_cache']).glob(f'lanes/*/task-{ordinal:03d}/motion.pt')
@@ -669,5 +685,206 @@ def summarize_body_projection(run_root,task_manifest,device='cuda:7'):
     for arm in arms:
         for unit,values in [('task',by_task[arm]),('scene',by_scene[arm])]:
             write_json(out/f'{arm}-{unit}.json',dict(metrics=values))
+    write_json(out/'summary.json',summary);write_json(out/'records.json',records)
+    return summary
+
+
+@torch.no_grad()
+def feasible_body_direction_probe(projection,model,sdf,info,evaluate,baseline,cache,floor,length,protocol,dest):
+    """Fixed native rays: correct/wrong HSI and a projected scene-gradient control."""
+    import time
+    from .surface_edit import decode_body
+    from .body_projection import (NativeSceneDifferential,tangent_body_direction,
+                                  normalize_body_directions,NATIVE_ANCHORS)
+    source=projection.source;device=source['pose'].device
+    torch.cuda.synchronize(device);started=time.perf_counter()
+    differential=NativeSceneDifferential(projection,model,sdf,info)
+    gradient,scalar=differential.gradient()
+    torch.cuda.synchronize(device);gradient_seconds=time.perf_counter()-started
+    hs='scene_human_penetration_s_mean'
+    scalar_error=abs(scalar-baseline[hs])
+    assert scalar_error<=1e-5,(scalar,baseline[hs],scalar_error)
+    raw={}
+    for draw in range(2):
+        for view in ('correct','wrong'):
+            target=cache[f'{view}_smooth_draw{draw}']
+            target_rotation=transforms.axis_angle_to_matrix(target['pose'].double())
+            angular=transforms.matrix_to_axis_angle(projection.rotation.double().transpose(-1,-2)@target_rotation)
+            raw[f'{view}_draw{draw}']=torch.cat(((target['translation']-source['translation']).double()/projection.position_scale,
+                                                angular.flatten(1)/projection.angle_scale),-1)
+    raw['geometry']=-gradient
+    for direction in raw.values():direction[projection.fixed]=0
+    projected={}
+    for name,direction in raw.items():projected[name],jacobian=tangent_body_direction(projection,direction)
+    directions,normalization=normalize_body_directions(projection,projected)
+    audits={};per_frame={}
+    for name,direction in directions.items():
+        before,after=raw[name].norm(),projected[name].norm()
+        cosine_denominator=projected[name].norm()*projected['geometry'].norm()
+        audits[name]=dict(raw_norm=float(before),projected_norm=float(after),
+            retained_norm_fraction=float(after/before) if float(before)>0 else None,
+            raw_derivative=float((gradient*raw[name]).sum()),
+            projected_derivative_before_scaling=float((gradient*projected[name]).sum()),
+            removed_derivative=float((gradient*(raw[name]-projected[name])).sum()),
+            derivative=float((gradient*direction).sum()),
+            cosine_to_feasible_geometry=float((projected[name]*projected['geometry']).sum()/cosine_denominator)
+                if float(cosine_denominator)>0 else None,
+            linear_anchor_max_error_m=float((jacobian@direction[...,None]).abs().max()))
+        per_frame[name]=(gradient*direction).sum(-1).cpu()
+    def decode(direction,step):
+        if torch.count_nonzero(direction)==0:return source,projection.rotation,projection.translation
+        rotation=projection.rotation@transforms.axis_angle_to_matrix(
+            (direction[:,3:]*step*projection.angle_scale).reshape(-1,22,3)).to(source['pose'])
+        translation=projection.translation+(direction[:,:3]*step*projection.position_scale).to(source['translation'])
+        rotation,translation=projection.restore(rotation,translation,20)
+        pose=source['pose']+(transforms.matrix_to_axis_angle(rotation.double())-
+                            transforms.matrix_to_axis_angle(projection.rotation.double())).to(source['pose'])
+        pose[projection.fixed]=source['pose'][projection.fixed]
+        translation[projection.fixed]=source['translation'][projection.fixed]
+        motion=dict(source,pose=pose,translation=translation)
+        motion['verts'],motion['joints']=decode_body(motion,model)
+        for key in ('verts','joints'):motion[key][projection.fixed]=source[key][projection.fixed]
+        return motion,rotation,translation
+    def protections(metrics):
+        bounds=dict(anchor_max_error_m=1e-6,native_anchor_max_error_m=1e-5,root_max_change_m=.1,
+            rotation_max_change_deg=20,correction_speed_max_cm_s=30,
+            correction_speed_mean_cm_s=10,correction_seam_speed_mean_cm_s=10)
+        failures=[key for key,limit in bounds.items() if metrics[key]>limit]
+        if metrics['contact_percent']<baseline['contact_percent']-.002:failures.append('contact')
+        if metrics['foot_sliding']>baseline['foot_sliding']+.01:failures.append('foot_sliding')
+        if metrics['scene_obj_penetration_s_mean']>baseline['scene_obj_penetration_s_mean']*1.01:failures.append('object_scene')
+        if metrics['completed']<baseline['completed']:failures.append('completion')
+        if metrics['source_floor_support_fraction']<baseline['source_floor_support_fraction']-.002:failures.append('support')
+        if metrics['initial_final_max_error_m']!=0:failures.append('endpoints')
+        if metrics['object_max_error_m']!=0:failures.append('object_identity')
+        return failures
+    results={};states={};failure_rows={}
+    state=lambda motion:{k:v.cpu() for k,v in motion.items() if torch.is_tensor(v) and k!='verts'}
+    states['source']=state(source)
+    for name,direction in directions.items():
+        ray_started=time.perf_counter();negative=None
+        for label,step in (('negative_quarter',protocol['steps']['central_derivative_negative']),
+                           ('quarter',protocol['steps']['secondary']),('unit',protocol['steps']['primary'])):
+            motion,rotation,translation=decode(direction,step)
+            states[name+'_'+label]=state(motion)
+            if step<0:
+                negative=float(differential.frame_sums(motion['verts']).mean())
+                audits[name]['negative_quarter_hs']=negative
+                continue
+            metrics=evaluate(motion)
+            metrics.update(body_readout_measures(motion,source,floor,length))
+            metrics.update(projection.measures(rotation,translation))
+            metrics['native_anchor_max_error_m']=float((motion['joints'][:,NATIVE_ANCHORS]-source['joints'][:,NATIVE_ANCHORS]).norm(dim=-1).max())
+            metrics['initial_final_max_error_m']=float((motion['joints'][projection.fixed]-source['joints'][projection.fixed]).abs().max())
+            metrics['object_max_error_m']=float((motion['object_translation']-source['object_translation']).abs().max())
+            failures=protections(metrics)
+            metrics.update(protected=float(not failures),hs_directional_derivative=audits[name]['derivative'],
+                hs_linear_prediction=step*audits[name]['derivative'],native_hs_change=metrics[hs]-baseline[hs],
+                linear_body_rms_m=step*normalization['directions'][name]['achieved_linear_body_rms_m'])
+            results[name+'_'+label]=metrics;failure_rows[name+'_'+label]=failures
+            audits[name][label+'_hs_change']=metrics[hs]-baseline[hs]
+            if label=='quarter':audits[name]['central_derivative']=(metrics[hs]-negative)/(2*step)
+        torch.cuda.synchronize(device)
+        audits[name]['ray_seconds']=time.perf_counter()-ray_started
+        print(json.dumps(dict(direction=name,derivative=audits[name]['derivative'],
+            finite=audits[name]['unit_hs_change'],scale=normalization['common_scale'],
+            failures=failure_rows[name+'_unit'])),flush=True)
+    baseline=dict(baseline,protected=1.,hs_directional_derivative=0.,hs_linear_prediction=0.,
+                  native_hs_change=0.,linear_body_rms_m=0.)
+    rows=[]
+    for draw in range(2):
+        arms=dict(source=baseline)
+        for view in ('correct','wrong','geometry'):
+            for label in ('quarter','unit'):
+                key=view if view=='geometry' else f'{view}_draw{draw}'
+                arms[view+'_'+label]=results[key+'_'+label]
+        rows.append(dict(draw=draw,arms=arms))
+    means={arm:{key:sum(float(row['arms'][arm][key]) for row in rows)/2 for key in rows[0]['arms'][arm]}
+           for arm in protocol['arms']}
+    with (dest/'motion.pt').open('xb') as f:torch.save(states,f)
+    with (dest/'directions.pt').open('xb') as f:torch.save(dict(gradient=gradient.cpu(),
+        raw={k:v.cpu() for k,v in raw.items()},projected={k:v.cpu() for k,v in projected.items()},
+        normalized={k:v.cpu() for k,v in directions.items()},frame_derivatives=per_frame),f)
+    torch.cuda.synchronize(device)
+    return dict(draws=rows,means=means,direction_audits=audits,normalization=normalization,
+        feasibility_failures=failure_rows,gradient_audit=dict(norm=float(gradient.norm()),
+            projected_norm=float(projected['geometry'].norm()),native_scalar=scalar,
+            source_scalar_max_error=scalar_error,seconds=gradient_seconds),seconds=time.perf_counter()-started)
+
+
+def summarize_feasible_directions(run_root,task_manifest,device='cuda:7'):
+    from .continuation_outcomes import write_json
+    from .scene_calibration import paired_local_metrics
+    run_root=Path(run_root)
+    records={}
+    for path in run_root.glob('lanes/*/task-*/metrics.json'):
+        row=json.loads(path.read_text());records[row['task']]=row
+    tasks=json.loads(Path(task_manifest).read_text())['tasks']
+    assert set(records)=={t['canonical_ordinal'] for t in tasks}
+    arms=list(next(iter(records.values()))['means'])
+    by_task={arm:{str(k):r['means'][arm] for k,r in records.items()} for arm in arms}
+    scenes=sorted({r['scene'] for r in records.values()})
+    by_scene={arm:{scene:{metric:sum(r['means'][arm][metric] for r in records.values() if r['scene']==scene)/
+        sum(r['scene']==scene for r in records.values()) for metric in next(iter(by_task[arm].values()))}
+        for scene in scenes} for arm in arms}
+    means={arm:{metric:sum(v[metric] for v in by_task[arm].values())/len(records)
+                for metric in next(iter(by_task[arm].values()))} for arm in arms}
+    pairs=[(a,'source') for a in arms if a!='source']+[
+        ('correct_'+step,'wrong_'+step) for step in ('quarter','unit')]+[
+        ('correct_unit','correct_quarter'),('geometry_unit','geometry_quarter'),('correct_unit','geometry_unit')]
+    contrasts={a+'__minus__'+b:{unit:paired_local_metrics(data[b],data[a],device)
+        for unit,data in [('task',by_task),('scene',by_scene)]} for a,b in pairs}
+    hs='scene_human_penetration_s_mean'
+    coverage={};remaining={};conditions={}
+    for reference in ('source','wrong_unit'):
+        delta=[r['means']['correct_unit'][hs]-r['means'][reference][hs] for r in records.values()]
+        coverage[reference]=dict(improved=sum(x<0 for x in delta),worsened=sum(x>0 for x in delta),equal=sum(x==0 for x in delta))
+        a={k:v for k,v in by_task[reference].items() if k!='375'}
+        b={k:v for k,v in by_task['correct_unit'].items() if k!='375'}
+        remaining[reference]=paired_local_metrics(a,b,device)
+        conditions[reference+'_mean']=means['correct_unit'][hs]<means[reference][hs]
+        conditions[reference+'_remaining27']=remaining[reference][hs]['delta']<0
+        conditions[reference+'_coverage']=coverage[reference]['improved']>=coverage[reference]['worsened']
+    conditions['protection']=all(r['means']['correct_unit']['protected']==1 for r in records.values())
+    geometry_delta=[r['means']['geometry_unit'][hs]-r['means']['source'][hs] for r in records.values()]
+    geometry_coverage=dict(improved=sum(x<0 for x in geometry_delta),worsened=sum(x>0 for x in geometry_delta),equal=sum(x==0 for x in geometry_delta))
+    geometry_opportunity=(means['geometry_unit'][hs]<means['source'][hs] and
+        geometry_coverage['improved']>geometry_coverage['worsened'] and
+        all(r['means']['geometry_unit']['protected']==1 for r in records.values()))
+    direction_tables={view:{} for view in ('correct','wrong','geometry')}
+    for task,row in records.items():
+        for view in direction_tables:
+            values=[row['direction_audits']['geometry']] if view=='geometry' else [row['direction_audits'][view+f'_draw{d}'] for d in range(2)]
+            keys=('raw_norm','projected_norm','raw_derivative','projected_derivative_before_scaling',
+                  'removed_derivative','derivative','linear_anchor_max_error_m','central_derivative','quarter_hs_change','unit_hs_change')
+            direction_tables[view][str(task)]={k:sum(v[k] for v in values)/len(values) for k in keys}
+    direction_scenes={view:{scene:{metric:sum(row[metric] for key,row in table.items() if records[int(key)]['scene']==scene)/
+        sum(records[int(key)]['scene']==scene for key in table) for metric in next(iter(table.values()))}
+        for scene in scenes} for view,table in direction_tables.items()}
+    direction_contrasts={a+'__minus__'+b:{unit:paired_local_metrics(data[b],data[a],device)
+        for unit,data in [('task',direction_tables),('scene',direction_scenes)]}
+        for a,b in [('correct','wrong'),('correct','geometry')]}
+    evidence=all(conditions.values())
+    summary=dict(tasks=len(records),windows=sum(r['windows'] for r in records.values()),draws=2,
+        declared_draw_arm_rows=28*2*7,unique_native_evaluations=28*11,expert_forwards=0,
+        means=means,contrasts=contrasts,task_coverage=coverage,remaining27=remaining,
+        local_hsi_conditions=conditions,local_hsi_signal=evidence,geometry_coverage=geometry_coverage,
+        geometry_opportunity=geometry_opportunity,
+        classification='limited_step_hsi_signal' if evidence else 'hsi_direction_misalignment' if geometry_opportunity else 'local_opportunity_unestablished',
+        direction_contrasts=direction_contrasts,
+        audit=dict(source_joint_max_error_m=max(r['source_joint_error_m'] for r in records.values()),
+            source_metric_max_error=max(r['source_metric_error'] for r in records.values()),
+            source_fk_anchor_max_error_m=max(r['source_fk_anchor_error_m'] for r in records.values()),
+            differentiable_source_scalar_max_error=max(r['gradient_audit']['source_scalar_max_error'] for r in records.values()),
+            native_anchor_max_error_m=max(r['draws'][d]['arms'][a]['native_anchor_max_error_m'] for r in records.values() for d in range(2) for a in arms)),
+        zero_gradient_tasks=[k for k,r in records.items() if r['gradient_audit']['norm']==0],
+        zero_hs_tasks=[k for k,r in records.items() if r['means']['source'][hs]==0],
+        training_allowed=False,test_set_development=True)
+    out=run_root/'analysis';out.mkdir()
+    for arm in arms:
+        for unit,values in [('task',by_task[arm]),('scene',by_scene[arm])]:
+            write_json(out/f'{arm}-{unit}.json',dict(metrics=values))
+    write_json(out/'direction_tasks.json',direction_tables)
+    write_json(out/'direction_scenes.json',direction_scenes)
     write_json(out/'summary.json',summary);write_json(out/'records.json',records)
     return summary

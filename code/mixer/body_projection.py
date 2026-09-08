@@ -158,3 +158,108 @@ class NativeBodyProjection:
         audit = dict(seconds=time.perf_counter()-started,iterations=80,trace=trace,attempts=attempts,
                      amplitude=amplitude,final=measures,states=states)
         return rotation,translation,audit
+
+
+def tangent_body_direction(projection, direction):
+    """The source tangent projector, including its fixed temporal boundary."""
+    global_rotation, points = projection.forward(projection.rotation, projection.translation)
+    jacobian = projection.jacobian(global_rotation, points).double()
+    value = direction.double().clone()
+    value[projection.fixed] = 0
+    normal = (projection.inverse(jacobian)@(jacobian@value[..., None])).squeeze(-1)
+    tangent = value-normal
+    return tangent, jacobian
+
+
+def body_direction_velocity(projection, direction):
+    """Analytic velocity of all24 FK points for a normalized right-local tangent."""
+    rotation, points = projection.forward(projection.rotation, projection.translation)
+    rotation, points = rotation.double(), points.double()
+    linear = [direction[:, :3]*projection.position_scale]
+    angular = [(rotation[:, 0]@direction[:, 3:6, None]).squeeze(-1)*projection.angle_scale]
+    local = direction[:, 3:].reshape(-1, 22, 3)*projection.angle_scale
+    for joint in range(1, 24):
+        parent = _PARENTS_24[joint]
+        linear.append(linear[parent]+torch.cross(angular[parent], points[:, joint]-points[:, parent], dim=-1))
+        omega = angular[parent]
+        if joint < 22:
+            omega = omega+(rotation[:, joint]@local[:, joint, :, None]).squeeze(-1)
+        angular.append(omega)
+    return torch.stack(linear, dim=1)
+
+
+def normalize_body_directions(projection, directions):
+    """Equal linearized body RMS followed by one common kinematic scale."""
+    normalized, audits, limits = {}, {}, []
+    for name, direction in directions.items():
+        velocity = body_direction_velocity(projection, direction)
+        rms = velocity.square().sum(-1).mean().sqrt()
+        value = direction*(.001/rms) if float(rms) > 0 else direction.clone()
+        motion = body_direction_velocity(projection, value)
+        speed = (motion[1:]-motion[:-1]).norm(dim=-1)*30
+        ratios = torch.stack((
+            (value[:, :3]*projection.position_scale).norm(dim=-1).max()/.005,
+            (value[:, 3:].reshape(-1,22,3)*projection.angle_scale).norm(dim=-1).max()/math.radians(2),
+            speed.max()/.3, speed.mean()/.1, speed[projection.seams-1].mean()/.1,
+        ))
+        limits.append(ratios.max())
+        normalized[name] = value
+        audits[name] = dict(projected_body_rms_m=float(rms), zero_direction=float(rms)==0,
+                           unit_limit_ratios=ratios.tolist())
+    scale = float(torch.stack(limits).max().clamp_min(1).reciprocal())
+    for name in normalized:
+        normalized[name] = normalized[name]*scale
+        audits[name]['achieved_linear_body_rms_m'] = float(body_direction_velocity(projection,normalized[name]).square().sum(-1).mean().sqrt())
+    return normalized, dict(common_scale=scale,directions=audits)
+
+
+def native_increment_pose(projection, direction, start=0, stop=None):
+    """Identity-preserving native pose for a tangent increment, with gradients."""
+    source = projection.source
+    stop = len(source['pose']) if stop is None else stop
+    value = direction*~projection.fixed[start:stop,None]
+    rotation = projection.rotation[start:stop].double()
+    changed = rotation@transforms.axis_angle_to_matrix(value[:,3:].double().reshape(-1,22,3)*projection.angle_scale)
+    difference = transforms.matrix_to_axis_angle(changed)-transforms.matrix_to_axis_angle(rotation)
+    pose = source['pose'][start:stop]+difference.to(source['pose'])
+    translation = source['translation'][start:stop]+value[:,:3].to(source['translation'])*projection.position_scale
+    return pose,translation
+
+
+class NativeSceneDifferential:
+    """Native human-scene penetration and its69-coordinate source derivative."""
+    def __init__(self, projection, model, sdf, info):
+        self.projection, self.model = projection, model
+        device = projection.translation.device
+        self.sdf = torch.as_tensor(sdf,device=device,dtype=torch.float32)[None,None]
+        self.centroid = torch.as_tensor(info['centroid'],device=device,dtype=torch.float32)
+        self.extent = torch.as_tensor(info['extents'],device=device,dtype=torch.float32).max()
+
+    def frame_sums(self, vertices):
+        # Preserve the native evaluator's normalization, ordering and reduction.
+        normalized = (vertices.float()-self.centroid.reshape(1,1,3))/(self.extent/2)
+        values = torch.nn.functional.grid_sample(self.sdf,
+            normalized[:,:,[2,1,0]].reshape(1,-1,1,1,3),padding_mode='border',align_corners=True)
+        signed = values.reshape(vertices.shape[:2])*self.extent/2
+        return torch.minimum(signed,torch.zeros_like(signed)).abs().sum(-1)
+
+    @torch.enable_grad()
+    def gradient(self):
+        from utils import run_smplx_model, SMPLX_JOINTS_28
+        source = self.projection.source
+        length = len(source['pose'])
+        gradient = torch.zeros(length,69,device=source['pose'].device,dtype=torch.float64)
+        total = 0.
+        self.model.eval().requires_grad_(False)
+        for start in range(0,length,24):
+            stop = min(start+24,length)
+            value = torch.zeros(stop-start,69,device=gradient.device,dtype=torch.float64,requires_grad=True)
+            pose,translation = native_increment_pose(self.projection,value,start,stop)
+            vertices,_ = run_smplx_model(pose,translation,source['betas'],source['gender'],
+                                        joints_ind=SMPLX_JOINTS_28,smpl_model=self.model)
+            vertices = torch.where(self.projection.fixed[start:stop,None,None],source['verts'][start:stop],vertices)
+            loss = self.frame_sums(vertices).sum()/length
+            gradient[start:stop] = torch.autograd.grad(loss,value)[0]
+            total += float(loss.detach())
+        assert torch.isfinite(gradient).all()
+        return gradient,total
