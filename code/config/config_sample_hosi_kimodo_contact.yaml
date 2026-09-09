@@ -1,0 +1,14 @@
+defaults: [config_sample_hosi_inbetween, _self_]
+
+exp_name: p5-inference-kimodo-contact-s42-20260909
+device: cuda:6
+inbetween:
+  stage: contact
+  models: [kimodo, kimodo_contact]
+  input_dir: ${oc.env:ROOT_DIR}/results/experiments/p5-inference-inbetween-r4-s42-20260909/inputs
+  contact:
+    baseline: ${oc.env:ROOT_DIR}/results/experiments/p5-inference-inbetween-r4-s42-20260909/evaluation
+    iterations: 400
+    learning_rate: 0.003
+    patch_vertices: 32
+    minimum_contact_frames: 3

@@ -282,7 +282,9 @@ def render(cfg, root):
     preview = output/'preview'
     preview.mkdir()
     parents = np.array(_PARENTS_22[1:])
-    colors = {'kimodo':'#7257c7', 'condmdi':'#007c91'}
+    colors = {'kimodo':'#7257c7', 'condmdi':'#007c91', 'kimodo_contact':'#007c91'}
+    labels = {'kimodo':'Kimodo: purple', 'condmdi':'CondMDI: teal', 'kimodo_contact':'contact corrected: teal'}
+    legend = ' · '.join(labels[name] for name in cfg.inbetween.models)
     clips = []
     for row in index['tasks']:
         tracks = {name: np.load(output/name/f'task-{row["task"]:03d}/motion.npz')['joints']
@@ -324,24 +326,24 @@ def render(cfg, root):
     for clip in clips:
         fig = plt.figure(figsize=(7,6),dpi=100)
         artists = create_axis(fig,(1,1,1),clip)
-        title = fig.suptitle('Kimodo: purple · CondMDI: teal | prescribed endpoints: grey / green', fontsize=10)
+        title = fig.suptitle(legend+' | prescribed endpoints: grey / green', fontsize=10)
         writer = FFMpegWriter(fps=30, codec='libx264', extra_args=['-pix_fmt','yuv420p','-crf','20'])
         with writer.saving(fig,str(preview/f'task-{clip[0]["task"]:03d}.mp4'),dpi=100):
             for frame in range(61):
                 update(artists,clip,frame)
-                title.set_text(f'Kimodo: purple · CondMDI: teal | {frame/30:.2f} s')
+                title.set_text(f'{legend} | {frame/30:.2f} s')
                 writer.grab_frame()
         plt.close(fig)
     fig = plt.figure(figsize=(12,12),dpi=100)
     artists = [create_axis(fig,(4,3,i+1),clip) for i,clip in enumerate(clips)]
-    title = fig.suptitle('HOI → prescribed standing | Kimodo: purple · CondMDI: teal',fontsize=13)
+    title = fig.suptitle('HOI → prescribed standing | '+legend,fontsize=13)
     fig.subplots_adjust(left=.01,right=.99,bottom=.01,top=.94,wspace=.02,hspace=.12)
     writer = FFMpegWriter(fps=30, codec='libx264', extra_args=['-pix_fmt','yuv420p','-crf','20'])
     with writer.saving(fig,str(preview/'all_twelve.mp4'),dpi=100):
         for frame in range(61):
             for artist,clip in zip(artists,clips):
                 update(artist,clip,frame)
-            title.set_text(f'HOI → prescribed standing | Kimodo: purple · CondMDI: teal | {frame/30:.2f} s')
+            title.set_text(f'HOI → prescribed standing | {legend} | {frame/30:.2f} s')
             writer.grab_frame()
             if frame == 30:
                 fig.savefig(preview/'all_twelve_midpoint.png',dpi=150)
@@ -359,4 +361,6 @@ def run_inbetween(cfg):
     output.mkdir(parents=True, exist_ok=True)
     write_json(output/(cfg.inbetween.stage+'_provenance.json'), dict(commit=commit, stage=cfg.inbetween.stage,
         config=OmegaConf.to_container(cfg, resolve=True)))
-    {'prepare': prepare_inputs, 'generate': dispatch, 'evaluate': evaluate, 'render': render}[cfg.inbetween.stage](cfg, root)
+    from .inbetween_contact import run_contact
+    {'prepare': prepare_inputs, 'generate': dispatch, 'evaluate': evaluate, 'render': render,
+        'contact': run_contact}[cfg.inbetween.stage](cfg, root)

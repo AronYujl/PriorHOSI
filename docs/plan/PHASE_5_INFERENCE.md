@@ -305,3 +305,15 @@ exact contexts (<1e-5m), all finite. Report both improvements and deficits even
 if this gate fails. No full task-chain rollout or further tuning follows here.
 Deliver preregistration, implementation and completion commits with a phase
 summary and before/after visualizations. CondMDI remains a historical reference.
+
+Implementation makes Kimodo the default `inbetween.models` value. Historical
+CondMDI comparison configs remain archived in their manifests; it is still
+explicitly callable by model override. Native correction is an additional stage
+of the existing dispatcher, and the existing renderer compares saved originals
+with corrected motions. The fixed predicted contact intervals also define new
+paired evaluation metrics; raising the foot cannot remove it from that metric.
+No separate generation benchmark is needed because this stage reuses saved
+predictions. Actual correction timing and memory are recorded in the formal run.
+Assembly reporting uses51new30Hzframes (`bridge[10:]`); Phase5.2's numerical
+exports already contain51but its narrative/assembly JSON said50. The source
+prefix and actual exported frame arrays are retained exactly.

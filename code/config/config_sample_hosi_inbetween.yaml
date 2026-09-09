@@ -11,7 +11,7 @@ inbetween:
   source_results: /data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/completion_metrics.json
   input_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/inputs
   external_root: /data/yujinlun/motion-inbetween
-  models: [kimodo, condmdi]
+  models: [kimodo]
   kimodo_python: /data/yujinlun/anaconda3/envs/kimodo/bin/python
   condmdi_python: /data/yujinlun/anaconda3/envs/condmdi/bin/python
   kimodo_device: cuda:7
