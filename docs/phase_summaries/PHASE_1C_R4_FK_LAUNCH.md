@@ -1,6 +1,6 @@
 # Phase 1C R4 FK: implementation and resource handoff
 
-Status: objective and fixed calibration verified; formal training queued for GPU resources.
+Status: objective and fixed calibration verified; the user superseded the original queue with fresh training on GPU4–7 (amendment below).
 R4.1 remains open until formal initial stability and a resumable checkpoint are demonstrated.
 R4.2 physical/FID/semantic acceptance is approved and pending training artifacts.
 
@@ -48,3 +48,20 @@ fixed epoch19 development diagnostics, final DDPM500 U/G full375, native Table3 
 representation readouts with registered paired uncertainty and safety/engagement gates.
 Compare against the corrected CM1.5 R2+CG and GT artifacts; all efficacy conclusions await
 these measurements. Existing sealed input identities are referenced by the manifests.
+
+## User-directed restart on GPU4–7
+
+The original queue launched at15:51:14UTC and reached epoch0/update656. Its full rolling
+checkpoint was saved, then the original job was stopped. The user explicitly cancelled
+layout benchmarking and chose fresh random training rather than continuation. The old
+run is sealed aborted; its checkpoint and logs remain available, including a cost addendum
+for the brief checkpoint-boundary pause. This is an operational restart, not a quality failure.
+
+Active replacement id: p1-hsi-r4-fk-train-fresh47-s42-20260909. Physical GPUs4,5,6,7;
+load_state_dict=false, resume_from empty, start_epoch0, full146255 updates. Scientific
+recipe, logical4×512 layout, weight and acceptance rules stay fixed. The new job, manifest,
+logs and final/intermediate checkpoints use the replacement id. Its physical-layout speed
+will be recorded from initial formal training; no A/B throughput comparison was run.
+
+Inspect results/r4_fk_setup_20260909/fresh47_job.json and fresh47_status.json first.
+The old queue_status.json describes the aborted job and is historical.
