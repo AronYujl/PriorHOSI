@@ -251,3 +251,57 @@ deficits, and shared target71itself penetrates the scene by10.316cm.
 The deployment gate passes; physical suitability remains limited for these fixed
 recipes. See [Phase5.2 summary](../phase_summaries/PHASE_5B_INBETWEEN.md) for all
 results, endpoint attribution, uncertainty and retained failures.
+
+## 2026-09-09 — Phase 5.3: adopt Kimodo and correct native contact
+
+The user approved adopting Kimodo after the Phase5.2 comparison and the proposed
+native contact postprocessing. Work on `phase/05c-kimodo-contact`. Kimodo is the
+selected generator; use the existing twelve generated samples unchanged.
+Hypothesis: joint optimization of native SMPL-X root/body trajectories against
+floor, scene/object geometry and fixed predicted contact intervals reduces ground
+penetration and planted-foot motion while retaining the smoother Kimodo seams.
+
+Reuse all12Phase5.2conditions, source bodies, objects and Kimodo predictions.
+Audit both boundary poses before editing with the original scene tolerances
+(mean<=5mm/max<=5cm/in bounds). A failed boundary returns an explicit
+`infeasible_endpoint` result and preserves its original motion; all12remain in
+reports. Do not replace targets, resample, or silently count a rejected input as
+corrected. Report the feasible subset separately and retain task71's known issue.
+
+One fixed correction: optimize41freeframes10..50, retaining20contextframes and
+all object transforms exactly. Use native SMPL-X surfaces, four foot patches
+(heel/toe per side), and Kimodo's already saved four contact channels. Contact
+patches use the32lowest target-pose vertices in the corresponding dominant
+skinning region (7,10,8,11); constraints act on patch horizontal centroids and
+lowest surface heights. Keep predicted contact labels fixed for before/after
+metrics. Contact intervals shorter than3frames are omitted from optimization and
+reported; intersecting fixed contexts and incompatible endpoint foot locations
+are recorded rather than changing the given endpoint.
+
+Use400Adamsteps, lr0.003, all22body-axis-angle rotations and root translation.
+Objective terms (metres unless stated): body-joint deviation /0.05m; rotation
+deviation /0.15rad; deviation of joint second differences /0.002m; seam second
+differences /0.001m; per-frame maximum floor penetration /0.002m; maximum scene
+penetration exceeding0.005m /0.005m; maximum object penetration exceeding0.005m
+/0.005m; contact patch height /0.01m; fixed-contact horizontal displacement per
+frame /0.001m. Coefficients respectively1,0.1,1,5,20,2,2,2,5. Mean squared terms;
+all objectives logged. Original contexts contribute to seam evaluation, but only
+freeframes contribute to geometry/contact height objectives. Report final fixed
+budget iterate, no best-output selection or parameter sweep.
+
+Save all12before/after native bridges and full source+bridge motions, endpoint
+status, fixed-contact speed, foot height/contact coverage, original Phase5.2
+metrics, joint/root/rotation correction size, iteration losses and synchronized
+runtime/peak CUDA memory. Report shared GPU6allocation; parallel GPU calculations
+inside each motion. Do not interrupt existing workloads. Source and geometry
+identity reused by manifest reference; no new hashing mechanism or smoke workload.
+Full authority tests and registry validation precede the standard manifest/start
+and exact resolved Hydra config; paired10000seed42task bootstrap and CLI follow.
+
+Adoption selects Kimodo independently of this diagnostic. A contact-correction
+quality gate requires mean ground-depth and fixed-contact-speed reductions on
+feasible cases, no scene-pass loss, no mean entrance/exit seam increase>0.02m/s,
+exact contexts (<1e-5m), all finite. Report both improvements and deficits even
+if this gate fails. No full task-chain rollout or further tuning follows here.
+Deliver preregistration, implementation and completion commits with a phase
+summary and before/after visualizations. CondMDI remains a historical reference.

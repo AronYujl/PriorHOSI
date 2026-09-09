@@ -366,3 +366,7 @@ remains complete. Final phase closure follows the corrected human-goal query run
 ## 2026-09-08 — Phase2.29 final closure after goal-query correction
 
 Native human-goal query alignment passes124/124 checks, yet corrected HSI root/heading targets worsenHS4.23%/OS9.98% over the geometry baseline and show no correct-scene advantage. Joint motion transfer and contact preservation execute successfully; useful scene transfer remains unresolved. Both runs are sealed,469 expansion stopped,Phase2.28 baseline retained. See PHASE_2Z_HSI_MOTION_TARGET.md for the corrected and legacy results, query evidence and next review entry.
+
+2026-09-09: user selected Kimodo; Phase5.3 tests native contact correction on the
+same12generated bridges, with explicit endpoint rejection and fixed-context
+comparison. See latest [Phase5 plan](PHASE_5_INFERENCE.md).
