@@ -91,7 +91,7 @@ def full_source_geometry(motion, scene, object_sdf, object_info, object_vertices
     positions = object_position.expand(count, -1)
     rotations = object_rotation.expand(count, -1, -1)
     body = geometry_measures(motion['verts'], scene[0], scene[1], object_sdf,
-        object_info, positions, rotations)
+        object_info, positions[:, None], rotations)
     object_world = object_vertices @ object_rotation.T+object_position
     obj_scene = object_scene_passes(object_world, scene[0], scene[1], thresholds)
     return dict(body=body, object_scene=obj_scene,
