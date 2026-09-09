@@ -5,7 +5,6 @@ from einops import rearrange
 import smplx
 from constants import SMPL_DIR
 from scipy.spatial.transform import Rotation as R
-from scipy.interpolate import interp1d
 
 def append_dims(x, target_dims):
     """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
@@ -28,19 +27,21 @@ def quaternion_slerp(q1, q2, step, eps=1e-6):
     dot = torch.sum(q1 * q2, dim=-1, keepdim=True)
 
     # 1. Ensure a short arc
-    q1 = torch.where(dot < 0, -q1, q1)
-    dot = torch.sum(q1 * q2, dim=-1, keepdim=True)
+    q2 = torch.where(dot < 0, -q2, q2)
+    dot = dot.abs()
 
     # 2. For critical cases, degradation to LERP
     use_lerp = dot > (1.0 - eps)
 
-    omega = torch.acos(dot)
+    # The near-coincident branch uses normalized LERP.  Evaluate its unused
+    # spherical weights at a right angle so the zero-angle limit stays finite.
+    omega = torch.acos(torch.where(use_lerp, torch.zeros_like(dot), dot))
     sin_omega = torch.sin(omega)
     factor0 = torch.sin((1 - step) * omega) / sin_omega
     factor1 = torch.sin(step * omega) / sin_omega
 
     slerped = q1 * factor0 + q2 * factor1
-    lerped = q1 * step + q2 * (1 - step)
+    lerped = q1 * (1 - step) + q2 * step
 
     result = torch.where(use_lerp, lerped, slerped)
     result = result / torch.norm(result, dim=-1, keepdim=True)
@@ -48,28 +49,17 @@ def quaternion_slerp(q1, q2, step, eps=1e-6):
     return result
 
 def interp_jrot(local_jrot_q, interp_s=3):
-    # local_jrot_q: (T, 22, 4)
-    # interp_s: default 3
-    t, j, _ = local_jrot_q.shape
-    local_jrot_q_interp = torch.zeros((t*interp_s, j, _)).to(local_jrot_q.device)
-
-    # Interpolate over each time step
-    for i in range(t-1):
-        # Convert to quaternions
-        quat1 = local_jrot_q[i]
-        quat2 = local_jrot_q[i+1]
-
-        # Quaternion interpolation
-        for j in range(interp_s):
-            t = j / interp_s
-            # Spherical linear interpolation
-            quat_interp = quaternion_slerp(quat1, quat2, t)
-            local_jrot_q_interp[i*interp_s + j] = quat_interp
-
-    # Handle the last frame
-    local_jrot_q_interp[-interp_s:] = local_jrot_q[-1]
-
-    return local_jrot_q_interp
+    """Sample local quaternions at k / interp_s, holding the final frame."""
+    if interp_s == 1:
+        return local_jrot_q
+    frames = local_jrot_q.shape[0]
+    index = torch.arange(frames * interp_s, device=local_jrot_q.device)
+    lower = torch.div(index, interp_s, rounding_mode="floor")
+    upper = (lower + 1).clamp(max=frames - 1)
+    step = (index.remainder(interp_s).to(local_jrot_q.dtype) / interp_s)[:, None, None]
+    interpolated = quaternion_slerp(local_jrot_q[lower], local_jrot_q[upper], step)
+    interpolated[-interp_s:] = local_jrot_q[-1]
+    return interpolated
 
 def load_object_geometry_w_rest_geo(obj_rot, obj_com_pos, rest_verts):
     # obj_rot: T X 3 X 3, obj_com_pos: T X 3, rest_verts: Nv X 3
@@ -358,16 +348,13 @@ def run_smplx_model(pose_pred, transl, betas, gender, joints_ind=None, smpl_mode
 
 
 def interpolate_joints(joints, scale):
+    """Sample flattened positions at k / scale, holding the final frame."""
     if scale == 1:
         return joints
-    device = joints.device
-    joints = joints.detach().cpu().numpy()
-    in_len = joints.shape[0]
-    out_len = int(in_len * scale)
-    joints = joints.reshape(in_len, -1)
-    x = np.array(range(in_len))
-    xnew = np.linspace(0, in_len - 1, out_len)
-    f = interp1d(x, joints, axis=0)
-    joints_new = f(xnew)
-    joints_new = torch.from_numpy(joints_new).to(device).float()
-    return joints_new
+    frames = joints.shape[0]
+    joints = joints.reshape(frames, -1)
+    index = torch.arange(frames * scale, device=joints.device)
+    lower = torch.div(index, scale, rounding_mode="floor")
+    upper = (lower + 1).clamp(max=frames - 1)
+    step = (index.remainder(scale).to(joints.dtype) / scale)[:, None]
+    return torch.lerp(joints[lower], joints[upper], step)

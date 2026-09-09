@@ -80,6 +80,54 @@ class DiagnosticInputTests(unittest.TestCase):
         self.assertEqual(batch["need_pi"].dtype, torch.bool)
 
 
+class DeploymentReplayTests(unittest.TestCase):
+    def test_export_keeps_original_coarse_pose_and_translation(self):
+        pose = torch.zeros(4, 22, 3)
+        pose[:, 1, 0] = torch.tensor([0., .0002, .0004, .0006])
+        translation = torch.arange(12, dtype=torch.float32).reshape(4, 3) / 10
+        points = translation[:, None].expand(-1, 28, -1).clone()
+        coarse = evaluator.hsi_metrics.StitchedSequence(
+            points, seams=(2,), window_lengths=(2, 2), history_frames=2,
+        )
+        record = evaluator._motion_export_record(
+            joints_coarse=coarse,
+            smplx_pose=evaluator._interpolate_local_pose(pose, 3),
+            smplx_transl=evaluator.interpolate_joints(translation, 3),
+            coarse_local_pose=pose, coarse_translation=translation,
+            betas=torch.zeros(16), gender="neutral",
+            smplx_output_transform="identity", interp_scale=3,
+        )
+        np.testing.assert_array_equal(record["coarse_local_pose"], pose.numpy())
+        np.testing.assert_array_equal(record["coarse_translation"], translation.numpy())
+        np.testing.assert_allclose(record["body_pose"][::3], pose[:, 1:].numpy(), atol=1e-7)
+        self.assertEqual(str(record["interpolation_version"]), evaluator.INTERPOLATION_VERSION)
+        self.assertEqual(record["global_jpos"].shape, (4, 28, 3))
+        self.assertEqual(record["body_pose"].shape, (12, 21, 3))
+
+    def test_replay_reports_exact_and_tolerated_values_and_rejects_drift(self):
+        original = np.zeros((4, 28, 3), dtype=np.float32)
+        with tempfile.TemporaryDirectory() as directory:
+            motion = Path(directory) / "shard00" / "motion"
+            motion.mkdir(parents=True)
+            path = motion / "001_000001.npz"
+            np.savez(path, global_jpos=original)
+            paths = evaluator._replay_reference_paths(directory)
+            self.assertEqual(paths["001_000001"], path)
+            exact = evaluator._coarse_replay_record(original, path)
+            self.assertTrue(exact["exact_equal"])
+            self.assertEqual(exact["max_abs_m"], 0.)
+            changed = original.copy()
+            changed[2, 3, 1] = 1e-5
+            close = evaluator._coarse_replay_record(changed, path)
+            self.assertFalse(close["exact_equal"])
+            self.assertAlmostEqual(close["max_abs_m"], 1e-5)
+            changed[2, 3, 1] = 3e-5
+            with self.assertRaisesRegex(RuntimeError, "registered tolerance"):
+                evaluator._coarse_replay_record(changed, path)
+            with self.assertRaisesRegex(RuntimeError, "shape mismatch"):
+                evaluator._coarse_replay_record(original[:1], path)
+
+
 class TimingAggregationTests(unittest.TestCase):
     def test_registered_warmup_and_aggregates_have_exact_values(self):
         result = evaluator._aggregate_timing(
@@ -481,18 +529,13 @@ class SmplxFrameSourceTests(unittest.TestCase):
         self.assertNotIn("yup_to_zup", called)
 
     def test_schema_versions_record_the_frame_correction(self):
-        self.assertEqual(evaluator.METRICS_SCHEMA_VERSION, 4)
-        self.assertEqual(evaluator.MOTION_EXPORT_SCHEMA_VERSION, 3)
+        self.assertEqual(evaluator.METRICS_SCHEMA_VERSION, 5)
+        self.assertEqual(evaluator.MOTION_EXPORT_SCHEMA_VERSION, 4)
+        self.assertEqual(evaluator.INTERPOLATION_VERSION, "fixed_rate_endpoint_hold_v1")
 
 
 class SmplxFrameRoundTripTests(unittest.TestCase):
-    """The frame algebra behind the fix, on a small fixture and with no assets.
-
-    ``interp_jrot`` is deliberately excluded: ``utils.quaternion_slerp`` swaps its
-    LERP weights (``q1 * step + q2 * (1 - step)``) and takes that branch whenever
-    ``dot > 1 - 1e-6``, so the interpolator is not an identity even at scale 1 and
-    would mask the property under test.  That is a separate, pre-existing defect.
-    """
+    """Frame algebra including scale-one deployment interpolation, without assets."""
 
     def test_identity_decode_recovers_the_template_frame_locals(self):
         chain = _RotationChain()
@@ -506,11 +549,13 @@ class SmplxFrameRoundTripTests(unittest.TestCase):
             chain.local2global_pose(transforms.axis_angle_to_matrix(local_raw))
         )
 
-        # the generated arm's decode, verbatim minus the interpolation
+        # The generated arm's decode with the scale-one deployment path.
         decoded = chain.quat_ik_torch(
             transforms.rotation_6d_to_matrix(global_6d.reshape(-1, 22, 6))
         )
-        recovered = transforms.matrix_to_axis_angle(decoded).reshape(-1, 22, 3)
+        recovered = transforms.matrix_to_axis_angle(transforms.quaternion_to_matrix(
+            evaluator.interp_jrot(transforms.matrix_to_quaternion(decoded), 1)
+        )).reshape(-1, 22, 3)
 
         self.assertTrue(
             torch.allclose(recovered, local_raw, atol=2e-6),

@@ -1,0 +1,19 @@
+# CM1.5: one deployment clock, fixed GT/R2/CM16 replay.
+defaults: [config_sample_hsi_c_r2_fixed_w, _self_]
+
+replay_reference: null
+measure_reconstruction_timing: true
+model_name: interpolation_cm16_unguided
+use_guidance: false
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_cm16_unguided_s42_20260909
+
+representation_output: ${oc.env:ROOT_DIR}/results/hsi_interpolation_position_fk_s42_20260909
+representation_shard_index: 0
+representation_shard_count: 8
+representation_batch_size: 128
+representation_inputs:
+  gt: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_gt_s42_20260909
+  r2_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_r2_unguided_s42_20260909
+  r2_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_r2_guided_s42_20260909
+  cm16_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_cm16_unguided_s42_20260909
+  cm16_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_cm16_guided_s42_20260909

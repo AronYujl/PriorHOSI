@@ -43,7 +43,7 @@ def evaluate_position_fk(cfg):
     batch = int(cfg.representation_batch_size)
     paths = {arm: _motion_paths(root) for arm, root in cfg.representation_inputs.items()}
     ids = sorted(paths["gt"])[shard::count]
-    models, records, timings = {}, {}, []
+    models, records, timings, interpolation_timings = {}, {}, [], []
     full_batches = 0
     torch.cuda.reset_peak_memory_stats()
     started = time.perf_counter()
@@ -78,9 +78,14 @@ def evaluate_position_fk(cfg):
                         rebuilt.append(joints)
                         del vertices
                     scale = int(data["interp_scale"])
-                    direct = interpolate_joints(torch.as_tensor(
+                    coarse_direct = torch.as_tensor(
                         data["global_jpos"], device=device, dtype=torch.float32
-                    ), scale).reshape(-1, 28, 3)
+                    )
+                    torch.cuda.synchronize()
+                    before = time.perf_counter()
+                    direct = interpolate_joints(coarse_direct, scale).reshape(-1, 28, 3)
+                    torch.cuda.synchronize()
+                    interpolation_timings.append(time.perf_counter() - before)
                     values, joint_means = position_fk_metrics(
                         direct, torch.cat(rebuilt), data["seams"], scale,
                     )
@@ -92,8 +97,11 @@ def evaluate_position_fk(cfg):
     output.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(
         metrics=records, joint_indices=POSITION_JOINTS_28,
+        interpolation_version="fixed_rate_endpoint_hold_v1",
         shard_index=shard, shard_count=count, batch_size=batch,
         timing=dict(warmup_full_batches=4, measured_full_batches=len(timings),
+                    interpolation_mean_seconds=float(np.mean(interpolation_timings[4:])),
+                    interpolation_warmup_sequences=4,
                     mean_batch_seconds=float(np.mean(timings)),
                     frames_per_second=batch / float(np.mean(timings)),
                     wall_seconds=time.perf_counter() - started,

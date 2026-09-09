@@ -78,7 +78,10 @@ NON_WATERTIGHT_SCENES = frozenset(("031", "049-bed"))
 #:       this bump cannot be evaluated after it -- not "differently", but on an
 #:       input distribution rotated 90 deg about +x -- so schema-3 model numbers
 #:       are superseded only by a retrained model, never by a recomputation.
-METRICS_SCHEMA_VERSION = 4
+#: 5  -- fixed-rate deployment interpolation with correct near-identity SLERP.
+#:       GT and generated FK metrics change; coarse native FID inputs stay fixed.
+METRICS_SCHEMA_VERSION = 5
+INTERPOLATION_VERSION = "fixed_rate_endpoint_hold_v1"
 
 #: Motion-export schema version, written into every per-sequence ``.npz``.
 #:
@@ -102,7 +105,8 @@ METRICS_SCHEMA_VERSION = 4
 #:       ``smplx_pose`` on the generated arm is now the decoded rotation channel
 #:       verbatim instead of ``yup_to_zup`` of it.  Ground-truth-arm files are
 #:       bit-identical to schema 2.
-MOTION_EXPORT_SCHEMA_VERSION = 3
+#: 4  -- synchronized fixed-rate interpolation and original coarse FK inputs.
+MOTION_EXPORT_SCHEMA_VERSION = 4
 
 #: The frozen text-motion evaluator drops sequences shorter than this and
 #: truncates the rest to a multiple of ``T2M_LENGTH_MULTIPLE``.  Both numbers are
@@ -300,6 +304,7 @@ def _run_smplx_chunks(
     device: torch.device,
     batch_size: int,
     cache: MutableMapping[str, torch.nn.Module],
+    timing_sink: Optional[MutableMapping[str, Any]] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     if gender not in cache:
         cache[gender] = create_smplx_model(gender, device, batch_size=1)
@@ -307,6 +312,9 @@ def _run_smplx_chunks(
     for begin in range(0, int(local_pose.shape[0]), batch_size):
         end = min(begin + batch_size, int(local_pose.shape[0]))
         chunk_betas = betas[None].repeat(end - begin, 1)
+        if timing_sink is not None:
+            torch.cuda.synchronize(device)
+            batch_start = time.perf_counter()
         chunk_vertices, chunk_joints = run_smplx_model(
             local_pose[begin:end],
             translation[begin:end],
@@ -315,6 +323,13 @@ def _run_smplx_chunks(
             joints_ind=SMPLX_JOINTS_28,
             smpl_model=cache[gender],
         )
+        if timing_sink is not None:
+            torch.cuda.synchronize(device)
+            elapsed = time.perf_counter() - batch_start
+            if end - begin == batch_size:
+                timing_sink["full_batches"] += 1
+                if timing_sink["full_batches"] > 4:
+                    timing_sink["smplx_batch_seconds"].append(elapsed)
         vertices.append(chunk_vertices.detach())
         joints.append(chunk_joints.detach())
     return torch.cat(vertices), torch.cat(joints)
@@ -328,6 +343,7 @@ def ground_truth_motion(
     smplx_batch_size: int,
     smplx_cache: MutableMapping[str, torch.nn.Module],
     export_sink: Optional[MutableMapping[str, Any]] = None,
+    timing_sink: Optional[MutableMapping[str, Any]] = None,
 ):
     sequence_index, indices = source.episode_indices(
         int(episode["data_idx"]), int(episode["episode_num"])
@@ -341,10 +357,19 @@ def ground_truth_motion(
     local_axis_angle = torch.cat(
         (orient.frames.reshape(-1, 1, 3), pose.frames.reshape(-1, 21, 3)), dim=1
     ).to(device=device, dtype=torch.float32)
+    coarse_local_pose = local_axis_angle
+    coarse_translation = translation.frames.to(device=device, dtype=torch.float32)
+    if timing_sink is not None:
+        torch.cuda.synchronize(device)
+        interpolation_start = time.perf_counter()
     local_axis_angle = _interpolate_local_pose(local_axis_angle, interp_scale)
     translation_frames = interpolate_joints(
-        translation.frames.to(device=device, dtype=torch.float32), scale=interp_scale
+        coarse_translation, scale=interp_scale
     )
+    if timing_sink is not None:
+        torch.cuda.synchronize(device)
+        timing_sink["interpolation_seconds"].append(time.perf_counter() - interpolation_start)
+        timing_sink["interpolation_frames"].append(len(local_axis_angle))
     betas = torch.from_numpy(np.asarray(source.betas[sequence_index]).copy()).to(
         device=device, dtype=torch.float32
     )
@@ -356,6 +381,7 @@ def ground_truth_motion(
         device,
         smplx_batch_size,
         smplx_cache,
+        timing_sink=timing_sink,
     )
     if export_sink is not None:
         # Handles only; the caller materializes them.  See sampled_motion.
@@ -368,6 +394,8 @@ def ground_truth_motion(
                 "joints_coarse": _stitch_indexed(source.joints, indices),
                 "smplx_pose": local_axis_angle,
                 "smplx_transl": translation_frames,
+                "coarse_local_pose": coarse_local_pose,
+                "coarse_translation": coarse_translation,
                 "betas": betas,
                 "gender": str(source.gender[sequence_index]),
                 "smplx_output_transform": "identity",
@@ -726,6 +754,7 @@ def merge_shard_payloads(
     agreement_keys = (
         "seed", "sample_type", "guided", "fps", "sampling_body", "model_name",
         "episode_subset", "future_occ_diagnostic",
+        "schema_version", "interpolation_version",
     )
     reference = by_index[0]
     for index in range(1, shard_count):
@@ -852,6 +881,12 @@ def merge_shard_payloads(
     _invalidate_timing(timing)
 
     merged = dict(reference)
+    if "coarse_replay" in reference:
+        merged["coarse_replay"] = dict(
+            reference_root=reference["coarse_replay"]["reference_root"],
+            records={key: record for index in range(shard_count)
+                     for key, record in by_index[index]["coarse_replay"]["records"].items()},
+        )
     merged.update(
         {
             "sequence_count": len(ordered),
@@ -923,6 +958,8 @@ def _motion_export_record(
     gender: str,
     smplx_output_transform: str,
     interp_scale: int,
+    coarse_local_pose: Optional[torch.Tensor] = None,
+    coarse_translation: Optional[torch.Tensor] = None,
 ) -> Dict[str, np.ndarray]:
     """Build one sequence's export arrays.
 
@@ -977,8 +1014,9 @@ def _motion_export_record(
         )
     if not np.isfinite(pose).all() or not np.isfinite(transl).all():
         raise ValueError("exported SMPL-X parameters are not finite")
-    return {
+    record = {
         "global_jpos": joints,
+        "interpolation_version": np.asarray(INTERPOLATION_VERSION),
         # run_smplx_model consumes pose_pred[:, :1] as global_orient and
         # pose_pred[:, 1:] as body_pose; split here, re-concatenate to rebuild.
         "global_orient": np.ascontiguousarray(pose[:, 0]),
@@ -997,6 +1035,35 @@ def _motion_export_record(
         "seams": np.asarray(joints_coarse.seams, dtype=np.int32),
         "history_frames": np.asarray(int(joints_coarse.history_frames), dtype=np.int32),
     }
+    if coarse_local_pose is not None:
+        record["coarse_local_pose"] = np.ascontiguousarray(
+            coarse_local_pose.detach().to(torch.float32).cpu().numpy().reshape(-1, 22, 3)
+        )
+    if coarse_translation is not None:
+        record["coarse_translation"] = np.ascontiguousarray(
+            coarse_translation.detach().to(torch.float32).cpu().numpy().reshape(-1, 3)
+        )
+    return record
+
+
+def _replay_reference_paths(root):
+    """Index filenames written by _write_motion_npz without loading archives."""
+    return {path.stem: path for path in Path(root).rglob("motion/*.npz")}
+
+
+def _coarse_replay_record(joints, reference_path):
+    """Registered same-realization check, evaluated after generation timing."""
+    with np.load(reference_path) as reference:
+        expected = reference["global_jpos"]
+    if joints.shape != expected.shape:
+        raise RuntimeError("coarse replay shape mismatch: %s vs %s" % (joints.shape, expected.shape))
+    exact_equal = bool(np.array_equal(joints, expected))
+    max_abs_m = float(np.max(np.abs(joints.astype(np.float64) - expected)))
+    result = dict(exact_equal=exact_equal, max_abs_m=max_abs_m,
+                  tolerance_m=2e-5, reference_path=str(reference_path))
+    if max_abs_m > 2e-5:
+        raise RuntimeError("coarse replay exceeds registered tolerance: %s" % json.dumps(result))
+    return result
 
 
 def _motion_export_extra(
@@ -1066,6 +1133,8 @@ def _motion_export_block(
     }
     return {
         "schema_version": MOTION_EXPORT_SCHEMA_VERSION,
+        "interpolation_version": INTERPOLATION_VERSION,
+        "interpolation_grid": "x[k] = min(k / interp_scale, T - 1); F = T * interp_scale",
         "arm": arm,
         "layout": "one non-pickle NPZ per sequence under motion/<sequence_id>.npz",
         "global_jpos": {
@@ -1102,6 +1171,10 @@ def _motion_export_block(
                 "needs transl replaced by zup_to_yup(transl) and its recorded "
                 "'zup_to_yup' output transform ignored"
             ),
+        },
+        "coarse_smplx": {
+            "fields": ["coarse_local_pose[T,22,3]", "coarse_translation[T,3]"],
+            "source": "original local axis-angle pose and SMPL-X translation before interpolation",
         },
         "t2m_min_frames": T2M_MIN_FRAMES,
         "t2m_length_multiple": T2M_LENGTH_MULTIPLE,
@@ -1194,6 +1267,14 @@ def _write_array_payload(
 def evaluate_ground_truth(cfg: DictConfig) -> Path:
     device = torch.device(str(cfg.device))
     export_motion = bool(cfg.get("export_motion", False))
+    replay_reference = cfg.get("replay_reference", None)
+    replay_paths = _replay_reference_paths(replay_reference) if replay_reference else None
+    replay_records = OrderedDict()
+    timing_sink = None
+    if bool(cfg.get("measure_reconstruction_timing", False)):
+        timing_sink = dict(full_batches=0, smplx_batch_seconds=[],
+                           interpolation_seconds=[], interpolation_frames=[])
+        torch.cuda.reset_peak_memory_stats(device)
     episodes = _load_episodes(
         Path(cfg.lingo_episode_dir),
         None if cfg.lingo_sequence_limit is None else int(cfg.lingo_sequence_limit),
@@ -1214,7 +1295,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
                 mesh_root=Path(cfg.lingo_mesh_root),
                 cache_dir=default_cache_dir(),
             )
-        export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
+        export_sink: Optional[Dict[str, Any]] = {} if export_motion or replay_paths is not None else None
         vertices, joints, sequence_index = ground_truth_motion(
             source,
             episode,
@@ -1223,15 +1304,22 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
             int(cfg.smplx_batch_size),
             smplx_cache,
             export_sink=export_sink,
+            timing_sink=timing_sink,
         )
         metric = compute_metric_record(
             vertices, joints, geometries[scene_name], episode["pelvis_goal"], float(cfg.fps)
         )
+        metric.update(hsi_diagnostics.future_occ_motion_diagnostics(joints, fps=float(cfg.fps)))
         sequence_name = "%s:%06d" % (scene_name, sequence_index)
         if sequence_name in records:
             raise ValueError("duplicate sequence key %s" % sequence_name)
         if export_sink is not None:
             export_record = _motion_export_record(**export_sink)
+            if replay_paths is not None:
+                replay_records[sequence_name] = _coarse_replay_record(
+                    export_record["global_jpos"], replay_paths[sequence_name.replace(":", "_")]
+                )
+        if export_motion:
             motion_records.append(
                 {
                     "sequence_id": sequence_name,
@@ -1276,6 +1364,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
         )
     payload = {
         "schema_version": METRICS_SCHEMA_VERSION,
+        "interpolation_version": INTERPOLATION_VERSION,
         "model_name": "ground_truth",
         "seed": int(cfg.seed),
         "sampling_body": "smplx_vertices_10475",
@@ -1285,6 +1374,20 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
         "scene_summary": scene_summary,
         "metrics": records,
     }
+    if timing_sink is not None:
+        payload["deployment_timing"] = {
+            "warmup_full_batches": 4,
+            "batch_size": int(cfg.smplx_batch_size),
+            "measured_full_batches": len(timing_sink["smplx_batch_seconds"]),
+            "mean_batch_seconds": float(np.mean(timing_sink["smplx_batch_seconds"])),
+            "smplx_frames_per_second": int(cfg.smplx_batch_size) / float(np.mean(timing_sink["smplx_batch_seconds"])),
+            "interpolation_seconds": float(sum(timing_sink["interpolation_seconds"])),
+            "interpolation_frames": int(sum(timing_sink["interpolation_frames"])),
+            "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
+            "peak_reserved_bytes": torch.cuda.max_memory_reserved(device),
+        }
+    if replay_paths is not None:
+        payload["coarse_replay"] = dict(reference_root=str(replay_reference), records=replay_records)
     if export_motion:
         payload["motion_export"] = _motion_export_block(export_lengths, export_fps, "real")
     return _write_payload(
@@ -1778,6 +1881,7 @@ def sampled_motion(
         coarse_rotation.frames.to(device).reshape(-1, 22, 6)
     )
     local_matrices = dataset.quat_ik_torch(global_matrices)
+    coarse_local_pose = transforms.matrix_to_axis_angle(local_matrices).reshape(-1, 22, 3)
     local_quaternions = transforms.matrix_to_quaternion(local_matrices)
     local_quaternions = interp_jrot(local_quaternions, int(cfg.interp_s)).reshape(-1, 22, 4)
     local_axis = transforms.matrix_to_axis_angle(
@@ -1829,6 +1933,8 @@ def sampled_motion(
                 "joints_coarse": coarse_points,
                 "smplx_pose": smpl_pose,
                 "smplx_transl": smpl_translation,
+                "coarse_local_pose": coarse_local_pose,
+                "coarse_translation": coarse_points.frames[:, 0].to(device) + translation_offset,
                 "betas": betas,
                 "gender": gender,
                 "smplx_output_transform": "identity",
@@ -3199,6 +3305,9 @@ def evaluate_model(cfg: DictConfig) -> Path:
     seed_everything(int(cfg.seed))
     guided = bool(cfg.get("use_guidance", False))
     export_motion = bool(cfg.get("export_motion", False))
+    replay_reference = cfg.get("replay_reference", None)
+    replay_paths = _replay_reference_paths(replay_reference) if replay_reference else None
+    replay_records = OrderedDict()
     # RDS is scoped to unguided cells: guidance_loss.apply_hsi_guidance_loss pulls
     # joints toward free voxels regardless of need_scene, so the paired
     # "null-scene" rollout is still scene-driven and its divergence from the
@@ -3331,7 +3440,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         # not sharding-only: every cell from here must share one regime.
         seed_everything(int(cfg.seed) + int(canonical_ordinal))
         pre_rng_state = _capture_rng_state()
-        export_sink: Optional[Dict[str, Any]] = {} if export_motion else None
+        export_sink: Optional[Dict[str, Any]] = {} if export_motion or replay_paths is not None else None
         telemetry_sink: Optional[Dict[str, Any]] = (
             {} if bool(cfg.get("hsi_chain_rebase_rollout_telemetry", False)) else None
         )
@@ -3424,6 +3533,11 @@ def evaluate_model(cfg: DictConfig) -> Path:
                     % (sequence_name, caption_from_cond, caption)
                 )
             export_record = _motion_export_record(**export_sink)
+            if replay_paths is not None:
+                replay_records[sequence_name] = _coarse_replay_record(
+                    export_record["global_jpos"], replay_paths[sequence_name.replace(":", "_")]
+                )
+        if export_motion:
             motion_records.append(
                 {
                     "sequence_id": sequence_name,
@@ -3525,6 +3639,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         )
     payload = {
         "schema_version": METRICS_SCHEMA_VERSION,
+        "interpolation_version": INTERPOLATION_VERSION,
         "model_name": model_name,
         "checkpoint": checkpoint_provenance,
         "output_dir": str(output_dir),
@@ -3564,6 +3679,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
         },
         "metrics": records,
     }
+    if replay_paths is not None:
+        payload["coarse_replay"] = dict(reference_root=str(replay_reference), records=replay_records)
     if export_motion:
         payload["motion_export"] = _motion_export_block(
             export_lengths, export_fps, "generated"

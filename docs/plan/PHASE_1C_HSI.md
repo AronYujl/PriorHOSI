@@ -13691,3 +13691,18 @@ scale1恒等、共同网格/粗帧锚点/末帧保持和粗帧导出；运行一
 失败，保留已有结果并停止相应负载，任何恢复使用新run id。保持旧R2+CG质量基线供
 历史比较；新协议单列。结论限定为插值修复的部署效应及修正后教师/学生残差，不据此
 宣称已修复原生FID分布。报告和PHASE_1C_CM1_INTERPOLATION.md交接完成后继续Phase1C。
+
+
+### CM1.5 实现验证
+
+LERP方向与位置/旋转时钟已直接修正，Torch向量化保留输入设备及dtype，scale1恒等。
+GT和生成导出新增插值前local pose/transl，deployment协议为fixed_rate_endpoint_hold_v1，
+metrics schema5、motion schema4。重放检查在生成计时结束后核对粗帧位置，并在merge中
+合并全375记录；GT补齐相同安全读数。GT同步batch128重建计时前四个完整batch预热，
+插值时间另记全量总和；最终表示组件同时记录同步插值和FK时间。
+
+定向utility/表示11项、evaluator30项通过。完整authority为472 passed、3 skipped，
+86.70秒；registry396行有效。52份精确job/shard/merge配置完全解析。R2有引导配置与
+原封存配置的已有字段对照，仅输出路径和显示model_name不同；sampler设置一致。
+主机verified infbagel、8×RTX3090。首个GT全375真实重建后，依次执行CM16 U/G、R2 U/G
+八卡重放及五组八卡位置/FK。代码变更、组件测试和本说明统一为一个implementation commit。
