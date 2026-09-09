@@ -1,0 +1,25 @@
+defaults: [config_sample_hosi_stand_wait, _self_]
+
+exp_name: p5-inference-inbetween-s42-20260909
+device: cuda:7
+stand_wait:
+  enabled: false
+
+inbetween:
+  enabled: true
+  stage: prepare
+  source_results: /data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/completion_metrics.json
+  input_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/inputs
+  external_root: /data/yujinlun/motion-inbetween
+  models: [kimodo, condmdi]
+  kimodo_python: /data/yujinlun/anaconda3/envs/kimodo/bin/python
+  condmdi_python: /data/yujinlun/anaconda3/envs/condmdi/bin/python
+  kimodo_device: cuda:7
+  condmdi_device: cuda:6
+  frames: 61
+  fps: 30
+  prefix_frames: 10
+  suffix_start: 51
+  kimodo_steps: 50
+  native_fit_iterations: 240
+  native_fit_lr: 0.02

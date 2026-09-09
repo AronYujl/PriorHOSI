@@ -182,3 +182,23 @@ generation, use the standard experiment lifecycle, and run the full authority
 suite plus registry validation. GPUs are shared with existing workloads;
 allocate available headroom and report contention. Close this subphase with
 setup instructions, all outputs and a phase summary.
+
+The native adaptation fits the41free30Hzframes for240Adam updates (lr0.02),
+with exact source/target poses in the20conditioned frames. Its fixed objective
+is mean squared joint-target error +0.002rotation-matrix deviation from the
+initializer +10framewise joint second-difference error. Kimodo initializes
+from its decoded local rotations; CondMDI initializes its rotation-only fitting
+from shortest-arc endpoint interpolation because its generated positions do not
+specify native SMPL-X twists. Save the positional targets and fitting residuals;
+these terms are kinematic conversion, with no scene/object optimization.
+The reference pose ranks valid source frames by mean wrist height relative to
+pelvis +0.25torso-tilt radians, with tilt<10deg, pelvis>0.65m, knee flexion<25deg,
+both wrists below pelvis+0.10m and a foot marker within0.08m of worldY=0.
+All thresholds are fixed before bridge sampling.
+Kimodo's official MotionCorrection backend is a C++CPU implementation; record
+its time separately. Model inference, native fitting and geometric evaluation
+use CUDA.
+Dispatch the two twelve-sample batches concurrently on shared RTX3090 devices
+7(Kimodo) and6(CondMDI), each with four host threads. Native fitting/evaluation
+uses device7 after both model jobs exit. Retain both exit codes and complete
+logs even when one model job fails.

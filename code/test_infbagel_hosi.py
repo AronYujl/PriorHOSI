@@ -564,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('inbetween', {}).get('enabled', False):
+        from mixer.inbetween import run_inbetween
+        run_inbetween(cfg)
+        return
     if cfg.get('stand_wait', {}).get('enabled', False):
         from mixer.standing_transition import run_standing_transition
         run_standing_transition(cfg)
