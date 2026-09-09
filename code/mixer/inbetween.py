@@ -135,10 +135,10 @@ def dispatch(cfg, root):
     for name in cfg.inbetween.models:
         external_repo = external_root/('kimodo' if name == 'kimodo' else 'diffusion-motion-inbetweening')
         dest = output/name
-        command = [cfg.inbetween[name+'_python'], '-m', 'mixer.inbetween_external', '--model', name,
+        command = [cfg.inbetween[name+'_python'], str(root/'code/mixer/inbetween_external.py'), '--model', name,
             '--input', str(Path(cfg.inbetween.input_dir)/'conditions.npz'), '--output', str(dest),
             '--root', str(external_root), '--device', cfg.inbetween[name+'_device'], '--steps', str(cfg.inbetween.kimodo_steps)]
-        environment = dict(os.environ, PYTHONPATH=os.pathsep.join((str(external_repo), str(root/'code'))))
+        environment = dict(os.environ, PYTHONPATH=str(external_repo))
         environment['OMP_NUM_THREADS'] = '4'
         log = (output/(name+'_generation.log')).open('w')
         processes.append((name, subprocess.Popen(command, cwd=external_repo, env=environment, stdout=log, stderr=subprocess.STDOUT), log))

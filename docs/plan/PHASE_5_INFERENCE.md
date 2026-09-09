@@ -202,3 +202,13 @@ Dispatch the two twelve-sample batches concurrently on shared RTX3090 devices
 7(Kimodo) and6(CondMDI), each with four host threads. Native fitting/evaluation
 uses device7 after both model jobs exit. Retain both exit codes and complete
 logs even when one model job fails.
+
+### Import-boundary correction
+
+The initial run prepared all12inputs with maximum source-body reconstruction
+error3.954e-7m, then both external jobs failed before checkpoint loading or
+denoising. Python's package entry imported `mixer.__init__`, which eagerly loads
+native PyTorch3D and the native `utils` module. Execute the external adapter as
+its leaf file with only the external repository on PYTHONPATH. Keep the failed
+manifest and logs. The replacement run reuses the immutable prepared inputs
+and all prescribed settings; it begins at the generate stage with a fresh ID.

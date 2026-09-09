@@ -1,8 +1,9 @@
 """External pretrained bridge inference in each model's own Python environment.
 
 Input/output NPZ files carry Y-up, metre, pelvis-position conventions. This
-module is launched by the native Hydra dispatcher with the external repo first
-on PYTHONPATH, because CondMDI owns a top-level ``utils`` package.
+module is launched as a leaf file by the native Hydra dispatcher with only the
+external repo on PYTHONPATH. CondMDI owns a top-level ``utils`` package; package
+execution would also import the native mixer's eager dependencies.
 """
 
 import argparse
