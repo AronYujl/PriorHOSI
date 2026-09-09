@@ -670,3 +670,46 @@ class FullBodySeamObjectiveTests(unittest.TestCase):
 
 if __name__ == "__main__":                                       # pragma: no cover
     unittest.main()
+
+
+class BodyFKTargetTests(unittest.TestCase):
+    def test_all_future_body_joints_and_history_exclusion(self):
+        target = torch.zeros(1, 16, 28, 3)
+        prediction = torch.zeros(1, 16, 24, 3, requires_grad=True)
+        with torch.no_grad():
+            prediction[:, :2] = 100
+            prediction[:, 2:, 1:22] = 0.03
+            prediction[:, 2:, 22:] = 100
+        loss = _sampler()._compute_body_fk_loss(prediction, target)
+        self.assertAlmostEqual(float(loss), 0.0009, places=8)
+        grad, = torch.autograd.grad(loss, prediction)
+        self.assertEqual(float(grad[:, :2].abs().sum()), 0.0)
+        self.assertTrue((grad[:, 2:, 1:22].abs().sum((0, 2, 3)) > 0).all())
+        self.assertEqual(float(grad[:, :, 22:].abs().sum()), 0.0)
+
+    def test_common_rigid_frame_and_independent_translation(self):
+        torch.manual_seed(42)
+        target = torch.randn(2, 16, 28, 3)
+        prediction = torch.randn(2, 16, 24, 3)
+        rotation = torch.tensor([[0., 0., 1.], [0., 1., 0.], [-1., 0., 0.]])
+        sampler = _sampler()
+        expected = sampler._compute_body_fk_loss(prediction, target)
+        actual = sampler._compute_body_fk_loss(prediction @ rotation + 7, target @ rotation - 3)
+        torch.testing.assert_close(actual, expected)
+
+    def test_gt_anchor_penalizes_both_heads_drifting_together(self):
+        target = torch.zeros(1, 16, 28, 3)
+        prediction = torch.zeros(1, 16, 24, 3)
+        prediction[:, 2:, 1:22, 0] = 0.1
+        self.assertGreater(float(_sampler()._compute_body_fk_loss(prediction, target)), 0.0)
+        # Matching GT FK body positions is zero regardless of target hand layout.
+        prediction[:, :, :22] = target[:, :, :22]
+        target[:, :, 22:] = 100
+        self.assertEqual(float(_sampler()._compute_body_fk_loss(prediction, target)), 0.0)
+
+    def test_calibration_uses_registered_rotation_limit(self):
+        from priors.hsi.diagnostics import body_fk_calibrated_weight
+        records = [dict(r2_total=dict(trunk_gradient_norm=20.),
+                        body_fk=dict(trunk_gradient_norm=2., rotation_head_gradient_norm=4.),
+                        jrot=dict(rotation_head_gradient_norm=2.)) for _ in range(4)]
+        self.assertEqual(body_fk_calibrated_weight(records)['body_fk_loss_weight'], 0.125)

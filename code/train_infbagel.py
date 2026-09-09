@@ -79,6 +79,7 @@ RESUME_GEOMETRY_FIELDS = (
     'precision',
     'hsi_chain_rebase_mode',
     'cm_fixed_cfg_scale',
+    'body_fk_loss_weight',
 )
 
 
@@ -331,6 +332,7 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'precision': str(cfg.get('precision', 'fp32')),
         'hsi_chain_rebase_mode': str(cfg.get('hsi_chain_rebase_mode', 'off')),
         'cm_fixed_cfg_scale': cfg.get('cm_fixed_cfg_scale', None),
+        'body_fk_loss_weight': cfg.get('body_fk_loss_weight', None),
     }
 
 
@@ -627,7 +629,10 @@ def train_ddp(rank, world_size, cfg):
     if is_consistency:
         trainer.set_dataset_and_model(infbagel_dataset, student_model, teacher_model, target_model)
     else:
-        trainer.set_dataset_and_model(infbagel_dataset, model)
+        # Calibration measures rank-local autograd.grad values after DDP's
+        # initialization broadcast; training uses DDP's normal backward path.
+        calibration_model = model.module if cfg.get('body_fk_calibration', False) else model
+        trainer.set_dataset_and_model(infbagel_dataset, calibration_model)
 
     if cfg.use_tensorboard and rank == 0:
         writer = SummaryWriter(log_dir=os.path.join(cfg.exp_dir, 'tensorboard_logs'))
@@ -705,9 +710,33 @@ def train_ddp(rank, world_size, cfg):
                     if loss_fk is not None:
                         loss = loss + cfg.loss_w_fk * loss_fk
 
+            if bool(cfg.get('body_fk_calibration', False)):
+                from priors.hsi.diagnostics import body_fk_gradient_calibration, body_fk_calibrated_weight
+                record = body_fk_gradient_calibration(
+                    model.module, loss_dict, loss, trainer.body_fk_loss_weight,
+                    float(cfg.loss_w_fk), trainer.fullbody_seam_loss_weight,
+                )
+                records = [None] * world_size
+                torch.distributed.all_gather_object(records, record)
+                if rank == 0:
+                    result = body_fk_calibrated_weight(records)
+                    result.update(seed=int(cfg.seed), world_size=world_size,
+                                  micro_batch_per_gpu=int(cfg.batch_size), optimizer_updates=0)
+                    Path(cfg.exp_dir, 'calibration.json').write_text(json.dumps(result, indent=2) + '\n')
+                if cfg.use_tensorboard and rank == 0:
+                    writer.close()
+                torch.distributed.destroy_process_group()
+                return
+
             if step % 10 == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
+                if loss_dict.get('loss_body_fk') is not None:
+                    values = {name: float(loss_dict[name].detach()) for name in
+                              ('loss_jpos', 'loss_jrot', 'loss_fk', 'loss_fullbody_seam', 'loss_body_fk')}
+                    values.update(update=optimizer_updates, rank=rank, total=float(loss.detach()))
+                    with open(Path(cfg.exp_dir, f'body_fk_losses_rank{rank}.jsonl'), 'a') as handle:
+                        handle.write(json.dumps(values) + '\n')
                 if cfg.use_tensorboard and rank == 0:
                     writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
                     if is_consistency:
@@ -889,6 +918,13 @@ def train_ddp(rank, world_size, cfg):
                     atomic_torch_save(
                         checkpoint_state_dict(model, diffusion_ema),
                         os.path.join(ckpt_folder, f"{cfg.exp_name}_epoch{epoch:03d}.pth"),
+                    )
+                if epoch in cfg.get('diagnostic_checkpoint_epochs', []):
+                    diagnostic_folder = os.path.join(cfg.exp_dir, 'internal_diagnostic')
+                    os.makedirs(diagnostic_folder, exist_ok=True)
+                    atomic_torch_save(
+                        checkpoint_state_dict(model, diffusion_ema),
+                        os.path.join(diagnostic_folder, f'ema_epoch{epoch:03d}.pth'),
                     )
                 pending_gradients = (
                     collect_pending_gradients(model)

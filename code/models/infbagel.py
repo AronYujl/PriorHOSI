@@ -253,6 +253,7 @@ class Sampler:
         self.fullbody_seam_loss_weight = float(
             kwargs.get('fullbody_seam_loss_weight', 0.0) or 0.0
         )
+        self.body_fk_loss_weight = float(kwargs.get('body_fk_loss_weight', 0.0))
         _w = kwargs.get('loss_w_jpos', 1.0)
         self.loss_w_jpos = 1.0 if _w is None else float(_w)
         _pen_weight = kwargs.get('pen_loss_weight', 0.0)
@@ -397,6 +398,12 @@ class Sampler:
             + target_seam[:, :-2]
         )
         return F.mse_loss(predicted_acceleration, target_acceleration)
+
+    def _compute_body_fk_loss(self, predicted_joints, target_positions):
+        n = int(self.auto_regre_num)
+        predicted_body = predicted_joints[:, n:, 1:22] - predicted_joints[:, n:, :1]
+        target_body = target_positions[:, n:, 1:22] - target_positions[:, n:, :1]
+        return F.mse_loss(predicted_body, target_body)
 
     def _get_pen_sdf_bank(self):
         if self.pen_sdf_bank is None:
@@ -1318,7 +1325,8 @@ class Sampler:
 
         human_jnts = None
         loss_fullbody_seam = None
-        if self.fullbody_seam_loss_weight > 0.0:
+        loss_body_fk = None
+        if self.fullbody_seam_loss_weight > 0.0 or self.body_fk_loss_weight > 0.0:
             with torch.autocast(device_type=predicted_noise.device.type, enabled=False):
                 geometry_prediction = predicted_noise.float()
                 geometry_target = x_start.float()
@@ -1328,13 +1336,20 @@ class Sampler:
                 _, human_jnts = self._compute_human_joints(
                     geometry_prediction, geometry_joints, geometry_mat, geometry_offsets
                 )
-                _, target_human_jnts = self._compute_human_joints(
-                    geometry_target, geometry_joints, geometry_mat, geometry_offsets
-                )
-                loss_fullbody_seam = self._compute_fullbody_seam_loss(
-                    human_jnts, target_human_jnts
-                )
-            loss = loss + self.fullbody_seam_loss_weight * loss_fullbody_seam
+                if self.fullbody_seam_loss_weight > 0.0:
+                    _, target_human_jnts = self._compute_human_joints(
+                        geometry_target, geometry_joints, geometry_mat, geometry_offsets
+                    )
+                    loss_fullbody_seam = self._compute_fullbody_seam_loss(
+                        human_jnts, target_human_jnts
+                    )
+                    loss = loss + self.fullbody_seam_loss_weight * loss_fullbody_seam
+                if self.body_fk_loss_weight > 0.0:
+                    target_positions = transform_points(
+                        self.dataset.denormalize_torch(geometry_target[:, :, :84]), geometry_mat
+                    ).reshape(x_start.shape[0], -1, 28, 3)
+                    loss_body_fk = self._compute_body_fk_loss(human_jnts, target_positions)
+                    loss = loss + self.body_fk_loss_weight * loss_body_fk
 
         # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
         if self.dataset.use_object_keypoints:
@@ -1448,6 +1463,7 @@ class Sampler:
             loss_fk=loss_fk,
             loss_seam=loss_seam,
             loss_fullbody_seam=loss_fullbody_seam,
+            loss_body_fk=loss_body_fk,
             loss_pen=loss_pen,
             loss_jpos=loss_jpos,
             loss_jrot=loss_jrot,

@@ -29,6 +29,49 @@ PREDICTOR_DECOMP_ARMS: Tuple[str, ...] = (
 )
 
 
+def body_fk_gradient_calibration(model, losses, total, body_weight, fk_weight, seam_weight):
+    """First-real-batch loss scales and parameter gradients; zero updates."""
+    terms = {
+        "body_fk": losses["loss_body_fk"],
+        "jpos": losses["loss_jpos"],
+        "jrot": losses["loss_jrot"],
+        "hand_foot_fk": losses["loss_fk"],
+        "fullbody_seam": losses["loss_fullbody_seam"],
+        "r2_total": total - body_weight * losses["loss_body_fk"],
+    }
+    weights = dict(body_fk=body_weight, jpos=1.0, jrot=1.0,
+                   hand_foot_fk=fk_weight, fullbody_seam=seam_weight, r2_total=1.0)
+    trunk = tuple(model.transformer.parameters())
+    records = {}
+    body_vectors = None
+    for name, term in terms.items():
+        grads = torch.autograd.grad(term, trunk + (model.out.weight,), retain_graph=True)
+        vectors = (torch.cat([g.float().flatten() for g in grads[:-1]]),
+                   grads[-1][84:216].float().flatten())
+        if name == "body_fk":
+            body_vectors = vectors
+        records[name] = {"raw_loss": float(term.detach()), "weight": weights[name],
+                         "weighted_loss": float(term.detach()) * weights[name]}
+        for region, vector, body in zip(("trunk", "rotation_head"), vectors, body_vectors):
+            records[name][region + "_gradient_norm"] = float(vector.norm())
+            records[name][region + "_cosine_with_body"] = float(
+                torch.nn.functional.cosine_similarity(vector, body, dim=0)
+            )
+    return records
+
+
+def body_fk_calibrated_weight(rank_records):
+    trunk = 0.10 * np.median([r["r2_total"]["trunk_gradient_norm"] for r in rank_records]) / np.median(
+        [r["body_fk"]["trunk_gradient_norm"] for r in rank_records]
+    )
+    rotation = 0.25 * np.median([r["jrot"]["rotation_head_gradient_norm"] for r in rank_records]) / np.median(
+        [r["body_fk"]["rotation_head_gradient_norm"] for r in rank_records]
+    )
+    return {"body_fk_loss_weight": float(min(trunk, rotation)),
+            "trunk_10_percent_weight": float(trunk),
+            "rotation_head_25_percent_weight": float(rotation), "ranks": rank_records}
+
+
 def rebase_numerics_batch(cfg, sampler, model, batch, noise, timestep, precision, zero_bias):
     """Measure a fixed denoiser through production p_losses, without updates."""
     from models.infbagel import rebase_model_output

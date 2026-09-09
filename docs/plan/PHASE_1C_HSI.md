@@ -13834,3 +13834,12 @@ compact和PHASE_1C_R4_FK总结。所有任务先解析精确配置，通过clean
 复用封存输入manifest引用，不新增哈希包装、脚本或core变更。一个preregistration commit、
 一个logical implementation commit；校准数值落地属于执行source转换，允许必要的配置提交。
 Phase1C保持开放，本次授权不包含新蒸馏、mixer或另一训练方向。
+
+### R4.1 实现验证
+
+新增全未来body21 GT位置目标，复用fp32 FK；默认权重0保留原有配置，R4单一片段
+承载新增权重、校准开关及固定epoch19诊断EMA。既有trainer执行命名梯度probe、
+逐rank损失记录、滚动恢复及一次诊断快照；恢复契约包含新权重，legacy未设置时仍为None。
+定向56项通过，authority476 passed/3 skipped（104.33秒）。校准只在初始化DDP同步后
+对rank-local模型求autograd.grad；正常训练仍使用DDP backward。精确校准配置已完全解析。
+GPU0/1/6/7当前有其他任务，校准和128更新测量将归档竞争与显存；正式启动依实测余量。
