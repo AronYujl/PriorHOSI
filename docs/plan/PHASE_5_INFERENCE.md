@@ -100,3 +100,21 @@ a convention belonging to another scene-loading path. Use the evaluator's raw
 task scene key directly. Keep both failed runs, all source audit results and the
 fixed thresholds/selection/prompts. The next run uses a new ID and the corrected
 source commit; it is the same preregistered diagnostic.
+
+### Measured scheduling amendment
+
+Run r2 produced seven complete cells: both texts for tasks7,29,151 and the primary
+text for task20. Each window took60–64seconds with about0.54GiB peak allocated
+memory on the shared GPU. The serial process was then stopped and sealed aborted
+for scheduling, preserving those seven outputs and the interrupted window.
+The remaining17 fixed cells run concurrently on eight shared RTX3090 devices,
+using one-task manifests and the same existing sampler/config. Task20 runs only
+the missing secondary text; tasks43,277,230,57,384,64,419,71 run both texts.
+Every cell still uses seed42, the same two source history frames and500steps.
+The task20 lane's local prompt index0 denotes its sole secondary text; aggregation
+uses the exact prompt string to map to the original two-arm protocol.
+The final table contains each of the24 specified task/text cells exactly once.
+The full469source audit and eligibility selection are reused from r2; per-lane
+audits confirm only their assigned source. The source code is unchanged by this
+resource amendment, and the latest1119-pass/6-skip authority suite still applies.
+All timings describe contention; no exclusive-device speed claim is made.
