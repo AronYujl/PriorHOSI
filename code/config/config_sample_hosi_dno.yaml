@@ -1,0 +1,5 @@
+defaults: [config_sample_hosi_geometry_increment, _self_]
+
+hsi_body_projection:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_dno_s42_20260909.json
+  dno: true
