@@ -13599,3 +13599,14 @@ quality U/G、Table3、8卡表示重建及其合并；总上限12GPU-h。有限�
 协议或运行失败保留工件并停止相应任务。完成所有配对统计、失败案例和报告后统一登记、
 完成一个completion commit，交接PHASE_1C_CM1_REPRESENTATION.md。R2+CG继续作比较基线，
 后续教师修复按本轮定位形成具体训练方案；本轮保持Phase1C开放。
+
+### CM1.4 实现验证
+
+新增HSI表示组件和既有evaluator分发；正式重建直接消费已导出的SMPL-X参数，匹配
+位置28槽并输出root/身体/边界分解。25步组件检查覆盖完整网格、条件历史与最终clean
+transition。Authority 462 passed、3 skipped，83.48秒；30份job配置完全解析，registry
+389行校验通过。初次定向检查暴露新测试缺少code导入路径，以及终步测试错误忽略
+consistency boundary scaling，两项均在测试中修正，运行逻辑无变更。原始日志保留于
+results/cm1_representation_setup_20260909。主机8×3090，正式负载按单卡latency、8卡quality、
+单卡Table3、8卡位置/FK顺序执行；采样实现复用既有路径，本轮正式latency与重建提供
+注册形状的性能数据及真实数据验证。

@@ -3593,6 +3593,12 @@ def main(cfg: DictConfig) -> None:
         path = evaluate_predictor_decomp(cfg)
     elif mode == "rebase_numerics":
         path = evaluate_rebase_numerics(cfg)
+    elif mode == "position_fk":
+        from priors.hsi.representation_consistency import evaluate_position_fk
+        path = evaluate_position_fk(cfg)
+    elif mode == "merge_position_fk":
+        from priors.hsi.representation_consistency import merge_position_fk
+        path = merge_position_fk(cfg)
     elif mode == "table3":
         from priors.hsi.text_motion import table3_readout
         path = table3_readout(cfg)
@@ -3615,7 +3621,8 @@ def main(cfg: DictConfig) -> None:
         raise ValueError(
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
-            "d4_offline_decomp, chain_rebase, rebase_numerics, table3, qualitative_cache or qualitative_finalize, got %s"
+            "d4_offline_decomp, chain_rebase, rebase_numerics, table3, position_fk, "
+            "merge_position_fk, qualitative_cache or qualitative_finalize, got %s"
             % mode
         )
     print("Wrote %s" % path)

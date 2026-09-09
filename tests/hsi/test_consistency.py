@@ -255,6 +255,24 @@ def test_ddim_rollout_visits_teacher_grid_preserves_history_and_only_draws_initi
     torch.testing.assert_close(samples[-1], expected, rtol=0, atol=0)
 
 
+def test_cm25_rollout_visits_all_solver_steps_and_preserves_terminal_history():
+    engine, _, args = diffusion_inputs()
+    engine.cm_timesteps = 25
+    engine.hsi_cm_guidance_x0_coef = True
+    with patch.object(engine.solver, "ddim_style_multiphase_pred",
+                      wraps=engine.solver.ddim_style_multiphase_pred) as solve:
+        samples, _ = engine.cm_sample_loop(**args, w=1)
+    assert len(samples) == len(engine.student_model.calls) == 25
+    assert [int(t[0]) for t, _, _ in engine.student_model.calls] == list(range(499, 18, -20))
+    for _, prefix, _ in engine.student_model.calls:
+        torch.testing.assert_close(prefix, args["fixed_points"], rtol=0, atol=0)
+    assert solve.call_count == 1
+    assert solve.call_args.args[2].item() == 0
+    expected = solve.call_args.args[0].clone()
+    expected[:, :2] = args["fixed_points"]
+    torch.testing.assert_close(samples[-1], expected, rtol=0, atol=0)
+
+
 @pytest.mark.parametrize("solver_index", [0, 10, 24])
 def test_ddim_guidance_is_the_clean_jacobian_of_the_deterministic_teacher_step(solver_index):
     engine, x, args = diffusion_inputs()
