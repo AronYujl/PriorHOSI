@@ -1,11 +1,12 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
-2026-09-09 inference entry: Phase5.1's fixed-text standing handoff was unreliable.
-The user supplied CondMDI/Kimodo and authorized conda deployment and transition
-generation. The active scope is [Phase5.2](PHASE_5_INFERENCE.md): frozen pretrained
-inbetween models with explicit HOI and standing endpoint contexts. The Phase2.34
-experts/editing chain remains the source system; expert training is outside this
-inference entry.
+2026-09-09 inference entry: [Phase5.2](PHASE_5_INFERENCE.md) completed CondMDI/Kimodo
+conda deployment and24fixed endpoint-conditioned bridges. Geometry tolerances
+pass5/12Kimodo and10/12CondMDI; Kimodo has smaller seam jumps, and both retain
+ground/contact deficits. Shared target71is itself invalid in its scene.
+Read [the summary](../phase_summaries/PHASE_5B_INBETWEEN.md) before designing native
+ground/contact correction and feasible endpoint selection. Phase2.34 remains the
+source expert/editing system.
 
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)

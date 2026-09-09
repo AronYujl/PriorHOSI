@@ -240,3 +240,14 @@ before sampling at normalization-file lookup. The released absolute-root files
 are `Mean_abs_3d.npy` and `Std_abs_3d.npy`; use those exact paths. Preserve this
 failure and the existing Kimodo reference and continue the missing CondMDI arm
 with a fresh run identifier.
+
+### Phase5.2 completion
+
+Runr4completed CondMDI's12fixed samples and reused all12r2Kimodo samples.
+Both environments, native-body exports, full-motion concatenations and13videos
+are complete. All24outputs are finite. Scene-geometry tolerances pass5/12Kimodo
+and10/12CondMDI; Kimodo has smaller seam-velocity jumps. Both retain ground/contact
+deficits, and shared target71itself penetrates the scene by10.316cm.
+The deployment gate passes; physical suitability remains limited for these fixed
+recipes. See [Phase5.2 summary](../phase_summaries/PHASE_5B_INBETWEEN.md) for all
+results, endpoint attribution, uncertainty and retained failures.
