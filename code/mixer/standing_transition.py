@@ -194,7 +194,7 @@ def sample_transition(cfg, sampler, dataset, motion, task, model, embedding):
     object_world = (motion['object_rotation'][-1] @ obj_vertices.T).T + motion['object_translation'][-1]
     sequence = dataset.ori_sequence_idx[task['data_idx']]
     seq_name = dataset.scene_name[sequence]
-    context = sampler._hsi_context(1, mat, torch.tensor([dataset.scene_dict['occ_' + task['scene_name']]], device=cfg.device),
+    context = sampler._hsi_context(1, mat, torch.tensor([dataset.scene_dict[task['scene_name']]], device=cfg.device),
         embedding, local_goal, torch.zeros(1, 3, device=cfg.device), torch.zeros(1, 3, device=cfg.device),
         one, one, torch.zeros(1, device=cfg.device, dtype=torch.long),
         torch.full((1,), 48, device=cfg.device, dtype=torch.long),

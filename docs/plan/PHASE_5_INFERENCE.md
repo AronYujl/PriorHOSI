@@ -89,3 +89,14 @@ paired task bootstrap, a concise phase summary and the external-model review.
 Deliver three commits: preregistration, implementation, completion. This subphase
 ends after confirming feasibility; benchmark construction and LLM execution are
 the next user-directed work.
+
+### Execution correction before denoising
+
+The initial detached launch produced no Python output and its manifest was sealed
+failed. Run r1 completed the unchanged 469-source audit (384 standing,22 eligible)
+and selected12 eligible sources, then failed before the first denoising step:
+HOSI `Scene_vis` keys use the raw scene ID, while the new adapter prepended `occ_`,
+a convention belonging to another scene-loading path. Use the evaluator's raw
+task scene key directly. Keep both failed runs, all source audit results and the
+fixed thresholds/selection/prompts. The next run uses a new ID and the corrected
+source commit; it is the same preregistered diagnostic.
