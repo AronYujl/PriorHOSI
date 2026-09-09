@@ -1,0 +1,850 @@
+{
+  "schema_version": 1,
+  "phase": "p5",
+  "subphase": "5.3",
+  "component": "inference",
+  "seed": 42,
+  "selected_generator": "kimodo",
+  "classification": "kimodo-adopted-contact-correction-gate-passed-with-residual-limitations",
+  "git_commit": "a52e62ee982e5d95beed2610d97107fbe954bdd9",
+  "live_head_at_completion": "a52e62ee982e5d95beed2610d97107fbe954bdd9",
+  "run_root": "results/experiments/p5-inference-kimodo-contact-r1-s42-20260909",
+  "completed_at": "2026-09-09T12:33:57+00:00",
+  "sources": 12,
+  "corrected": 11,
+  "rejected_endpoint_tasks": [
+    71
+  ],
+  "gates": {
+    "ground_reduced": true,
+    "contact_speed_reduced": true,
+    "scene_pass_preserved": true,
+    "entry_seam_preserved": true,
+    "exit_seam_preserved": true,
+    "contexts_exact": true,
+    "finite": true
+  },
+  "correction_gate": true,
+  "means": {
+    "all": {
+      "before": {
+        "tilt_max_deg": 0.7646338840325674,
+        "root_height_min_m": 0.8918792406717936,
+        "foot_height_max_m": 0.03987894455591837,
+        "foot_speed_mean_m_s": 0.0,
+        "root_speed_max_m_s": 0.0,
+        "root_angular_speed_max_rad_s": 0.0,
+        "hand_object_min_m": 0.4720911805828412,
+        "object_floor_max_m": 0.021391722063223522,
+        "object_speed_max_m_s": 0.0,
+        "object_angular_speed_max_rad_s": 0.0,
+        "standing": 1.0,
+        "released_grounded": 1.0,
+        "eligible": 1.0,
+        "root_drift_max_m": 0.04827850327516595,
+        "standing_success": 1.0,
+        "scene_penetration_mean_m": 0.00019868568612935178,
+        "scene_penetration_max_m": 0.05423923477064818,
+        "scene_outside_fraction": 0.0,
+        "human_object_penetration_mean_m": 3.7572519791713904e-07,
+        "human_object_penetration_max_m": 0.0018955476116389036,
+        "entry_velocity_jump_mean_m_s": 0.053386143098274864,
+        "entry_root_velocity_jump_m_s": 0.026327070236826938,
+        "exit_velocity_jump_mean_m_s": 0.059043360563615956,
+        "exit_root_velocity_jump_m_s": 0.04600064689293504,
+        "endpoint_joint_max_error_m": 2.0273336076570558e-07,
+        "endpoint_rotation_max_deg": 1.0735657042459934e-05,
+        "bridge_body_min_y_m": -0.04398759206136068,
+        "bridge_body_max_lowest_y_m": 0.03082166115442912,
+        "bridge_contact_foot_speed_mean_m_s": 0.17984983387092748,
+        "bridge_unsupported_fraction": 0.021317829688390095,
+        "geometry_success": 0.4166666666666667,
+        "finite": 1.0,
+        "fixed_contact_speed_m_s": 0.06343467098971207,
+        "fixed_contact_height_abs_m": 0.028796191482494276,
+        "fixed_contact_pairs": 55.0,
+        "fixed_contact_points": 55.416666666666664,
+        "free_ground_depth_max_m": 0.04398759206136068,
+        "free_ground_depth_mean_m": 0.018446131570271973
+      },
+      "after": {
+        "tilt_max_deg": 0.7646338840325674,
+        "root_height_min_m": 0.8918792406717936,
+        "foot_height_max_m": 0.03987894455591837,
+        "foot_speed_mean_m_s": 0.0,
+        "root_speed_max_m_s": 0.0,
+        "root_angular_speed_max_rad_s": 0.0,
+        "hand_object_min_m": 0.4720911805828412,
+        "object_floor_max_m": 0.021391722063223522,
+        "object_speed_max_m_s": 0.0,
+        "object_angular_speed_max_rad_s": 0.0,
+        "standing": 1.0,
+        "released_grounded": 1.0,
+        "eligible": 1.0,
+        "root_drift_max_m": 0.059815421079595886,
+        "standing_success": 0.9166666666666666,
+        "scene_penetration_mean_m": 2.811999754470662e-05,
+        "scene_penetration_max_m": 0.019768944456397246,
+        "scene_outside_fraction": 0.0,
+        "human_object_penetration_mean_m": 3.65920390284676e-07,
+        "human_object_penetration_max_m": 0.0018572281890859206,
+        "entry_velocity_jump_mean_m_s": 0.009950631443643942,
+        "entry_root_velocity_jump_m_s": 0.004788649030767071,
+        "exit_velocity_jump_mean_m_s": 0.008560450097623592,
+        "exit_root_velocity_jump_m_s": 0.007906812956207432,
+        "endpoint_joint_max_error_m": 2.0273336076570558e-07,
+        "endpoint_rotation_max_deg": 1.0735657042459934e-05,
+        "bridge_body_min_y_m": -0.005315134922663371,
+        "bridge_body_max_lowest_y_m": 0.03129772345225016,
+        "bridge_contact_foot_speed_mean_m_s": 0.1901119314134121,
+        "bridge_unsupported_fraction": 0.013565891732772192,
+        "geometry_success": 0.9166666666666666,
+        "finite": 1.0,
+        "fixed_contact_speed_m_s": 0.01590545349366342,
+        "fixed_contact_height_abs_m": 0.006936509220395237,
+        "fixed_contact_pairs": 55.0,
+        "fixed_contact_points": 55.416666666666664,
+        "free_ground_depth_max_m": 0.0050430695215861005,
+        "free_ground_depth_mean_m": 0.0011457941244496321
+      }
+    },
+    "feasible": {
+      "before": {
+        "tilt_max_deg": 0.7635027061809193,
+        "root_height_min_m": 0.891968618739735,
+        "foot_height_max_m": 0.039873600006103516,
+        "foot_speed_mean_m_s": 0.0,
+        "root_speed_max_m_s": 0.0,
+        "root_angular_speed_max_rad_s": 0.0,
+        "hand_object_min_m": 0.4706878201528029,
+        "object_floor_max_m": 0.020527273416519165,
+        "object_speed_max_m_s": 0.0,
+        "object_angular_speed_max_rad_s": 0.0,
+        "standing": 1.0,
+        "released_grounded": 1.0,
+        "eligible": 1.0,
+        "root_drift_max_m": 0.047238718548958954,
+        "standing_success": 1.0,
+        "scene_penetration_mean_m": 0.0001957558767871474,
+        "scene_penetration_max_m": 0.04979167290201241,
+        "scene_outside_fraction": 0.0,
+        "human_object_penetration_mean_m": 3.2637275250057096e-07,
+        "human_object_penetration_max_m": 0.0010848766700787978,
+        "entry_velocity_jump_mean_m_s": 0.053264124488288704,
+        "entry_root_velocity_jump_m_s": 0.02763744198124517,
+        "exit_velocity_jump_mean_m_s": 0.058444915508682076,
+        "exit_root_velocity_jump_m_s": 0.04372461258687756,
+        "endpoint_joint_max_error_m": 2.0999292809681885e-07,
+        "endpoint_rotation_max_deg": 1.122497740818124e-05,
+        "bridge_body_min_y_m": -0.042664777148853646,
+        "bridge_body_max_lowest_y_m": 0.031392726031216706,
+        "bridge_contact_foot_speed_mean_m_s": 0.1783930774439465,
+        "bridge_unsupported_fraction": 0.023255814205516468,
+        "geometry_success": 0.45454545454545453,
+        "finite": 1.0,
+        "fixed_contact_speed_m_s": 0.06399704617532817,
+        "fixed_contact_height_abs_m": 0.028853456913070244,
+        "fixed_contact_pairs": 54.81818181818182,
+        "fixed_contact_points": 55.18181818181818,
+        "free_ground_depth_max_m": 0.042664777148853646,
+        "free_ground_depth_mean_m": 0.018878784665337826
+      },
+      "after": {
+        "tilt_max_deg": 0.7635027061809193,
+        "root_height_min_m": 0.891968618739735,
+        "foot_height_max_m": 0.039873600006103516,
+        "foot_speed_mean_m_s": 0.0,
+        "root_speed_max_m_s": 0.0,
+        "root_angular_speed_max_rad_s": 0.0,
+        "hand_object_min_m": 0.4706878201528029,
+        "object_floor_max_m": 0.020527273416519165,
+        "object_speed_max_m_s": 0.0,
+        "object_angular_speed_max_rad_s": 0.0,
+        "standing": 1.0,
+        "released_grounded": 1.0,
+        "eligible": 1.0,
+        "root_drift_max_m": 0.05982444706288251,
+        "standing_success": 0.9090909090909091,
+        "scene_penetration_mean_m": 9.684216512989058e-06,
+        "scene_penetration_max_m": 0.012187719831920484,
+        "scene_outside_fraction": 0.0,
+        "human_object_penetration_mean_m": 3.1567659871970216e-07,
+        "human_object_penetration_max_m": 0.0010430736636573618,
+        "entry_velocity_jump_mean_m_s": 0.005879929955964061,
+        "entry_root_velocity_jump_m_s": 0.004140982483725317,
+        "exit_velocity_jump_mean_m_s": 0.0033726495457813144,
+        "exit_root_velocity_jump_m_s": 0.0021677028377201746,
+        "endpoint_joint_max_error_m": 2.0999292809681885e-07,
+        "endpoint_rotation_max_deg": 1.122497740818124e-05,
+        "bridge_body_min_y_m": -0.00047664208845658737,
+        "bridge_body_max_lowest_y_m": 0.031912066719748756,
+        "bridge_contact_foot_speed_mean_m_s": 0.18958809294483878,
+        "bridge_unsupported_fraction": 0.014799154617569664,
+        "geometry_success": 1.0,
+        "finite": 1.0,
+        "fixed_contact_speed_m_s": 0.012146990725093267,
+        "fixed_contact_height_abs_m": 0.005006530808962204,
+        "fixed_contact_pairs": 54.81818181818182,
+        "fixed_contact_points": 55.18181818181818,
+        "free_ground_depth_max_m": 0.000179843469099565,
+        "free_ground_depth_mean_m": 5.689269895273438e-06
+      }
+    }
+  },
+  "paired": {
+    "all": {
+      "bridge_body_max_lowest_y_m": {
+        "delta": 0.0004760622978210449,
+        "ci": [
+          -0.004796823114156723,
+          0.0055133899052937805
+        ],
+        "n": 12
+      },
+      "bridge_body_min_y_m": {
+        "delta": 0.038672457138697304,
+        "ci": [
+          0.01908228322863579,
+          0.05939891189336775
+        ],
+        "n": 12
+      },
+      "bridge_contact_foot_speed_mean_m_s": {
+        "delta": 0.0102620975424846,
+        "ci": [
+          -0.014874481254567702,
+          0.034327665095527954
+        ],
+        "n": 12
+      },
+      "bridge_unsupported_fraction": {
+        "delta": -0.007751937955617905,
+        "ci": [
+          -0.04844961315393448,
+          0.03294573724269867
+        ],
+        "n": 12
+      },
+      "eligible": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "endpoint_joint_max_error_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "endpoint_rotation_max_deg": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "entry_root_velocity_jump_m_s": {
+        "delta": -0.021538421206059866,
+        "ci": [
+          -0.03074377332316847,
+          -0.012554441103930003
+        ],
+        "n": 12
+      },
+      "entry_velocity_jump_mean_m_s": {
+        "delta": -0.04343551165463092,
+        "ci": [
+          -0.05612142338456275,
+          -0.031135123070756283
+        ],
+        "n": 12
+      },
+      "exit_root_velocity_jump_m_s": {
+        "delta": -0.038093833936727606,
+        "ci": [
+          -0.04617895927173473,
+          -0.028879857989037798
+        ],
+        "n": 12
+      },
+      "exit_velocity_jump_mean_m_s": {
+        "delta": -0.05048291046599236,
+        "ci": [
+          -0.058747133862925696,
+          -0.03924606619305753
+        ],
+        "n": 12
+      },
+      "finite": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "fixed_contact_height_abs_m": {
+        "delta": -0.021859682262099035,
+        "ci": [
+          -0.026786192719009703,
+          -0.01610748359429029
+        ],
+        "n": 12
+      },
+      "fixed_contact_pairs": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "fixed_contact_points": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "fixed_contact_speed_m_s": {
+        "delta": -0.04752921749604866,
+        "ci": [
+          -0.05518393336678855,
+          -0.037085585079815554
+        ],
+        "n": 12
+      },
+      "foot_height_max_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "foot_speed_mean_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "free_ground_depth_max_m": {
+        "delta": -0.038944522539774575,
+        "ci": [
+          -0.05959606568018595,
+          -0.019411500046650588
+        ],
+        "n": 12
+      },
+      "free_ground_depth_mean_m": {
+        "delta": -0.01730033744582234,
+        "ci": [
+          -0.02687138800096527,
+          -0.008106818805163138
+        ],
+        "n": 12
+      },
+      "geometry_success": {
+        "delta": 0.5,
+        "ci": [
+          0.25,
+          0.75
+        ],
+        "n": 12
+      },
+      "hand_object_min_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "human_object_penetration_max_m": {
+        "delta": -3.8319422552982964e-05,
+        "ci": [
+          -0.0001149582676589489,
+          0.0
+        ],
+        "n": 12
+      },
+      "human_object_penetration_mean_m": {
+        "delta": -9.804807632463053e-09,
+        "ci": [
+          -2.941442289738916e-08,
+          0.0
+        ],
+        "n": 12
+      },
+      "object_angular_speed_max_rad_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "object_floor_max_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "object_speed_max_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "released_grounded": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "root_angular_speed_max_rad_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "root_drift_max_m": {
+        "delta": 0.011536917804429928,
+        "ci": [
+          0.0032610202285771567,
+          0.024150013430820155
+        ],
+        "n": 12
+      },
+      "root_height_min_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "root_speed_max_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "scene_outside_fraction": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "scene_penetration_max_m": {
+        "delta": -0.03447029031425093,
+        "ci": [
+          -0.054341756676149086,
+          -0.016101692633431718
+        ],
+        "n": 12
+      },
+      "scene_penetration_mean_m": {
+        "delta": -0.00017056568858464516,
+        "ci": [
+          -0.00026700323694518833,
+          -8.14557714229854e-05
+        ],
+        "n": 12
+      },
+      "standing": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      },
+      "standing_success": {
+        "delta": -0.08333333333333333,
+        "ci": [
+          -0.25,
+          0.0
+        ],
+        "n": 12
+      },
+      "tilt_max_deg": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 12
+      }
+    },
+    "feasible": {
+      "bridge_body_max_lowest_y_m": {
+        "delta": 0.0005193406885320491,
+        "ci": [
+          -0.0051922359249808574,
+          0.005998325618830594
+        ],
+        "n": 11
+      },
+      "bridge_body_min_y_m": {
+        "delta": 0.042188135060397064,
+        "ci": [
+          0.021356281909075653,
+          0.06273956867781552
+        ],
+        "n": 11
+      },
+      "bridge_contact_foot_speed_mean_m_s": {
+        "delta": 0.011195015500892292,
+        "ci": [
+          -0.0168452513827519,
+          0.03680705304511569
+        ],
+        "n": 11
+      },
+      "bridge_unsupported_fraction": {
+        "delta": -0.008456659587946806,
+        "ci": [
+          -0.0528541234406558,
+          0.035940804264762184
+        ],
+        "n": 11
+      },
+      "eligible": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "endpoint_joint_max_error_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "endpoint_rotation_max_deg": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "entry_root_velocity_jump_m_s": {
+        "delta": -0.023496459497519852,
+        "ci": [
+          -0.032475822372758895,
+          -0.014327527947898492
+        ],
+        "n": 11
+      },
+      "entry_velocity_jump_mean_m_s": {
+        "delta": -0.04738419453232465,
+        "ci": [
+          -0.058990013002238065,
+          -0.03708606256378434
+        ],
+        "n": 11
+      },
+      "exit_root_velocity_jump_m_s": {
+        "delta": -0.04155690974915739,
+        "ci": [
+          -0.047900675884342166,
+          -0.03503109879913444
+        ],
+        "n": 11
+      },
+      "exit_velocity_jump_mean_m_s": {
+        "delta": -0.05507226596290076,
+        "ci": [
+          -0.05995698318901387,
+          -0.049267598123564814
+        ],
+        "n": 11
+      },
+      "finite": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "fixed_contact_height_abs_m": {
+        "delta": -0.023846926104108043,
+        "ci": [
+          -0.027736176268345764,
+          -0.019246175486213445
+        ],
+        "n": 11
+      },
+      "fixed_contact_pairs": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "fixed_contact_points": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "fixed_contact_speed_m_s": {
+        "delta": -0.051850055450234904,
+        "ci": [
+          -0.05634190000180917,
+          -0.04718427916311405
+        ],
+        "n": 11
+      },
+      "foot_height_max_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "foot_speed_mean_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "free_ground_depth_max_m": {
+        "delta": -0.04248493367975408,
+        "ci": [
+          -0.06288994333960793,
+          -0.021695130250670696
+        ],
+        "n": 11
+      },
+      "free_ground_depth_mean_m": {
+        "delta": -0.018873095395442553,
+        "ci": [
+          -0.028732719747434163,
+          -0.00911539420188167
+        ],
+        "n": 11
+      },
+      "geometry_success": {
+        "delta": 0.5454545454545454,
+        "ci": [
+          0.2727272727272727,
+          0.8181818181818182
+        ],
+        "n": 11
+      },
+      "hand_object_min_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "human_object_penetration_max_m": {
+        "delta": -4.180300642143597e-05,
+        "ci": [
+          -0.0001254090192643079,
+          0.0
+        ],
+        "n": 11
+      },
+      "human_object_penetration_mean_m": {
+        "delta": -1.0696153780868784e-08,
+        "ci": [
+          -3.208846134260636e-08,
+          0.0
+        ],
+        "n": 11
+      },
+      "object_angular_speed_max_rad_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "object_floor_max_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "object_speed_max_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "released_grounded": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "root_angular_speed_max_rad_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "root_drift_max_m": {
+        "delta": 0.012585728513923559,
+        "ci": [
+          0.0036766712765463378,
+          0.02611251084811308
+        ],
+        "n": 11
+      },
+      "root_height_min_m": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "root_speed_max_m_s": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "scene_outside_fraction": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "scene_penetration_max_m": {
+        "delta": -0.037603953070091935,
+        "ci": [
+          -0.05749539519998838,
+          -0.017742637513649913
+        ],
+        "n": 11
+      },
+      "scene_penetration_mean_m": {
+        "delta": -0.00018607166027415835,
+        "ci": [
+          -0.0002827575144445275,
+          -9.204971691700468e-05
+        ],
+        "n": 11
+      },
+      "standing": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      },
+      "standing_success": {
+        "delta": -0.09090909090909091,
+        "ci": [
+          -0.2727272727272727,
+          0.0
+        ],
+        "n": 11
+      },
+      "tilt_max_deg": {
+        "delta": 0.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "n": 11
+      }
+    }
+  },
+  "per_case_metrics": "results/experiments/p5-inference-kimodo-contact-r1-s42-20260909/evaluation/metrics.json",
+  "native_exports": 12,
+  "full_motion_exports": 12,
+  "videos": 13,
+  "new_frames_per_full_motion": 51,
+  "correction_seconds": 133.51626374945045,
+  "correction_peak_cuda_bytes": 355379200,
+  "joint_correction_mean_m": 0.018514862411062826,
+  "joint_correction_max_m": 0.2561076283454895,
+  "rotation_correction_max_deg": 64.57183837890625,
+  "endpoint_joint_error_max_m": 2.811545414260763e-07,
+  "free_ground_depth_worst_m": 0.0017948150634765625,
+  "retained_failed_runs": [
+    "p5-inference-kimodo-contact-s42-20260909"
+  ],
+  "limitations": [
+    "Task71 target intersects scene; original motion retained with infeasible_endpoint status.",
+    "Original near-floor joint-speed proxy increases on feasible cases from0.178393to0.189588m/s; fixed predicted-contact surface speed improves from0.063997to0.012147m/s.",
+    "Task29 root planar drift0.115536m exceeds prior0.10m proxy; largest per-joint motion correction0.256108m and rotation64.5718deg.",
+    "Short floating intervals remain; endpoint source contexts and target foot conventions are fixed.",
+    "One fixed historical12-case diagnostic; no physical dynamics or general benchmark claim."
+  ],
+  "verification": {
+    "full_suite_passed": 1128,
+    "skipped": 4,
+    "seconds": 204.14,
+    "log": "results/verification/kimodo_contact_gradient_authority.log",
+    "bootstrap": {
+      "all": {
+        "metrics": 38,
+        "maximum_difference": 6.938893903907228e-18
+      },
+      "feasible": {
+        "metrics": 38,
+        "maximum_difference": 6.938893903907228e-18
+      }
+    },
+    "assembled_original_prefix_exact": 12,
+    "objects_exact": 12,
+    "video_frames": 61,
+    "video_fps": 30
+  }
+}

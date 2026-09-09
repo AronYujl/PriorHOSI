@@ -330,3 +330,16 @@ Jacobian check. Keep all failed-run artifacts and use a fresh run identifier.
 All budgets, objectives, masks, source motions and endpoints stay fixed.
 The summary reduces scalar metrics; nested condition dictionaries remain in the
 full per-case records and are excluded from numerical paired statistics.
+
+### Phase5.3 completion
+
+Kimodo is the default bridge generator. Native contact correction completed11
+feasible cases; target71was rejected with its original motion retained. Scene
+tolerances pass5/12to11/12 overall. On11feasible cases, mean per-clip free-frame
+maximum ground depth42.665to0.180mm, fixed-contact surface speed0.063997to
+0.012147m/s, and both seams improve. All registered correction gates pass.
+Near-floor joint-speed remains0.178393to0.189588m/s, task29root planar drift
+reaches11.55cm, and worst joint correction25.61cm. These remaining problems
+qualify the prototype. All12motions, full stitches,13videos, paired statistics,
+one retained failed run and1128-pass/4-skip suite are complete. Read
+[Phase5.3 summary](../phase_summaries/PHASE_5C_KIMODO_CONTACT.md).
