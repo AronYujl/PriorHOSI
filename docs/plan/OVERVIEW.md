@@ -1,10 +1,10 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
-2026-09-09: Phase 5.4 publishes one HOI/walk/low-step-seating input pilot while
-preserving all 469 original tasks and auditing 1214 eligible LINGO sources.
-Read [the summary](../phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md) before
-Phase 5.5 frozen-chain inference. Full-chain success and broad benchmark coverage
-remain unmeasured.
+2026-09-10: Phase 5.5.1 audits the published pilot's actual HOI handoff. The
+source identity checks pass, but the 9.8 s budget cutoff misses the goals and
+release conditions; the cached terminal is 42 frames over budget and remains too
+fast for the handoff guard. Walk/sit are explicitly blocked. Read the
+[summary](../phase_summaries/PHASE_5E_HANDOFF_AUDIT.md) before Phase 5.5.2.
 
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible

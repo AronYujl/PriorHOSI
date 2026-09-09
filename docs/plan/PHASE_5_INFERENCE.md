@@ -605,3 +605,26 @@ A paired-method bootstrap has no paired methods in this one-source deterministic
 audit. Deliver compact results, raw diagnostics and a phase summary. The runtime
 entry gate passes only if the fixed cached source meets all declared prerequisites;
 an audited failure is a completed diagnostic with an unmet execution entry gate.
+
+### Phase 5.5.1 completion
+
+Run `p5-inference-handoff-audit-s42-20260910` completed the fixed-source audit.
+All source identity checks passed and native reconstruction error was
+`2.6656007889869215e-7 m`. Both prescribed bridge contexts pass membership geometry
+checks against the achieved object transform. The published 9.8 s cutoff contains
+298 observed frames; its source state misses pelvis/object goals by 12.285/24.843
+cm and reaches object translation/angular speeds of 0.382 m/s and 0.905 rad/s.
+The full cached source contains 340 observed frames plus two held padding frames,
+or 42 frames beyond the budget; its goal errors improve to 2.566/2.668 cm but
+object speeds remain 0.617 m/s and 0.520 rad/s. The original terminal repair was
+not attempted (0 solver steps). The execution entry gate therefore fails and
+walk/sit remain explicitly blocked with null metrics.
+
+The run sampled zero models, used 0.425 GiB peak CUDA allocation and completed
+the full authority suite with 1154 passed and 4 historical skips. The retained
+environment failure from the restricted-CUDA first attempt is superseded by the
+all-device rerun. Read [Phase 5.5.1 summary](../phase_summaries/PHASE_5E_HANDOFF_AUDIT.md)
+and `experiments/results/p5_inference_handoff_audit_s42_20260910.json` before
+the next subphase. The exact next entry is `phase/05e2-multitask-execution`,
+which requires a new preregistered release/settling contract before any chain
+sampling; no full-chain success claim is made here.

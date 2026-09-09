@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p5-inference-handoff-audit-s42-20260910",
+  "phase": "p5",
+  "subphase": "5.5.1",
+  "seed": 42,
+  "episode_id": "multitask-hosi-027",
+  "status": "completed_diagnostic",
+  "execution_entry_gate": false,
+  "source_identity": true,
+  "native_reconstruction_max_error_m": 2.6656007889869215e-7,
+  "published_budget": {
+    "duration_s": 9.8,
+    "observed_frame_limit": 298,
+    "prefix_timestamp_s": 9.9,
+    "pelvis_goal_error_m": 0.12285464257001877,
+    "object_goal_error_m": 0.24842849373817444,
+    "object_speed_max_m_s": 0.3822043538093567,
+    "object_angular_speed_max_rad_s": 0.9045926332473755,
+    "failed_checks": ["pelvis_at_goal", "object_at_goal", "object_translation_slow", "object_rotation_slow", "body_foot_support"]
+  },
+  "cached_terminal": {
+    "windows": 8,
+    "observed_frames": 340,
+    "held_padding_frames": 2,
+    "new_motion_s": 11.2,
+    "pelvis_goal_error_m": 0.025660164654254913,
+    "object_goal_error_m": 0.026678554713726044,
+    "object_speed_max_m_s": 0.6165252327919006,
+    "object_angular_speed_max_rad_s": 0.5196635723114014,
+    "failed_checks": ["object_translation_slow", "object_rotation_slow", "body_foot_support"]
+  },
+  "target_context_geometry": {"hoi_to_walk": "pass", "walk_to_sit": "pass", "continuity_metrics": "not_used_for_membership"},
+  "full_chain_status": "not_executed",
+  "successors": {"walk": "blocked_by_predecessor", "sit": "blocked_by_predecessor"},
+  "model_samples": 0,
+  "artifacts": {
+    "run_manifest": "results/experiments/p5-inference-handoff-audit-s42-20260910/manifest.json",
+    "metrics": "results/experiments/p5-inference-handoff-audit-s42-20260910/handoff/metrics.json",
+    "trace": "results/experiments/p5-inference-handoff-audit-s42-20260910/handoff/trace.npz",
+    "preview": "results/experiments/p5-inference-handoff-audit-s42-20260910/handoff/preview/actual_handoff_contexts.png",
+    "source_reference": "/data/yujinlun/InfBaGel-mixer/results/experiments/p2-mixer-hsi-integrated469-s42-20260908/lanes/lane-07/task-027/motion.pt"
+  },
+  "verification": {"full_authority_tests_passed": 1154, "historical_skips": 4, "log": "results/verification/handoff_audit_authority_all_devices.log", "config_resolution": "results/experiments/p5-inference-handoff-audit-s42-20260910/resolved_config.yaml"},
+  "next_entry": "phase/05e2-multitask-execution: preregister a compatible actual-history chain after resolving the HOI release/settling contract"
+}
