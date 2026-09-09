@@ -343,3 +343,72 @@ reaches11.55cm, and worst joint correction25.61cm. These remaining problems
 qualify the prototype. All12motions, full stitches,13videos, paired statistics,
 one retained failed run and1128-pass/4-skip suite are complete. Read
 [Phase5.3 summary](../phase_summaries/PHASE_5C_KIMODO_CONTACT.md).
+
+
+## 2026-09-09 — Phase 5.4: multi-task benchmark inputs and boundary contracts
+
+The user approved extending HOSI-test with LINGO locomotion and static-object
+interaction, checking composability at construction and using Kimodo at inference.
+Work on `phase/05d-multitask-benchmark`; preserve all469 original tasks verbatim.
+The full task-chain programme is split before implementation:5.4 builds and
+checks task inputs, source boundaries and scene placements;5.5 executes the frozen
+chains with actual generated histories, Kimodo and full-chain evaluation. This
+session closes5.4. No expert training or new expert result transfer is involved.
+
+Hypothesis: source-state, object-support and scene-geometry checks can construct
+nonempty multi-task conditions independently of any evaluated model's outputs.
+The benchmark has no complete recomposed motion GT. Source motion supplies
+initial conditions, semantic timing and explicit target/contact references only.
+Prior Phase5 generated standing outputs never select new benchmark membership.
+
+Inventory the67HOSI files/469rows and all unique referenced OMOMO sequences.
+Inventory unmirrored LINGO sources from the fixed seed42v3test partition, with
+original language data_idx and sequence/frame bounds. First-version allowed
+texts are walk, sit down on chair/office chair/sofa/couch and stand up from seat.
+Hand-interaction==-1 is only one metadata check; explicit text semantics exclude
+held props. Keep short clips and all exclusions in an audit instead of silently
+turning them into viable16-frame stride3 windows. Record native30Hz, half-open
+source intervals, full sequence terminal frame and separate model rollout timing.
+
+Task schema records corpus-qualified source indices, target scene/geometry,
+start_location, pelvis_goal, optional object_goal/scene_goal, source body identity,
+heading, start/terminal context references, allowed duration, named contact target
+and entry/exit requirements. Episode schema records ordered segments and explicit
+transition edges, allowed contact changes and object persistence. Source scenes
+and target scenes are distinct fields. Benchmark requirements stay independent of
+Kimodo; the selected inference adapter consumes them. A chained successor uses
+actual generated state rather than resetting to its source data_idx pose.
+
+Audit first/last0.3s source contexts on CUDA: root/heading speed, feet support,
+uprightness, hand/object distance, object lowest surface, speed and rotation.
+Use the existing Phase5 support tolerances (floor<=5cm, object speed<=.10m/s,
+angular speed<=.5rad/s) as explicitly labelled geometric proxies. Preserve raw
+measures and per-reason counts. A suspended object requires a placement action;
+release-only transitions cannot silently freeze it in mid-air.
+
+Scene placement follows the user's scene-scope clarification. The default retains
+the original67TRUMANS scenes and requires geometric support anchors for static
+interaction. Native LINGO sources may verify source boundaries but cannot become
+a cross-scene chain by copying their coordinates. Evaluate source/target boundary
+body geometry at mean penetration<=5mm,max<=5cm,in bounds; report support/contact
+separately. Keep all original469rows, accepted conditions and excluded candidates
+with reasons. Freeze deterministic source ordering before any model output.
+If target geometry cannot support a proposed chain, emit its explicit status;
+do not replace the scene or action implicitly to meet a count.
+
+Use one config fragment under existing Hydra `test_infbagel_hosi.py`, reusable
+`mixer` benchmark components and component tests, no new tool script, hashing
+mechanism, smoke workload or frozen core changes. Initial source scan and native
+geometry use shared RTX3090CUDA with documented allocation. Archive exact resolved
+config, machine preflight and standard manifest before the registered construction
+run. Existing source identities are referenced from their manifests. No model
+sampling is part of5.4; throughput micro-benchmarks and paired method bootstrap
+are inapplicable to deterministic task construction.
+
+Gate: all469original tasks preserved; all emitted source indices/bounds/splits
+resolve; all published chains have explicit edges and scene/object state rules;
+geometry and rejected-count records reconcile; at least one usable chain for each
+published chain type; full authority tests and registry validation pass. A zero
+usable count is a reported construction limitation, not permission to tune output
+selection. Deliver tracked task manifests, aggregate audit, task-format guide,
+geometry previews where placements are made, and a phase summary with5.5 entry.

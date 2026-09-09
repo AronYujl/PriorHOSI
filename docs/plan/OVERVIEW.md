@@ -1,5 +1,8 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
+2026-09-09: Phase5.4 constructs multi-task benchmark inputs and boundary contracts;
+Phase5.5 is the subsequent frozen-chain inference/evaluation subphase.
+
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible
 inputs plus1explicitly rejected target. Scene passes5/12to11/12; contact-patch

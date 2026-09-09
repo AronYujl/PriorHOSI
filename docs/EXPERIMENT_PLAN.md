@@ -1,7 +1,7 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划（导航页）
 
-2026-09-09: [Phase 5.1 standing handoff feasibility](plan/PHASE_5_INFERENCE.md)
-is the user-approved inference entry after the settled Phase 2.34 chain.
+2026-09-09: [Phase 5.4 multi-task benchmark construction](plan/PHASE_5_INFERENCE.md)
+is active after the completed Kimodo transition deployment.
 
 **2026-08-10：本计划已按渐进披露拆分。** 原来的单文件共 9,519 行，一次性载入会挤占
 上下文却只有一小部分与手头的 phase 有关。现在原文被**逐字节**切进 `docs/plan/` 下的
