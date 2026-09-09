@@ -530,3 +530,78 @@ made. Read [Phase5.4 summary](../phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md
 and `experiments/tasks/p5_multitask_pilot_s42_20260909.json` before Phase5.5.
 This session ends at5.4; full actual-history expert/Kimodo execution is the next
 subphase and has not started.
+
+## 2026-09-10 - Phase 5.5.1: actual handoff and frame-budget audit
+
+The user resumed session 01a084e8-a87e-7580-a4ac-324f907f7e5b and authorized
+continuation. Read-only recovery found two upstream execution constraints in the
+fixed pilot: the saved draw-0 HOI tail has object speed 0.616525 m/s against the
+existing 0.10 m/s release limit, and its eight windows add 11.2 seconds against
+the published 9.8-second HOI budget. These observations precede this diagnostic;
+they are recorded here rather than presented as unseen experimental results.
+
+Split 5.5 before implementation. Phase 5.5.1 on
+`phase/05e1-handoff-audit` resolves actual handoff eligibility, native timing and
+failure attribution. Phase 5.5.2 on `phase/05e2-multitask-execution` implements
+the full actual-history expert/Kimodo chain after its entry contract is resolved.
+This session completes only 5.5.1. Expert training and the published task set
+retain their existing versions.
+
+Hypothesis: evaluating the achieved body/object state with the published timing
+and support contract identifies the concrete missing conditions for continuous
+execution. A scene-feasible prescribed witness and an original goal-completion
+flag alone are insufficient evidence for a release-and-walk transition.
+
+Use the single published `multitask-hosi-027` episode, seed 42 and the existing
+Phase 2.34 `correct_terminal_draw0` motion by reference. Keep the entire cached
+motion and its original result. This is an import/handoff diagnostic; the cached
+output was generated under the original native planner and is not a new rollout
+under the extended benchmark budget. No new expert/Kimodo samples are drawn.
+
+Native timing is explicit: a 16-frame stride-3 window with two coarse history
+frames contributes 42 new 30-Hz samples. The first history spans 0.1 seconds.
+Eight windows therefore contain 340 observed native frames, followed by two
+held interpolation-padding frames in the legacy export. Seven windows permit
+298 observed frames. Measure the fixed published-budget prefix and the full
+observed cache separately; prefix inspection does not change the original
+sampler's timing conditions or constitute a shorter-budget model run.
+
+At both cutoffs measure the last ten actual frames (0.3 seconds between first
+and last timestamps): pelvis/object goal errors, object orientation error to
+the prescribed extension goal, translation/angular speed, lowest object surface,
+native hand-object separation, body foot heights/speeds, uprightness, body/scene
+and body/object penetration. Record whole-cache geometry and foot sliding too.
+Use the existing thresholds: 0.10 m goal error, 0.05 m object support distance,
+0.10 m/s object translation, 0.5 rad/s object rotation, 0.08 m hand release and
+foot-marker support; scene mean/max 0.005/0.05 m, object max 0.05 m and floor max
+0.01 m. Orientation-goal error is descriptive because the published manifest
+does not define an angular-goal tolerance. Keep input-scene/body identity checks
+and native reconstruction error (<=1e-4 m) alongside these measurements.
+
+Load each of the two prescribed bridge contexts and recompute its body geometry
+against the actual achieved persistent object at the matching cutoff. Measure
+context position/rotation differences and foot support, retaining every result.
+The first edge may proceed only when its source is within budget, at the stated
+goals, supported/slow, geometrically admissible and natively reconstructed, and
+its prescribed target is admissible and released. Failed prerequisites produce
+named `blocked_by_predecessor` successor records. Do not synthesize missing-stage
+metrics or report an unexecuted full-chain success rate.
+
+Allowed diagnosis after a failed gate: save time-resolved object/root/foot
+measurements, the full unchanged source and both cutoff contexts, and a trajectory
+figure/scene preview identifying where the constraints fail. Preserve the original
+completion flag and explicitly distinguish its goal-only protocol from the new
+handoff checks. No endpoint replacement, frame holding, object settling, parameter
+tuning, resampling or benchmark membership change follows this gate in 5.5.1.
+
+Implementation extends the existing multitask Hydra stage, with one config
+fragment and component tests for timing, padding and achieved-state guard logic.
+GPU 0 runs native SMPL-X/geometry in the verified infbagel environment; record
+concurrent host workloads and actual memory/time. Run the full authority suite,
+registry validation and exact config resolution, then use the existing experiment
+start/finish/register lifecycle. Reuse source provenance by reference. No new
+hashing machinery, smoke workload, training benchmark or per-experiment script.
+A paired-method bootstrap has no paired methods in this one-source deterministic
+audit. Deliver compact results, raw diagnostics and a phase summary. The runtime
+entry gate passes only if the fixed cached source meets all declared prerequisites;
+an audited failure is a completed diagnostic with an unmet execution entry gate.
