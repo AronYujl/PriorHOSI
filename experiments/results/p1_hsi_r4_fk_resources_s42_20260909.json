@@ -1,0 +1,60 @@
+{
+  "benchmark_warmup_updates": 32,
+  "effective_batch_size": 2048,
+  "gradient_accumulation_steps": 1,
+  "last_loss": 2.716479778289795,
+  "max_peak_memory_allocated_bytes": 13425080320,
+  "max_peak_memory_reserved_bytes": 13767802880,
+  "measured_optimizer_updates": 96,
+  "micro_batch_per_gpu": 512,
+  "micro_steps": 128,
+  "optimizer_updates": 128,
+  "peak_memory_allocated_bytes_by_rank": [
+    13425080320,
+    13416052736,
+    13425080320,
+    13416052736
+  ],
+  "peak_memory_reserved_bytes_by_rank": [
+    13765705728,
+    13755219968,
+    13765705728,
+    13767802880
+  ],
+  "schema_version": 1,
+  "seed": 42,
+  "status": "completed",
+  "synchronized_training_seconds": 58.945471892133355,
+  "world_size": 4,
+  "runtime_stable": true,
+  "formal_resource_admission": false,
+  "observed_gpu0_used_mib": 22774,
+  "observed_gpu0_free_mib": 1802,
+  "required_free_mib": 2457.6,
+  "headroom_note": "One nvidia-smi startup observation is already below the 10% headroom requirement; this is a sampled observation, not a complete hardware maximum.",
+  "seconds_per_update": 0.6140153322097225,
+  "windows_per_second": 3335.421597095375,
+  "projected_training_hours": 24.94522567009249,
+  "projected_training_gpu_hours": 99.78090268036996,
+  "gradient_readout": {
+    "count_per_rank": 128,
+    "ranks_identical": true,
+    "all_finite": true,
+    "min": 10.710577011108398,
+    "median": 47.971981048583984,
+    "max": 867.705322265625
+  },
+  "loss_readout": {
+    "records_per_rank": [
+      12,
+      12,
+      12,
+      12
+    ],
+    "all_finite": true
+  },
+  "started_at": "2026-09-09T13:53:52+00:00",
+  "ended_at": "2026-09-09T13:56:11+00:00",
+  "wall_seconds": 139.0,
+  "reserved_gpu_hours": 0.15444444444444444
+}

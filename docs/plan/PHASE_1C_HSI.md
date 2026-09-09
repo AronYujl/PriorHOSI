@@ -13853,3 +13853,22 @@ experiments/results/p1_hsi_r4_fk_calibration_s42_20260909.{md,json}。退出时d
 释放CUDA上下文产生shutdown warnings；exit0及完整校准JSON已核对。
 接下来128更新资源测量将lr_decay_start_update=null以配合短任务更新上限；其前128次
 LR与正式2000-update warmup完全相同。此配置提交由实测系数落地及执行source转换产生。
+
+### R4.1 满批测量完成；正式训练等待资源
+
+128更新exit0、四rank共512个梯度范数均有限且逐更新一致，min/median/max为
+10.7106/47.9720/867.7053；四rank逐项loss读数均有限。预热32后96次同步测量
+58.9455秒，即0.614015秒/更新、3335.42窗口/秒，146255更新约24.95小时/99.78GPU-h，
+含竞争，未计初始化及checkpoint IO。峰值allocated12.5031GiB、reserved12.8223GiB。
+
+运行成功，但当前资源准入失败：启动期一次nvidia-smi采样GPU0占22774MiB，
+剩1802MiB<2457.6MiB要求。该值为实际采样，完整瞬时峰值未连续测量；外部任务显存
+波动已足以拒绝立即正式启动。保持GPU0/1/6/7的逻辑4rank布局，持久队列等待各卡
+外部总显存<=6144MiB后启动，给CUDA上下文及已观察波动留出余量。其他用户进程保持原状。
+
+正式run id p1-hsi-r4-fk-train-s42-20260909已在setup job登记，精确Hydra配置完全解析；
+资源通过时新建实时preflight和clean-worktree manifest，再从随机初始化开始。队列绑定
+当前提交；若源码状态改变则保留退出记录，后继按新id恢复。训练成功后自动终结本地manifest，
+后续R4.2按本节已批准协议运行内部诊断、全375 U/G及物理/FID/语义验收。
+R4.1的稳定启动门仍待满足，不能标记正式训练完成，也不能宣称质量已改善。
+校准0.064444及测量0.154444GPU-h，总0.218889GPU-h，低于4GPU-h上限。
