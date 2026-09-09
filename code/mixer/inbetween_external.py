@@ -190,8 +190,8 @@ def condmdi_generate(data, root, out, device):
     floor = model_positions[:, 0, :, 1].amin(-1)
     model_positions[..., 1] -= floor[:, None, None]
     features = humanml_features(model_positions)
-    mean = torch.from_numpy(np.load('dataset/HumanML3D_abs/Mean.npy')).float().to(device)
-    std = torch.from_numpy(np.load('dataset/HumanML3D_abs/Std.npy')).float().to(device)
+    mean = torch.from_numpy(np.load('dataset/HumanML3D_abs/Mean_abs_3d.npy')).float().to(device)
+    std = torch.from_numpy(np.load('dataset/HumanML3D_abs/Std_abs_3d.npy')).float().to(device)
     inputs = ((features-mean)/std).permute(0, 2, 1).unsqueeze(2)
     known = (time_indices <= 9) | (time_indices >= 51)
     mask = known[None, None, None].expand_as(inputs).clone()

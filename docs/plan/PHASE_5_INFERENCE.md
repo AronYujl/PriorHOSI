@@ -234,3 +234,9 @@ skeleton implementation does. Preserve allr2Kimodo raw outputs and use read-only
 file references in the next run, which generates only the still-missing CondMDI
 arm and then evaluates both. Synchronize CUDA before native-fit timing as well
 as after it. No additional Kimodo samples or output-based source choices occur.
+
+Runr3completed CondMDI body retargeting and GPU feature construction, then failed
+before sampling at normalization-file lookup. The released absolute-root files
+are `Mean_abs_3d.npy` and `Std_abs_3d.npy`; use those exact paths. Preserve this
+failure and the existing Kimodo reference and continue the missing CondMDI arm
+with a fresh run identifier.
