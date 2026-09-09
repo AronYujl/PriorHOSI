@@ -484,6 +484,7 @@ def run_body_projection(cfg):
     smpl_cache = {}; current_scene = None; records = []
     geometry_root = cfg.hsi_body_projection.get('geometry_root')
     direction_probe = cfg.hsi_body_projection.get('direction_probe',False)
+    dno_probe = cfg.hsi_body_projection.get('dno',False)
     integrated_terminal = cfg.hsi_body_projection.get('integrated_terminal',False)
     teacher = None
     if geometry_root is not None and not direction_probe:
@@ -546,6 +547,16 @@ def run_body_projection(cfg):
         baseline['initial_final_max_error_m']=0.
         baseline['object_max_error_m']=0.
         dest=out/f'task-{ordinal:03d}';dest.mkdir()
+        if dno_probe:
+            from .diffusion_noise import dno_motion_probe
+            record=dno_motion_probe(teacher,projector,model,sdf,info,evaluate,baseline,task,ordinal,
+                                    floor,length,protocol,dest)
+            record.update(task=ordinal,scene=scene,object=item['object_name'],windows=len(saved['windows']),
+                source_joint_error_m=joint_error,source_metric_error=metric_error,source_fk_anchor_error_m=fk_error)
+            write_json(dest/'metrics.json',record)
+            records.append(record)
+            print(json.dumps(dict(task=ordinal,completed=True,seconds=record['seconds'])),flush=True)
+            continue
         terminal_reference=None;terminal_replay=None;terminal_rows=[]
         if integrated_terminal:
             terminal_path,=Path(cfg.hsi_body_projection.terminal_reference).glob(f'lanes/*/task-{ordinal:03d}/terminal.pt')

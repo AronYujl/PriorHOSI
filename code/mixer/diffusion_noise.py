@@ -1,0 +1,438 @@
+"""Frozen HSI DDIM latent editing with the author's local DNO optimizer."""
+import json
+import sys
+import time
+from pathlib import Path
+
+import torch
+from pytorch3d import transforms
+from torch.utils.checkpoint import checkpoint
+
+from .body_projection import NATIVE_ANCHORS, NativeSceneDifferential, native_increment_pose
+from .hsi_motion_target import lift_native_prediction
+from .input_views import KnownEmptyObjectView
+
+
+def ddim_transition(value, clean, alpha, next_alpha):
+    noise = (value-alpha.sqrt()*clean)/(1-alpha).sqrt()
+    return next_alpha.sqrt()*clean+(1-next_alpha).sqrt()*noise
+
+
+def native_quaternion_interpolation(quaternion, scale=3):
+    """Native SLERP/LERP convention, evaluated only on each branch's domain."""
+    first = quaternion[:-1, None].expand(-1, scale, -1, -1)
+    second = quaternion[1:, None].expand_as(first)
+    fraction = torch.arange(scale, device=quaternion.device, dtype=quaternion.dtype)[None, :, None, None]/scale
+    fraction = fraction.expand(*first.shape[:-1], 1)
+    first, second, fraction = first.reshape(-1, 4), second.reshape(-1, 4), fraction.reshape(-1, 1)
+    dot = (first*second).sum(-1, keepdim=True)
+    first = torch.where(dot < 0, -first, first)
+    dot = (first*second).sum(-1, keepdim=True)
+    linear = (dot > 1-1e-6).squeeze(-1)
+    result = torch.empty_like(first)
+    # The native near-parallel branch weights the second endpoint by1-t.
+    result[linear] = first[linear]*fraction[linear]+second[linear]*(1-fraction[linear])
+    curved = ~linear
+    omega = torch.acos(dot[curved].clamp(-1, 1))
+    result[curved] = (first[curved]*torch.sin((1-fraction[curved])*omega)
+                      +second[curved]*torch.sin(fraction[curved]*omega))/torch.sin(omega)
+    result = result/result.norm(dim=-1, keepdim=True)
+    return torch.cat((result.reshape(-1, quaternion.shape[1], 4),
+                      quaternion[-1:].expand(scale, -1, -1)))
+
+
+def native_linear_interpolation(value, scale=3):
+    index = torch.arange(len(value)*scale, device=value.device)
+    lo = index//scale
+    hi = (lo+1).clamp_max(len(value)-1)
+    weight = ((index % scale)/scale).reshape(-1, *([1]*(value.ndim-1)))
+    return value[lo]+weight*(value[hi]-value[lo])
+
+
+class HSIDDIM:
+    def __init__(self, teacher, windows, source, task, ordinal, settings):
+        self.model, self.dataset = teacher.model, teacher.dataset
+        self.teacher, self.windows, self.source = teacher, windows, source
+        self.settings = settings
+        self.device = source['pose'].device
+        self.alpha = teacher.sampler.hsi_sampler.alpha_cumprod.to(self.device)
+        self.clean = torch.cat([w['source'].to(self.device)[..., :216] for w in windows])
+        self.mats = [w['mat'].to(self.device) for w in windows]
+        self.arguments = [{k: [a.to(self.device) for a in args] for k, args in w['arguments'].items()}
+                          for w in windows]
+        self.empty = []
+        for i, w in enumerate(windows):
+            empty = KnownEmptyObjectView()
+            empty.begin_window(w['source'].to(self.device), 42+900000000+ordinal*10000+i*100)
+            self.empty.append(empty)
+        sequence = self.dataset.ori_sequence_idx[task['data_idx']]
+        self.dataset_translation = torch.as_tensor(self.dataset.transl[sequence], device=self.device)
+        self.source_decode = self.raw_pose(self.clean)
+
+    def reframe(self, value, old, new):
+        points = self.dataset.denormalize_torch(value[..., :84]).reshape(1, -1, 28, 3)
+        rotation = new[:, :3, :3].transpose(-1, -2)@old[:, :3, :3]
+        shift = (new[:, :3, :3].transpose(-1, -2)@(old[:, :3, 3]-new[:, :3, 3])[..., None]).squeeze(-1)
+        points = (rotation[:, None, None]@points[..., None]).squeeze(-1)+shift[:, None, None]
+        human = rotation[:, None, None]@transforms.rotation_6d_to_matrix(value[..., 84:].reshape(1, -1, 22, 6))
+        return torch.cat((self.dataset.normalize_torch(points).flatten(2),
+                          transforms.matrix_to_rotation_6d(human).flatten(2)), -1)
+
+    def predict(self, current, history, window, view, step):
+        current = torch.cat((history, current[:, 2:]), 1)
+        whole = torch.cat((current, current.new_zeros(1, 16, 16)), -1)
+        whole = self.empty[window].for_step(whole, step)
+        args = list(self.arguments[window][view])
+        args[1] = torch.full((1,), step, device=self.device, dtype=torch.long)
+
+        def forward(value, arguments=tuple(args)):
+            self.teacher.calls += 1
+            return self.model(value, *arguments, is_sample=True)[..., :216]
+
+        prediction = checkpoint(forward, whole, use_reentrant=False) if torch.is_grad_enabled() else forward(whole)
+        return torch.cat((history, prediction[:, 2:]), 1)
+
+    def decode(self, latent, view):
+        future = latent[0, :, 0].transpose(0, 1).reshape(len(self.windows), 14, 216)
+        times = torch.linspace(0, 499, self.settings['ddim_steps']).round().long().tolist()[::-1]
+        predictions = []
+        for i in range(len(self.windows)):
+            history = self.clean[i:i+1, :2] if i == 0 else self.reframe(predictions[-1][:, -2:], self.mats[i-1], self.mats[i])
+            value = torch.cat((history, future[i:i+1]), 1)
+            for j, step in enumerate(times):
+                clean = self.predict(value, history, i, view, step)
+                next_alpha = self.alpha[times[j+1]] if j+1 < len(times) else self.alpha.new_tensor(1.)
+                value = ddim_transition(value, clean, self.alpha[step], next_alpha)
+            predictions.append(torch.cat((history, value[:, 2:]), 1))
+        return torch.cat(predictions)
+
+    @torch.no_grad()
+    def invert(self):
+        times = torch.linspace(0, 499, self.settings['inversion_steps']).round().long().tolist()
+        latents = []
+        for i in range(len(self.windows)):
+            value = self.clean[i:i+1].clone()
+            history = value[:, :2]
+            for j, step in enumerate(times):
+                clean = self.predict(value, history, i, 'correct', step)
+                next_alpha = self.alpha[times[j+1]] if j+1 < len(times) else self.alpha.new_tensor(0.)
+                value = ddim_transition(value, clean, self.alpha[step], next_alpha)
+            latents.append(value[:, 2:])
+        return torch.cat(latents, 1).transpose(1, 2).unsqueeze(2)
+
+    def raw_pose(self, prediction):
+        roots, rotations = [], []
+        for i, value in enumerate(prediction):
+            mat = self.mats[i][0]
+            positions = self.dataset.denormalize_torch(value[..., :84]).reshape(16, 28, 3)
+            world_root = (mat[:3, :3]@positions[:, 0, :, None]).squeeze(-1)+mat[:3, 3]
+            global_rotation = mat[:3, :3]@transforms.rotation_6d_to_matrix(value[..., 84:].reshape(16, 22, 6))
+            keep = slice(None) if i == 0 else slice(2, None)
+            roots.append(world_root[keep]); rotations.append(global_rotation[keep])
+        global_rotation = torch.cat(rotations)
+        local = self.dataset.quat_ik_torch(global_rotation)
+        quaternion = transforms.matrix_to_quaternion(local)
+        interpolated = native_quaternion_interpolation(quaternion)
+        pose = transforms.matrix_to_axis_angle(transforms.quaternion_to_matrix(interpolated))
+        translation = native_linear_interpolation(torch.cat(roots))+self.dataset_translation
+        return dict(pose=pose, translation=translation)
+
+    def pose(self, prediction):
+        raw = self.raw_pose(prediction)
+        pose, translation = lift_native_prediction(self.source, self.source_decode, raw)
+        fixed = torch.zeros(len(pose), device=pose.device, dtype=torch.bool)
+        fixed[:6] = True; fixed[-3:] = True
+        return (torch.where(fixed[:, None, None], self.source['pose'], pose),
+                torch.where(fixed[:, None], self.source['translation'], translation))
+
+
+class _PhysicalLoss(torch.autograd.Function):
+    """Exact first derivatives accumulated in native24-frame SMPL-X blocks."""
+    @staticmethod
+    def forward(ctx, pose, translation, objective):
+        from utils import run_smplx_model, SMPLX_JOINTS_28
+        source, length = objective.source, len(pose)
+        grad_pose, grad_translation = torch.zeros_like(pose), torch.zeros_like(translation)
+        sums = pose.new_zeros(4)
+        with torch.enable_grad():
+            for lo in range(0, length, 24):
+                start, stop = max(lo-1, 0), min(lo+24, length)
+                p = pose[start:stop].detach().requires_grad_(True)
+                t = translation[start:stop].detach().requires_grad_(True)
+                vertices, joints = run_smplx_model(p, t, source['betas'], source['gender'],
+                    joints_ind=SMPLX_JOINTS_28, smpl_model=objective.model)
+                offset = lo-start
+                delta = joints-source['joints'][start:stop]
+                body = delta[offset:].square().sum()/(length*28*3*objective.body_scale**2)
+                if objective.edit:
+                    anchors = delta[offset:, NATIVE_ANCHORS].square().sum()/(length*6*3*.001**2)
+                    velocity = ((delta[1:]-delta[:-1])*30).square().sum()/((length-1)*28*3*.1**2)
+                    scene = objective.differential.frame_sums(vertices[offset:]).sum()/(length*objective.scene_scale)
+                else:
+                    anchors, velocity, scene = (body.new_zeros(()) for _ in range(3))
+                terms = torch.stack((body, anchors, velocity, scene))
+                gp, gt = torch.autograd.grad(terms.sum(), (p, t))
+                grad_pose[start:stop] += gp; grad_translation[start:stop] += gt
+                sums += terms.detach()
+        objective.last_terms = sums.detach().cpu().tolist()
+        ctx.save_for_backward(grad_pose, grad_translation)
+        return sums.sum()
+
+    @staticmethod
+    def backward(ctx, upstream):
+        pose, translation = ctx.saved_tensors
+        return upstream*pose, upstream*translation, None
+
+
+class NativeDNOObjective:
+    def __init__(self, projector, model, sdf, info, source_hs, edit):
+        self.source, self.model, self.edit = projector.source, model.eval().requires_grad_(False), edit
+        self.differential = NativeSceneDifferential(projector, model, sdf, info)
+        self.body_scale = .05 if edit else .01
+        self.scene_scale = max(source_hs, 1.)
+        self.last_terms = None
+
+    def __call__(self, pose, translation):
+        return _PhysicalLoss.apply(pose, translation, self)
+
+
+@torch.enable_grad()
+def optimize_latent(decoder, objective, initial, view, settings, destination, stage):
+    sys.path.insert(0, str(destination['repository']))
+    from dno import DNO, DNOOptions
+    # The official decorrelation padding and zero-scale perturbation draw noise.
+    # Reset both paired edits so those draws correspond at every iteration.
+    torch.manual_seed(42)
+    traces = []
+
+    def generate(latent):
+        return decoder.decode(latent, view).unsqueeze(0)
+
+    def criterion(value):
+        predicted = value[0]
+        pose, translation = decoder.pose(predicted)
+        physical = objective(pose, translation)
+        feature = (predicted[:, 2:]-decoder.clean[:, 2:]).square().mean()
+        traces.append(dict(iteration=len(traces), body=objective.last_terms[0],
+            anchors=objective.last_terms[1], velocity=objective.last_terms[2],
+            scene=objective.last_terms[3], feature=float(feature.detach())))
+        return (physical+feature).reshape(1)
+
+    steps = settings['editing_steps'] if objective.edit else settings['reconstruction_steps']
+    options = DNOOptions(num_opt_steps=steps, lr=settings['lr'], lr_warm_up_steps=settings['warmup'],
+                         decorrelate_scale=settings['decorrelate_scale'], perturb_scale=0.)
+    engine = DNO(generate, criterion, initial, options)
+    def finite_gradient(gradient):
+        assert torch.isfinite(gradient).all(), 'nonfinite gradient through HSI DDIM'
+        return gradient
+    engine.current_z.register_hook(finite_gradient)
+    torch.cuda.synchronize(initial.device); began = time.perf_counter()
+    for lo in range(0, steps, 50):
+        engine(min(50, steps-lo))
+        checkpoint_path = destination['path']/f'{stage}-step{engine.step_count:04d}.pt'
+        with checkpoint_path.open('xb') as handle:
+            torch.save(dict(latent=engine.current_z.detach().cpu(), optimizer=engine.optimizer.state_dict(),
+                step=engine.step_count, initial=engine.start_z.cpu(), traces=traces,
+                options=vars(options), view=view, cpu_rng=torch.get_rng_state(),
+                cuda_rng=torch.cuda.get_rng_state(initial.device)), handle)
+        last = engine.hist[-1]
+        torch.cuda.synchronize(initial.device)
+        peak = torch.cuda.max_memory_allocated(initial.device)/1024**3
+        assert peak <= 5, peak
+        print(json.dumps(dict(stage=stage, step=engine.step_count, loss=float(last['loss'].mean()),
+            gradient_norm=float(last['grad_norm'].mean()), physical=traces[-1],
+            seconds=time.perf_counter()-began, peak_memory_gib=peak,
+            checkpoint=str(checkpoint_path))), flush=True)
+    torch.cuda.synchronize(initial.device)
+    with (destination['path']/(stage+'-trace.json')).open('x') as handle:
+        json.dump(dict(terms=traces, seconds=time.perf_counter()-began,
+            optimizer=[{k:float(row[k][0]) for k in ('step', 'lr', 'loss', 'loss_decorrelate', 'grad_norm')}
+                       for row in engine.hist]), handle, indent=2)
+    return engine.current_z.detach()
+
+
+@torch.enable_grad()
+def optimize_geometry(projector, objective, settings, destination):
+    from dno import warmup_scheduler, cosine_decay_scheduler
+    value = torch.zeros(len(projector.translation), 69, device=projector.translation.device, requires_grad=True)
+    optimizer = torch.optim.Adam([value], lr=settings['lr'])
+    trace = []
+    for step in range(settings['editing_steps']):
+        optimizer.zero_grad()
+        pose, translation = native_increment_pose(projector, value)
+        loss = objective(pose, translation)
+        loss.backward()
+        norm = value.grad.norm()
+        trace.append(dict(step=step, loss=float(loss.detach()), gradient_norm=float(norm), terms=objective.last_terms))
+        if float(norm) == 0:
+            trace[-1]['stationary'] = True
+            break
+        value.grad.div_(norm)
+        fraction = warmup_scheduler(step, settings['warmup'])*cosine_decay_scheduler(
+            step, settings['editing_steps'], settings['editing_steps'], decay_first=False)
+        optimizer.param_groups[0]['lr'] = settings['lr']*fraction
+        optimizer.step()
+    with (destination/'geometry-trace.json').open('x') as handle: json.dump(trace, handle, indent=2)
+    return native_increment_pose(projector, value.detach())
+
+
+def dno_motion_probe(teacher, projector, model, sdf, info, evaluate, baseline, task, ordinal,
+                     floor, length, protocol, dest):
+    from .surface_edit import decode_body
+    from .body_projection import smooth_body_target
+    from .diagnostics import body_readout_measures
+    from .continuation_outcomes import write_json
+    source = projector.source
+    started = time.perf_counter(); before_calls = teacher.calls
+    root = Path(teacher.cfg.hsi_body_projection.protocol).resolve().parents[2]
+    query, = (root/protocol['query_cache']).glob(f'lanes/*/task-{ordinal:03d}/teacher.pt')
+    cache = torch.load(query, map_location=teacher.device, weights_only=False)
+    decoder = HSIDDIM(teacher, cache['windows'], source, task, ordinal, protocol['method'])
+    settings = protocol['method']
+    destination = dict(repository=protocol['dno_repository'], path=dest)
+    motions, metrics, audits = {}, {}, {}
+
+    @torch.no_grad()
+    def save_motion(name, pose, translation):
+        pose, translation = pose.detach().clone(), translation.detach().clone()
+        pose[projector.fixed] = source['pose'][projector.fixed]
+        translation[projector.fixed] = source['translation'][projector.fixed]
+        motion = dict(source, pose=pose, translation=translation)
+        motion['verts'], motion['joints'] = decode_body(motion, model)
+        motion['verts'][projector.fixed] = source['verts'][projector.fixed]
+        motion['joints'][projector.fixed] = source['joints'][projector.fixed]
+        record = evaluate(motion)
+        record.update(body_readout_measures(motion, source, floor, length))
+        record.update(projector.measures(transforms.axis_angle_to_matrix(pose), translation))
+        record.update(native_anchor_max_error_m=float((motion['joints'][:, NATIVE_ANCHORS]-
+                    source['joints'][:, NATIVE_ANCHORS]).norm(dim=-1).max()),
+            native_body28_mean_displacement_cm=float((motion['joints']-source['joints']).norm(dim=-1).mean()*100),
+            initial_final_max_error_m=float((motion['joints'][projector.fixed]-source['joints'][projector.fixed]).abs().max()),
+            object_max_error_m=float((motion['object_translation']-source['object_translation']).abs().max()))
+        state = {k:v.cpu() for k,v in motion.items() if torch.is_tensor(v) and k != 'verts'}
+        with (dest/(name+'.pt')).open('xb') as handle: torch.save(state, handle)
+        write_json(dest/(name+'-metrics.json'), record)
+        motions[name], metrics[name] = state, record
+        print(json.dumps(dict(task=ordinal, stage=name, hs=record['scene_human_penetration_s_mean'],
+            contact=record['contact_percent'], body_cm=record['native_body28_mean_displacement_cm'])), flush=True)
+        return motion
+
+    @torch.no_grad()
+    def final_projection(name, motion):
+        rotation, translation = smooth_body_target(source, motion, keep_planar=True)
+        save_motion(name+'_smooth', transforms.matrix_to_axis_angle(rotation.double()).float(), translation)
+        rotation, translation, audit = projector.solve(rotation, translation)
+        states = audit.pop('states')
+        with (dest/(name+'-projection-attempts.pt')).open('xb') as handle: torch.save(states, handle)
+        pose = transforms.matrix_to_axis_angle(rotation.double()).to(source['pose'])
+        pose[projector.fixed] = source['pose'][projector.fixed]
+        save_motion(name+'_projected', pose, translation)
+        audits[name] = audit
+        assert metrics[name+'_projected']['native_anchor_max_error_m'] <= 1e-5
+
+    save_motion('source', source['pose'], source['translation'])
+    native_keys = tuple(evaluate(source))
+    source_error = max(abs(float(metrics['source'][k])-float(baseline[k])) for k in native_keys)
+    assert source_error <= 1e-5, source_error
+    identity_pose, identity_translation = decoder.pose(decoder.clean)
+    identity_error = max(float((identity_pose-source['pose']).abs().max()),
+                         float((identity_translation-source['translation']).abs().max()))
+    assert identity_error <= 1e-6, identity_error
+    with torch.no_grad():
+        latent = decoder.invert()
+        with (dest/'inversion.pt').open('xb') as handle: torch.save(latent.cpu(), handle)
+        for view in ('correct', 'wrong'):
+            save_motion(view+'_inversion', *decoder.pose(decoder.decode(latent, view)))
+    reconstruction = NativeDNOObjective(projector, model, sdf, info, baseline['scene_human_penetration_s_mean'], False)
+    reconstructed = optimize_latent(decoder, reconstruction, latent, 'correct', settings, destination, 'reconstruction')
+    for view in ('correct', 'wrong'):
+        with torch.no_grad():
+            rebuilt = save_motion(view+'_reconstruction', *decoder.pose(decoder.decode(reconstructed, view)))
+        final_projection(view+'_reconstruction', rebuilt)
+    editing = NativeDNOObjective(projector, model, sdf, info, baseline['scene_human_penetration_s_mean'], True)
+    for view in ('correct', 'wrong'):
+        result = optimize_latent(decoder, editing, reconstructed, view, settings, destination, view+'_edit')
+        with torch.no_grad():
+            edited = save_motion(view+'_raw', *decoder.pose(decoder.decode(result, view)))
+        final_projection(view, edited)
+    geometry_pose, geometry_translation = optimize_geometry(projector, editing, settings, dest)
+    geometry = save_motion('geometry_raw', geometry_pose, geometry_translation)
+    final_projection('geometry', geometry)
+    torch.cuda.synchronize(teacher.device)
+    record = dict(means=metrics, projection=audits, identity_error=identity_error,
+        seconds=time.perf_counter()-started, hsi_calls=teacher.calls-before_calls,
+        peak_memory_gib=torch.cuda.max_memory_allocated(teacher.device)/1024**3)
+    assert record['peak_memory_gib'] <= 5, record['peak_memory_gib']
+    return record
+
+
+def summarize_dno(run_root, task_manifest, device='cuda:7'):
+    from .scene_calibration import paired_local_metrics
+    from .continuation_outcomes import write_json
+    run_root = Path(run_root)
+    tasks = json.loads(Path(task_manifest).read_text())['tasks']
+    records = [json.loads(p.read_text()) for p in run_root.glob('lanes/*/task-*/metrics.json')]
+    assert len(records) == len(tasks)
+    assert {r['task'] for r in records} == {t['canonical_ordinal'] for t in tasks}
+    arms = list(records[0]['means'])
+    by_task = {a:{str(r['task']):r['means'][a] for r in records} for a in arms}
+    scenes = sorted({r['scene'] for r in records})
+    by_scene = {a:{s:{k:sum(r['means'][a][k] for r in records if r['scene']==s)/
+        sum(r['scene']==s for r in records) for k in by_task[a][str(records[0]['task'])]}
+        for s in scenes} for a in arms}
+    means = {a:{k:sum(float(r['means'][a][k]) for r in records)/len(records)
+        for k in rkeys} for a in arms for rkeys in [records[0]['means'][a]]}
+    pairs = [(a, 'source') for a in arms if a != 'source']
+    pairs += [('correct_projected', 'wrong_projected'), ('correct_projected', 'geometry_projected'),
+        ('correct_raw', 'correct_reconstruction'), ('wrong_raw', 'wrong_reconstruction'),
+        ('correct_reconstruction', 'wrong_reconstruction'), ('correct_projected', 'correct_raw'),
+        ('wrong_projected', 'wrong_raw'),
+        ('correct_projected', 'correct_reconstruction_projected'),
+        ('wrong_projected', 'wrong_reconstruction_projected')]
+    contrasts = {a+'__minus__'+b:{unit:paired_local_metrics(data[b], data[a], device)
+        for unit, data in [('task', by_task), ('scene', by_scene)]} for a,b in pairs}
+    changes = {view:{unit:{name:{k:values[view+'_projected'][name][k]-
+        values[view+'_reconstruction_projected'][name][k] for k in values[view+'_projected'][name]}
+        for name in values[view+'_projected']} for unit,values in [('task',by_task),('scene',by_scene)]}
+        for view in ('correct','wrong')}
+    incremental_contrast = {unit:paired_local_metrics(changes['wrong'][unit], changes['correct'][unit], device)
+                            for unit in ('task','scene')}
+    hs = 'scene_human_penetration_s_mean'; oskey = 'scene_obj_penetration_s_mean'
+    source, correct, wrong = (means[a] for a in ('source', 'correct_projected', 'wrong_projected'))
+    conditions = dict(improves_source=correct[hs] <= .99*source[hs],
+        correct_scene_benefit=correct[hs] <= wrong[hs]-.005*source[hs],
+        contact=correct['contact_percent'] >= source['contact_percent']-.002,
+        foot_sliding=correct['foot_sliding'] <= source['foot_sliding']+.01,
+        object_scene=correct[oskey] <= 1.01*source[oskey],
+        completion=correct['completed'] >= source['completed'],
+        support=correct['source_floor_support_fraction'] >= source['source_floor_support_fraction']-.002,
+        anchors=max(r['means'][a]['native_anchor_max_error_m'] for r in records
+                    for a in ('correct_projected', 'wrong_projected', 'geometry_projected')) <= 1e-5)
+    reconstruction = {}
+    for row in records:
+        a, b = row['means']['correct_reconstruction'], row['means']['source']
+        reconstruction[str(row['task'])] = dict(body=a['native_body28_mean_displacement_cm'] <= 1.,
+            contact=a['contact_percent'] >= b['contact_percent']-.002,
+            support=a['source_floor_support_fraction'] >= b['source_floor_support_fraction']-.002,
+            foot_sliding=a['foot_sliding'] <= b['foot_sliding']+.01)
+    coverage, sensitivity = {}, {}
+    for reference in ('source', 'wrong_projected', 'geometry_projected'):
+        delta = [r['means']['correct_projected'][hs]-r['means'][reference][hs] for r in records]
+        coverage[reference] = dict(improved=sum(d<0 for d in delta), worsened=sum(d>0 for d in delta), equal=sum(d==0 for d in delta))
+        sensitivity[reference] = paired_local_metrics(
+            {k:v for k,v in by_task[reference].items() if k!='375'},
+            {k:v for k,v in by_task['correct_projected'].items() if k!='375'}, device)
+    summary = dict(tasks=len(records), scenes=len(scenes), windows=sum(r['windows'] for r in records),
+        means=means, contrasts=contrasts, edit_increment_contrast=incremental_contrast,
+        conditions=conditions, utility=all(conditions.values()),
+        reconstruction=reconstruction, reconstruction_pass_count=sum(all(x.values()) for x in reconstruction.values()),
+        coverage=coverage, remaining27=sensitivity, hsi_calls=sum(r['hsi_calls'] for r in records),
+        peak_memory_gib=max(r['peak_memory_gib'] for r in records),
+        task_seconds_sum=sum(r['seconds'] for r in records), resource_contention=True,
+        timing_comparison_valid=False, training_allowed=False, test_set_development=True)
+    output = run_root/'analysis'; output.mkdir()
+    for arm in arms:
+        for unit, values in [('task', by_task[arm]), ('scene', by_scene[arm])]:
+            write_json(output/f'{arm}-{unit}.json', dict(metrics=values))
+    write_json(output/'summary.json', summary); write_json(output/'records.json', records)
+    return summary

@@ -21,16 +21,20 @@ def native_rest_offsets(model, betas):
     return offsets
 
 
-def smooth_body_target(source, full):
+def smooth_body_target(source, full, keep_planar=False):
     original = transforms.axis_angle_to_matrix(source['pose'])
     predicted = transforms.axis_angle_to_matrix(full['pose'])
-    yaw = planar_yaw(predicted[:,0]@original[:,0].transpose(-1,-2))
-    predicted[:,0] = yaw_matrix(-yaw)@predicted[:,0]
+    if not keep_planar:
+        yaw = planar_yaw(predicted[:,0]@original[:,0].transpose(-1,-2))
+        predicted[:,0] = yaw_matrix(-yaw)@predicted[:,0]
     angular = transforms.matrix_to_axis_angle(original.transpose(-1,-2)@predicted)
     bound = math.radians(20)
     angular = angular*torch.clamp(bound/angular.norm(dim=-1,keepdim=True),max=1)
     displacement = torch.zeros_like(source['translation'])
-    displacement[:,1] = (full['joints'][:,0,1]-source['joints'][:,0,1]).clamp(-.1,.1)
+    if keep_planar:
+        displacement = (full['translation']-source['translation']).clamp(-.1,.1)
+    else:
+        displacement[:,1] = (full['joints'][:,0,1]-source['joints'][:,0,1]).clamp(-.1,.1)
     raw = torch.cat((displacement,angular.flatten(1)),dim=-1)
     basis = spline_basis(len(raw),raw.device)
     smooth = (basis.double()@(torch.linalg.pinv(basis.double())@raw.double())).to(raw.dtype)
