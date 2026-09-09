@@ -1,0 +1,26 @@
+# CM1.3: fixed R2 weights, the 25-grid deterministic teacher solver used by CM1.
+defaults: [config_sample_hsi_table3, _self_]
+
+lingo_hsi_mode: sample
+sample_type: ddim
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+w: 1
+use_guidance: false
+guidance_weight: 1
+hsi_guidance_posterior_coef1: false
+hsi_progress_fix: true
+occ_permute_fix: true
+hsi_compute_rds: false
+hsi_initial_heading: goal
+export_motion: true
+shard_count: 8
+model_name: r2_ddim25_unguided
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_ddim25_unguided_s42_20260909
+sampler:
+  pelvis:
+    ddim_timesteps: 25
+
+table3_output: ${oc.env:ROOT_DIR}/results/hsi_r2_ddim25_table3_s42_20260909
+table3_inputs:
+  unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_ddim25_unguided_s42_20260909/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_ddim25_guided_s42_20260909/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json

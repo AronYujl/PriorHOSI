@@ -13435,3 +13435,55 @@ Report与compact：experiments/results/p1_hsi_cm1_evaluation_s42_20260909.{md,js
 本轮以FAIL_QUALITY_AND_GUIDED_FPS_GATES收止。保留全部改善、退化、不确定区间及
 失败案例；CM1不晋级，R2+CG仍为工作基线。Phase1C保持open，无merge/tag及下一phase。
 后续从本总结与具体新方案进入，本次结果不自动授权重训或w/steps/guidance调参。
+
+## 2026-09-09（CM1.3：固定 R2 权重的 DDIM25 教师轨迹诊断；用户已批准）
+
+用户批准上一轮第一性原理分析提出的下一步：固定 R2 权重比较25格 DDIM 与500步扩散，
+先定位蒸馏所近似的教师轨迹质量，再据证据讨论学生的物理保真监督。本节为一个可独立
+完成的 subphase，component=hsi-cm1.3，继续使用 phase/01c-cm1。本次交付固定教师诊断，
+R2/CM1 权重保持冻结；学生监督的训练后继需基于本次结论形成具体方案。
+
+### 假设、控制与解释边界
+
+H：CM1 使用的粗离散教师轨迹已经包含可测的几何或跨窗质量损失，因此 CM1 与500步
+R2 的差距包含教师采样过程的变化。固定 R2 final EMA epoch222，以 native eval mode
+分别运行 DDIM25 U/G，复用已封存 R2 DDPM500 U/G 与 CM1 final16 U/G。U 指关闭外部
+几何引导，全部方法保持 CFG w=1。U 为主诊断；G 描述同一几何能量在新状态更新中的效果。
+本比较同时改变离散网格和 DDPM/DDIM 求解方式，不能将差异全部归因于步数；eval-mode
+DDIM rollout 也不能单独诊断蒸馏训练中的 dropout、GT history 或 EMA target。
+
+DDIM 直接复用 consistency_loss 中的 DDIMSolver.ddim_step：500步线性beta表不变，
+时间点为499,479,...,19，eta=0，25次条件/无条件双前向，共50次 denoiser 调用。用
+predicted x0 重新查询未来occupancy，保持原生 generated-history 拼接、固定2帧历史、
+16帧窗口、progress/occupancy修复、goal heading和canonical-ordinal seed42。全部375条、
+2271窗口；walk130、interactive245。各方法使用既有逐episode RNG约定；不同采样器的
+随机数消耗不同，因此不声称每一个后续窗口共用同一初始latent。
+
+G 使用相同24关节voxel能量、scale=1。DDIM更新写成 A*x_t+B*x0，其中
+B=sqrt(alpha_prev)-sqrt(1-alpha_prev)*sqrt(alpha_t)/sqrt(1-alpha_t)。几何clean增量
+乘此B；终步alpha_prev=1。沿用原生终步直接去噪规则，最后一格不执行外部引导，因此
+G共24次修正。该映射是DDIM自身的clean Jacobian；CM的sqrt(alpha_prev)与DDPM的posterior
+coef1分别对应另两种更新。全部几何引导选项保持默认，固定值以完全解析配置归档。
+
+### 执行、统计与完成门
+
+新增一个配置片段，复用现有采样循环、DDIM单步算子、原生评估器与Table3入口。组件验证
+DDIM网格、终点、CFG、历史固定、随机数消耗、clean Jacobian及DDPM默认路径保持等价。
+共享sampler/evaluator变更后先运行一次authority全套及registry validation。使用固定
+latency70选择器的U/G各一次单卡batch1真实任务，兼任功能验证与正式形状性能测量；
+其19条/69窗口、5条预热、CUDA同步与既有R2/CM1 latency对齐。每次只占GPU0，其余卡空闲。
+之后U/G各一次8卡分片全375评估，再单卡原生Table3。训练步数为0。上限12 GPU-h，
+分项manifest保留实际设备、资源与失败；验证或非有限失败即停止并记录，使用新id才能恢复。
+
+主对照为 DDIM25 U - DDPM500 U；并报告 CM1 U - DDIM25 U。G同样给出两组差值，
+另用既有factorial工具报告DDIM/DDPM与外部引导的交互。完整报告原生13项、full375穿透、
+脚滑、boundary/interior jerk、goal、总及非穿透接触、全375和冻结holdout355安全统计。
+序列配对bootstrap10000次、FID相同245条/2000次、固定R@3 occurrence协议，全部seed42。
+主物理指标为pen_ratio、fs_nemf、boundary_jerk：DDIM相对DDPM的差值CI下界>0时，记录
+该指标存在教师采样退化；CI上界<0时记录改善；覆盖0则记录不确定，不能当作等价证明。
+FID改善独立呈现。用封存CM1差距作描述性对照，禁止将差值分解宣传为独立因果贡献百分比。
+
+完成门为固定任务完整覆盖、全部统计及失败归档、诊断结论与明确后续入口，而非晋级或
+调参门。两组latency、两组full375、一次Table3各自创建immutable manifest。只在全部
+start完成后追加completion registry，形成一个completion commit和PHASE_1C_CM1_DDIM.md
+交接。R2+CG继续承担质量基线；本轮保持Phase1C开放。
