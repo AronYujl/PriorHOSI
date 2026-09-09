@@ -14,6 +14,7 @@ from mixer.multitask import (
     transition_edge, validate_episode,
 )
 from mixer.multitask_handoff import native_budget_frames, motion_slice, source_handoff_checks
+from mixer.source_eligibility import align_motion, direction_guard, select_lingo_pool
 
 
 def test_no_hand_annotation_does_not_make_a_held_prop_action_static():
@@ -132,6 +133,47 @@ def test_legacy_padding_cannot_supply_zero_terminal_object_velocity():
     assert (raw['object_translation'][-1]-raw['object_translation'][-2]).norm() == 0
     assert (observed['object_translation'][-1]-observed['object_translation'][-2]).norm()*30 > .1
     assert observed['betas'] is raw['betas']
+
+
+def test_source_direction_guards_keep_omomo_terminal_and_initial_rules_separate():
+    terminal = dict(torso_tilt_max_deg=4., pelvis_height_min_m=.9,
+        foot_floor_distance_max_m=.03, supported_slow=True, hands_released=True,
+        hand_object_min_m=.3)
+    assert all(direction_guard('omomo_to_lingo', terminal, .08).values())
+    terminal['hands_released'] = False
+    assert not all(direction_guard('omomo_to_lingo', terminal, .08).values())
+    initial = dict(hand_object_min_m=.081)
+    assert all(direction_guard('lingo_to_omomo', initial, .08).values())
+    initial['hand_object_min_m'] = .079
+    assert not all(direction_guard('lingo_to_omomo', initial, .08).values())
+
+
+def test_source_alignment_targets_the_omomo_boundary_without_changing_source_length():
+    motion = dict(
+        joints=torch.zeros(6, 28, 3),
+        verts=torch.zeros(6, 12, 3),
+        pose=torch.zeros(6, 22, 3),
+        translation=torch.zeros(6, 3),
+    )
+    motion['joints'][:, 0, 0] = torch.arange(6).float()
+    aligned, record = align_motion(motion, 0, torch.tensor([2., 0., 3.]), torch.tensor(0.))
+    torch.testing.assert_close(aligned['joints'][0, 0], torch.tensor([2., 0., 3.]))
+    assert len(aligned['joints']) == 6
+    assert record['target_root'] == [2., 0., 3.]
+
+
+def test_source_pool_is_balanced_by_action_type_and_ordered_by_data_idx():
+    records = [
+        dict(source_id='walk-9', data_idx=9, task_type='locomotion'),
+        dict(source_id='walk-2', data_idx=2, task_type='locomotion'),
+        dict(source_id='sit-8', data_idx=8, task_type='static_object_interaction'),
+        dict(source_id='sit-1', data_idx=1, task_type='static_object_interaction'),
+        dict(source_id='sit-0', data_idx=0, task_type='static_object_interaction'),
+    ]
+    pool = select_lingo_pool(records, 1)
+    assert [(row['task_type'], row['data_idx']) for row in pool] == [
+        ('static_object_interaction', 0), ('locomotion', 2)
+    ]
 
 
 def episode_fixture():

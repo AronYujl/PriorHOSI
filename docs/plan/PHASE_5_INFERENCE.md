@@ -659,6 +659,12 @@ provenance and are never copied into the target scene. Every rejected pair keeps
 its direction, source IDs, measured reasons, frame interval and geometry values.
 The original benchmark and the source-only extension have separate tables.
 
+The source audit uses a preregistered bounded pool for each direction: the first
+8 eligible LINGO sources by `data_idx` for each action type are attempted. This
+keeps the complete-frame SDF audit finite and reproducible while retaining the
+full eligible LINGO catalogue and explicit `pool_not_attempted` records. The
+pool is source-ordered and contains no model-output score.
+
 The source path check evaluates every source frame after target placement, not a
 straight-line proxy alone. It includes the persistent movable object whenever
 the direction carries one. The registered scene thresholds remain mean/max

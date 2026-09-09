@@ -283,6 +283,9 @@ def run_multitask(cfg):
     if cfg.multitask.stage == 'handoff_audit':
         from .multitask_handoff import run_handoff_audit
         return run_handoff_audit(cfg)
+    if cfg.multitask.stage == 'source_eligibility':
+        from .source_eligibility import run_source_eligibility
+        return run_source_eligibility(cfg)
     from .multitask_geometry import construct_hosi_chains, render_construction_previews
     root = Path(__file__).resolve().parents[2]
     if cfg.get('run_id') and subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip():

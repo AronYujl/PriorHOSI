@@ -7,6 +7,7 @@ multitask:
   stage: source_eligibility
   output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/eligibility
   source_eligibility:
+    source_candidates_per_type: 8
     hand_distance_m: 0.08
     object_floor_m: 0.05
     object_speed_m_s: 0.10
