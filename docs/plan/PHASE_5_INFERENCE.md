@@ -42,8 +42,10 @@ feasibility check on historically used HOSI-test tasks, not a held-out benchmark
   `Stand upright and remain in place.` Both use seed42 and identical latent and
   posterior random draws, input history, stationary pelvis goal and step budget.
   No output-based prompt choice, resampling, endpoint-pose clamp or new training.
-- Goal direction is masked; human goal remains the final source pelvis XZ. Scene
-  target is empty and semantic timing uses pi=0/end_pi=48/seq_length=48. Decode
+- The native `need_pelvis_dir` flag enables the entire pelvis-goal token, so it
+  stays true to supply the stationary position; this API has no separate heading
+  goal. Human goal remains the final source pelvis XZ. Scene target is empty and
+  semantic timing uses pi=0/end_pi=48/seq_length=48. Decode
   through the existing native SMPL-X path with source betas and translation
   convention. Check the two conditioned poses after encoding and decoding.
 

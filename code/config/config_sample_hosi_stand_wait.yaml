@@ -1,0 +1,37 @@
+defaults: [config_sample_hosi_kinematic_r2cg, _self_]
+
+exp_name: p5-inference-stand-wait-s42-20260909
+run_id: ${exp_name}
+device: cuda:6
+vis: true
+mixer_body_composer: null
+mixer_inference_engineering: true
+dataset:
+  load_object_payload: false
+
+stand_wait:
+  enabled: true
+  source_root: /data/yujinlun/InfBaGel-mixer/results/experiments/p2-mixer-hsi-integrated469-s42-20260908
+  task_manifest: /data/yujinlun/InfBaGel-mixer/experiments/tasks/p2_surface_edit_full469_s42_20260908.json
+  source_arm: correct_terminal_draw0
+  max_sources: 12
+  prompts: [stand up and wait, Stand upright and remain in place.]
+  clip_checkpoint: /data/yujinlun/.cache/clip/ViT-L-14-336px.pt
+  thresholds:
+    tail_frames: 10
+    tilt_deg: 25.0
+    root_height_m: 0.65
+    foot_height_m: 0.08
+    hand_distance_m: 0.08
+    object_floor_m: 0.05
+    object_speed_m_s: 0.10
+    object_angular_speed_rad_s: 0.5
+    root_speed_m_s: 0.15
+    root_angular_speed_rad_s: 0.5
+    root_drift_m: 0.10
+    scene_mean_penetration_m: 0.005
+    scene_max_penetration_m: 0.05
+
+hydra:
+  run:
+    dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/hydra
