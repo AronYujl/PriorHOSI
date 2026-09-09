@@ -297,10 +297,13 @@ def dno_motion_probe(teacher, projector, model, sdf, info, evaluate, baseline, t
         pose, translation = pose.detach().clone(), translation.detach().clone()
         pose[projector.fixed] = source['pose'][projector.fixed]
         translation[projector.fixed] = source['translation'][projector.fixed]
-        motion = dict(source, pose=pose, translation=translation)
-        motion['verts'], motion['joints'] = decode_body(motion, model)
-        motion['verts'][projector.fixed] = source['verts'][projector.fixed]
-        motion['joints'][projector.fixed] = source['joints'][projector.fixed]
+        if name == 'source':
+            motion = source
+        else:
+            motion = dict(source, pose=pose, translation=translation)
+            motion['verts'], motion['joints'] = decode_body(motion, model)
+            motion['verts'][projector.fixed] = source['verts'][projector.fixed]
+            motion['joints'][projector.fixed] = source['joints'][projector.fixed]
         record = evaluate(motion)
         record.update(body_readout_measures(motion, source, floor, length))
         record.update(projector.measures(transforms.axis_angle_to_matrix(pose), translation))
