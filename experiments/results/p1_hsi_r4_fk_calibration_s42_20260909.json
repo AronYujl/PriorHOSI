@@ -1,0 +1,235 @@
+{
+  "body_fk_loss_weight": 0.24812712291771177,
+  "trunk_10_percent_weight": 67.834511036329,
+  "rotation_head_25_percent_weight": 0.24812712291771177,
+  "ranks": [
+    {
+      "body_fk": {
+        "raw_loss": 0.13404926657676697,
+        "weight": 1.0,
+        "weighted_loss": 0.13404926657676697,
+        "trunk_gradient_norm": 0.937954306602478,
+        "trunk_cosine_with_body": 1.0,
+        "rotation_head_gradient_norm": 0.9523021578788757,
+        "rotation_head_cosine_with_body": 1.0
+      },
+      "jpos": {
+        "raw_loss": 0.44578778743743896,
+        "weight": 1.0,
+        "weighted_loss": 0.44578778743743896,
+        "trunk_gradient_norm": 1.574157953262329,
+        "trunk_cosine_with_body": -0.1795404553413391,
+        "rotation_head_gradient_norm": 0.0,
+        "rotation_head_cosine_with_body": 0.0
+      },
+      "jrot": {
+        "raw_loss": 0.635310709476471,
+        "weight": 1.0,
+        "weighted_loss": 0.635310709476471,
+        "trunk_gradient_norm": 0.8705328106880188,
+        "trunk_cosine_with_body": 0.22261300683021545,
+        "rotation_head_gradient_norm": 0.9038209915161133,
+        "rotation_head_cosine_with_body": 0.16414257884025574
+      },
+      "hand_foot_fk": {
+        "raw_loss": 7.355596542358398,
+        "weight": 3.0,
+        "weighted_loss": 22.066789627075195,
+        "trunk_gradient_norm": 179.5849609375,
+        "trunk_cosine_with_body": -0.042280085384845734,
+        "rotation_head_gradient_norm": 14.67762565612793,
+        "rotation_head_cosine_with_body": 0.25571078062057495
+      },
+      "fullbody_seam": {
+        "raw_loss": 4.848471641540527,
+        "weight": 0.5494500113254572,
+        "weighted_loss": 2.663992798355601,
+        "trunk_gradient_norm": 96.62322998046875,
+        "trunk_cosine_with_body": -0.050021082162857056,
+        "rotation_head_gradient_norm": 4.75131368637085,
+        "rotation_head_cosine_with_body": 0.1392749398946762
+      },
+      "r2_total": {
+        "raw_loss": 25.81188201904297,
+        "weight": 1.0,
+        "weighted_loss": 25.81188201904297,
+        "trunk_gradient_norm": 590.2128295898438,
+        "trunk_cosine_with_body": -0.04321987181901932,
+        "rotation_head_gradient_norm": 46.16886901855469,
+        "rotation_head_cosine_with_body": 0.2548963129520416
+      }
+    },
+    {
+      "body_fk": {
+        "raw_loss": 0.13532176613807678,
+        "weight": 1.0,
+        "weighted_loss": 0.13532176613807678,
+        "trunk_gradient_norm": 0.8555810451507568,
+        "trunk_cosine_with_body": 1.0,
+        "rotation_head_gradient_norm": 0.897122859954834,
+        "rotation_head_cosine_with_body": 1.0000001192092896
+      },
+      "jpos": {
+        "raw_loss": 0.4442855715751648,
+        "weight": 1.0,
+        "weighted_loss": 0.4442855715751648,
+        "trunk_gradient_norm": 1.5551716089248657,
+        "trunk_cosine_with_body": -0.17611277103424072,
+        "rotation_head_gradient_norm": 0.0,
+        "rotation_head_cosine_with_body": 0.0
+      },
+      "jrot": {
+        "raw_loss": 0.6350163221359253,
+        "weight": 1.0,
+        "weighted_loss": 0.6350163221359253,
+        "trunk_gradient_norm": 0.867454469203949,
+        "trunk_cosine_with_body": 0.24529920518398285,
+        "rotation_head_gradient_norm": 0.8952192068099976,
+        "rotation_head_cosine_with_body": 0.1685495525598526
+      },
+      "hand_foot_fk": {
+        "raw_loss": 6.952084541320801,
+        "weight": 3.0,
+        "weighted_loss": 20.856253623962402,
+        "trunk_gradient_norm": 170.33042907714844,
+        "trunk_cosine_with_body": -0.06811587512493134,
+        "rotation_head_gradient_norm": 13.950615882873535,
+        "rotation_head_cosine_with_body": 0.23122353851795197
+      },
+      "fullbody_seam": {
+        "raw_loss": 4.345249652862549,
+        "weight": 0.5494500113254572,
+        "weighted_loss": 2.3874974709772667,
+        "trunk_gradient_norm": 90.24341583251953,
+        "trunk_cosine_with_body": -0.06875689327716827,
+        "rotation_head_gradient_norm": 4.695300102233887,
+        "rotation_head_cosine_with_body": 0.18990430235862732
+      },
+      "r2_total": {
+        "raw_loss": 24.32305335998535,
+        "weight": 1.0,
+        "weighted_loss": 24.32305335998535,
+        "trunk_gradient_norm": 559.3118286132812,
+        "trunk_cosine_with_body": -0.06841082870960236,
+        "rotation_head_gradient_norm": 43.998661041259766,
+        "rotation_head_cosine_with_body": 0.23438787460327148
+      }
+    },
+    {
+      "body_fk": {
+        "raw_loss": 0.13275209069252014,
+        "weight": 1.0,
+        "weighted_loss": 0.13275209069252014,
+        "trunk_gradient_norm": 0.8459190726280212,
+        "trunk_cosine_with_body": 1.0,
+        "rotation_head_gradient_norm": 0.8865495920181274,
+        "rotation_head_cosine_with_body": 1.0000001192092896
+      },
+      "jpos": {
+        "raw_loss": 0.44491514563560486,
+        "weight": 1.0,
+        "weighted_loss": 0.44491514563560486,
+        "trunk_gradient_norm": 1.5043178796768188,
+        "trunk_cosine_with_body": -0.19098934531211853,
+        "rotation_head_gradient_norm": 0.0,
+        "rotation_head_cosine_with_body": 0.0
+      },
+      "jrot": {
+        "raw_loss": 0.6371935606002808,
+        "weight": 1.0,
+        "weighted_loss": 0.6371935606002808,
+        "trunk_gradient_norm": 0.8402495384216309,
+        "trunk_cosine_with_body": 0.2607247829437256,
+        "rotation_head_gradient_norm": 0.8709341883659363,
+        "rotation_head_cosine_with_body": 0.18842914700508118
+      },
+      "hand_foot_fk": {
+        "raw_loss": 7.47768497467041,
+        "weight": 3.0,
+        "weighted_loss": 22.43305492401123,
+        "trunk_gradient_norm": 175.08447265625,
+        "trunk_cosine_with_body": -0.059637680649757385,
+        "rotation_head_gradient_norm": 14.306135177612305,
+        "rotation_head_cosine_with_body": 0.2424549162387848
+      },
+      "fullbody_seam": {
+        "raw_loss": 4.84966516494751,
+        "weight": 0.5494500113254572,
+        "weighted_loss": 2.6646485798050845,
+        "trunk_gradient_norm": 96.00699615478516,
+        "trunk_cosine_with_body": -0.06331422924995422,
+        "rotation_head_gradient_norm": 5.084324836730957,
+        "rotation_head_cosine_with_body": 0.21633067727088928
+      },
+      "r2_total": {
+        "raw_loss": 26.179813385009766,
+        "weight": 1.0,
+        "weighted_loss": 26.179813385009766,
+        "trunk_gradient_norm": 576.2245483398438,
+        "trunk_cosine_with_body": -0.060261696577072144,
+        "rotation_head_gradient_norm": 45.17973327636719,
+        "rotation_head_cosine_with_body": 0.2471822202205658
+      }
+    },
+    {
+      "body_fk": {
+        "raw_loss": 0.13436202704906464,
+        "weight": 1.0,
+        "weighted_loss": 0.13436202704906464,
+        "trunk_gradient_norm": 0.858187735080719,
+        "trunk_cosine_with_body": 1.0,
+        "rotation_head_gradient_norm": 0.9120907187461853,
+        "rotation_head_cosine_with_body": 1.0
+      },
+      "jpos": {
+        "raw_loss": 0.4463973045349121,
+        "weight": 1.0,
+        "weighted_loss": 0.4463973045349121,
+        "trunk_gradient_norm": 1.5655264854431152,
+        "trunk_cosine_with_body": -0.17573565244674683,
+        "rotation_head_gradient_norm": 0.0,
+        "rotation_head_cosine_with_body": 0.0
+      },
+      "jrot": {
+        "raw_loss": 0.6358579397201538,
+        "weight": 1.0,
+        "weighted_loss": 0.6358579397201538,
+        "trunk_gradient_norm": 0.8688347935676575,
+        "trunk_cosine_with_body": 0.23506103456020355,
+        "rotation_head_gradient_norm": 0.9004406332969666,
+        "rotation_head_cosine_with_body": 0.17576532065868378
+      },
+      "hand_foot_fk": {
+        "raw_loss": 7.2482686042785645,
+        "weight": 3.0,
+        "weighted_loss": 21.744805812835693,
+        "trunk_gradient_norm": 177.82424926757812,
+        "trunk_cosine_with_body": -0.05250483751296997,
+        "rotation_head_gradient_norm": 14.281447410583496,
+        "rotation_head_cosine_with_body": 0.23262245953083038
+      },
+      "fullbody_seam": {
+        "raw_loss": 4.846715450286865,
+        "weight": 0.5494500113254572,
+        "weighted_loss": 2.6630278590513865,
+        "trunk_gradient_norm": 99.2319564819336,
+        "trunk_cosine_with_body": -0.060810528695583344,
+        "rotation_head_gradient_norm": 5.302190780639648,
+        "rotation_head_cosine_with_body": 0.0682537779211998
+      },
+      "r2_total": {
+        "raw_loss": 25.490089416503906,
+        "weight": 1.0,
+        "weighted_loss": 25.490089416503906,
+        "trunk_gradient_norm": 586.3021240234375,
+        "trunk_cosine_with_body": -0.05352969467639923,
+        "rotation_head_gradient_norm": 44.89729690551758,
+        "rotation_head_cosine_with_body": 0.22989241778850555
+      }
+    }
+  ],
+  "seed": 42,
+  "world_size": 4,
+  "micro_batch_per_gpu": 512,
+  "optimizer_updates": 0
+}

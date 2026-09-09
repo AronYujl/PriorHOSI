@@ -2,9 +2,8 @@
 defaults: [config_train_hsi_b_r2_fullbody_seam, _self_]
 
 exp_name: hsi_b_r4_body_fk
-# Calibration-only value; replace with the registered measured coefficient
-# before the resource measurement or formal training.
-body_fk_loss_weight: 1.0
+# Frozen by the registered first-real-batch rotation-head gradient limit.
+body_fk_loss_weight: 0.24812712291771177
 body_fk_calibration: false
 ckpt_interval: 1
 log_grad_norm: true

@@ -13843,3 +13843,13 @@ Phase1C保持开放，本次授权不包含新蒸馏、mixer或另一训练方�
 定向56项通过，authority476 passed/3 skipped（104.33秒）。校准只在初始化DDP同步后
 对rank-local模型求autograd.grad；正常训练仍使用DDP backward。精确校准配置已完全解析。
 GPU0/1/6/7当前有其他任务，校准和128更新测量将归档竞争与显存；正式启动依实测余量。
+
+### R4.1 校准完成与正式系数固定
+
+四rank零更新校准exit0，各损失/梯度读数有限。共享transformer 10%规则给67.834511，
+旋转head 25%规则给0.248127122918，按预注册取后者并固定。原有手足/接缝在初始批次
+主导共享梯度，因此只据总范数会错误放大新项。逐项一页表及四rank原值已保存于
+experiments/results/p1_hsi_r4_fk_calibration_s42_20260909.{md,json}。退出时data workers
+释放CUDA上下文产生shutdown warnings；exit0及完整校准JSON已核对。
+接下来128更新资源测量将lr_decay_start_update=null以配合短任务更新上限；其前128次
+LR与正式2000-update warmup完全相同。此配置提交由实测系数落地及执行source转换产生。
