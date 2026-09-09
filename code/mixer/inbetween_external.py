@@ -73,7 +73,7 @@ def kimodo_generate(data, root, out, steps, device):
         FullBodyConstraintSet(skeleton, indices, positions[i, indices], global_rot[i, indices]),
         EndEffectorConstraintSet(skeleton, indices, positions[i, indices], global_rot[i, indices],
             smooth_root_2d=roots[i, indices][:, [0, 2]],
-            joint_names=['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot'])]
+            joint_names=['LeftHand', 'RightHand', 'LeftFoot', 'RightFoot']).to(device)]
         for i in range(len(roots))]
     lengths = torch.full((len(roots),), roots.shape[1], device=device, dtype=torch.long)
     observed, mask = model.motion_rep.create_conditions_from_constraints_batched(
@@ -173,7 +173,9 @@ def condmdi_generate(data, root, out, device):
     args = SimpleNamespace(**args_dict)
     model, diffusion = create_model_and_diffusion(args, SimpleNamespace(dataset=SimpleNamespace()))
     load_saved_model(model, str(checkpoint / 'model000750000.pt'))
-    model = model.to(device).eval().requires_grad_(False)
+    model.to(device)
+    model.eval()
+    model.requires_grad_(False)
     # 20Hz timestamps on the common 0..2 second interval.
     time_indices = torch.arange(41, device=device)*1.5
     low, high = time_indices.floor().long(), time_indices.ceil().long()
@@ -192,7 +194,11 @@ def condmdi_generate(data, root, out, device):
     std = torch.from_numpy(np.load('dataset/HumanML3D_abs/Std.npy')).float().to(device)
     inputs = ((features-mean)/std).permute(0, 2, 1).unsqueeze(2)
     known = (time_indices <= 9) | (time_indices >= 51)
-    mask = known[None, None, None].expand_as(inputs)
+    mask = known[None, None, None].expand_as(inputs).clone()
+    # HumanML velocity/contact at t uses t+1. The last prefix pose is observed,
+    # while its forward dynamics depend on the first unknown frame.
+    dynamics_known = known & torch.cat((known[1:], known[-1:]))
+    mask[:, 193:, 0] = dynamics_known[None, None]
     kwargs = dict(obs_x0=inputs, obs_mask=mask, y=dict(
         text=['']*len(inputs), uncond=True,
         mask=torch.ones(len(inputs), 1, 1, 41, dtype=torch.bool, device=device),
@@ -224,7 +230,9 @@ def condmdi_generate(data, root, out, device):
         samples=len(inputs), frames=41, seed=42, text_condition='official uncond flag',
         peak_allocated_bytes=torch.cuda.max_memory_allocated(device),
         representation_roundtrip_max_m=float((reconstructed-model_positions).norm(dim=-1).max()),
-        endpoint_feature_max_error=float((features_out[:, known]-features[:, known]).abs().max()))
+        endpoint_feature_max_error=float((samples-inputs)[mask].abs().max()),
+        endpoint_feature_error_space='normalized HumanML3D',
+        prefix_boundary_forward_dynamics_conditioned=False)
 
 
 def main():

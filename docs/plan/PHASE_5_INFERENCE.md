@@ -212,3 +212,17 @@ native PyTorch3D and the native `utils` module. Execute the external adapter as
 its leaf file with only the external repository on PYTHONPATH. Keep the failed
 manifest and logs. The replacement run reuses the immutable prepared inputs
 and all prescribed settings; it begins at the generate stage with a fresh ID.
+
+Runr1loaded both real checkpoints, then stopped before denoising on two upstream
+API details. CondMDI overrides `_apply` and `train` without returning self;
+call `to`, `eval`, and `requires_grad_` separately. Kimodo's end-effector
+constructor leaves its joint-index tensors on CPU; use its supplied
+`constraint.to(device)` before building GPU conditions. Retainr1as failed and
+continue the same fixed protocol/inputs under a new identifier.
+
+Before the first denoising call, make the HumanML observation mask reflect its
+forward-difference definition: velocity/contact channels193–262at the last
+prefix frame6depend on the unknown next frame and therefore remain unobserved.
+All endpoint pose channels remain conditioned. The final static suffix defines
+zero forward velocity by continued holding. This prevents the unobserved
+interpolation scaffold from supplying a boundary velocity as if it were data.
