@@ -7,6 +7,21 @@ concrete transition-context references. Read the
 [Phase 5.4 summary](phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md) for coverage,
 the retained failed construction and the input-only scope.
 
+The next execution entry is Phase 5.5.1, an actual handoff audit through
+`config_sample_hosi_handoff_audit`. It measures the published-budget prefix and
+the original cached terminal separately. Each native 16-frame stride-3 window
+adds 42 new 30-Hz samples after two historical coarse samples. A budget of 9.8
+seconds permits 298 observed samples including the initial 0.1-second history.
+Legacy exports also contain two held padding samples; these do not establish
+terminal rest. A cached motion from a longer native plan remains an original-
+protocol diagnostic, including when inspecting its shorter prefix.
+
+The handoff audit records source identity, actual body/object support and speed,
+goals, and prescribed-context geometry against the achieved object transform.
+Its failed prerequisites block subsequent segments with explicit reasons.
+Unexecuted transitions and actions have null metrics; complete-chain success
+is measured after a compatible actual-history rollout is available.
+
 Phase 5.4 extends task conditions while preserving all 469 original HOSI tasks.
 The first construction recipe targets HOI -> walk -> sit in the original
 67 TRUMANS scenes. LINGO supplies locomotion and static-interaction source

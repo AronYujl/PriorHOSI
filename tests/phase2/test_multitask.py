@@ -13,6 +13,7 @@ from mixer.multitask import (
     attach_task_reference, object_boundary_measures, source_record, source_type, successor_condition,
     transition_edge, validate_episode,
 )
+from mixer.multitask_handoff import native_budget_frames, motion_slice, source_handoff_checks
 
 
 def test_no_hand_annotation_does_not_make_a_held_prop_action_static():
@@ -70,6 +71,67 @@ def test_successor_uses_achieved_body_and_object_state():
     assert condition['data_idx'] == 7
     torch.testing.assert_close(condition['start_location'], torch.tensor([2., 0., 2.]))
     assert segment['start_location'] == [100., 0., 100.]
+
+
+def test_native_budget_includes_initial_history_and_excludes_held_padding():
+    # Eight 16-frame windows share two coarse samples at every boundary.
+    coarse_frames = 16 + 7*14
+    observed = (coarse_frames-1)*3+1
+    assert native_budget_frames(11.2) == observed == 340
+    assert native_budget_frames(9.8) == 298
+    assert observed-native_budget_frames(9.8) == 42
+    assert native_budget_frames(193/30) == 197
+
+
+def test_cutoff_context_preserves_body_identity_and_actual_object_track():
+    motion = dict(pose=torch.zeros(340, 22, 3), joints=torch.ones(340, 28, 3),
+        object_translation=torch.arange(340).float()[:, None].expand(-1, 3),
+        betas=torch.arange(16).float(), gender='male')
+    prefix = motion_slice(motion, 0, native_budget_frames(9.8))
+    context = motion_slice(prefix, -10, None)
+    assert context['object_translation'][:, 0].tolist() == list(range(288, 298))
+    assert context['betas'] is motion['betas']
+    assert context['gender'] == 'male'
+    assert len(motion['pose']) == 340
+
+
+def handoff_fixture():
+    from types import SimpleNamespace
+    thresholds = SimpleNamespace(object_floor_m=.05, object_speed_m_s=.1,
+        object_angular_speed_rad_s=.5, tilt_deg=25, root_height_m=.65, foot_height_m=.08)
+    scene = dict(scene_penetration_mean_m=0., scene_penetration_max_m=0., scene_outside_fraction=0.)
+    values = dict(pelvis_goal_error_m=.03, object_goal_error_m=.03, object_floor_max_m=.02,
+        object_speed_max_m_s=.05, object_angular_speed_max_rad_s=.3, tilt_max_deg=3.,
+        root_height_min_m=.9, foot_height_max_m=.04, object_scene_geometry=scene,
+        body_geometry=dict(scene, object_penetration_max_m=0., floor_penetration_max_m=0.))
+    return values, thresholds
+
+
+@pytest.mark.parametrize('metric,value,failed', [
+    ('object_speed_max_m_s', .6, 'object_translation_slow'),
+    ('object_angular_speed_max_rad_s', .6, 'object_rotation_slow'),
+    ('object_floor_max_m', .2, 'object_supported'),
+    ('foot_height_max_m', .09, 'body_foot_support'),
+    ('pelvis_goal_error_m', .11, 'pelvis_at_goal'),
+])
+def test_goal_arrival_alone_does_not_authorize_a_handoff(metric, value, failed):
+    values, thresholds = handoff_fixture()
+    assert all(source_handoff_checks(values, thresholds, .1).values())
+    values[metric] = value
+    checks = source_handoff_checks(values, thresholds, .1)
+    assert [key for key, passed in checks.items() if not passed] == [failed]
+
+
+def test_legacy_padding_cannot_supply_zero_terminal_object_velocity():
+    from mixer.standing_transition import observed_motion
+    moving = torch.arange(14).float()[:, None].expand(-1, 3)*.02
+    raw = dict(pose=torch.zeros(16, 22, 3), object_translation=torch.cat((moving, moving[-1:].expand(2, -1))),
+        betas=torch.arange(16).float())
+    observed = observed_motion(raw)
+    assert len(observed['pose']) == 14
+    assert (raw['object_translation'][-1]-raw['object_translation'][-2]).norm() == 0
+    assert (observed['object_translation'][-1]-observed['object_translation'][-2]).norm()*30 > .1
+    assert observed['betas'] is raw['betas']
 
 
 def episode_fixture():
