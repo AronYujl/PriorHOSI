@@ -129,3 +129,56 @@ The complete record, operational failures, uncertainty and external-model review
 are in [Phase5.1 summary](../phase_summaries/PHASE_5A_STANDING_TRANSITION.md).
 Current experts remain the accepted input system. The next proposal should
 specify both endpoint contexts for an existing inbetweening model.
+
+## 2026-09-09 — Phase 5.2: pretrained inbetween deployment
+
+The user supplied CondMDI code and Kimodo-SMPLX weights under
+`/data/yujinlun/motion-inbetween` and authorized conda setup and transition
+generation. Work on `phase/05b-inbetween`, using separate `condmdi` and `kimodo`
+environments; keep the verified infbagel environment for native geometry.
+
+Hypothesis: explicit endpoint contexts permit a usable HOI-to-standing bridge
+where the previous fixed-text continuation was unreliable. This is a deployment
+and adaptation diagnostic on the same twelve historical sources, not a new
+benchmark or an expert-training comparison.
+
+Use all twelve Phase5.1 selected sources, seed42, one sample per source/model.
+The default endpoints are the actual last0.3s of HOI and a repeated natural
+standing target at the same XZ and heading. Select one real standing reference
+pose from these saved source motions before generation, preferring upright poses
+with lowered wrists; archive the selected source/frame and selection measures.
+Transfer its body rotations to each source's betas and gender, align heading,
+and place its lowest body vertex on worldY=0. The target is a prescribed pose,
+not an independently completed downstream task. Preserve the released object's
+actual terminal transform throughout the bridge.
+
+The complete conditioned clip spans2.0s: prefix0–0.3s, generated interval
+0.3–1.7s, suffix1.7–2.0s. Kimodo uses61frames at30Hz; CondMDI uses41frames at20Hz
+and is resampled to the same61native timestamps. Both receive full-body prefix
+and suffix conditions. Use pose-only generation (the official empty-text
+condition), so no LLM text encoder or prompt choice is needed. Kimodo uses its
+official50-step DDIM, constraint CFG2, full-body plus hand/foot orientation
+constraints and official constraint/foot postprocessing. CondMDI uses its
+released random-joints conditional UNet,1000 diffusion steps, keyframe CFG1,
+empty text and full-channel endpoint imputation. Keep raw model outputs as well
+as native-body adaptations, recording any fitting or endpoint correction.
+
+Measure representation roundtrip error, raw/final endpoint position and rotation
+error, boundary joint/root velocity change, foot/body surface height, foot sliding,
+root drift, human-scene and human-object penetration, out-of-bounds, synchronized
+GPU generation/adaptation latency and memory. Reuse the prior scene/support
+tolerances where applicable, but do not equate reaching a prescribed standing
+target with learned standing success. Save every case, including failures, and
+provide native motion files and animations. A deployment gate requires both
+environments to load their actual checkpoints and generate finite conditioned
+motions; task suitability remains a measured result, not a setup assertion.
+
+Extend the existing Hydra inference dispatcher with a reusable external-bridge
+component and one config fragment. Record external code versions and dependency
+exports; reuse existing manifests for native input provenance. No new tools
+script, hashing mechanism, extra smoke workload, core/expert edits or training.
+Archive resolved configurations and machine preflight before reportable GPU
+generation, use the standard experiment lifecycle, and run the full authority
+suite plus registry validation. GPUs are shared with existing workloads;
+allocate available headroom and report contention. Close this subphase with
+setup instructions, all outputs and a phase summary.
