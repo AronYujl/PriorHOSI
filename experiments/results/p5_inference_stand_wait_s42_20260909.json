@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "phase": "p5",
+  "subphase": "5.1",
+  "classification": "fixed-text-standing-handoff-negative",
+  "git_commit": "e7b5cc19106b84c9595b703a45d18c2e4d3c17cd",
+  "source_audit": {
+    "total": 469,
+    "standing": 384,
+    "eligible": 22,
+    "selected": [
+      7,
+      29,
+      151,
+      20,
+      43,
+      277,
+      230,
+      57,
+      384,
+      64,
+      419,
+      71
+    ],
+    "selected_eligible": 12,
+    "release_failure_counts": {
+      "grounded": 341,
+      "object_slow": 204,
+      "object_rotation_slow": 144,
+      "hands": 216
+    },
+    "standing_failure_counts": {
+      "upright": 62,
+      "support": 31,
+      "height": 3
+    }
+  },
+  "source_scenes": 12,
+  "prompts": {
+    "0": {
+      "text": "stand up and wait",
+      "cases": 12,
+      "standing_success": 2,
+      "handoff_success": 2,
+      "geometry_success": 12,
+      "failure_counts": {
+        "support": 8,
+        "slow": 4,
+        "stays_near": 3,
+        "hands": 1,
+        "rotation_slow": 2
+      },
+      "mean": {
+        "root_drift_max_m": 0.0790785492087404,
+        "root_speed_max_m_s": 0.11580006483321388,
+        "root_angular_speed_max_rad_s": 0.23620553935567537,
+        "foot_height_max_m": 0.09379077951113383,
+        "foot_speed_mean_m_s": 0.041526925284415483,
+        "tilt_max_deg": 4.308742264906566,
+        "hand_object_min_m": 0.33965404455860454,
+        "scene_penetration_mean_m": 5.369982518007206e-06,
+        "scene_penetration_max_m": 0.006692382705902371,
+        "human_object_penetration_mean_m": 6.999240353966485e-08,
+        "seam_velocity_change_mean_m_s": 0.48707400510708493
+      },
+      "generation_seconds_mean": 63.977723414078355
+    },
+    "1": {
+      "text": "Stand upright and remain in place.",
+      "cases": 12,
+      "standing_success": 1,
+      "handoff_success": 1,
+      "geometry_success": 12,
+      "failure_counts": {
+        "support": 8,
+        "slow": 4,
+        "stays_near": 4,
+        "rotation_slow": 4,
+        "hands": 1
+      },
+      "mean": {
+        "root_drift_max_m": 0.0822382615879178,
+        "root_speed_max_m_s": 0.12545556342229247,
+        "root_angular_speed_max_rad_s": 0.2832786651949088,
+        "foot_height_max_m": 0.0939491589864095,
+        "foot_speed_mean_m_s": 0.04343115290006002,
+        "tilt_max_deg": 4.405191659927368,
+        "hand_object_min_m": 0.32733286172151566,
+        "scene_penetration_mean_m": 5.816027804639301e-06,
+        "scene_penetration_max_m": 0.007194589013427806,
+        "human_object_penetration_mean_m": 1.315887866818836e-07,
+        "seam_velocity_change_mean_m_s": 0.4921172310908635
+      },
+      "generation_seconds_mean": 64.40079534550507
+    }
+  },
+  "paired_wording_bootstrap": {
+    "eligible": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "foot_height_max_m": {
+      "delta": 0.00015837947527567545,
+      "ci": [
+        -0.0003759463628133138,
+        0.0007170622547467548
+      ],
+      "n": 12
+    },
+    "foot_speed_mean_m_s": {
+      "delta": 0.0019042276156445344,
+      "ci": [
+        0.0005416565458290279,
+        0.0032472857196504867
+      ],
+      "n": 12
+    },
+    "geometry_success": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "hand_object_min_m": {
+      "delta": -0.012321182837088902,
+      "ci": [
+        -0.019851464374611775,
+        -0.0052478449108699955
+      ],
+      "n": 12
+    },
+    "handoff_success": {
+      "delta": -0.08333333333333333,
+      "ci": [
+        -0.25,
+        0.0
+      ],
+      "n": 12
+    },
+    "human_object_penetration_max_m": {
+      "delta": 0.000867422335431911,
+      "ci": [
+        0.0,
+        0.002573085565624448
+      ],
+      "n": 12
+    },
+    "human_object_penetration_mean_m": {
+      "delta": 6.159638314221874e-08,
+      "ci": [
+        -6.443912070608349e-10,
+        1.8543354063371709e-07
+      ],
+      "n": 12
+    },
+    "object_angular_speed_max_rad_s": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "object_floor_max_m": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "object_speed_max_m_s": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "released_grounded": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "root_angular_speed_max_rad_s": {
+      "delta": 0.0470731258392334,
+      "ci": [
+        0.021635975898243485,
+        0.07527885482801744
+      ],
+      "n": 12
+    },
+    "root_drift_max_m": {
+      "delta": 0.003159712379177411,
+      "ci": [
+        0.0010630514239892365,
+        0.005494225917694468
+      ],
+      "n": 12
+    },
+    "root_height_min_m": {
+      "delta": 9.17216142018636e-05,
+      "ci": [
+        -0.00038616930445035296,
+        0.0005873223145802815
+      ],
+      "n": 12
+    },
+    "root_speed_max_m_s": {
+      "delta": 0.009655498589078585,
+      "ci": [
+        0.005898485208551089,
+        0.013972943043336268
+      ],
+      "n": 12
+    },
+    "scene_outside_fraction": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "scene_penetration_max_m": {
+      "delta": 0.000502206307525436,
+      "ci": [
+        -2.438388764858246e-05,
+        0.0015359416138380766
+      ],
+      "n": 12
+    },
+    "scene_penetration_mean_m": {
+      "delta": 4.460452866320944e-07,
+      "ci": [
+        -6.897271305206232e-07,
+        2.1026669211702633e-06
+      ],
+      "n": 12
+    },
+    "seam_position_max_m": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "seam_velocity_change_mean_m_s": {
+      "delta": 0.005043225983778635,
+      "ci": [
+        -0.0005773280436793963,
+        0.011320819829901059
+      ],
+      "n": 12
+    },
+    "standing": {
+      "delta": 0.0,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "n": 12
+    },
+    "standing_success": {
+      "delta": -0.08333333333333333,
+      "ci": [
+        -0.25,
+        0.0
+      ],
+      "n": 12
+    },
+    "tilt_max_deg": {
+      "delta": 0.09644939502080281,
+      "ci": [
+        -0.03390097022056578,
+        0.22026364455620442
+      ],
+      "n": 12
+    }
+  },
+  "bootstrap_replicates": 10000,
+  "bootstrap_device": "cuda:6",
+  "seed": 42,
+  "history_max_error_m": 3.5762786865234375e-07,
+  "seam_position_max_m": 3.769728778024728e-07,
+  "peak_allocated_bytes": 562324480,
+  "completed_hsi_forward_calls": 24000,
+  "hoi_forward_calls": 0,
+  "training": false,
+  "contended": true,
+  "completed_serial_cells": 7,
+  "completed_parallel_cells": 17,
+  "interrupted_partial_window_forwards": "not recorded",
+  "operational_records": [
+    "p5-inference-stand-wait-s42-20260909:failed launch",
+    "p5-inference-stand-wait-r1-s42-20260909:failed scene key before denoising",
+    "p5-inference-stand-wait-r2-s42-20260909:aborted serial scheduling,7completecells reused"
+  ],
+  "artifacts": {
+    "run": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909",
+    "summary": "docs/phase_summaries/PHASE_5A_STANDING_TRANSITION.md",
+    "surface_figure": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/analysis/standing_surface_height.png",
+    "pose_figure": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/analysis/standing_endpoint_poses.png",
+    "full_metrics": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/completion_metrics.json",
+    "bootstrap": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-inference-stand-wait-parallel-s42-20260909/analysis/paired_wording_cli.json"
+  },
+  "surface_diagnostic": {
+    "status": "post-hoc, registered decision unchanged",
+    "initial_mean_cm": 2.493576208750407,
+    "tail_mean_cm": {
+      "0": 5.6695620218912754,
+      "1": 5.674410704523325
+    },
+    "raised_cells": 24,
+    "mean_rise_cm": 3.1784101544568935,
+    "max_model_position_native_root_gap_m": 9.581863560015336e-05
+  },
+  "verification": {
+    "full_suite": "1119passed6skipped,210.93seconds",
+    "baseline_asset_followup": "14passed including2previouslyskipped checks;4historicalasset-dependentchecks remain skipped",
+    "gpu_cli_bootstrap_max_difference": 2.7755575615628914e-17
+  }
+}

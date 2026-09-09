@@ -118,3 +118,14 @@ The full469source audit and eligibility selection are reused from r2; per-lane
 audits confirm only their assigned source. The source code is unchanged by this
 resource amendment, and the latest1119-pass/6-skip authority suite still applies.
 All timings describe contention; no exclusive-device speed claim is made.
+
+### Completion
+
+All24fixed cells are complete: literal text2/12handoffs, upright text1/12;
+both12/12meet the registered scene-geometry tolerances. Both texts fail foot
+support in8/12cases. The fixed80%gate fails and this text-only standing recipe
+stops here. Full native history reconstruction remains within0.000358mm.
+The complete record, operational failures, uncertainty and external-model review
+are in [Phase5.1 summary](../phase_summaries/PHASE_5A_STANDING_TRANSITION.md).
+Current experts remain the accepted input system. The next proposal should
+specify both endpoint contexts for an existing inbetweening model.
