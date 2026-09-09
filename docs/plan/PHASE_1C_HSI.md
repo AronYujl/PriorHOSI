@@ -13499,3 +13499,41 @@ clean prediction反推epsilon的导数。评估artifact记录sample_type=ddim、
 全部通过，合计覆盖458 passed、3 skipped。原始日志保留，生产source无需因环境错误变更。
 19份精确job配置已完整解析。主机为verified infbagel/Python3.8、torch1.13.1+cu117、
 8块RTX3090；性能测量使用单卡batch1的固定latency任务，全375分片作为质量读数。
+
+### CM1.3 完成：教师粗轨迹不足以解释CM1的主要边界退化
+
+2026-09-09，执行source 4b8d305。DDIM25 U/G各375条、2271窗口全部完成，25steps /
+50calls且motion有限；两组单卡latency及Table3同样exit0。五个manifest已按原source
+封存。预留成本3.100833GPU-h，低于12上限。定向60通过，authority覆盖458通过/3跳过，
+首次恢复测试的2个export环境错误及受影响模块4项通过的日志均保留。
+
+无引导 DDPM500 / DDIM25 / CM1：pen_ratio 0.0301742 / 0.0306028 / 0.0328194，
+FS 0.296591 / 0.302345 / 0.317062，boundary jerk 124.677 / 123.055 / 156.309。
+DDIM−DDPM边界差值−1.62275，CI[-3.47641,0.25872]；CM1−DDIM为+33.25427，
+CI[29.97637,36.42167]。后者的penetration、FS、exterior contact也明确退化。
+六个固定主对照的Bonferroni同时区间保持相同方向结论，注册95%逐项区间全部保留。
+原生walk子组的DDIM FS未检出变化、表面穿透改善，CM1相对DDIM两项均退化。
+
+有引导 DDPM / DDIM / CM1：pen_ratio 0.0214163 / 0.0238925 / 0.0274793，FS
+0.276482 / 0.271642 / 0.298000，boundary jerk 159.083 / 146.212 / 165.533，
+exterior contact 367.851 / 343.954 / 320.895。DDIM相对DDPM在穿透/有效接触上付出
+代价，jerk及goal改善；CM1相对DDIM在穿透、FS、边界jerk和有效接触上仍有额外退化。
+两组factorial、全部原生13项及接触分组配对CI均完成，保留所有改善和不确定结果。
+
+DDIM U/G FID=33.20650/36.76145，R@3=0.482143/0.419643。需要明确：该特征评估
+读取网络直接输出的28关节位置通道，物理评估读取旋转通道+root重建的SMPL-X身体；
+位置通道特征改善不能直接推断FK身体动作改善。冻结评估定义保持原值。
+
+DDIM U/G单卡平均FPS=53.9471/13.6776，生成秒/序列=2.78486/10.93398，端到端
+秒/序列=2.85695/11.00942；相对DDPM总生成时间加速20.0670x/18.0359x。六格latency
+均对应19条/69窗口、5条预热后14条计时。DDIM U full375无>5g、1低骨盆walk；G
+full375为9条/18帧>5g、0低骨盆walk，holdout355为5条/8帧、0低骨盆walk，绝对守卫通过。
+
+额外复用已注册CM1 epoch004/089在同一frozen60、16steps、B_n60权重下的描述性读数：
+U FS 0.280929→0.309792，boundary jerk139.374→155.877；G pen_ratio0.025440→
+0.0305165。用于描述训练进程中的物理变化，不用作checkpoint选择或替代本轮主判据。
+
+报告/compact：experiments/results/p1_hsi_r2_ddim25_s42_20260909.{md,json}；交接
+docs/phase_summaries/PHASE_1C_CM1_DDIM.md。保留R2+CG。后继具体方案优先隔离固定
+CM1的16/25步采样差异，并量化位置通道与FK身体的差异，再决定物理保真训练目标。
+本轮完成诊断，尚未把额外退化单独归因于seam loss、EMA或dropout；Phase1C保持开放。

@@ -134,6 +134,11 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 穿透与非穿透接触保真门失败，19.26 FPS 低于 20 FPS 目标；继续保留 R2+CG。
 交接：[CM1 评估总结](../phase_summaries/PHASE_1C_CM1_EVAL.md)。Phase 1C 保持开放。
 
+2026-09-09：CM1.3 固定R2的DDIM25诊断完成。无引导边界jerk为123.05，DDPM500为
+124.68，CM1为156.31；主要边界退化仍出现在学生迁移／consistency采样环节。明确区分
+直接位置通道的FID与FK身体的物理指标。R2+CG继续作为基线；后继先隔离学生采样与表示差异。
+交接：[CM1 教师轨迹诊断](../phase_summaries/PHASE_1C_CM1_DDIM.md)。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
