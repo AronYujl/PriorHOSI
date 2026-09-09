@@ -13647,3 +13647,47 @@ R2 U/G FID38.41515/40.04968；CG差值CI跨0，主要分布差距在无CG时已�
 后继优先教师与部署表示修复：先审阅固定权重下的LERP方向/共同时间网格修正及GT/R2/CM16
 配对复评方案，以修正后的教师残差限定单一GT锚定训练目标。当前已确认源码插值行为，但其
 影响量尚未隔离，本轮未据此归因全部训练误差。后继实验待具体批准；Phase1C保持开放。
+
+
+## 2026-09-09（CM1.5：部署插值修正及固定权重复评；用户已批准）
+
+用户批准 CM1.4 的具体后继：修正部署 quaternion LERP 方向及共同时间网格，
+对 GT、R2 DDPM500 U/G、CM16 U/G 固定权重复评。本轮 component=hsi-cm1.5，
+继续 phase/01c-cm1，训练更新数为0；完成后根据教师剩余偏差提出单一GT锚定训练目标。
+
+### 修复、配对与可识别范围
+
+近同向旋转采用 normalized ((1-t)*q1+t*q2)，普通旋转保持最短弧 SLERP。
+位置、root与旋转共用 x(k)=min(k/3,T-1)，k=0..3T-1；保持3T输出、末粗帧保持、
+seam与history乘3。向量化Torch计算留在当前设备。冻结原生指标公式、场景、粗帧时长和
+位置通道FID定义；旧协议记录保留，并将部署版本明确写入新导出和metrics。
+
+旧NPZ只有插值后的旋转，近LERP的第0点已是下一粗帧，故采用原权重和canonical-ordinal
+seed42重新采样并保存插值前local pose/transl；GT直接读取原始数据。重放分别使用原R2
+500步/CFG1/CG posterior系数、CM16/CFG1/既有CM几何系数，保持所有条件与采样实现。
+新旧粗帧global_jpos逐序列核对（记录exact equality和最大绝对差）；容差2e-5m内可作为
+数值一致复现，超出即停止该arm的纯插值因果解释并保留失败。新增粗帧旋转导出以后可复用。
+
+各arm全375条，模型每组2271窗。主量为各组新−旧 root-relative body21分歧，另报七项
+表示量、28关节均值、缝后六帧/其余帧和模型−GT、CM16−R2的修正后残差。物理主量为
+pen_ratio、FS、boundary jerk、exterior contact，所有组新旧差及R2/CM16差均保留。
+每个差值以375序列配对bootstrap10000次seed42给95%CI；五个表示主对照及20个物理
+主对照分别给Bonferroni同时区间。完整native13项、总接触、goal、内部jerk、full375与
+冻结holdout355的>5g/低骨盆walk统计均报告。原生FID、Diversity、MM、R@3在粗帧一致时
+引用既有Table3；重建物理native分组重新聚合。GT源参考具有相同部署修正。
+
+### 执行与完成门
+
+一个新配置片段复用既有evaluator；无新tools脚本。一个preregistration commit、一个
+implementation commit及一个completion commit。定向组件检查覆盖LERP端点、最短弧、
+scale1恒等、共同网格/粗帧锚点/末帧保持和粗帧导出；运行一次authority及registry校验。
+首个真实GT全量重建承担运行验证与batch128 CUDA同步性能测量（四个完整batch预热），
+记录插值/FK耗时、显存和成本。denoiser执行路径保持原样，沿用封存生成latency；本轮
+报告重建阶段性能，不重复昂贵的整链latency任务。GT重建后执行四个8卡模型全量重放，
+最后8卡五组位置/FK诊断；每个正式负载独立manifest、精确resolved config和主机preflight。
+预计教师重放占主要时间，预算上限48 GPU-h；来源权重、输入资产通过封存manifest引用。
+
+完成门为5x375覆盖、粗帧一致性、全部配对统计/安全案例/成本和失败归档；若运行或协议
+失败，保留已有结果并停止相应负载，任何恢复使用新run id。保持旧R2+CG质量基线供
+历史比较；新协议单列。结论限定为插值修复的部署效应及修正后教师/学生残差，不据此
+宣称已修复原生FID分布。报告和PHASE_1C_CM1_INTERPOLATION.md交接完成后继续Phase1C。
