@@ -92,12 +92,12 @@ class HSIDDIM:
         prediction = checkpoint(forward, whole, use_reentrant=False) if torch.is_grad_enabled() else forward(whole)
         return torch.cat((history, prediction[:, 2:]), 1)
 
-    def decode(self, latent, view):
+    def decode(self, latent, view, *, steps=None, source_history=False):
         future = latent[0, :, 0].transpose(0, 1).reshape(len(self.windows), 14, 216)
-        times = torch.linspace(0, 499, self.settings['ddim_steps']).round().long().tolist()[::-1]
+        times = torch.linspace(0, 499, steps or self.settings['ddim_steps']).round().long().tolist()[::-1]
         predictions = []
         for i in range(len(self.windows)):
-            history = self.clean[i:i+1, :2] if i == 0 else self.reframe(predictions[-1][:, -2:], self.mats[i-1], self.mats[i])
+            history = self.clean[i:i+1, :2] if i == 0 or source_history else self.reframe(predictions[-1][:, -2:], self.mats[i-1], self.mats[i])
             value = torch.cat((history, future[i:i+1]), 1)
             for j, step in enumerate(times):
                 clean = self.predict(value, history, i, view, step)
@@ -114,6 +114,8 @@ class HSIDDIM:
             value = self.clean[i:i+1].clone()
             history = value[:, :2]
             for j, step in enumerate(times):
+                if j == len(times)-1 and self.settings.get('inversion_terminal') == 'model':
+                    break
                 clean = self.predict(value, history, i, 'correct', step)
                 next_alpha = self.alpha[times[j+1]] if j+1 < len(times) else self.alpha.new_tensor(0.)
                 value = ddim_transition(value, clean, self.alpha[step], next_alpha)
@@ -226,6 +228,9 @@ def optimize_latent(decoder, objective, initial, view, settings, destination, st
         assert torch.isfinite(gradient).all(), 'nonfinite gradient through HSI DDIM'
         return gradient
     engine.current_z.register_hook(finite_gradient)
+    audit = destination.get('gradient_audit')
+    if audit is not None:
+        audit(engine.current_z, stage, 0)
     torch.cuda.synchronize(initial.device); began = time.perf_counter()
     for lo in range(0, steps, 50):
         engine(min(50, steps-lo))
@@ -235,6 +240,8 @@ def optimize_latent(decoder, objective, initial, view, settings, destination, st
                 step=engine.step_count, initial=engine.start_z.cpu(), traces=traces,
                 options=vars(options), view=view, cpu_rng=torch.get_rng_state(),
                 cuda_rng=torch.cuda.get_rng_state(initial.device)), handle)
+        if audit is not None and engine.step_count in (50, steps):
+            audit(engine.current_z, stage, engine.step_count)
         last = engine.hist[-1]
         torch.cuda.synchronize(initial.device)
         peak = torch.cuda.max_memory_allocated(initial.device)/1024**3
@@ -367,6 +374,178 @@ def dno_motion_probe(teacher, projector, model, sdf, info, evaluate, baseline, t
         peak_memory_gib=torch.cuda.max_memory_allocated(teacher.device)/1024**3)
     assert record['peak_memory_gib'] <= 5, record['peak_memory_gib']
     return record
+
+
+def latent_gradient_measures(terms, latent, decorrelation_weight):
+    """Separate objective derivatives and their actual summed update direction."""
+    gradients = {name: torch.autograd.grad(value, latent, retain_graph=True)[0]
+                 for name, value in terms.items()}
+    total = gradients['body']+gradients['feature']+decorrelation_weight*gradients['decorrelation']
+    vectors = dict(body=gradients['body'], feature=gradients['feature'],
+                   reconstruction=gradients['body']+gradients['feature'],
+                   decorrelation1000=1000*gradients['decorrelation'], total=total)
+    norms = {k: float(v.norm()) for k, v in vectors.items()}
+    cosines = {a+'__'+b: float((vectors[a]*vectors[b]).sum()/(vectors[a].norm()*vectors[b].norm()))
+               for a, b in [('body', 'feature'), ('reconstruction', 'decorrelation1000'),
+                            ('reconstruction', 'total')]}
+    return dict(losses={k: float(v.detach()) for k,v in terms.items()}, norms=norms,
+                cosines=cosines, regularizer_to_reconstruction_norm=norms['decorrelation1000']/norms['reconstruction'],
+                actual_decorrelation_weight=decorrelation_weight,
+                reconstruction_projection_on_total=float((vectors['reconstruction']*total).sum()/total.square().sum()))
+
+
+@torch.enable_grad()
+def audit_latent_gradient(decoder, objective, latent, weight):
+    from dno import noise_regularize_1d
+    with torch.random.fork_rng(devices=[latent.device.index]):
+        torch.manual_seed(42)
+        value = latent.detach().requires_grad_(True)
+        predicted = decoder.decode(value, 'correct')
+        pose, translation = decoder.pose(predicted)
+        terms = dict(body=objective(pose, translation),
+                     feature=(predicted[:, 2:]-decoder.clean[:, 2:]).square().mean(),
+                     decorrelation=noise_regularize_1d(value, dim=3).sum())
+        measured = latent_gradient_measures(terms, value, weight)
+        channel = value.detach().flatten(2)
+        measured['latent'] = dict(mean=float(value.mean()), std=float(value.std()),
+            rms=float(value.square().mean().sqrt()), max_abs=float(value.abs().max()),
+            channel_mean_abs_mean=float(channel.mean(-1).abs().mean()),
+            channel_std_mean=float(channel.std(-1).mean()))
+        return measured
+
+
+def dno_reconstruction_probe(teacher, projector, model, sdf, info, evaluate, baseline, task, ordinal,
+                             floor, length, protocol, dest):
+    from .surface_edit import decode_body
+    from .diagnostics import body_readout_measures
+    from .continuation_outcomes import write_json
+    started = time.perf_counter(); before_calls = teacher.calls
+    root = Path(teacher.cfg.hsi_body_projection.protocol).resolve().parents[2]
+    query, = (root/protocol['query_cache']).glob(f'lanes/*/task-{ordinal:03d}/teacher.pt')
+    previous, = (root/protocol['previous_run']).glob(f'lanes/*/task-{ordinal:03d}')
+    cache = torch.load(query, map_location=teacher.device, weights_only=False)
+    source, settings = projector.source, protocol['method']
+    decoder = HSIDDIM(teacher, cache['windows'], source, task, ordinal, settings)
+    sys.path.insert(0, protocol['dno_repository'])
+    objective = NativeDNOObjective(projector, model, sdf, info, baseline['scene_human_penetration_s_mean'], False)
+    metrics, gradients = dict(source=dict(baseline, native_body28_mean_displacement_cm=0.)), {}
+
+    @torch.no_grad()
+    def save_prediction(name, prediction):
+        pose, translation = decoder.pose(prediction)
+        motion = dict(source, pose=pose, translation=translation)
+        motion['verts'], motion['joints'] = decode_body(motion, model)
+        motion['verts'][projector.fixed] = source['verts'][projector.fixed]
+        motion['joints'][projector.fixed] = source['joints'][projector.fixed]
+        record = evaluate(motion)
+        record.update(body_readout_measures(motion, source, floor, length))
+        record.update(projector.measures(transforms.axis_angle_to_matrix(pose), translation))
+        record.update(native_anchor_max_error_m=float((motion['joints'][:, NATIVE_ANCHORS]-source['joints'][:, NATIVE_ANCHORS]).norm(dim=-1).max()),
+            native_body28_mean_displacement_cm=float((motion['joints']-source['joints']).norm(dim=-1).mean()*100),
+            initial_final_max_error_m=float((motion['joints'][projector.fixed]-source['joints'][projector.fixed]).abs().max()),
+            object_max_error_m=0.)
+        with (dest/(name+'.pt')).open('xb') as handle:
+            torch.save({k:v.cpu() for k,v in motion.items() if torch.is_tensor(v) and k!='verts'}, handle)
+        write_json(dest/(name+'-metrics.json'), record)
+        metrics[name] = record
+        print(json.dumps(dict(task=ordinal, stage=name, body_cm=record['native_body28_mean_displacement_cm'],
+                              contact=record['contact_percent'])), flush=True)
+
+    identity_pose, identity_translation = decoder.pose(decoder.clean)
+    identity_error = max(float((identity_pose-source['pose']).abs().max()),
+                         float((identity_translation-source['translation']).abs().max()))
+    assert identity_error <= 1e-6
+    legacy = torch.load(previous/'inversion.pt', map_location=teacher.device, weights_only=False)
+    aligned = decoder.invert()
+    with (dest/'aligned-inversion.pt').open('xb') as handle: torch.save(aligned.cpu(), handle)
+    endpoint = dict(alpha_first=float(decoder.alpha[0]), alpha_last=float(decoder.alpha[-1]),
+        jump_rms=float((legacy-aligned).square().mean().sqrt()),
+        jump_max_abs=float((legacy-aligned).abs().max()), aligned_rms=float(aligned.square().mean().sqrt()),
+        legacy_rms=float(legacy.square().mean().sqrt()), clean_identity_error=identity_error)
+    write_json(dest/'endpoint.json', endpoint)
+
+    for name, value in [('legacy', legacy), ('aligned', aligned)]:
+        for mode, kwargs in [('ddim10', {}), ('ddim100', dict(steps=100)),
+                             ('source_history10', dict(source_history=True))]:
+            with torch.no_grad(): prediction = decoder.decode(value, 'correct', **kwargs)
+            save_prediction(name+'_'+mode, prediction)
+            endpoint[name+'_'+mode+'_feature_per_window'] = (prediction[:, 2:]-decoder.clean[:, 2:]).square().mean((1,2)).cpu().tolist()
+
+    def audit(value, stage, step):
+        weight = 0. if stage.endswith('reg0') else 1000.
+        measured = audit_latent_gradient(decoder, objective, value, weight)
+        gradients[f'{stage}-{step}'] = measured
+        write_json(dest/f'{stage}-gradient{step:04d}.json', measured)
+        print(json.dumps(dict(task=ordinal, stage=stage, audit_step=step,
+            regularizer_to_reconstruction_norm=measured['regularizer_to_reconstruction_norm'],
+            reconstruction_total_cosine=measured['cosines']['reconstruction__total'])), flush=True)
+
+    old = json.loads((previous/'metrics.json').read_text())
+    metrics['legacy_reg1000'] = old['means']['correct_reconstruction']
+    audit(legacy, 'legacy_reg1000', 0)
+    for step in (50, 300):
+        saved = torch.load(previous/f'reconstruction-step{step:04d}.pt', map_location=teacher.device, weights_only=False)
+        audit(saved['latent'], 'legacy_reg1000', step)
+    write_json(dest/'legacy-reference.json', dict(task_directory=str(previous),
+        metrics=str(previous/'metrics.json'), final_motion=str(previous/'correct_reconstruction.pt')))
+    for name, value, weight in [('legacy_reg0', legacy, 0.), ('aligned_reg1000', aligned, 1000.),
+                                ('aligned_reg0', aligned, 0.)]:
+        destination = dict(repository=protocol['dno_repository'], path=dest, gradient_audit=audit)
+        result = optimize_latent(decoder, objective, value, 'correct', dict(settings, decorrelate_scale=weight), destination, name)
+        with torch.no_grad(): predicted = decoder.decode(result, 'correct')
+        save_prediction(name, predicted)
+    torch.cuda.synchronize(teacher.device)
+    record = dict(means=metrics, gradients=gradients, endpoint=endpoint, identity_error=identity_error,
+        previous_directory=str(previous), seconds=time.perf_counter()-started,
+        hsi_calls=teacher.calls-before_calls, peak_memory_gib=torch.cuda.max_memory_allocated(teacher.device)/1024**3)
+    assert record['peak_memory_gib'] <= 5, record['peak_memory_gib']
+    return record
+
+
+def summarize_reconstruction(run_root, task_manifest, device='cuda:0'):
+    from .scene_calibration import paired_local_metrics
+    from .continuation_outcomes import write_json
+    run_root = Path(run_root)
+    tasks = json.loads(Path(task_manifest).read_text())['tasks']
+    records = [json.loads(p.read_text()) for p in run_root.glob('lanes/*/task-*/metrics.json')]
+    assert len(records)==len(tasks) and {r['task'] for r in records}=={t['canonical_ordinal'] for t in tasks}
+    arms = list(records[0]['means'])
+    keys = sorted(set.intersection(*(set(r['means'][a]) for r in records for a in arms)))
+    by_task = {a:{str(r['task']):{k:r['means'][a][k] for k in keys} for r in records} for a in arms}
+    scenes = sorted({r['scene'] for r in records})
+    by_scene = {a:{s:{k:sum(r['means'][a][k] for r in records if r['scene']==s)/
+        sum(r['scene']==s for r in records) for k in keys} for s in scenes} for a in arms}
+    means = {a:{k:sum(r['means'][a][k] for r in records)/len(records) for k in keys} for a in arms}
+    pairs = [('legacy_reg0','legacy_reg1000'), ('aligned_reg1000','legacy_reg1000'),
+        ('aligned_reg0','legacy_reg0'), ('aligned_reg0','aligned_reg1000'),
+        ('aligned_reg0','legacy_reg1000')]
+    pairs += [(f'{endpoint}_{variant}',f'{endpoint}_ddim10') for endpoint in ('legacy','aligned')
+              for variant in ('ddim100','source_history10')]
+    contrasts = {a+'__minus__'+b:{unit:paired_local_metrics(values[b],values[a],device)
+        for unit,values in [('task',by_task),('scene',by_scene)]} for a,b in pairs}
+    changes = {unit:{end:{name:{k:values[end+'_reg0'][name][k]-values[end+'_reg1000'][name][k]
+        for k in keys} for name in values[end+'_reg0']} for end in ('legacy','aligned')}
+        for unit,values in [('task',by_task),('scene',by_scene)]}
+    interaction = {unit:paired_local_metrics(values['legacy'],values['aligned'],device) for unit,values in changes.items()}
+    gates = {a:{str(r['task']):dict(body=r['means'][a]['native_body28_mean_displacement_cm']<=1.,
+        contact=r['means'][a]['contact_percent']>=r['means']['source']['contact_percent']-.002,
+        support=r['means'][a]['source_floor_support_fraction']>=r['means']['source']['source_floor_support_fraction']-.002,
+        foot_sliding=r['means'][a]['foot_sliding']<=r['means']['source']['foot_sliding']+.01)
+        for r in records} for a in ('legacy_reg1000','legacy_reg0','aligned_reg1000','aligned_reg0')}
+    remaining27 = {a+'__minus__'+b:paired_local_metrics({k:v for k,v in by_task[b].items() if k!='375'},
+        {k:v for k,v in by_task[a].items() if k!='375'},device) for a,b in pairs}
+    summary = dict(tasks=len(records),scenes=len(scenes),means=means,contrasts=contrasts,interaction=interaction,
+        reconstruction=gates,pass_counts={a:sum(all(v.values()) for v in rows.values()) for a,rows in gates.items()},
+        remaining27=remaining27,task375={a:by_task[a]['375'] for a in arms},
+        hsi_calls=sum(r['hsi_calls'] for r in records),task_seconds_sum=sum(r['seconds'] for r in records),
+        peak_memory_gib=max(r['peak_memory_gib'] for r in records),test_set_development=True,
+        timing_comparison_valid=False,training_allowed=False)
+    output=run_root/'analysis';output.mkdir()
+    write_json(output/'summary.json',summary);write_json(output/'records.json',records)
+    for arm in arms:
+        for unit,values in [('task',by_task[arm]),('scene',by_scene[arm])]:
+            write_json(output/f'{arm}-{unit}.json',dict(metrics=values))
+    return summary
 
 
 def summarize_dno(run_root, task_manifest, device='cuda:7'):

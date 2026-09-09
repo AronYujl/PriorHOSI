@@ -153,3 +153,36 @@ def test_complete_dno_target_retains_planar_motion_inside_existing_bounds():
     old_rotation, old_translation = smooth_body_target(source, full)
     assert old_translation.abs().max() == 0
     torch.testing.assert_close(old_rotation, torch.eye(3).expand(length,22,3,3), atol=1e-6, rtol=0)
+
+
+def test_inversion_stops_at_decoder_endpoint_instead_of_discarding_clean_component():
+    decoder = HSIDDIM.__new__(HSIDDIM)
+    decoder.windows = [None]
+    decoder.settings = dict(inversion_steps=5, inversion_terminal='model')
+    decoder.alpha = torch.linspace(.98, .02, 500, dtype=torch.double)
+    decoder.clean = torch.full((1,16,216), .4, dtype=torch.double)
+    oracle = torch.full_like(decoder.clean, .1)
+    decoder.predict = lambda current, history, window, view, step: oracle
+    actual = decoder.invert()
+    initial_noise = (decoder.clean-decoder.alpha[0].sqrt()*oracle)/(1-decoder.alpha[0]).sqrt()
+    expected = decoder.alpha[-1].sqrt()*oracle+(1-decoder.alpha[-1]).sqrt()*initial_noise
+    torch.testing.assert_close(actual[0,:,0].T, expected[0,2:])
+    decoder.settings.pop('inversion_terminal')
+    legacy = decoder.invert()
+    torch.testing.assert_close(legacy[0,:,0].T, initial_noise[0,2:])
+    assert not torch.allclose(actual, legacy)
+
+
+def test_gradient_diagnosis_separates_loss_size_from_update_direction():
+    from mixer.diffusion_noise import latent_gradient_measures
+    latent = torch.tensor([1.,2.], dtype=torch.double, requires_grad=True)
+    terms = dict(body=(latent[0]-3).square()+100000., feature=latent[1].square(),
+                 decorrelation=(latent[0]+1).square()/1000.)
+    result = latent_gradient_measures(terms, latent, 1000.)
+    assert result['losses']['body'] > 100000
+    assert result['norms']['body'] == 4.
+    assert result['norms']['decorrelation1000'] == 4.
+    assert abs(result['cosines']['reconstruction__decorrelation1000']+2**-.5) < 1e-10
+    assert abs(result['cosines']['reconstruction__total']-2**-.5) < 1e-10
+    unregularized = latent_gradient_measures(terms, latent, 0.)
+    assert abs(unregularized['cosines']['reconstruction__total']-1) < 1e-10
