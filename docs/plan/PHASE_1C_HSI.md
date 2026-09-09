@@ -13738,3 +13738,33 @@ experiment.py的显式commit-transition机制记录这两个文件的差异。�
 保留原source。尚未开始的R2 G和表示诊断将从本次新提交启动；preflight记录两者具有
 相同runtime代码及本预算修订，resolved config沿用已经解析的同一组配置。此治理提交
 由实际资源估算与未完成负载的source转换要求触发。最终仍统一完成报告及completion commit。
+
+
+### CM1.5 完成：部署误差已隔离，教师与学生残差仍存在
+
+2026-09-09完成。GT、R2 U/G、CM16 U/G各375条，模型各2271窗，1875条coarse
+位置与旧导出逐值一致；五组位置/FK诊断1875记录完成，36份paired bootstrap与family5/20
+同时区间齐全。六个成功manifest在clean source终结后统一登记，原失败GT记录保留。
+
+body21主量旧→新（cm）：GT0.43238→0.01644，R2 U/G0.95248/1.04784→0.79425/0.88703，
+CM16 U/G1.72761/1.72400→1.64894/1.65606。五组改善均通过同时区间；修正后教师−GT
+仍为U+0.77781[0.71471,0.84782]、G+0.87059[0.80487,0.94276]，学生−教师为
+U+0.85469[0.82212,0.89028]、G+0.76903[0.73004,0.80930]。GT伪差大幅下降，身体残差
+仍在；root误差约数值零，窗口内部同样存在差异。联合插值的单项贡献尚未识别。
+
+五组FS/boundary jerk下降、pen_ratio上升，均在20项同时区间下明确。R2 U/G和CM16 G
+的exterior contact下降也通过同时区间。修正后CM16 G相对R2 G在pen/FS/exterior上仍
+退化，boundary jerk差CI跨0，interior jerk反向改善。全原生指标和接触量均保留。
+五组coarse一致使FID/MM-Dist/R@3保持原值；Diversity按原生顺序RNG从封存embedding补算，
+明确为新补算缓存统计。FID分布差距由独立问题保留，本次部署修复未改变它。
+
+holdout355绝对守卫全部通过；R2 G full375为11条/16帧>5g，holdout6/8；CM16 G旧4/11
+增为7/15，holdout旧1/2增为4/8。CM16 U/G各1条低骨盆walk保留。全部案例及帧定位存档，
+>5g事件均未落在末帧保持区。完整authority472/3，恢复定向41通过；总62.224722 GPU-h
+含首个GT失败2秒，低于修订64上限。八卡表示预检记录7卡已有其他进程，竞争耗时单独说明。
+
+报告/compact：experiments/results/p1_hsi_cm1_interpolation_s42_20260909.{md,json}；
+交接docs/phase_summaries/PHASE_1C_CM1_INTERPOLATION.md。修正后R2+CG继续作为质量对照，
+旧协议独立保留。后继审阅一个全未来帧GT锚定body21 FK目标，先量级/梯度校准，再提出
+固定预算from-random教师训练；训练有效性尚未证明，R3 hard-rebase负结果保持约束。
+未开展新训练，Phase1C保持开放。
