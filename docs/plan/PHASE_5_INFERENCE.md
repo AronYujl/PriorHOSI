@@ -495,3 +495,38 @@ The support query also requires free space 4cm above each contact patch, paired
 with occupied space 4cm below. This completes the directional support definition:
 a point slightly inside a vertical wall must not qualify as a seating surface.
 The existing 3cm contact-distance tolerance remains unchanged.
+
+
+### Phase 5.4 completion
+
+Run `p5-benchmark-multitask-inputs-r1-s42-20260909` publishes one input pilot in one
+original scene: original HOSI task27 -> walk -> sit on the indicated low step.
+The scene-mesh review names the actual low-step target in the task text and keeps
+the LINGO office-chair text as source provenance. The frozen four-source pool,
+geometry, candidate order and thresholds are unchanged by this annotation.
+
+All 469 original task rows are preserved. Source audit resolves 150 OMOMO and
+1214 eligible LINGO references, retaining 912 LINGO exclusions. The simple source
+rule admits 7 original tasks; one fails the HOI witness check, five fail seating
+placement, and one passes. The 462 source exclusions reflect this recipe's
+floor-support/low-speed/upright requirements, not a proof of task impossibility.
+Other support surfaces and explicit placement/settling tasks remain extensions.
+
+The published manifest supplies three segments, two concrete bridge-target
+contexts, persistent-object rules and actual-history inheritance. Native sitting
+witness maximum scene penetration is 31.727mm near the right ankle, within the
+registered 50mm tolerance; its bilateral support points are within 2.971mm of
+the scene surface. Complete generated motion remains to be evaluated.
+
+Full authority verification: 1146 passed,4 historical skips,203.48seconds.
+All469 original rows,1364 source indices,469 goal reconstructions and both concrete
+bridge contexts pass input validation. The maximum all-task object-goal reference
+reconstruction error is 6.557e-7m. Construction took19.09seconds on shared GPU6,
+with0.460GiB peak tensor allocation and0model samples. The first failed input
+construction and all diagnostics are sealed and retained.
+
+The input-pilot gate passes. No large-benchmark coverage or model-success claim is
+made. Read [Phase5.4 summary](../phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md)
+and `experiments/tasks/p5_multitask_pilot_s42_20260909.json` before Phase5.5.
+This session ends at5.4; full actual-history expert/Kimodo execution is the next
+subphase and has not started.

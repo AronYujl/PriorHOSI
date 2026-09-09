@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "git_commit": "3b183d09e9d37b67490fbdbc8fc9d18fb8fa8c89",
+  "subphase": "5.4",
+  "status": "completed",
+  "original_hosi_tasks": 469,
+  "original_hosi_scenes": 67,
+  "unique_omomo_sources": 150,
+  "lingo_sources": 1214,
+  "excluded_lingo_sources": 912,
+  "lingo_action_counts": {
+    "walk": 1045,
+    "sit down on office chair": 13,
+    "stand up from seat": 96,
+    "sit down on sofa": 2,
+    "sit down on chair": 51,
+    "sit down on couch": 7
+  },
+  "exclusion_reason_counts": {
+    "action_outside_v1_allowlist": 874,
+    "source_too_short_for_native_window": 56,
+    "annotated_hand_interaction": 323
+  },
+  "omomo_exit_requirements": {
+    "place_then_release": 143,
+    "walk": 7
+  },
+  "omomo_exit_reference": "declared HOSI task window sample",
+  "omomo_full_sequence_exit_requirements": {
+    "release": 8,
+    "place_then_release": 56,
+    "walk": 86
+  },
+  "geometry_accepted_episodes": 1,
+  "construction_status_counts": {
+    "ineligible_source": 462,
+    "no_feasible_seating_placement": 5,
+    "accepted_geometry_pending_semantic_review": 1,
+    "infeasible_hoi_terminal_witness": 1
+  },
+  "construction_audit_rows": 469,
+  "selected_episode_ids": [
+    "multitask-hosi-027"
+  ],
+  "elapsed_seconds": 19.086780693382025,
+  "device": "cuda:6",
+  "peak_allocated_bytes": 493493248,
+  "model_samples": 0,
+  "semantic_review": "completed",
+  "published_episodes": 1,
+  "published_segments": 3,
+  "published_transitions": 2,
+  "published_scene_count": 1,
+  "published_task_file": "experiments/tasks/p5_multitask_pilot_s42_20260909.json",
+  "source_refs_in_published_manifest": 152,
+  "target_task_text": "sit down on the low step",
+  "input_validation": {
+    "original_tasks_equal": 469,
+    "original_scenes": 67,
+    "source_indices_checked": 1364,
+    "lingo_test_sources_checked": 1214,
+    "published_episodes": 1,
+    "published_segments": 3,
+    "published_transitions": 2,
+    "goal_reference_tasks_checked": 469,
+    "goal_reference_max_reconstruction_error_m": 6.556510925292969e-07,
+    "goal_reference_mean_reconstruction_error_m": 1.853109239391415e-07,
+    "episode_contracts_passed": 1,
+    "complete_recomposed_motion_gt": false,
+    "model_samples": 0,
+    "support": [
+      {
+        "episode_id": "multitask-hosi-027",
+        "patch_signed_distance_m": [
+          -0.0021822729613631964,
+          -0.002970706904307008
+        ],
+        "below_signed_distance_m": [
+          -0.04214894771575928,
+          -0.042743854224681854
+        ],
+        "above_signed_distance_m": [
+          0.037990886718034744,
+          0.03732653707265854
+        ],
+        "max_scene_penetration_frame": 19,
+        "max_scene_penetration_vertex": 8637,
+        "nearest_body_joint": 8,
+        "foot_marker_distance_max_m": 0.039046287536621094
+      }
+    ]
+  },
+  "source_condition_failure_counts": {
+    "object_floor_support_failed": 440,
+    "object_translation_not_slow": 432,
+    "object_rotation_not_slow": 394,
+    "upright_body_support_failed": 86
+  },
+  "source_condition_failure_counts_overlap": true,
+  "construction_gate": "pass_for_input_pilot",
+  "benchmark_breadth_gate": "not_claimed",
+  "full_chain_inference": "next_subphase_5.5",
+  "retained_failed_runs": [
+    "p5-benchmark-multitask-inputs-s42-20260909"
+  ],
+  "verification": {
+    "full_suite_passed": 1146,
+    "skipped": 4,
+    "seconds": 203.48,
+    "log": "results/verification/multitask_inputs_support_authority.log"
+  },
+  "conclusion": "One scene-grounded HOI/walk/static-interaction input pilot is published with explicit bridge contexts, state inheritance and target semantics. Original469 tasks and all exclusions are retained. No model sampling or full-chain success claim.",
+  "phase": "p5",
+  "component": "benchmark",
+  "run_root": "results/experiments/p5-benchmark-multitask-inputs-r1-s42-20260909",
+  "task_manifest": "experiments/tasks/p5_multitask_pilot_s42_20260909.json",
+  "preview": "results/experiments/p5-benchmark-multitask-inputs-r1-s42-20260909/benchmark/preview/multitask-hosi-027.png",
+  "semantic_preview": "results/experiments/p5-benchmark-multitask-inputs-r1-s42-20260909/benchmark/preview/seat_semantic_review.png",
+  "compiled_validation": "results/experiments/p5-benchmark-multitask-inputs-r1-s42-20260909/benchmark/compiled_manifest_validation.json"
+}

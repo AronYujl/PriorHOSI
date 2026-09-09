@@ -1,7 +1,10 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
-2026-09-09: Phase5.4 constructs multi-task benchmark inputs and boundary contracts;
-Phase5.5 is the subsequent frozen-chain inference/evaluation subphase.
+2026-09-09: Phase 5.4 publishes one HOI/walk/low-step-seating input pilot while
+preserving all 469 original tasks and auditing 1214 eligible LINGO sources.
+Read [the summary](../phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md) before
+Phase 5.5 frozen-chain inference. Full-chain success and broad benchmark coverage
+remain unmeasured.
 
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible

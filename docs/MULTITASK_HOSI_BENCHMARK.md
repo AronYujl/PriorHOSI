@@ -1,5 +1,12 @@
 # Multi-task HOSI input format
 
+The first input pilot is published in
+[`p5_multitask_pilot_s42_20260909.json`](../experiments/tasks/p5_multitask_pilot_s42_20260909.json).
+It retains all 469 original tasks and adds one three-segment episode with two
+concrete transition-context references. Read the
+[Phase 5.4 summary](phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md) for coverage,
+the retained failed construction and the input-only scope.
+
 Phase 5.4 extends task conditions while preserving all 469 original HOSI tasks.
 The first construction recipe targets HOI -> walk -> sit in the original
 67 TRUMANS scenes. LINGO supplies locomotion and static-interaction source
@@ -106,6 +113,15 @@ surface receives semantic seat review from its scene preview before publication.
 `geometry_accepted_pending_semantic_review` is therefore distinct from a
 published task. Semantic rejection and unattempted candidate-cap exclusions
 remain visible in the construction report.
+
+For the published pilot, scene-mesh review identifies a low step. The task text
+is therefore `sit down on the low step`; `source_text` preserves the original
+LINGO office-chair label. Inference must encode the task's text rather than
+silently reusing the source label's embedding. Each edge's
+`target_context_reference` resolves to its native motion field and frame range
+relative to the manifest's `artifact_root`. The first bridge targets the verified
+HOI terminal reference as the walk entry; the second targets the placed static
+entry. Actual object geometry is checked again at execution time.
 
 Run the existing Hydra entry with the verified native environment and
 `config_sample_hosi_multitask`. A reportable construction uses
