@@ -1,0 +1,18 @@
+defaults: [config_sample_hosi_inbetween, _self_]
+
+exp_name: p5-benchmark-multitask-inputs-s42-20260909
+run_id: ${exp_name}
+device: cuda:6
+inbetween:
+  enabled: false
+multitask:
+  enabled: true
+  stage: construct
+  output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/benchmark
+  split_manifest: ${oc.env:ROOT_DIR}/experiments/splits/lingo_scene_family_disjoint_v3_seed42.json
+  scene_scope: hosi67
+  static_source_limit: 4
+  episode_limit: 12
+  anchor_spacing_m: 0.10
+  full_candidate_limit: 64
+  scene_mesh_root: /data/yujinlun/datasets/TRUMANS/Data_release/Scene_mesh

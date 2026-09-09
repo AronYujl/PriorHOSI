@@ -412,3 +412,44 @@ published chain type; full authority tests and registry validation pass. A zero
 usable count is a reported construction limitation, not permission to tune output
 selection. Deliver tracked task manifests, aggregate audit, task-format guide,
 geometry previews where placements are made, and a phase summary with5.5 entry.
+
+
+### Fixed first construction recipe
+
+Default scene scope is the original 67 TRUMANS scenes. The first published chain
+is HOI -> walk -> sit. Keep at most 12 episodes from distinct scenes, visiting
+scenes and original task ordinals in ascending order. Candidate eligibility uses
+source conditions only: upright HOI terminal reference (tilt <=25deg, pelvis
+>=.65m, foot marker within .08m) and a slow, floor-supported terminal object.
+Sources that require placing a suspended object are recorded for a later chain
+type. The terminal object orientation is the source terminal orientation transformed
+by the task's initial-to-goal heading; record it as an added extension requirement,
+never change the original HOSI task. Preserve its original object_goal exactly.
+
+Use the first four eligible LINGO sit sources by ascending data_idx after requiring
+an upright entry and seated exit (terminal pelvis <=.85m), plus the first eligible
+walk source. Both are from the unmirrored fixed test partition. Transfer local
+body poses to the HOI subject before target-geometry checks. The identity throughout
+a chain is that HOI subject. Source motions are geometry witnesses, not output GT.
+
+Search root XZ positions on the existing scene crop at 0.10m spacing and eight
+45-degree headings. After body-identity transfer, one constant vertical shift
+places the lowest context body vertex on the floor. Each context must retain a
+foot marker within 8cm of the floor. A bilateral buttock surface patch must be within 3cm of
+the scene SDF surface and have occupied scene 4cm below; this defines a geometric
+support anchor, whose semantic seat identity is checked in the preview before
+publication. Coarse joint and support queries precede full native endpoint-mesh
+queries. At most 64 coarse candidates per source/task, ordered by straight-path
+length then coordinates/heading, receive full checks. The walk path is a straight
+segment of .75–3m, sampled at <=.10m spacing with a .25m horizontal body-clearance
+proxy over heights .15–1.65m. Both static scene and persisted terminal object are
+included. Failure of a straight path is an explicit first-version limitation.
+
+The static interaction's entry/exit contexts use ten source frames each. Audit
+native body penetration against scene and persisted object; require scene mean
+<=5mm/max<=5cm, object maximum<=5cm, floor maximum<=1cm, and in-bounds. Source
+endpoints failing these tolerances remain excluded with the measured reason.
+A support anchor is checked independently from body penetration. No generated
+motion, Kimodo result or visual aesthetic score participates in membership.
+Publish geometry previews of accepted conditions for semantic support review;
+retain all rejected candidate counts, cap exclusions and the original 469 rows.

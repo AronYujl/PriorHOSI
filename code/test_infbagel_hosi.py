@@ -564,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('multitask', {}).get('enabled', False):
+        from mixer.multitask import run_multitask
+        run_multitask(cfg)
+        return
     if cfg.get('inbetween', {}).get('enabled', False):
         from mixer.inbetween import run_inbetween
         run_inbetween(cfg)
