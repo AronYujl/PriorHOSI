@@ -54,11 +54,24 @@ def transformed_motion(motion, rotation, translation):
     return result
 
 
-def initial_to_task_rotation(source_joints, task):
-    start = source_joints.new_tensor(task['start_location'])
-    goal = source_joints.new_tensor(task['pelvis_goal'])
-    target_heading = torch.atan2(-(goal[2]-start[2]), goal[0]-start[0])+math.pi/2
-    return yaw_matrix((target_heading-heading(source_joints[0])).reshape(1))[0]
+def terminal_goal_rotation(source_pelvis, source_object, task):
+    source = source_object-source_pelvis
+    target = source.new_tensor(task['object_goal'])-source.new_tensor(task['pelvis_goal'])
+    yaw = torch.atan2(source[2], source[0])-torch.atan2(target[2], target[0])
+    return yaw_matrix(yaw.reshape(1))[0]
+
+
+def ground_endpoint_contexts(motion, context_frames=10):
+    """Place each prescribed context on its floor while preserving its motion."""
+    heights = motion['verts'][..., 1].reshape(2, context_frames, -1)
+    shifts = -heights.amin(dim=(1, 2))
+    per_frame = shifts.repeat_interleave(context_frames)
+    grounded = dict(motion)
+    for key in ('translation', 'joints', 'verts'):
+        grounded[key] = motion[key].clone()
+        grounded[key][..., 1] += per_frame.reshape((-1,)+(1,)*(motion[key].ndim-2))
+    grounded['vertical_context_shifts_m'] = shifts.tolist()
+    return grounded
 
 
 def support_patches(vertices, joints, model):
@@ -74,6 +87,16 @@ def support_patches(vertices, joints, model):
         patch[1] = vertices[-1, selected, 1].min()
         patches.append(patch)
     return torch.stack(patches)
+
+
+def seating_support_mask(points, sdf, info):
+    signed, outside = signed_query(points, sdf, info)
+    below = points.clone(); below[..., 1] -= .04
+    above = points.clone(); above[..., 1] += .04
+    lower, _ = signed_query(below, sdf, info)
+    upper, _ = signed_query(above, sdf, info)
+    return ((signed.abs().amax(-1) <= .03) & (lower.amax(-1) < 0)
+            & (upper.amin(-1) > 0) & ~outside.any(-1))
 
 
 def clear_straight_paths(start, ends, sdf, info, object_sdf, object_info, obj_pos, obj_rot):
@@ -209,18 +232,19 @@ def construct_hosi_chains(cfg, root, output, corpora, original, sources):
             models[hoi['gender']] = create_smplx_model(hoi['gender'], torch.device(device)).eval().requires_grad_(False)
         model = models[hoi['gender']]
         corpus = corpora['OMOMO']
-        source_context = corpus.native_motion(hoi, hoi['terminal_context_frames'], device, model)
+        source_context = corpus.native_motion(hoi, hoi['task_reference_context_frames'], device, model)
         status['native_source_joint_max_error_m'] = source_context['source_joint_max_error_m']
         if source_context['source_joint_max_error_m'] > .001:
             audit.append(dict(status, status='native_source_roundtrip_failed')); continue
-        entry_joints = torch.as_tensor(np.array(corpus.joints[hoi['initial_context_frames']]), device=device, dtype=torch.float32)
-        task_rotation = initial_to_task_rotation(entry_joints, task)
+        reference_frame = hoi['task_reference_frame']
+        source_object = torch.as_tensor(np.array(corpus.object_translation[reference_frame]), device=device, dtype=torch.float32)
+        task_rotation = terminal_goal_rotation(source_context['joints'][-1, 0], source_object, task)
         target_root = source_context['joints'][-1, 0].clone()
         target_root[[0, 2]] = target_root.new_tensor(task['pelvis_goal'])[[0, 2]]
         shift = target_root-source_context['joints'][-1, 0] @ task_rotation.T
         hoi_context = transformed_motion(source_context, task_rotation, shift)
         object_position = target_root.new_tensor(task['object_goal'])
-        object_rotation = task_rotation @ torch.as_tensor(np.array(corpus.object_rotation[hoi['source_terminal_frame']]),
+        object_rotation = task_rotation @ torch.as_tensor(np.array(corpus.object_rotation[reference_frame]),
                                                            device=device, dtype=torch.float32)
         name = task['object_name']
         if name not in object_cache:
@@ -235,7 +259,9 @@ def construct_hosi_chains(cfg, root, output, corpora, original, sources):
         endpoint = geometry_measures(hoi_context['verts'], sdf, info, object_sdf, object_info, object_position, object_rotation)
         endpoint.update(object_support_floor_distance_m=floor_distance,
             object_scene_penetration_max_m=float((-object_scene).clamp_min(0).max()),
-            object_scene_outside_fraction=float(object_outside.float().mean()))
+            object_scene_outside_fraction=float(object_outside.float().mean()),
+            goal_reference_frame=reference_frame,
+            goal_reference_reconstruction_error_m=float((source_object @ task_rotation.T+shift-object_position).norm()))
         status['hoi_terminal_witness'] = endpoint
         if not (geometry_passes(endpoint) and floor_distance <= .05
                 and endpoint['object_scene_penetration_max_m'] <= .05 and not object_outside.any()):
@@ -256,10 +282,7 @@ def construct_hosi_chains(cfg, root, output, corpora, original, sources):
                 roots[:, [0, 2]] -= roots[-1:, [0, 2]].clone()
                 motion = dict(pose=pose, translation=roots-neutral[0], betas=betas, gender=hoi['gender'])
                 motion['verts'], motion['joints'] = decode_body(motion, model)
-                floor_shift = -motion['verts'][..., 1].min()
-                for key in ('translation', 'joints', 'verts'):
-                    motion[key][..., 1] += floor_shift
-                motion['vertical_placement_shift_m'] = float(floor_shift)
+                motion = ground_endpoint_contexts(motion)
                 native_cache[cache_key] = (motion, support_patches(motion['verts'], motion['joints'], model))
             template, patch = native_cache[cache_key]
             attempt = dict(source_id=sit['source_id'])
@@ -267,10 +290,7 @@ def construct_hosi_chains(cfg, root, output, corpora, original, sources):
             if float(template['joints'][:, [7, 8, 10, 11], 1].abs().amin(-1).max()) > .08:
                 attempt['status'] = 'body_transfer_foot_support_failed'; continue
             support_world = torch.einsum('bij,kj->bki', candidate_rotation, patch)+candidate_centers[:, None]
-            support_signed, support_outside = signed_query(support_world, sdf, info)
-            below = support_world.clone(); below[..., 1] -= .04
-            below_signed, _ = signed_query(below, sdf, info)
-            mask = (support_signed.abs().amax(-1) <= .03) & (below_signed.amax(-1) < 0) & ~support_outside.any(-1)
+            mask = seating_support_mask(support_world, sdf, info)
             indices = torch.where(mask)[0]
             attempt['support_candidates'] = len(indices)
             if not len(indices):
@@ -302,7 +322,7 @@ def construct_hosi_chains(cfg, root, output, corpora, original, sources):
                 placed['placement'] = dict(yaw_rad=float(angles[index//len(centers)]),
                     terminal_root_xz_m=candidate_centers[index, [0, 2]].tolist(),
                     source_terminal_root_xz_m=np.asarray(corpora['LINGO'].joints[sit['source_terminal_frame'], 0, [0, 2]]).tolist(),
-                    vertical_shift_m=template['vertical_placement_shift_m'], body_identity_source=hoi['source_id'])
+                    vertical_context_shifts_m=template['vertical_context_shifts_m'], body_identity_source=hoi['source_id'])
                 witness_path = f'witnesses/{row["task_id"]}.pt'
                 dest = output/witness_path; dest.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(dict(hoi_context=hoi_context, sit_context=placed, support_points=support_world[index],

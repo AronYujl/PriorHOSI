@@ -19,6 +19,13 @@ ten-frame contexts, body identity and semantic endpoint. The same numeric
 belongs to the complete source sequence; the first 48-frame model window does
 not define it. Source boundary measurements are input diagnostics.
 
+For HOSI, `task_reference_frame` separately identifies the declared endpoint
+sample: `language.start_idx[data_idx] + 3 * test_frames[-1]`. All 469 current rows
+use sample 15, or raw offset 45. Their supplied object-goal height and planar
+human-object separation match this frame. A terminal feasibility witness uses
+this frame and a yaw reconstructed from the supplied human/object-goal relation.
+The full source sequence end remains available as separate provenance and audit.
+
 The first LINGO action allowlist is `walk`, `sit down on chair`, `sit down on
 office chair`, `sit down on sofa`, `sit down on couch`, and `stand up from seat`.
 The two hand-interaction frame flags alone cannot establish absence of held
@@ -31,6 +38,9 @@ An episode fixes one target scene and one human body identity. It contains
 ordered `segments`, explicit `transitions` and persistent movable objects.
 The HOI subject supplies body identity throughout the first recipe. Transferring
 LINGO poses to that body is part of constructing geometric boundary witnesses.
+The standing and seated contexts receive separate constant vertical placements
+onto the floor. Their local rotations and within-context velocities are retained;
+both placement offsets are recorded. The intermediate action is generated later.
 
 Each segment supplies these inference conditions:
 

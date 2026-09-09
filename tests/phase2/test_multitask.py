@@ -10,7 +10,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'code'))
 
 from mixer.multitask import (
-    object_boundary_measures, source_record, source_type, successor_condition,
+    attach_task_reference, object_boundary_measures, source_record, source_type, successor_condition,
     transition_edge, validate_episode,
 )
 
@@ -32,6 +32,10 @@ def test_source_terminal_refers_to_sequence_end_not_first_window_end():
     assert record['source_sequence_start'] == 100
     assert record['source_start_frame'] == 120
     assert not record['source_is_complete_recomposed_gt']
+    task_source = attach_task_reference(record, dict(test_frames=[0, 1, 15]))
+    assert task_source['source_terminal_frame'] == 301
+    assert task_source['task_reference_frame'] == 165
+    assert task_source['task_reference_context_frames'] == list(range(156, 166))
 
 
 def test_suspended_stationary_object_requires_placement_before_release():
@@ -153,3 +157,45 @@ def test_native_translation_rotation_uses_the_rest_pelvis_pivot():
     moved = transformed_motion(motion, rotation, shift)
     torch.testing.assert_close(moved['translation']+pelvis_offset, moved['joints'][:, 0])
     torch.testing.assert_close(moved['joints'], joints @ rotation.T+shift)
+
+
+def test_terminal_witness_reconstructs_both_given_goals_independently_of_entry_path():
+    from mixer.multitask_geometry import terminal_goal_rotation
+    from mixer.surface_edit import yaw_matrix
+    source_pelvis = torch.tensor([2., .9, -3.])
+    source_object = torch.tensor([2.5, .4, -2.7])
+    desired_rotation = yaw_matrix(torch.tensor([1.1]))[0]
+    target_pelvis = torch.tensor([-1., .9, 2.])
+    target_object = desired_rotation @ (source_object-source_pelvis)+target_pelvis
+    task = dict(start_location=[2., 0., -2.], pelvis_goal=[-1., 0., 2.], object_goal=target_object.tolist())
+    rotation = terminal_goal_rotation(source_pelvis, source_object, task)
+    torch.testing.assert_close(rotation, desired_rotation)
+    shift = target_pelvis-rotation @ source_pelvis
+    torch.testing.assert_close(rotation @ source_object+shift, target_object)
+
+
+def test_endpoint_grounding_preserves_each_context_velocity_and_grounds_both():
+    from mixer.multitask_geometry import ground_endpoint_contexts
+    vertices = torch.zeros(20, 4, 3)
+    vertices[:10, :, 1] = -.02
+    vertices[10:, :, 1] = -.12
+    vertices[:, :, 0] = torch.arange(20)[:, None]/30
+    motion = dict(verts=vertices, joints=vertices.clone(), translation=vertices[:, 0].clone(),
+                  pose=torch.randn(20, 22, 3))
+    grounded = ground_endpoint_contexts(motion)
+    torch.testing.assert_close(grounded['verts'][..., 1], torch.zeros(20, 4))
+    for lo, hi in [(0, 10), (10, 20)]:
+        torch.testing.assert_close(grounded['joints'][lo+1:hi]-grounded['joints'][lo:hi-1],
+                                   motion['joints'][lo+1:hi]-motion['joints'][lo:hi-1])
+    assert grounded['pose'] is motion['pose']
+    torch.testing.assert_close(motion['verts'][:10, :, 1], torch.full((10, 4), -.02))
+
+
+def test_seating_support_distinguishes_a_seat_from_a_vertical_wall():
+    from mixer.multitask_geometry import seating_support_mask
+    axis = torch.linspace(-1, 1, 33)
+    x, y, z = torch.meshgrid(axis, axis, axis, indexing='ij')
+    info = dict(centroid=[0., 0., 0.], extents=[2., 2., 2.])
+    patches = torch.tensor([[[-.02, -.01, -.1], [-.02, -.01, .1]]])
+    assert seating_support_mask(patches, y[None, None], info).item()
+    assert not seating_support_mask(patches, x[None, None], info).item()

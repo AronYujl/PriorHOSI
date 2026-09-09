@@ -453,3 +453,45 @@ A support anchor is checked independently from body penetration. No generated
 motion, Kimodo result or visual aesthetic score participates in membership.
 Publish geometry previews of accepted conditions for semantic support review;
 retain all rejected candidate counts, cap exclusions and the original 469 rows.
+
+
+### Input-reference correction after the first construction
+
+The first run is retained as failed input construction. It emitted no candidate
+chains: 147 source exclusions, 287 invalid HOI witnesses and 35 tasks whose four
+static body transfers all failed foot support before any seating search.
+
+All 469 supplied object-goal heights match raw frame
+`language.start_idx[data_idx] + 3 * test_frames[-1]` (the current test frame is 15),
+maximum difference 1.20e-7m. Their horizontal human-object separation also matches
+that reference, maximum length difference 5.97e-7m. Full source-sequence ends
+instead differ in object height by .31838m on average. Reusing the task-path
+heading leaves a .33345m mean horizontal relation error even at the correct frame.
+
+Correct the condition witness to that declared task reference frame and the
+preceding ten-frame context. Keep the full sequence end as separate provenance
+and a separate source-exit audit. Derive terminal yaw from the source human-object
+XZ vector and the supplied pelvis/object-goal XZ vector, so both given goals are
+reconstructed together. The initial HOSI task stays unchanged. This replaces the
+incorrect full-sequence-end/path-heading assumption in the recipe above.
+
+Static witnesses contain two independently prescribed endpoint contexts, not a
+complete motion. One vertical shift across both contexts cannot ground both
+states after body transfer. On the first accepted HOI body, the four fixed
+sources' foot-distance maxima were .1074–.1264m under one shift; separate constant
+shifts per ten-frame context give .0371–.0473m. Ground each context independently
+by its native lowest surface. This preserves every local rotation and within-
+context velocity; record both translations explicitly. It replaces the single-
+shift rule above. The intermediate static action remains to be generated.
+
+Retain the same four LINGO sit sources, walk source, candidate ordering, scene
+scope, 12-episode cap, search budget, geometry/support thresholds and all original
+469tasks. This is an input-contract repair, with no threshold tuning or output-
+based source choice. The first native-body diagnostic was also retained after a
+working-directory error; the corrected diagnostic uses the existing code/ cwd.
+Use a new run ID and the complete authority suite after the source correction.
+
+The support query also requires free space 4cm above each contact patch, paired
+with occupied space 4cm below. This completes the directional support definition:
+a point slightly inside a vertical wall must not qualify as a seating surface.
+The existing 3cm contact-distance tolerance remains unchanged.

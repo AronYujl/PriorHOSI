@@ -57,6 +57,14 @@ def source_record(corpus, data_idx, language, starts, ends, scene, partition):
     )
 
 
+def attach_task_reference(record, task, source_stride=3):
+    """HOSI goals refer to its declared window sample, not the sequence end."""
+    frame = record['source_start_frame']+source_stride*int(task['test_frames'][-1])
+    return dict(record, task_reference_frame=frame,
+        task_reference_context_frames=list(range(frame-9, frame+1)),
+        task_reference_rule='language.start_idx[data_idx] + 3 * original_task.test_frames[-1]')
+
+
 class SourceCorpus:
     """Read corpus-qualified indices without constructing a training dataset."""
     def __init__(self, root, name):
@@ -121,7 +129,7 @@ def original_tasks(root, corpus):
     for path in sorted((Path(root)/'data/hosi_test/data').glob('*.json')):
         for index, task in enumerate(json.loads(path.read_text())):
             data_idx = int(task['data_idx'])
-            source = corpus.record(data_idx, 'OMOMO-test')
+            source = attach_task_reference(corpus.record(data_idx, 'OMOMO-test'), task)
             sources[source['source_id']] = source
             tasks.append(dict(task_id=f'hosi-{len(tasks):03d}', original_file=str(path.relative_to(root)),
                 original_row=index, original_task=task, source_id=source['source_id']))
@@ -203,10 +211,15 @@ def audit_source_boundaries(corpora, records, device):
     for record in records:
         corpus = corpora[record['source_dataset']]
         boundaries = {}
-        for name, frame_key in [('entry', 'initial_context_frames'), ('exit', 'terminal_context_frames')]:
+        frame_keys = [('entry', 'initial_context_frames'), ('exit', 'terminal_context_frames')]
+        if corpus.name == 'OMOMO':
+            frame_keys = [('entry', 'initial_context_frames'), ('exit', 'task_reference_context_frames'),
+                          ('full_sequence_exit', 'terminal_context_frames')]
+        for name, frame_key in frame_keys:
             frames = record[frame_key]
             joints = torch.as_tensor(np.array(corpus.joints[frames]), device=device, dtype=torch.float32)
             values = human_boundary_measures(joints)
+            values['reference_frames'] = frames
             if corpus.name == 'OMOMO':
                 obj = record['object_name']
                 if obj not in objects:
@@ -296,6 +309,8 @@ def run_multitask(cfg):
         lingo_action_counts=dict(Counter(r['text'] for r in lingo)),
         exclusion_reason_counts=dict(Counter(reason for r in exclusions for reason in r['exclusion_reasons'])),
         omomo_exit_requirements=dict(Counter(r['source_boundary_audit']['exit']['required_exit_action'] for r in hoi)),
+        omomo_exit_reference='declared HOSI task window sample',
+        omomo_full_sequence_exit_requirements=dict(Counter(r['source_boundary_audit']['full_sequence_exit']['required_exit_action'] for r in hoi)),
         geometry_accepted_episodes=len(episodes),
         construction_status_counts=dict(Counter(r['status'] for r in construction_audit)),
         construction_audit_rows=len(construction_audit),
