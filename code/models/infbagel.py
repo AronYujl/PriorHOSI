@@ -1455,7 +1455,7 @@ class Sampler:
 
     @torch.no_grad()
     def p_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \
-                    need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
+                    need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False, use_ddim=False):
         self.batch_size = fixed_points.shape[0]
         device = next(self.student_model.parameters()).device
         shape = (self.batch_size, self.dataset.max_window_size, self.channel)
@@ -1467,13 +1467,16 @@ class Sampler:
         occs = []
         x0 = []
         x0.append(points)
-        for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
+        timetable = self.solver.ddim_timesteps.tolist() if use_ddim else range(self.timesteps)
+        for index in tqdm(reversed(range(len(timetable))), desc='sampling loop time step', total=len(timetable)):
+            i = timetable[index]
             model_used = self.student_model
 
             points, occ, pred_x0 = self.p_sample(model_used, x0[-1], points, fixed_points, mat, scene_flag,
                                         torch.full((self.batch_size,), i, device=device, dtype=torch.long), i,
                                         text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix, object_only)
+                                        need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix, object_only,
+                                        ddim_index=index if use_ddim else None)
             if self.auto_regre_num > 0:
                 self.set_fixed_points(points, None, fixed_points, mat, joint_id=self.mask_ind, fix_mode=True, fix_goal=False)
 
@@ -1488,7 +1491,7 @@ class Sampler:
     @torch.no_grad()
     def p_sample(self, model, x0, x, fixed_points, mat, scene_flag, t, t_index,
                  text_emb, pelvis_goal, scene_goal, object_goal, need_scene,
-                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False):
+                 need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False, ddim_index=None):
         occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix, t_index)
 
         cond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True)
@@ -1518,18 +1521,27 @@ class Sampler:
                 raise RuntimeError("p-sample trace timestep was visited more than once")
             self._p_sample_trace = model_output.detach().clone()
 
-        model_mean = (
-            extract(self.posterior_mean_coef1, t, x.shape) * model_output +
-            extract(self.posterior_mean_coef2, t, x.shape) * x
-        )
+        if ddim_index is None:
+            model_mean = (
+                extract(self.posterior_mean_coef1, t, x.shape) * model_output +
+                extract(self.posterior_mean_coef2, t, x.shape) * x
+            )
+            last_step = t_index == 0
+        else:
+            index = torch.full_like(t, ddim_index)
+            predicted_noise = (
+                x - extract(self.sqrt_alphas_cumprod, t, x.shape) * model_output
+            ) / extract(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
+            model_mean = self.solver.ddim_step(model_output, predicted_noise, index).float()
+            last_step = ddim_index == 0
 
-        if t_index == 0:
+        if last_step:
             return model_mean, occ, model_output
         else:
-            # posterior_variance_t = extract(self.posterior_variance, t, x.shape)
-            # return model_mean + torch.sqrt(posterior_variance_t) * torch.randn_like(x), occ
-            model_log_variance = extract(self.posterior_log_variance_clipped, t, x.shape)
-            x_prev = model_mean + (0.5 * model_log_variance).exp() * torch.randn_like(x)
+            x_prev = model_mean
+            if ddim_index is None:
+                model_log_variance = extract(self.posterior_log_variance_clipped, t, x.shape)
+                x_prev = model_mean + (0.5 * model_log_variance).exp() * torch.randn_like(x)
 
             if guidance_fn is None:
                 return x_prev, occ, model_output
@@ -1595,7 +1607,9 @@ class Sampler:
                     loss = guidance_fn(human_jnts, obj_verts, pred_seq_com_pos, pred_obj_rot_mat, contact_labels, scene_flag, self.dataset.get_nearest_free_voxel)
 
                 gradient = torch.autograd.grad(-loss, x_start, retain_graph=True)[0] * guidance_scale
-                if self.hsi_guidance_posterior_coef1:
+                if ddim_index is not None:
+                    gradient = gradient * self.solver.ddim_x0_coefficient(index, x.shape)
+                elif self.hsi_guidance_posterior_coef1:
                     gradient = gradient * extract(self.posterior_mean_coef1, t, x.shape)
                 frame_weights = hsi_guidance_frame_weights(
                     gradient.shape[1],
@@ -1626,7 +1640,7 @@ class Sampler:
                     gradient = gradient * self.hsi_guidance_dose_scale
                 x_prev = x_prev + gradient
 
-            return x_prev, occ, model_output
+            return x_prev.float() if ddim_index is not None else x_prev, occ, model_output
     
 
     def set_fixed_points(self, img, goal, fixed_points, mat, joint_id, fix_mode, fix_goal):
@@ -1690,6 +1704,12 @@ class DDIMSolver:
         dir_xt = (1.0 - alpha_cumprod_prev).sqrt() * pred_noise
         x_prev = alpha_cumprod_prev.sqrt() * pred_x0 + dir_xt
         return x_prev
+
+    def ddim_x0_coefficient(self, timestep_index, x_shape):
+        """Clean Jacobian at fixed noisy state, including its implied epsilon."""
+        alpha = extract_into_tensor(self.ddim_alpha_cumprods, timestep_index, x_shape)
+        previous = extract_into_tensor(self.ddim_alpha_cumprods_prev, timestep_index, x_shape)
+        return previous.sqrt() - (1 - previous).sqrt() * alpha.sqrt() / (1 - alpha).sqrt()
 
     def ddim_style_multiphase_pred(self, pred_x0, pred_noise, timestep_index, multiphase):
         inference_indices = np.linspace(

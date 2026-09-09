@@ -196,3 +196,104 @@ def test_cm_guidance_matches_clean_displacement_through_actual_renoising(solver_
     )
     assert (legacy - uncorrected).abs().max() > 0
     torch.testing.assert_close((corrected - uncorrected).double(), mapped - base, atol=1e-6, rtol=1e-5)
+
+
+class ConstantTeacher(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        value = torch.zeros(232)
+        value[84:216] = torch.tensor([1, 0, 0, 0, 1, 0]).repeat(22)
+        self.value = torch.nn.Parameter(value)
+        self.calls = []
+
+    def forward(self, x, occ, t, *args, **kwargs):
+        unconditional = kwargs.get("is_uncondition", False)
+        self.calls.append((t.clone(), x[:, :2].clone(), unconditional))
+        result = self.value.expand_as(x).clone()
+        result[..., 0] = 0.25 if unconditional else 0.5
+        return result
+
+
+def diffusion_inputs():
+    engine = sampler(w=1)
+    engine.batch_size = 1
+    engine.dataset = GeometryDataset()
+    engine._compute_occ_sample = lambda *args: (None, None, None)
+    engine.student_model = ConstantTeacher().eval()
+    x = torch.randn(1, 16, 232)
+    args = dict(
+        fixed_points=x[:, :2].clone(), mat=torch.eye(4)[None],
+        scene_flag=torch.zeros(1, dtype=torch.long), text_emb=None,
+        pelvis_goal=None, scene_goal=None, object_goal=None, need_scene=None,
+        need_pelvis_dir=None, pi=None, end_pi=None, seq_length=None, need_pi=None,
+        is_loco=None, is_object=torch.tensor([False]), obj_bps_data=None,
+        object_points=None, obj_rot_mat_ref=None, obj_rest_verts=None,
+        obj_vert_normals=None, seq_name_dict=None,
+        human_dict=dict(rest_human_offsets=torch.zeros(1, 16, 24, 3),
+                        transl=None, betas=None, gender=None),
+        guidance_fn=None, guidance_scale=1.0,
+    )
+    return engine, x, args
+
+
+def test_ddim_rollout_visits_teacher_grid_preserves_history_and_only_draws_initial_noise():
+    engine, _, args = diffusion_inputs()
+    torch.manual_seed(42)
+    torch.randn(1, 16, 232)
+    expected_rng = torch.get_rng_state()
+    torch.manual_seed(42)
+    samples, _ = engine.p_sample_loop(**args, use_ddim=True)
+    assert torch.equal(torch.get_rng_state(), expected_rng)
+    assert len(samples) == 25 and len(engine.student_model.calls) == 50
+    assert [int(t[0]) for t, _, _ in engine.student_model.calls[::2]] == list(range(499, 18, -20))
+    assert [flag for _, _, flag in engine.student_model.calls] == [False, True] * 25
+    for _, prefix, _ in engine.student_model.calls:
+        torch.testing.assert_close(prefix, args["fixed_points"], rtol=0, atol=0)
+    expected = engine.student_model.value.expand_as(samples[-1]).clone()
+    expected[..., 0] = 0.75  # conditional + 1 * (conditional - unconditional)
+    expected[:, :2] = args["fixed_points"]
+    torch.testing.assert_close(samples[-1], expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("solver_index", [0, 10, 24])
+def test_ddim_guidance_is_the_clean_jacobian_of_the_deterministic_teacher_step(solver_index):
+    engine, x, args = diffusion_inputs()
+    t = int(engine.solver.ddim_timesteps[solver_index])
+    args.update(model=engine.student_model, x0=x, x=x, t=torch.tensor([t]),
+                t_index=t, ddim_index=solver_index)
+    base, _, clean = engine.p_sample(**args)
+    engine._hsi_guidance_loss = lambda joints, scene: joints.square().sum()
+    args["guidance_fn"] = True
+    guided, _, _ = engine.p_sample(**args)
+    displacement = torch.zeros_like(clean)
+    displacement[..., :3] = -48 * clean[..., :3]  # 24 joints at the pelvis in this fixture
+    alpha = engine.alpha_cumprod[t]
+    previous = engine.alpha_cumprod[t - 20] if solver_index else torch.tensor(1.)
+    def reference(prediction):
+        noise = (x - alpha.sqrt() * prediction) / (1 - alpha).sqrt()
+        return previous.sqrt() * prediction + (1 - previous).sqrt() * noise
+    expected = reference(clean + displacement) - reference(clean)
+    if solver_index == 0:
+        expected.zero_()  # the native final denoising transition has no external correction
+    torch.testing.assert_close(guided - base, expected, atol=2e-5, rtol=2e-5)
+    torch.testing.assert_close(
+        engine.solver.ddim_x0_coefficient(torch.tensor([solver_index]), x.shape).float().squeeze(),
+        previous.sqrt() - (1 - previous).sqrt() * alpha.sqrt() / (1 - alpha).sqrt(),
+        atol=1e-7, rtol=1e-5,
+    )
+
+
+@pytest.mark.parametrize("timestep", [0, 19, 249, 499])
+def test_ddpm_default_step_preserves_posterior_and_random_draw(timestep):
+    engine, x, args = diffusion_inputs()
+    args.update(model=engine.student_model, x0=x, x=x, t=torch.tensor([timestep]),
+                t_index=timestep)
+    torch.manual_seed(42)
+    actual, _, clean = engine.p_sample(**args)
+    actual_rng = torch.get_rng_state()
+    expected = engine.posterior_mean_coef1[timestep] * clean + engine.posterior_mean_coef2[timestep] * x
+    torch.manual_seed(42)
+    if timestep:
+        expected += (0.5 * engine.posterior_log_variance_clipped[timestep]).exp() * torch.randn_like(x)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    assert torch.equal(actual_rng, torch.get_rng_state())

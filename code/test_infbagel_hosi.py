@@ -139,9 +139,9 @@ def sample_step(cfg, step, mat, fixed_points, sampler, cond, trajectory, pi, end
     if cfg.sample_type == 'consistency':
         samples, occs = sampler.cm_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
                                             object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, w=cfg.w, obj_rot_mat_prefix=obj_rot_mat_prefix)
-    elif cfg.sample_type == 'diffusion':
+    elif cfg.sample_type in ('diffusion', 'ddim'):
         samples, occs = sampler.p_sample_loop(fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, \
-                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, obj_rot_mat_prefix=obj_rot_mat_prefix)
+                                            object_goal, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, cfg.guidance_weight, object_only=False, obj_rot_mat_prefix=obj_rot_mat_prefix, use_ddim=cfg.sample_type == 'ddim')
 
     points_gene = samples[-1]
 

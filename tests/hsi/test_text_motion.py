@@ -43,7 +43,7 @@ def test_groups_use_caption_and_inclusive_five_cm_threshold():
 
 
 def test_generation_protocol_uses_each_artifacts_sampler():
-    for mode, steps in (("diffusion", 500), ("consistency", 16)):
+    for mode, steps in (("diffusion", 500), ("consistency", 16), ("ddim", 25)):
         payload = {"sample_type": mode, "guided": True, "seed": 42,
                    "timing": {"sampler_steps_per_window": steps}}
         result = generation_protocol(payload)

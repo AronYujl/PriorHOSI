@@ -3192,8 +3192,8 @@ def evaluate_d4_offline_decomp(cfg: DictConfig) -> Path:
 def evaluate_model(cfg: DictConfig) -> Path:
     if int(cfg.batch_size) != 1:
         raise ValueError("LINGO HSI timing protocol requires batch_size=1")
-    if str(cfg.sample_type) not in ("consistency", "diffusion"):
-        raise ValueError("sample_type must be consistency or diffusion")
+    if str(cfg.sample_type) not in ("consistency", "diffusion", "ddim"):
+        raise ValueError("sample_type must be consistency, diffusion or ddim")
     from test_infbagel_hosi import seed_everything, synchronize_cuda
 
     seed_everything(int(cfg.seed))
@@ -3467,11 +3467,11 @@ def evaluate_model(cfg: DictConfig) -> Path:
             "denoiser calls per window varied across the run: %s" % distinct_call_counts
         )
     denoiser_calls_per_window = distinct_call_counts[0]
-    sampler_steps_per_window = (
-        int(sampler.cm_timesteps)
-        if str(cfg.sample_type) == "consistency"
-        else int(sampler.timesteps)
-    )
+    sampler_steps_per_window = int({
+        "consistency": sampler.cm_timesteps,
+        "diffusion": sampler.timesteps,
+        "ddim": sampler.ddim_timesteps,
+    }[str(cfg.sample_type)])
     # cm_sample evaluates once per step; p_sample evaluates conditional and unconditional passes.
     timing = {
         "per_window_wall_seconds": float(np.mean(all_window_seconds)),

@@ -13487,3 +13487,15 @@ FID改善独立呈现。用封存CM1差距作描述性对照，禁止将差值�
 调参门。两组latency、两组full375、一次Table3各自创建immutable manifest。只在全部
 start完成后追加completion registry，形成一个completion commit和PHASE_1C_CM1_DDIM.md
 交接。R2+CG继续承担质量基线；本轮保持Phase1C开放。
+
+### CM1.3 实现验证（首个正式负载前）
+
+原生diffusion循环新增显式DDIM选择，条件预测/CFG、occupancy、历史固定与几何能量
+复用原有路径。DDIM状态推进直接调用训练的DDIMSolver，eta=0；几何Jacobian包含由
+clean prediction反推epsilon的导数。评估artifact记录sample_type=ddim、25steps/50calls。
+八项新组件检查覆盖网格/终点/历史/随机数，以及三个噪声位置的Jacobian和四个DDPM
+默认时间点；定向60项通过。Authority首次456 passed、3 skipped、2 setup errors：
+命令未export INFBAGEL_PYTHON，影响恢复测试的子进程环境；export后受影响模块4项
+全部通过，合计覆盖458 passed、3 skipped。原始日志保留，生产source无需因环境错误变更。
+19份精确job配置已完整解析。主机为verified infbagel/Python3.8、torch1.13.1+cu117、
+8块RTX3090；性能测量使用单卡batch1的固定latency任务，全375分片作为质量读数。
