@@ -13722,3 +13722,19 @@ GT恢复使用新id p1-hsi-interpolation-gt-r1-s42-20260909 和新输出目录in
 五个未开始的负载将与恢复GT使用本次同一提交；全部52份job配置重新解析，旧失败GT配置
 原样保留。当前registry包含397行。此次追加提交由实际reportable失败及执行source转换
 要求触发，后续仍统一完成一个completion commit。
+
+
+### CM1.5 资源预算修订（全教师结果产生前）
+
+2026-09-09 05:34 UTC：已完成GT及CM16 U/G，三个manifest从359ae11干净source封存，
+尚未统一登记。R2 U正在同source运行，前31条/166窗加权采样时间16.3732488秒/窗，
+2271窗约10.3288 GPU-h。历史R2 G的shard0全49条记录均值60.1622秒/窗，按同2271窗
+估计约37.95 GPU-h；加已完成三组1.56861 GPU-h，总计约49.85 GPU-h。最初48 GPU-h
+估算偏低，现将同一固定375任务的总资源上限修订为64 GPU-h，留出运行差异余量。
+该修订改变资源上限，数据、样本数、权重、噪声、sampler及统计判据继续使用原注册值。
+
+本次只变更计划和registry两个治理文件；R2 U运行source仍359ae11，终结时按现有
+experiment.py的显式commit-transition机制记录这两个文件的差异。其余已封存manifest
+保留原source。尚未开始的R2 G和表示诊断将从本次新提交启动；preflight记录两者具有
+相同runtime代码及本预算修订，resolved config沿用已经解析的同一组配置。此治理提交
+由实际资源估算与未完成负载的source转换要求触发。最终仍统一完成报告及completion commit。
