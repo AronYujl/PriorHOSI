@@ -1,0 +1,29 @@
+# CM1.4: fixed student sampler and direct-position/FK diagnosis.
+defaults: [config_sample_hsi_c_r2_fixed_w, _self_]
+
+model_name: cm1_steps25_unguided
+use_guidance: false
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_steps25_unguided_s42_20260909
+sampler:
+  pelvis:
+    cm_timesteps: 25
+
+table3_output: ${oc.env:ROOT_DIR}/results/hsi_cm1_steps25_table3_s42_20260909
+table3_inputs:
+  unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_steps25_unguided_s42_20260909/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_steps25_guided_s42_20260909/p1-hsi-cm1-r2-fixed-w-s42-20260908_epoch089-merged08/evaluation/per_sequence_metrics.json
+
+representation_output: ${oc.env:ROOT_DIR}/results/hsi_position_fk_s42_20260909
+representation_shard_index: 0
+representation_shard_count: 8
+representation_batch_size: 128
+representation_inputs:
+  gt: ${oc.env:ROOT_DIR}/results/lingo_hsi/gate_probe_20260820/gt375
+  r2_unguided: /data/yujinlun/InfBaGel-hsi-r2/results/lingo_hsi/r2_fullbody_seam_unguided_shard8_on4
+  r2_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_cg_guidance_coef1
+  ddim25_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_ddim25_unguided_s42_20260909
+  ddim25_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/r2_ddim25_guided_s42_20260909
+  cm16_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_final_unguided
+  cm16_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_final_guided
+  cm25_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_steps25_unguided_s42_20260909
+  cm25_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_steps25_guided_s42_20260909

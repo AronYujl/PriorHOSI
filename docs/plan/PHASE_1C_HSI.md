@@ -13537,3 +13537,65 @@ U FS 0.280929→0.309792，boundary jerk139.374→155.877；G pen_ratio0.025440�
 docs/phase_summaries/PHASE_1C_CM1_DDIM.md。保留R2+CG。后继具体方案优先隔离固定
 CM1的16/25步采样差异，并量化位置通道与FK身体的差异，再决定物理保真训练目标。
 本轮完成诊断，尚未把额外退化单独归因于seam loss、EMA或dropout；Phase1C保持开放。
+
+## 2026-09-09（CM1.4：固定学生步数与位置/FK诊断；用户已批准）
+
+用户批准固定CM1权重的16/25步对照和位置通道/FK偏差量化，并要求核查
+/data/yujinlun/report/HSI_baseline_2.md的GT FID=2.81；后续训练优先已定位的教师问题。
+本轮component=hsi-cm1.4，继续phase/01c-cm1，以冻结诊断定位教师绝对质量与学生额外
+损失。交付A为固定采样对照，交付B为表示误差与FID来源审计；本轮训练更新数为0。
+
+### A. 固定CM1 final的16/25步对照
+
+CM1 epoch089、CFG1、外部geometry scale1保持固定。新增25-step consistency U/G，
+各375条/2271窗口、25次denoiser前向，G含24次既有sqrt(alpha_prev)映射的非终步修正。
+复用封存16-step U/G及其latency、Table3；R2 DDPM500/DDIM25均作封存参照。模型权重、
+数据、progress、occupancy轴序、goal heading和原生指标保持原值。沿用canonical-ordinal
+seed42；采样步数改变噪声消耗，故不声称后续每个窗口的初始latent相同。
+
+先执行U/G各一次单3090、batch1 latency70（19条/69窗、5条预热、14条计时），同时承担
+真实路径验证和正式形状性能测量。随后U/G各一次8卡全量评估，最后一次单卡Table3。
+完整13项、接触量、full375与holdout355安全量、单卡速度均保留；FID2000次配对bootstrap，
+其余10000次seed42。主对照CM25−CM16的U/G pen_ratio、FS、boundary jerk与exterior
+contact；逐项95%区间和八个主对照的Bonferroni同时区间并列，不能因一个指标改善而晋级。
+此对照定位固定权重下改变consistency步数的效果；未改善不等于已证明某个训练损失是根因。
+
+### B. 直接位置/FK的部署表示误差
+
+复用GT375、R2 DDPM U/G、R2 DDIM25 U/G、CM16 U/G及新增CM25 U/G的motion导出，
+共9组×375条。8个sequence shard逐条重建已保存的SMPL-X参数，复用既有模型创建与
+run_smplx_model，batch128、GPU计算；不重新运行denoiser，不改动原始motion和指标。
+原生30Hz上，直接位置用既有interpolate_joints升采样，FK使用导出中的fine-rate参数。
+主量为去各自root后21个非root身体关节的平均L2误差；并报body/global MPJPE、root误差、
+matched28 MPJPE、逐序列body误差p95及各seam后两粗帧范围/其余帧的误差。
+
+匹配28槽必须用数据/encoder的index1/ring1布局（SMPL-X25/34/40/49），不能把原生
+物理评估的middle1槽28/43直接当作ring1。主身体21关节避开手指布局差异。GT组给出
+同一重建/插值流程的参照。该误差包含当前部署表示与固定插值过程的联合影响；既有
+quaternion LERP和位置/旋转时间网格不在本轮重定义，因此不得把全部残差归为原始网络头
+误差。本轮不将FK序列送进冻结原生FID定义，也不改变core或已封存物理指标。
+
+每个arm完整输出375条标量记录，现有paired_bootstrap.py给出R2−GT、CM16−R2、
+CM25−CM16的U/G对照及DDIM25−R2描述。额外指标与单步数研究分别呈现，相关性不当因果。
+重建任务记录CUDA同步batch128时长：前4个完整batch预热，其后完整batch汇总；峰值显存
+与吞吐入manifest结果。正式重建本身承担真实数据功能验证，不另设smoke。
+
+### C. FID来源审计与教师优先级
+
+已读原始m3_noise_floor.py/json：2.811742929来自encoder训练bundle中固定3000条池，
+两组各245条、60次seed42拆分的FID均值，分布范围[1.08390,5.87252]；3000池历史选择seed
+为7。它不是当前245条test-GT与自身的分数，也不是HSI_baseline.md脚注所说的1/n外推。
+本轮只引用历史记录，不重跑该非当前seed协议。原始t2m_interactive.json的self-GT FID=0。
+同时引用当前封存embeddings的均值/协方差分解与CG配对差，明确训练池/测试队列的区别和
+有限样本FID偏差依赖分布，避免把40.05/2.81解释为动作误差倍率。
+
+### 执行与完成门
+
+一个配置片段，表示统计放入HSI组件，由既有evaluator mode分发；无新tools脚本。
+组件验证25-step CM网格/终点和条件、位置/FK的共同刚体变换不变性、root/pose误差分离、
+关节布局与seam区域。新增运行代码后先跑一次authority及registry validation；完全解析
+各job配置再通过clean Git与experiment.py start执行。六个GPU workload：latency U/G、
+quality U/G、Table3、8卡表示重建及其合并；总上限12GPU-h。有限但质量差的结果完整保留，
+协议或运行失败保留工件并停止相应任务。完成所有配对统计、失败案例和报告后统一登记、
+完成一个completion commit，交接PHASE_1C_CM1_REPRESENTATION.md。R2+CG继续作比较基线，
+后续教师修复按本轮定位形成具体训练方案；本轮保持Phase1C开放。
