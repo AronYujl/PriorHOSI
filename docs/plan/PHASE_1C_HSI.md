@@ -13768,3 +13768,69 @@ holdout355绝对守卫全部通过；R2 G full375为11条/16帧>5g，holdout6/8�
 旧协议独立保留。后继审阅一个全未来帧GT锚定body21 FK目标，先量级/梯度校准，再提出
 固定预算from-random教师训练；训练有效性尚未证明，R3 hard-rebase负结果保持约束。
 未开展新训练，Phase1C保持开放。
+
+
+## 2026-09-09（R4：全未来帧 GT 身体 FK 教师监督；用户已批准）
+
+用户批准“给教师补齐全未来帧、以GT为目标的身体FK监督，再重新验收物理质量、FID和语义”。
+分支 phase/01c-r4-fk；R4.1 为目标实现、单次量级校准、资源测量与正式训练稳定启动，
+R4.2 为固定内部诊断和最终验收。两节均属于 Phase1C；本授权覆盖一个从随机初始化的
+教师训练及其验收。R2 final EMA 是对照，released checkpoint 继续只作历史基线。
+
+### 唯一目标与权重规则
+
+保持 R2 架构、位置MSE、旋转L1、手足FK权重3、全身seam权重0.5494500113254572，
+增加 body_fk_loss_weight * mean(((FK(pred)[2:,1:22]-FK(pred)[2:,0:1]) -
+(GT_position[2:,1:22]-GT_position[2:,0:1]))^2)。索引为零基，xyz逐元素平均，
+单位m²，覆盖14帧及21个非root身体关节。GT来自同一真实训练窗口的直接位置，
+预测FK复用现有fp32几何；保留root平移的既有监督和首个未来帧可学习性。
+身体位置不能观测所有末端旋转，故保留旋转及手足约束。root相减只发生在米制FK空间，
+保持原始输出参数化；R3大值输出重基准的负结果继续约束实现。
+
+校准只读取固定seed42、随机初始化、正式4×512布局的第一个真实训练batch，各rank零更新。
+命名probe body_fk_gradient_calibration 置于hsi/diagnostics，由既有trainer分发。记录各损失
+原始/加权量级、共享transformer参数梯度范数及旋转输出head梯度范数、与新项的cosine。
+令G为各rank范数中位数：lambda=min(0.10*G_R2_total_trunk/G_body_trunk,
+0.25*G_rotationL1_head/G_body_rotation_head)。后一限制用于保护既有旋转目标；单次规则
+决定数值，不据rollout或test结果重调。校准失败只修复执行问题，保留所有formal失败。
+
+### 固定训练、资源与内部诊断
+
+沿用R2的4 ranks×512×accum1、effective2048、seed42、lr2e-4、warmup2000，
+117004后cosine尾、146255更新=299530240窗口=4792483840帧、223 epoch上限，
+EMA0.9999、bf16_tf32、fp32几何、train split及全部条件。4卡是既有受控比较布局，
+rank数量改变会改变随机数和数据分片；本轮使用8卡主机中4卡训练，8卡最终评估。
+CPU线程OMP/MKL均4。按可用显存选择4张物理卡并记录竞争，逻辑rank与数据分片保持4×512。
+最低实际余量max(2GiB,10%总显存)；正式启动前完整microbatch128更新性能测量，前32次
+预热、后96次CUDA同步计时，记录逐rank allocated/reserved、全部loss与梯度有限性。
+该真实数据测量承担运行验证，不另加smoke。校准+性能成本上限4GPU-h。
+
+唯一正式训练从随机初始化；ckpt_interval=1只增加滚动恢复点，最终仍仅导出final EMA。
+初始稳定区间128更新及首个可恢复checkpoint后可报告速度/ETA并交回用户，持久进程运行。
+固定epoch19滚动EMA在独立目录保留一次内部readout，使用既有冻结60episode队列做
+DDPM500无引导生成历史rollout并报告物理、接触、表示误差及既有teacher-forced读数；
+其中已接触test的队列只能称开发诊断，最终holdout355/全375均透明保留。诊断不选择checkpoint、
+不早停、不改budget或权重。正式训练上限160GPU-h，性能预估超限时先记录资源修订。
+
+### R4.2 固定最终验收
+
+仅最终EMA，DDPM500、CFG w=1，U关闭CG、G使用R2现有posterior coefficient guidance；
+其余原生协议、fixed_rate_endpoint_hold_v1部署插值和canonical seed42保持一致。
+U/G各375条2271窗口，复用CM1.5修正后R2与GT。报告完整13物理量、total/exterior contact、
+全375及holdout355安全量、原生全部分组、位置/FK body21/边界/内部/28关节读数。
+固定原生Table3 FID、Diversity、MM-Dist、R@1/2/3和样本数；冻结encoder及245互动样本。
+主比较R4−R2：U/G的body21分歧、pen_ratio、FS、boundary jerk、exterior contact，
+10项Bonferroni同时区间+逐项95%区间；序列配对bootstrap10000次seed42。
+FID2000次、MM/R@3 10000次配对bootstrap；六个语义/FID主量另给family6同时区间。
+验收分开报告：表示改善需body21同时CI<0；物理改善需至少一个pen/FS/jerk同时CI<0，
+且其他物理项无明确退化、exterior contact均值>=95%R2；FID/MM均值<=105%R2、R@3
+均值>=95%R2且六项同时CI无明确退化才通过保真门。区间跨0仅表示不确定。
+继续保留既有holdout绝对安全阈值（>5g最多8条/38帧、低骨盆walk最多2条），逐例记录。
+只有这些门联合通过才可称改善教师；训练loss下降或单项FK下降不足以晋级。
+
+最终8卡U/G质量、一次Table3及表示诊断上限80GPU-h，单卡latency沿用原有70窗协议，
+训练改损失不改变推理compute，但最终实测速度仍报告。全部完成后记录失败、成本、统计、
+compact和PHASE_1C_R4_FK总结。所有任务先解析精确配置，通过clean Git与experiment.py start；
+复用封存输入manifest引用，不新增哈希包装、脚本或core变更。一个preregistration commit、
+一个logical implementation commit；校准数值落地属于执行source转换，允许必要的配置提交。
+Phase1C保持开放，本次授权不包含新蒸馏、mixer或另一训练方向。
