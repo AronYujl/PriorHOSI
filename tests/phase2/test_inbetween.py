@@ -85,3 +85,20 @@ def test_fixed_contact_speed_still_counts_a_sliding_foot_after_it_is_raised():
     assert abs(grounded['fixed_contact_speed_m_s']-1.) < 1e-5
     assert grounded['fixed_contact_speed_m_s'] == raised['fixed_contact_speed_m_s']
     assert raised['fixed_contact_height_abs_m'] > .19
+
+
+def test_native_surface_gradient_matches_rigid_translation(monkeypatch):
+    import utils
+    from mixer.inbetween_contact import differentiable_body
+    monkeypatch.setattr(utils, 'SMPL_DIR', str(Path(__file__).resolve().parents[2]/'smpl_models'))
+    device = torch.device('cuda:6')
+    model = utils.create_smplx_model('male', device).eval().requires_grad_(False)
+    pose = torch.zeros(1, 22, 3, device=device, requires_grad=True)
+    translation = torch.zeros(1, 3, device=device, requires_grad=True)
+    motion = dict(pose=pose, translation=translation, betas=torch.zeros(16, device=device), gender='male')
+    vertices, joints = differentiable_body(motion, model)
+    gradient = torch.autograd.grad(vertices[..., 1].mean(), (translation, pose), retain_graph=True)
+    torch.testing.assert_close(gradient[0], torch.tensor([[0., 1., 0.]], device=device))
+    assert torch.isfinite(gradient[1]).all() and gradient[1].abs().max() > 1e-4
+    joint_gradient = torch.autograd.grad(joints[..., 2].mean(), translation)[0]
+    torch.testing.assert_close(joint_gradient, torch.tensor([[0., 0., 1.]], device=device))

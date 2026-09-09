@@ -317,3 +317,16 @@ predictions. Actual correction timing and memory are recorded in the formal run.
 Assembly reporting uses51new30Hzframes (`bridge[10:]`); Phase5.2's numerical
 exports already contain51but its narrative/assembly JSON said50. The source
 prefix and actual exported frame arrays are retained exactly.
+
+### Native gradient-path correction
+
+The first correction run was stopped and sealed failed: the reused `decode_body`
+helper is explicitly evaluation-only (`torch.no_grad`), so all geometric terms
+were detached and the zero-initialized rotation-deviation term supplied zero
+gradients. Saved completed cases have exactly zero motion changes. Use the native
+`run_smplx_model` differentiable forward directly in optimization, retain the
+evaluation decoder for measurements, and add a native-surface translation
+Jacobian check. Keep all failed-run artifacts and use a fresh run identifier.
+All budgets, objectives, masks, source motions and endpoints stay fixed.
+The summary reduces scalar metrics; nested condition dictionaries remain in the
+full per-case records and are excluded from numerical paired statistics.

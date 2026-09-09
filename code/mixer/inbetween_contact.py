@@ -48,6 +48,12 @@ def foot_points(vertices, patches):
     return points.mean(2)[..., [0, 2]], points[..., 1].amin(-1)
 
 
+def differentiable_body(motion, model):
+    from utils import run_smplx_model, SMPLX_JOINTS_28
+    return run_smplx_model(motion['pose'], motion['translation'], motion['betas'], motion['gender'],
+        joints_ind=SMPLX_JOINTS_28, smpl_model=model)
+
+
 def scene_distances(vertices, sdf, info):
     extent = float(max(info['extents']))
     query = (vertices-vertices.new_tensor(info['centroid']))/(extent/2)
@@ -95,7 +101,7 @@ def correct_motion(source, model, patches, mask, sdf, info, object_sdf, object_i
     started = time.perf_counter()
     for iteration in range(settings.iterations):
         motion = fixed_context_motion(source, pose, translation)
-        vertices, joints = decode_body(motion, model)
+        vertices, joints = differentiable_body(motion, model)
         acceleration = joints[2:]-2*joints[1:-1]+joints[:-2]
         horizontal, height = foot_points(vertices, patches)
         free = vertices[10:51]
@@ -218,7 +224,7 @@ def run_contact(cfg, root):
         paired = {}
         summaries[subset] = {}
         for arm in ('before', 'after'):
-            values = {f'task-{r["task"]:03d}': {k: float(v) for k, v in r[arm].items() if v is not None}
+            values = {f'task-{r["task"]:03d}': {k: float(v) for k, v in r[arm].items() if isinstance(v, (int, float))}
                 for r in selected}
             write_json(statistics/f'{subset}_{arm}_per_sequence_metrics.json', dict(metrics=values, sequence_count=len(values)))
             summaries[subset][arm] = {k: float(np.mean([v[k] for v in values.values()])) for k in next(iter(values.values()))}
