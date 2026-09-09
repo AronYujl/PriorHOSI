@@ -675,3 +675,21 @@ This subphase publishes candidate manifests and diagnostics only. It does not
 reuse `correct_terminal_draw0`, Kimodo outputs or any other generated motion to
 select candidates, and it does not claim a generated chain result. The next
 subphase evaluates actual predecessor guards and all transition frames.
+
+### Phase 5.5.2a completion
+
+Run `p5-multitask-source-eligibility-r1-s42-20260910` audited all 469 OMOMO tasks,
+1214 eligible LINGO sources and 912 LINGO exclusions using source state and full
+target-scene geometry only. It accepted three `omomo_to_lingo` candidates and
+zero `lingo_to_omomo` candidates. All 469 reverse-direction OMOMO initial states
+failed the source hand-release guard; this zero is independent of the bounded
+LINGO pool. Forward failures were 460 OMOMO state exclusions, 2 OMOMO geometry
+failures and 67 full LINGO source-interval geometry failures.
+
+The accepted source intervals pass the registered SDF/bounds checks. No model
+output or generated motion was used, and no chain success is claimed. The first
+run failed on a per-frame object-position broadcast error and is retained; the
+corrected r1 run completed in 14.57 seconds on GPU 0. Full authority verification
+after the fix is 1157 passed and 4 skipped. Read [Phase 5.5.2a summary](../phase_summaries/PHASE_5F_SOURCE_ELIGIBILITY.md)
+and `experiments/results/p5_multitask_source_eligibility_s42_20260910.json`
+before 5.5.2b actual-history execution.

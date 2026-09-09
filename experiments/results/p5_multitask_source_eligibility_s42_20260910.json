@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "experiment_id": "p5-multitask-source-eligibility-r1-s42-20260910",
+  "phase": "p5",
+  "subphase": "5.5.2a",
+  "seed": 42,
+  "status": "completed_source_inventory",
+  "model_output_used": false,
+  "generated_motion_samples": 0,
+  "original_hosi_tasks": 469,
+  "lingo_sources": 1214,
+  "excluded_lingo_sources": 912,
+  "lingo_pool_size": 16,
+  "lingo_pool_not_attempted": 1198,
+  "accepted_by_direction": {"omomo_to_lingo": 3, "lingo_to_omomo": 0},
+  "attempts_by_direction_and_status": {
+    "omomo_to_lingo/omomo_source_state_ineligible": 460,
+    "omomo_to_lingo/omomo_source_scene_geometry_failed": 2,
+    "omomo_to_lingo/lingo_source_scene_geometry_failed": 67,
+    "omomo_to_lingo/accepted_source_transition": 3,
+    "lingo_to_omomo/omomo_source_state_ineligible": 469
+  },
+  "accepted_geometry": {
+    "source_body_scene_penetration_max_m": 0.0,
+    "source_body_object_penetration_max_m": 0.014297416433691978,
+    "source_object_scene_penetration_max_m": 0.0017242995090782642,
+    "source_object_floor_penetration_max_m": 0.0
+  },
+  "elapsed_seconds": 14.571228532120585,
+  "device": "cuda:0",
+  "artifacts": {
+    "manifest": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/manifest.json",
+    "summary": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/eligibility/summary.json",
+    "candidates": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/eligibility/candidate_transitions.json",
+    "audit": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/eligibility/transition_audit.json",
+    "pool": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/eligibility/pool_selection.json",
+    "source_catalog": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910/eligibility/source_catalog.json",
+    "failed_run": "results/experiments/p5-multitask-source-eligibility-s42-20260910/manifest.json"
+  },
+  "verification": {"full_authority_tests_passed": 1157, "historical_skips": 4, "log": "results/verification/source_eligibility_authority_fix.log"},
+  "next_entry": "phase/05e2-multitask-execution/5.5.2b actual-history execution on the three source-eligible OMOMO-to-LINGO candidates"
+}
