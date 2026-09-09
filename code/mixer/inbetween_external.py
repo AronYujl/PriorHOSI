@@ -182,7 +182,7 @@ def condmdi_generate(data, root, out, device):
     weight = (time_indices-low)[None, :, None, None]
     positions = data['joints'][:, low]*(1-weight) + data['joints'][:, high]*weight
     native_lengths = bone_lengths(data['neutral_joints'])
-    reference = torch.from_numpy(np.load('dataset/000021.npy')).float().to(device).reshape(-1, 22, 3)[0]
+    reference = torch.from_numpy(np.load('dataset/000021.npy')).float().to(device)[0, :22]
     model_lengths = bone_lengths(reference)
     scale = (model_lengths[5]+model_lengths[8]) / (native_lengths[:, 5]+native_lengths[:, 8])
     roots = positions[:, :, 0]*scale[:, None, None]

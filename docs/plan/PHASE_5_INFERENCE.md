@@ -226,3 +226,11 @@ prefix frame6depend on the unknown next frame and therefore remain unobserved.
 All endpoint pose channels remain conditioned. The final static suffix defines
 zero forward velocity by continued holding. This prevents the unobserved
 interpolation scaffold from supplying a boundary velocity as if it were data.
+
+Runr2completed all12Kimodo samples in6.2686s plus0.0718s official postprocessing,
+with finite outputs. CondMDI stopped before denoising because its released
+`000021.npy` has shape[180,52,3]; select its first22body joints as the author's
+skeleton implementation does. Preserve allr2Kimodo raw outputs and use read-only
+file references in the next run, which generates only the still-missing CondMDI
+arm and then evaluates both. Synchronize CUDA before native-fit timing as well
+as after it. No additional Kimodo samples or output-based source choices occur.

@@ -158,6 +158,7 @@ def fit_native(rotation, root_positions, targets, condition_rotation, condition_
     translation = (root_positions[unknown]-offsets[0]).detach().clone().requires_grad_(True)
     optimizer = torch.optim.Adam([six, translation], lr=cfg.inbetween.native_fit_lr)
     base = rotation.detach()
+    torch.cuda.synchronize(rotation.device)
     started = time.perf_counter()
     for _ in range(cfg.inbetween.native_fit_iterations):
         fitted_rotation = condition_rotation.clone().index_copy(0, unknown, transforms.rotation_6d_to_matrix(six))
