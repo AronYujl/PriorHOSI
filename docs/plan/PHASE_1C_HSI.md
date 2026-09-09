@@ -13706,3 +13706,19 @@ metrics schema5、motion schema4。重放检查在生成计时结束后核对粗
 原封存配置的已有字段对照，仅输出路径和显示model_name不同；sampler设置一致。
 主机verified infbagel、8×RTX3090。首个GT全375真实重建后，依次执行CM16 U/G、R2 U/G
 八卡重放及五组八卡位置/FK。代码变更、组件测试和本说明统一为一个implementation commit。
+
+
+### CM1.5 GT启动失败与恢复契约
+
+首个GT manifest p1-hsi-interpolation-gt-s42-20260909 已封存为failed：显式设备的
+reset_peak_memory_stats 在CUDA lazy initialization前调用，05:10:29–05:10:31 UTC，
+未读取/生成任何episode，2秒预留成本0.000556 GPU-h。pipeline随即停止，其余manifest
+尚未创建。失败日志、resolved config与completion记录完整保留。首次shell脱离未成功且
+尚未创建manifest的空日志另保留；后续使用独立进程session启动持久任务。
+
+恢复仅在启用计时的GT入口先调用torch.cuda.init()，再重置计数器；数据、插值算法、
+采样与统计规则保持注册值。定向两组件41项通过（7.04秒），完整authority此前472/3。
+GT恢复使用新id p1-hsi-interpolation-gt-r1-s42-20260909 和新输出目录interpolation_gt_r1。
+五个未开始的负载将与恢复GT使用本次同一提交；全部52份job配置重新解析，旧失败GT配置
+原样保留。当前registry包含397行。此次追加提交由实际reportable失败及执行source转换
+要求触发，后续仍统一完成一个completion commit。

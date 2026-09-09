@@ -1274,6 +1274,7 @@ def evaluate_ground_truth(cfg: DictConfig) -> Path:
     if bool(cfg.get("measure_reconstruction_timing", False)):
         timing_sink = dict(full_batches=0, smplx_batch_seconds=[],
                            interpolation_seconds=[], interpolation_frames=[])
+        torch.cuda.init()
         torch.cuda.reset_peak_memory_stats(device)
     episodes = _load_episodes(
         Path(cfg.lingo_episode_dir),
