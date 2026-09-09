@@ -628,3 +628,44 @@ and `experiments/results/p5_inference_handoff_audit_s42_20260910.json` before
 the next subphase. The exact next entry is `phase/05e2-multitask-execution`,
 which requires a new preregistered release/settling contract before any chain
 sampling; no full-chain success claim is made here.
+
+## 2026-09-10 - Phase 5.5.2a: source-only transition eligibility
+
+The user approved a source-only membership rule for the next multi-task entry.
+Split 5.5.2 before implementation: 5.5.2a builds and audits transition
+eligibility from OMOMO/LINGO source actions and target-scene geometry; 5.5.2b
+executes only the published source-eligible chains with actual history and
+Kimodo. No model output participates in membership in either subphase.
+
+Hypothesis: source endpoint contact state plus full source-motion SDF checks can
+construct valid OMOMO/LINGO transition candidates without admitting chains that
+require the evaluated model to repair an incompatible predecessor.
+
+Build two ordered candidate families while retaining all original 469 HOSI rows:
+
+- `omomo_to_lingo`: the OMOMO task-reference terminal must be upright, supported,
+  object-supported and slow, and both hand markers must be released. The LINGO
+  entry context is transformed to the target HOSI scene and its complete source
+  interval is checked against scene/object SDFs before it can follow OMOMO.
+- `lingo_to_omomo`: the OMOMO task initial context must keep both hands separated
+  from the object throughout its entry context. The LINGO terminal context and
+  complete source interval are transformed to the target scene and checked before
+  OMOMO starts. The OMOMO initial object transform is preserved as the persistent
+  target state.
+
+Membership uses only source arrays, source text, source body identity, declared
+HOSI goals, and target-scene SDF/object geometry. Source-scene coordinates remain
+provenance and are never copied into the target scene. Every rejected pair keeps
+its direction, source IDs, measured reasons, frame interval and geometry values.
+The original benchmark and the source-only extension have separate tables.
+
+The source path check evaluates every source frame after target placement, not a
+straight-line proxy alone. It includes the persistent movable object whenever
+the direction carries one. The registered scene thresholds remain mean/max
+penetration 0.005/0.05 m, object max 0.05 m, floor max 0.01 m and no out-of-bounds;
+entry/release uses the existing 0.08 m hand separation and support/speed proxies.
+
+This subphase publishes candidate manifests and diagnostics only. It does not
+reuse `correct_terminal_draw0`, Kimodo outputs or any other generated motion to
+select candidates, and it does not claim a generated chain result. The next
+subphase evaluates actual predecessor guards and all transition frames.

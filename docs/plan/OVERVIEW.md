@@ -6,6 +6,10 @@ release conditions; the cached terminal is 42 frames over budget and remains too
 fast for the handoff guard. Walk/sit are explicitly blocked. Read the
 [summary](../phase_summaries/PHASE_5E_HANDOFF_AUDIT.md) before Phase 5.5.2.
 
+Phase 5.5.2a is source-only transition eligibility: OMOMO/LINGO source endpoint
+state and complete source-motion SDF checks decide extension membership. Model
+outputs are runtime guards only and never change the candidate table.
+
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible
 inputs plus1explicitly rejected target. Scene passes5/12to11/12; contact-patch

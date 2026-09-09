@@ -1,0 +1,17 @@
+defaults: [config_sample_hosi_multitask, _self_]
+
+exp_name: p5-multitask-source-eligibility-s42-20260910
+run_id: ${exp_name}
+device: cuda:0
+multitask:
+  stage: source_eligibility
+  output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/eligibility
+  source_eligibility:
+    hand_distance_m: 0.08
+    object_floor_m: 0.05
+    object_speed_m_s: 0.10
+    object_angular_speed_rad_s: 0.5
+    scene_mean_penetration_m: 0.005
+    scene_max_penetration_m: 0.05
+    object_max_penetration_m: 0.05
+    floor_max_penetration_m: 0.01

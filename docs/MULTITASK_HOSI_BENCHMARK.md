@@ -22,6 +22,22 @@ Its failed prerequisites block subsequent segments with explicit reasons.
 Unexecuted transitions and actions have null metrics; complete-chain success
 is measured after a compatible actual-history rollout is available.
 
+## Source-only transition membership
+
+The extension candidate table is independent of every model output. For
+`omomo_to_lingo`, the OMOMO task-reference terminal must be upright, supported,
+slow and hand-released before a LINGO action is considered. For
+`lingo_to_omomo`, the OMOMO initial context must keep both hands separated from
+the object throughout its entry frames before LINGO can precede it.
+
+The LINGO entry or terminal context is placed in the target HOSI scene using the
+episode body identity. The complete native LINGO source interval is then checked
+against target scene SDF, persistent-object SDF and bounds. A source scene is
+provenance only; its coordinates never define target-scene membership. All
+failures retain the direction, corpus-qualified source IDs, frame interval and
+measured geometry reason. Runtime generated states are checked again, but cannot
+change the source-only candidate set.
+
 Phase 5.4 extends task conditions while preserving all 469 original HOSI tasks.
 The first construction recipe targets HOI -> walk -> sit in the original
 67 TRUMANS scenes. LINGO supplies locomotion and static-interaction source
