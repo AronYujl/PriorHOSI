@@ -1,5 +1,11 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
+2026-09-09 inference entry: the user keeps the Phase 2.34 experts/editing chain
+and approved a bounded standing-handoff diagnostic plus an existing-inbetweening
+model review. The active scope is [Phase 5.1](PHASE_5_INFERENCE.md), which records
+the simplified short-task templates and supersedes the earlier learned-mixer
+sequence for this session. No expert training is part of the inference entry.
+
 本文件于 2026-08-10 从 `docs/EXPERIMENT_PLAN.md` 第 14-40、41-63、64-74、97-121、8300-8341、8342-8361、8362-8478 行原样切出（逐字节复制，未改写、未重排、未修正任何笔误）。
 导航：[计划入口](../EXPERIMENT_PLAN.md) · [Phase 1B 索引](PHASE_1B_HOI/README.md)
 
