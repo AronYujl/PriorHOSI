@@ -155,7 +155,8 @@ class _PhysicalLoss(torch.autograd.Function):
         from utils import run_smplx_model, SMPLX_JOINTS_28
         source, length = objective.source, len(pose)
         grad_pose, grad_translation = torch.zeros_like(pose), torch.zeros_like(translation)
-        sums = pose.new_zeros(4)
+        sums = pose.new_zeros(len(objective.term_names))
+        weights = pose.new_tensor(objective.weights)
         with torch.enable_grad():
             for lo in range(0, length, 24):
                 start, stop = max(lo-1, 0), min(lo+24, length)
@@ -163,22 +164,13 @@ class _PhysicalLoss(torch.autograd.Function):
                 t = translation[start:stop].detach().requires_grad_(True)
                 vertices, joints = run_smplx_model(p, t, source['betas'], source['gender'],
                     joints_ind=SMPLX_JOINTS_28, smpl_model=objective.model)
-                offset = lo-start
-                delta = joints-source['joints'][start:stop]
-                body = delta[offset:].square().sum()/(length*28*3*objective.body_scale**2)
-                if objective.edit:
-                    anchors = delta[offset:, NATIVE_ANCHORS].square().sum()/(length*6*3*.001**2)
-                    velocity = ((delta[1:]-delta[:-1])*30).square().sum()/((length-1)*28*3*.1**2)
-                    scene = objective.differential.frame_sums(vertices[offset:]).sum()/(length*objective.scene_scale)
-                else:
-                    anchors, velocity, scene = (body.new_zeros(()) for _ in range(3))
-                terms = torch.stack((body, anchors, velocity, scene))
-                gp, gt = torch.autograd.grad(terms.sum(), (p, t))
+                terms = objective.chunk_terms(vertices,joints,start,lo,stop)
+                gp, gt = torch.autograd.grad((terms*weights).sum(), (p, t))
                 grad_pose[start:stop] += gp; grad_translation[start:stop] += gt
                 sums += terms.detach()
         objective.last_terms = sums.detach().cpu().tolist()
         ctx.save_for_backward(grad_pose, grad_translation)
-        return sums.sum()
+        return (sums*weights).sum()
 
     @staticmethod
     def backward(ctx, upstream):
@@ -187,15 +179,84 @@ class _PhysicalLoss(torch.autograd.Function):
 
 
 class NativeDNOObjective:
+    term_names = ('body','anchors','velocity','scene')
+
     def __init__(self, projector, model, sdf, info, source_hs, edit):
         self.source, self.model, self.edit = projector.source, model.eval().requires_grad_(False), edit
         self.differential = NativeSceneDifferential(projector, model, sdf, info)
         self.body_scale = .05 if edit else .01
         self.scene_scale = max(source_hs, 1.)
         self.last_terms = None
+        self.weights = [1.]*len(self.term_names)
+
+    def chunk_terms(self,vertices,joints,start,lo,stop):
+        length=len(self.source['joints']);offset=lo-start
+        delta=joints-self.source['joints'][start:stop]
+        body=delta[offset:].square().sum()/(length*28*3*self.body_scale**2)
+        if self.edit:
+            anchors=delta[offset:,NATIVE_ANCHORS].square().sum()/(length*6*3*.001**2)
+            velocity=((delta[1:]-delta[:-1])*30).square().sum()/((length-1)*28*3*.1**2)
+            scene=self.differential.frame_sums(vertices[offset:]).sum()/(length*self.scene_scale)
+        else:
+            anchors,velocity,scene=(body.new_zeros(()) for _ in range(3))
+        return torch.stack((body,anchors,velocity,scene))
+
+    def term_record(self):
+        return {name:value*weight for name,value,weight in zip(self.term_names,self.last_terms,self.weights)}
 
     def __call__(self, pose, translation):
         return _PhysicalLoss.apply(pose, translation, self)
+
+
+class ConstrainedDNOObjective(NativeDNOObjective):
+    term_names = ('body','hand','stance','boundary','velocity','seam_velocity','scene')
+
+    @torch.no_grad()
+    def __init__(self,projector,model,sdf,info,source_hs,floor,object_vertices):
+        from .surface_edit import native_hand_distances,FEET
+        from utils import run_smplx_model,SMPLX_JOINTS_28
+        super().__init__(projector,model,sdf,info,source_hs,True)
+        source=self.source;length=len(source['pose']);device=source['pose'].device
+        self.fixed=projector.fixed
+        self.hand_mask=torch.zeros(length,2,device=device,dtype=torch.bool)
+        self.reference_chunks={}
+        self.source_fk_reference_max_error_m=0.
+        for lo in range(0,length,24):
+            start,stop=max(lo-1,0),min(lo+24,length)
+            _,reference=run_smplx_model(source['pose'][start:stop],source['translation'][start:stop],
+                source['betas'],source['gender'],joints_ind=SMPLX_JOINTS_28,smpl_model=self.model)
+            self.reference_chunks[start]=reference
+            self.source_fk_reference_max_error_m=max(self.source_fk_reference_max_error_m,
+                float((reference-source['joints'][start:stop]).abs().max()))
+            vertices=(source['object_rotation'][lo:stop]@object_vertices.T).transpose(1,2)+source['object_translation'][lo:stop,None]
+            self.hand_mask[lo:stop]=native_hand_distances(source['joints'][lo:stop],vertices)<.05
+        self.stance_mask=source['joints'][:,FEET,1]<floor+source['pose'].new_tensor((.08,.08,.04,.04))
+        self.boundary_mask=torch.zeros(length,device=device,dtype=torch.bool)
+        for seam in projector.seams.tolist():self.boundary_mask[seam-6:seam]=True
+        self.seam_mask=torch.zeros(length-1,device=device,dtype=torch.bool)
+        self.seam_mask[projector.seams-1]=True
+        # Empty sets have zero numerator and contribute zero to the objective.
+        self.denominators=dict(hand=max(int(self.hand_mask.sum()),1)*3*.01**2,
+            stance=max(int(self.stance_mask.sum()),1)*3*.005**2,
+            boundary=max(int(self.boundary_mask.sum()),1)*28*3*.01**2,
+            seam_velocity=max(int(self.seam_mask.sum()),1)*28*3*.1**2)
+
+    def chunk_terms(self,vertices,joints,start,lo,stop):
+        from .surface_edit import HANDS,FEET
+        length=len(self.source['pose']);offset=lo-start
+        # Identical source/current FK batches make the zero increment exactly zero.
+        # This removes only source FK rounding, never diffusion reconstruction error.
+        delta=joints-self.reference_chunks[start];owned=delta[offset:]
+        velocity=(delta[1:]-delta[:-1])*30
+        body=owned.square().sum()/(length*28*3*.05**2)
+        hand=(owned[:,HANDS].square()*self.hand_mask[lo:stop,:,None]).sum()/self.denominators['hand']
+        stance=(owned[:,FEET].square()*self.stance_mask[lo:stop,:,None]).sum()/self.denominators['stance']
+        boundary=(owned.square()*self.boundary_mask[lo:stop,None,None]).sum()/self.denominators['boundary']
+        speed=velocity.square().sum()/((length-1)*28*3*.1**2)
+        seam=(velocity.square()*self.seam_mask[start:stop-1,None,None]).sum()/self.denominators['seam_velocity']
+        visible=torch.where(self.fixed[lo:stop,None,None],self.source['verts'][lo:stop],vertices[offset:])
+        scene=self.differential.frame_sums(visible).sum()/(length*self.scene_scale)
+        return torch.stack((body,hand,stance,boundary,speed,seam,scene))
 
 
 @torch.enable_grad()
@@ -215,9 +276,7 @@ def optimize_latent(decoder, objective, initial, view, settings, destination, st
         pose, translation = decoder.pose(predicted)
         physical = objective(pose, translation)
         feature = (predicted[:, 2:]-decoder.clean[:, 2:]).square().mean()
-        traces.append(dict(iteration=len(traces), body=objective.last_terms[0],
-            anchors=objective.last_terms[1], velocity=objective.last_terms[2],
-            scene=objective.last_terms[3], feature=float(feature.detach())))
+        traces.append(dict(iteration=len(traces), **objective.term_record(), feature=float(feature.detach())))
         return (physical+feature).reshape(1)
 
     steps = settings['editing_steps'] if objective.edit else settings['reconstruction_steps']
@@ -416,11 +475,16 @@ def audit_latent_gradient(decoder, objective, latent, weight):
 
 @torch.no_grad()
 def record_dno_prediction(decoder, projector, model, evaluate, floor, length, dest, name, prediction):
+    pose,translation=decoder.pose(prediction)
+    return record_dno_pose(projector,model,evaluate,floor,length,dest,name,pose,translation)
+
+
+@torch.no_grad()
+def record_dno_pose(projector,model,evaluate,floor,length,dest,name,pose,translation):
     from .surface_edit import decode_body
     from .diagnostics import body_readout_measures
     from .continuation_outcomes import write_json
     source = projector.source
-    pose, translation = decoder.pose(prediction)
     motion = dict(source, pose=pose, translation=translation)
     motion['verts'], motion['joints'] = decode_body(motion, model)
     motion['verts'][projector.fixed] = source['verts'][projector.fixed]
@@ -617,6 +681,171 @@ def dno_history_probe(teacher, projector, model, sdf, info, evaluate, baseline, 
         peak_memory_gib=torch.cuda.max_memory_allocated(teacher.device)/1024**3)
     assert result['peak_memory_gib']<=5,result['peak_memory_gib']
     return result
+
+
+@torch.no_grad()
+def constrained_motion_measures(objective,motion,object_vertices):
+    from .surface_edit import HANDS,FEET,native_hand_distances
+    source=objective.source;delta=motion['joints']-source['joints']
+    hand_count=int(objective.hand_mask.sum());foot_count=int(objective.stance_mask.sum())
+    boundary_count=int(objective.boundary_mask.sum());retained=0
+    for lo in range(0,len(delta),24):
+        stop=min(lo+24,len(delta))
+        vertices=(motion['object_rotation'][lo:stop]@object_vertices.T).transpose(1,2)+motion['object_translation'][lo:stop,None]
+        near=native_hand_distances(motion['joints'][lo:stop],vertices)<.05
+        retained+=int((near&objective.hand_mask[lo:stop]).sum())
+    return dict(active_hand_mean_drift_cm=float((delta[:,HANDS].norm(dim=-1)*objective.hand_mask).sum()/max(hand_count,1)*100),
+        active_foot_mean_drift_cm=float((delta[:,FEET].norm(dim=-1)*objective.stance_mask).sum()/max(foot_count,1)*100),
+        prefix_body_mean_drift_cm=float((delta.norm(dim=-1)*objective.boundary_mask[:,None]).sum()/max(boundary_count*28,1)*100),
+        source_hand_contact_retention=retained/hand_count if hand_count else 1.,
+        source_active_hand_samples=hand_count,source_stance_foot_samples=foot_count,
+        source_boundary_frames=boundary_count)
+
+
+@torch.enable_grad()
+def constrained_gradient_audit(decoder,objective,latent,view):
+    value=latent.detach().requires_grad_(True)
+    predicted=decoder.decode(value,view,source_history=True)
+    pose,translation=decoder.pose(predicted)
+    weights=list(objective.weights);records={};gradients={}
+    for i,name in enumerate(objective.term_names):
+        objective.weights=[float(j==i) for j in range(len(weights))]
+        loss=objective(pose,translation)
+        derivative,=torch.autograd.grad(loss,value,retain_graph=True)
+        gradients[name]=derivative.detach()
+        records[name]=dict(value=float(loss.detach()),gradient_norm=float(derivative.norm()),weight=weights[i])
+    objective.weights=weights
+    feature=(predicted[:,2:]-decoder.clean[:,2:]).square().mean()
+    derivative,=torch.autograd.grad(feature,value)
+    gradients['feature']=derivative.detach()
+    records['feature']=dict(value=float(feature.detach()),gradient_norm=float(derivative.norm()),weight=1.)
+    physical=sum(weights[i]*gradients[name] for i,name in enumerate(objective.term_names))
+    constraints=sum(gradients[name] for name in objective.term_names if name not in ('scene','body'))
+    scene=gradients['scene'];norm_product=constraints.norm()*scene.norm()
+    return dict(terms=records,total_gradient_norm=float((physical+derivative).norm()),
+        constraint_gradient_norm=float(constraints.norm()),scene_gradient_norm=float(scene.norm()),
+        constraint_scene_cosine=float((constraints*scene).sum()/norm_product) if float(norm_product)>0 else None),gradients
+
+
+def dno_constrained_probe(teacher,projector,model,sdf,info,evaluate,baseline,task,ordinal,
+                           floor,length,protocol,dest):
+    from .continuation_outcomes import write_json
+    started=time.perf_counter();before_calls=teacher.calls
+    root=Path(teacher.cfg.hsi_body_projection.protocol).resolve().parents[2]
+    previous,=(root/protocol['previous_run']).glob(f'lanes/*/task-{ordinal:03d}')
+    query,=(root/protocol['query_cache']).glob(f'lanes/*/task-{ordinal:03d}/teacher.pt')
+    cache=torch.load(query,map_location=teacher.device,weights_only=False)
+    decoder=HSIDDIM(teacher,cache['windows'],projector.source,task,ordinal,protocol['method'])
+    object_vertices=teacher.dataset.obj_rest_verts[task['object_name']]
+    objective=ConstrainedDNOObjective(projector,model,sdf,info,baseline['scene_human_penetration_s_mean'],floor,object_vertices)
+    initial=torch.load(previous/'source_fit-step0300.pt',map_location=teacher.device,weights_only=False)['latent']
+    source=projector.source
+    source_metrics=dict(baseline,native_body28_mean_displacement_cm=0.,**constrained_motion_measures(objective,source,object_vertices))
+    metrics=dict(source=source_metrics);windows={};audits={}
+    with (dest/'source.pt').open('xb') as handle:
+        torch.save({k:v.cpu() for k,v in source.items() if torch.is_tensor(v) and k!='verts'},handle)
+    objective(source['pose'],source['translation'])
+    source_terms=objective.term_record()
+    source_hs_error=abs(source_terms['scene']*objective.scene_scale-baseline['scene_human_penetration_s_mean'])
+    assert source_hs_error<=1e-5,source_hs_error
+    write_json(dest/'physical-source.json',dict(terms=source_terms,native_hs_error=source_hs_error,
+        source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
+        active_hand_samples=int(objective.hand_mask.sum()),stance_foot_samples=int(objective.stance_mask.sum()),
+        boundary_frames=int(objective.boundary_mask.sum()),scales_m=dict(body=.05,hand=.01,stance=.005,boundary=.01),velocity_scale_m_s=.1))
+
+    def save(name,value,view):
+        with torch.no_grad():prediction=decoder.decode(value,view,source_history=True)
+        def augmented(motion):return dict(evaluate(motion),**constrained_motion_measures(objective,motion,object_vertices))
+        motion,record=record_dno_prediction(decoder,projector,model,augmented,floor,length,dest,name,prediction)
+        rows,distance=history_window_measures(decoder,prediction,motion['joints'])
+        windows[name]=rows;metrics[name]=record
+        with (dest/(name+'-window-errors.pt')).open('xb') as handle:
+            torch.save(dict(prediction=prediction.cpu(),body28_distance_cm=distance.cpu()),handle)
+        print(json.dumps(dict(task=ordinal,stage=name,hs=record['scene_human_penetration_s_mean'],
+            contact=record['contact_percent'],support=record['source_floor_support_fraction'],
+            active_hand_cm=record['active_hand_mean_drift_cm'],prefix_cm=record['prefix_body_mean_drift_cm'])),flush=True)
+
+    def audit(name,value,view):
+        record,gradients=constrained_gradient_audit(decoder,objective,value,view)
+        audits[name]=record
+        write_json(dest/(name+'-gradient.json'),record)
+        with (dest/(name+'-gradients.pt')).open('xb') as handle:torch.save({k:v.cpu() for k,v in gradients.items()},handle)
+        print(json.dumps(dict(task=ordinal,stage=name,gradient_norm=record['total_gradient_norm'],
+            constraint_gradient_norm=record['constraint_gradient_norm'],scene_gradient_norm=record['scene_gradient_norm'])),flush=True)
+
+    save('C0',initial,'correct');save('W0',initial,'wrong')
+    old=json.loads((previous/'metrics.json').read_text())['means']['SS']
+    replay_error=max(abs(float(metrics['C0'][k])-float(old[k])) for k in old)
+    assert replay_error<=1e-5,replay_error
+    audit('C0',initial,'correct');audit('W0',initial,'wrong')
+    for name,view,scene_weight in [('C','correct',1.),('W','wrong',1.),('Q','correct',0.)]:
+        objective.weights[-1]=scene_weight
+        result=optimize_latent(decoder,objective,initial,view,protocol['method'],
+            dict(repository=protocol['dno_repository'],path=dest),name)
+        save(name,result,view);audit(name,result,view)
+    objective.weights[-1]=1.
+    pose,translation=optimize_geometry(projector,objective,protocol['method'],dest)
+    def augmented(motion):return dict(evaluate(motion),**constrained_motion_measures(objective,motion,object_vertices))
+    _,metrics['G']=record_dno_pose(projector,model,augmented,floor,length,dest,'G',pose,translation)
+    torch.cuda.synchronize(teacher.device)
+    record=dict(means=metrics,window_measures=windows,gradients=audits,previous_directory=str(previous),
+        replay_error=replay_error,source_physical_terms=source_terms,source_hs_error=source_hs_error,
+        source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
+        seconds=time.perf_counter()-started,hsi_calls=teacher.calls-before_calls,
+        peak_memory_gib=torch.cuda.max_memory_allocated(teacher.device)/1024**3)
+    assert record['peak_memory_gib']<=5,record['peak_memory_gib']
+    return record
+
+
+def summarize_constrained_editing(run_root,task_manifest,device='cuda:0'):
+    from .scene_calibration import paired_local_metrics
+    from .continuation_outcomes import write_json
+    run_root=Path(run_root);tasks=json.loads(Path(task_manifest).read_text())['tasks']
+    records=[json.loads(p.read_text()) for p in run_root.glob('lanes/*/task-*/metrics.json')]
+    assert len(records)==len(tasks) and {r['task'] for r in records}=={t['canonical_ordinal'] for t in tasks}
+    arms=list(records[0]['means']);keys=list(records[0]['means']['C']);scenes=sorted({r['scene'] for r in records})
+    by_task={a:{str(r['task']):{k:r['means'][a][k] for k in keys} for r in records} for a in arms}
+    by_scene={a:{s:{k:sum(r['means'][a][k] for r in records if r['scene']==s)/sum(r['scene']==s for r in records)
+        for k in keys} for s in scenes} for a in arms}
+    means={a:{k:sum(r['means'][a][k] for r in records)/len(records) for k in keys} for a in arms}
+    pairs=[(a,'source') for a in arms if a!='source']+[('C','W'),('C','Q'),('C','G'),('C','C0'),('W','W0'),('Q','C0')]
+    contrasts={a+'__minus__'+b:{unit:paired_local_metrics(values[b],values[a],device)
+        for unit,values in [('task',by_task),('scene',by_scene)]} for a,b in pairs}
+    changes={unit:{view:{name:{k:values[view][name][k]-values[view+'0'][name][k] for k in keys}
+        for name in values[view]} for view in ('C','W')} for unit,values in [('task',by_task),('scene',by_scene)]}
+    increment={unit:paired_local_metrics(values['W'],values['C'],device) for unit,values in changes.items()}
+    protections={}
+    for a in ('C','W','Q','G'):
+        protections[a]={}
+        for r in records:
+            m,b=r['means'][a],r['means']['source']
+            protections[a][str(r['task'])]=dict(contact=m['contact_percent']>=b['contact_percent']-.002,
+                support=m['source_floor_support_fraction']>=b['source_floor_support_fraction']-.002,
+                foot_sliding=m['foot_sliding']<=b['foot_sliding']+.01,hand=m['active_hand_mean_drift_cm']<=1.,
+                stance=m['active_foot_mean_drift_cm']<=.5,prefix=m['prefix_body_mean_drift_cm']<=1.,
+                seam_velocity=m['correction_seam_speed_mean_cm_s']<=10.,mean_velocity=m['correction_speed_mean_cm_s']<=10.,
+                max_velocity=m['correction_speed_max_cm_s']<=30.,root=m['root_max_change_m']<=.1,
+                angle=m['rotation_max_change_deg']<=20.,body=m['native_body28_mean_displacement_cm']<=5.,
+                fixed=m['object_max_error_m']==0 and m['initial_final_max_error_m']==0)
+    hs='scene_human_penetration_s_mean'
+    conditions=dict(source_improvement=means['C'][hs]<=.99*means['source'][hs],
+        correct_scene=means['C'][hs]<=means['W'][hs]-.005*means['source'][hs],
+        scene_increment=increment['task'][hs]['delta']<0,
+        scene_objective=means['C'][hs]<means['Q'][hs],geometry_reference=means['C'][hs]<means['G'][hs],
+        protection=all(all(v.values()) for v in protections['C'].values()))
+    remaining27={a+'__minus__'+b:paired_local_metrics({k:v for k,v in by_task[b].items() if k!='375'},
+        {k:v for k,v in by_task[a].items() if k!='375'},device) for a,b in pairs}
+    summary=dict(tasks=len(records),scenes=len(scenes),means=means,contrasts=contrasts,edit_increment_contrast=increment,
+        protections=protections,protection_pass_counts={a:sum(all(v.values()) for v in rows.values()) for a,rows in protections.items()},
+        conditions=conditions,utility=all(conditions.values()),remaining27=remaining27,
+        task375={a:by_task[a]['375'] for a in arms},hsi_calls=sum(r['hsi_calls'] for r in records),
+        task_seconds_sum=sum(r['seconds'] for r in records),peak_memory_gib=max(r['peak_memory_gib'] for r in records),
+        test_set_development=True,timing_comparison_valid=False)
+    output=run_root/'analysis';output.mkdir()
+    write_json(output/'summary.json',summary);write_json(output/'records.json',records)
+    for arm in arms:
+        for unit,values in [('task',by_task[arm]),('scene',by_scene[arm])]:write_json(output/f'{arm}-{unit}.json',dict(metrics=values))
+    return summary
 
 
 def summarize_history_fitting(run_root,task_manifest,device='cuda:0'):

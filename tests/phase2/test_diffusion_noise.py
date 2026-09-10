@@ -98,9 +98,11 @@ def test_native_chunked_physical_derivative_matches_full_sequence(monkeypatch):
     pose = (torch.randn(53, 22, 3, dtype=torch.double)*.01).requires_grad_(True)
     translation = (torch.randn(53, 3, dtype=torch.double)*.01).requires_grad_(True)
     reference = torch.randn(53, 28, 3, dtype=torch.double)*.01
-    objective = SimpleNamespace(source=dict(joints=reference, betas=None, gender=None),
+    from mixer.diffusion_noise import NativeDNOObjective
+    objective = NativeDNOObjective.__new__(NativeDNOObjective)
+    objective.__dict__.update(source=dict(joints=reference, betas=None, gender=None),
         model=None, body_scale=.05, scene_scale=2., edit=True,
-        differential=SimpleNamespace(frame_sums=lambda vertices: vertices.square().sum((1, 2))))
+        weights=[1.]*4,differential=SimpleNamespace(frame_sums=lambda vertices: vertices.square().sum((1, 2))))
     result = _PhysicalLoss.apply(pose, translation, objective)
     actual = torch.autograd.grad(result, (pose, translation))
     joints, _ = body(pose, translation)
@@ -222,3 +224,59 @@ def test_window_diagnostics_cover_native_frames_and_separate_history_from_bounda
     assert rows[1]['clean_history_feature_max_error']==0
     assert abs(rows[1]['boundary_feature_mse']-.01)<1e-6
     torch.testing.assert_close(distance.mean(),torch.tensor((48+42*2)/90))
+
+
+def _constrained_fixture(monkeypatch,length=53,height=0.):
+    import utils
+    from mixer.diffusion_noise import ConstrainedDNOObjective
+    offsets=torch.zeros(28,3,dtype=torch.double);offsets[26,0]=1.
+    def body(pose,translation,*args,**kwargs):
+        joints=pose[:,:1]+translation[:,None]+offsets+1e-7
+        return joints,joints
+    monkeypatch.setattr(utils,'run_smplx_model',body)
+    translation=torch.zeros(length,3,dtype=torch.double);translation[:,1]=height
+    source=dict(pose=torch.zeros(length,22,3,dtype=torch.double),translation=translation,
+        joints=offsets[None].expand(length,-1,-1)+translation[:,None],
+        verts=offsets[None].expand(length,-1,-1)+translation[:,None],betas=None,gender=None,
+        object_rotation=torch.eye(3,dtype=torch.double).expand(length,-1,-1),
+        object_translation=torch.zeros(length,3,dtype=torch.double))
+    projection=SimpleNamespace(source=source,translation=translation,fixed=torch.zeros(length,dtype=torch.bool),
+        seams=torch.tensor([48] if length>48 else [],dtype=torch.long))
+    objective=ConstrainedDNOObjective(projection,torch.nn.Identity(),torch.ones(5,5,5),
+        dict(centroid=[0,0,0],extents=[10,10,10]),1.,0.,torch.zeros(1,3,dtype=torch.double))
+    return source,objective,body
+
+
+def test_masked_native_constraint_derivatives_and_exact_zero_despite_source_fk_rounding(monkeypatch):
+    source,objective,body=_constrained_fixture(monkeypatch)
+    pose=source['pose'].clone().requires_grad_(True);translation=source['translation'].clone().requires_grad_(True)
+    zero=objective(pose,translation)
+    gradients=torch.autograd.grad(zero,(pose,translation))
+    assert float(zero)==0 and all(g.abs().sum()==0 for g in gradients)
+    assert objective.source_fk_reference_max_error_m>0
+    torch.manual_seed(42)
+    pose=(pose.detach()+torch.randn_like(pose)*.002).requires_grad_(True)
+    translation=(translation.detach()+torch.randn_like(translation)*.002).requires_grad_(True)
+    objective.weights=[.7,1.3,.4,1.1,.8,1.4,.6]
+    actual=objective(pose,translation);actual_grad=torch.autograd.grad(actual,(pose,translation))
+    joints,_=body(pose,translation);reference,_=body(source['pose'],source['translation'])
+    delta=joints-reference;velocity=(delta[1:]-delta[:-1])*30
+    expected_terms=torch.stack((delta.square().mean()/.05**2,
+        delta[:,24].square().mean()/.01**2,delta[:,[7,8,10,11]].square().mean()/.005**2,
+        delta[42:48].square().mean()/.01**2,velocity.square().mean()/.1**2,
+        velocity[47].square().mean()/.1**2,delta.sum()*0))
+    expected=(expected_terms*expected_terms.new_tensor(objective.weights)).sum()
+    wanted=torch.autograd.grad(expected,(pose,translation))
+    torch.testing.assert_close(actual,expected)
+    for a,b in zip(actual_grad,wanted):torch.testing.assert_close(a,b)
+
+
+def test_empty_contact_stance_and_boundary_sets_have_zero_physical_contribution(monkeypatch):
+    source,objective,_=_constrained_fixture(monkeypatch,length=48,height=3.)
+    pose=source['pose'].clone().requires_grad_(True)
+    translation=(source['translation']+.001).requires_grad_(True)
+    loss=objective(pose,translation);loss.backward()
+    terms=objective.term_record()
+    assert terms['body']>0
+    assert all(terms[k]==0 for k in ['hand','stance','boundary','seam_velocity'])
+    assert torch.isfinite(pose.grad).all() and torch.isfinite(translation.grad).all()

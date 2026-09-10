@@ -548,8 +548,10 @@ def run_body_projection(cfg):
         baseline['object_max_error_m']=0.
         dest=out/f'task-{ordinal:03d}';dest.mkdir()
         if dno_probe:
-            from .diffusion_noise import dno_motion_probe, dno_reconstruction_probe, dno_history_probe
-            if cfg.hsi_body_projection.get('history_probe',False):
+            from .diffusion_noise import dno_motion_probe, dno_reconstruction_probe, dno_history_probe, dno_constrained_probe
+            if cfg.hsi_body_projection.get('source_edit_probe',False):
+                probe = dno_constrained_probe
+            elif cfg.hsi_body_projection.get('history_probe',False):
                 probe = dno_history_probe
             else:
                 probe = dno_reconstruction_probe if cfg.hsi_body_projection.get('reconstruction_probe',False) else dno_motion_probe

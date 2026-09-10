@@ -5127,3 +5127,7 @@ SS后续窗解锁误差2.3345cm，SA14.4164cm；源历史reframe最大误差3.57
 保护点条件：接触/支撑下降<=.002、FS增加<=.01cm，活动手mean<=1cm、近地足mean<=.5cm、交界前缀mean<=1cm，交界/全局平均correction速度<=10cm/s、最大<=30cm/s，root<=10cm/角度<=20deg、全身mean<=5cm及物体/首尾固定。场景信号要求C比W低至少.005sourceHS且编辑增量差<0；整体收益还要求C<=.99sourceHS且优于Q和G、保护通过。全28与375/其余27、10000seed42任务/场景配对区间报告；物体穿透完整列为附加代价。
 
 先375GPU0全长验证，再8GPU余27，保留已有GPU4–7作业、额外峰值5GiB上限；全套authority、clean源码、resolved配置与manifest、每50步检查点沿用，无新增smoke/hash/tools脚本。科学失败不改变预算/阈值；工程门槛是全部28和固定对照封存。协议experiments/protocols/p2_hsi_dno_constrained_s42_20260910.json。
+
+执行前明确：物理位移使用相同24帧（含1帧重叠）FK分块的source/current差，使几何零增量的位移损失和梯度精确为0。只移除源FK舍入差，记录相对原生source最大偏差；不会抵消DNO重建误差。原生评价仍对canonical source。保护逐任务/逐项报告，整体通过要求28条C全部保护通过。
+
+实现验证：14项DNO组件检查通过（1.63s），完整authority1131 passed/4历史skips（193.65s），429条registry有效，9份配置完全解析。53帧全分块加权掩码损失及导数与完整计算匹配，空接触/近地/交界集合贡献0，源FK舍入差下的几何零增量损失/梯度精确为0。共享native物理分块和记录逻辑保持旧默认；完整375正式任务验证实际掩码、原生源HS、C0回放、分项梯度与显存性能。
