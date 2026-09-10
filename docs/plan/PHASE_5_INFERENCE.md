@@ -806,3 +806,119 @@ videos and 1521 native stitched frames were checked, and both reportable runs
 completed. Read [the handoff summary](../phase_summaries/PHASE_5G_GRASPED_ENTRY.md)
 and `experiments/results/p5_multitask_grasped_entry_s42_20260910.json` before
 Phase 5.5.2b. This closes the approved source-endpoint diagnostic.
+
+## 2026-09-10 — Phase 5.5.2b.1: expanded sources and actual-history pilot
+
+The user accepts the current bridge quality, authorizes continued execution and
+asks for substantially more than seventeen candidates. Work on
+`phase/05e2b1-expanded-history`. Split the remaining execution work before coding:
+5.5.2b.1 publishes the expanded source inventory and executes a fixed 24-chain
+actual-history pilot; 5.5.2b.2 is the later evaluation of the full expanded table.
+This session closes only 5.5.2b.1.
+
+Hypothesis: the source cap and repeated first-success search conceal useful
+coverage, and a source-diverse fixed pilot can exercise actual HSI → Kimodo → HOI
+history inheritance without allowing generated outputs to choose membership.
+Read-only counts are 1,214 eligible LINGO sources (1,045 walking, 169 static),
+18 LINGO scene families; 1,199 sources are at most ten seconds long. The preceding
+17 candidates use two walking sources. Its grasped reverse table skipped 112
+tasks at the twelve-episode cap. Unsupported OMOMO objects remain an upstream
+limitation; do not move them or relax support/penetration thresholds to grow the
+table.
+
+### Expanded input contract
+
+Retain all 469 original task definitions and the previous 17 accepted source
+pairs/witnesses by reference, then add distinct task/direction/LINGO-source pairs.
+Within each of the two LINGO action types, take at most 128 sources of duration
+<=10 s by round-robin source scene-family and exact source text; ascending
+`data_idx` breaks ties. Preserve the complete catalog and explicit pool exclusions.
+For each task/direction, try at most 48 additional source pairs, alternating the
+two action types and preferring less-used source IDs and source families. Allow
+three candidates per task/direction, nine per scene/direction, eight uses of a
+new LINGO source per direction and 192 candidates per direction, including the
+inherited candidates. These are fixed compute/diversity limits, not quality
+targets. Keep every accepted/rejected pair and every unattempted reason.
+
+Membership retains native yaw/XZ placement, whole-clip height preservation,
+complete source foot/seat support, 8 cm initial hand contact and the same
+scene/body/object/floor SDF gates. Source support failure can end a pair before
+its full SDF pass; record that stage explicitly. A successful pair always has
+every source frame checked. No model output participates in this construction.
+Report unique LINGO/OMOMO sources, source families, target scenes, source texts,
+object categories, durations and reuse counts alongside the raw candidate count.
+
+Before sampling, select 24 grasped reverse episodes from the published table:
+cycle object names alphabetically and prefer unused target scenes, LINGO source
+IDs, then LINGO families; episode ID resolves ties. If fewer exist, execute all
+and report the shortage. Publish this selection with the source manifest. All
+other new candidates remain explicitly unevaluated by the pilot.
+
+### Actual-history contract
+
+Each episode starts from only the first ten native frames of its placed LINGO
+source. HSIPrior R2 epoch222 generates the remaining predecessor, with frozen
+500-step diffusion, CFG1 and posterior-coefficient scene guidance, original
+source text and declared pelvis/static goal. The object stays at its supported
+planned transform and appears in scene queries; its model channels use the
+existing known-empty view. Each 16-sample window conditions on actual native
+frames -4/-1 at stride3. Append its 42 new samples, retain the last partial window
+only to the source's exact native frame count, and discard interpolation padding.
+Progress and the local goal use this segment's actual frame budget and native
+body reconstruction frame. Never reset a window to a source pose.
+
+The predecessor guard checks finite output, actual goal error <=0.10 m, native
+history reconstruction <=1e-4 m, complete-frame geometry, foot support and any
+required seated support, and exact persistence of the supported object. A failed
+predecessor blocks both successors with named reasons and null generated metrics.
+Do not substitute a source terminal after a failure.
+
+For each passing predecessor, construct the Kimodo prefix from its last ten
+actual frames. Keep the prescribed ten-frame static OMOMO grasp target and the
+existing 61-frame/50-step/empty-text/seed42/one-sample recipe, 240-step native fit
+and 400-step contact correction. Append 51 new frames. Retain raw, adapted and
+corrected motion, positional/rotational seams, foot sliding, contact traces and
+all existing geometry/context/contact/object gates. A failed bridge blocks HOI.
+
+For each passing acquisition, run frozen P15 HOIPrior plus its sealed Arm B
+guidance from the actual body/object history, full original OMOMO text and
+original object/pelvis goals. Use the original task's `episode_num` window budget:
+each window appends 42 observed frames after the inherited context. The object
+rotation reference, BPS conditioning and native contact/history channels must
+describe this achieved entry; source `data_idx` supplies semantics/body identity,
+never replacement poses. Save the raw native rollout and evaluate both original
+goal completion and the complete-frame geometry/support/contact measures. This
+pilot measures the frozen native expert execution path; the Phase2.34 offline
+whole-motion editor is retained as an existing result, not replayed onto a changed
+entry as though it were a matched result. This protocol difference is explicit
+in the output and precludes a quality comparison to that benchmark.
+
+Count the ten initial frames once, every HSI generated frame, all 51 appended
+bridge frames and every HOI generated frame. Preserve segment boundaries,
+conditioned-history errors, seam metrics and failed/blocked stages. Report stage
+success numerators/denominators, longest completed prefix and whole-chain goal
+and geometry success on all 24 registered episodes. Keep per-stage and combined
+motion/video artifacts. No resampling, source replacement, extra window budget,
+prompt tuning or new correction follows a failed gate in this pilot. Zero
+successful chains is a complete negative execution diagnostic.
+
+### Execution and gate
+
+Extend the existing multitask/source/bridge components and Hydra dispatcher; one
+config delta covers the source stage and execution stages. No new tool script,
+hash machinery, smoke workload, expert/core edits, training or model selection.
+Use GPU1 for source geometry, then GPU0–3 for four deterministic pilot lanes;
+each lane's Kimodo subprocess uses its own GPU. Record contention, synchronized
+generation/geometry times and peak allocation; leave existing jobs untouched.
+Use the verified infbagel interpreter and the existing separate Kimodo environment.
+Reuse sealed input provenance and the experiment start/finish/register lifecycle.
+Archive exact resolved configs and clean committed code before reportable runs.
+
+Verify full authority tests, registry and config resolution, unique membership,
+unchanged original tasks, no source-terminal substitution, frame arithmetic,
+native body/object roundtrips and saved artifact/video readability. Pilot failure
+does not remove a candidate. No paired-method bootstrap applies to one execution
+method; report bounded point estimates without population-generalization claims.
+Deliver source coverage/failure analysis, all 24 execution records, review index,
+compact result and phase summary. Freeze full-table execution until this pilot's
+measured entry/continuation failures and costs have been reviewed.
