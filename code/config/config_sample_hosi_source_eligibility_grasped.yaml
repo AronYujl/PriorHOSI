@@ -15,7 +15,6 @@ multitask:
   output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/eligibility
   source_eligibility:
     allow_grasped_omomo_initial: true
-    grasp_contact_distance_m: 0.08
     grasp_contact_frame_fraction: 0.5
   bridge:
     source_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/eligibility/task_manifest.json

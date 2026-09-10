@@ -102,3 +102,62 @@ def test_native_surface_gradient_matches_rigid_translation(monkeypatch):
     assert torch.isfinite(gradient[1]).all() and gradient[1].abs().max() > 1e-4
     joint_gradient = torch.autograd.grad(joints[..., 2].mean(), translation)[0]
     torch.testing.assert_close(joint_gradient, torch.tensor([[0., 0., 1.]], device=device))
+
+
+def test_acquisition_bridge_roundtrip_preserves_both_native_contexts(monkeypatch):
+    import utils
+    from mixer.source_bridge import bridge_condition
+    from mixer.surface_edit import decode_body
+    monkeypatch.setattr(utils, 'SMPL_DIR', str(Path(__file__).resolve().parents[2]/'smpl_models'))
+    device = torch.device('cuda:1')
+    model = utils.create_smplx_model('female', device).eval().requires_grad_(False)
+    pose = torch.zeros(17, 22, 3, device=device)
+    pose[:, 0, 1] = .6
+    pose[:, 18, 2] = .2
+    source = dict(pose=pose, translation=torch.tensor([2., .1, -3.], device=device).repeat(17, 1),
+        betas=torch.linspace(-.2, .2, 16, device=device), gender='female')
+    source['translation'][:, 0] += torch.arange(17, device=device)*.01
+    source['verts'], source['joints'] = decode_body(source, model)
+    target = dict(source, pose=pose[:10].clone(), translation=source['translation'][-1:].repeat(10, 1))
+    target['pose'][:, 0, 1] = .9
+    target['pose'][:, 18, 2] = .7
+    condition, canonical, origin, arrays = bridge_condition(source, target,
+        torch.tensor([2.5, .5, -3.], device=device), torch.eye(3, device=device), model)
+    for key in ('pose', 'translation'):
+        assert torch.equal(condition[key][:10], source[key][-10:])
+        assert torch.equal(condition[key][51:], target[key])
+    assert arrays['known'].sum() == 20
+    assert not arrays['known'][10:51].any()
+    rebuilt = native_fk(arrays['local_rot_mats'][None], arrays['neutral_joints'][None],
+        arrays['root_positions'][None])[0] @ canonical+origin
+    torch.testing.assert_close(rebuilt, condition['joints'][:, :22], atol=1e-5, rtol=0)
+    torch.testing.assert_close(condition['object_translation'],
+        torch.tensor([2.5, .5, -3.], device=device).repeat(61, 1))
+
+
+def test_acquisition_requires_each_source_contacting_hand_at_the_suffix():
+    from mixer.source_bridge import acquisition_measures
+    condition = dict(joints=torch.ones(61, 28, 3), object_translation=torch.zeros(61, 3),
+        object_rotation=torch.eye(3).repeat(61, 1, 1))
+    condition['joints'][51:, [24, 26]] = torch.tensor([.01, 0., 0.])
+    motion = dict(condition, joints=condition['joints'].clone())
+    motion['joints'][51:, 26] = 1.
+    partial = acquisition_measures(motion, condition, torch.zeros(1, 3))
+    assert partial['source_contacting_hands'] == [True, True]
+    assert not partial['suffix_contact_recovered']
+    motion['joints'][51:, 26] = condition['joints'][51:, 26]
+    complete = acquisition_measures(motion, condition, torch.zeros(1, 3))
+    assert complete['suffix_contact_recovered']
+    assert not complete['contact_at_bridge_start']
+    assert complete['first_matching_contact_frame'] == 51
+
+
+def test_bridge_rotation_seam_uses_short_arc_at_both_boundaries():
+    from mixer.source_bridge import rotation_seam_measures
+    pose = torch.zeros(61, 22, 3)
+    pose[:10, 0, 1] = 179*torch.pi/180
+    pose[10:51, 0, 1] = -179*torch.pi/180
+    pose[51:, 0, 1] = 178*torch.pi/180
+    result = rotation_seam_measures(dict(pose=pose))
+    assert abs(result['entry_root_rotation_jump_deg']-2.) < 1e-4
+    assert abs(result['exit_rotation_jump_max_deg']-3.) < 1e-4

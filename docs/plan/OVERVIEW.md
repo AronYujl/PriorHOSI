@@ -16,8 +16,9 @@ before actual-history execution.
 
 The approved grasped-entry extension adds a separate source-only
 `lingo_to_omomo_grasped_entry` table. It permits OMOMO initial hand contact when
-the full source LINGO interval and target-scene geometry pass; Kimodo contact
-preservation is checked only during runtime execution.
+the full source LINGO interval and target-scene geometry pass; Kimodo acquires
+the source contacting hand(s) at a prescribed static OMOMO entry pose. Source
+support and native placement corrections are included in this subphase.
 
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible

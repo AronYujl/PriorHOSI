@@ -756,3 +756,17 @@ provenance; add no tool script, hashing mechanism or smoke workload. Run the ful
 authority suite and registry validation. No paired-method bootstrap applies to
 this single-method bridge diagnostic. A zero-candidate or failed-bridge result
 retains its registered definitions and completes the diagnostic without tuning.
+
+Implementation recovery on 2026-09-10 matches the native initial transform exactly:
+remove the source root's extrinsic `zxy` heading, then apply
+`atan2(-goal_delta_z, goal_delta_x) + pi/2` to the body and object together.
+The interrupted draft omitted heading removal and used the opposite Z sign.
+The existing `hand_distance_m=0.08` is the shared contact threshold for source
+audits and bridge measurements. Component regression checks cover this placement,
+whole-clip height preservation, source support and exact native bridge contexts.
+Native contact markers are the left index/middle fingers (28-joint indices
+24/25) and right index/middle fingers (26/27). The interrupted implementation
+included indices 22/23, which map to SMPL-X eyes, and grouped a left finger with
+the right hand. The source and bridge audits now share the corrected per-hand
+distance calculation. This corrects marker identity at the registered 0.08 m
+threshold; historical audit artifacts remain intact.

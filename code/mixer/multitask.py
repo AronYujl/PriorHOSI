@@ -185,26 +185,37 @@ def human_boundary_measures(joints, fps=30):
         torso_tilt_max_deg=float(tilt.max()))
 
 
-def object_boundary_measures(joints, translation, rotation, vertices, fps=30):
+def hand_object_distances(joints, object_world):
+    """Minimum index/middle-finger distance for each native SMPL-X hand."""
+    # Native indices 22/23 are eyes; 24/25 and 26/27 belong to the two hands.
+    hands = joints[:, [24, 25, 26, 27]]
+    distances = (hands[:, :, None]-object_world[:, None]).norm(dim=-1).amin(-1)
+    return distances.reshape(-1, 2, 2).amin(-1)
+
+
+def object_boundary_measures(joints, translation, rotation, vertices, fps=30,
+                             hand_distance_m=.08):
     world = (rotation @ vertices.T).transpose(-1, -2)+translation[:, None]
-    hands = joints[:, [22, 23, 24, 25, 26, 27]]
-    distances = (hands[:, :, None]-world[:, None]).norm(dim=-1).amin(-1)
+    distances = hand_object_distances(joints, world)
     omega = transforms.matrix_to_axis_angle(rotation[1:] @ rotation[:-1].transpose(-1, -2))*fps
     result = dict(hand_object_min_m=float(distances.min()),
+        hand_contact_frame_fraction=float((distances <= hand_distance_m).any(-1).float().mean()),
+        first_frame_hand_contact=bool((distances[0] <= hand_distance_m).any()),
+        first_frame_hand_distances_m=distances[0].tolist(),
         object_floor_distance_max_m=float(world[..., 1].amin(-1).abs().max()),
         object_speed_max_m_s=float(((translation[1:]-translation[:-1])*fps).norm(dim=-1).max()),
         object_angular_speed_max_rad_s=float(omega.norm(dim=-1).max()),
         object_translation=translation[-1].tolist(), object_rotation=rotation[-1].tolist())
     result['supported_slow'] = (result['object_floor_distance_max_m'] <= .05
         and result['object_speed_max_m_s'] <= .10 and result['object_angular_speed_max_rad_s'] <= .5)
-    result['hands_released'] = result['hand_object_min_m'] >= .08
+    result['hands_released'] = result['hand_object_min_m'] >= hand_distance_m
     result['required_exit_action'] = ('walk' if result['supported_slow'] and result['hands_released']
         else 'release' if result['supported_slow'] else 'place_then_release')
     return result
 
 
 @torch.no_grad()
-def audit_source_boundaries(corpora, records, device):
+def audit_source_boundaries(corpora, records, device, hand_distance_m=.08):
     import trimesh
     from utils import zup_to_yup
     objects = {}
@@ -227,7 +238,8 @@ def audit_source_boundaries(corpora, records, device):
                     objects[obj] = torch.as_tensor(zup_to_yup(np.asarray(mesh.vertices)), device=device, dtype=torch.float32)
                 translation = torch.as_tensor(np.array(corpus.object_translation[frames]), device=device, dtype=torch.float32)
                 rotation = torch.as_tensor(np.array(corpus.object_rotation[frames]), device=device, dtype=torch.float32)
-                values.update(object_boundary_measures(joints, translation, rotation, objects[obj]))
+                values.update(object_boundary_measures(joints, translation, rotation, objects[obj],
+                    hand_distance_m=hand_distance_m))
             boundaries[name] = values
         record['source_boundary_audit'] = boundaries
     return records
@@ -280,6 +292,9 @@ def validate_episode(episode, sources):
 
 
 def run_multitask(cfg):
+    if cfg.multitask.stage == 'source_bridges':
+        from .source_bridge import run_source_bridges
+        return run_source_bridges(cfg)
     if cfg.multitask.stage == 'handoff_audit':
         from .multitask_handoff import run_handoff_audit
         return run_handoff_audit(cfg)
