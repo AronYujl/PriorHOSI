@@ -777,3 +777,32 @@ SDF layout: native metrics/contact correction take `[1,D,H,W]`, while the source
 geometry query takes `[1,1,D,H,W]`. A component regression exercises both distance
 queries and the correction gradient on an analytic SDF. The bridge fix has its
 own implementation commit and consumes the completed source manifest by reference.
+
+### Phase 5.5.2a.1 completion
+
+The source run `p5-multitask-source-eligibility-grasped-s42-20260910` retained all
+469 original task rows and published 5 forward, 0 strict reverse and 12
+grasped-entry reverse candidates. The grasped family reached the registered cap;
+112 later rows are explicitly unattempted by that cap. All accepted LINGO inputs
+come from two walking clips of 52 and 109 frames. The audit retains all 1407
+task/direction rows and 45 complete-source pair attempts.
+
+Run `p5-multitask-source-bridges-grasped-s42-20260910` generated the fixed twelve
+Kimodo bridges once. All twelve pass the registered native-context, finite-output,
+full-frame geometry, suffix-contact and fixed-object gates. Maximum body-scene,
+body-object and floor penetration are 36.492, 13.661 and 3.432 mm; the maximum
+required suffix hand distance is 38.434 mm. Context poses/translations, source
+prefixes and object transforms are preserved exactly in the saved arrays.
+
+Native correction changes fixed predicted foot-contact speed from 0.05158 to
+0.01254 m/s and entry/exit joint-velocity jumps from 0.06448/0.04902 to
+0.00353/0.00445 m/s. Local rotation jumps increase from 1.082/0.914 to
+2.275/1.714 degrees; near-floor joint speed changes from 0.13210 to 0.13305 m/s.
+These costs remain in the report. Full expert-chain execution is the next
+subphase, with actual predecessor histories and its own preregistered guards.
+
+Final authority verification is 1174 passed and 4 historical skips. All twelve
+videos and 1521 native stitched frames were checked, and both reportable runs
+completed. Read [the handoff summary](../phase_summaries/PHASE_5G_GRASPED_ENTRY.md)
+and `experiments/results/p5_multitask_grasped_entry_s42_20260910.json` before
+Phase 5.5.2b. This closes the approved source-endpoint diagnostic.

@@ -1,5 +1,11 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
+2026-09-10：Phase 5.5.2a.1 完成。修正源放置/支撑与手部索引后，得到 5 条正向、
+0 条严格反向、12 条初始抓握反向候选；固定的 12 条 Kimodo 桥段全部通过登记门槛。
+原生修正改善位置接缝与固定足底接触代理，旋转接缝跳变增大。1174 tests passed、
+4 historical skips；完整专家链留在 Phase 5.5.2b。
+先读 [本阶段总结](../phase_summaries/PHASE_5G_GRASPED_ENTRY.md) 与其中的视频入口。
+
 2026-09-10: Phase 5.5.1 audits the published pilot's actual HOI handoff. The
 source identity checks pass, but the 9.8 s budget cutoff misses the goals and
 release conditions; the cached terminal is 42 frames over budget and remains too

@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "phase": "p5",
+  "subphase": "5.5.2a.1",
+  "status": "completed",
+  "seed": 42,
+  "classification": "source-grasped-entry-bridge-positive-bounded",
+  "source": {
+    "summary": {
+      "schema_version": 2,
+      "subphase": "5.5.2a.1",
+      "status": "completed",
+      "seed": 42,
+      "git_commit": "3c2b8601fd3768c08b9a6e16f5d162a3886663ce",
+      "original_hosi_tasks": 469,
+      "lingo_sources": 1214,
+      "excluded_lingo_sources": 912,
+      "lingo_pool_size": 16,
+      "accepted_by_direction": {
+        "omomo_to_lingo": 5,
+        "lingo_to_omomo": 0,
+        "lingo_to_omomo_grasped_entry": 12
+      },
+      "task_audit_rows": 1407,
+      "status_counts": {
+        "omomo_source_state_ineligible": 933,
+        "omomo_source_geometry_or_support_failed": 314,
+        "accepted_source_transition": 17,
+        "not_attempted_scene_selected": 30,
+        "no_feasible_lingo_source": 1,
+        "not_attempted_episode_cap": 112
+      },
+      "pair_attempts": 45,
+      "candidates": 17,
+      "model_output_used": false,
+      "generated_motion_samples": 0,
+      "elapsed_seconds": 233.35525950230658,
+      "peak_cuda_allocated_bytes": 992694784,
+      "device": "cuda:1",
+      "git_commit_at_completion": "3c2b8601fd3768c08b9a6e16f5d162a3886663ce"
+    },
+    "task_statuses_by_direction": {
+      "omomo_to_lingo": {
+        "omomo_source_state_ineligible": 462,
+        "omomo_source_geometry_or_support_failed": 2,
+        "accepted_source_transition": 5
+      },
+      "lingo_to_omomo": {
+        "omomo_source_state_ineligible": 469
+      },
+      "lingo_to_omomo_grasped_entry": {
+        "omomo_source_geometry_or_support_failed": 312,
+        "accepted_source_transition": 12,
+        "not_attempted_scene_selected": 30,
+        "omomo_source_state_ineligible": 2,
+        "no_feasible_lingo_source": 1,
+        "not_attempted_episode_cap": 112
+      }
+    },
+    "pair_statuses_by_direction": {
+      "omomo_to_lingo": {
+        "lingo_geometry_or_support_failed": 5,
+        "accepted_source_transition": 5
+      },
+      "lingo_to_omomo": {},
+      "lingo_to_omomo_grasped_entry": {
+        "lingo_geometry_or_support_failed": 23,
+        "accepted_source_transition": 12
+      }
+    },
+    "selected_omomo_source_count": 12,
+    "selected_lingo_source_count": 2,
+    "selected_lingo_sources": [
+      {
+        "source_id": "lingo-8487",
+        "text": "walk",
+        "source_frames": 109
+      },
+      {
+        "source_id": "lingo-8548",
+        "text": "walk",
+        "source_frames": 52
+      }
+    ],
+    "omomo_source_count": 150,
+    "omomo_initial_contact_source_count": 148,
+    "omomo_sustained_contact_source_count": 149,
+    "original_hosi_rows_equal_to_historical_reference": true,
+    "overlapping_failed_geometry_checks": {
+      "omomo_to_lingo": {
+        "object_scene_or_floor": 2
+      },
+      "lingo_to_omomo": {},
+      "lingo_to_omomo_grasped_entry": {
+        "scene_max": 73,
+        "object_scene_or_floor": 50,
+        "object_support": 294,
+        "floor": 10,
+        "body_object": 24,
+        "scene_mean": 4
+      }
+    }
+  },
+  "bridge": {
+    "bridge_count": 12,
+    "bridge_passes": 12,
+    "gate_counts": {
+      "contexts": 12,
+      "finite": 12,
+      "full_frame_geometry": 12,
+      "suffix_contact": 12,
+      "object_fixed": 12
+    },
+    "before_after_case_means": {
+      "before": {
+        "fixed_contact_speed_m_s": 0.051579225497941174,
+        "fixed_contact_height_abs_m": 0.017149281377593677,
+        "bridge_contact_foot_speed_mean_m_s": 0.13210396034022173,
+        "bridge_unsupported_fraction": 0.0,
+        "entry_velocity_jump_mean_m_s": 0.06447593433161576,
+        "exit_velocity_jump_mean_m_s": 0.04902121036623915,
+        "entry_root_velocity_jump_m_s": 0.0534886900956432,
+        "exit_root_velocity_jump_m_s": 0.03362084676822027,
+        "entry_rotation_jump_mean_deg": 1.0820772399504979,
+        "exit_rotation_jump_mean_deg": 0.9143305371205012,
+        "free_ground_depth_max_m": 0.013866941134134928,
+        "free_ground_depth_mean_m": 0.005282952934673328
+      },
+      "after": {
+        "fixed_contact_speed_m_s": 0.012543046633557728,
+        "fixed_contact_height_abs_m": 0.004004305170383304,
+        "bridge_contact_foot_speed_mean_m_s": 0.13304965881009898,
+        "bridge_unsupported_fraction": 0.0,
+        "entry_velocity_jump_mean_m_s": 0.00352788477903232,
+        "exit_velocity_jump_mean_m_s": 0.004448791849426925,
+        "entry_root_velocity_jump_m_s": 0.002031736735564967,
+        "exit_root_velocity_jump_m_s": 0.0046063627281303825,
+        "entry_rotation_jump_mean_deg": 2.2753172318140664,
+        "exit_rotation_jump_mean_deg": 1.7138558129469554,
+        "free_ground_depth_max_m": 0.00025804837544759113,
+        "free_ground_depth_mean_m": 1.0941328819550714e-05
+      }
+    },
+    "worst_case": {
+      "scene_penetration_mean_m": 5.575190152740106e-05,
+      "scene_penetration_max_m": 0.036492034792900085,
+      "scene_outside_fraction": 0.0,
+      "object_penetration_max_m": 0.013661150820553303,
+      "floor_penetration_max_m": 0.0034323930740356445,
+      "endpoint_joint_max_error_m": 0.0,
+      "endpoint_rotation_max_deg": 0.0,
+      "required_suffix_hand_distance_m": 0.03843425214290619,
+      "root_translation_correction_max_m": 0.051198266446590424,
+      "joint_correction_max_m": 0.19304801523685455,
+      "rotation_correction_max_deg": 47.0311279296875
+    },
+    "object_translation_max_change_m": 0.0,
+    "object_rotation_max_change": 0.0,
+    "native_fit_total_s": 58.211676040664315,
+    "native_correction_total_s": 159.0310890842229
+  },
+  "generator": {
+    "model": "Kimodo-SMPLX-RP-v1",
+    "samples": 12,
+    "frames": 61,
+    "steps": 50,
+    "seed": 42,
+    "text_condition": "official empty text",
+    "generation_seconds": 9.996247274801135,
+    "postprocess_seconds": 0.23815784603357315,
+    "peak_allocated_bytes": 1331980288,
+    "shape_roundtrip_max_m": 4.034336313907261e-07,
+    "python": "/data/yujinlun/anaconda3/envs/kimodo/bin/python",
+    "torch_version": "2.7.1+cu128",
+    "device": "cuda:2"
+  },
+  "execution": {
+    "source_seconds": 233.35525950230658,
+    "source_peak_cuda_allocated_bytes": 992694784,
+    "bridge_native_peak_cuda_allocated_bytes": 451168768,
+    "bridge_end_to_end_with_preparation_and_previews_seconds": 1418.5299570094794,
+    "native_device": "cuda:1",
+    "kimodo_device": "cuda:2",
+    "contended": true,
+    "source_commit": "3c2b8601fd3768c08b9a6e16f5d162a3886663ce",
+    "bridge_commit": "4c7b925976a6dda4a65fae8356e5dd01ddb36bc7"
+  },
+  "artifact_validation": {
+    "candidate_ids_preserved": true,
+    "bridge_count": 12,
+    "video_count": 12,
+    "prefix_checks_passed": 12,
+    "context_checks_passed": 12,
+    "object_checks_passed": 12,
+    "source_frames_total": 909,
+    "new_native_frames_total": 612,
+    "total_native_frames": 1521,
+    "maximum_context_joint_error_m": 0.0,
+    "maximum_source_reconstruction_error_m": 4.951133405484143e-07
+  },
+  "verification": {
+    "full_authority_passed": 1174,
+    "full_authority_skipped": 4,
+    "full_authority_log": "results/verification/source_grasped_entry_bridge_sdf_authority_20260910.log",
+    "registry_valid": true,
+    "resolved_config_interpolations_remaining": 0
+  },
+  "scope": {
+    "membership_uses_model_outputs": false,
+    "source_membership_changed_during_bridge_run": false,
+    "expert_training_runs": 0,
+    "hoi_hsi_forward_calls": 0,
+    "full_expert_chain_executed": false,
+    "uncertainty": "Fixed single-method source-endpoint diagnostic; descriptive case means without a paired-method bootstrap."
+  },
+  "limitations": [
+    "Only two LINGO walking clips supply all accepted predecessors/successors.",
+    "The grasped-entry family reaches the registered cap of twelve; 112 later tasks are explicitly unattempted by that cap.",
+    "Native correction improves the fixed predicted foot-contact proxy and positional seams, while rotational seam jumps increase.",
+    "Near-floor joint speed changes from 0.132104 to 0.133050 m/s; whole-foot stability is still limited.",
+    "Endpoint grasp and object support are geometric proxies; actual generated predecessor states and full expert chains await Phase 5.5.2b."
+  ],
+  "retained_failed_runs": [],
+  "retained_historical_defects": {
+    "source_candidate_count": 3,
+    "source": "results/experiments/p5-multitask-source-eligibility-r1-s42-20260910",
+    "defect": "Seated-start stand-up clips were raised 0.426-0.430 m during full-XYZ pelvis alignment."
+  },
+  "artifacts": {
+    "source_manifest": "results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/manifest.json",
+    "candidate_manifest": "results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/eligibility/task_manifest.json",
+    "source_audit": "results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/eligibility/transition_audit.json",
+    "bridge_manifest": "results/experiments/p5-multitask-source-bridges-grasped-s42-20260910/manifest.json",
+    "bridge_metrics": "results/experiments/p5-multitask-source-bridges-grasped-s42-20260910/bridges/metrics.json",
+    "artifact_validation": "results/experiments/p5-multitask-source-bridges-grasped-s42-20260910/artifact_validation.json",
+    "review": "results/experiments/p5-multitask-source-bridges-grasped-s42-20260910/bridges/review.md"
+  },
+  "phase_summary": "docs/phase_summaries/PHASE_5G_GRASPED_ENTRY.md",
+  "recovery_tag": "exp/p5g-grasped-entry-v1",
+  "next_entry": "Phase 5.5.2b: preregister actual-history predecessor, acquisition and HOI continuation guards on the fixed source candidate table."
+}
