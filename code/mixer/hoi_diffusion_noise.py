@@ -513,9 +513,13 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
         terms = objective.term_record()
         source_hs_error = abs(terms['human_scene']*objective.hs_scale-source_metrics['scene_human_penetration_s_mean'])
         source_os_error = abs(terms['object_scene']*objective.os_scale-source_metrics['scene_obj_penetration_s_mean'])
-        assert source_hs_error <= 1e-5 and source_os_error <= 1e-5, (source_hs_error, source_os_error)
+        normalized_error = dict(
+            human=abs(terms['human_scene']-source_metrics['scene_human_penetration_s_mean']/objective.hs_scale),
+            object=abs(terms['object_scene']-source_metrics['scene_obj_penetration_s_mean']/objective.os_scale))
+        assert max(normalized_error.values()) <= 1e-5, normalized_error
         write_json(physical_path, dict(terms=terms, counts=objective.counts, native_hs_error=source_hs_error,
-            native_os_error=source_os_error, source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
+            native_os_error=source_os_error, normalized_scene_error=normalized_error,
+            source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
             coarse_fk_native_max_error_m=coarse_fk_error, same_noise_replay_exact=True))
     audits = {}
     for name, value, view, iteration in [('source_correct', initial, 'correct', 0), ('source_wrong', initial, 'wrong', 0)]:

@@ -569,6 +569,7 @@ def run_hoi_dno(cfg):
         peak_memory_gib=torch.cuda.max_memory_allocated(device)/1024**3))
 
 
+@torch.no_grad()
 def run_body_projection(cfg):
     """Named cached probe: hand_foot_continuous_body_readout."""
     import subprocess

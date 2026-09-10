@@ -5164,3 +5164,9 @@ C活动手/近地足/前缀误差较C0的2.217/3.060/4.146cm降至1.101/1.344/2.
 23项DNO组件检查通过（2.82s）：人/物共同换帧、跨窗梯度、原生物体插值、刚体改道下的局部身体/手物关系不变、带两帧重叠的原生四输入导数、当前候选正确/错配查询、官方优化器中断恢复一致性。所有源/最终读出使用与优化相同的可微Transformer前向路径；模型权重冻结。物理源参考与当前FK分块保持一致，记录canonical差值；正式源将检验FK24与原生SMPL-X身体/手部的对齐。
 
 完整authority 1140 passed/4历史skips/298既有warnings（205.43s），431条registry有效，Hydra配置完整解析，git diff --check通过。首轮两项恢复测试因调用命令未export INFBAGEL_PYTHON而初始化失败，修正环境后全套重跑通过；两个日志保留在results/hoi-dno-implementation-20260910/。合成插值夹具采用共享float32时间权重的1e-7精度，未改变原生插值。正式375任务承担真实数据功能与满任务batch1性能验证；结果未产生前保持登记的50/300步、权重和科学判据。
+
+### Phase2.39a source-metric preflight failure and correction
+
+首次p2-mixer-hoi-dno-s42-20260910在375源验证处failed封存（25.59s，0优化步）。HOI DDIM源与同噪声重放精确一致，原生FK24核对通过。OS源165.2218017578125，归一化目标误差1.1920928955078125e-7恰为一个float32 epsilon；还原原始量纲后为1.969597360584885e-5，被原始绝对1e-5阈值误判。根因是检查量纲与实际优化目标不同；检查改在归一化单位上执行1e-5，原始及归一化误差同时保存，所有目标、权重、采样、预算与科学门槛保持。失败源及日志保留，r1使用新编号。实现复核同时恢复旧run_body_projection入口的no_grad装饰器，使原入口保持原执行语义。
+
+修正后完整authority再次通过：1140 passed/4历史skips/298既有warnings（203.45s），432条registry有效。日志results/hoi-dno-implementation-20260910/authority-r2.log。归一化源检查的量纲修正与旧入口装饰器恢复在同一实际失败修复提交中完成；r1继续原固定协议。
