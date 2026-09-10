@@ -36,3 +36,4 @@ multitask:
     lane_count: 1
     lane_index: 0
     render_limit: 16
+    bridge_roots: []

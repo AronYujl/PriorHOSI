@@ -43,6 +43,121 @@ def test_source_terminal_refers_to_sequence_end_not_first_window_end():
     assert task_source['task_reference_context_frames'] == list(range(156, 166))
 
 
+def dataset_standing_fixture(frames=10):
+    from types import SimpleNamespace
+    joints = torch.zeros(frames, 28, 3)
+    joints[:, 0, 1] = .95
+    joints[:, 12, 1] = 1.5
+    joints[:, [1, 2], 1] = .9
+    joints[:, [4, 5], 1] = .5
+    joints[:, [7, 8, 10, 11], 1] = .05
+    joints[:, [1, 4, 7, 10], 0] = -.1
+    joints[:, [2, 5, 8, 11], 0] = .1
+    settings = SimpleNamespace(standing_tilt_deg=25., standing_pelvis_height_m=.7,
+        standing_knee_flexion_deg=45., standing_speed_m_s=.5, foot_support_m=.08,
+        standing_context_frames=10, minimum_frames=49, maximum_frames=600,
+        minimum_walk_distance_m=.5, cut_options_per_source=8)
+    return joints, settings
+
+
+def test_dataset_join_stance_accepts_contact_and_rejects_a_crouch():
+    from mixer.source_eligibility import standing_context
+    joints, settings = dataset_standing_fixture()
+    joints[:, [24, 25, 26, 27]] = torch.tensor([0., .5, .1])
+    assert standing_context(joints, settings)['passes']
+    joints[:, 0, 1] = .6
+    assert not standing_context(joints, settings)['passes']
+
+
+@pytest.mark.parametrize('direction', ['lingo_to_omomo', 'omomo_to_lingo'])
+def test_dataset_search_finds_interior_standing_cut_in_long_motion(direction):
+    from mixer.source_eligibility import source_cut_options
+    joints, settings = dataset_standing_fixture(500)
+    joints[:220, :, 0] += torch.arange(220)[:, None]*.03
+    joints[220:, :, 0] += 219*.03
+    joints[230:, :, 1] -= .4
+    if direction == 'omomo_to_lingo':
+        joints = joints.flip(0).clone()
+    span = dict(source_start_frame=1000, source_stop_frame=1500,
+        actions=[dict(start=1000, stop=1500, text='walk', action_type='locomotion')])
+    choices = source_cut_options(span, joints, direction, settings)
+    assert choices and all(c['internal_cut'] for c in choices)
+    if direction == 'lingo_to_omomo':
+        assert choices[0]['source_frame_interval'][1] == 1230
+    else:
+        assert choices[0]['source_frame_interval'][0] == 1270
+    assert all(c['walk_distance_m'] >= .5 for c in choices)
+
+
+def test_dataset_source_spans_keep_seated_activity_and_split_props_and_gaps():
+    from mixer.source_eligibility import DATASET_ACTIONS, labelled_spans
+    items = [(0,100,'walk'), (100,200,'sit down on chair'), (200,300,'stand up from seat'),
+             (300,400,'pick up cup with right hand'), (400,500,'walk'), (510,600,'walk')]
+    rows = [dict(start=a, stop=b, text=t, action_type=DATASET_ACTIONS.get(t), scene='010',
+        family='010', data_idx=i, sequence=i) for i,(a,b,t) in enumerate(items)]
+    spans = labelled_spans(rows)
+    assert [(s['source_start_frame'],s['source_stop_frame']) for s in spans] == [(0,300),(400,500),(510,600)]
+    assert [a['text'] for a in spans[0]['actions']] == ['walk','sit down on chair','stand up from seat']
+    for text in ['drink from cup with right hand','play guitar with both hands','sit down on yoga ball']:
+        assert text not in DATASET_ACTIONS
+
+
+def test_dataset_full_interval_geometry_catches_collision_between_clear_endpoints():
+    from types import SimpleNamespace
+    from mixer.source_eligibility import full_source_geometry, slice_source
+    axis = torch.linspace(-1,1,17)
+    x, _, _ = torch.meshgrid(axis,axis,axis,indexing='ij')
+    info = dict(centroid=[0.,0.,0.],extents=[2.,2.,2.])
+    scene = (x[None,None],info)
+    obj_sdf = torch.ones(1,1,17,17,17)
+    vertices = torch.tensor([[[.25,.1,0.]], [[-.25,.1,0.]], [[.25,.1,0.]]])
+    motion = dict(verts=vertices,joints=vertices)
+    threshold = SimpleNamespace(scene_mean_penetration_m=.001,scene_max_penetration_m=.01,
+        object_max_penetration_m=.05,floor_max_penetration_m=.01)
+    rest = torch.tensor([[.8,.1,0.]])
+    args = (scene,obj_sdf,info,rest,torch.zeros(3),torch.eye(3),threshold)
+    assert full_source_geometry(slice_source(motion,0,1),*args)['passes']
+    assert full_source_geometry(slice_source(motion,2,3),*args)['passes']
+    assert not full_source_geometry(motion,*args)['passes']
+
+
+def test_dataset_stitch_preserves_both_sources_and_moving_object_contexts():
+    from mixer.source_bridge import stitch_dataset_motion
+    keys = ('pose','translation','joints','object_translation','object_rotation')
+    first = {k:torch.arange(20).float()[:,None] for k in keys}
+    second = {k:torch.arange(100,130).float()[:,None] for k in keys}
+    bridge = {k:torch.arange(200,261).float()[:,None] for k in keys}
+    first['betas'] = torch.arange(16).float()
+    full = stitch_dataset_motion(first,bridge,second)
+    for key in keys:
+        assert full[key].shape[0] == 91
+        assert torch.equal(full[key][:20],first[key])
+        assert torch.equal(full[key][20:61],bridge[key][10:51])
+        assert torch.equal(full[key][61:],second[key])
+    assert full['betas'] is first['betas']
+
+
+def test_dataset_inference_payload_contains_only_initial_motion_and_task_goals():
+    from mixer.source_bridge import inference_episode
+    first = {key:torch.arange(30).float()[:,None] for key in ('pose','translation','object_translation','object_rotation')}
+    base = dict(text='walk',pelvis_goal=[1.,0.,2.],object_goal=None,frame_count=30)
+    episode = dict(episode_id='example',scene_name='scene',body_identity=dict(gender='male',betas=[0.]*16),
+        persistent_objects=[dict(object_id='box',geometry='box.ply')], segments=[
+            dict(base,segment_id='lingo',source_dataset='LINGO',source_id='lingo-private',task_type='locomotion',contact_targets=[]),
+            dict(base,segment_id='omomo',source_dataset='OMOMO',source_id='omomo-private',task_type='hoi',
+                object_goal=[1.,.5,2.],object_rotation_goal=torch.eye(3).tolist())])
+    task = inference_episode(episode,first)
+    assert task['frame_count'] == 101
+    assert task['segments'][1]['start_frame'] == 71
+    assert len(task['initial_context']['pose']) == 10
+    assert task['initial_context']['pose'][-1] == [9.]
+    assert task['segments'][1]['object_goal'] == [1.,.5,2.]
+    import json
+    encoded = json.dumps(task)
+    for field in ('source_id','source_frame_interval','witness','construction','omomo-private','lingo-private'):
+        assert field not in encoded
+
+
 def test_suspended_stationary_object_requires_placement_before_release():
     joints = torch.zeros(10, 28, 3)
     rotation = torch.eye(3).repeat(10, 1, 1)

@@ -292,6 +292,15 @@ def validate_episode(episode, sources):
 
 
 def run_multitask(cfg):
+    if cfg.multitask.stage == 'dataset_sources':
+        from .source_eligibility import run_dataset_sources
+        return run_dataset_sources(cfg)
+    if cfg.multitask.stage == 'dataset_bridges':
+        from .source_bridge import run_dataset_bridges
+        return run_dataset_bridges(cfg)
+    if cfg.multitask.stage == 'dataset_publish':
+        from .source_bridge import publish_dataset
+        return publish_dataset(cfg)
     if cfg.multitask.stage == 'actual_history':
         from .multitask_execution import run_actual_history
         return run_actual_history(cfg)

@@ -14,13 +14,22 @@ from pytorch3d import transforms
 
 from .inbetween import heading
 from .multitask import (SourceCorpus, audit_source_boundaries, lingo_sources, original_tasks,
-    transition_edge, validate_episode, write_json)
+    human_boundary_measures, transition_edge, validate_episode, write_json)
 from .multitask_geometry import (geometry_measures, seating_support_mask, segment_from_source,
     signed_query, support_patches, terminal_goal_rotation, transformed_motion)
 from .surface_edit import decode_body, load_object_sdf, yaw_matrix
 
 GRASPED_ENTRY = 'lingo_to_omomo_grasped_entry'
 MOTION_KEYS = ('pose', 'translation', 'joints', 'verts', 'object_translation', 'object_rotation')
+
+DATASET_ACTIONS = {
+    'walk': 'locomotion',
+    'maintains stand posture': 'standing',
+    'maintains sit posture': 'seated',
+    'stand up from seat': 'seated',
+    **{f'sit down on {seat}': 'seated'
+       for seat in ('chair', 'office chair', 'sofa', 'couch', 'bed', 'toilet', 'bench')},
+}
 
 
 def direction_guard(direction, boundary, hand_distance_m, contact_fraction=.5):
@@ -472,4 +481,388 @@ def run_source_eligibility(cfg):
         git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip())
     write_json(output/'summary.json', summary)
     write_json(output/'resolved_config.json', OmegaConf.to_container(cfg, resolve=True))
+    print(json.dumps(summary), flush=True)
+
+
+def labelled_spans(records):
+    """Join contiguous safe annotations; every retained frame has a label."""
+    spans = []
+    for row in records:
+        if row['action_type'] is None:
+            continue
+        if (spans and spans[-1]['source_stop_frame'] == row['start']
+                and spans[-1]['source_scene'] == row['scene']):
+            spans[-1]['source_stop_frame'] = row['stop']
+            spans[-1]['actions'].append(row)
+        else:
+            spans.append(dict(source_dataset='LINGO', source_partition='test',
+                source_scene=row['scene'], source_scene_family=row['family'],
+                source_start_frame=row['start'], source_stop_frame=row['stop'],
+                source_sequence_idx=row['sequence'], data_idx=row['data_idx'],
+                actions=[row]))
+    for span in spans:
+        span['source_id'] = f'lingo-span-{span["source_start_frame"]}-{span["source_stop_frame"]}'
+        span['text'] = '; then '.join(a['text'] for a in span['actions'])
+        span['source_fps'] = 30
+    return spans
+
+
+def dataset_lingo_catalog(corpus, split):
+    sequences, indices = np.unique(corpus.language['ori_sequence_idx'], return_index=True)
+    indices = dict(zip(sequences.tolist(), indices.tolist()))
+    test_scenes = set(split['test']['scenes'])
+    annotations, exclusions = [], []
+    for seq in range(len(corpus.starts)//2):
+        start, stop = int(corpus.starts[seq]), int(corpus.ends[seq])
+        scene = str(corpus.scenes[start])
+        if scene not in test_scenes:
+            continue
+        index = indices.get(seq)
+        text = str(corpus.language['text'][index][0]) if index is not None else 'unlabelled'
+        kind = DATASET_ACTIONS.get(text)
+        row = dict(sequence=seq, start=start, stop=stop, scene=scene,
+            family=split['scene_to_family'][scene], data_idx=index, text=text, action_type=kind)
+        annotations.append(row)
+        if kind is None:
+            exclusions.append(dict(row, reason='action_requires_prop_or_is_outside_static_allowlist'))
+    return labelled_spans(annotations), exclusions
+
+
+def standing_frames(joints, settings):
+    """Upright supported stance; hand/object contact has no role in posture."""
+    root = joints[:, 0]
+    spine = joints[:, 12]-root
+    tilt = torch.acos((spine[:, 1]/spine.norm(dim=-1)).clamp(-1, 1))*180/torch.pi
+    thigh = joints[:, [1, 2]]-joints[:, [4, 5]]
+    shin = joints[:, [7, 8]]-joints[:, [4, 5]]
+    angle = torch.acos(((thigh*shin).sum(-1)/(thigh.norm(dim=-1)*shin.norm(dim=-1))).clamp(-1, 1))
+    flexion = 180-angle*180/torch.pi
+    speed = torch.cat((root.new_zeros(1), (root[1:]-root[:-1]).norm(dim=-1)*30))
+    foot_gap = joints[:, [7, 8, 10, 11], 1].abs().amin(-1)
+    mask = ((tilt <= settings.standing_tilt_deg) & (root[:, 1] >= settings.standing_pelvis_height_m)
+        & (flexion.amax(-1) <= settings.standing_knee_flexion_deg)
+        & (foot_gap <= settings.foot_support_m))
+    return mask, dict(tilt=tilt, knee_flexion=flexion.amax(-1), root_speed=speed, foot_gap=foot_gap)
+
+
+def standing_context(joints, settings):
+    mask, values = standing_frames(joints, settings)
+    return dict(passes=bool(mask.all() and (values['root_speed'] <= settings.standing_speed_m_s).all()), frames=len(joints),
+        torso_tilt_max_deg=float(values['tilt'].max()),
+        knee_flexion_max_deg=float(values['knee_flexion'].max()),
+        pelvis_height_min_m=float(joints[:, 0, 1].min()),
+        root_speed_max_m_s=float(values['root_speed'].max()),
+        foot_distance_max_m=float(values['foot_gap'].max()))
+
+
+def source_cut_options(span, joints, direction, settings):
+    """Search all frames, then spread the fixed cut budget over distinct times."""
+    width = int(settings.standing_context_frames)
+    if len(joints) < settings.minimum_frames:
+        return []
+    standing, values = standing_frames(joints, settings)
+    # A cut has no velocity edge to a discarded predecessor frame.
+    windows = (standing.unfold(0, width, 1).all(-1)
+        & (values['root_speed'].unfold(0, width, 1)[:, 1:] <= settings.standing_speed_m_s).all(-1))
+    walking = torch.zeros(len(joints), dtype=torch.bool, device=joints.device)
+    for action in span['actions']:
+        if action['action_type'] == 'locomotion':
+            walking[action['start']-span['source_start_frame']:action['stop']-span['source_start_frame']] = True
+    walk_step = (joints[1:, 0]-joints[:-1, 0]).norm(dim=-1)*(walking[1:] & walking[:-1])
+    distance = torch.cat((joints.new_zeros(1), walk_step.cumsum(0)))
+    choices = []
+    for context in torch.where(windows)[0].tolist():
+        if direction == 'omomo_to_lingo':
+            start, stop = context, min(len(joints), context+int(settings.maximum_frames))
+        else:
+            stop = context+width
+            start = max(0, stop-int(settings.maximum_frames))
+        if stop-start < settings.minimum_frames:
+            continue
+        travel = float(distance[stop-1]-distance[start])
+        if travel < settings.minimum_walk_distance_m:
+            continue
+        raw_start, raw_stop = span['source_start_frame']+start, span['source_start_frame']+stop
+        actions = [dict(a, start=max(a['start'], raw_start), stop=min(a['stop'], raw_stop))
+            for a in span['actions'] if a['start'] < raw_stop and a['stop'] > raw_start]
+        has_seat = any(a['action_type'] == 'seated' and a['stop']-a['start'] >= 10 for a in actions)
+        choices.append(dict(start=start, stop=stop, source_frame_interval=[raw_start, raw_stop], actions=actions,
+            has_static=has_seat, walk_distance_m=travel, standing_score=float(values['root_speed'][context+1:context+width].mean()),
+            cut_frame=raw_start if direction == 'omomo_to_lingo' else raw_stop-1,
+            internal_cut=start > 0 if direction == 'omomo_to_lingo' else stop < len(joints)))
+    choices.sort(key=lambda c: (not c['has_static'], c['standing_score'], -(c['stop']-c['start']), c['cut_frame']))
+    selected = []
+    for choice in choices:
+        if all(abs(choice['cut_frame']-other['cut_frame']) >= width for other in selected):
+            selected.append(choice)
+        if len(selected) == settings.cut_options_per_source:
+            break
+    return selected
+
+
+def slice_source(motion, start, stop):
+    return {key: value[start:stop] if key in MOTION_KEYS else value for key, value in motion.items()}
+
+
+def chunked_source_motion(corpus, record, start, stop, model, device):
+    pieces = [source_motion(corpus, record, list(range(first, min(first+128, stop))), model, device)
+        for first in range(start, stop, 128)]
+    return {key: torch.cat([piece[key] for piece in pieces]) if key in MOTION_KEYS else value
+        for key, value in pieces[0].items()}
+
+
+def dataset_support(motion, actions, model, scene, settings):
+    gap = motion['joints'][:, [7, 8, 10, 11], 1].abs().amin(-1)
+    result = dict(feet_supported=bool((gap <= settings.foot_support_m).all()),
+        foot_distance_max_m=float(gap.max()), seated_intervals=[], static_interaction=False)
+    for action in actions:
+        if action['action_type'] != 'seated':
+            continue
+        start, stop = action['local_start'], action['local_stop']
+        height = motion['joints'][start:stop, 0, 1]
+        seated = torch.where((height < .65) & (height <= height.min()+.05))[0]+start
+        if len(seated) < 10:
+            continue
+        patches = torch.stack([support_patches(motion['verts'][i:i+1], motion['joints'][i:i+1], model)
+            for i in seated.tolist()])
+        supported = seating_support_mask(patches, *scene)
+        result['seated_intervals'].append(dict(text=action['text'], frame_indices=seated.tolist(),
+            supported=bool(supported.all()), support_fraction=float(supported.float().mean()),
+            support_points=patches[len(patches)//2].tolist()))
+    result['static_interaction'] = bool(result['seated_intervals'])
+    result['passes'] = result['feet_supported'] and all(s['supported'] for s in result['seated_intervals'])
+    return result
+
+
+def place_complete_omomo(corpus, source, motion, task, vertices, offset):
+    """Place a complete source once; derive new goals from the actual result."""
+    initial = transforms.axis_angle_to_matrix(motion['pose'][0, 0])
+    initial_heading = transforms.matrix_to_euler_angles(initial, 'YXZ')[0]
+    delta = motion['translation'].new_tensor(task['pelvis_goal'])-motion['translation'].new_tensor(task['start_location'])
+    yaw = torch.atan2(-delta[2], delta[0])+math.pi/2-initial_heading
+    rotation = yaw_matrix(yaw.reshape(1))[0]
+    object_world = vertices @ motion['object_rotation'].transpose(-1, -2)+motion['object_translation'][:, None]
+    shift = torch.zeros(3, device=rotation.device)
+    shift[1] = -torch.minimum(motion['verts'][..., 1].min(), object_world[..., 1].min())
+    shift[[0, 2]] = (shift.new_tensor(task['start_location'])+shift.new_tensor([offset[0], 0, offset[1]])
+        -motion['joints'][0, 0] @ rotation.T)[[0, 2]]
+    placed = transformed_motion(motion, rotation, shift)
+    placed['object_translation'] = motion['object_translation'] @ rotation.T+shift
+    placed['object_rotation'] = rotation @ motion['object_rotation']
+    return placed, dict(yaw_rad=float(yaw), translation_m=shift.tolist(), anchor_offset_m=list(offset),
+        source_frame_interval=[source['source_start_frame'], source['source_stop_frame']])
+
+
+def balanced_tasks(tasks):
+    groups = defaultdict(list)
+    for row in tasks:
+        groups[row['original_task']['scene_name']].append(row)
+    return [group[i] for i in range(max(map(len, groups.values())))
+        for _, group in sorted(groups.items()) if i < len(group)]
+
+
+def pair_options(spans, options, usage, family_usage, settings):
+    groups = {}
+    for static in (True, False):
+        group = [span for span in spans if any(c['has_static'] == static for c in options[span['source_id']])]
+        groups[static] = sorted(group, key=lambda s: (usage[s['source_id']], family_usage[s['source_scene_family']], s['data_idx']))
+    for attempt in range(int(settings.pair_attempt_limit)):
+        static = attempt % 2 == 0
+        group = groups[static] or groups[not static]
+        if not group:
+            return
+        ordinal = attempt//2
+        span = group[ordinal % len(group)]
+        choices = [c for c in options[span['source_id']] if c['has_static'] == static] or options[span['source_id']]
+        cycle = ordinal//len(group)
+        cut = choices[cycle % len(choices)]
+        yaw = settings.yaw_offsets_deg[(ordinal//8+cycle) % len(settings.yaw_offsets_deg)]
+        offset = settings.root_offsets_m[(ordinal//4+cycle) % len(settings.root_offsets_m)]
+        yield span, cut, float(yaw), list(offset)
+
+
+def dataset_candidate(output, row, source, span, cut, direction, body, lingo, metrics):
+    first, second = (body, lingo) if direction == 'omomo_to_lingo' else (lingo, body)
+    identifier = f'{row["task_id"]}-{direction}-{span["source_id"]}-{cut["cut_frame"]}'
+    witness = 'witnesses/'+identifier+'.pt'
+    torch.save({name: {k:v.cpu() if torch.is_tensor(v) else v for k,v in motion.items() if k != 'verts'}
+        for name,motion in dict(first=first, second=second).items()}, output/witness)
+    hoi_interval = [source['source_start_frame'], source['source_stop_frame']]
+    common = dict(scene_name=row['original_task']['scene_name'])
+    hoiseg = dict(common, segment_id='omomo', source_dataset='OMOMO', source_id=source['source_id'],
+        task_type='hoi', text=source['text'], source_frame_interval=hoi_interval,
+        pelvis_goal=body['joints'][-1, 0].tolist(), object_goal=body['object_translation'][-1].tolist(),
+        object_rotation_goal=body['object_rotation'][-1].tolist(), frame_count=len(body['pose']))
+    static = metrics['lingo_support']['static_interaction']
+    lingoseg = dict(common, segment_id='lingo', source_dataset='LINGO', source_id=span['source_id'],
+        task_type='locomotion_static_interaction' if static else 'locomotion',
+        text='; then '.join(a['text'] for a in cut['actions']), actions=cut['actions'],
+        source_frame_interval=cut['source_frame_interval'], frame_count=len(lingo['pose']),
+        pelvis_goal=lingo['joints'][-1, 0].tolist(), object_goal=None,
+        contact_targets=metrics['lingo_support']['seated_intervals'])
+    segments = [hoiseg, lingoseg] if direction == 'omomo_to_lingo' else [lingoseg, hoiseg]
+    join = -1 if direction == 'omomo_to_lingo' else 0
+    return dict(episode_id=identifier, direction=direction, original_hosi_task_id=row['task_id'],
+        **common, segments=segments, body_identity=dict(gender=body['gender'], betas=body['betas'].tolist()),
+        persistent_objects=[dict(object_id=row['original_task']['object_name'],
+            geometry='data/test/rest_object_geo/'+row['original_task']['object_name']+'.ply',
+            planned_translation=body['object_translation'][join].tolist(),
+            planned_rotation=body['object_rotation'][join].tolist(), support=metrics['object_support'])],
+        construction=dict(witness=witness, source_only=True, expert_samples=0, measurements=metrics,
+            lingo_source_scene=span['source_scene'], lingo_source_scene_family=span['source_scene_family'],
+            internal_lingo_cut=cut['internal_cut'], lingo_cut_frame=cut['cut_frame']),
+        transition=dict(frames=41, context_frames=10, posture='standing', hands_may_contact_object=True),
+        frame_count=len(first['pose'])+41+len(second['pose']))
+
+
+@torch.no_grad()
+def run_dataset_sources(cfg):
+    import trimesh
+    from utils import create_smplx_model, zup_to_yup
+    root = Path(__file__).resolve().parents[2]
+    if cfg.get('run_id') and subprocess.check_output(['git', 'status', '--porcelain'], cwd=root, text=True).strip():
+        raise RuntimeError('registered benchmark construction requires a clean worktree')
+    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+    output = Path(cfg.multitask.output_dir)
+    output.mkdir(parents=True, exist_ok=False)
+    (output/'witnesses').mkdir()
+    settings, thresholds, device = cfg.multitask.dataset, cfg.multitask.source_eligibility, cfg.device
+    torch.cuda.synchronize(device)
+    torch.cuda.reset_peak_memory_stats(device)
+    started = time.perf_counter()
+    corpora = {name:SourceCorpus(root, name) for name in ('OMOMO', 'LINGO')}
+    tasks, originals = original_tasks(root, corpora['OMOMO'])
+    records = {r['source_id']:r for r in originals}
+    spans, exclusions = dataset_lingo_catalog(corpora['LINGO'], json.loads(Path(cfg.multitask.split_manifest).read_text()))
+    directions = ['omomo_to_lingo', 'lingo_to_omomo']
+    options = {direction:{} for direction in directions}
+    for span in spans:
+        joints = torch.as_tensor(np.array(corpora['LINGO'].joints[span['source_start_frame']:span['source_stop_frame']]), device=device, dtype=torch.float32)
+        for direction in directions:
+            options[direction][span['source_id']] = source_cut_options(span, joints, direction, settings)
+    write_json(output/'source_catalog.json', dict(spans=spans, exclusions=exclusions, cut_options=options))
+    models, objects = {}, {}
+    accepted, task_audit, pair_audit = [], [], []
+    usage, families, counts = Counter(), Counter(), Counter()
+    for row in balanced_tasks(tasks):
+        task, source = row['original_task'], dict(records[row['source_id']])
+        seq = source['source_sequence_idx']
+        source.update(source_start_frame=int(corpora['OMOMO'].starts[seq]), source_stop_frame=int(corpora['OMOMO'].ends[seq]))
+        if source['gender'] not in models:
+            models[source['gender']] = create_smplx_model(source['gender'], torch.device(device)).eval().requires_grad_(False)
+        model = models[source['gender']]
+        body_record = dict(source, _target_betas=corpora['OMOMO'].betas[seq], _target_gender=source['gender'])
+        body_raw = chunked_source_motion(corpora['OMOMO'], body_record,
+            source['source_start_frame'], source['source_stop_frame'], model, device)
+        frame_slice = slice(source['source_start_frame'], source['source_stop_frame'])
+        body_raw['object_translation'] = torch.as_tensor(np.array(corpora['OMOMO'].object_translation[frame_slice]), device=device, dtype=torch.float32)
+        body_raw['object_rotation'] = torch.as_tensor(np.array(corpora['OMOMO'].object_rotation[frame_slice]), device=device, dtype=torch.float32)
+        name = task['object_name']
+        if name not in objects:
+            rest = torch.as_tensor(zup_to_yup(np.asarray(trimesh.load_mesh(root/'data/test/rest_object_geo'/(name+'.ply')).vertices)), device=device, dtype=torch.float32)
+            array, info = load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files', name)
+            objects[name] = (rest, torch.as_tensor(array, device=device, dtype=torch.float32)[None, None], info)
+        rest, obj_sdf, obj_info = objects[name]
+        scene = _load_scene(root, task['scene_name'], device)
+        placement_audit, placed = [], None
+        for offset in settings.omomo_anchor_offsets_m:
+            body, placement = place_complete_omomo(corpora['OMOMO'], source, body_raw, task, rest, offset)
+            geo = full_source_geometry(body, scene, obj_sdf, obj_info, rest,
+                body['object_translation'], body['object_rotation'], thresholds)
+            support = dataset_support(body, [], model, scene, settings)
+            placement_audit.append(dict(placement=placement, geometry=geo, support=support))
+            if geo['passes'] and support['passes']:
+                placed = (body, placement, geo, support)
+                break
+        for direction in directions:
+            audit = dict(task_id=row['task_id'], direction=direction, source_id=source['source_id'],
+                scene_name=task['scene_name'], omomo_frame_interval=[source['source_start_frame'], source['source_stop_frame']],
+                omomo_placements=placement_audit, selected=[], pair_attempts=0)
+            task_audit.append(audit)
+            if placed is None:
+                audit['status'] = 'complete_omomo_geometry_or_support_failed'
+                continue
+            body, placement, body_geo, body_support = placed
+            forward = direction == 'omomo_to_lingo'
+            context = body['joints'][-10:] if forward else body['joints'][:10]
+            boundary = standing_context(context, settings)
+            join = -1 if forward else 0
+            position, rotation = body['object_translation'][join], body['object_rotation'][join]
+            support = object_support(rest @ rotation.T+position, scene)
+            audit.update(standing=boundary, object_support=support)
+            if not boundary['passes'] or not support['supported']:
+                audit['status'] = 'omomo_join_stance_or_object_support_failed'
+                continue
+            if len(accepted) >= settings.candidate_limit or counts[direction] >= settings.candidate_limit//2:
+                audit['status'] = 'not_attempted_candidate_budget'
+                continue
+            target_root, target_heading = body['joints'][join, 0], heading(body['joints'][join])
+            templates = {}
+            chosen_spans = set()
+            for span, cut, yaw, offset in pair_options(spans, options[direction], usage, families, settings):
+                if span['source_id'] in chosen_spans:
+                    continue
+                cache_key = (span['source_id'], cut['start'], cut['stop'])
+                if cache_key not in templates:
+                    # Limit the live body-surface cache; source intervals remain immutable.
+                    if len(templates) == 4:
+                        templates.pop(next(iter(templates)))
+                    transfer = dict(span, _target_betas=body_record['_target_betas'], _target_gender=source['gender'])
+                    templates[cache_key] = ground_source_motion(chunked_source_motion(corpora['LINGO'], transfer,
+                        cut['source_frame_interval'][0], cut['source_frame_interval'][1], model, device))
+                template = templates[cache_key]
+                target = target_root+target_root.new_tensor([offset[0], 0, offset[1]])
+                lingo, alignment = align_motion(template, 0 if forward else -1, target, target_heading+math.radians(yaw))
+                lingo['object_translation'] = position.expand(len(lingo['pose']), -1).clone()
+                lingo['object_rotation'] = rotation.expand(len(lingo['pose']), -1, -1).clone()
+                action_intervals = [dict(a, local_start=a['start']-cut['source_frame_interval'][0],
+                    local_stop=a['stop']-cut['source_frame_interval'][0]) for a in cut['actions']]
+                lingo_support = dataset_support(lingo, action_intervals, model, scene, settings)
+                stance = standing_context(lingo['joints'][:10] if forward else lingo['joints'][-10:], settings)
+                lingo_geo = full_source_geometry(lingo, scene, obj_sdf, obj_info, rest, position, rotation, thresholds)
+                passed = lingo_support['passes'] and stance['passes'] and lingo_geo['passes']
+                if cut['has_static'] and not lingo_support['static_interaction']:
+                    passed = False
+                measurements = dict(omomo_geometry=body_geo, omomo_support=body_support, omomo_placement=placement,
+                    omomo_standing=boundary, object_support=support, lingo_geometry=lingo_geo,
+                    lingo_support=lingo_support, lingo_standing=stance, alignment=alignment,
+                    ground_translation_m=template['ground_translation_m'])
+                pair_audit.append(dict(task_id=row['task_id'], direction=direction, source_id=span['source_id'],
+                    source_frame_interval=cut['source_frame_interval'], internal_cut=cut['internal_cut'],
+                    has_static=cut['has_static'], passed=passed, measurements=measurements))
+                audit['pair_attempts'] += 1
+                if passed:
+                    episode = dataset_candidate(output, row, source, span, cut, direction, body, lingo, measurements)
+                    accepted.append(episode)
+                    audit['selected'].append(episode['episode_id'])
+                    chosen_spans.add(span['source_id'])
+                    usage[span['source_id']] += 1
+                    families[span['source_scene_family']] += 1
+                    counts[direction] += 1
+                    print(json.dumps(dict(candidate=episode['episode_id'], static=lingo_support['static_interaction'], count=len(accepted))), flush=True)
+                if (len(audit['selected']) >= settings.candidates_per_task_direction or len(accepted) >= settings.candidate_limit
+                        or counts[direction] >= settings.candidate_limit//2):
+                    break
+            audit['status'] = 'source_pair_selected' if audit['selected'] else 'no_source_pair_in_fixed_search'
+        if len(task_audit) % 40 == 0:
+            print(json.dumps(dict(audited_tasks=len(task_audit)//2, candidates=len(accepted))), flush=True)
+    write_json(output/'construction_audit.json', dict(tasks=task_audit, pairs=pair_audit))
+    manifest = dict(schema_version=3, artifact_root=str(output), seed=int(cfg.seed),
+        original_hosi=dict(task_count=len(tasks), tasks=tasks), episodes=accepted,
+        candidate_selection='dataset_source_geometry_and_standing', expert_samples=0,
+        bridge_selection='one_fixed_kimodo_attempt_per_pair_then_next_pair', target_episodes=int(settings.target_episodes))
+    write_json(output/'candidates.json', manifest)
+    torch.cuda.synchronize(device)
+    summary = dict(status='completed', subphase='5.6.1', git_commit=commit, seed=int(cfg.seed),
+        original_tasks=len(tasks), source_spans=len(spans), excluded_action_intervals=len(exclusions),
+        source_candidates=len(accepted), candidates_by_direction=dict(counts),
+        static_candidates=sum(any(s['task_type'] == 'locomotion_static_interaction' for s in e['segments']) for e in accepted),
+        internal_cut_candidates=sum(e['construction']['internal_lingo_cut'] for e in accepted),
+        original_task_coverage=len({e['original_hosi_task_id'] for e in accepted}),
+        scene_coverage=len({e['scene_name'] for e in accepted}), lingo_span_coverage=len(usage),
+        task_statuses=dict(Counter(a['status'] for a in task_audit)), pair_attempts=len(pair_audit),
+        elapsed_seconds=time.perf_counter()-started, peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated(device),
+        device=str(device), expert_samples=0,
+        git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip())
+    write_json(output/'summary.json', summary)
     print(json.dumps(summary), flush=True)
