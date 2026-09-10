@@ -1135,3 +1135,33 @@ static-interaction availability. If the fixed search yields fewer than the
 target, publish that count and the limiting measurements without relaxing the
 rules. Close only this construction subphase; future model evaluation uses the
 completed inference table as a separate experiment.
+
+### 2026-09-11 — source audit correction before interpolation
+
+The first complete source run retained 64 geometry candidates (46 forward,
+18 reverse), using 64 LINGO spans and 29 original task anchors. It is retained
+as an audited construction attempt. A chronological annotation audit identifies
+22 selected intervals following explicit prop pickup without a matching
+putdown. These candidates have no valid prop-free semantic witness and the
+first table is not published or passed to Kimodo.
+
+Correct the source catalogue by carrying the labelled hand-held prop state
+across walking/standing intervals until the corresponding putdown. Prop use
+labels also establish holding state. Keep these exclusions and their preceding
+acquisition text in the catalogue. This enforces the user's moving-prop rule.
+
+Of 298 static attempts, 234 fail the old all-frame foot-floor check and 228
+fail bilateral seat support; 251 fail scene maximum penetration. Seated body
+support is supplied by a verified seat, so the per-frame support rule becomes
+floor-supported feet OR verified bilateral seat support during retained seated
+frames. Standing contexts retain their existing foot requirement. Scene and
+object geometry tolerances remain unchanged.
+
+The first search ends early after two walking successes. Reserve the first 48
+of each direction/task's 96 attempts for static-containing cuts, then use the
+remaining attempts for walking. Retain up to eight pairs per task/direction
+within the existing 128-per-direction/256-total candidate budget. This is a
+bounded coverage correction before any bridge output. Run it under a fresh
+source run ID, preserve the first run, and use the corrected table for the
+same one-sample Kimodo protocol. No interpolation or expert sample has yet been
+drawn in this subphase.

@@ -170,6 +170,18 @@ def test_acquisition_bridge_roundtrip_preserves_both_native_contexts(monkeypatch
     torch.testing.assert_close(rebuilt, condition['joints'][:, :22], atol=1e-5, rtol=0)
     torch.testing.assert_close(condition['object_translation'],
         torch.tensor([2.5, .5, -3.], device=device).repeat(61, 1))
+    from pytorch3d import transforms
+    source['object_translation'] = torch.arange(51, device=device).reshape(17,3).float()/100
+    source['object_rotation'] = transforms.axis_angle_to_matrix(source['pose'][:,0])
+    target['object_translation'] = source['object_translation'][-1:].repeat(10,1)
+    target['object_translation'][:,0] += torch.arange(10,device=device)*.01
+    target['object_rotation'] = transforms.axis_angle_to_matrix(target['pose'][:,0])
+    condition, _, _, _ = bridge_condition(source,target,source['object_translation'][-1],
+        source['object_rotation'][-1],model,object_contexts=(source,target))
+    for key in ('object_translation','object_rotation'):
+        assert torch.equal(condition[key][:10],source[key][-10:])
+        assert torch.equal(condition[key][51:],target[key][:10])
+        assert torch.equal(condition[key][10:51],source[key][-1:].expand_as(condition[key][10:51]))
 
 
 def test_acquisition_requires_each_source_contacting_hand_at_the_suffix():

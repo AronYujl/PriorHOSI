@@ -102,6 +102,39 @@ def test_dataset_source_spans_keep_seated_activity_and_split_props_and_gaps():
         assert text not in DATASET_ACTIONS
 
 
+def test_dataset_walk_retains_prior_hand_prop_until_putdown():
+    from mixer.source_eligibility import DATASET_ACTIONS, exclude_carried_props
+    labels = ['walk','pick up cup with right hand','walk','maintains stand posture',
+        'put down cup in right hand on chair','open door with right hand','walk']
+    rows = [dict(start=i*100,stop=(i+1)*100,text=text,action_type=DATASET_ACTIONS.get(text),scene='010')
+        for i,text in enumerate(labels)]
+    result = exclude_carried_props(rows)
+    assert result[0]['action_type'] == result[-1]['action_type'] == 'locomotion'
+    for i in (2,3):
+        assert result[i]['action_type'] is None
+        assert result[i]['carried_prop_context']['right']['text'] == labels[1]
+    assert result[-1]['carried_prop_context'] == {}
+
+
+def test_dataset_seated_support_can_carry_body_when_feet_are_above_floor():
+    from types import SimpleNamespace
+    from mixer.source_eligibility import dataset_support
+    axis = torch.linspace(-1,1,33)
+    _,y,_ = torch.meshgrid(axis,axis,axis,indexing='ij')
+    scene=(y[None,None]-.5,dict(centroid=[0.,0.,0.],extents=[2.,2.,2.]))
+    joints=torch.zeros(10,28,3);joints[:,0,1]=.62;joints[:,[7,8,10,11],1]=.13
+    vertices=torch.zeros(10,8,3);vertices[:,:4,1]=.5
+    vertices[:,[0,1],0],vertices[:,[2,3],0]=-.1,.1
+    weights=torch.zeros(8,22);weights[:2,1]=1;weights[2:4,2]=1;weights[4:,7]=1
+    model=SimpleNamespace(lbs_weights=weights)
+    motion=dict(joints=joints,verts=vertices)
+    action=dict(action_type='seated',local_start=0,local_stop=10,text='maintains sit posture')
+    result=dataset_support(motion,[action],model,scene,SimpleNamespace(foot_support_m=.08))
+    assert result['passes'] and result['body_supported'] and not result['feet_supported']
+    vertices[:,:4,1]+=.1
+    assert not dataset_support(motion,[action],model,scene,SimpleNamespace(foot_support_m=.08))['passes']
+
+
 def test_dataset_full_interval_geometry_catches_collision_between_clear_endpoints():
     from types import SimpleNamespace
     from mixer.source_eligibility import full_source_geometry, slice_source

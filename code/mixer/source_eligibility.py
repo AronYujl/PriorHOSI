@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 import shutil
 import subprocess
 import time
@@ -523,9 +524,37 @@ def dataset_lingo_catalog(corpus, split):
         row = dict(sequence=seq, start=start, stop=stop, scene=scene,
             family=split['scene_to_family'][scene], data_idx=index, text=text, action_type=kind)
         annotations.append(row)
-        if kind is None:
-            exclusions.append(dict(row, reason='action_requires_prop_or_is_outside_static_allowlist'))
+    annotations = exclude_carried_props(annotations)
+    exclusions = [row for row in annotations if row['action_type'] is None]
     return labelled_spans(annotations), exclusions
+
+
+def exclude_carried_props(annotations):
+    """A walking label retains props acquired earlier in the same recording."""
+    held, scene, output = {}, None, []
+    prop_nouns = ('cup', 'bottle', 'guitar', 'book', 'phone', 'camera', 'toothbrush',
+        'wok', 'racket', 'baseball bat', 'gamepad', 'chalk', 'pen', 'stick', 'gel')
+    prop_pattern = re.compile(r'\b(?:'+ '|'.join(re.escape(noun) for noun in prop_nouns)+r')\b')
+    for annotation in annotations:
+        row = dict(annotation)
+        if row['scene'] != scene:
+            held, scene = {}, row['scene']
+        text = row['text'].lower()
+        hands = ['left', 'right'] if 'both hands' in text else [h for h in ('left', 'right') if h+' hand' in text]
+        if text.startswith('put down '):
+            for hand in hands or list(held):
+                held.pop(hand, None)
+        elif text.startswith('pick up ') or ('hand' in text and prop_pattern.search(text)):
+            for hand in hands or ['unspecified']:
+                held[hand] = dict(text=row['text'], start=row['start'], stop=row['stop'])
+        row['carried_prop_context'] = dict(held)
+        if row['action_type'] is not None and held:
+            row['action_type'] = None
+            row['reason'] = 'prop_acquired_before_this_interval_and_still_carried'
+        elif row['action_type'] is None:
+            row['reason'] = 'action_requires_prop_or_is_outside_static_allowlist'
+        output.append(row)
+    return output
 
 
 def standing_frames(joints, settings):
@@ -615,6 +644,7 @@ def dataset_support(motion, actions, model, scene, settings):
     gap = motion['joints'][:, [7, 8, 10, 11], 1].abs().amin(-1)
     result = dict(feet_supported=bool((gap <= settings.foot_support_m).all()),
         foot_distance_max_m=float(gap.max()), seated_intervals=[], static_interaction=False)
+    supported_frames = gap <= settings.foot_support_m
     for action in actions:
         if action['action_type'] != 'seated':
             continue
@@ -626,11 +656,14 @@ def dataset_support(motion, actions, model, scene, settings):
         patches = torch.stack([support_patches(motion['verts'][i:i+1], motion['joints'][i:i+1], model)
             for i in seated.tolist()])
         supported = seating_support_mask(patches, *scene)
+        supported_frames[seated] |= supported
         result['seated_intervals'].append(dict(text=action['text'], frame_indices=seated.tolist(),
             supported=bool(supported.all()), support_fraction=float(supported.float().mean()),
             support_points=patches[len(patches)//2].tolist()))
     result['static_interaction'] = bool(result['seated_intervals'])
-    result['passes'] = result['feet_supported'] and all(s['supported'] for s in result['seated_intervals'])
+    result['body_supported'] = bool(supported_frames.all())
+    result['unsupported_frames'] = int((~supported_frames).sum())
+    result['passes'] = result['body_supported'] and all(s['supported'] for s in result['seated_intervals'])
     return result
 
 
@@ -666,12 +699,13 @@ def pair_options(spans, options, usage, family_usage, settings):
     for static in (True, False):
         group = [span for span in spans if any(c['has_static'] == static for c in options[span['source_id']])]
         groups[static] = sorted(group, key=lambda s: (usage[s['source_id']], family_usage[s['source_scene_family']], s['data_idx']))
+    half = int(settings.pair_attempt_limit)//2
     for attempt in range(int(settings.pair_attempt_limit)):
-        static = attempt % 2 == 0
+        static = attempt < half
         group = groups[static] or groups[not static]
         if not group:
             return
-        ordinal = attempt//2
+        ordinal = attempt if static else attempt-half
         span = group[ordinal % len(group)]
         choices = [c for c in options[span['source_id']] if c['has_static'] == static] or options[span['source_id']]
         cycle = ordinal//len(group)

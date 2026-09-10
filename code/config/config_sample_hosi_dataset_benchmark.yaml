@@ -1,6 +1,6 @@
 defaults: [config_sample_hosi_source_eligibility_grasped, _self_]
 
-exp_name: p5-benchmark-dataset-sources-s42-20260911
+exp_name: p5-benchmark-dataset-sources-r1-s42-20260911
 run_id: ${exp_name}
 device: cuda:4
 inbetween:
@@ -13,11 +13,11 @@ multitask:
     scene_mean_penetration_m: 0.001
     scene_max_penetration_m: 0.01
   dataset:
-    source_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-benchmark-dataset-sources-s42-20260911/benchmark/candidates.json
+    source_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-benchmark-dataset-sources-r1-s42-20260911/benchmark/candidates.json
     output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/benchmark
     target_episodes: 128
     candidate_limit: 256
-    candidates_per_task_direction: 2
+    candidates_per_task_direction: 8
     pair_attempt_limit: 96
     cut_options_per_source: 8
     minimum_frames: 49

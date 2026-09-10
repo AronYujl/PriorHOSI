@@ -21,7 +21,8 @@ path. Their support failures supply no membership criterion for this dataset.
    consecutive safe annotations at contiguous raw frames in the same scene.
    Preserve each action's original text and interval. Walking, standing and
    seated furniture actions are eligible. Unknown labels, temporal gaps and
-   moving props split spans.
+   moving props split spans. A pickup/use annotation establishes carried-prop
+   state across later walking labels until putdown; those intervals are excluded.
 3. Search all frames for ten-frame standing contexts. Retain 49–600 frames with
    at least 0.5 m of locomotion. Cuts may be internal to a longer recording.
    The actual retained interval determines the episode's action content.
@@ -32,6 +33,8 @@ path. Their support failures supply no membership criterion for this dataset.
    changes under constant grounding and yaw/XZ placement. Check all LINGO
    frames against scene, persistent object, floor and bounds. Static interaction
    requires retained seated frames with bilateral support in the target scene.
+   Supported feet or a verified seat supply per-frame body support; standing
+   joins specifically require foot support.
 6. Keep the OMOMO object at its join transform throughout LINGO, with floor or
    upward-facing scene support. Touching at the join is acceptable. A stationary
    suspended object lacks a support witness.
@@ -93,6 +96,8 @@ Use `code/test_infbagel_hosi.py --config-name config_sample_hosi_dataset_benchma
 with `multitask.stage=dataset_sources`, `dataset_bridges` or `dataset_publish`.
 Bridge lanes are disjoint by candidate ordinal. Publication accepts up to 128
 complete witnesses from at most 256 source candidates in fixed coverage order.
+The corrected search spends its first 48 of 96 placement attempts on static
+cuts, then considers walking, with at most eight pairs per task/direction.
 
 Use verified `INFBAGEL_PYTHON`, set `ROOT_DIR` to the inference checkout,
 archive resolved configs and use the existing experiment manifest lifecycle.
