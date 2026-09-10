@@ -1,5 +1,10 @@
 # Phase 5: Multi-task inference
 
+Current entry (2026-09-11): **5.6.1 dataset-motion benchmark construction**.
+The user's clarified benchmark consists of source OMOMO/LINGO motion and an
+inbetween construction witness. Read the final dated section before using older
+5.5 actual-history plans; expert rollout quality does not gate this benchmark.
+
 ## 2026-09-09 — Phase 5.1: standing handoff feasibility
 
 The user approved confirming HSI-generated standing transitions from the settled
@@ -1028,3 +1033,105 @@ Read [Phase5.5.2b.1 summary](../phase_summaries/PHASE_5H_EXPANDED_HISTORY.md) an
 entry. Source expansion and the bounded execution diagnostic are complete.
 Before5.5.2b.2, preregister actual HSI support and HOI scene-constraint integration;
 the full67-table execution remains behind that unresolved quality entry gate.
+
+## 2026-09-11 — Phase 5.6.1: dataset-motion benchmark and standing cuts
+
+Authorization: the user explicitly requests reselecting OMOMO/LINGO combinations
+for benchmark construction. Both action segments come from datasets. LINGO may
+precede or follow OMOMO, may be cut internally, and should include locomotion;
+static furniture interaction is preferred when supported by the target scene.
+Both sides of the join must be standing. Hand release is not a requirement.
+The 5.5 generated HSI→Kimodo→HOI diagnostic remains historical evidence about
+that inference path and supplies no benchmark membership condition.
+
+Hypothesis: complete source-motion geometry, standing interior cuts, and one
+fixed pretrained inbetween attempt per pair yield useful benchmark conditions
+without depending on either evaluated expert's generation quality.
+
+One bounded subphase, branch `phase/05f1-dataset-benchmark`, delivers the source
+inventory, constructed motions, inference conditions, rejection ledger, compact
+coverage/geometry report and review previews. The target is 128 completed
+episodes, with at most 256 source candidates; enumerate both directions and
+balance original tasks, source scenes and action content before bridge outcomes.
+Every failed bridge remains recorded and the next source pair is considered.
+Each pair receives one seed-42 sample. Source candidates and successful witness
+construction are separate counts. This is construction selection, not a measured
+model success rate or a claim that interpolation failure proves incompatibility.
+
+### Source and scene contract
+
+- Preserve the original 469 HOSI rows as an independent table. The new episode
+  goals and durations describe its actual retained source intervals. In
+  particular, the old `start_idx + 45` task reference is not a complete OMOMO
+  trajectory endpoint.
+- Use complete OMOMO test-sequence actions and their body/object trajectories.
+  Apply one rigid yaw/translation to body and object together. Anchor the source
+  in its original HOSI scene, allowing the five registered planar offsets of at
+  most 0.5 m. Query all retained frames against scene, bounds, floor and object.
+- LINGO uses the fixed seed-42 scene-family test split and original, unmirrored
+  frames. Join consecutive safe labelled intervals only when their raw frame
+  intervals are contiguous in the same scene. Walking and supported seated/
+  standing furniture interactions are eligible; hand-held props, moving
+  furniture, unknown labels and uncovered temporal gaps split the source span.
+- Search every frame for standing contexts, then retain up to eight distinct
+  cut options per span/direction. Keep 49–600 source frames and at least 0.5 m
+  locomotion. Record every retained action interval and its original label.
+  The ten-frame join context requires torso tilt ≤25°, pelvis height ≥0.7 m,
+  knee flexion ≤45°, root speed ≤0.5 m/s, and at least one supported foot marker
+  within 8 cm. Both OMOMO and LINGO satisfy these conditions.
+- Retarget LINGO to the OMOMO body and retain its height profile under one
+  whole-span grounding and yaw/XZ placement. Try the registered four headings
+  and five offsets within 0.4 m of the OMOMO join. Keep at most two candidates
+  per task/direction and 96 new placement attempts per task/direction. Prefer
+  coverage across source spans and attempt static-containing spans as well as
+  walking spans. A truncated seated action counts as static interaction only
+  when an actually seated interval with bilateral scene support remains.
+- Scene SDF tolerances are mean penetration ≤1 mm, maximum ≤10 mm; floor ≤10 mm
+  and native body/object maximum ≤50 mm. These are explicit geometric
+  tolerances, not a literal proof of zero surface intersection. The persistent
+  OMOMO object has floor or scene support throughout the LINGO interval. Hands
+  may touch it at either join; a stationary suspended object has no support
+  witness and is rejected.
+
+### Inbetween and benchmark interface
+
+Reuse Kimodo with 50 steps, empty text, 61 frames, ten-frame source contexts,
+240 native fitting steps and 400 contact correction steps. Preserve actual
+body/object contexts at both ends. Only the 41 interior frames are new; assemble
+`first source + free bridge + second source` without duplicating either context.
+Keep the object at the join transform in the free bridge and LINGO interval.
+The observed OMOMO object motion continues in its original source context.
+
+Both complete source intervals and the full bridge pass the registered geometry
+and support checks. Record contact, foot motion, position/rotation/velocity seams
+and correction magnitude, including adverse values. Check every output against
+its immutable source contexts and preserve every construction failure. A fixed
+batch of at most eight bridges limits GPU memory. GPU lanes are disjoint by
+candidate ordinal; source screening and native tensor work use the available
+RTX 3090s. Rendering is a CPU visualization task.
+
+`inference_tasks.json` contains text, durations, scene/object geometry, initial
+body/object context, ordered goals and segment/transition timing. Future source
+poses, trajectories and Kimodo witnesses belong only to a separate construction
+manifest. An evaluated model receives the former; its predictions are evaluated
+against the declared goals, geometry, contact/support and transition metrics.
+The constructed motion is a feasibility reference, not frame-aligned imitation
+GT. No HOI/HSI sampling or training belongs to this subphase.
+
+### Implementation and completion gate
+
+Reuse `source_eligibility.py`, `source_bridge.py` and the existing Hydra entry;
+add one override config and component tests, with no new executable script.
+Update the current benchmark documentation and navigation. Reuse the existing
+experiment lifecycle and asset references; add no hashing mechanism or smoke
+test. Verify meaningful regression cases for internal cuts, unsafe-label gaps,
+standing with hand contact, full-interval collision, context/track preservation
+and the inference-only payload. Run the full authority suite, registry
+validation and artifact checks. A training performance benchmark is inapplicable
+because this change constructs a dataset and leaves training unchanged.
+
+Publish measured accepted/rejected/unattempted counts and coverage, including
+static-interaction availability. If the fixed search yields fewer than the
+target, publish that count and the limiting measurements without relaxing the
+rules. Close only this construction subphase; future model evaluation uses the
+completed inference table as a separate experiment.

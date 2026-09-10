@@ -1,5 +1,8 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划（导航页）
 
+2026-09-11 当前入口：[Phase 5.6.1 数据集动作 benchmark](plan/PHASE_5_INFERENCE.md)。
+按用户澄清重新筛选双向 OMOMO/LINGO 片段和站立接点，构造过渡并导出推理条件。
+
 2026-09-09: [Phase 5.4 multi-task input pilot](phase_summaries/PHASE_5D_MULTITASK_BENCHMARK.md)
 is complete: one three-segment chain, original 469 tasks preserved. Phase 5.5
 is the next full-chain inference entry.
