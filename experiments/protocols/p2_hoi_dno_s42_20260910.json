@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "phase": "2.39a",
+  "component": "hoi-dno",
+  "authorization": "User explicitly authorized implementation after confirming HOIPrior as the DNO generator and HSIPrior as a scene-conditioned editing teacher on 2026-09-10.",
+  "task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908/input_references.json",
+  "dno_repository": "/data/yujinlun/Diffusion-Noise-Optimization",
+  "scope": "Fixed 28 tasks / 4 development scenes. Frozen P15 online generates every candidate, frozen R2 EMA supplies HSI targets. Human and object intermediate motion may change together. Source DDPM artifacts supply task conditions, duration and the first two history frames; they remain an additional sampler reference. No expert training or 469 promotion in this subphase.",
+  "method": {
+    "ddim_steps": 50,
+    "editing_steps": 300,
+    "lr": 0.05,
+    "warmup": 50,
+    "decorrelate_scale": 0.0,
+    "diff_penalty_scale": 0.01,
+    "perturb_scale": 0.0,
+    "checkpoint_every": 50,
+    "source": "One fresh deterministic DDIM-50 HOI rollout from task-indexed seed42 noise. Save noise and generated source; every arm replays this exact decoder and start. No inversion or source fitting.",
+    "decoder": "Full 232D HOI raw x0, 500-step training schedule with 50 rounded descending DDIM times and terminal alpha=1. Original final-window object SO3 projection. No Arm B posterior guidance inside DDIM; source and G/C/W all use the same unguided decoder. Historical DDPM500+ArmB is reported separately. All future latent blocks jointly optimized; generated history and rigid human/object frame conversions remain differentiable across windows.",
+    "conditioning": "Recover original native window frames, text, object shape, per-window goals and progress once. These are common fixed conditions. Root and object paths are generated outputs; final supplied human/object goals enter the objective. First two global coarse history frames fixed; later histories come from the current rollout.",
+    "native": "GPU differentiable native quaternion/linear interpolation and SMPL-X at 30Hz. No native source lift, late projection, terminal repair or best-iterate selection. Object SO3 projection uses the existing core function. The first three native frames follow the immutable first two coarse history frames; final poses and intermediate trajectories are free under explicit losses.",
+    "hsi_level": 199,
+    "hsi_weight": 0.25,
+    "teacher": "At each optimization iteration and window, add paired noise to the current HOI clean motion; freeze its two history frames. Query full R2 raw x0 using current-motion scene observations, native human goals and training-compatible empty object/contact channels. The wrong arm rotates all scene queries by 90 degrees about task start; true geometry and all non-scene conditions remain shared. Use detached HSI x0 as a refreshed local FK24 target, MSE/(5cm)^2 on future joints. HSI has no optimized latent and never supplies the output motion. This is an alternating local teacher surrogate, not a calibrated global density. Same per-step query RNG in C/W; log query coverage and paired source responses.",
+    "physical_scales": {
+      "body_m": 0.05,
+      "hand_m": 0.01,
+      "stance_height_m": 0.01,
+      "stance_speed_m_s": 0.05,
+      "local_velocity_m_s": 0.2,
+      "trajectory_acceleration_m_s2": 0.5,
+      "goal_m": 0.05,
+      "domain_m": 0.05
+    },
+    "physical": "Unit-weight native root-local body MSE, active object-frame hand MSE, source-stance foot height MSE, excess stance-foot speed above source, root-local body velocity MSE, source-relative human-root/object trajectory acceleration MSE, supplied planar-human/3D-object endpoint MSE, full human and seeded native object-subset scene penetration separately divided by max(source metric,1), and excess scene-grid exterior distance. Overlapping 24-frame SMPL-X blocks carry exact first derivatives through pose, translation and object translation/rotation. Source grasp/stance masks come from generated source geometry. Empty mask sets contribute zero and counts are reported. No world-position anchoring of hands or feet; no small root-displacement cap.",
+    "arms": [
+      "G",
+      "C",
+      "W"
+    ],
+    "arm_definitions": {
+      "G": "HOI DNO + physical objectives, HSI weight0",
+      "C": "same + correct-scene HSI teacher weight0.25",
+      "W": "same + wrong-scene HSI teacher weight0.25"
+    },
+    "recorded_arms": [
+      "DDPM_reference",
+      "source",
+      "G",
+      "C",
+      "W"
+    ]
+  },
+  "diagnostics": {
+    "engineering": "Same-noise source replay, scene-free HOI input contract, generated-history gradients into previous-window noise, root/body/object gradient reachability, shared C/W query RNG, native interpolation/FK derivatives, fixed initial history and resumable optimizer/RNG state. Full component and authority tests before formal launch.",
+    "gradient": "At source, record every physical and HSI term magnitude and actual noise-gradient norm; scene-vs-HSI cosine and correct/wrong teacher difference. Repeat at final G/C/W. Record every optimized term and optimizer gradient norm on all300 iterations; no reweighting after inspection.",
+    "sampling": "Compare generated DDIM50 source with archived DDPM500+ArmB source on all native metrics. Their source sampling protocols differ. Direct editing attribution uses only the exact DDIM source and same decoder G/C/W.",
+    "geometry": "Report human/object displacement, object-frame active-hand errors and contact retention, source-floor support, local-body/rotation changes, root/object path length, acceleration, native seam speed, first-three-frame invariance and current scene-query coverage."
+  },
+  "evaluation": "Every native metric per task, all three final edits and both references. Task- and scene-paired 10000-replicate seed42 bootstrap using existing paired_bootstrap implementation. Fixed 28 only, all failures retained, no seed or checkpoint selection; previous development use acknowledged. Save native pose/translation/object tracks and fixed task375 trajectory comparisons.",
+  "decision": {
+    "edit_utility": "C human-scene penetration <=0.90 source; C human-scene <=0.99 G and C-W <=-0.005 source. C object-scene <=1.01 source and <=1.01 G. Report all paired intervals and per-task directions.",
+    "aggregate_protection": "C contact >=source-.02 and >=DDPM_reference-.02; completed count >=source and >=DDPM_reference; source-floor support >=source-.02; foot sliding <=source+.02cm; active source hand contact retention>=.95; mean object-frame active-hand drift<=1cm; mean root-local body drift<=5cm; mean nonroot local rotation change<=10deg; seam speed <=source+10cm/s; mean root/object trajectory acceleration <=source+100cm/s2. Report every per-task violation; no source-world-displacement bound. Fixed initial3 native frames <=1e-5m. Empty grasp/support strata are identified rather than counted as evidence.",
+    "limits": "Geometry-only feasibility, HSI incremental utility and HOI sampler quality are separate conclusions. Soft objectives provide measured behavior rather than hard guarantees. No distributional realism claim from geometry metrics alone; no weight/noise-level/step sweep or469 promotion after this fixed experiment."
+  },
+  "execution": {
+    "pilot_task": 375,
+    "gpus": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "per_gpu_task_batch": 1,
+    "peak_memory_gib": 8,
+    "free_headroom_gib": 2,
+    "checkpoint_every": 50,
+    "workflow": "Preregistration commit then one logical implementation commit. Resolve exact Hydra configs and archive machine snapshot before tools/experiment.py start from clean source. Full task375 is the registered functional/performance workload, with initial gradient and checkpoint gates before remaining tasks. Persistent controller on authority, existing GPU jobs untouched; actual contention/timing documented. Stable resumable long workloads may continue detached after measured handoff. No extra smoke, hash mechanism or tools script."
+  },
+  "subphases": {
+    "2.39a": "Implement and evaluate fixed28 HOI-generator DNO and HSI controls; current session scope.",
+    "2.39b": "Potential full469 assessment only after 2.39a review and separate approval in another session."
+  }
+}
