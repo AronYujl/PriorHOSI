@@ -1,0 +1,1177 @@
+{
+  "schema_version": 1,
+  "phase": "5.5.2b.1",
+  "seed": 42,
+  "source_manifest": "results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility/task_manifest.json",
+  "source_artifact_root": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility",
+  "original_task_count": 469,
+  "candidate_count": 67,
+  "candidates": [
+    {
+      "episode_id": "hosi-027-omomo_to_lingo",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-027",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1142",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-027-omomo_to_lingo.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-268-omomo_to_lingo",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-omomo_to_lingo.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-327-omomo_to_lingo",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-327",
+      "scene": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-327-omomo_to_lingo.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-348-omomo_to_lingo",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-348",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-1118",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-348-omomo_to_lingo.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-397-omomo_to_lingo",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-397",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-397-omomo_to_lingo.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-025-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-025",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1031",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-025-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-041-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-041",
+      "scene": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-041-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-079-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-079",
+      "scene": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "omomo_source": "omomo-803",
+      "lingo_source": "lingo-8487",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        44969,
+        45078
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-079-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-130-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-130",
+      "scene": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "omomo_source": "omomo-997",
+      "lingo_source": "lingo-8487",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        44969,
+        45078
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-130-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-170-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-170",
+      "scene": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "omomo_source": "omomo-791",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-170-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-181-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-181",
+      "scene": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-181-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-200-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-200",
+      "scene": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "omomo_source": "omomo-1038",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-200-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-231-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-231",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-8487",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        44969,
+        45078
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-231-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-268-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-8487",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        44969,
+        45078
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-314-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-314",
+      "scene": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "omomo_source": "omomo-1138",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-314-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-343-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-343",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-8548",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        45177,
+        45229
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-343-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-356-lingo_to_omomo_grasped_entry",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-356",
+      "scene": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-8487",
+      "lingo_source_family": "010",
+      "text": "walk",
+      "lingo_frame_interval": [
+        44969,
+        45078
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-356-lingo_to_omomo_grasped_entry.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-027-omomo_to_lingo-lingo-28640",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-027",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1142",
+      "lingo_source": "lingo-28640",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        125740,
+        125811
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-027-omomo_to_lingo-lingo-28640.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-027-omomo_to_lingo-lingo-28906",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-027",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1142",
+      "lingo_source": "lingo-28906",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        126474,
+        126554
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-027-omomo_to_lingo-lingo-28906.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-268-omomo_to_lingo-lingo-33639",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-33639",
+      "lingo_source_family": "018",
+      "text": "walk",
+      "lingo_frame_interval": [
+        142321,
+        142417
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-omomo_to_lingo-lingo-33639.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-268-omomo_to_lingo-lingo-33725",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-33725",
+      "lingo_source_family": "018",
+      "text": "walk",
+      "lingo_frame_interval": [
+        142566,
+        142697
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-omomo_to_lingo-lingo-33725.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-327-omomo_to_lingo-lingo-69518",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-327",
+      "scene": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-69518",
+      "lingo_source_family": "024",
+      "text": "walk",
+      "lingo_frame_interval": [
+        254097,
+        254259
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-327-omomo_to_lingo-lingo-69518.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-327-omomo_to_lingo-lingo-69837",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-327",
+      "scene": "4a87a708-9bb4-41ed-806c-b8b62b090992_lph_ng",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-69837",
+      "lingo_source_family": "024",
+      "text": "walk",
+      "lingo_frame_interval": [
+        255229,
+        255325
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-327-omomo_to_lingo-lingo-69837.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-348-omomo_to_lingo-lingo-99192",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-348",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-1118",
+      "lingo_source": "lingo-99192",
+      "lingo_source_family": "031",
+      "text": "walk",
+      "lingo_frame_interval": [
+        358295,
+        358354
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-348-omomo_to_lingo-lingo-99192.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-348-omomo_to_lingo-lingo-99531",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-348",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-1118",
+      "lingo_source": "lingo-99531",
+      "lingo_source_family": "031",
+      "text": "walk",
+      "lingo_frame_interval": [
+        359846,
+        359919
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-348-omomo_to_lingo-lingo-99531.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-397-omomo_to_lingo-lingo-121755",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-397",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-121755",
+      "lingo_source_family": "038",
+      "text": "walk",
+      "lingo_frame_interval": [
+        429464,
+        429539
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-397-omomo_to_lingo-lingo-121755.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-397-omomo_to_lingo-lingo-121782",
+      "direction": "omomo_to_lingo",
+      "original_hosi_task_id": "hosi-397",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1097",
+      "lingo_source": "lingo-121782",
+      "lingo_source_family": "038",
+      "text": "walk",
+      "lingo_frame_interval": [
+        429578,
+        429691
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-397-omomo_to_lingo-lingo-121782.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-025-lingo_to_omomo_grasped_entry-lingo-28640",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-025",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1031",
+      "lingo_source": "lingo-28640",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        125740,
+        125811
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-025-lingo_to_omomo_grasped_entry-lingo-28640.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-025-lingo_to_omomo_grasped_entry-lingo-28797",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-025",
+      "scene": "0ab03928-28d4-4dfe-883e-63047de7cc9c",
+      "omomo_source": "omomo-1031",
+      "lingo_source": "lingo-28797",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        125897,
+        125961
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-025-lingo_to_omomo_grasped_entry-lingo-28797.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-041-lingo_to_omomo_grasped_entry-lingo-33639",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-041",
+      "scene": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-33639",
+      "lingo_source_family": "018",
+      "text": "walk",
+      "lingo_frame_interval": [
+        142321,
+        142417
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-041-lingo_to_omomo_grasped_entry-lingo-33639.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-041-lingo_to_omomo_grasped_entry-lingo-33935",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-041",
+      "scene": "0ab72fdf-ba1b-4df5-8df2-6efcfa7bb53a",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-33935",
+      "lingo_source_family": "018",
+      "text": "walk",
+      "lingo_frame_interval": [
+        143360,
+        143452
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-041-lingo_to_omomo_grasped_entry-lingo-33935.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-079-lingo_to_omomo_grasped_entry-lingo-69837",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-079",
+      "scene": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "omomo_source": "omomo-803",
+      "lingo_source": "lingo-69837",
+      "lingo_source_family": "024",
+      "text": "walk",
+      "lingo_frame_interval": [
+        255229,
+        255325
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-079-lingo_to_omomo_grasped_entry-lingo-69837.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-079-lingo_to_omomo_grasped_entry-lingo-70313",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-079",
+      "scene": "1d19e06d-bbe7-4d3d-a65b-60b3fe01b8a2",
+      "omomo_source": "omomo-803",
+      "lingo_source": "lingo-70313",
+      "lingo_source_family": "024",
+      "text": "walk",
+      "lingo_frame_interval": [
+        256086,
+        256161
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-079-lingo_to_omomo_grasped_entry-lingo-70313.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-130-lingo_to_omomo_grasped_entry-lingo-84380",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-130",
+      "scene": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "omomo_source": "omomo-997",
+      "lingo_source": "lingo-84380",
+      "lingo_source_family": "027",
+      "text": "walk",
+      "lingo_frame_interval": [
+        299545,
+        299611
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-130-lingo_to_omomo_grasped_entry-lingo-84380.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-130-lingo_to_omomo_grasped_entry-lingo-84398",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-130",
+      "scene": "2a6c3151-0e15-42e4-878a-e890e9a9d946",
+      "omomo_source": "omomo-997",
+      "lingo_source": "lingo-84398",
+      "lingo_source_family": "027",
+      "text": "walk",
+      "lingo_frame_interval": [
+        299885,
+        299973
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-130-lingo_to_omomo_grasped_entry-lingo-84398.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-170-lingo_to_omomo_grasped_entry-lingo-99059",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-170",
+      "scene": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "omomo_source": "omomo-791",
+      "lingo_source": "lingo-99059",
+      "lingo_source_family": "031",
+      "text": "walk",
+      "lingo_frame_interval": [
+        357218,
+        357399
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-170-lingo_to_omomo_grasped_entry-lingo-99059.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-170-lingo_to_omomo_grasped_entry-lingo-99192",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-170",
+      "scene": "2bd0d4f8-3f19-462f-b2cc-a4c17a75989f",
+      "omomo_source": "omomo-791",
+      "lingo_source": "lingo-99192",
+      "lingo_source_family": "031",
+      "text": "walk",
+      "lingo_frame_interval": [
+        358295,
+        358354
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-170-lingo_to_omomo_grasped_entry-lingo-99192.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-181-lingo_to_omomo_grasped_entry-lingo-121782",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-181",
+      "scene": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-121782",
+      "lingo_source_family": "038",
+      "text": "walk",
+      "lingo_frame_interval": [
+        429578,
+        429691
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-181-lingo_to_omomo_grasped_entry-lingo-121782.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-181-lingo_to_omomo_grasped_entry-lingo-121992",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-181",
+      "scene": "2bfba6fb-59bf-4cde-a606-6a5a95017905",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-121992",
+      "lingo_source_family": "038",
+      "text": "walk",
+      "lingo_frame_interval": [
+        429878,
+        430029
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-181-lingo_to_omomo_grasped_entry-lingo-121992.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-200-lingo_to_omomo_grasped_entry-lingo-155110",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-200",
+      "scene": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "omomo_source": "omomo-1038",
+      "lingo_source": "lingo-155110",
+      "lingo_source_family": "044",
+      "text": "walk",
+      "lingo_frame_interval": [
+        577512,
+        577566
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-200-lingo_to_omomo_grasped_entry-lingo-155110.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-200-lingo_to_omomo_grasped_entry-lingo-155116",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-200",
+      "scene": "2c6130fe-0d6d-4b7c-a496-e211c5c8a75a",
+      "omomo_source": "omomo-1038",
+      "lingo_source": "lingo-155116",
+      "lingo_source_family": "044",
+      "text": "walk",
+      "lingo_frame_interval": [
+        578040,
+        578125
+      ],
+      "object": "smalltable",
+      "witness": "witnesses/hosi-200-lingo_to_omomo_grasped_entry-lingo-155116.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-231-lingo_to_omomo_grasped_entry-lingo-160030",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-231",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-160030",
+      "lingo_source_family": "045",
+      "text": "walk",
+      "lingo_frame_interval": [
+        594254,
+        594346
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-231-lingo_to_omomo_grasped_entry-lingo-160030.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-231-lingo_to_omomo_grasped_entry-lingo-160074",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-231",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-160074",
+      "lingo_source_family": "045",
+      "text": "walk",
+      "lingo_frame_interval": [
+        594648,
+        594723
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-231-lingo_to_omomo_grasped_entry-lingo-160074.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-236-lingo_to_omomo_grasped_entry-lingo-164405",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-236",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-1086",
+      "lingo_source": "lingo-164405",
+      "lingo_source_family": "046",
+      "text": "walk",
+      "lingo_frame_interval": [
+        610808,
+        610878
+      ],
+      "object": "suitcase",
+      "witness": "witnesses/hosi-236-lingo_to_omomo_grasped_entry-lingo-164405.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-237-lingo_to_omomo_grasped_entry-lingo-205086",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-237",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-205086",
+      "lingo_source_family": "056",
+      "text": "walk",
+      "lingo_frame_interval": [
+        769650,
+        769740
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-237-lingo_to_omomo_grasped_entry-lingo-205086.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-237-lingo_to_omomo_grasped_entry-lingo-205176",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-237",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-205176",
+      "lingo_source_family": "056",
+      "text": "walk",
+      "lingo_frame_interval": [
+        769740,
+        769803
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-237-lingo_to_omomo_grasped_entry-lingo-205176.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-237-lingo_to_omomo_grasped_entry-lingo-205191",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-237",
+      "scene": "2d50e51d-fb9f-4464-836c-f9f2b269cbea",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-205191",
+      "lingo_source_family": "056",
+      "text": "walk",
+      "lingo_frame_interval": [
+        770628,
+        770733
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-237-lingo_to_omomo_grasped_entry-lingo-205191.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-268-lingo_to_omomo_grasped_entry-lingo-219634",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-219634",
+      "lingo_source_family": "061",
+      "text": "walk",
+      "lingo_frame_interval": [
+        826586,
+        826664
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-lingo_to_omomo_grasped_entry-lingo-219634.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-268-lingo_to_omomo_grasped_entry-lingo-219664",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-268",
+      "scene": "3a5d9f83-9aeb-4e53-a25c-fa164589c3a9",
+      "omomo_source": "omomo-761",
+      "lingo_source": "lingo-219664",
+      "lingo_source_family": "061",
+      "text": "walk",
+      "lingo_frame_interval": [
+        827101,
+        827226
+      ],
+      "object": "monitor",
+      "witness": "witnesses/hosi-268-lingo_to_omomo_grasped_entry-lingo-219664.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-314-lingo_to_omomo_grasped_entry-lingo-223333",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-314",
+      "scene": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "omomo_source": "omomo-1138",
+      "lingo_source": "lingo-223333",
+      "lingo_source_family": "062",
+      "text": "walk",
+      "lingo_frame_interval": [
+        839767,
+        839820
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-314-lingo_to_omomo_grasped_entry-lingo-223333.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-314-lingo_to_omomo_grasped_entry-lingo-223338",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-314",
+      "scene": "4a3101c0-29f7-4e2b-9e24-10bd984ac084",
+      "omomo_source": "omomo-1138",
+      "lingo_source": "lingo-223338",
+      "lingo_source_family": "062",
+      "text": "walk",
+      "lingo_frame_interval": [
+        840290,
+        840356
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-314-lingo_to_omomo_grasped_entry-lingo-223338.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-343-lingo_to_omomo_grasped_entry-lingo-250988",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-343",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-250988",
+      "lingo_source_family": "071",
+      "text": "walk",
+      "lingo_frame_interval": [
+        977712,
+        977774
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-343-lingo_to_omomo_grasped_entry-lingo-250988.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-343-lingo_to_omomo_grasped_entry-lingo-251002",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-343",
+      "scene": "4ad6d9bd-5131-4926-a8e5-801140c7127d",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-251002",
+      "lingo_source_family": "071",
+      "text": "walk",
+      "lingo_frame_interval": [
+        977810,
+        977879
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-343-lingo_to_omomo_grasped_entry-lingo-251002.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-356-lingo_to_omomo_grasped_entry-lingo-265166",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-356",
+      "scene": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-265166",
+      "lingo_source_family": "082",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1097273,
+        1097356
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-356-lingo_to_omomo_grasped_entry-lingo-265166.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-356-lingo_to_omomo_grasped_entry-lingo-265308",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-356",
+      "scene": "4ae3d49f-5e7a-4de8-b5d6-5bfd00bf6303",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-265308",
+      "lingo_source_family": "082",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1097931,
+        1098001
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-356-lingo_to_omomo_grasped_entry-lingo-265308.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-364-lingo_to_omomo_grasped_entry-lingo-275065",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-364",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-275065",
+      "lingo_source_family": "086",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1154065,
+        1154127
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-364-lingo_to_omomo_grasped_entry-lingo-275065.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-364-lingo_to_omomo_grasped_entry-lingo-275363",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-364",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-275363",
+      "lingo_source_family": "086",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1154830,
+        1154920
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-364-lingo_to_omomo_grasped_entry-lingo-275363.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-364-lingo_to_omomo_grasped_entry-lingo-300022",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-364",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-300022",
+      "lingo_source_family": "097",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1287069,
+        1287136
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-364-lingo_to_omomo_grasped_entry-lingo-300022.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-370-lingo_to_omomo_grasped_entry-lingo-303104",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-370",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-303104",
+      "lingo_source_family": "99",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1315111,
+        1315209
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-370-lingo_to_omomo_grasped_entry-lingo-303104.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-370-lingo_to_omomo_grasped_entry-lingo-303219",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-370",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-303219",
+      "lingo_source_family": "99",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1315473,
+        1315525
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-370-lingo_to_omomo_grasped_entry-lingo-303219.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-370-lingo_to_omomo_grasped_entry-lingo-303223",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-370",
+      "scene": "a2e8ba09-af97-4301-a9ef-f5e583c853dd",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-303223",
+      "lingo_source_family": "99",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1315736,
+        1315818
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-370-lingo_to_omomo_grasped_entry-lingo-303223.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-398-lingo_to_omomo_grasped_entry-lingo-164140",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-398",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-164140",
+      "lingo_source_family": "046",
+      "text": "walk",
+      "lingo_frame_interval": [
+        609414,
+        609477
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-398-lingo_to_omomo_grasped_entry-lingo-164140.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-398-lingo_to_omomo_grasped_entry-lingo-164206",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-398",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-164206",
+      "lingo_source_family": "046",
+      "text": "walk",
+      "lingo_frame_interval": [
+        609842,
+        609941
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-398-lingo_to_omomo_grasped_entry-lingo-164206.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-398-lingo_to_omomo_grasped_entry-lingo-299807",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-398",
+      "scene": "a5af701c-1825-40ce-a9d7-0b7ed08fb43b",
+      "omomo_source": "omomo-1137",
+      "lingo_source": "lingo-299807",
+      "lingo_source_family": "097",
+      "text": "walk",
+      "lingo_frame_interval": [
+        1286145,
+        1286257
+      ],
+      "object": "tripod",
+      "witness": "witnesses/hosi-398-lingo_to_omomo_grasped_entry-lingo-299807.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-448-lingo_to_omomo_grasped_entry-lingo-28906",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-448",
+      "scene": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-28906",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        126474,
+        126554
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-448-lingo_to_omomo_grasped_entry-lingo-28906.pt",
+      "pilot_selected": true
+    },
+    {
+      "episode_id": "hosi-448-lingo_to_omomo_grasped_entry-lingo-28938",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-448",
+      "scene": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-28938",
+      "lingo_source_family": "015",
+      "text": "walk",
+      "lingo_frame_interval": [
+        126756,
+        126811
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-448-lingo_to_omomo_grasped_entry-lingo-28938.pt",
+      "pilot_selected": false
+    },
+    {
+      "episode_id": "hosi-448-lingo_to_omomo_grasped_entry-lingo-33877",
+      "direction": "lingo_to_omomo_grasped_entry",
+      "original_hosi_task_id": "hosi-448",
+      "scene": "cf11351b-d370-40bc-afa0-3f0e09c74d1e",
+      "omomo_source": "omomo-63",
+      "lingo_source": "lingo-33877",
+      "lingo_source_family": "018",
+      "text": "walk",
+      "lingo_frame_interval": [
+        142853,
+        142959
+      ],
+      "object": "clothesstand",
+      "witness": "witnesses/hosi-448-lingo_to_omomo_grasped_entry-lingo-33877.pt",
+      "pilot_selected": false
+    }
+  ],
+  "pilot_episode_ids": [
+    "hosi-231-lingo_to_omomo_grasped_entry",
+    "hosi-079-lingo_to_omomo_grasped_entry-lingo-69837",
+    "hosi-025-lingo_to_omomo_grasped_entry-lingo-28640",
+    "hosi-236-lingo_to_omomo_grasped_entry-lingo-164405",
+    "hosi-041-lingo_to_omomo_grasped_entry-lingo-33639",
+    "hosi-343-lingo_to_omomo_grasped_entry-lingo-250988",
+    "hosi-170-lingo_to_omomo_grasped_entry-lingo-99059",
+    "hosi-130-lingo_to_omomo_grasped_entry-lingo-84380",
+    "hosi-181-lingo_to_omomo_grasped_entry-lingo-121782",
+    "hosi-364-lingo_to_omomo_grasped_entry-lingo-275065",
+    "hosi-268-lingo_to_omomo_grasped_entry-lingo-219634",
+    "hosi-200-lingo_to_omomo_grasped_entry-lingo-155110",
+    "hosi-314-lingo_to_omomo_grasped_entry-lingo-223333",
+    "hosi-448-lingo_to_omomo_grasped_entry-lingo-28906",
+    "hosi-079-lingo_to_omomo_grasped_entry-lingo-70313",
+    "hosi-025-lingo_to_omomo_grasped_entry",
+    "hosi-356-lingo_to_omomo_grasped_entry-lingo-265166",
+    "hosi-364-lingo_to_omomo_grasped_entry-lingo-300022",
+    "hosi-170-lingo_to_omomo_grasped_entry-lingo-99192",
+    "hosi-130-lingo_to_omomo_grasped_entry-lingo-84398",
+    "hosi-398-lingo_to_omomo_grasped_entry-lingo-164140",
+    "hosi-343-lingo_to_omomo_grasped_entry-lingo-251002",
+    "hosi-268-lingo_to_omomo_grasped_entry-lingo-219664",
+    "hosi-200-lingo_to_omomo_grasped_entry-lingo-155116"
+  ],
+  "selection_uses_model_outputs": false
+}

@@ -996,3 +996,35 @@ Reader/resume verification: 1,189 tests pass with four historical skips
 regression includes scalar frame-rate metadata and selects the four declared
 batched arrays. R1 lanes0–2 and lane3's three completed cases are sealed before
 the reader correction is committed.
+
+### Phase 5.5.2b.1 completion
+
+The expanded source run publishes67 candidates (15 forward,52 grasped reverse),
+retaining all17 prior pairs and all469 original task definitions. Coverage is
+46LINGO sources,18LINGO test scene families,22original tasks and16target scenes.
+All accepted LINGO actions remain walking. The fixed search retains1407 task/
+direction rows and282 new pair attempts;423 reverse task placements fail object
+support under the unchanged static-object contract.
+
+All24 registered actual-history episodes now have unique retained results and
+verified videos. HSI goal/geometry/history gates pass20/22/24 cases respectively;
+only1passes foot support and the complete predecessor guard. That episode's
+Kimodo acquisition bridge passes and HOIPrior generates four inherited-history
+windows, reaching human/object goals within3.139/1.936cm. Its human/object scene
+penetrations reach290.66/184.12mm and support also fails. Whole-chain goal
+completion is1/24, full physical acceptance0/24; the other23 successors remain
+explicitly blocked. The native pilot uses P15+ArmB, with the Phase2.34 offline
+scene editor awaiting integration into this changed-history path.
+
+The canonical results contain55 HSI windows (15 valid cached initial draws and
+40new draws),1Kimodo sample,4HOI windows and2176 observed30Hz frames. The two
+operational defects and all five failed manifests remain sealed; the21 complete
+r1cases plus3r2cases cover every selected ID exactly once. Final verification is
+1189passed,4historical skips; all24 source prefixes/window inputs and video frame
+counts pass artifact verification. No training or paired-method bootstrap ran.
+
+Read [Phase5.5.2b.1 summary](../phase_summaries/PHASE_5H_EXPANDED_HISTORY.md) and
+`experiments/results/p5_multitask_expanded_history_s42_20260910.json` at the next
+entry. Source expansion and the bounded execution diagnostic are complete.
+Before5.5.2b.2, preregister actual HSI support and HOI scene-constraint integration;
+the full67-table execution remains behind that unresolved quality entry gate.

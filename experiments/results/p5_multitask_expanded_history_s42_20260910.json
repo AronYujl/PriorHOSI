@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "phase": "5.5.2b.1",
+  "seed": 42,
+  "status": "completed",
+  "source": {
+    "original_hosi_tasks": 469,
+    "previous_candidates": 17,
+    "candidates": 67,
+    "new_candidates": 50,
+    "accepted_by_direction": {
+      "omomo_to_lingo": 15,
+      "lingo_to_omomo": 0,
+      "lingo_to_omomo_grasped_entry": 52
+    },
+    "coverage": {
+      "target_scenes": 16,
+      "original_tasks": 22,
+      "unique_omomo_sources": 13,
+      "unique_lingo_sources": 46,
+      "lingo_scene_families": 18,
+      "lingo_source_reuse": {
+        "lingo-8548": 12,
+        "lingo-8487": 5,
+        "lingo-28640": 2,
+        "lingo-28906": 2,
+        "lingo-33639": 2,
+        "lingo-33725": 1,
+        "lingo-69518": 1,
+        "lingo-69837": 2,
+        "lingo-99192": 2,
+        "lingo-99531": 1,
+        "lingo-121755": 1,
+        "lingo-121782": 2,
+        "lingo-28797": 1,
+        "lingo-33935": 1,
+        "lingo-70313": 1,
+        "lingo-84380": 1,
+        "lingo-84398": 1,
+        "lingo-99059": 1,
+        "lingo-121992": 1,
+        "lingo-155110": 1,
+        "lingo-155116": 1,
+        "lingo-160030": 1,
+        "lingo-160074": 1,
+        "lingo-164405": 1,
+        "lingo-205086": 1,
+        "lingo-205176": 1,
+        "lingo-205191": 1,
+        "lingo-219634": 1,
+        "lingo-219664": 1,
+        "lingo-223333": 1,
+        "lingo-223338": 1,
+        "lingo-250988": 1,
+        "lingo-251002": 1,
+        "lingo-265166": 1,
+        "lingo-265308": 1,
+        "lingo-275065": 1,
+        "lingo-275363": 1,
+        "lingo-300022": 1,
+        "lingo-303104": 1,
+        "lingo-303219": 1,
+        "lingo-303223": 1,
+        "lingo-164140": 1,
+        "lingo-164206": 1,
+        "lingo-299807": 1,
+        "lingo-28938": 1,
+        "lingo-33877": 1
+      },
+      "lingo_texts": {
+        "walk": 67
+      },
+      "objects": {
+        "tripod": 24,
+        "monitor": 12,
+        "suitcase": 10,
+        "smalltable": 9,
+        "clothesstand": 12
+      },
+      "lingo_duration_s": {
+        "min": 1.7333333333333334,
+        "median": 2.5,
+        "max": 6.033333333333333
+      }
+    },
+    "lingo_pool_size": 256,
+    "pair_attempts": 282,
+    "task_audit_rows": 1407,
+    "reverse_geometry_or_support_failures": 448,
+    "overlapping_reverse_failure_reasons": {
+      "object_unsupported": 423,
+      "body_scene_max": 96,
+      "object_scene": 73,
+      "body_floor": 13,
+      "body_body_object": 32,
+      "body_scene_mean": 6
+    },
+    "elapsed_seconds": 39.968571370467544,
+    "peak_cuda_allocated_bytes": 1370045952
+  },
+  "execution": {
+    "registered_episodes": 24,
+    "unique_lingo_sources": 24,
+    "target_scenes": 15,
+    "hsi_passes": 1,
+    "hsi_failed_gates": {
+      "body_support": 23,
+      "geometry": 2,
+      "goal": 4
+    },
+    "hsi_goal_passes": 20,
+    "hsi_geometry_passes": 22,
+    "hsi_history_passes": 24,
+    "hsi_goal_error_m": {
+      "min": 0.0035658064298331738,
+      "mean": 0.05036068496216709,
+      "median": 0.04239547625184059,
+      "max": 0.12680116295814514
+    },
+    "hsi_foot_distance_max_m": {
+      "min": 0.07403624057769775,
+      "mean": 0.11856108407179515,
+      "median": 0.11396211385726929,
+      "max": 0.17693567276000977
+    },
+    "hsi_foot_contact_frame_fraction": {
+      "min": 0.07182320952415466,
+      "mean": 0.36709143469731015,
+      "median": 0.23777777701616287,
+      "max": 1.0
+    },
+    "hsi_foot_sliding_speed_m_s": {
+      "min": 0.02651381492614746,
+      "mean": 0.08891177736222744,
+      "median": 0.06907205656170845,
+      "max": 0.4370849132537842
+    },
+    "hsi_max_context_error_m": 5.364418029785156e-07,
+    "kimodo_attempted": 1,
+    "kimodo_passes": 1,
+    "hoi_attempted": 1,
+    "hoi_goal_passes": 1,
+    "hoi_physical_passes": 0,
+    "blocked_kimodo": 23,
+    "blocked_hoi": 23,
+    "chain_passes": 0,
+    "ordered_goal_completions": 1,
+    "frame_accounting": {
+      "native_fps": 30,
+      "initial_context_frames": 240,
+      "hsi_generated_frames": 1717,
+      "kimodo_appended_frames": 51,
+      "hoi_generated_frames": 168,
+      "total_native_frames": 2176,
+      "observed_duration_s": 71.73333333333335,
+      "preview_fps": 15
+    },
+    "hsi_logical_windows": 55,
+    "hsi_new_windows": 40,
+    "reused_hsi_initial_windows": 15,
+    "retained_pre_correction_hsi_windows": 36,
+    "hoi_windows": 4,
+    "kimodo_samples": 1,
+    "new_hsi_generation_seconds": 2481.183873867616,
+    "hoi_generation_seconds": 7.132510092109442,
+    "native_fit_seconds": 3.559463620185852,
+    "native_correction_seconds": 10.547405619174242
+  },
+  "complete_generated_example": {
+    "episode_id": "hosi-025-lingo_to_omomo_grasped_entry",
+    "observed_frames": 271,
+    "duration_s": 9.0,
+    "hsi_goal_error_m": 0.01950279250741005,
+    "bridge_suffix_required_hand_distance_m": 0.007918261922895908,
+    "bridge_prefix_error_m": 1.1920928955078125e-07,
+    "bridge_fit": {
+      "native_fit_seconds": 3.559463620185852,
+      "iterations": 240,
+      "mean_joint_target_error_m": 0.0022427437361329794,
+      "final_fit_loss": 1.5922636521281675e-05,
+      "fixed_context_frames": 20
+    },
+    "bridge_correction": {
+      "iterations": 400,
+      "seconds": 10.547405619174242,
+      "peak_cuda_allocated_bytes": 766297088,
+      "joint_correction_mean_m": 0.02479756437242031,
+      "joint_correction_max_m": 0.14732550084590912,
+      "root_translation_correction_max_m": 0.06526624411344528,
+      "rotation_correction_max_deg": 21.535978317260742
+    },
+    "hoi_goal_error_m": 0.01936214417219162,
+    "human_goal_error_m": 0.03138899803161621,
+    "hoi_gates": {
+      "finite": true,
+      "goal": true,
+      "geometry": false,
+      "body_support": false,
+      "native_history": true,
+      "frame_budget": true,
+      "persistent_object": true
+    },
+    "hoi_history_max_error_m": 5.364418029785156e-07,
+    "object_history_max_error_m": 1.1920928955078125e-07,
+    "object_rotation_history_max_error": 2.384185791015625e-07,
+    "video": "/data/yujinlun/InfBaGel-inference/results/experiments/p5-multitask-actual-r2lane3-s42-20260910/execution/hosi-025-lingo_to_omomo_grasped_entry/actual_chain.mp4",
+    "hoi_scene_max_penetration_m": 0.2906644642353058,
+    "object_scene_max_penetration_m": 0.18412144482135773,
+    "object_floor_max_penetration_m": 0.060906678438186646,
+    "hoi_foot_distance_max_m": 0.10337793827056885,
+    "hoi_contact_frame_fraction_5cm": 0.882022500038147
+  },
+  "verification": {
+    "full_authority": "1189 passed, 4 historical skipped",
+    "seconds": 198.52,
+    "log": "results/verification/multitask_expanded_history_reader_authority_20260910.log",
+    "source_artifacts": "results/experiments/p5-multitask-source-expanded-s42-20260910/artifact_validation.json",
+    "execution_artifacts": "results/experiments/p5-multitask-source-expanded-s42-20260910/pilot_review/artifact_validation.json",
+    "original_tasks_unchanged": true,
+    "all_24_video_probes_pass": true
+  },
+  "versions": {
+    "preregistration": "dabc626",
+    "implementation": "f1e890a",
+    "interpolation_fix": "84b5408",
+    "reader_resume_fix": "04c09bc",
+    "tag": "exp/p5h-expanded-history-v1"
+  },
+  "artifacts": {
+    "source_manifest": "results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility/task_manifest.json",
+    "source_review": "results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility/review.md",
+    "pilot_review": "results/experiments/p5-multitask-source-expanded-s42-20260910/pilot_review/review.md",
+    "completed_manifests": [
+      "results/experiments/p5-multitask-source-expanded-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-r1lane0-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-r1lane1-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-r1lane2-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-r2lane3-s42-20260910/manifest.json"
+    ],
+    "failed_manifests": [
+      "results/experiments/p5-multitask-actual-lane0-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-lane1-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-lane2-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-lane3-s42-20260910/manifest.json",
+      "results/experiments/p5-multitask-actual-r1lane3-s42-20260910/manifest.json"
+    ],
+    "per_episode_results": "results/experiments/p5-multitask-source-expanded-s42-20260910/pilot_review/aggregate.json",
+    "phase_summary": "docs/phase_summaries/PHASE_5H_EXPANDED_HISTORY.md"
+  },
+  "limitations": [
+    "All67 candidates use walking LINGO actions; they cover22 original tasks and16 target scenes.",
+    "Source object support excludes423 grasped-entry task placements under the unchanged static-object contract.",
+    "The actual-history pilot uses native P15+ArmB and R2; Phase2.34 offline whole-motion editing is not applied.",
+    "No training, paired-method bootstrap, source-endpoint success comparison or full67-table execution occurred."
+  ],
+  "next_entry": "Preregister HSI support repair and actual-history HOI scene editing before considering the full expanded table."
+}
