@@ -145,7 +145,8 @@ def audit_sources(cfg, out):
     return selected, summary, vertices
 
 
-def make_history(cfg, dataset, motion, task, model):
+def make_history(cfg, dataset, motion, task, model, *, object_reference=None,
+                 preserve_object_history=False, contact_history=None):
     from test_infbagel_hosi import get_mat, decode_sample_window
     from .body_projection import native_rest_offsets
     from .kinematic_composition import _forward_kinematics
@@ -163,11 +164,14 @@ def make_history(cfg, dataset, motion, task, model):
     world_rotation = world_rotation[:, :22]
     points = motion['joints'][indices] - offsets[0] - translation
     mat = get_mat(cfg, points[None].flatten(2), 0)
-    reference = torch.eye(3, device=cfg.device)[None]
-    object_position = motion['object_translation'][-1:].expand(16, -1)
-    object_rotation = motion['object_rotation'][-1:].expand(16, -1, -1)
+    reference = torch.eye(3, device=cfg.device)[None] if object_reference is None else object_reference.reshape(1, 3, 3)
+    object_indices = indices if preserve_object_history else [-1]*16
+    object_position = motion['object_translation'][object_indices]
+    object_rotation = motion['object_rotation'][object_indices]
+    contact = (torch.zeros(1, 16, 4, device=cfg.device) if contact_history is None
+        else contact_history[indices][None])
     clean = encode_native_window(dataset, points[None], world_rotation[None], object_position[None],
-        object_rotation[None], torch.zeros(1, 16, 4, device=cfg.device), mat, reference)
+        object_rotation[None], contact, mat, reference)
     decoded = decode_sample_window(cfg, clean, dataset, mat)
     rebuilt = dict(motion, pose=native_coarse_pose(decoded['global_rot_6d'], dataset),
                    translation=decoded['points_orig'].reshape(16, 28, 3)[:, 0] + translation)
@@ -179,7 +183,8 @@ def make_history(cfg, dataset, motion, task, model):
 
 
 @torch.no_grad()
-def sample_transition(cfg, sampler, dataset, motion, task, model, embedding):
+def sample_transition(cfg, sampler, dataset, motion, task, model, embedding, *,
+                      goal=None, scene_goal=None, progress=None, is_locomotion=False, seed=42):
     from test_infbagel_hosi import decode_sample_window
     from .input_views import KnownEmptyObjectView
     clean, mat, reference, history_error = make_history(cfg, dataset, motion, task, model)
@@ -190,26 +195,31 @@ def sample_transition(cfg, sampler, dataset, motion, task, model, embedding):
     # Its stationary goal is expressed in that same channel frame.
     local_goal = dataset.denormalize_torch(clean[:, -1:, :3]).reshape(1, 3)
     local_goal[:, 1] = 0
+    local_scene_goal = torch.zeros(1, 3, device=cfg.device)
+    if goal is not None:
+        local_goal = native_local_goal(dataset, motion, task, model, mat, goal, planar=True)
+    if scene_goal is not None:
+        local_scene_goal = native_local_goal(dataset, motion, task, model, mat, scene_goal, planar=False)
+    timing = (0, 48, 48) if progress is None else progress
+    pi, end_pi, sequence_length = [torch.tensor([v], device=cfg.device, dtype=torch.long) for v in timing]
     obj_vertices = dataset.obj_rest_verts[task['object_name']].to(cfg.device)
     object_world = (motion['object_rotation'][-1] @ obj_vertices.T).T + motion['object_translation'][-1]
     sequence = dataset.ori_sequence_idx[task['data_idx']]
     seq_name = dataset.scene_name[sequence]
     context = sampler._hsi_context(1, mat, torch.tensor([dataset.scene_dict[task['scene_name']]], device=cfg.device),
-        embedding, local_goal, torch.zeros(1, 3, device=cfg.device), torch.zeros(1, 3, device=cfg.device),
-        one, one, torch.zeros(1, device=cfg.device, dtype=torch.long),
-        torch.full((1,), 48, device=cfg.device, dtype=torch.long),
-        torch.full((1,), 48, device=cfg.device, dtype=torch.long), one, zero, zero,
+        embedding, local_goal, local_scene_goal, torch.zeros(1, 3, device=cfg.device),
+        one, one, pi, end_pi, sequence_length, one, one if is_locomotion else zero, zero,
         torch.zeros(1, 1024, 3, device=cfg.device), object_world[None], reference,
         dataset.obj_rest_verts, {}, {0: seq_name}, torch.eye(3, device=cfg.device)[None], False)
     offsets = torch.as_tensor(dataset.rest_human_offsets[sequence], device=cfg.device, dtype=torch.float32)
     human_dict = dict(rest_human_offsets=offsets[None, None].expand(1, 16, -1, -1).clone())
-    torch.manual_seed(42)
-    generator = torch.Generator(device=cfg.device).manual_seed(42)
+    torch.manual_seed(seed)
+    generator = torch.Generator(device=cfg.device).manual_seed(seed)
     current = torch.randn(clean.shape, device=cfg.device, generator=generator)
     current[:, :2] = fixed
     previous = current.clone()
     sampler.hsi_input_view = KnownEmptyObjectView()
-    sampler.hsi_input_view.begin_window(current, 42)
+    sampler.hsi_input_view.begin_window(current, seed)
     native = sampler.hsi_sampler
     c1, c2, logvar = [x.to(cfg.device) for x in
         (native.posterior_mean_coef1, native.posterior_mean_coef2, native.posterior_log_variance_clipped)]
@@ -237,9 +247,22 @@ def sample_transition(cfg, sampler, dataset, motion, task, model, embedding):
                  object_translation_world=motion['object_translation'][-1:].expand(16, -1).cpu(),
                  object_rotation_world=motion['object_rotation'][-1:].expand(16, -1, -1).cpu())
     return world, dict(history_max_error_m=history_error, generation_seconds=seconds,
-                       hsi_forward_calls=1000, hoi_forward_calls=0, seed=42,
+                       hsi_forward_calls=1000, hoi_forward_calls=0, seed=seed,
+                       progress=list(timing), local_pelvis_goal=local_goal.tolist(),
                        fixed_history_max_error=float((current[:, :2, :216] - fixed[..., :216]).abs().max()),
                        object_state_max_error_m=0.0), current.cpu()
+
+
+def native_local_goal(dataset, motion, task, model, mat, goal, planar):
+    """Put a physical world goal in the position channel's reconstruction frame."""
+    from .body_projection import native_rest_offsets
+    sequence = dataset.ori_sequence_idx[task['data_idx']]
+    bias = native_rest_offsets(model, motion['betas'])[0]+torch.as_tensor(
+        dataset.transl[sequence], device=mat.device, dtype=mat.dtype)
+    position = mat.new_tensor(goal)-bias
+    if planar:
+        position[1] = 0
+    return (position[None]-mat[:, :3, 3]) @ mat[0, :3, :3]
 
 
 def load_texts(cfg):

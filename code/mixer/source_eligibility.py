@@ -2,9 +2,10 @@
 
 import json
 import math
+import shutil
 import subprocess
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -40,12 +41,75 @@ def direction_guard(direction, boundary, hand_distance_m, contact_fraction=.5):
     raise ValueError(f'unknown transition direction: {direction}')
 
 
-def select_lingo_pool(records, per_type):
+def select_lingo_pool(records, per_type, balance_families=False, max_duration_s=None):
     """Select a deterministic source-ordered pool without model scores."""
+    if max_duration_s is not None:
+        records = [r for r in records if r['source_duration_s'] <= max_duration_s]
     ordered = sorted(records, key=lambda r: (r['data_idx'], r['source_id']))
+    if balance_families:
+        selected = []
+        for action_type in sorted({r['task_type'] for r in ordered}):
+            groups = defaultdict(list)
+            for record in ordered:
+                if record['task_type'] == action_type:
+                    groups[(record['source_scene_family'], record['text'])].append(record)
+            count, depth = 0, 0
+            while count < per_type and any(len(group) > depth for group in groups.values()):
+                for key in sorted(groups):
+                    if len(groups[key]) > depth and count < per_type:
+                        selected.append(groups[key][depth])
+                        count += 1
+                depth += 1
+        return selected
     selected = [record for action_type in sorted({record['task_type'] for record in ordered})
                 for record in [item for item in ordered if item['task_type'] == action_type][:per_type]]
     return sorted(selected, key=lambda r: (r['data_idx'], r['source_id']))
+
+
+def ordered_pair_pool(pool, source_counts, family_counts):
+    """Alternate action types, preferring sources not used by earlier pairs."""
+    groups = []
+    for kind in sorted({r['task_type'] for r in pool}):
+        groups.append(sorted((r for r in pool if r['task_type'] == kind), key=lambda r:
+            (source_counts[r['source_id']], family_counts[r['source_scene_family']], r['data_idx'])))
+    return [group[depth] for depth in range(max(map(len, groups), default=0))
+            for group in groups if depth < len(group)]
+
+
+def select_execution_pilot(episodes, records, limit):
+    pool = [e for e in episodes if e['direction'] == GRASPED_ENTRY]
+    selected, scenes, sources, families = [], Counter(), Counter(), Counter()
+    while pool and len(selected) < limit:
+        for name in sorted({e['persistent_objects'][0]['object_id'] for e in pool}):
+            choices = [e for e in pool if e['persistent_objects'][0]['object_id'] == name]
+            def key(episode):
+                source = records[episode['segments'][0]['source_id']]
+                return (scenes[episode['scene_name']], sources[source['source_id']],
+                    families[source['source_scene_family']], episode['episode_id'])
+            episode = min(choices, key=key)
+            selected.append(episode['episode_id'])
+            source = records[episode['segments'][0]['source_id']]
+            scenes[episode['scene_name']] += 1
+            sources[source['source_id']] += 1
+            families[source['source_scene_family']] += 1
+            pool.remove(episode)
+            if len(selected) == limit:
+                break
+    return selected
+
+
+def source_coverage(episodes, records):
+    lingo = [records[s['source_id']] for e in episodes for s in e['segments'] if s['source_dataset'] == 'LINGO']
+    hoi = [s['source_id'] for e in episodes for s in e['segments'] if s['source_dataset'] == 'OMOMO']
+    durations = [r['source_duration_s'] for r in lingo]
+    return dict(target_scenes=len({e['scene_name'] for e in episodes}),
+        original_tasks=len({e['original_hosi_task_id'] for e in episodes}),
+        unique_omomo_sources=len(set(hoi)), unique_lingo_sources=len({r['source_id'] for r in lingo}),
+        lingo_scene_families=len({r['source_scene_family'] for r in lingo}),
+        lingo_source_reuse=dict(Counter(r['source_id'] for r in lingo)),
+        lingo_texts=dict(Counter(r['text'] for r in lingo)),
+        objects=dict(Counter(e['persistent_objects'][0]['object_id'] for e in episodes)),
+        lingo_duration_s=dict(min=min(durations), median=float(np.median(durations)), max=max(durations)) if durations else None)
 
 
 def source_motion(corpus, record, frames, model, device):
@@ -187,9 +251,11 @@ def static_first_context(motion, frames=10):
     return {k: v[:1].expand((frames,)+v.shape[1:]).clone() if k in MOTION_KEYS else v for k, v in motion.items()}
 
 
-def save_candidate(output, row, hoi, lingo, direction, body, placed, position, rotation, measurements):
+def save_candidate(output, row, hoi, lingo, direction, body, placed, position, rotation, measurements, qualify_source=False):
     forward = direction == 'omomo_to_lingo'
     candidate_id = row['task_id']+'-'+direction
+    if qualify_source:
+        candidate_id += '-'+lingo['source_id']
     witness_path = 'witnesses/'+candidate_id+'.pt'
     target = static_first_context(body) if not forward else placed
     torch.save({name: {k: v.cpu() if torch.is_tensor(v) else v for k, v in motion.items() if k != 'verts'}
@@ -205,6 +271,8 @@ def save_candidate(output, row, hoi, lingo, direction, body, placed, position, r
     if lingo['task_type'] == 'static_object_interaction':
         lingoseg['contact_target'] = dict(kind='seating_support_surface',
             support_points=measurements['lingo_support']['seat_support_points'], semantic_review='pending')
+        if lingo['text'].startswith('sit down'):
+            lingoseg['scene_goal'] = placed['joints'][-1, 0].tolist()
     edge = transition_edge('hoi' if forward else 'lingo', 'lingo' if forward else 'hoi',
         'release_to_lingo' if forward else 'acquire_contact',
         'fixed_initial_transform' if not forward else 'hold_achieved_supported_object')
@@ -245,29 +313,51 @@ def run_source_eligibility(cfg):
     audit_source_boundaries(corpora, hoi+lingo, device,
         hand_distance_m=float(thresholds.hand_distance_m))
     records = {r['source_id']: r for r in hoi+lingo}
-    pool = select_lingo_pool(lingo, int(thresholds.source_candidates_per_type))
+    expansion = thresholds.get('expand_coverage', False)
+    pool = select_lingo_pool(lingo, int(thresholds.source_candidates_per_type), expansion,
+        thresholds.get('maximum_source_duration_s'))
     directions = ['omomo_to_lingo', 'lingo_to_omomo']
     if thresholds.get('allow_grasped_omomo_initial', False):
         directions.append(GRASPED_ENTRY)
     accepted, audit, attempts = [], [], []
+    if expansion:
+        inherited_path = Path(thresholds.inherited_manifest)
+        inherited = json.loads(inherited_path.read_text())
+        if inherited['original_hosi']['tasks'] != tasks:
+            raise ValueError('expanded inventory changed an original HOSI task')
+        for episode in inherited['episodes']:
+            shutil.copyfile(Path(inherited['artifact_root'])/episode['construction']['witness'],
+                output/episode['construction']['witness'])
+            episode['construction']['inherited_manifest'] = str(inherited_path)
+            accepted.append(episode)
+    inherited_count = len(accepted)
     models, objects, templates = {}, {}, {}
     previous_body, previous_scene = None, None
     for direction in directions:
-        claimed, count = set(), 0
+        prior = [e for e in accepted if e['direction'] == direction]
+        scene_counts = Counter(e['scene_name'] for e in prior)
+        source_counts = Counter(s['source_id'] for e in prior for s in e['segments'] if s['source_dataset'] == 'LINGO')
+        family_counts = Counter(records[s['source_id']]['source_scene_family'] for e in prior for s in e['segments'] if s['source_dataset'] == 'LINGO')
+        count = len(prior)
         for row in tasks:
             task, source = row['original_task'], records[row['source_id']]
             forward = direction == 'omomo_to_lingo'
             boundary = source['source_boundary_audit']['exit' if forward else 'entry']
             checks = direction_guard(direction, boundary, float(thresholds.hand_distance_m),
                 float(thresholds.get('grasp_contact_frame_fraction', .5)))
+            existing = [e for e in accepted if e['direction'] == direction and e['original_hosi_task_id'] == row['task_id']]
+            selected_ids = [e['episode_id'] for e in existing]
+            selected_sources = {s['source_id'] for e in existing for s in e['segments'] if s['source_dataset'] == 'LINGO'}
             task_audit = dict(direction=direction, task_id=row['task_id'], source_id=source['source_id'],
-                scene_name=task['scene_name'], source_boundary=boundary, state_checks=checks, attempted_pairs=0)
+                scene_name=task['scene_name'], source_boundary=boundary, state_checks=checks, attempted_pairs=0,
+                accepted_episode_ids=selected_ids, inherited_episode_ids=list(selected_ids))
             audit.append(task_audit)
             if not all(checks.values()):
                 task_audit['status'] = 'omomo_source_state_ineligible'
                 continue
-            if count >= int(cfg.multitask.episode_limit) or task['scene_name'] in claimed:
-                task_audit['status'] = 'not_attempted_episode_cap' if count >= int(cfg.multitask.episode_limit) else 'not_attempted_scene_selected'
+            if count >= int(cfg.multitask.episode_limit) or scene_counts[task['scene_name']] >= int(thresholds.get('candidates_per_scene', 1)):
+                task_audit['search_stop'] = 'not_attempted_episode_cap' if count >= int(cfg.multitask.episode_limit) else 'not_attempted_scene_selected'
+                task_audit['status'] = 'accepted_source_transition' if selected_ids else task_audit['search_stop']
                 continue
             if previous_scene != task['scene_name']:
                 scene = _load_scene(root, task['scene_name'], device)
@@ -300,7 +390,15 @@ def run_source_eligibility(cfg):
                 continue
             target_index = -1 if forward else 0
             target_root, target_heading = body['joints'][target_index, 0], heading(body['joints'][target_index])
-            for other in pool:
+            search_pool = ordered_pair_pool(pool, source_counts, family_counts) if expansion else pool
+            task_audit['unattempted_sources'] = []
+            stop = None
+            for other in search_pool:
+                reason = stop or ('already_selected' if other['source_id'] in selected_sources else
+                    'source_reuse_limit' if expansion and source_counts[other['source_id']] >= int(thresholds.source_reuse_limit) else None)
+                if reason:
+                    task_audit['unattempted_sources'].append(dict(source_id=other['source_id'], reason=reason))
+                    continue
                 if other['source_id'] not in templates:
                     transfer = dict(other, _target_betas=body_record['_target_betas'], _target_gender=source['gender'])
                     interval = list(range(other['source_start_frame'], other['source_stop_frame']))
@@ -308,45 +406,68 @@ def run_source_eligibility(cfg):
                 template = templates[other['source_id']]
                 placed, alignment = align_motion(template, 0 if forward else len(template['pose'])-1, target_root, target_heading)
                 lingo_support = source_support(placed, other, model, scene)
-                geo = full_source_geometry(placed, scene, obj_sdf, obj_info, vertices, position, rotation, thresholds)
+                geo = (full_source_geometry(placed, scene, obj_sdf, obj_info, vertices, position, rotation, thresholds)
+                    if lingo_support['passes'] or not expansion else None)
                 values = dict(omomo_geometry=body_geo, object_support=support, lingo_support=lingo_support,
                     lingo_geometry=geo, alignment=alignment, ground_translation_m=template['ground_translation_m'],
                     source_contact=boundary)
-                passed = geo['passes'] and lingo_support['passes']
+                passed = lingo_support['passes'] and geo['passes']
                 attempt = dict(direction=direction, task_id=row['task_id'], omomo_source_id=source['source_id'],
                     lingo_source_id=other['source_id'], text=other['text'], source_scene=other['source_scene'],
                     frame_interval=[other['source_start_frame'], other['source_stop_frame']], measures=values,
-                    status='accepted_source_transition' if passed else 'lingo_geometry_or_support_failed')
+                    status='accepted_source_transition' if passed else 'lingo_geometry_or_support_failed',
+                    full_geometry_evaluated=geo is not None)
                 attempts.append(attempt)
                 task_audit['attempted_pairs'] += 1
                 if passed:
-                    episode = save_candidate(output, row, source, other, direction, body, placed, position, rotation, values)
+                    episode = save_candidate(output, row, source, other, direction, body, placed, position, rotation, values, expansion)
                     validate_episode(episode, records)
                     accepted.append(episode)
+                    selected_ids.append(episode['episode_id'])
+                    selected_sources.add(other['source_id'])
                     task_audit.update(status='accepted_source_transition', episode_id=episode['episode_id'])
                     count += 1
-                    claimed.add(task['scene_name'])
+                    scene_counts[task['scene_name']] += 1
+                    source_counts[other['source_id']] += 1
+                    family_counts[other['source_scene_family']] += 1
                     print(json.dumps(dict(candidate=episode['episode_id'], lingo=other['source_id'], text=other['text'])), flush=True)
-                    break
-            else:
-                task_audit['status'] = 'no_feasible_lingo_source'
+                if len(selected_ids) >= int(thresholds.get('candidates_per_task', 1)):
+                    stop = 'task_candidate_limit'
+                elif count >= int(cfg.multitask.episode_limit):
+                    stop = 'direction_candidate_limit'
+                elif scene_counts[task['scene_name']] >= int(thresholds.get('candidates_per_scene', 1)):
+                    stop = 'scene_candidate_limit'
+                elif task_audit['attempted_pairs'] >= int(thresholds.get('pair_attempt_limit', len(pool))):
+                    stop = 'pair_attempt_limit'
+            task_audit['search_stop'] = stop or 'pool_exhausted'
+            task_audit['status'] = 'accepted_source_transition' if selected_ids else 'no_feasible_lingo_source'
         print(json.dumps(dict(direction=direction, accepted=count, audited_tasks=len(tasks))), flush=True)
     write_json(output/'transition_audit.json', dict(tasks=audit, attempts=attempts))
     write_json(output/'source_catalog.json', dict(original_tasks=tasks, sources=hoi+lingo, exclusions=exclusions))
     ids = {r['source_id'] for r in pool}
     write_json(output/'pool_selection.json', dict(selected_source_ids=sorted(ids),
-        pool_not_attempted_source_ids=sorted(r['source_id'] for r in lingo if r['source_id'] not in ids)))
+        pool_not_attempted_source_ids=sorted(r['source_id'] for r in lingo if r['source_id'] not in ids),
+        balance_scene_family_and_text=bool(expansion), maximum_source_duration_s=thresholds.get('maximum_source_duration_s'),
+        duration_excluded_source_ids=[r['source_id'] for r in lingo
+            if thresholds.get('maximum_source_duration_s') is not None and r['source_duration_s'] > thresholds.maximum_source_duration_s]))
     needed = {s['source_id'] for e in accepted for s in e['segments']}
     manifest = dict(schema_version=2, artifact_root=str(output), seed=int(cfg.seed),
         original_hosi=dict(task_count=len(tasks), tasks=tasks), sources=[records[s] for s in sorted(needed)],
         episodes=accepted, selection_uses_model_outputs=False, membership_frozen_before_bridge_generation=True, model_samples=0)
     write_json(output/'task_manifest.json', manifest)
+    if expansion:
+        selected = select_execution_pilot(accepted, records, int(cfg.multitask.execution.episode_limit))
+        write_json(output/'execution_selection.json', dict(source_manifest=str(output/'task_manifest.json'),
+            episode_ids=selected, unevaluated_episode_ids=[e['episode_id'] for e in accepted if e['episode_id'] not in selected],
+            selection_uses_model_outputs=False, candidate_count=len(accepted)))
     torch.cuda.synchronize(device)
-    summary = dict(schema_version=2, subphase='5.5.2a.1', status='completed', seed=int(cfg.seed), git_commit=commit,
+    summary = dict(schema_version=2, subphase=str(cfg.multitask.get('subphase', '5.5.2a.1')), status='completed', seed=int(cfg.seed), git_commit=commit,
         original_hosi_tasks=len(tasks), lingo_sources=len(lingo), excluded_lingo_sources=len(exclusions), lingo_pool_size=len(pool),
         accepted_by_direction={d:sum(e['direction'] == d for e in accepted) for d in directions}, task_audit_rows=len(audit),
         status_counts=dict(Counter(r['status'] for r in audit)), pair_attempts=len(attempts),
-        candidates=len(accepted), model_output_used=False, generated_motion_samples=0,
+        candidates=len(accepted), inherited_candidates=inherited_count, coverage=source_coverage(accepted, records),
+        coverage_by_direction={d:source_coverage([e for e in accepted if e['direction'] == d], records) for d in directions},
+        model_output_used=False, generated_motion_samples=0,
         elapsed_seconds=time.perf_counter()-started, peak_cuda_allocated_bytes=torch.cuda.max_memory_allocated(device), device=str(device),
         git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip())
     write_json(output/'summary.json', summary)

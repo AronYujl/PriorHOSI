@@ -1,0 +1,26 @@
+defaults: [config_sample_hosi_source_eligibility_grasped, _self_]
+
+exp_name: p5-multitask-source-expanded-s42-20260910
+run_id: ${exp_name}
+device: cuda:1
+multitask:
+  subphase: 5.5.2b.1
+  episode_limit: 192
+  source_eligibility:
+    expand_coverage: true
+    inherited_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/eligibility/task_manifest.json
+    source_candidates_per_type: 128
+    maximum_source_duration_s: 10.0
+    candidates_per_task: 3
+    candidates_per_scene: 9
+    source_reuse_limit: 8
+    pair_attempt_limit: 48
+  execution:
+    source_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility/task_manifest.json
+    selection: ${oc.env:ROOT_DIR}/results/experiments/p5-multitask-source-expanded-s42-20260910/eligibility/execution_selection.json
+    output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/execution
+    episode_limit: 24
+    lane_count: 4
+    lane_index: 0
+    goal_tolerance_m: 0.10
+    render: true

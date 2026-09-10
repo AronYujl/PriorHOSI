@@ -292,6 +292,9 @@ def validate_episode(episode, sources):
 
 
 def run_multitask(cfg):
+    if cfg.multitask.stage == 'actual_history':
+        from .multitask_execution import run_actual_history
+        return run_actual_history(cfg)
     if cfg.multitask.stage == 'source_bridges':
         from .source_bridge import run_source_bridges
         return run_source_bridges(cfg)

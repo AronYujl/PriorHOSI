@@ -85,7 +85,7 @@ def rotation_seam_measures(motion):
     return result
 
 
-def render_bridge(root, output, episode, motion, source_frames, scene_mesh_root):
+def render_bridge(root, output, episode, motion, source_frames, scene_mesh_root, stages=None):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -103,11 +103,14 @@ def render_bridge(root, output, episode, motion, source_frames, scene_mesh_root)
     visible = (np.linalg.norm(centers[:, [0, 2]]-center[[0, 2]], axis=-1) < 2.5) & (centers[:, 1] < 2.)
     faces = faces[visible][::max(1, int(visible.sum())//6000)]
     obj = trimesh.load_mesh(root/episode['persistent_objects'][0]['geometry'])
-    obj_world = zup_to_yup(np.asarray(obj.vertices)) @ motion['object_rotation'][0].T+motion['object_translation'][0]
+    object_rest = zup_to_yup(np.asarray(obj.vertices))
+    object_faces = np.asarray(obj.faces)
+    obj_world = object_rest @ motion['object_rotation'][0].T+motion['object_translation'][0]
     fig = plt.figure(figsize=(8, 6), dpi=100)
     ax = fig.add_subplot(111, projection='3d')
     ax.add_collection3d(Poly3DCollection(vertices[faces][..., [0, 2, 1]], facecolor='#999999', alpha=.17, edgecolor='none'))
-    ax.add_collection3d(Poly3DCollection(obj_world[np.asarray(obj.faces)][..., [0, 2, 1]], facecolor='#bd8032', alpha=.65, edgecolor='none'))
+    object_artist = Poly3DCollection(obj_world[object_faces][..., [0, 2, 1]], facecolor='#bd8032', alpha=.65, edgecolor='none')
+    ax.add_collection3d(object_artist)
     artist = Line3DCollection([], colors='#187b82', linewidths=2.5)
     ax.add_collection3d(artist)
     radius = max(1., float(np.ptp(joints[:, 0, [0, 2]], axis=0).max())/2+.65)
@@ -118,14 +121,62 @@ def render_bridge(root, output, episode, motion, source_frames, scene_mesh_root)
     parents = np.array(_PARENTS_22[1:])
     title = fig.suptitle(episode['episode_id'])
     writer = FFMpegWriter(fps=15, codec='libx264', extra_args=['-pix_fmt', 'yuv420p', '-crf', '22'])
-    with writer.saving(fig, str(output/'source_and_bridge.mp4'), dpi=100):
+    with writer.saving(fig, str(output/('source_and_bridge.mp4' if stages is None else 'actual_chain.mp4')), dpi=100):
         for frame in range(0, len(points), 2):
             artist.set_segments(np.stack((points[frame, 1:], points[frame, parents]), axis=1))
             phase = 'LINGO source reference' if frame < source_frames else 'Kimodo acquisition bridge'
+            if stages is not None:
+                phase = next(s['label'] for s in stages if s['start_frame'] <= frame < s['stop_frame'])
+                world = object_rest @ motion['object_rotation'][frame].T+motion['object_translation'][frame]
+                object_artist.set_verts(world[object_faces][..., [0, 2, 1]])
             title.set_text(f'{episode["original_hosi_task_id"]} | {phase} | {frame/30:.2f} s')
             writer.grab_frame()
-        fig.savefig(output/'final_grasp.png', dpi=150)
+        fig.savefig(output/('final_grasp.png' if stages is None else 'final_frame.png'), dpi=150)
     plt.close(fig)
+
+
+def adapt_bridge(cfg, root, dest, episode, condition, canonical, origin, model, prediction, source_frames):
+    import trimesh
+    from utils import zup_to_yup
+    scene = _load_scene(root, episode['scene_name'], cfg.device)
+    obj = episode['persistent_objects'][0]
+    rest = torch.as_tensor(zup_to_yup(np.asarray(trimesh.load_mesh(root/obj['geometry']).vertices)), device=cfg.device, dtype=torch.float32)
+    object_sdf, info = load_bridge_object_sdf(root, obj['object_id'], cfg.device)
+    targets = prediction['target_joints'] @ canonical+origin
+    roots = prediction['root_positions'] @ canonical+origin
+    rotation = prediction['local_rot_mats'].clone()
+    rotation[:, 0] = canonical.T @ rotation[:, 0]
+    fitted, translation, fit_audit = fit_native(rotation, roots, targets,
+        transforms.axis_angle_to_matrix(condition['pose']), condition['translation'], native_rest_offsets(model, condition['betas']), cfg)
+    motion = dict(condition, pose=transforms.matrix_to_axis_angle(fitted), translation=translation)
+    motion['pose'][:10], motion['pose'][51:] = condition['pose'][:10], condition['pose'][51:]
+    vertices, motion['joints'] = decode_body(motion, model)
+    np.savez(dest/'adapted_motion.npz', **native_arrays(motion))
+    patches = surface_patches(model, vertices[51], cfg.inbetween.contact.patch_vertices)
+    mask, intervals = contact_intervals(prediction['foot_contacts'], cfg.inbetween.contact.minimum_contact_frames)
+    before = motion_metrics(motion, vertices, condition, cfg, rest, *scene, object_sdf, info)
+    before.update(contact_measures(vertices, patches, mask))
+    before.update(rotation_seam_measures(motion))
+    corrected, vertices, correction = correct_motion(motion, model, patches, mask, *scene, object_sdf, info, cfg, dest)
+    after = motion_metrics(corrected, vertices, condition, cfg, rest, *scene, object_sdf, info)
+    after.update(contact_measures(vertices, patches, mask))
+    after.update(rotation_seam_measures(corrected))
+    geometry = full_source_geometry(dict(corrected, verts=vertices), scene, object_sdf[:, None], info, rest,
+        corrected['object_translation'], corrected['object_rotation'], cfg.multitask.source_eligibility)
+    contacts = acquisition_measures(corrected, condition, rest,
+        hand_distance_m=float(cfg.multitask.source_eligibility.hand_distance_m))
+    gates = dict(contexts=after['endpoint_joint_max_error_m'] < 1e-5,
+        finite=after['finite'], full_frame_geometry=geometry['passes'], suffix_contact=contacts['suffix_contact_recovered'],
+        object_fixed=contacts['object_translation_change_m'] == 0 and contacts['object_rotation_change'] == 0)
+    np.savez(dest/'motion.npz', **native_arrays(corrected))
+    write_json(dest/'contacts.json', dict(intervals=intervals, mask=mask.tolist(),
+        patch_vertices=patches.tolist(),
+        free_contact_frame_fraction=float(mask[10:51].any(-1).float().mean()), **contacts))
+    row = dict(episode_id=episode['episode_id'], before=before, after=after, geometry=geometry, acquisition=contacts,
+        fit=fit_audit, correction=correction, gates=gates, bridge_gate=all(gates.values()), source_frames=source_frames,
+        object_support=obj['support'], new_bridge_frames=51, artifact=str(dest))
+    write_json(dest/'metrics.json', row)
+    return corrected, row
 
 
 def run_source_bridges(cfg):
@@ -173,56 +224,19 @@ def run_source_bridges(cfg):
         dest = output/episode['episode_id']
         dest.mkdir()
         model = models[condition['gender']]
-        scene = _load_scene(root, episode['scene_name'], cfg.device)
-        obj = episode['persistent_objects'][0]
-        rest = torch.as_tensor(zup_to_yup(np.asarray(trimesh.load_mesh(root/obj['geometry']).vertices)), device=cfg.device, dtype=torch.float32)
-        object_sdf, info = load_bridge_object_sdf(root, obj['object_id'], cfg.device)
-        targets = raw['target_joints'][ordinal] @ canonical+origin
-        roots = raw['root_positions'][ordinal] @ canonical+origin
-        rotation = raw['local_rot_mats'][ordinal].clone()
-        rotation[:, 0] = canonical.T @ rotation[:, 0]
-        fitted, translation, fit_audit = fit_native(rotation, roots, targets,
-            transforms.axis_angle_to_matrix(condition['pose']), condition['translation'], native_rest_offsets(model, condition['betas']), cfg)
-        motion = dict(condition, pose=transforms.matrix_to_axis_angle(fitted), translation=translation)
-        motion['pose'][:10], motion['pose'][51:] = condition['pose'][:10], condition['pose'][51:]
-        vertices, motion['joints'] = decode_body(motion, model)
-        np.savez(dest/'adapted_motion.npz', **native_arrays(motion))
-        patches = surface_patches(model, vertices[51], cfg.inbetween.contact.patch_vertices)
-        mask, intervals = contact_intervals(raw['foot_contacts'][ordinal], cfg.inbetween.contact.minimum_contact_frames)
-        before = motion_metrics(motion, vertices, condition, cfg, rest, *scene, object_sdf, info)
-        before.update(contact_measures(vertices, patches, mask))
-        before.update(rotation_seam_measures(motion))
-        native_peak = max(native_peak, torch.cuda.max_memory_allocated(cfg.device))
-        corrected, vertices, correction = correct_motion(motion, model, patches, mask, *scene, object_sdf, info, cfg, dest)
-        native_peak = max(native_peak, correction['peak_cuda_allocated_bytes'])
-        after = motion_metrics(corrected, vertices, condition, cfg, rest, *scene, object_sdf, info)
-        after.update(contact_measures(vertices, patches, mask))
-        after.update(rotation_seam_measures(corrected))
-        geometry = full_source_geometry(dict(corrected, verts=vertices), scene, object_sdf[:, None], info, rest,
-            corrected['object_translation'], corrected['object_rotation'], cfg.multitask.source_eligibility)
-        contacts = acquisition_measures(corrected, condition, rest,
-            hand_distance_m=float(cfg.multitask.source_eligibility.hand_distance_m))
-        gates = dict(contexts=after['endpoint_joint_max_error_m'] < 1e-5,
-            finite=after['finite'], full_frame_geometry=geometry['passes'], suffix_contact=contacts['suffix_contact_recovered'],
-            object_fixed=contacts['object_translation_change_m'] == 0 and contacts['object_rotation_change'] == 0)
+        corrected, row = adapt_bridge(cfg, root, dest, episode, condition, canonical, origin, model,
+            {k:v[ordinal] for k,v in raw.items()}, len(source['pose']))
+        native_peak = max(native_peak, row['correction']['peak_cuda_allocated_bytes'])
         final = native_arrays(corrected)
-        np.savez(dest/'motion.npz', **final)
         full = dict(final)
         for key in ('pose', 'translation', 'joints'):
             full[key] = np.concatenate((source[key].cpu().numpy(), final[key][10:]))
         for key in ('object_translation', 'object_rotation'):
             full[key] = np.repeat(final[key][:1], len(full['pose']), axis=0)
         np.savez(dest/'source_and_bridge.npz', **full)
-        write_json(dest/'contacts.json', dict(intervals=intervals, mask=mask.tolist(),
-            patch_vertices=patches.tolist(),
-            free_contact_frame_fraction=float(mask[10:51].any(-1).float().mean()), **contacts))
-        row = dict(episode_id=episode['episode_id'], before=before, after=after, geometry=geometry, acquisition=contacts,
-            fit=fit_audit, correction=correction, gates=gates, bridge_gate=all(gates.values()), source_frames=len(source['pose']),
-            object_support=obj['support'], new_bridge_frames=51, artifact=str(dest))
-        write_json(dest/'metrics.json', row)
         records.append(row)
         render_bridge(root, dest, episode, full, len(source['pose']), cfg.multitask.scene_mesh_root)
-        print(json.dumps(dict(episode_id=episode['episode_id'], gates=gates)), flush=True)
+        print(json.dumps(dict(episode_id=episode['episode_id'], gates=row['gates'])), flush=True)
     torch.cuda.synchronize(cfg.device)
     write_json(output/'metrics.json', dict(status='completed', subphase='5.5.2a.1', git_commit=commit,
         git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),

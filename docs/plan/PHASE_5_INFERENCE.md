@@ -922,3 +922,13 @@ method; report bounded point estimates without population-generalization claims.
 Deliver source coverage/failure analysis, all 24 execution records, review index,
 compact result and phase summary. Freeze full-table execution until this pilot's
 measured entry/continuation failures and costs have been reviewed.
+
+Implementation verification before reportable sampling: 1,186 tests pass with
+four historical skips (217.08 s); registry validation covers 444 records and the
+expanded Hydra configuration resolves fully. Component checks exercise a real
+SMPL-X body, a moving object/rotation/contact history, physical-to-native goal
+conversion, partial-window counting and source-independent failure blocking.
+The bridge adapter/correction is shared by source and actual-history execution.
+The new native entry measures its first model windows in the reportable pilot;
+no training/per-step optimization is changed, so a training micro-batch benchmark
+does not apply.

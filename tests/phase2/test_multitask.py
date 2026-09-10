@@ -179,6 +179,149 @@ def test_source_pool_is_balanced_by_action_type_and_ordered_by_data_idx():
     ]
 
 
+def test_expanded_pool_covers_families_and_respects_full_clip_duration():
+    rows = [dict(source_id=f'lingo-{i}', data_idx=i, source_scene_family=family,
+        task_type='locomotion', text='walk', source_duration_s=duration)
+        for i,family,duration in [(0,'a',2.), (1,'a',3.), (2,'a',4.), (3,'b',5.), (4,'c',11.), (5,'c',6.)]]
+    selected = select_lingo_pool(rows, 3, balance_families=True, max_duration_s=10.)
+    assert [r['source_id'] for r in selected] == ['lingo-0', 'lingo-3', 'lingo-5']
+
+
+def test_pair_search_alternates_action_types_and_prefers_unused_sources():
+    from collections import Counter
+    from mixer.source_eligibility import ordered_pair_pool
+    rows = [dict(source_id=f'lingo-{i}', data_idx=i, source_scene_family=family, task_type=kind)
+        for i,family,kind in [(0,'a','locomotion'), (1,'b','locomotion'),
+                              (2,'c','static_object_interaction'), (3,'d','static_object_interaction')]]
+    ordered = ordered_pair_pool(rows, Counter({'lingo-0':7}), Counter({'a':7}))
+    assert [r['source_id'] for r in ordered] == ['lingo-1','lingo-2','lingo-0','lingo-3']
+
+
+def test_pilot_selection_uses_source_coverage_and_keeps_failed_model_scores_irrelevant():
+    from mixer.source_eligibility import select_execution_pilot
+    sources = {f'lingo-{i}':dict(source_id=f'lingo-{i}', source_scene_family=str(i)) for i in range(3)}
+    episodes = [dict(episode_id=str(i), direction=GRASPED_ENTRY, scene_name=scene,
+        persistent_objects=[dict(object_id='box')], segments=[dict(source_id=source)],
+        model_score=score) for i,scene,source,score in
+        [(0,'a','lingo-0',.9),(1,'a','lingo-1',.8),(2,'b','lingo-0',.7),(3,'b','lingo-2',0.)]]
+    assert select_execution_pilot(episodes, sources, 2) == ['0','3']
+    for row in episodes:
+        row['model_score'] = 1-row['model_score']
+    assert select_execution_pilot(episodes, sources, 2) == ['0','3']
+
+
+def test_actual_history_budget_keeps_partial_window_and_every_existing_frame():
+    from mixer.multitask_execution import TRACK_KEYS, append_bridge, append_window, window_plan
+    assert window_plan(10, 109) == [42, 42, 15]
+    assert window_plan(10, 52) == [42]
+    history = {key:torch.arange(10).float()[:,None] for key in TRACK_KEYS}
+    history['betas'] = torch.zeros(16)
+    initial = {key:value.clone() for key,value in history.items()}
+    for count in window_plan(10, 109):
+        window = {key:torch.arange(len(history['pose'])-4, len(history['pose'])+42).float()[:,None] for key in TRACK_KEYS}
+        history = append_window(history, window, count)
+    for key in TRACK_KEYS:
+        torch.testing.assert_close(history[key][:10], initial[key])
+        assert history[key][:,0].tolist() == list(range(109))
+    bridge = {key:torch.arange(99,160).float()[:,None] for key in TRACK_KEYS}
+    combined = append_bridge(history, bridge)
+    for key in TRACK_KEYS:
+        assert combined[key][:,0].tolist() == list(range(160))
+    assert combined['betas'] is history['betas']
+
+
+@pytest.mark.parametrize('change,failed', [
+    (dict(goal_error=.11),'goal'), (dict(support=False),'body_support'),
+    (dict(geometry=False),'geometry'), (dict(history_error=.001),'native_history'),
+    (dict(budget_ok=False),'frame_budget'), (dict(object_fixed=False),'persistent_object')])
+def test_actual_predecessor_failure_blocks_a_source_feasible_successor(change, failed):
+    from mixer.multitask_execution import blocked, stage_checks
+    values = dict(finite=True, goal_error=.03, geometry=True, support=True,
+        history_error=1e-6, budget_ok=True, object_fixed=True)
+    values.update(change)
+    checks = stage_checks(**values)
+    reasons = [name for name, passed in checks.items() if not passed]
+    assert reasons == [failed]
+    record = blocked('kimodo','hsi',reasons)
+    assert record['status'] == 'blocked_by_predecessor'
+    assert record['metrics'] is None and record['generated_frames'] == 0
+
+
+def test_actual_contact_trajectory_keeps_native_coarse_history_samples():
+    from mixer.multitask_execution import contact_track
+    coarse = torch.arange(64).reshape(16,4).float()
+    native = contact_track(coarse)
+    assert native.shape == (46,4)
+    torch.testing.assert_close(native[::3], coarse)
+
+
+def test_native_history_preserves_moving_object_pose_contact_and_physical_goal(monkeypatch):
+    from types import SimpleNamespace
+    import utils
+    from datasets.infbagel import InfBaGelDataset
+    from mixer.body_projection import native_rest_offsets
+    from mixer.kinematic_composition import _PARENTS_22
+    from mixer.standing_transition import make_history, native_local_goal
+    from mixer.surface_edit import decode_body
+    from test_infbagel_hosi import decode_sample_window
+    from pytorch3d import transforms
+    monkeypatch.setattr(utils, 'SMPL_DIR', str(Path(__file__).resolve().parents[2]/'smpl_models'))
+    device = torch.device('cuda:1')
+    model = utils.create_smplx_model('male', device).eval().requires_grad_(False)
+    dataset = InfBaGelDataset.__new__(InfBaGelDataset)
+    dataset.min_torch = torch.tensor([-5.,-5.,-5.], device=device)
+    dataset.max_torch = -dataset.min_torch
+    dataset.obj_min_torch, dataset.obj_max_torch = dataset.min_torch, dataset.max_torch
+    dataset.ori_sequence_idx = [0]
+    dataset.parents_22 = np.array(_PARENTS_22)
+    dataset.transl = np.array([[.03, -.07, .02]], dtype=np.float32)
+    pose = torch.zeros(10,22,3,device=device)
+    pose[:,0,1] = torch.linspace(.2,.4,10,device=device)
+    motion = dict(pose=pose, translation=torch.tensor([1.,1.,2.],device=device).repeat(10,1),
+        betas=torch.zeros(16,device=device), gender='male',
+        object_translation=torch.arange(30,device=device).reshape(10,3).float()/50,
+        object_rotation=transforms.axis_angle_to_matrix(pose[:,0]),
+        contact=torch.arange(40,device=device).reshape(10,4).float()/40)
+    _, motion['joints'] = decode_body(motion, model)
+    cfg = SimpleNamespace(device=str(device), dataset=SimpleNamespace(nb_joints=28), batch_size=1, max_window_size=16)
+    task = dict(data_idx=0)
+    clean, mat, reference, error = make_history(cfg,dataset,motion,task,model,
+        object_reference=motion['object_rotation'][-4], preserve_object_history=True, contact_history=motion['contact'])
+    assert error < 1e-5
+    decoded = decode_sample_window(cfg,clean,dataset,mat)
+    torch.testing.assert_close(decoded['obj_trans_orig'][0,:2], motion['object_translation'][[-4,-1]], atol=1e-6, rtol=1e-6)
+    rotations = decoded['object_rot_mat'].reshape(16,3,3) @ reference[0]
+    torch.testing.assert_close(rotations[:2], motion['object_rotation'][[-4,-1]], atol=1e-6, rtol=1e-6)
+    torch.testing.assert_close(clean[0,:2,228:232], motion['contact'][[-4,-1]])
+    goal = motion['joints'][-1,0].tolist()
+    local = native_local_goal(dataset,motion,task,model,mat,goal,planar=False)
+    physical = local @ mat[0,:3,:3].T+mat[:,:3,3]+native_rest_offsets(model,motion['betas'])[0]+torch.as_tensor(dataset.transl[0],device=device)
+    torch.testing.assert_close(physical[0], motion['joints'][-1,0], atol=1e-6, rtol=1e-6)
+
+    from mixer.multitask_execution import sample_hoi_window
+    dataset.scene_name = ['subject_box_sequence']
+    dataset.obj_rest_verts = {'box':torch.tensor([[0.,0.,0.],[.1,.2,.3]],device=device)}
+    cfg.seed = 42
+    task.update(object_name='box', pelvis_goal=goal, object_goal=[.8,.3,.6])
+    captured = {}
+    class Sampler:
+        def p_sample_loop(self, fixed, *args, **kwargs):
+            captured['fixed'] = fixed.clone()
+            return [clean.clone()], []
+    class Codec:
+        def recompute_bps(self, vertices, reference):
+            captured['reference'] = reference.clone()
+            return vertices.new_zeros(1,1024,3)
+    world, audit, _, snapshot = sample_hoi_window(cfg,Sampler(),dataset,motion,task,model,
+        torch.zeros(1,768,device=device),Codec(),0,3)
+    torch.testing.assert_close(captured['fixed'][0,:2,228:], motion['contact'][[-4,-1]])
+    torch.testing.assert_close(captured['reference'][0], motion['object_rotation'][-4])
+    torch.testing.assert_close(world['object_rotation_world'][:2].to(device),motion['object_rotation'][[-4,-1]],atol=1e-6,rtol=1e-6)
+    assert audit['object_history_max_error_m'] < 1e-6
+    assert audit['progress'] == [0,48,132]
+    torch.testing.assert_close(snapshot['conditioned_history'].to(device),captured['fixed'])
+
+
 @pytest.mark.parametrize('contact_frames,accepted', [
     ([0, 1, 2, 3, 4], True), ([1, 2, 3, 4, 5], False),
     ([0], False), ([0, 2, 4, 6, 8], True),
