@@ -186,3 +186,39 @@ def test_gradient_diagnosis_separates_loss_size_from_update_direction():
     assert abs(result['cosines']['reconstruction__total']-2**-.5) < 1e-10
     unregularized = latent_gradient_measures(terms, latent, 0.)
     assert abs(unregularized['cosines']['reconstruction__total']-1) < 1e-10
+
+
+def test_source_history_intervention_cuts_cross_window_dependence_and_preserves_first_window():
+    decoder=HSIDDIM.__new__(HSIDDIM)
+    decoder.windows=[None,None];decoder.settings=dict(ddim_steps=2)
+    decoder.alpha=torch.linspace(.99,.01,500);decoder.clean=torch.zeros(2,16,216)
+    decoder.mats=[None,None];decoder.reframe=lambda value,old,new:value
+    decoder.predict=lambda current,history,window,view,step:torch.cat(
+        (history,.1*current[:,2:]+.5*history.mean(1,keepdim=True)),1)
+    latent=torch.ones(1,216,1,28,requires_grad=True)
+    generated=decoder.decode(latent,'correct',source_history=False)
+    source=decoder.decode(latent,'correct',source_history=True)
+    assert torch.equal(generated[0],source[0])
+    assert torch.equal(source[1,:2],decoder.clean[1,:2])
+    generated_grad,=torch.autograd.grad(generated[1,2:].sum(),latent)
+    source_grad,=torch.autograd.grad(source[1,2:].sum(),latent)
+    assert generated_grad[...,:14].abs().sum()>0
+    assert source_grad[...,:14].abs().sum()==0
+    assert source_grad[...,14:].abs().sum()>0
+
+
+def test_window_diagnostics_cover_native_frames_and_separate_history_from_boundary_error():
+    from mixer.diffusion_noise import history_window_measures
+    decoder=SimpleNamespace(clean=torch.zeros(2,16,216),mats=[None,None],
+        source=dict(joints=torch.zeros(90,28,3)),
+        dataset=SimpleNamespace(denormalize_torch=lambda value:value),
+        reframe=lambda value,old,new:value)
+    prediction=decoder.clean.clone();prediction[0,2:]=.1
+    joints=torch.zeros(90,28,3);joints[:48,:,0]=.01;joints[48:,:,0]=.02
+    rows,distance=history_window_measures(decoder,prediction,joints)
+    assert [(r['native_start'],r['native_stop']) for r in rows]==[(0,48),(48,90)]
+    assert abs(rows[0]['body_mean_cm']-1)<1e-6 and abs(rows[1]['body_mean_cm']-2)<1e-6
+    assert rows[1]['input_history_feature_mse']==0
+    assert rows[1]['clean_history_feature_max_error']==0
+    assert abs(rows[1]['boundary_feature_mse']-.01)<1e-6
+    torch.testing.assert_close(distance.mean(),torch.tensor((48+42*2)/90))
