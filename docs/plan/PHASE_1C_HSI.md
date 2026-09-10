@@ -13928,3 +13928,12 @@ start，持久pipeline归档resolved/preflight/日志并逐一finish，失败保
 其中重复序列数量透明报告，不解释为独立序列或跨训练seed置信区间。
 Diversity按封存原生随机数顺序从embedding补算；方向仍为接近GT，不单调解释为越大越好。
 Phase1C保持开放，最终教师是否改善以09-09既定联合判据为准。
+
+### R4.2 用户范围修订：未蒸馏教师免单卡时延
+
+用户明确“未蒸馏的模型不用评估单卡时延”。在任何GPU评估启动前取消U/G两项
+latency任务；其已解析配置及取消记录保留于setup，无manifest、无GPU工作量。
+本轮改为七项：epoch19 teacher-forced、60条rollout及表示诊断、最终U/G全375、
+Table3和最终表示诊断。指标、样本、统计判据和80GPU-h上限保持原注册值。
+首个最终权重身份由final-unguided manifest登记，后续任务引用；单卡teacher-forced
+与Table3仍是质量诊断，执行耗时仅记录资源成本。本轮不测教师单卡时延或宣称其速度。
