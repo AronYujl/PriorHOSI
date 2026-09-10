@@ -693,3 +693,66 @@ corrected r1 run completed in 14.57 seconds on GPU 0. Full authority verificatio
 after the fix is 1157 passed and 4 skipped. Read [Phase 5.5.2a summary](../phase_summaries/PHASE_5F_SOURCE_ELIGIBILITY.md)
 and `experiments/results/p5_multitask_source_eligibility_s42_20260910.json`
 before 5.5.2b actual-history execution.
+
+## 2026-09-10 - Phase 5.5.2a.1: grasped OMOMO entry extension
+
+The strict reverse family produced zero candidates because every audited OMOMO
+initial context has a hand marker within 0.08 m of its object. The user approved
+allowing this source state. This is a new source-only extension, not a rewrite of
+the strict result: keep `lingo_to_omomo` with released initial hands as its own
+empty table and add `lingo_to_omomo_grasped_entry` for the newly allowed state.
+
+Hypothesis: an OMOMO initial context that already grasps its object can follow a
+LINGO source action when the source contact is explicit, the object transform is
+continuous, and a Kimodo endpoint bridge remains scene-feasible. Source
+membership still cannot read model output; Kimodo is only the fixed runtime
+bridge and its contact preservation is a measured execution guard.
+
+For `lingo_to_omomo_grasped_entry`, require the OMOMO initial context to have at
+least one hand marker within 0.08 m of the object in at least half of its ten
+source frames and at its first frame. Source contact is a geometric proxy for
+grasp, not a force or finger-closure measurement. Require scene/object/floor/bounds
+checks and geometric support of the initial object by floor or scene. The target
+is the first OMOMO native pose repeated for ten prescribed frames. This static
+grasp target permits the subsequent expert to inherit actual history without
+claiming to reproduce source entry velocities. Record the original moving context
+separately. Use `bridge_contract=kimodo_acquire_contact` and
+`object_policy=fixed_initial_transform`.
+
+Read-only review found that all three old forward candidates are seated-start
+stand-up actions whose full trajectories were vertically lifted 0.426-0.430 m
+to align pelvis heights. SDF clearance alone accepted these unsupported motions.
+The old results remain historical artifacts with this defect recorded. Replace
+full XYZ alignment with yaw/XZ alignment and one whole-clip native-surface ground
+translation. Check foot support in every source frame and bilateral scene seat
+support throughout each seated context. Use the original native HOSI start yaw
+for the OMOMO initial body/object transform. These representation fixes apply to
+both strict families and the grasped-entry family. Preserve all 469 task rows and
+record every cap/scene skip, source failure and full-geometry attempt explicitly.
+
+At runtime, Kimodo receives the LINGO terminal as its prefix and the OMOMO
+prescribed static grasp as its suffix. Contact may be acquired during the bridge;
+the suffix must recover the source contacting hand(s). Require exact native body
+contexts (<1e-5 m), fixed object transform, scene mean/max <=0.005/0.05 m,
+body-object max <=0.05 m, floor max <=0.01 m and finite full-frame output. Record
+foot sliding/contact coverage, joint/root/rotation seams, contact time series,
+object support and every failure. These are kinematic proxies, not physical-grasp
+success. Kimodo never chooses benchmark membership.
+
+Use the same bounded pool of eight LINGO sources per action type and the existing
+SDF thresholds, at most one accepted candidate per scene/direction and twelve per
+direction. Publish all strict and grasped attempts and the fixed candidate list
+before generating bridges. On `phase/05e2a1-grasp-entry`, this one subphase includes
+source construction and a separate bridge diagnostic of every accepted grasped
+candidate. Use the existing Kimodo 50-step empty-text recipe, seed42, one sample
+per candidate, 61 frames, 10-frame prefix/suffix and 41 free frames; keep the
+native 240-step fit and 400-step contact correction from Phase5.3. Preserve raw,
+adapted and corrected motions and scene previews. Full expert-chain rollout is a
+later subphase; bridge results describe source-endpoint feasibility only.
+
+Use GPU1 for native construction/correction and GPU2 for Kimodo, recording live
+contention and memory. Reuse existing Hydra/experiment entry points and source
+provenance; add no tool script, hashing mechanism or smoke workload. Run the full
+authority suite and registry validation. No paired-method bootstrap applies to
+this single-method bridge diagnostic. A zero-candidate or failed-bridge result
+retains its registered definitions and completes the diagnostic without tuning.

@@ -38,6 +38,19 @@ failures retain the direction, corpus-qualified source IDs, frame interval and
 measured geometry reason. Runtime generated states are checked again, but cannot
 change the source-only candidate set.
 
+The strict released-hand reverse table remains separate from the approved
+`lingo_to_omomo_grasped_entry` extension. The latter accepts an OMOMO initial
+context with source hand contact at its first frame and in at least half of its
+ten frames. It carries a supported initial object transform and a
+`kimodo_acquire_contact` bridge contract. The bridge approaches a prescribed
+static first-frame grasp. Kimodo must recover contact at its suffix while
+preserving the object transform. Runtime results never change membership.
+
+Whole source clips retain their native height profile under yaw/XZ placement and
+one surface-based ground translation. Feet and seated support are checked in
+addition to clearance. The three historical 5.5.2a candidates were incorrectly
+raised by 0.426-0.430 m during pelvis alignment and require this correction.
+
 Phase 5.4 extends task conditions while preserving all 469 original HOSI tasks.
 The first construction recipe targets HOI -> walk -> sit in the original
 67 TRUMANS scenes. LINGO supplies locomotion and static-interaction source

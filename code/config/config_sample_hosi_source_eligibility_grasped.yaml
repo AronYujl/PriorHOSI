@@ -1,0 +1,22 @@
+defaults: [config_sample_hosi_source_eligibility, _self_]
+
+exp_name: p5-multitask-source-eligibility-grasped-s42-20260910
+run_id: ${exp_name}
+device: cuda:1
+inbetween:
+  kimodo_device: cuda:2
+  contact:
+    iterations: 400
+    learning_rate: 0.003
+    patch_vertices: 32
+    minimum_contact_frames: 3
+multitask:
+  stage: source_eligibility
+  output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/eligibility
+  source_eligibility:
+    allow_grasped_omomo_initial: true
+    grasp_contact_distance_m: 0.08
+    grasp_contact_frame_fraction: 0.5
+  bridge:
+    source_manifest: ${oc.env:ROOT_DIR}/results/experiments/p5-multitask-source-eligibility-grasped-s42-20260910/eligibility/task_manifest.json
+    output_dir: ${oc.env:ROOT_DIR}/results/experiments/${exp_name}/bridges

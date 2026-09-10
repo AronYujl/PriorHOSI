@@ -14,6 +14,11 @@ Phase 5.5.2a completed source-only inventory: 3 forward candidates, 0 reverse
 candidates, and no generated samples. Read [the summary](../phase_summaries/PHASE_5F_SOURCE_ELIGIBILITY.md)
 before actual-history execution.
 
+The approved grasped-entry extension adds a separate source-only
+`lingo_to_omomo_grasped_entry` table. It permits OMOMO initial hand contact when
+the full source LINGO interval and target-scene geometry pass; Kimodo contact
+preservation is checked only during runtime execution.
+
 2026-09-09 inference entry: Kimodo selected as the default bridge generator.
 [Phase5.3](PHASE_5_INFERENCE.md) completes native contact correction on11feasible
 inputs plus1explicitly rejected target. Scene passes5/12to11/12; contact-patch
