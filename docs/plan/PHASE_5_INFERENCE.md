@@ -932,3 +932,39 @@ The bridge adapter/correction is shared by source and actual-history execution.
 The new native entry measures its first model windows in the reportable pilot;
 no training/per-step optimization is changed, so a training micro-batch benchmark
 does not apply.
+
+### Native interpolation correction before completing the pilot
+
+The first four lanes exposed a native context error: `utils.quaternion_slerp`
+uses `q1*t + q2*(1-t)` in its small-angle linear branch, reversing the endpoints
+while its spherical branch uses the correct time direction. Initial-context
+joint discrepancies of approximately 0.7–2.7 mm exceed the 0.1 mm history gate.
+All four runs are stopped and sealed failed; their 36 completed HSI windows,
+15 completed episode records and all partial artifacts remain intact. No HOI
+window completed in those runs. Body support failures remain separate measured
+results (roughly 9–18 cm foot-marker gaps in the early completed cases).
+
+Replace the reversed linear weights with `(1-t)*q1 + t*q2` in the shared native
+interpolation utility and test both body and object endpoint interpolation.
+This is an evaluator correction on this inference branch; preserve every
+historical result and the frozen `core/` contract. No physical threshold,
+candidate, text, diffusion budget, correction setting or goal changes.
+
+Repeat the same 24 registered episodes under fresh r1 lane IDs. A completed
+first HSI window from a failed lane may be consumed by reference: its denoising
+preceded the defective interpolation and depends only on the unchanged ten-frame
+source context. Publish an explicit first-window cache manifest before r1;
+verify every actual body/object/contact input and progress value against the
+current initial context. Recompute its native interpolation using the corrected
+utility. All later windows sample anew from the corrected generated history;
+there is no reuse of later-window outcomes or output-based candidate selection.
+Record reused and newly sampled window counts and costs separately. The expanded
+67-candidate source inventory uses direct source poses and remains unchanged.
+
+Correction verification: 1,188 tests pass with four historical skips (208.18 s).
+The previous surface-edit regression explicitly expected the old keyframe shift;
+it now verifies preservation of the validated coarse poses. A direct audit of
+all 15 reusable first windows finds a maximum corrected rotation-matrix error
+of 5.96e-7 and maximum angular error of 6.71e-7 rad against the actual history.
+Registry validation and the r1 resolved configuration pass. The old numerical
+protocol remains documented in its immutable commits and artifacts.

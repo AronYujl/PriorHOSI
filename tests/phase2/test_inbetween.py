@@ -22,6 +22,27 @@ def test_rotation_interpolation_crosses_heading_wrap_on_short_arc():
     assert forward[2] < -.999
 
 
+def test_small_angle_native_interpolation_keeps_body_and_object_keyframes():
+    import numpy as np
+    from utils import interp_jrot, interp_object, quaternion_slerp
+    angles = torch.tensor([[0., .4, 0.], [0., .4005, 0.], [0., .401, 0.]])
+    quaternions = transforms.axis_angle_to_quaternion(angles)
+    first = quaternion_slerp(quaternions[0], quaternions[1], 0.)
+    last = quaternion_slerp(quaternions[0], quaternions[1], 1.)
+    torch.testing.assert_close(first, quaternions[0], atol=1e-7, rtol=1e-7)
+    torch.testing.assert_close(last, quaternions[1], atol=1e-7, rtol=1e-7)
+    early = transforms.quaternion_to_axis_angle(quaternion_slerp(quaternions[0],quaternions[1],.25))[1]
+    late = transforms.quaternion_to_axis_angle(quaternion_slerp(quaternions[0],quaternions[1],.75))[1]
+    assert angles[0,1] < early < late < angles[1,1]
+    body = interp_jrot(quaternions[:,None].expand(-1,22,-1),3)
+    expected = transforms.quaternion_to_matrix(quaternions)
+    torch.testing.assert_close(transforms.quaternion_to_matrix(body[::3,0]), expected, atol=1e-7, rtol=1e-7)
+    position = np.array([[1.,2.,3.],[2.,3.,4.],[3.,4.,5.]])
+    translated, rotated = interp_object(position, expected.numpy().reshape(3,9),3)
+    np.testing.assert_allclose(translated[::3],position,atol=1e-7)
+    np.testing.assert_allclose(rotated[::3].reshape(3,3,3),expected.numpy(),atol=1e-7)
+
+
 def test_shape_retarget_keeps_root_and_recovers_original_bone_directions():
     torch.manual_seed(42)
     neutral = torch.randn(2, 22, 3)

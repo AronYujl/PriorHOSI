@@ -515,7 +515,7 @@ def test_teacher_residual_lifting_cancels_reference_resampling_error():
     torch.testing.assert_close(translation,base['translation']+torch.tensor([0.,.03,0.]))
 
 
-def test_coarse_pose_validation_precedes_native_temporal_interpolation():
+def test_native_temporal_interpolation_preserves_validated_coarse_poses():
     from mixer.hsi_motion_target import native_coarse_pose
     from mixer.kinematic_composition import _local_from_global
     from utils import native_body_pose
@@ -527,7 +527,6 @@ def test_coarse_pose_validation_precedes_native_temporal_interpolation():
     encoded=transforms.matrix_to_rotation_6d(global_rotation)
     direct=native_coarse_pose(encoded,Kinematics())
     torch.testing.assert_close(direct,expected,atol=1e-12,rtol=1e-8)
-    # The sealed native near-parallel branch has its own time-grid behaviour.
-    # It is retained for evaluation; encoded-input validation must precede it.
+    # The corrected small-angle branch retains every validated keyframe.
     interpolated=native_body_pose(encoded,Kinematics(),3)
-    assert (interpolated[::3]-expected).abs().max()>1e-5
+    torch.testing.assert_close(interpolated[::3],expected.to(interpolated),atol=1e-9,rtol=1e-6)

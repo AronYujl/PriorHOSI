@@ -40,7 +40,7 @@ def quaternion_slerp(q1, q2, step, eps=1e-6):
     factor1 = torch.sin(step * omega) / sin_omega
 
     slerped = q1 * factor0 + q2 * factor1
-    lerped = q1 * step + q2 * (1 - step)
+    lerped = q1 * (1 - step) + q2 * step
 
     result = torch.where(use_lerp, lerped, slerped)
     result = result / torch.norm(result, dim=-1, keepdim=True)

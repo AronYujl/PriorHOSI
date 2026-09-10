@@ -175,6 +175,18 @@ def blocked(stage, predecessor, reasons):
         reasons=reasons, metrics=None, generated_frames=0, model_windows=0)
 
 
+def cached_hsi_window(path, history, progress):
+    """Reuse a denoising result only for the identical, pre-interpolation entry."""
+    saved = torch.load(path, map_location='cpu', weights_only=False)
+    if saved['audit']['progress'] != list(progress):
+        raise ValueError('cached first HSI window has different progress')
+    if any(not torch.equal(saved['actual_input'][key], history[key][-10:].cpu()) for key in TRACK_KEYS):
+        raise ValueError('cached first HSI window has different actual history')
+    audit = dict(saved['audit'], reused_denoising_from=str(path),
+        cached_generation_seconds=saved['audit']['generation_seconds'], generation_seconds=0., hsi_forward_calls=0)
+    return saved['world'], audit, saved['clean']
+
+
 def run_actual_history(cfg):
     import hydra
     import trimesh
@@ -193,6 +205,12 @@ def run_actual_history(cfg):
     output.mkdir(parents=True, exist_ok=False)
     manifest = json.loads(Path(settings.source_manifest).read_text())
     selection = json.loads(Path(settings.selection).read_text())
+    cache = {}
+    if settings.initial_window_cache is not None:
+        references = json.loads(Path(settings.initial_window_cache).read_text())
+        if references['source_manifest'] != str(settings.source_manifest):
+            raise ValueError('initial-window cache uses a different source manifest')
+        cache = references['windows']
     episode_map = {e['episode_id']:e for e in manifest['episodes']}
     lane_ids = selection['episode_ids'][int(settings.lane_index)::int(settings.lane_count)]
     episodes = [episode_map[key] for key in lane_ids]
@@ -253,9 +271,12 @@ def run_actual_history(cfg):
         plan = window_plan(10, len(source['pose']))
         for step, frames in enumerate(plan):
             progress = (6+42*step, 54+42*step, len(source['pose']))
-            world, audit, clean = sample_transition(cfg, sampler, dataset, history, task, model, embeddings[lingo['text']],
-                goal=lingo['pelvis_goal'], scene_goal=lingo['scene_goal'], progress=progress,
-                is_locomotion=lingo['text'] in ('walk', 'stand up from seat'), seed=int(cfg.seed))
+            if step == 0 and episode['episode_id'] in cache:
+                world, audit, clean = cached_hsi_window(cache[episode['episode_id']], history, progress)
+            else:
+                world, audit, clean = sample_transition(cfg, sampler, dataset, history, task, model, embeddings[lingo['text']],
+                    goal=lingo['pelvis_goal'], scene_goal=lingo['scene_goal'], progress=progress,
+                    is_locomotion=lingo['text'] in ('walk', 'stand up from seat'), seed=int(cfg.seed))
             window = native_tracks(cfg, dataset, world, task, False, models, body_parameters=True)
             window['object_translation'] = history['object_translation'][-1:].repeat(46, 1)
             window['object_rotation'] = history['object_rotation'][-1:].repeat(46, 1, 1)
@@ -278,7 +299,9 @@ def run_actual_history(cfg):
             object_fixed=bool((history['object_translation'] == history['object_translation'][:1]).all()
                 and (history['object_rotation'] == history['object_rotation'][:1]).all()))
         hsi_result = dict(stage='hsi', status='passed' if all(hsi_checks.values()) else 'failed_guard',
-            gates=hsi_checks, metrics=hsi_metrics, windows=windows, model_windows=len(windows), generated_frames=sum(plan))
+            gates=hsi_checks, metrics=hsi_metrics, windows=windows, model_windows=len(windows), generated_frames=sum(plan),
+            new_model_windows=sum('reused_denoising_from' not in w for w in windows),
+            reused_initial_windows=sum('reused_denoising_from' in w for w in windows))
         write_json(destination/'hsi_metrics.json', hsi_result)
         stages = [dict(label='Initial source context', start_frame=0, stop_frame=10),
             dict(label='HSIPrior generated predecessor', start_frame=10, stop_frame=len(history['pose']))]

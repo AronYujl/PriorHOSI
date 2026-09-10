@@ -255,6 +255,22 @@ def test_actual_contact_trajectory_keeps_native_coarse_history_samples():
     torch.testing.assert_close(native[::3], coarse)
 
 
+def test_first_window_reuse_requires_the_actual_input_history_and_progress(tmp_path):
+    from mixer.multitask_execution import TRACK_KEYS, cached_hsi_window
+    history = {key:torch.arange(10).float()[:,None] for key in TRACK_KEYS}
+    path = tmp_path/'first_window.pt'
+    torch.save(dict(actual_input=history, world={'points':torch.ones(16,28,3)}, clean=torch.zeros(1,16,232),
+        audit=dict(progress=[6,54,96],generation_seconds=60.,hsi_forward_calls=1000)),path)
+    _, audit, _ = cached_hsi_window(path,history,(6,54,96))
+    assert audit['generation_seconds'] == 0 and audit['cached_generation_seconds'] == 60
+    assert audit['hsi_forward_calls'] == 0
+    with pytest.raises(ValueError,match='different progress'):
+        cached_hsi_window(path,history,(48,96,96))
+    history['object_translation'] = history['object_translation']+.01
+    with pytest.raises(ValueError,match='different actual history'):
+        cached_hsi_window(path,history,(6,54,96))
+
+
 def test_native_history_preserves_moving_object_pose_contact_and_physical_goal(monkeypatch):
     from types import SimpleNamespace
     import utils
