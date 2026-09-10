@@ -1,0 +1,5 @@
+defaults: [config_sample_hosi_dno_history, _self_]
+
+hsi_body_projection:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_dno_constrained_s42_20260910.json
+  source_edit_probe: true
