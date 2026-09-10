@@ -50,6 +50,12 @@ def native_arrays(motion):
     return dict({k: motion[k].detach().cpu().numpy() for k in keys}, gender=np.array(motion['gender']), fps=np.array(30))
 
 
+def load_bridge_object_sdf(root, object_name, device):
+    """Native metrics and contact correction consume a [1,D,H,W] object SDF."""
+    values, info = load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files', object_name)
+    return torch.as_tensor(values, device=device, dtype=torch.float32)[None], info
+
+
 def acquisition_measures(motion, condition, object_vertices, hand_distance_m=.08):
     world = object_vertices @ motion['object_rotation'][0].T+motion['object_translation'][0]
     distances = hand_object_distances(motion['joints'], world[None].expand(len(motion['joints']), -1, -1))
@@ -170,8 +176,7 @@ def run_source_bridges(cfg):
         scene = _load_scene(root, episode['scene_name'], cfg.device)
         obj = episode['persistent_objects'][0]
         rest = torch.as_tensor(zup_to_yup(np.asarray(trimesh.load_mesh(root/obj['geometry']).vertices)), device=cfg.device, dtype=torch.float32)
-        sdf, info = load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files', obj['object_id'])
-        object_sdf = torch.as_tensor(sdf, device=cfg.device, dtype=torch.float32)[None, None]
+        object_sdf, info = load_bridge_object_sdf(root, obj['object_id'], cfg.device)
         targets = raw['target_joints'][ordinal] @ canonical+origin
         roots = raw['root_positions'][ordinal] @ canonical+origin
         rotation = raw['local_rot_mats'][ordinal].clone()
@@ -193,7 +198,7 @@ def run_source_bridges(cfg):
         after = motion_metrics(corrected, vertices, condition, cfg, rest, *scene, object_sdf, info)
         after.update(contact_measures(vertices, patches, mask))
         after.update(rotation_seam_measures(corrected))
-        geometry = full_source_geometry(dict(corrected, verts=vertices), scene, object_sdf, info, rest,
+        geometry = full_source_geometry(dict(corrected, verts=vertices), scene, object_sdf[:, None], info, rest,
             corrected['object_translation'], corrected['object_rotation'], cfg.multitask.source_eligibility)
         contacts = acquisition_measures(corrected, condition, rest,
             hand_distance_m=float(cfg.multitask.source_eligibility.hand_distance_m))

@@ -770,3 +770,10 @@ included indices 22/23, which map to SMPL-X eyes, and grouped a left finger with
 the right hand. The source and bridge audits now share the corrected per-hand
 distance calculation. This corrects marker identity at the registered 0.08 m
 threshold; historical audit artifacts remain intact.
+
+The source inventory completed before bridge dispatch with 5 forward and 12
+grasped-entry candidates. A bridge interface review then corrected its object
+SDF layout: native metrics/contact correction take `[1,D,H,W]`, while the source
+geometry query takes `[1,1,D,H,W]`. A component regression exercises both distance
+queries and the correction gradient on an analytic SDF. The bridge fix has its
+own implementation commit and consumes the completed source manifest by reference.

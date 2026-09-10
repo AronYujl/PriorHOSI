@@ -161,3 +161,32 @@ def test_bridge_rotation_seam_uses_short_arc_at_both_boundaries():
     result = rotation_seam_measures(dict(pose=pose))
     assert abs(result['entry_root_rotation_jump_deg']-2.) < 1e-4
     assert abs(result['exit_rotation_jump_max_deg']-3.) < 1e-4
+
+
+def test_loaded_bridge_object_sdf_supports_native_metrics_correction_and_source_geometry(tmp_path):
+    import json
+    import numpy as np
+    from mixer.source_bridge import load_bridge_object_sdf
+    from mixer.inbetween_contact import object_distances
+    from mixer.standing_transition import object_measures
+    from mixer.multitask_geometry import geometry_measures
+    folder = tmp_path/'data/object/rest_object_sdf_256_npy_files'
+    folder.mkdir(parents=True)
+    axis = np.linspace(-1, 1, 9, dtype=np.float32)
+    x, _, _ = np.meshgrid(axis, axis, axis, indexing='ij')
+    np.save(folder/'box.npy', x)
+    info = dict(centroid=[0., 0., 0.], extents=[2., 2., 2.])
+    (folder/'box.json').write_text(json.dumps(info))
+    sdf, info = load_bridge_object_sdf(tmp_path, 'box', 'cpu')
+    vertices = torch.tensor([[[-.02, .1, 0.]]]).repeat(61, 1, 1).requires_grad_(True)
+    motion = dict(verts=vertices, object_translation=torch.zeros(61, 3),
+        object_rotation=torch.eye(3).repeat(61, 1, 1))
+    signed = object_distances(vertices[10:51], motion, sdf, info)
+    torch.testing.assert_close(signed, torch.full((41, 1), -.02), atol=1e-7, rtol=0)
+    gradient, = torch.autograd.grad(signed.sum(), vertices)
+    torch.testing.assert_close(gradient[10:51, 0], torch.tensor([1., 0., 0.]).repeat(41, 1))
+    native = object_measures(motion, sdf, info)
+    source = geometry_measures(vertices, torch.ones_like(sdf[:, None]), info, sdf[:, None], info,
+        motion['object_translation'][:, None], motion['object_rotation'])
+    assert abs(native['human_object_penetration_max_m']-.02) < 1e-7
+    assert abs(source['object_penetration_max_m']-.02) < 1e-7
