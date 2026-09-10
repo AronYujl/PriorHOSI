@@ -457,6 +457,118 @@ def summarize_body_readout(run_root, task_manifest, device='cuda:7'):
 
 
 @torch.no_grad()
+def run_hoi_dno(cfg):
+    """Fixed-task HOI-generator editing through the existing native entrypoint."""
+    import subprocess
+    import time
+    import numpy as np
+    from omegaconf import OmegaConf
+    from datasets.infbagel import InfBaGelDataset
+    from priors.hoi.models import load_trained_hoi_prior
+    from test_infbagel_hosi import seed_everything
+    from astar import get_path
+    from .continuation_outcomes import native_tracks, write_json
+    from .surface_edit import load_object_sdf, native_metrics
+    from .hsi_motion_target import MotionTargetTeacher
+    from .candidate_selection import _task_data, recover_score_context
+    from .scene_calibration import recover_temporal_window
+    from .hoi_diffusion_noise import hoi_dno_task
+    if cfg.get('run_id') and subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
+        raise RuntimeError('reportable HOI DNO requires a clean worktree')
+    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    protocol_path = Path(cfg.hoi_dno.protocol)
+    root = protocol_path.resolve().parents[2]
+    protocol = json.loads(protocol_path.read_text())
+    resolved = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+    tasks = json.loads((root/protocol['task_manifest']).read_text())['tasks']
+    if cfg.hoi_dno.task_ids is not None:
+        tasks = [t for t in tasks if t['canonical_ordinal'] in cfg.hoi_dno.task_ids]
+    out = Path(cfg.hosi_output_dir)
+    resume = bool(cfg.hoi_dno.resume)
+    out.mkdir(parents=True, exist_ok=resume)
+    if resume:
+        assert json.loads((out/'start.json').read_text())['commit'] == commit
+    else:
+        OmegaConf.save(OmegaConf.create(resolved), out/'resolved.yaml')
+        write_json(out/'start.json', dict(commit=commit, tasks=[t['canonical_ordinal'] for t in tasks],
+                                         protocol=protocol, run_id=cfg.get('run_id')))
+    seed_everything(42)
+    device = torch.device(cfg.device)
+    teacher = MotionTargetTeacher(cfg, protocol)
+    hoi, _ = load_trained_hoi_prior(cfg.ckpt_path, device, weight_variant=cfg.checkpoint_weight_variant)
+    hoi.eval().requires_grad_(False)
+    smpl_cache, current_scene, records = {}, None, []
+    torch.cuda.synchronize(device); started = time.perf_counter()
+    torch.cuda.reset_peak_memory_stats(device)
+    for item in tasks:
+        ordinal, scene = item['canonical_ordinal'], item['scene_name']
+        dest = out/f'task-{ordinal:03d}'
+        if resume and (dest/'metrics.json').exists():
+            records.append(json.loads((dest/'metrics.json').read_text()))
+            continue
+        dest.mkdir(exist_ok=resume)
+        if scene != current_scene:
+            dataset = InfBaGelDataset(**OmegaConf.merge(cfg.dataset, dict(device=str(device), vis=True,
+                load_object_payload=False, test_scene_name=scene)))
+            dataset.obj_rest_verts = {k:v.to(device) for k,v in dataset.obj_rest_verts.items()}
+            teacher.set_dataset(dataset)
+            teacher.sampler.set_dataset_and_model(dataset, hoi, teacher.model)
+            native = json.loads((root/'data/hosi_test/data'/(scene+'.json')).read_text())
+            sdf_root = root/'data/hosi_test/Scene_sdf'; key = scene+'_sdf'
+            sdf = np.load(sdf_root/(key+'.npy'))
+            info = json.loads((sdf_root/(key+'_info.json')).read_text())
+            current_scene = scene
+        task = dict(native[item['test_idx']], test_idx=item['test_idx'])
+        source_path, = (root/protocol['source_run']).glob(f"{protocol['source_arm']}-shard*/episode-motion-{ordinal:03d}.pt")
+        saved = torch.load(source_path, map_location='cpu', weights_only=False)
+        world = {k:torch.as_tensor(v).reshape(-1, 28, 3) if k == 'points_world' else torch.as_tensor(v)
+                 for k,v in saved['stitched'].items()}
+        with torch.no_grad():
+            source = native_tracks(cfg, dataset, world, task, True, smpl_cache, body_parameters=True)
+        model = smpl_cache[source['gender']].eval().requires_grad_(False)
+        obj = dataset.obj_rest_verts[item['object_name']]
+        obj_sdf, obj_info = load_object_sdf(root/'data/object/rest_object_sdf_256_npy_files', item['object_name'])
+        def evaluate(motion):
+            return native_metrics(motion, task, obj, obj_sdf, obj_info, sdf, info, model.faces, 42)
+        baseline = evaluate(source)
+        previous = json.loads(source_path.with_name(f'episode-audit-{ordinal:03d}.json').read_text())['metrics']
+        joint_error = float((source['joints']-saved['evaluated_joints_world'].to(device)).abs().max())
+        metric_error = max(abs(baseline[k]-previous[k]) for k in baseline)
+        assert joint_error <= 1e-5 and metric_error <= 1e-5, (joint_error, metric_error)
+        windows = []
+        data = _task_data(dataset, task)
+        trajectory = get_path(np.asarray(task['start_location'])[[0, 2]], np.asarray(task['pelvis_goal'])[[0, 2]], dataset)
+        points = obj[torch.linspace(0, len(obj)-1, 128, device=device).long()][None]
+        with torch.no_grad():
+            for index, (snapshot, world_window) in enumerate(zip(saved['corrections'], saved['windows'])):
+                _, cache, audit, geometry_context, offsets = recover_temporal_window(
+                    dataset, saved, snapshot, world_window, task, points, device)
+                context, error = recover_score_context(teacher.sampler, cfg, saved, index, task, data,
+                                                       trajectory, geometry_context, offsets)
+                clean = cache['edited']
+                keys = ('mat', 'text_emb', 'pelvis_goal', 'object_goal', 'pi', 'end_pi', 'seq_length',
+                        'is_object', 'obj_bps_data', 'obj_rot_mat_ref', 'obj_rest_verts', 'seq_name_dict')
+                args = teacher.sampler.inner_hoi.prepare_sample_arguments(clean[:, :2], **{k:context[k] for k in keys})
+                local_bps = args.pop('local_object_bps')
+                args.pop('generator'); args.pop('object_so3_x0')
+                windows.append(dict(clean=clean, context=context, arguments=args, local_bps=local_bps,
+                                    audit=dict(audit, context_world_error_m=error)))
+        teacher.calls = 0
+        result = hoi_dno_task(teacher, windows, source, model, sdf, info, evaluate, baseline,
+                              task, ordinal, protocol, dest, commit, resume)
+        result.update(source_joint_error_m=joint_error, source_metric_error=metric_error,
+                      context_audits=[w['audit'] for w in windows], commit=commit)
+        write_json(dest/'metrics.json', result)
+        records.append(result)
+        print(json.dumps(dict(task=ordinal, completed=True, seconds=result['seconds'])), flush=True)
+    torch.cuda.synchronize(device)
+    write_json(out/'metrics.json', dict(commit=commit,
+        git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+        tasks=len(records), windows=sum(r['windows'] for r in records), seconds=time.perf_counter()-started,
+        hoi_calls=sum(r['hoi_calls'] for r in records), hsi_calls=sum(r['hsi_calls'] for r in records),
+        peak_memory_gib=torch.cuda.max_memory_allocated(device)/1024**3))
+
+
 def run_body_projection(cfg):
     """Named cached probe: hand_foot_continuous_body_readout."""
     import subprocess

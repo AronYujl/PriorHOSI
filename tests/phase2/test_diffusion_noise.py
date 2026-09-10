@@ -11,6 +11,271 @@ from mixer.diffusion_noise import (ddim_transition, native_quaternion_interpolat
     native_linear_interpolation, HSIDDIM, _PhysicalLoss)
 
 
+def _hoi_test_dataset():
+    return SimpleNamespace(normalize_torch=lambda v, **k: v, denormalize_torch=lambda v, **k: v)
+
+
+def _hoi_test_context(angle=0., shift=(0., 0., 0.), object_angle=.1):
+    mat = torch.eye(4, dtype=torch.double)[None]
+    mat[0, :3, :3] = transforms.axis_angle_to_matrix(torch.tensor([0., angle, 0.], dtype=torch.double))
+    mat[0, :3, 3] = torch.tensor(shift, dtype=torch.double)
+    return dict(mat=mat, obj_rot_mat_prefix=transforms.axis_angle_to_matrix(
+        torch.tensor([[0., object_angle, 0.]], dtype=torch.double)),
+        obj_rot_mat_ref=transforms.axis_angle_to_matrix(torch.tensor([[.2, 0., 0.]], dtype=torch.double)))
+
+
+def _hoi_test_motion(frames=16):
+    value = torch.zeros(1, frames, 232, dtype=torch.double)
+    value[..., :84] = torch.arange(84, dtype=torch.double)*.01
+    value[..., 84:216] = transforms.matrix_to_rotation_6d(torch.eye(3, dtype=torch.double)).repeat(22)
+    value[..., 216:219] = torch.tensor([.2, .4, -.1], dtype=torch.double)
+    value[..., 219:228] = torch.eye(3, dtype=torch.double).flatten()
+    value[..., 228:] = .8
+    return value
+
+
+def test_hoi_frame_change_preserves_world_human_object_and_derivatives():
+    from mixer.hoi_diffusion_noise import reframe_hoi
+    dataset = _hoi_test_dataset()
+    old = _hoi_test_context(.6, (.2, .1, -.3), .4)
+    new = _hoi_test_context(-.4, (-.7, .2, .9), -.3)
+    value = _hoi_test_motion(2).requires_grad_(True)
+    shifted = reframe_hoi(value, dataset, old, new)
+    recovered = reframe_hoi(shifted, dataset, new, old)
+    torch.testing.assert_close(recovered, value, atol=1e-12, rtol=1e-12)
+    old_world = old['obj_rot_mat_prefix'][:, None] @ value[..., 219:228].reshape(1, 2, 3, 3) @ old['obj_rot_mat_ref'][:, None]
+    new_world = new['obj_rot_mat_prefix'][:, None] @ shifted[..., 219:228].reshape(1, 2, 3, 3) @ new['obj_rot_mat_ref'][:, None]
+    torch.testing.assert_close(old_world, new_world)
+    recovered.sum().backward()
+    assert torch.isfinite(value.grad).all()
+    assert value.grad[..., 216:228].abs().sum() > 0
+
+
+def _hoi_test_decoder():
+    from mixer.hoi_diffusion_noise import HOIDDIM
+    decoder = HOIDDIM.__new__(HOIDDIM)
+    decoder.dataset = _hoi_test_dataset()
+    contexts = [_hoi_test_context(), _hoi_test_context(.3, (.1, 0., .2))]
+    decoder.windows = [dict(context=c, arguments=dict(text_embedding=torch.ones(1)), local_bps=None) for c in contexts]
+    decoder.mats = torch.cat([c['mat'] for c in contexts])
+    decoder.clean = _hoi_test_motion().expand(2, -1, -1).clone()
+    decoder.alpha = torch.linspace(.99, .01, 500, dtype=torch.double)
+    decoder.times = [499, 0]
+    decoder.device = torch.device('cpu')
+    decoder.translation_offset = torch.zeros(3, dtype=torch.double)
+    decoder.hoi_calls = 0
+    def raw(value, timestep, arguments, local_bps):
+        assert set(arguments) == {'text_embedding'}
+        return .1*value + .7*value[:, :2].mean(1, keepdim=True)
+    decoder.sampler = SimpleNamespace(_hoi_raw_x0=raw)
+    decoder.teacher = SimpleNamespace(model=lambda *a, **k: (_ for _ in ()).throw(AssertionError('HSI entered HOI generation')))
+    return decoder
+
+
+def test_hoi_ddim_replays_without_hsi_and_backpropagates_across_generated_history():
+    decoder = _hoi_test_decoder()
+    initial = _hoi_test_motion(28).transpose(1, 2).unsqueeze(2).requires_grad_(True)
+    prediction = decoder.decode(initial)
+    assert torch.equal(prediction, decoder.decode(initial))
+    torch.testing.assert_close(prediction[0, :2], decoder.clean[0, :2], rtol=0, atol=0)
+    from mixer.hoi_diffusion_noise import reframe_hoi
+    expected = reframe_hoi(prediction[:1, -2:], decoder.dataset, decoder.windows[0]['context'], decoder.windows[1]['context'])
+    torch.testing.assert_close(prediction[1:2, :2], expected)
+    loss = prediction[1, 2:, :3].square().sum()+prediction[1, 2:, 216:228].square().sum()
+    gradient, = torch.autograd.grad(loss, initial)
+    assert torch.isfinite(gradient).all()
+    assert gradient[..., :14].abs().sum() > 0 and gradient[..., 14:].abs().sum() > 0
+    assert gradient[:, :3].abs().sum() > 0 and gradient[:, 216:219].abs().sum() > 0
+
+
+def test_hoi_reference_and_final_readouts_use_the_same_differentiable_forward():
+    decoder = _hoi_test_decoder()
+    modes = []
+    original = decoder.sampler._hoi_raw_x0
+    def observe(value, *args):
+        modes.append((torch.is_grad_enabled(), value.requires_grad))
+        return original(value, *args)
+    decoder.sampler._hoi_raw_x0 = observe
+    initial = _hoi_test_motion(28).transpose(1, 2).unsqueeze(2)
+    with torch.no_grad():
+        source = decoder.sample(initial)
+    optimized = decoder.decode(initial.requires_grad_(True))
+    assert torch.equal(source, optimized)
+    assert all(enabled and required for enabled, required in modes)
+    assert not source.requires_grad
+
+
+def test_hoi_coarse_fk_teacher_loss_reaches_body_rotations_and_previous_latent():
+    decoder = _hoi_test_decoder()
+    decoder.rest_offsets = torch.ones(24, 3, dtype=torch.double)*.02
+    initial = _hoi_test_motion(28).transpose(1, 2).unsqueeze(2).requires_grad_(True)
+    predicted = decoder.decode(initial)
+    points = decoder.coarse_body(predicted)
+    assert points.shape == (2, 16, 24, 3)
+    target = points.detach()+points.new_tensor([.03, -.02, .01])
+    gradient, = torch.autograd.grad(decoder.teacher_loss(predicted, target), initial)
+    assert torch.isfinite(gradient).all()
+    assert gradient[:, 84:216].abs().sum() > 0
+    assert gradient[..., :14].abs().sum() > 0
+
+
+def test_hoi_native_object_interpolation_and_initial_history_match_native():
+    from utils import interp_object
+    decoder = _hoi_test_decoder()
+    initial = _hoi_test_motion(28).transpose(1, 2).unsqueeze(2).requires_grad_(True)
+    prediction = decoder.decode(initial)
+    pose, translation, obj, rotation = decoder.native(prediction)
+    world = decoder.world(prediction)
+    wanted_obj, wanted_rotation = interp_object(world['object_translation_world'].detach().numpy(),
+                                               world['object_rotation_world'].detach().reshape(-1, 9).numpy(), 3)
+    # The shared native GPU interpolation uses float32 temporal weights.
+    torch.testing.assert_close(obj, torch.from_numpy(wanted_obj), atol=1e-7, rtol=1e-7)
+    torch.testing.assert_close(rotation, torch.from_numpy(wanted_rotation).reshape(-1, 3, 3), atol=1e-7, rtol=1e-7)
+    assert len(pose) == len(translation) == len(obj) == 90
+    changed = decoder.native(decoder.decode(initial+.02))
+    for first, second in zip((pose, translation, obj, rotation), changed):
+        torch.testing.assert_close(first[:3], second[:3], atol=1e-12, rtol=1e-12)
+    loss = translation[60:].square().sum()+obj[60:].square().sum()+rotation[60:, 0, 1].sum()+pose[60:].square().sum()
+    gradient, = torch.autograd.grad(loss, initial)
+    assert torch.isfinite(gradient).all()
+    assert gradient[:, 216:219].abs().sum() > 0
+    assert gradient[:, 219:228].abs().sum() > 0
+
+
+def test_hoi_content_and_contact_coordinates_allow_joint_rigid_route_changes():
+    from mixer.hoi_diffusion_noise import root_local_body
+    from mixer.surface_edit import object_frame_hands
+    torch.manual_seed(42)
+    pose = torch.randn(7, 22, 3, dtype=torch.double)*.1
+    joints = torch.randn(7, 28, 3, dtype=torch.double)
+    position = torch.randn(7, 3, dtype=torch.double)
+    rotation = transforms.axis_angle_to_matrix(torch.randn(7, 3, dtype=torch.double)*.1)
+    turn = transforms.axis_angle_to_matrix(torch.tensor([0., .4, 0.], dtype=torch.double))
+    shift = torch.tensor([.8, 0., -.5], dtype=torch.double)
+    changed_joints = (turn@joints[..., None]).squeeze(-1)+shift
+    changed_position = (turn@position[..., None]).squeeze(-1)+shift
+    changed_pose = pose.clone()
+    changed_pose[:, 0] = transforms.matrix_to_axis_angle(turn@transforms.axis_angle_to_matrix(pose[:, 0]))
+    torch.testing.assert_close(root_local_body(pose, joints), root_local_body(changed_pose, changed_joints))
+    torch.testing.assert_close(object_frame_hands(joints, position, rotation),
+                               object_frame_hands(changed_joints, changed_position, turn@rotation))
+
+
+def test_joint_native_objective_chunks_match_whole_motion_and_all_four_derivatives(monkeypatch):
+    import utils
+    from mixer.hoi_diffusion_noise import JointMotionObjective, _JointPhysicalLoss
+    def body(pose, translation, *args, **kwargs):
+        joints = pose[:, :1].expand(-1, 28, -1)+translation[:, None]
+        return joints, joints
+    monkeypatch.setattr(utils, 'run_smplx_model', body)
+    torch.manual_seed(42)
+    p = torch.randn(53, 22, 3, dtype=torch.double)*.01
+    t = torch.randn(53, 3, dtype=torch.double)*.01
+    op = torch.randn(53, 3, dtype=torch.double)*.01
+    orm = transforms.axis_angle_to_matrix(torch.randn(53, 3, dtype=torch.double)*.01)
+    vertices, joints = body(p, t)
+    source = dict(pose=p, translation=t, object_translation=op, object_rotation=orm,
+                  joints=joints, verts=vertices, betas=torch.zeros(10), gender='male')
+    scales = dict(body_m=.05, hand_m=.01, stance_height_m=.01, stance_speed_m_s=.05,
+                  local_velocity_m_s=.2, trajectory_acceleration_m_s2=.5, goal_m=.05, domain_m=.05)
+    objective = JointMotionObjective(source, None, torch.randn(8, 3, dtype=torch.double)*.01,
+        torch.ones(4, 4, 4), dict(centroid=[0, 0, 0], extents=[2, 2, 2]),
+        dict(scene_name='fixture', test_idx=0, pelvis_goal=[.1, 0, .1], object_goal=[.1, .1, .1]),
+        dict(feet_height=0., scene_human_penetration_s_mean=1., scene_obj_penetration_s_mean=1.), scales)
+    objective.scene.frame_sums = lambda v: v.square().sum((1, 2))
+    objective.reference_chunks[0, 53] = (vertices, joints)
+    values = [(v+torch.randn_like(v)*.001).requires_grad_(True) for v in (p, t, op, orm)]
+    actual = _JointPhysicalLoss.apply(*values, objective)
+    gradients = torch.autograd.grad(actual, values)
+    pp, tt, oo, rr = values
+    vv, jj = body(pp, tt)
+    expected = objective.chunk_terms(pp, jj, vv, oo, rr, 0, 0, 53).sum()
+    wanted = torch.autograd.grad(expected, values)
+    torch.testing.assert_close(actual, expected, atol=1e-8, rtol=1e-10)
+    for a, b in zip(gradients, wanted):
+        torch.testing.assert_close(a, b, atol=1e-7, rtol=1e-9)
+        assert torch.isfinite(a).all() and a.abs().sum() > 0
+
+
+def test_hoi_teacher_targets_use_paired_noise_and_only_change_scene_arguments(monkeypatch):
+    import mixer.hoi_diffusion_noise as module
+    from priors.hoi.diffusion import GaussianDiffusion
+    from contextlib import nullcontext
+    decoder = _hoi_test_decoder()
+    decoder.ordinal = 17
+    decoder.settings = dict(hsi_level=199)
+    decoder.task = dict(start_location=[0., 0., 0.])
+    for w in decoder.windows:
+        w['context']['is_object'] = torch.ones(1)
+    def arguments(clean, previous, timestep, context):
+        values = [torch.zeros(1, dtype=clean.dtype) for _ in range(17)]
+        values[0] = context['mat'][:, 0, 0]
+        values[1] = timestep
+        return tuple(values)
+    decoder.sampler.inner_hoi = SimpleNamespace(diffusion=GaussianDiffusion())
+    decoder.sampler.hsi_sampler = SimpleNamespace(emb_f=0)
+    decoder.sampler._hsi_model_arguments = arguments
+    decoder.teacher.calls = 0
+    decoder.teacher.model = lambda x, *a, **k: .5*x+.1*a[0][:, None, None]
+    decoder.coarse_body = lambda x: x[..., :216].reshape(*x.shape[:2], 72, 3)
+    monkeypatch.setattr(module.torch.random, 'fork_rng', lambda **k: nullcontext())
+    monkeypatch.setattr(module, 'observation_outside', lambda *a: 0.)
+    prediction = decoder.clean.clone().requires_grad_(True)
+    correct, c = decoder.teacher_target(prediction, 'correct', 7, capture=True)
+    wrong, w = decoder.teacher_target(prediction, 'wrong', 7, capture=True)
+    assert not correct.requires_grad and not wrong.requires_grad
+    assert not torch.equal(correct, wrong)
+    assert torch.equal(prediction, decoder.clean)
+    for first, second in zip(c, w):
+        assert torch.equal(first['noisy'], second['noisy'])
+        assert (first['noisy'][:, :2, 216:] == 0).all()
+        assert all(torch.equal(first['arguments'][i], second['arguments'][i]) for i in range(17) if i not in (0, 15))
+    gradient, = torch.autograd.grad(decoder.teacher_loss(prediction, correct), prediction)
+    assert gradient[:, 2:, :216].abs().sum() > 0
+    assert (gradient[..., 216:] == 0).all()
+
+
+def test_hoi_dno_optimizer_resume_reproduces_uninterrupted_edit(tmp_path, monkeypatch):
+    import pytest
+    import mixer.hoi_diffusion_noise as module
+    monkeypatch.setattr(module.torch.cuda, 'synchronize', lambda *a: None)
+    monkeypatch.setattr(module.torch.cuda, 'max_memory_allocated', lambda *a: 0)
+    monkeypatch.setattr(module.torch.cuda, 'get_rng_state', lambda *a: torch.get_rng_state())
+    monkeypatch.setattr(module.torch.cuda, 'set_rng_state', lambda rng, *a: torch.set_rng_state(rng))
+    class Decoder:
+        ordinal = 1
+        calls = 0
+        interrupt = False
+        def decode(self, value):
+            self.calls += 1
+            if self.interrupt and self.calls == 3:
+                raise RuntimeError('simulated interruption after durable checkpoint')
+            return value
+        def native(self, value):
+            return (value,)
+    class Objective:
+        def __call__(self, value):
+            loss = (value-.2).square().mean()
+            self.value = float(loss.detach())
+            return loss
+        def term_record(self):
+            return dict(body=self.value)
+    initial = torch.tensor([[[[.8, 1.1, .4, -.2]]]])
+    settings = dict(editing_steps=6, checkpoint_every=2, lr=.05, warmup=0, diff_penalty_scale=.01, hsi_weight=.25)
+    def destination(name):
+        path = tmp_path/name; path.mkdir()
+        return dict(repository='/data/yujinlun/Diffusion-Noise-Optimization', path=path, commit='fixture', memory_limit=8.)
+    complete = module.optimize_hoi_latent(Decoder(), Objective(), initial, None, settings, destination('complete'), 'G')
+    dest = destination('interrupted'); decoder = Decoder(); decoder.interrupt = True
+    with pytest.raises(RuntimeError, match='simulated interruption'):
+        module.optimize_hoi_latent(decoder, Objective(), initial, None, settings, dest, 'G')
+    assert (dest['path']/'G-step0002.pt').exists()
+    resumed = module.optimize_hoi_latent(Decoder(), Objective(), initial, None, settings, dest, 'G', resume=True)
+    torch.testing.assert_close(resumed, complete, rtol=0, atol=0)
+    checkpoint = torch.load(dest['path']/'G-step0006.pt', weights_only=False)
+    assert len(checkpoint['traces']) == len(checkpoint['history']) == 6
+
+
 def test_ddim_oracle_inversion_and_reverse_recover_clean_and_gradient():
     clean = torch.tensor([.4, -.3], dtype=torch.double)
     noise = torch.tensor([-.7, .2], dtype=torch.double, requires_grad=True)

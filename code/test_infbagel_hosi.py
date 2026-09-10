@@ -564,6 +564,10 @@ def run_merge_shards(cfg: DictConfig) -> None:
 
 @hydra.main(version_base=None, config_path="config", config_name="config_sample_infbagel")
 def main(cfg: DictConfig) -> None:
+    if cfg.get('hoi_dno', {}).get('enabled', False):
+        from mixer.diagnostics import run_hoi_dno
+        run_hoi_dno(cfg)
+        return
     if cfg.get('hsi_body_projection', {}).get('enabled', False):
         from mixer.diagnostics import run_body_projection
         run_body_projection(cfg)

@@ -1,0 +1,17 @@
+defaults: [config_sample_hosi_surface_edit, _self_]
+
+hoi_dno:
+  enabled: true
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hoi_dno_s42_20260910.json
+  task_ids: null
+  resume: false
+
+sampler:
+  pelvis:
+    hoi_adapter:
+      guidance:
+        enabled: false
+    scene_editor: null
+
+surface_edit:
+  enabled: false

@@ -53,7 +53,9 @@
       "G",
       "C",
       "W"
-    ]
+    ],
+    "readout_execution": "Source, zero-edit replay and final readouts all enable latent gradients before the HOI forward pass and then detach. This keeps the frozen PyTorch Transformer on the same arithmetic path as optimization.",
+    "numerical_reference": "Each physical source reference uses the same 24-frame plus two-frame-overlap SMPL-X block as the current candidate. Log its difference from canonical source output; source-preservation terms are exactly zero at the source up to arithmetic precision. FK24 teacher readout is checked against native SMPL-X first22+hands24/26 before optimization."
   },
   "diagnostics": {
     "engineering": "Same-noise source replay, scene-free HOI input contract, generated-history gradients into previous-window noise, root/body/object gradient reachability, shared C/W query RNG, native interpolation/FK derivatives, fixed initial history and resumable optimizer/RNG state. Full component and authority tests before formal launch.",
