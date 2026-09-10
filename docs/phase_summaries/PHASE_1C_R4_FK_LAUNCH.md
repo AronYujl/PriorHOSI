@@ -65,3 +65,20 @@ will be recorded from initial formal training; no A/B throughput comparison was 
 
 Inspect results/r4_fk_setup_20260909/fresh47_job.json and fresh47_status.json first.
 The old queue_status.json describes the aborted job and is historical.
+
+## Training completed; fixed evaluation entry (2026-09-11)
+
+Fresh47 completed146255 updates/299530240 windows with exit0, finalEMA epoch222 and
+fixed diagnosticEMA epoch19 preserved. Runtime cost96.068889GPU-h. The final export
+exactly matches214 EMA tensors and finalLR=0. All recorded gradients/losses are finite;
+the isolated update79 gradient norm91848576 is included in the training audit.
+Source4307061 remains the runtime implementation. Initial stability and checkpoint
+verification are in the run's initial_stability.json. R4.1 launch/training work is complete;
+R4.2's physical/FID/semantic acceptance remains open.
+
+Continue from results/r4_evaluation_setup_20260911/jobs.json and references.json.
+Nine fixed workloads and58 fully resolved configs cover epoch19 teacher-forced/development
+rollout/body readouts, finalU/G single-card latency/full375 quality, frozenTable3 and final
+representation. Read the dated R4.2 section for exact pairings, uncertainty, input reuse
+and cost. Training audit: experiments/results/p1_hsi_r4_fk_training_s42_20260911.json.
+No additional training or checkpoint selection is authorized by this handoff.

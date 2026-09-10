@@ -13888,3 +13888,43 @@ GPU4推理进程当前约1.7GiB，其余三卡将释放旧训练占用；启动�
 用户取消布局对比，本次不分配/执行A/B benchmark；原128更新测量继续说明计算形状及显存，
 新布局速度由正式训练初始区间直接记录，不宣称已完成受控布局速度比较。
 对应中途EMA和最终artifact路径均替换为新run目录；已有校准和旧运行工件继续原样保留。
+
+## 2026-09-11 R4.2：训练完成，执行已批准的固定验收
+
+R4 fresh47从随机初始化完成146255更新/299530240窗口，2026-09-09 16:00:57至
+09-10 16:01:59UTC，86462秒/96.068889GPU-h。final EMA与滚动状态中214个EMA参数
+逐值一致，终点LR=0；epoch19快照及最终epoch222各自保留。四rank全146255条梯度范数
+一致且有限，各14492条分项loss记录有限。梯度median1.01096/p99=7.45231，update79有
+91848576的有限尖峰（其余最大867.705）；原值和附近loss已归档，不能因最终loss低而忽略。
+完整训练审计见experiments/results/p1_hsi_r4_fk_training_s42_20260911.json。原656更新
+用户中止运行单独保留；其工件继续作为操作历史，不参与新模型质量选择。
+
+本次执行09-09已注册的R4.2，无新训练、损失、采样器或阈值。九个GPU workload依次为：
+1. epoch19固定teacher-forced读数（GPU4，既有352 test有效窗及364 train窗，t498/250/50）；
+2. epoch19固定60开发episode/364窗口的8卡DDPM500 U生成历史rollout；
+3. 对这60条及对应GT的8卡表示诊断（GT引用原375导出的60个只读链接）；
+4–5. 最终EMA单卡GPU4的U/G latency70（原生选择19条/69窗，5条预热）；
+6–7. 最终EMA 8卡U/G各375条/2271窗；
+8. 一次GPU4固定Table3，245互动样本，冻结encoder及gallery；
+9. 最终U/G与GT的8卡表示重建，R2表示数值直接复用CM1.5封存结果。
+
+诊断快照是在训练结束后读取，仍固定epoch19，不执行checkpoint选择；60条是已暴露
+开发队列，保留其strata设计与描述，不称未见测试集。GT60只是现有GT motion的引用，
+源数据、关节布局、fixed_rate_endpoint_hold_v1和所有原生指标保持既有实现。
+U/G采用w1、DDPM500、CG posterior coefficient原值；RDS额外null-scene路径关闭，
+与CM1.5对照一致。所有表格使用修正后的R2物理量，旧R2 Table3只复用粗帧一致的
+FID/embedding/语义记录，避免混入旧插值下的物理读数。
+
+9个任务/58份job、shard及merge配置已完全解析。运行代码保持4307061不变，因此
+复用476 passed/3 skipped的authority及组件验证；本次只做registry/config验证。
+注册单卡latency提供新权重的原生性能读数，保持原场景/窗口/同步规则；GPU0–3目前
+有其他推理进程，逐任务实时preflight记录占用，时延按实际竞争环境解释。
+
+全部九任务合计沿用80GPU-h评估上限；每个任务在同一clean source调用experiment.py
+start，持久pipeline归档resolved/preflight/日志并逐一finish，失败保留并停止后续任务。
+全部输出齐备后执行既定paired_bootstrap（标量10000、FID2000、seed42）、family10
+表示/物理同时区间、family6 FID/MM/R@3同时区间、安全/接触守卫及完整失败案例报告。
+原生R@1/2/3全部点估计保留；R@3不确定性遵循冻结gallery query occurrence单位，
+其中重复序列数量透明报告，不解释为独立序列或跨训练seed置信区间。
+Diversity按封存原生随机数顺序从embedding补算；方向仍为接近GT，不单调解释为越大越好。
+Phase1C保持开放，最终教师是否改善以09-09既定联合判据为准。

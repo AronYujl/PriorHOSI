@@ -1,0 +1,407 @@
+{
+  "training_metrics": {
+    "benchmark_warmup_updates": 2000,
+    "effective_batch_size": 2048,
+    "gradient_accumulation_steps": 1,
+    "last_loss": 0.02656150609254837,
+    "max_peak_memory_allocated_bytes": 13435489792,
+    "max_peak_memory_reserved_bytes": 13761511424,
+    "measured_optimizer_updates": 144255,
+    "micro_batch_per_gpu": 512,
+    "micro_steps": 146255,
+    "optimizer_updates": 146255,
+    "peak_memory_allocated_bytes_by_rank": [
+      13435489792,
+      13434135552,
+      13433255424,
+      13432009728
+    ],
+    "peak_memory_reserved_bytes_by_rank": [
+      13751025664,
+      13751025664,
+      13751025664,
+      13761511424
+    ],
+    "schema_version": 1,
+    "seed": 42,
+    "status": "stable",
+    "synchronized_training_seconds": 85223.87119342759,
+    "world_size": 4,
+    "started_at": "2026-09-09T16:00:57+00:00",
+    "ended_at": "2026-09-10T16:01:59+00:00",
+    "wall_seconds": 86462.0,
+    "reserved_gpu_hours": 96.06888888888889,
+    "process_exit_code": 0,
+    "final_ema": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-r4-fk-train-fresh47-s42-20260909/checkpoints/p1-hsi-r4-fk-train-fresh47-s42-20260909_epoch222.pth",
+    "epoch19_diagnostic_ema": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-r4-fk-train-fresh47-s42-20260909/internal_diagnostic/ema_epoch019.pth"
+  },
+  "processed_windows": 299530240,
+  "processed_frames": 4792483840,
+  "epoch": 222,
+  "optimizer_updates": 146255,
+  "final_export_exactly_matches_ema": true,
+  "ema_tensors_compared": 214,
+  "final_state_tensors": 218,
+  "final_lr": 0.0,
+  "gradients": {
+    "count": 146255,
+    "all_finite": true,
+    "quantiles": {
+      "min": 0.053704969584941864,
+      "p50": 1.0109585523605347,
+      "p95": 3.8749147891998286,
+      "p99": 7.452311801910379,
+      "max": 91848576.0
+    },
+    "top10": [
+      {
+        "update": 79,
+        "norm": 91848576.0
+      },
+      {
+        "update": 1,
+        "norm": 867.705322265625
+      },
+      {
+        "update": 2,
+        "norm": 850.4022827148438
+      },
+      {
+        "update": 3,
+        "norm": 838.0052490234375
+      },
+      {
+        "update": 5,
+        "norm": 835.8589477539062
+      },
+      {
+        "update": 4,
+        "norm": 829.4388427734375
+      },
+      {
+        "update": 6,
+        "norm": 792.7569580078125
+      },
+      {
+        "update": 7,
+        "norm": 762.1077880859375
+      },
+      {
+        "update": 8,
+        "norm": 739.027099609375
+      },
+      {
+        "update": 9,
+        "norm": 724.3582763671875
+      }
+    ]
+  },
+  "losses": {
+    "body_fk_losses_rank0.jsonl": {
+      "records": 14492,
+      "all_finite": true,
+      "first": {
+        "loss_jpos": 0.44165992736816406,
+        "loss_jrot": 0.6370453238487244,
+        "loss_fk": 5.59705114364624,
+        "loss_fullbody_seam": 4.067171096801758,
+        "loss_body_fk": 0.1333966851234436,
+        "update": 9,
+        "rank": 0,
+        "total": 20.137664794921875
+      },
+      "around_update79": [
+        {
+          "loss_jpos": 0.39152613282203674,
+          "loss_jrot": 0.6293365359306335,
+          "loss_fk": 1.6853010654449463,
+          "loss_fullbody_seam": 1.645873785018921,
+          "loss_body_fk": 0.11541321873664856,
+          "update": 59,
+          "rank": 0,
+          "total": 7.00972843170166
+        },
+        {
+          "loss_jpos": 0.3650157153606415,
+          "loss_jrot": 0.6215999722480774,
+          "loss_fk": 1.2893075942993164,
+          "loss_fullbody_seam": 1.3803688287734985,
+          "loss_body_fk": 0.106829933822155,
+          "update": 69,
+          "rank": 0,
+          "total": 5.639489650726318
+        },
+        {
+          "loss_jpos": 0.3388727307319641,
+          "loss_jrot": 0.6162831783294678,
+          "loss_fk": 1.134526252746582,
+          "loss_fullbody_seam": 1.1736117601394653,
+          "loss_body_fk": 0.09979069232940674,
+          "update": 79,
+          "rank": 0,
+          "total": 5.028336524963379
+        },
+        {
+          "loss_jpos": 0.3161862790584564,
+          "loss_jrot": 0.6236129403114319,
+          "loss_fk": 1.179076910018921,
+          "loss_fullbody_seam": 1.150888442993164,
+          "loss_body_fk": 0.09789730608463287,
+          "update": 89,
+          "rank": 0,
+          "total": 5.133676528930664
+        },
+        {
+          "loss_jpos": 0.29284730553627014,
+          "loss_jrot": 0.6238590478897095,
+          "loss_fk": 1.1195220947265625,
+          "loss_fullbody_seam": 1.1549925804138184,
+          "loss_body_fk": 0.09302104264497757,
+          "update": 99,
+          "rank": 0,
+          "total": 4.932964324951172
+        }
+      ],
+      "last": {
+        "loss_jpos": 5.915057045058347e-05,
+        "loss_jrot": 0.023277588188648224,
+        "loss_fk": 0.000550023396499455,
+        "loss_fullbody_seam": 0.00016526345279999077,
+        "loss_body_fk": 0.00010262177238473669,
+        "update": 146251,
+        "rank": 0,
+        "total": 0.025103075429797173
+      }
+    },
+    "body_fk_losses_rank1.jsonl": {
+      "records": 14492,
+      "all_finite": true,
+      "first": {
+        "loss_jpos": 0.4435257613658905,
+        "loss_jrot": 0.6364732384681702,
+        "loss_fk": 5.444577217102051,
+        "loss_fullbody_seam": 3.7305400371551514,
+        "loss_body_fk": 0.13378028571605682,
+        "update": 9,
+        "rank": 1,
+        "total": 19.496671676635742
+      },
+      "around_update79": [
+        {
+          "loss_jpos": 0.39020201563835144,
+          "loss_jrot": 0.6294753551483154,
+          "loss_fk": 1.685544490814209,
+          "loss_fullbody_seam": 1.4318983554840088,
+          "loss_body_fk": 0.11576389521360397,
+          "update": 59,
+          "rank": 1,
+          "total": 6.891791820526123
+        },
+        {
+          "loss_jpos": 0.36433684825897217,
+          "loss_jrot": 0.6212547421455383,
+          "loss_fk": 1.2786756753921509,
+          "loss_fullbody_seam": 1.2318289279937744,
+          "loss_body_fk": 0.10738243162631989,
+          "update": 69,
+          "rank": 1,
+          "total": 5.525091648101807
+        },
+        {
+          "loss_jpos": 0.33741605281829834,
+          "loss_jrot": 0.6154637932777405,
+          "loss_fk": 1.1453938484191895,
+          "loss_fullbody_seam": 1.1244999170303345,
+          "loss_body_fk": 0.10133389383554459,
+          "update": 79,
+          "rank": 1,
+          "total": 5.032061576843262
+        },
+        {
+          "loss_jpos": 0.3107648491859436,
+          "loss_jrot": 0.6230459213256836,
+          "loss_fk": 1.1177937984466553,
+          "loss_fullbody_seam": 1.0673099756240845,
+          "loss_body_fk": 0.09613358974456787,
+          "update": 89,
+          "rank": 1,
+          "total": 4.897479057312012
+        },
+        {
+          "loss_jpos": 0.2903634309768677,
+          "loss_jrot": 0.6243086457252502,
+          "loss_fk": 1.1123226881027222,
+          "loss_fullbody_seam": 1.095213532447815,
+          "loss_body_fk": 0.09255567938089371,
+          "update": 99,
+          "rank": 1,
+          "total": 4.876370429992676
+        }
+      ],
+      "last": {
+        "loss_jpos": 6.0433216276578605e-05,
+        "loss_jrot": 0.023836227133870125,
+        "loss_fk": 0.0005550094065256417,
+        "loss_fullbody_seam": 0.00016654479259159416,
+        "loss_body_fk": 0.00010514621681068093,
+        "update": 146251,
+        "rank": 1,
+        "total": 0.02567928656935692
+      }
+    },
+    "body_fk_losses_rank2.jsonl": {
+      "records": 14492,
+      "all_finite": true,
+      "first": {
+        "loss_jpos": 0.44338029623031616,
+        "loss_jrot": 0.6356603503227234,
+        "loss_fk": 5.480558395385742,
+        "loss_fullbody_seam": 3.9300646781921387,
+        "loss_body_fk": 0.13384220004081726,
+        "update": 9,
+        "rank": 2,
+        "total": 19.713298797607422
+      },
+      "around_update79": [
+        {
+          "loss_jpos": 0.38720500469207764,
+          "loss_jrot": 0.6286882758140564,
+          "loss_fk": 1.68990159034729,
+          "loss_fullbody_seam": 1.5098377466201782,
+          "loss_body_fk": 0.11556563526391983,
+          "update": 59,
+          "rank": 2,
+          "total": 6.943853378295898
+        },
+        {
+          "loss_jpos": 0.3655424118041992,
+          "loss_jrot": 0.6217222213745117,
+          "loss_fk": 1.4310157299041748,
+          "loss_fullbody_seam": 1.311745285987854,
+          "loss_body_fk": 0.10928019881248474,
+          "update": 69,
+          "rank": 2,
+          "total": 6.028165340423584
+        },
+        {
+          "loss_jpos": 0.3400834798812866,
+          "loss_jrot": 0.6160722374916077,
+          "loss_fk": 1.1228835582733154,
+          "loss_fullbody_seam": 1.0768239498138428,
+          "loss_body_fk": 0.09873099625110626,
+          "update": 79,
+          "rank": 2,
+          "total": 4.940965175628662
+        },
+        {
+          "loss_jpos": 0.3122233748435974,
+          "loss_jrot": 0.6235213279724121,
+          "loss_fk": 1.1562933921813965,
+          "loss_fullbody_seam": 1.2095760107040405,
+          "loss_body_fk": 0.09731197357177734,
+          "update": 89,
+          "rank": 2,
+          "total": 5.093372344970703
+        },
+        {
+          "loss_jpos": 0.28919467329978943,
+          "loss_jrot": 0.6239421963691711,
+          "loss_fk": 1.0954914093017578,
+          "loss_fullbody_seam": 1.064828872680664,
+          "loss_body_fk": 0.09276025742292404,
+          "update": 99,
+          "rank": 2,
+          "total": 4.807697772979736
+        }
+      ],
+      "last": {
+        "loss_jpos": 5.623254764941521e-05,
+        "loss_jrot": 0.02294611744582653,
+        "loss_fk": 0.0005458726081997156,
+        "loss_fullbody_seam": 0.00016475508164148778,
+        "loss_body_fk": 0.00010135104093933478,
+        "update": 146251,
+        "rank": 2,
+        "total": 0.02475563995540142
+      }
+    },
+    "body_fk_losses_rank3.jsonl": {
+      "records": 14492,
+      "all_finite": true,
+      "first": {
+        "loss_jpos": 0.442615270614624,
+        "loss_jrot": 0.6353629231452942,
+        "loss_fk": 5.61487340927124,
+        "loss_fullbody_seam": 3.7616817951202393,
+        "loss_body_fk": 0.13472697138786316,
+        "update": 9,
+        "rank": 3,
+        "total": 20.022884368896484
+      },
+      "around_update79": [
+        {
+          "loss_jpos": 0.3870624303817749,
+          "loss_jrot": 0.6282901763916016,
+          "loss_fk": 1.5413308143615723,
+          "loss_fullbody_seam": 1.456073522567749,
+          "loss_body_fk": 0.11481545865535736,
+          "update": 59,
+          "rank": 3,
+          "total": 6.467873573303223
+        },
+        {
+          "loss_jpos": 0.3654671013355255,
+          "loss_jrot": 0.6220378875732422,
+          "loss_fk": 1.3571813106536865,
+          "loss_fullbody_seam": 1.3630934953689575,
+          "loss_body_fk": 0.10760375112295151,
+          "update": 69,
+          "rank": 3,
+          "total": 5.834699630737305
+        },
+        {
+          "loss_jpos": 0.34067675471305847,
+          "loss_jrot": 0.6177336573600769,
+          "loss_fk": 1.1806025505065918,
+          "loss_fullbody_seam": 1.2062774896621704,
+          "loss_body_fk": 0.10024107992649078,
+          "update": 79,
+          "rank": 3,
+          "total": 5.18787956237793
+        },
+        {
+          "loss_jpos": 0.31345421075820923,
+          "loss_jrot": 0.6223589181900024,
+          "loss_fk": 1.1471830606460571,
+          "loss_fullbody_seam": 1.1459157466888428,
+          "loss_body_fk": 0.09656228870153427,
+          "update": 89,
+          "rank": 3,
+          "total": 5.030945777893066
+        },
+        {
+          "loss_jpos": 0.2905478775501251,
+          "loss_jrot": 0.623960554599762,
+          "loss_fk": 1.0972551107406616,
+          "loss_fullbody_seam": 1.1325886249542236,
+          "loss_body_fk": 0.09250617772340775,
+          "update": 99,
+          "rank": 3,
+          "total": 4.851527690887451
+        }
+      ],
+      "last": {
+        "loss_jpos": 6.270912854233757e-05,
+        "loss_jrot": 0.023780833929777145,
+        "loss_fk": 0.0005804671673104167,
+        "loss_fullbody_seam": 0.00017098600801546127,
+        "loss_body_fk": 0.00011095671652583405,
+        "update": 146251,
+        "rank": 3,
+        "total": 0.025706425309181213
+      }
+    }
+  },
+  "runtime_source": "4307061fc04da565d29d09a2a86f9da967043b7f",
+  "quality_acceptance": "pending fixed rollout and encoder evaluation"
+}
