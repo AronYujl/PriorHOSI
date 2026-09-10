@@ -16,6 +16,13 @@ from .multitask import hand_object_distances, write_json
 from .source_eligibility import GRASPED_ENTRY, _load_scene, full_source_geometry
 from .surface_edit import decode_body, load_object_sdf, yaw_matrix
 
+PREDICTION_FIELDS = ('target_joints', 'root_positions', 'local_rot_mats', 'foot_contacts')
+
+
+def prediction_row(arrays, index, device):
+    """Select one motion sample; scalar metadata such as fps has no batch axis."""
+    return {key:torch.as_tensor(arrays[key][index], device=device) for key in PREDICTION_FIELDS}
+
 
 @torch.no_grad()
 def bridge_condition(prefix, suffix, position, rotation, model):
@@ -225,7 +232,7 @@ def run_source_bridges(cfg):
         dest.mkdir()
         model = models[condition['gender']]
         corrected, row = adapt_bridge(cfg, root, dest, episode, condition, canonical, origin, model,
-            {k:v[ordinal] for k,v in raw.items()}, len(source['pose']))
+            prediction_row(raw, ordinal, cfg.device), len(source['pose']))
         native_peak = max(native_peak, row['correction']['peak_cuda_allocated_bytes'])
         final = native_arrays(corrected)
         full = dict(final)

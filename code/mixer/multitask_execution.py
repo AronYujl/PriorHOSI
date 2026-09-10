@@ -14,7 +14,7 @@ from .continuation_outcomes import native_tracks
 from .inbetween import dispatch
 from .multitask import hand_object_distances, human_boundary_measures, write_json
 from .multitask_handoff import motion_slice
-from .source_bridge import adapt_bridge, bridge_condition, native_arrays, render_bridge
+from .source_bridge import adapt_bridge, bridge_condition, native_arrays, prediction_row, render_bridge
 from .source_eligibility import (_load_scene, full_source_geometry, object_support,
     source_support)
 from .standing_transition import load_texts, make_history, native_local_goal, sample_transition
@@ -145,7 +145,7 @@ def sample_hoi_window(cfg, sampler, dataset, history, task, model, embedding, co
     return world, audit, result.cpu(), snapshot
 
 
-def run_acquisition(cfg, root, destination, episode, history, target, model, object_vertices):
+def run_acquisition(cfg, root, destination, episode, history, target, model, object_vertices, cached=None):
     from omegaconf import OmegaConf
     destination.mkdir()
     inputs = destination/'inputs'
@@ -156,8 +156,19 @@ def run_acquisition(cfg, root, destination, episode, history, target, model, obj
     np.savez(inputs/'conditions.npz', **{k:v.cpu().numpy()[None] for k,v in arrays.items()})
     generation = OmegaConf.merge(cfg, dict(hosi_output_dir=str(destination),
         inbetween=dict(input_dir=str(inputs), models=['kimodo'], kimodo_device=str(cfg.device))))
-    dispatch(generation, root)
-    prediction = {k:torch.as_tensor(v[0], device=cfg.device) for k,v in np.load(destination/'kimodo/prediction.npz').items()}
+    if cached is None:
+        dispatch(generation, root)
+        prediction_path = destination/'kimodo/prediction.npz'
+    else:
+        previous = torch.load(cached['condition'], map_location=cfg.device, weights_only=False)
+        keys = ('pose', 'translation', 'joints', 'object_translation', 'object_rotation', 'betas')
+        if previous['gender'] != condition['gender'] or any(not torch.equal(previous[k],condition[k]) for k in keys):
+            raise ValueError('cached Kimodo sample has a different native condition')
+        prediction_path = Path(cached['prediction'])
+        write_json(destination/'generation_reference.json', dict(reused_prediction=str(prediction_path),
+            verified_native_condition=str(cached['condition']), new_generation_seconds=0., new_model_samples=0))
+    with np.load(prediction_path) as arrays:
+        prediction = prediction_row(arrays, 0, cfg.device)
     motion, record = adapt_bridge(cfg, root, destination, episode, condition, canonical, origin, model, prediction, len(history['pose']))
     motion['contact'] = geometric_contacts(motion, object_vertices)
     save_motion(destination/'actual_motion.pt', motion)
@@ -167,6 +178,7 @@ def run_acquisition(cfg, root, destination, episode, history, target, model, obj
     record['gates']['actual_history'] = (record['actual_prefix_max_error_m'] < 1e-5
         and record['actual_prefix_pose_exact'] and record['actual_prefix_translation_exact'])
     record['bridge_gate'] = all(record['gates'].values())
+    record['generation_reused_from'] = str(prediction_path) if cached is not None else None
     return motion, record
 
 
@@ -176,14 +188,15 @@ def blocked(stage, predecessor, reasons):
 
 
 def cached_hsi_window(path, history, progress):
-    """Reuse a denoising result only for the identical, pre-interpolation entry."""
+    """Reuse denoising only when the actual history and progress match."""
     saved = torch.load(path, map_location='cpu', weights_only=False)
     if saved['audit']['progress'] != list(progress):
         raise ValueError('cached first HSI window has different progress')
     if any(not torch.equal(saved['actual_input'][key], history[key][-10:].cpu()) for key in TRACK_KEYS):
         raise ValueError('cached first HSI window has different actual history')
     audit = dict(saved['audit'], reused_denoising_from=str(path),
-        cached_generation_seconds=saved['audit']['generation_seconds'], generation_seconds=0., hsi_forward_calls=0)
+        cached_generation_seconds=saved['audit']['generation_seconds']+saved['audit'].get('cached_generation_seconds',0.),
+        generation_seconds=0., hsi_forward_calls=0)
     return saved['world'], audit, saved['clean']
 
 
@@ -210,13 +223,21 @@ def run_actual_history(cfg):
         references = json.loads(Path(settings.initial_window_cache).read_text())
         if references['source_manifest'] != str(settings.source_manifest):
             raise ValueError('initial-window cache uses a different source manifest')
-        cache = references['windows']
+        cache = {(key,0):path for key,path in references['windows'].items()}
+    resume = dict(completed_episode_ids=[], windows={}, kimodo={})
+    if settings.resume is not None:
+        resume = json.loads(Path(settings.resume).read_text())
+        if resume['source_manifest'] != str(settings.source_manifest) or resume['fixed_selection'] != str(settings.selection):
+            raise ValueError('execution resume uses different frozen inputs')
+        cache.update({(key,int(step)):path for key,windows in resume['windows'].items() for step,path in windows.items()})
     episode_map = {e['episode_id']:e for e in manifest['episodes']}
     lane_ids = selection['episode_ids'][int(settings.lane_index)::int(settings.lane_count)]
+    lane_ids = [key for key in lane_ids if key not in resume['completed_episode_ids']]
     episodes = [episode_map[key] for key in lane_ids]
     sources = {s['source_id']:s for s in manifest['sources']}
     write_json(output/'frozen_selection.json', dict(episode_ids=lane_ids, all_pilot_episode_ids=selection['episode_ids'],
-        source_manifest=str(settings.source_manifest), lane_index=int(settings.lane_index), lane_count=int(settings.lane_count)))
+        source_manifest=str(settings.source_manifest), lane_index=int(settings.lane_index), lane_count=int(settings.lane_count),
+        completed_episode_ids_retained=resume['completed_episode_ids']))
     torch.set_num_threads(4)
     torch.manual_seed(int(cfg.seed))
     torch.cuda.synchronize(cfg.device)
@@ -271,8 +292,8 @@ def run_actual_history(cfg):
         plan = window_plan(10, len(source['pose']))
         for step, frames in enumerate(plan):
             progress = (6+42*step, 54+42*step, len(source['pose']))
-            if step == 0 and episode['episode_id'] in cache:
-                world, audit, clean = cached_hsi_window(cache[episode['episode_id']], history, progress)
+            if (episode['episode_id'],step) in cache:
+                world, audit, clean = cached_hsi_window(cache[(episode['episode_id'],step)], history, progress)
             else:
                 world, audit, clean = sample_transition(cfg, sampler, dataset, history, task, model, embeddings[lingo['text']],
                     goal=lingo['pelvis_goal'], scene_goal=lingo['scene_goal'], progress=progress,
@@ -301,7 +322,8 @@ def run_actual_history(cfg):
         hsi_result = dict(stage='hsi', status='passed' if all(hsi_checks.values()) else 'failed_guard',
             gates=hsi_checks, metrics=hsi_metrics, windows=windows, model_windows=len(windows), generated_frames=sum(plan),
             new_model_windows=sum('reused_denoising_from' not in w for w in windows),
-            reused_initial_windows=sum('reused_denoising_from' in w for w in windows))
+            reused_model_windows=sum('reused_denoising_from' in w for w in windows),
+            reused_initial_windows=int(bool(windows) and 'reused_denoising_from' in windows[0]))
         write_json(destination/'hsi_metrics.json', hsi_result)
         stages = [dict(label='Initial source context', start_frame=0, stop_frame=10),
             dict(label='HSIPrior generated predecessor', start_frame=10, stop_frame=len(history['pose']))]
@@ -310,7 +332,8 @@ def run_actual_history(cfg):
         hoi_result = blocked('hoi', 'hsi', failures)
         longest = int(not failures)
         if not failures:
-            bridge, bridge_record = run_acquisition(cfg, root, destination/'bridge', episode, history, target, model, obj[0])
+            bridge, bridge_record = run_acquisition(cfg, root, destination/'bridge', episode, history, target, model, obj[0],
+                cached=resume['kimodo'].get(episode['episode_id']))
             start = len(history['pose'])
             history = append_bridge(history, bridge)
             stages.append(dict(label='Kimodo acquisition bridge', start_frame=start, stop_frame=len(history['pose'])))

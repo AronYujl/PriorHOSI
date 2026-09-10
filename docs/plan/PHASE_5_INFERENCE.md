@@ -968,3 +968,31 @@ all 15 reusable first windows finds a maximum corrected rotation-matrix error
 of 5.96e-7 and maximum angular error of 6.71e-7 rad against the actual history.
 Registry validation and the r1 resolved configuration pass. The old numerical
 protocol remains documented in its immutable commits and artifacts.
+
+### Kimodo output-reader correction and bounded resume
+
+R1 lanes0–2 complete eighteen episodes. Lane3 retains three completed episodes
+and one passing HSI predecessor with a completed Kimodo sample, then stops before
+native adaptation: the NPZ reader attempts to index scalar `fps` as a batch.
+Read only the four declared model-output arrays required by native adaptation;
+use the same extraction for source and actual-history bridges. This changes no
+motion generation or correction recipe. All four r1 manifests are sealed, with
+lane3 retained as a failed operational run.
+
+Publish an explicit resume manifest for the remaining three lane3 episode IDs.
+The 21 completed episode records remain the authoritative results for their IDs.
+For the interrupted episode, replay its completed r1 HSI denoising windows only
+after exact actual-history/progress verification, and reuse its Kimodo prediction
+only after verifying the native conditioned poses, translations and object
+transforms. The interpolation utility and model conditions are unchanged from r1.
+The remaining two episodes follow the same original pilot contract. Retain the
+initial-window cache where applicable, report every reused window/sample and
+new cost, and aggregate every one of the original24 IDs exactly once. Use a new
+`p5-multitask-actual-r2lane3-s42-20260910` run. No result or candidate is replaced
+because of its measured quality, and no sampling budget or threshold is changed.
+
+Reader/resume verification: 1,189 tests pass with four historical skips
+(198.52 s), 446 registry records validate and the r2 config resolves. The NPZ
+regression includes scalar frame-rate metadata and selects the four declared
+batched arrays. R1 lanes0–2 and lane3's three completed cases are sealed before
+the reader correction is committed.

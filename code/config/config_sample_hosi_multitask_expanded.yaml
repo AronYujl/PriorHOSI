@@ -23,5 +23,6 @@ multitask:
     lane_count: 4
     lane_index: 0
     initial_window_cache: null
+    resume: null
     goal_tolerance_m: 0.10
     render: true

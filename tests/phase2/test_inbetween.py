@@ -43,6 +43,22 @@ def test_small_angle_native_interpolation_keeps_body_and_object_keyframes():
     np.testing.assert_allclose(rotated[::3].reshape(3,3,3),expected.numpy(),atol=1e-7)
 
 
+def test_bridge_prediction_batch_reader_leaves_scalar_metadata_out(tmp_path):
+    import numpy as np
+    from mixer.source_bridge import PREDICTION_FIELDS, prediction_row
+    data = dict(local_rot_mats=np.zeros((2,61,22,3,3),dtype=np.float32),
+        root_positions=np.zeros((2,61,3),dtype=np.float32), target_joints=np.zeros((2,61,22,3),dtype=np.float32),
+        foot_contacts=np.zeros((2,61,4),dtype=np.bool_), fps=np.array(30), scale=np.ones(2))
+    data['root_positions'][1] = 7.
+    path = tmp_path/'prediction.npz'
+    np.savez(path,**data)
+    with np.load(path) as arrays:
+        sample = prediction_row(arrays,1,'cpu')
+    assert set(sample) == set(PREDICTION_FIELDS)
+    assert sample['root_positions'].shape == (61,3)
+    assert bool((sample['root_positions'] == 7.).all())
+
+
 def test_shape_retarget_keeps_root_and_recovers_original_bone_directions():
     torch.manual_seed(42)
     neutral = torch.randn(2, 22, 3)
