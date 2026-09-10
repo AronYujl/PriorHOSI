@@ -1,0 +1,5 @@
+defaults: [config_sample_hosi_dno_reconstruction, _self_]
+
+hsi_body_projection:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hsi_dno_history_s42_20260910.json
+  history_probe: true
