@@ -13968,3 +13968,59 @@ CI与paired_bootstrap一致。运行代码保持，沿用authority476/3及定向
 交接docs/phase_summaries/PHASE_1C_R4_FK.md。R4表示、物理、FID/语义、安全联合门失败，
 保留修正后的R2+CG。R4实验完成并封存负结果，Phase1C保持开放；后继仅审阅，具体新实验
 需另行批准。本轮没有新增训练、蒸馏或单卡教师时延实验。
+
+
+## 2026-09-11（CM2.1：固定教师／学生同状态终点保真诊断；用户已批准）
+
+用户批准固定R2，定位学生在相同噪声状态、历史和条件下的旋转、FK身体及跨窗动态偏差，
+再据证据选择一个单变量蒸馏实验。本节为一个可完成的诊断subphase，分支
+phase/01c-cm2-align，component hsi-cm2.1；零训练更新。R4负结果和修正后R2+CG继续保留。
+
+### 假设与可识别范围
+
+CM的clean输出近似轨迹终点，R2中间时刻的单步x0与它的目标定义不同。H：把R2从完全相同
+状态沿原生DDIM25继续到终点后，学生仍有身体和跨窗动态保真缺口；该缺口不能只由
+教师单步预测与轨迹终点的差别解释。诊断同时保存R2单步x0、R2剩余DDIM终点、CM单步
+boundary-scaled clean输出。原生教师端点是固定eval-mode DDIM轨迹的参照，不能冒称
+训练dropout/EMA目标，亦不等于DDPM500+CG。权重和sampler-source差异仍须分清。
+
+### 固定数据与操作
+
+沿用已暴露B_n60开发队列60条/364窗口，含12个终端padded窗；不称未见测试集。
+两个生成历史source为R2 DDIM25 U和CM1 final CM16 U，均w1、关闭外部CG、canonical seed42，
+保留原生条件、progress、occupancy、历史clamp及修正插值。每个窗口在两网格共有的
+499/279/59三个时刻捕获同一x_t、上一clean占据查询来源、两历史帧及全部条件；共2184状态。
+在每个状态上分别读两模型，并复用Sampler.p_sample/DDIMSolver完成R2剩余轨迹，逐步
+更新future occupancy、逐步固定同一历史；源码求解器公式保持原值。探针与原生rollout隔离
+模型/采样器，恢复探针前后的RNG；与封存原生输出逐值核对粗帧，验证观测未改变轨迹。
+
+具名probe distillation_alignment位于hsi/diagnostics.py，通过既有LINGO evaluator分发；
+一个config片段，不增加tools脚本，不改core。R2/CM全程eval且冻结；不重跑dropout撤销
+等既有负实验。保存逐窗口三种clean输出、分时刻/历史来源/首窗及后续窗的全部标量。
+量化直接位置、root、全局旋转角、root-relative body21 FK、全局FK、边界速度/加速度/jerk、
+内部jerk与各模型自身直接位置/FK分歧。几何使用现有fp32 FK、24关节固定offsets，明确是
+训练/引导骨架诊断，原生SMPL-X物理量另表。保留两source的60条原生全物理/接触/安全读数。
+
+### 统计与判据
+
+每个episode内先平均窗口，source和timestep分别报告；首窗和后续窗独立描述。
+主比较为CM到R2终点误差减R2单步到终点误差：body21 FK(cm)与边界速度(m/s)，
+在279/59、两source共8个对照。paired_bootstrap10000次seed42给逐项95%区间；GPU以同一
+重采样索引给family8 Bonferroni同时区间。原生60样本均值与B_n60分层加权描述并列；主推断
+限定该固定开发队列，不能声称全375总体或跨训练seed置信区间。所有其他误差和原生指标保留。
+若两source低噪声body项均明确为正，优先提出身体终点保真单变量目标；若body不成立而
+边界速度两项均明确为正，优先提出跨窗动态目标；否则保留不确定性，依据分解提出一个
+更聚焦诊断。任何分支都只形成下一项具体提案，不自动启动新训练；上述差值不能独自证明
+特定loss/dropout/EMA为因果根因。高噪声读数只作描述，包含多模态轨迹差异。
+
+### 执行、验证与成本
+
+8×RTX3090按episode分片，两source依次执行；每source8份shard及一份merge配置全部
+预先解析。两个报告负载走clean Git → tools/experiment.py start → evaluator → finish，
+所有成功或失败manifest保留。既有封存输入以manifest引用，不增加身份计算工具。
+针对common-state/终点/历史/RNG/旋转与FK分解做组件测试，首次GPU前完整authority一次。
+正式诊断自身承担真实数据功能验证；无训练更新，microbatch/per-step推理路径未改变，
+本轮不做训练满批benchmark或教师单卡时延。探针增加的计算仅记录资源成本和CUDA同步
+阶段耗时，不作部署latency。总上限12GPU-h，至少2GiB实际显存余量，记录竞争。
+全部2184状态、两source120条原生轨迹、配对统计和coarse一致性齐备后形成一个completion
+commit、报告/compact和PHASE_1C_CM2_ALIGNMENT总结；Phase1C保持开放。
