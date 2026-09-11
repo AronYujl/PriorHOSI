@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "phase": "2.40b",
+  "component": "hoi-dno469",
+  "authorization": "User approved the frozen full469 evaluation after completion of Phase2.40a.",
+  "task_manifest": "experiments/tasks/p2_surface_edit_full469_s42_20260908.json",
+  "source_run": "results/experiments/p2-mixer-surface-source469-s42-20260908",
+  "source_arm": "B0_hoi",
+  "input_identity_reference": "results/experiments/p2-mixer-hsi-body-readout-s42-20260908/input_references.json",
+  "dno_repository": "/data/yujinlun/Diffusion-Noise-Optimization",
+  "scope": "All469 tasks/67scenes. Frozen Phase2.40a recipe, C as target method and G as matched ablation, same DDIM source and complete relation20/terminal chain. Reuse all28 previously completed tasks and generate/evaluate remaining441. W remains the fixed28 diagnostic.",
+  "method": {
+    "ddim_steps": 50,
+    "editing_steps": 300,
+    "lr": 0.05,
+    "warmup": 50,
+    "decorrelate_scale": 0.0,
+    "diff_penalty_scale": 0.0,
+    "perturb_scale": 0.0,
+    "checkpoint_every": 50,
+    "source": "For cached28 retain exact archived source/noise/motions. Remaining441 replay original task conditions and create one fixed ordinal seed42 DDIM50 source, saved before edits; G/C share it. Replay validation uses prior source and final optimizer states on19/329/375/421; no DNO reoptimization of these cached tasks.",
+    "decoder": "Full 232D HOI raw x0, 500-step training schedule with 50 rounded descending DDIM times and terminal alpha=1. Original final-window object SO3 projection. No Arm B posterior guidance inside DDIM; source and G/C/W all use the same unguided decoder. Historical DDPM500+ArmB is reported separately. All future latent blocks jointly optimized; generated history and rigid human/object frame conversions remain differentiable across windows.",
+    "conditioning": "Recover original native window frames, text, object shape, per-window goals and progress once. These are common fixed conditions. Root and object paths are generated outputs; final supplied human/object goals enter the objective. First two global coarse history frames fixed; later histories come from the current rollout.",
+    "native": "Raw final300-step outputs and unchanged relation20/terminal for DDPM_reference/source/G/C; all12 stages per task. Cached28 W outputs remain separately available. Same native evaluator and first3-frame convention.",
+    "hsi_level": 199,
+    "hsi_weight": 0.25,
+    "teacher": "At each optimization iteration and window, add paired noise to the current HOI clean motion; freeze its two history frames. Query full R2 raw x0 using current-motion scene observations, native human goals and training-compatible empty object/contact channels. The wrong arm rotates all scene queries by 90 degrees about task start; true geometry and all non-scene conditions remain shared. Use detached HSI x0 as a refreshed local FK24 target, MSE/(5cm)^2 on future joints. HSI has no optimized latent and never supplies the output motion. This is an alternating local teacher surrogate, not a calibrated global density. Same per-step query RNG in C/W; log query coverage and paired source responses.",
+    "physical_scales": {
+      "body_m": 0.05,
+      "stance_height_m": 0.01,
+      "stance_speed_m_s": 0.05,
+      "local_velocity_m_s": 0.2,
+      "trajectory_acceleration_m_s2": 0.5,
+      "goal_m": 0.05,
+      "domain_m": 0.05
+    },
+    "physical": "Unit weights: root-local body5cm and velocity20cm/s preservation; source-stance height1cm; absolute stance foot speed5cm/s (zero target, source adjacent support masks); active grasp distance above3cm scaled1cm; object-frame grasp velocity10cm/s; source-relative route acceleration0.5m/s2; goals5cm; native HS/OS normalized as previous protocol; added native human-object depth sum scaled1m; added squared per-frame deepest scene distance shortfall below2mm scaled1cm withweight0.1 for both meshes; previous domain term. All surfaces and derivatives on GPU. The root-local/body/continuity constraints replace the removed noise-distance tether.",
+    "arms": [
+      "G",
+      "C"
+    ],
+    "arm_definitions": {
+      "G": "HOI DNO + physical objectives, HSI weight0",
+      "C": "same + correct-scene HSI teacher weight0.25",
+      "W": "same + wrong-scene HSI teacher weight0.25"
+    },
+    "recorded_arms": [
+      "DDPM_reference",
+      "source",
+      "G",
+      "C"
+    ],
+    "readout_execution": "Source, zero-edit replay and final readouts all enable latent gradients before the HOI forward pass and then detach. This keeps the frozen PyTorch Transformer on the same arithmetic path as optimization.",
+    "numerical_reference": "Each physical source reference uses the same 24-frame plus two-frame-overlap SMPL-X block as the current candidate. Log its difference from canonical source output; source-preservation terms are exactly zero at the source up to arithmetic precision. FK24 teacher readout is checked against native SMPL-X first22+hands24/26 before optimization.",
+    "metric_targets": {
+      "contact_distance_m": 0.03,
+      "contact_scale_m": 0.01,
+      "object_motion_speed_m_s": 0.01,
+      "grasp_speed_m_s": 0.1,
+      "human_object_sum_m": 1.0,
+      "clearance_margin_m": 0.002,
+      "clearance_scale_m": 0.01,
+      "clearance_weight": 0.1
+    },
+    "contact_interval": "Source-native geometry defines all masks once. Preserve both hands source contacts below5cm. Main hand is the one with most source contact frames, tie chooses smaller mean object-surface distance. On the interval spanning any source contact or object translation speed>1cm/s, require main-hand3cm contact; exclude immutable first3 frames. Other hand retains its source-contact frames. Save masks, main hand, interval, distances and counts. Target is surface proximity and object-frame temporal coherence, allowing source penetration or grasp geometry to improve. No GT, task-id rules, per-object weights or best-of-N.",
+    "metric_geometry": "Body-object collision uses every human vertex and the native object SDF frame. Contact uses the full object mesh. HS/OS and their per-frame clearance use the previous native-seeded object subset (at most10475 vertices); human vertices are complete. Relation/terminal processing uses the complete object mesh as before."
+  },
+  "diagnostics": {
+    "engineering": "Same-noise source replay, scene-free HOI input contract, generated-history gradients into previous-window noise, root/body/object gradient reachability, shared C/W query RNG, native interpolation/FK derivatives, fixed initial history and resumable optimizer/RNG state. Full component and authority tests before formal launch.",
+    "gradient": "Preserve source correct/wrong and final G/C term-gradient audits for new441, paired source queries and all step traces. Cached28 retain their old audits by reference; no new W optimized trajectory. Correct/wrong source-query sensitivity does not establish a full469 wrong-scene trajectory comparison.",
+    "sampling": "Compare generated DDIM50 source with archived DDPM500+ArmB source on all native metrics. Their source sampling protocols differ. Direct editing attribution uses only the exact DDIM source and same decoder G/C/W.",
+    "geometry": "Original motion/interaction/stance/route diagnostics plus new contact-mask coverage and repair counts. Raw and final chain reported separately; all stage timings GPU synchronized. Postprocess runtime and DNO runtime separate."
+  },
+  "evaluation": "All469/67scenes primary tables and10000seed42 paired task/scene intervals. C/G versus same-source chain, DDPM reference chain and originalJuly reference; all12HOSI metrics plus original motion/support diagnostics. Reused28 and remaining441 separately described, all469 retained. Native and aggregate outputs immutable, failed candidates retained. Actual newly executed compute separated from reused historical resource counters.",
+  "decision": {
+    "metric_progress": "Final C vs source_final:contact>=+2pp,human_object<=0.90source,FS<=0.90source; all three jointly required. Also report C_final vs DDPM_reference_final and raw C vs source.",
+    "protection": "C_final completion>=source_final and DDPM_reference_final; HS/OSs_mean<=1.01source_final; HS/OSframe_ratio<=source_final+.002; source-floor support>=source_final-.02; original local-body5cm/nonroot10deg/seam+10cm/s/acceleration+100cm/s2/initial3 exact checks. Old1cm hand displacement is descriptive only; repairing grasp geometry is authorized. Report all per-task violations and source-contact retention. Source hand-contact retention >=95% is retained from the original protection rule; compute source-contact retention over tasks with active source hands and report empty strata. Ineligible hand cases carry null protection, not invented retention. The 1cm source hand-position drift threshold is diagnostic only.",
+    "hsi_increment": "Full469 C_final-G_final for every native metric and support/motion protection. Wrong-scene trajectory evidence remains the sealed28 failure; full469 correct-minus-wrong is unmeasured. Never mark unmeasured scene attribution as passed.",
+    "engineering": "All469 identities represented once,28reused+441new;882new fixed300step DNO arms, four cached-source/final-state replay validations, all12native stages, terminal candidates, resumable checkpoints, complete aggregates/paired intervals and full authority. No requirement for unperformed W trajectories.",
+    "limits": "Recipe, mask/physical scales, solver/terminal rules, native metrics, seeds and task denominator frozen. No retraining, tuned weights, new candidate selection or dropping failures. Full469 has historical development exposure. Separate remaining441 and reused28 descriptive summaries; no independent test-set claim.",
+    "benchmark": "Primary target: C_final improves all12 native HOSI point metrics versus the archived July released system on exactly469 identities. Report every point difference and task/scene10000seed42 intervals; ties and regressions explicit. No best arm selection after the run."
+  },
+  "execution": {
+    "pilot_task": 0,
+    "gpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "per_gpu_task_batch": 1,
+    "peak_memory_gib": 8,
+    "free_headroom_gib": 2,
+    "checkpoint_every": 50,
+    "workflow": "Preregistration then implementation commit. Full authority with process THP disabled and registry validation. Archive9+ replay resolvedconfigs and actual8GPU contention. Formal cached19/329/375/421 replays validate source identity, G/C saved-latent native outputs and all postprocess metrics against sealed data. Then8persistent lanes process the remaining441, sharded by window counts with each task in one lane. No repeated optimization of cached28; aggregate them by reference. Each new task saves50-stepcadences and can resume under the same source commit. Stable initial losses/gradients/checkpoint/memory permit handoff; controller finishes evaluation/bootstrap independently.",
+    "replay_tasks": [
+      19,
+      329,
+      375,
+      421
+    ]
+  },
+  "subphases": {
+    "2.40a": "Sealed fixed28 metric-target development.",
+    "2.40b": "Current frozen469 validation; closes on full outcome and review."
+  },
+  "previous_protocol": "experiments/protocols/p2_hoi_dno_metrics_s42_20260911.json",
+  "previous_dno_run": "results/experiments/p2-mixer-hoi-dno-r1-s42-20260910",
+  "postprocess": {
+    "relation": "Unchanged SurfaceProblem relation_20:20cm planar components,20degree yaw, existing spline/leg/support objective and deterministic source-risk20/40 steps, lowest registered objective iterate including source; zero risk identity.",
+    "terminal": "Unchanged apply_terminal_repair:20steps,8cm supplied-goal target with5cm translation cap, original success/contact/FS/HS/OS acceptance, preserve every rejected candidate.",
+    "arms": [
+      "DDPM_reference",
+      "source",
+      "G",
+      "C"
+    ],
+    "recorded_stages": [
+      "raw",
+      "relation",
+      "final"
+    ],
+    "reference": "Identical fixed chain for both references and G/C. Cached results reused by immutable reference. Full469 July system comparison is matched by scene_name/test_idx/object_name."
+  },
+  "reuse_completed_run": "results/experiments/p2-mixer-hoi-dno-metrics-s42-20260911",
+  "reuse_task_manifest": "experiments/tasks/conditional_repair_native_development_s42_20260907.json",
+  "released_reference": "/data/yujinlun/InfBaGel-release/results/experiments/p0-atomic-hosi-baseline-r2-s42-20260712/evaluation/overall_evaluation_summary.json"
+}

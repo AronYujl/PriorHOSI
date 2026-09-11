@@ -1,0 +1,5 @@
+defaults: [config_sample_hosi_hoi_dno_metrics, _self_]
+
+hoi_dno:
+  protocol: ${oc.env:ROOT_DIR}/experiments/protocols/p2_hoi_dno469_s42_20260911.json
+  replay_only: false
