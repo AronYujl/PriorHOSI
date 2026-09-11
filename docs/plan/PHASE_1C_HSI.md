@@ -14138,3 +14138,15 @@ R@3/成功率/有效接触参与量下界>=0.95；保持holdout355绝对安全�
 一个配置片段、一个HSI目标组件，复用trainer/diagnostics，不增加tools脚本或core改动。
 一个preregistration、一个logical implementation、一个stable-launch completion提交，
 另允许校准实数落地所需source转换。后续完整验收单独completion和交接总结。
+
+### CM2.2 实现验证
+
+HSI目标组件按原抽样低噪声行分组，首步复用学生的temporal crop块，后续原生occupancy
+与DDIM更新，fp32绝对body22误差按完整batch归一化。独立冻结eval教师副本和采样器维护
+自己的状态，原CM1 teacher/target训练模式及RNG保持；旧目标输入在任何原生object-ref
+形状变换前交给新组件。ROOT_DIR用当前checkout绝对根解析，新增恢复契约字段默认None。
+定向66通过，完整authority487 passed/3 skipped（86.94秒）。组件数值检查覆盖1–3步
+目标与生产DDIM一致、crop排列、低噪声/HSI门及全batch归一化、root与旋转梯度、空选中行、
+stop-gradient、原CM1损失/RNG/模式和一次校准规则；恢复测试覆盖新增字段拒绝不匹配。
+实际Hydra入口已解析零更新8×256校准配置，registry421行验证通过。GPU0约4GiB的
+外部推理占用将在preflight及显存采样中保留；资源是否准入以正式形状实测为准。

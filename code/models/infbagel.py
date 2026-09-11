@@ -188,6 +188,7 @@ class Sampler:
         self.cm_timesteps = cm_timesteps
         self.w = kwargs.get('w', 0)
         self.cm_fixed_cfg_scale = kwargs.get('cm_fixed_cfg_scale', None)
+        self.body_endpoint_objective = None
         self.hsi_cm_guidance_x0_coef = bool(kwargs.get('hsi_cm_guidance_x0_coef', False))
         self.is_mix = kwargs.get('is_mix', False)
         # None = off, and p_sample then emits exactly the released arithmetic.
@@ -796,6 +797,22 @@ class Sampler:
         else:
             raise NotImplementedError()
 
+        loss_endpoint, endpoint_counts = None, None
+        if self.body_endpoint_objective is not None:
+            endpoint_inputs = dict(
+                text_emb=text_emb, pelvis_goal=pelvis_goal, scene_goal=scene_goal,
+                object_goal=object_goal, is_loco=is_loco, need_scene=need_scene,
+                need_pelvis_dir=need_pelvis_dir, pi=pi, end_pi=end_pi,
+                seq_length=seq_length, need_pi=need_pi, is_object=is_object,
+                obj_bps_data=obj_bps_data, mat=mat, scene_flag=scene_flag,
+                object_points=object_points, obj_rot_mat_ref=obj_rot_mat_ref,
+                rest_offsets=rest_human_offsets,
+            )
+            loss_endpoint, endpoint_counts = self.body_endpoint_objective(
+                model_pred, x_start_noisy, x_start, mask, index,
+                (occ, occ_list, occ_pos), endpoint_inputs, w,
+            )
+
         # add object loss (obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts)
         if self.dataset.use_object_keypoints:
             hand_idx_28 = [20, 21, 25, 27]
@@ -861,7 +878,8 @@ class Sampler:
             loss_object = None
             loss_fk = None
 
-        return dict(loss_consistency=loss, loss_object=loss_object, loss_fk=loss_fk)
+        return dict(loss_consistency=loss, loss_object=loss_object, loss_fk=loss_fk,
+                    loss_body_endpoint=loss_endpoint, endpoint_low_counts=endpoint_counts)
 
     @torch.no_grad()
     def cm_sample_loop(self, fixed_points, mat, scene_flag, text_emb, pelvis_goal, scene_goal, object_goal, \

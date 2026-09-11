@@ -13,11 +13,12 @@ import json
 import math
 import random
 import time
+import copy
 from pathlib import Path
 
 import numpy as np
 
-os.environ['ROOT_DIR'] = '..'
+os.environ['ROOT_DIR'] = str(Path(__file__).resolve().parents[1])
 os.environ['HYDRA_FULL_ERROR'] = '1'
 os.environ['CURRENT_TIME'] = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')
 os.environ['CUDA_LAUNCH_BLOCKING'] = '0'
@@ -80,6 +81,9 @@ RESUME_GEOMETRY_FIELDS = (
     'hsi_chain_rebase_mode',
     'cm_fixed_cfg_scale',
     'body_fk_loss_weight',
+    'cm_endpoint_loss_weight',
+    'cm_endpoint_max_timestep',
+    'cm_endpoint_teacher_checkpoint',
 )
 
 
@@ -333,6 +337,11 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'hsi_chain_rebase_mode': str(cfg.get('hsi_chain_rebase_mode', 'off')),
         'cm_fixed_cfg_scale': cfg.get('cm_fixed_cfg_scale', None),
         'body_fk_loss_weight': cfg.get('body_fk_loss_weight', None),
+        'cm_endpoint_loss_weight': cfg.get('cm_endpoint_loss_weight', None),
+        'cm_endpoint_max_timestep': cfg.get('cm_endpoint_max_timestep', None),
+        'cm_endpoint_teacher_checkpoint': (
+            str(cfg.ckpt_path) if cfg.get('cm_endpoint_loss_weight', 0.0) else None
+        ),
     }
 
 
@@ -627,7 +636,16 @@ def train_ddp(rank, world_size, cfg):
 
     trainer = hydra.utils.instantiate(list(cfg.sampler.values())[0])
     if is_consistency:
-        trainer.set_dataset_and_model(infbagel_dataset, student_model, teacher_model, target_model)
+        calibration_student = student_model.module if cfg.get('cm_endpoint_calibration', False) else student_model
+        trainer.set_dataset_and_model(infbagel_dataset, calibration_student, teacher_model, target_model)
+        if cfg.get('cm_endpoint_loss_weight', 0.0) > 0:
+            from priors.hsi.distillation import BodyEndpointObjective
+            endpoint_teacher = copy.deepcopy(teacher_model.module).eval().requires_grad_(False)
+            endpoint_sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+            endpoint_sampler.set_dataset_and_model(infbagel_dataset, endpoint_teacher)
+            trainer.body_endpoint_objective = BodyEndpointObjective(
+                endpoint_sampler, endpoint_teacher, int(cfg.cm_endpoint_max_timestep)
+            )
     else:
         # Calibration measures rank-local autograd.grad values after DDP's
         # initialization broadcast; training uses DDP's normal backward path.
@@ -698,6 +716,8 @@ def train_ddp(rank, world_size, cfg):
                         loss = loss + cfg.loss_w_obj_pts * loss_object
                     if loss_fk is not None:
                         loss = loss + cfg.loss_w_fk * loss_fk
+                    if loss_dict['loss_body_endpoint'] is not None:
+                        loss = loss + float(cfg.cm_endpoint_loss_weight) * loss_dict['loss_body_endpoint']
                 else:
                     loss_dict = trainer.p_losses(x_start, joints, mat, scene_flag, mask, t, text_clip_embedding, pelvis_goal, scene_goal, object_goal, \
                         need_scene, need_pelvis_dir, pi, end_pi, seg_len, need_pi, is_loco, is_object, obj_bps_data, obj_rot_mat_ref, rest_pose_obj_nn_pts, transformed_obj_verts, rest_human_offsets, object_points)
@@ -709,6 +729,21 @@ def train_ddp(rank, world_size, cfg):
                         loss = loss + cfg.loss_w_obj_pts * loss_object
                     if loss_fk is not None:
                         loss = loss + cfg.loss_w_fk * loss_fk
+
+            if bool(cfg.get('cm_endpoint_calibration', False)):
+                from priors.hsi.diagnostics import endpoint_fk_gradient_calibration, endpoint_fk_calibrated_weight
+                record = endpoint_fk_gradient_calibration(model.module, loss_dict, float(cfg.loss_w_fk))
+                records = [None] * world_size
+                torch.distributed.all_gather_object(records, record)
+                if rank == 0:
+                    result = endpoint_fk_calibrated_weight(records)
+                    result.update(seed=int(cfg.seed), world_size=world_size,
+                                  micro_batch_per_gpu=int(cfg.batch_size), optimizer_updates=0)
+                    Path(cfg.exp_dir, 'calibration.json').write_text(json.dumps(result, indent=2) + '\n')
+                if cfg.use_tensorboard and rank == 0:
+                    writer.close()
+                torch.distributed.destroy_process_group()
+                return
 
             if bool(cfg.get('body_fk_calibration', False)):
                 from priors.hsi.diagnostics import body_fk_gradient_calibration, body_fk_calibrated_weight
@@ -731,6 +766,14 @@ def train_ddp(rank, world_size, cfg):
             if step % 10 == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
+                if loss_dict.get('loss_body_endpoint') is not None:
+                    values = {key: float(loss_dict[key].detach()) for key in
+                              ('loss_consistency', 'loss_fk', 'loss_body_endpoint')}
+                    values.update(update=optimizer_updates, rank=rank, total=float(loss.detach()),
+                                  weighted_endpoint=float(cfg.cm_endpoint_loss_weight) * values['loss_body_endpoint'],
+                                  low_noise_counts=loss_dict['endpoint_low_counts'].tolist())
+                    with open(Path(cfg.exp_dir, f'endpoint_losses_rank{rank}.jsonl'), 'a') as handle:
+                        handle.write(json.dumps(values) + '\n')
                 if loss_dict.get('loss_body_fk') is not None:
                     values = {name: float(loss_dict[name].detach()) for name in
                               ('loss_jpos', 'loss_jrot', 'loss_fk', 'loss_fullbody_seam', 'loss_body_fk')}

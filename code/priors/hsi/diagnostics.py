@@ -205,6 +205,39 @@ def distillation_alignment(cfg):
     return path
 
 
+def endpoint_fk_gradient_calibration(model, losses, fk_weight):
+    """Zero-update, rank-local calibration of the low-noise body objective."""
+    terms = dict(endpoint=losses['loss_body_endpoint'], consistency=losses['loss_consistency'],
+                 hand_foot_fk=losses['loss_fk'],
+                 cm1_total=losses['loss_consistency'] + fk_weight * losses['loss_fk'])
+    trunk = tuple(model.transformer.parameters())
+    records = {}
+    for name, term in terms.items():
+        gradients = torch.autograd.grad(term, trunk + (model.out.weight,), retain_graph=True)
+        vectors = (torch.cat([g.float().flatten() for g in gradients[:-1]]),
+                   gradients[-1][84:216].float().flatten())
+        if name == 'endpoint':
+            endpoint_vectors = vectors
+        record = dict(raw_loss=float(term.detach()))
+        for region, vector, endpoint in zip(('trunk', 'rotation_head'), vectors, endpoint_vectors):
+            record[region + '_gradient_norm'] = float(vector.norm())
+            record[region + '_cosine_with_endpoint'] = float(
+                torch.nn.functional.cosine_similarity(vector, endpoint, dim=0))
+        records[name] = record
+    records['low_noise_counts'] = losses['endpoint_low_counts'].tolist()
+    return records
+
+
+def endpoint_fk_calibrated_weight(rank_records):
+    def median(term, region):
+        return np.median([row[term][region + '_gradient_norm'] for row in rank_records])
+    trunk = 0.10 * median('cm1_total', 'trunk') / median('endpoint', 'trunk')
+    rotation = 0.25 * median('consistency', 'rotation_head') / median('endpoint', 'rotation_head')
+    return dict(cm_endpoint_loss_weight=float(min(trunk, rotation)),
+                trunk_10_percent_weight=float(trunk), rotation_head_25_percent_weight=float(rotation),
+                ranks=rank_records)
+
+
 def body_fk_gradient_calibration(model, losses, total, body_weight, fk_weight, seam_weight):
     """First-real-batch loss scales and parameter gradients; zero updates."""
     terms = {

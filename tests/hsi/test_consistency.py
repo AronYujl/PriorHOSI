@@ -404,3 +404,167 @@ def test_ddpm_default_step_preserves_posterior_and_random_draw(timestep):
         expected += (0.5 * engine.posterior_log_variance_clipped[timestep]).exp() * torch.randn_like(x)
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
     assert torch.equal(actual_rng, torch.get_rng_state())
+
+
+def test_endpoint_crop_selection_preserves_temporal_blocks_and_row_order():
+    from priors.hsi.distillation import select_occupancy_rows
+    occ = torch.arange(5.)[:, None]
+    crops = torch.arange(20.).reshape(20, 1)
+    positions = torch.arange(40.).reshape(4, 5, 2)
+    rows = torch.tensor([4, 1])
+    a, b, c = select_occupancy_rows((occ, crops, positions), rows, 5)
+    torch.testing.assert_close(a, occ[rows])
+    torch.testing.assert_close(b.flatten(), torch.tensor([4., 1., 9., 6., 14., 11., 19., 16.]))
+    torch.testing.assert_close(c, positions[:, rows])
+
+
+@pytest.mark.parametrize('start_index', [0, 1, 2])
+def test_low_noise_endpoint_matches_production_ddim_and_stops_teacher_gradient(start_index):
+    from priors.hsi.distillation import BodyEndpointObjective
+    engine, x, args = diffusion_inputs()
+
+    class StateDependentTeacher(ConstantTeacher):
+        def forward(self, x, *a, **kw):
+            return super().forward(x, *a, **kw) + 0.05 * x
+
+    teacher = StateDependentTeacher().eval()
+    engine.student_model = teacher
+    objective = BodyEndpointObjective(engine, teacher)
+    mask = torch.zeros_like(x, dtype=torch.bool)
+    mask[:, :2] = True
+    clean = x.clone()
+    target = objective.teacher_endpoint(x, clean, mask, start_index, (None, None, None), args, torch.ones(1, 1))
+    state, previous = x.clone(), x.clone()
+    for index in range(start_index, -1, -1):
+        t = int(engine.solver.ddim_timesteps[index])
+        state, _, previous = engine.p_sample(teacher, previous, state, t=torch.tensor([t]),
+                                            t_index=t, ddim_index=index, **args)
+        state[:, :2] = clean[:, :2]
+    torch.testing.assert_close(target, state, rtol=1e-6, atol=1e-6)
+    torch.testing.assert_close(target[:, :2], clean[:, :2], rtol=0, atol=0)
+    assert target.requires_grad is False and teacher.value.grad is None
+    assert [int(t[0]) for t, _, _ in teacher.calls[:2 * (start_index + 1)]] == [
+        t for t in range(start_index * 20 + 19, 18, -20) for _ in range(2)]
+
+
+def endpoint_objective_fixture(batch=4):
+    from datasets.infbagel import InfBaGelDataset
+    from priors.hsi.distillation import BodyEndpointObjective
+
+    class BodyDataset(GeometryDataset):
+        parents_22 = [-1] + [0] * 21
+        parents_24 = [-1] + [0] * 23
+        quat_ik_torch = InfBaGelDataset.quat_ik_torch
+        quat_fk_torch = InfBaGelDataset.quat_fk_torch
+
+    engine = sampler(w=1)
+    engine.dataset = BodyDataset()
+    engine._compute_occ_sample = lambda *a, **kw: (None, None, None)
+    teacher = ConstantTeacher().eval().requires_grad_(False)
+    engine.student_model = teacher
+    prediction = teacher.value.detach().expand(batch, 16, 232).clone()
+    prediction[..., 0] = .75
+    offsets = torch.zeros(batch, 24, 3)
+    offsets[:, 1:, 0] = .2
+    inputs = {key: torch.zeros(batch, 1) for key in (
+        'text_emb', 'pelvis_goal', 'scene_goal', 'object_goal', 'is_loco', 'need_scene',
+        'need_pelvis_dir', 'pi', 'end_pi', 'seq_length', 'need_pi', 'obj_bps_data',
+        'object_points', 'obj_rot_mat_ref', 'scene_flag')}
+    inputs.update(mat=torch.eye(4).expand(batch, 4, 4).clone(),
+                  rest_offsets=offsets, is_object=torch.zeros(batch, dtype=torch.bool))
+    mask = torch.zeros_like(prediction, dtype=torch.bool)
+    mask[:, :2] = True
+    occupancy = (torch.zeros(batch, 1), torch.zeros(4 * batch, 1), torch.zeros(4, batch, 2))
+    return BodyEndpointObjective(engine, teacher), prediction, mask, occupancy, inputs
+
+
+def test_endpoint_objective_full_batch_normalization_root_pose_and_hsi_gradient_scope():
+    objective, prediction, mask, occupancy, inputs = endpoint_objective_fixture()
+    clean = prediction.clone()
+    inputs['is_object'][2] = True
+    prediction[:, 2:, 0] += .1
+    prediction.requires_grad_()
+    indices = torch.tensor([0, 1, 2, 24])
+    loss, counts = objective(prediction, clean, clean, mask, indices, occupancy, inputs, torch.ones(4, 1))
+    # Two eligible rows, ten cm in x at all22 joints: (0.1²/3)*(2/4).
+    torch.testing.assert_close(loss, torch.tensor(.01 / 6))
+    assert counts.tolist() == [1, 1, 0]
+    loss.backward()
+    assert prediction.grad[:2, 2:, 0].abs().min() > 0
+    assert prediction.grad[:, :2].count_nonzero() == 0
+    assert prediction.grad[2:].count_nonzero() == 0
+    assert prediction.grad[..., 216:].count_nonzero() == 0
+    assert objective.teacher.value.grad is None
+
+    # A changed root orientation moves the articulated body, independently of
+    # translation. The absolute geometry target must supervise that output too.
+    posed = clean.clone()
+    posed[0, 2:, 85] = .1
+    posed.requires_grad_()
+    pose_loss, _ = objective(posed, clean, clean, mask, indices, occupancy, inputs, torch.ones(4, 1))
+    pose_loss.backward()
+    assert pose_loss > 0 and posed.grad[0, 2:, 84:90].abs().sum() > 0
+    high = clean.clone().requires_grad_()
+    zero, counts = objective(high, clean, clean, mask, torch.full((4,), 24), occupancy, inputs, torch.ones(4, 1))
+    zero.backward()
+    assert zero.item() == 0 and high.grad.count_nonzero() == 0 and counts.sum() == 0
+
+
+def test_endpoint_addition_preserves_original_consistency_losses_teacher_modes_and_rng():
+    import copy
+    from priors.hsi.distillation import BodyEndpointObjective
+    engine = sampler(cm_fixed_cfg_scale=1, w=1)
+    batch = 2
+    engine.dataset = GeometryDataset()
+    engine.dataset.load_scene = True
+    engine.dataset.use_object_keypoints = False
+    occupancy = (torch.zeros(batch, 1), torch.zeros(4 * batch, 1), torch.zeros(4, batch, 2))
+    engine._compute_occ = lambda *a: occupancy
+    engine.student_model = Prediction()
+    engine.teacher_model = Prediction(teacher=True).requires_grad_(False).train()
+    engine.target_model = Prediction().requires_grad_(False).train()
+    engine.target_model.value.fill_(.5)
+    enabled = copy.deepcopy(engine)
+    auxiliary = sampler(w=1)
+    auxiliary.dataset = engine.dataset
+    auxiliary._compute_occ_sample = lambda *a: (None, None, None)
+    teacher = ConstantTeacher().eval().requires_grad_(False)
+    enabled.body_endpoint_objective = BodyEndpointObjective(auxiliary, teacher)
+    native = enabled.body_endpoint_objective.teacher_endpoint
+
+    def draws_randomness(*a, **kw):
+        torch.rand(17)
+        return native(*a, **kw)
+
+    enabled.body_endpoint_objective.teacher_endpoint = draws_randomness
+    x = torch.zeros(batch, 16, 232)
+    mask = torch.zeros_like(x, dtype=torch.bool)
+    mask[:, :2] = True
+    args = {key: torch.zeros(batch, 1) for key in (
+        'scene_flag', 'text_emb', 'pelvis_goal', 'scene_goal', 'object_goal', 'need_scene',
+        'need_pelvis_dir', 'pi', 'end_pi', 'seq_length', 'need_pi', 'is_loco',
+        'obj_bps_data', 'obj_rot_mat_ref', 'rest_pose_obj_nn_pts', 'transformed_obj_verts', 'object_points')}
+    args.update(x_start=x, joints=x[..., :84], mask=mask, mat=torch.eye(4).expand(batch, 4, 4),
+                t=None, is_object=torch.zeros(batch, dtype=torch.bool), rest_human_offsets=torch.zeros(batch, 24, 3))
+    with patch('torch.randint', return_value=torch.tensor([0, 1])):
+        torch.manual_seed(42)
+        baseline = engine.consistency_loss(**args)
+        baseline_rng = torch.get_rng_state()
+        torch.manual_seed(42)
+        result = enabled.consistency_loss(**args)
+    torch.testing.assert_close(result['loss_consistency'], baseline['loss_consistency'], rtol=0, atol=0)
+    assert result['loss_fk'] is baseline['loss_fk'] is None
+    assert torch.equal(torch.get_rng_state(), baseline_rng)
+    assert enabled.teacher_model.training and enabled.target_model.training and not teacher.training
+    assert result['loss_body_endpoint'] > 0
+
+
+def test_endpoint_calibration_uses_medians_and_both_registered_gradient_limits():
+    from priors.hsi.diagnostics import endpoint_fk_calibrated_weight
+    records = [dict(cm1_total=dict(trunk_gradient_norm=10.),
+                    consistency=dict(rotation_head_gradient_norm=2.),
+                    endpoint=dict(trunk_gradient_norm=2., rotation_head_gradient_norm=4.)) for _ in range(8)]
+    result = endpoint_fk_calibrated_weight(records)
+    assert result['trunk_10_percent_weight'] == .5
+    assert result['rotation_head_25_percent_weight'] == .125
+    assert result['cm_endpoint_loss_weight'] == .125

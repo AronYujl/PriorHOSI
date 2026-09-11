@@ -504,6 +504,9 @@ class TrainingResumeTests(unittest.TestCase):
                 ("lr", 1e-3),
                 ("warmup_updates", 500),
                 ("precision", "fp32"),
+                ("cm_endpoint_loss_weight", .125),
+                ("cm_endpoint_max_timestep", 59),
+                ("cm_endpoint_teacher_checkpoint", "different_teacher.pth"),
             ):
                 changed = dict(state["geometry"])
                 changed[field] = value
