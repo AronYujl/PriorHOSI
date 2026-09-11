@@ -255,6 +255,95 @@ def test_ddim_rollout_visits_teacher_grid_preserves_history_and_only_draws_initi
     torch.testing.assert_close(samples[-1], expected, rtol=0, atol=0)
 
 
+def test_remaining_teacher_endpoint_matches_native_suffix_and_preserves_input():
+    import inspect
+    from priors.hsi.diagnostics import remaining_teacher_endpoint
+    engine, _, args = diffusion_inputs()
+    original = engine.p_sample
+    signature = inspect.signature(original)
+    captured = {}
+    occupancy_sources = []
+
+    def observe(*values, **kwargs):
+        bound = signature.bind(*values, **kwargs)
+        bound.apply_defaults()
+        if bound.arguments["t_index"] == 59:
+            captured.update({k: v.clone() if torch.is_tensor(v) else v
+                             for k, v in bound.arguments.items()})
+        return original(*values, **kwargs)
+
+    engine.p_sample = observe
+    torch.manual_seed(42)
+    samples, _ = engine.p_sample_loop(**args, use_ddim=True)
+    engine.p_sample = original
+    before = captured["x"].clone()
+    engine._compute_occ_sample = lambda x, x0, *rest: (occupancy_sources.append(x0.clone()) or (None, None, None))
+    local, final = remaining_teacher_endpoint(engine, engine.student_model, captured)
+    torch.testing.assert_close(final, samples[-1], rtol=0, atol=0)
+    torch.testing.assert_close(captured["x"], before, rtol=0, atol=0)
+    torch.testing.assert_close(local[:, :2], args["fixed_points"], rtol=0, atol=0)
+    assert len(occupancy_sources) == 3
+    torch.testing.assert_close(occupancy_sources[0], captured["x0"])
+    # The next crop follows the preceding raw teacher prediction, not x_t.
+    torch.testing.assert_close(occupancy_sources[1][:, 2:], local[:, 2:])
+
+
+@pytest.mark.parametrize("source", ["ddim", "consistency"])
+def test_alignment_observation_preserves_native_trajectory_rng_and_common_timesteps(source):
+    import numpy as np
+    from priors.hsi.diagnostics import DistillationAlignmentProbe
+    engine, _, args = diffusion_inputs()
+    run = lambda: (engine.cm_sample_loop(**args, w=1) if source == "consistency"
+                   else engine.p_sample_loop(**args, use_ddim=True))
+    torch.manual_seed(42)
+    baseline, _ = run()
+    baseline_rng = torch.get_rng_state()
+    probe = object.__new__(DistillationAlignmentProbe)
+    probe.cfg = SimpleNamespace(sample_type=source)
+    probe.timesteps = (499, 279, 59)
+    seen = []
+
+    def consume_randomness(state):
+        seen.append(state["t_index"])
+        torch.randn(13)
+        np.random.rand(7)
+
+    probe.observe = consume_randomness
+    probe.attach(engine)
+    np.random.seed(42)
+    numpy_before = np.random.get_state()
+    torch.manual_seed(42)
+    observed, _ = run()
+    assert seen == [499, 279, 59]
+    for a, b in zip(baseline, observed):
+        torch.testing.assert_close(a, b, rtol=0, atol=0)
+    assert torch.equal(torch.get_rng_state(), baseline_rng)
+    np.testing.assert_array_equal(np.random.get_state()[1], numpy_before[1])
+
+
+def test_alignment_metrics_separate_root_body_rotation_and_boundary_derivatives():
+    from priors.hsi.diagnostics import alignment_endpoint_metrics
+    arms = ("teacher_local", "teacher_endpoint", "student")
+    positions = {key: torch.zeros(1, 16, 28, 3) for key in arms}
+    joints = {key: torch.zeros(1, 16, 24, 3) for key in arms}
+    rotations = {key: torch.eye(3).expand(1, 16, 22, 3, 3).clone() for key in arms}
+    # A future-only 10 cm root translation leaves body-relative geometry intact.
+    positions["student"][:, 2:, :, 0] = 0.1
+    joints["student"][:, 2:, :, 0] = 0.1
+    rotations["student"][:, 2:] = torch.tensor([[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]])
+    metrics = alignment_endpoint_metrics(positions, joints, rotations)
+    for key, expected in dict(student_body_cm=0, student_direct_body_cm=0,
+                              student_root_cm=10, student_global_fk_cm=10,
+                              student_boundary_velocity=1, student_boundary_acceleration=10,
+                              student_boundary_jerk=200, student_rotation_deg=90).items():
+        torch.testing.assert_close(metrics[key], torch.tensor([float(expected)]))
+    assert all(value.item() == 0 for key, value in metrics.items() if key.startswith("teacher_local"))
+    joints["student"][:, 2:, 1:22, 1] += 0.02
+    metrics = alignment_endpoint_metrics(positions, joints, rotations)
+    torch.testing.assert_close(metrics["student_body_cm"], torch.tensor([2.]))
+    torch.testing.assert_close(metrics["student_self_body_cm"], torch.tensor([2.]))
+
+
 def test_cm25_rollout_visits_all_solver_steps_and_preserves_terminal_history():
     engine, _, args = diffusion_inputs()
     engine.cm_timesteps = 25

@@ -3296,7 +3296,7 @@ def evaluate_d4_offline_decomp(cfg: DictConfig) -> Path:
     return _write_payload(output_dir, payload)
 
 
-def evaluate_model(cfg: DictConfig) -> Path:
+def evaluate_model(cfg: DictConfig, prediction_probe=None) -> Path:
     if int(cfg.batch_size) != 1:
         raise ValueError("LINGO HSI timing protocol requires batch_size=1")
     if str(cfg.sample_type) not in ("consistency", "diffusion", "ddim"):
@@ -3396,7 +3396,7 @@ def evaluate_model(cfg: DictConfig) -> Path:
         ),
         flush=True,
     )
-    dataset = _scene_only_dataset(cfg)
+    dataset = _scene_only_dataset(cfg) if prediction_probe is None else prediction_probe.sampler.dataset
     model, checkpoint_provenance = _load_strict_checkpoint(cfg)
     model_name = (
         str(cfg.model_name) if cfg.model_name is not None else Path(str(cfg.ckpt_path)).stem
@@ -3415,6 +3415,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
     sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
     sampler.set_dataset_and_model(dataset, model)
     call_counter = _ForwardCallCounter(model)
+    if prediction_probe is not None:
+        prediction_probe.attach(sampler)
     source = GroundTruthSource(DATASET_ROOT)
     smplx_cache: Dict[str, torch.nn.Module] = {}
     geometries: Dict[str, SceneGeometry] = {}
@@ -3440,6 +3442,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
         # subsequence -- would produce different numbers.  This is unconditional,
         # not sharding-only: every cell from here must share one regime.
         seed_everything(int(cfg.seed) + int(canonical_ordinal))
+        if prediction_probe is not None:
+            prediction_probe.begin_episode(canonical_ordinal)
         pre_rng_state = _capture_rng_state()
         export_sink: Optional[Dict[str, Any]] = {} if export_motion or replay_paths is not None else None
         telemetry_sink: Optional[Dict[str, Any]] = (
@@ -3519,6 +3523,8 @@ def evaluate_model(cfg: DictConfig) -> Path:
             }
         )
         sequence_name = "%s:%06d" % (scene_name, sequence_index)
+        if prediction_probe is not None:
+            prediction_probe.finish_episode(sequence_name)
         if sequence_name in records:
             raise ValueError("duplicate sequence key %s" % sequence_name)
         records[sequence_name] = metric
@@ -3723,6 +3729,8 @@ def main(cfg: DictConfig) -> None:
     elif mode == "cm_distillation_readout":
         from priors.hsi.text_motion import cm_distillation_readout
         path = cm_distillation_readout(cfg)
+    elif mode == "distillation_alignment":
+        path = hsi_diagnostics.distillation_alignment(cfg)
     elif mode == "qualitative_cache":
         from priors.hsi.visualization import prepare_paired_review
         path = prepare_paired_review(cfg)

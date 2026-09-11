@@ -14024,3 +14024,13 @@ boundary-scaled clean输出。原生教师端点是固定eval-mode DDIM轨迹的
 阶段耗时，不作部署latency。总上限12GPU-h，至少2GiB实际显存余量，记录竞争。
 全部2184状态、两source120条原生轨迹、配对统计和coarse一致性齐备后形成一个completion
 commit、报告/compact和PHASE_1C_CM2_ALIGNMENT总结；Phase1C保持开放。
+
+### CM2.1 实现与执行前验证
+
+具名探针直接复用原生p_sample完成教师剩余DDIM轨迹，独立冻结模型读数通过实例级观察
+接入既有evaluator，采样器源码与core保持原值。共享同一dataset以复用场景缓存。四项
+新组件检查覆盖原生suffix终点、occupancy来源推进、两sampler观测前后逐帧/RNG一致性、
+root/body/rotation及时间差分量纲；定向19通过，完整authority480 passed/3 skipped。
+首个组件检查中阶跃轨迹jerk的人工期望少算二倍，修正为解析三阶差分200m/s³，原日志保留。
+18份精确配置全部解析，registry418行验证通过。主机8张RTX3090当前空闲；正式8卡诊断
+自身验证真实路径，并用历史coarse逐值一致性验收观测对生成轨迹的影响。

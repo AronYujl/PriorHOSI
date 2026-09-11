@@ -29,6 +29,182 @@ PREDICTOR_DECOMP_ARMS: Tuple[str, ...] = (
 )
 
 
+def alignment_endpoint_metrics(positions, joints, rotations, *, fps=10.0):
+    """Same-state errors against the remaining teacher trajectory's endpoint.
+
+    Every arm includes the identical two clamped history frames. FK joints are
+    the existing 24-joint training skeleton; these are not mesh physics metrics.
+    """
+    reference = "teacher_endpoint"
+    target = joints[reference]
+    target_body = target[:, :, 1:22] - target[:, :, :1]
+    target_direct = positions[reference][:, :, 1:22] - positions[reference][:, :, :1]
+    metrics = {}
+    for arm in ("teacher_local", "student", reference):
+        body = joints[arm][:, :, 1:22] - joints[arm][:, :, :1]
+        direct = positions[arm][:, :, 1:22] - positions[arm][:, :, :1]
+        metrics[arm + "_self_body_cm"] = (body[:, 2:] - direct[:, 2:]).norm(dim=-1).mean((1, 2)) * 100
+        if arm == reference:
+            continue
+        error = joints[arm] - target
+        metrics[arm + "_body_cm"] = (body[:, 2:] - target_body[:, 2:]).norm(dim=-1).mean((1, 2)) * 100
+        metrics[arm + "_direct_body_cm"] = (direct[:, 2:] - target_direct[:, 2:]).norm(dim=-1).mean((1, 2)) * 100
+        metrics[arm + "_global_fk_cm"] = error[:, 2:].norm(dim=-1).mean((1, 2)) * 100
+        metrics[arm + "_root_cm"] = error[:, 2:, 0].norm(dim=-1).mean(1) * 100
+        relative = rotations[arm][:, 2:] @ rotations[reference][:, 2:].transpose(-1, -2)
+        skew = torch.stack((relative[..., 2, 1] - relative[..., 1, 2],
+                            relative[..., 0, 2] - relative[..., 2, 0],
+                            relative[..., 1, 0] - relative[..., 0, 1]), dim=-1)
+        sine = skew.norm(dim=-1) / 2
+        cosine = (relative.diagonal(dim1=-2, dim2=-1).sum(-1) - 1) / 2
+        metrics[arm + "_rotation_deg"] = torch.atan2(sine, cosine).mean((1, 2)) * (180 / np.pi)
+        metrics[arm + "_boundary_velocity"] = (torch.diff(error, dim=1)[:, 1] * fps).norm(dim=-1).mean(1)
+        metrics[arm + "_boundary_acceleration"] = (torch.diff(error, n=2, dim=1)[:, 0] * fps ** 2).norm(dim=-1).mean(1)
+        jerk = torch.diff(error, n=3, dim=1) * fps ** 3
+        metrics[arm + "_boundary_jerk"] = jerk[:, 0].norm(dim=-1).mean(1)
+        metrics[arm + "_interior_jerk"] = jerk[:, 1:].norm(dim=-1).mean((1, 2))
+    return metrics
+
+
+def remaining_teacher_endpoint(sampler, teacher, state):
+    """Continue the actual DDIM step with its own evolving occupancy source."""
+    import inspect
+    parameters = inspect.signature(sampler.p_sample).parameters
+    call = {key: state[key] for key in parameters if key in state}
+    call["model"] = teacher
+    call["x"] = state["x"].clone()
+    call["x0"] = state["x0"].clone()
+    first_prediction = None
+    for index in range(int(state["t_index"]) // sampler.solver.step_ratio, -1, -1):
+        timestep = int(sampler.solver.ddim_timesteps[index])
+        call.update(t=torch.full_like(state["t"], timestep), t_index=timestep, ddim_index=index)
+        next_state, _, prediction = sampler.p_sample(**call)
+        if first_prediction is None:
+            first_prediction = prediction.clone()
+            first_prediction[:, :2] = state["fixed_points"]
+        next_state[:, :2] = state["fixed_points"]
+        call.update(x=next_state, x0=prediction)
+    return first_prediction, next_state
+
+
+class DistillationAlignmentProbe:
+    """Observe native transitions using separate frozen models and RNG state."""
+
+    def __init__(self, cfg, sampler, teacher, student):
+        import json
+        from pathlib import Path
+        self.cfg, self.sampler = cfg, sampler
+        self.teacher, self.student = teacher, student
+        self.timesteps = tuple(int(t) for t in cfg.alignment_timesteps)
+        self.output = Path(str(cfg.alignment_output)) / str(cfg.alignment_source) / ("shard%02d" % cfg.shard_index)
+        self.output.mkdir(parents=True, exist_ok=False)
+        cohort = json.loads(Path(str(cfg.lingo_episode_subset)).read_text())
+        self.episodes = {int(r["canonical_ordinal"]): r for r in cohort["episodes"]}
+        self.records = []
+
+    def attach(self, rollout_sampler):
+        import inspect
+        from test_infbagel_lingo_hsi import _capture_rng_state, _rng_rewound
+        method = "cm_sample" if str(self.cfg.sample_type) == "consistency" else "p_sample"
+        native = getattr(rollout_sampler, method)
+        signature = inspect.signature(native)
+
+        @torch.no_grad()
+        def observed(*args, **kwargs):
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()
+            state = dict(bound.arguments)
+            timestep = (int(rollout_sampler.solver.ddim_timesteps[int(state["t"].item())])
+                        if method == "cm_sample" else int(state["t_index"]))
+            result = native(*args, **kwargs)
+            if timestep in self.timesteps:
+                state.update(t=torch.full_like(state["t"], timestep), t_index=timestep)
+                with _rng_rewound(_capture_rng_state()):
+                    self.observe(state)
+            return result
+
+        setattr(rollout_sampler, method, observed)
+
+    def begin_episode(self, ordinal):
+        self.episode = self.episodes[int(ordinal)]
+        self.episode_arrays = []
+        self.episode_records = []
+
+    @torch.no_grad()
+    def observe(self, state):
+        from pytorch3d import transforms
+        from models.infbagel import append_dims, scalings_for_boundary_conditions
+        sampler = self.sampler
+        occ_names = ("x", "x0", "mat", "scene_flag", "object_points", "pelvis_goal",
+                     "scene_goal", "object_goal", "is_loco", "is_object", "need_pelvis_dir",
+                     "obj_rot_mat_ref", "object_only", "obj_rest_verts", "seq_name_dict", "obj_rot_mat_prefix")
+        occ, occ_list, occ_pos = sampler._compute_occ_sample(
+            **{key: state[key] for key in occ_names}, diffusion_timestep=state["t_index"])
+        names = ("text_emb", "pelvis_goal", "scene_goal", "is_loco", "need_scene", "need_pelvis_dir",
+                 "pi", "end_pi", "seq_length", "need_pi", "object_goal", "is_object", "obj_bps_data")
+        student_raw = self.student(
+            state["x"], occ, state["t"], *[state[key] for key in names], occ_list, occ_pos,
+            is_sample=True, is_uncondition=False,
+            cfg_scale=torch.full((state["x"].shape[0], 1), float(self.cfg.w), device=state["x"].device))
+        skip, out = [append_dims(v, state["x"].ndim) for v in scalings_for_boundary_conditions(state["t"])]
+        student = skip * state["x"] + out * student_raw
+        student[:, :2] = state["fixed_points"]
+        local, endpoint = remaining_teacher_endpoint(sampler, self.teacher, state)
+        predictions = dict(teacher_local=local, teacher_endpoint=endpoint, student=student)
+        positions, joints, rotations = {}, {}, {}
+        for arm, value in predictions.items():
+            positions[arm], joints[arm] = sampler._compute_human_joints(
+                value.float(), value[:, :, :84], state["mat"].float(),
+                state["human_dict"]["rest_human_offsets"][:, 0].float())
+            rotations[arm] = state["mat"][:, None, None, :3, :3] @ transforms.rotation_6d_to_matrix(value[:, :, 84:216].reshape(1, 16, 22, 6))
+        metrics = alignment_endpoint_metrics(positions, joints, rotations, fps=float(self.cfg.fps) / 3)
+        record = dict(episode_id=self.episode["sequence_id"], stratum=self.episode["stratum"],
+                      source=str(self.cfg.alignment_source), window_index=len(self.episode_records) // len(self.timesteps),
+                      timestep=int(state["t_index"]), metrics={key: float(v.item()) for key, v in metrics.items()})
+        self.episode_records.append(record)
+        arrays = dict(predictions, x_t=state["x"], previous_clean=state["x0"],
+                      history=state["fixed_points"], mat=state["mat"])
+        arrays.update({key: state[key] for key in names})
+        self.episode_arrays.append({key: value.detach().float().cpu().numpy() for key, value in arrays.items()})
+
+    def finish_episode(self, sequence_name):
+        import json
+        assert sequence_name == self.episode["sequence_id"]
+        assert len(self.episode_records) == int(self.episode["window_count"]) * len(self.timesteps)
+        basename = sequence_name.replace(":", "_")
+        np.savez(self.output / (basename + ".npz"),
+                 **{key: np.stack([row[key] for row in self.episode_arrays]) for key in self.episode_arrays[0]})
+        with (self.output / (basename + ".json")).open("x") as handle:
+            json.dump(self.episode_records, handle, allow_nan=False)
+        self.records.extend(self.episode_records)
+
+
+def distillation_alignment(cfg):
+    """Named fixed-weight generated-history endpoint probe, native evaluator entry."""
+    import json
+    import hydra
+    from omegaconf import OmegaConf
+    from test_infbagel_lingo_hsi import _load_strict_checkpoint, _scene_only_dataset, evaluate_model
+    dataset = _scene_only_dataset(cfg)
+    models, provenance = {}, {}
+    for role in ("teacher", "student"):
+        model_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+        model_cfg.ckpt_path = str(cfg["alignment_" + role + "_checkpoint"])
+        model_cfg.model.infbagel.ckpt = model_cfg.ckpt_path
+        models[role], provenance[role] = _load_strict_checkpoint(model_cfg)
+        models[role].requires_grad_(False)
+    sampler = hydra.utils.instantiate(cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, models["teacher"])
+    probe = DistillationAlignmentProbe(cfg, sampler, models["teacher"], models["student"])
+    path = evaluate_model(cfg, prediction_probe=probe)
+    with (probe.output / "summary.json").open("x") as handle:
+        json.dump(dict(states=len(probe.records), provenance=provenance, native_output=str(path),
+                       source=str(cfg.alignment_source), timesteps=list(probe.timesteps),
+                       timing_scope="instrumented diagnostic resource use, not deployment latency"),
+                  handle, indent=2, allow_nan=False)
+    return path
+
+
 def body_fk_gradient_calibration(model, losses, total, body_weight, fk_weight, seam_weight):
     """First-real-batch loss scales and parameter gradients; zero updates."""
     terms = {
