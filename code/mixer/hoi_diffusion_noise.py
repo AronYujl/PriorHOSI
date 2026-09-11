@@ -594,7 +594,8 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
     scenes = sorted({r['scene'] for r in records})
     def mean(rows):
         return {k:sum(float(r[k]) for r in rows)/len(rows) for k in keys}
-    by_task = {a:{str(r['task']):r['means'][a] for r in records} for a in arms}
+    # Completion is a measured 0/1 outcome; numeric discovery excludes bools.
+    by_task = {a:{str(r['task']):{k:float(r['means'][a][k]) for k in keys} for r in records} for a in arms}
     by_scene = {a:{s:mean([r['means'][a] for r in records if r['scene'] == s]) for s in scenes} for a in arms}
     means = {a:mean([r['means'][a] for r in records]) for a in arms}
     pairs = [('source', 'DDPM_reference')] + [(a, 'source') for a in ('G', 'C', 'W')] + [('C', 'G'), ('C', 'W'), ('C', 'DDPM_reference')]

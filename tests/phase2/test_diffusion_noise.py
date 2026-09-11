@@ -276,6 +276,32 @@ def test_hoi_dno_optimizer_resume_reproduces_uninterrupted_edit(tmp_path, monkey
     assert len(checkpoint['traces']) == len(checkpoint['history']) == 6
 
 
+def test_hoi_summary_includes_paired_task_completion_uncertainty(tmp_path):
+    import json
+    from mixer.hoi_diffusion_noise import summarize_hoi_dno
+    baseline = dict(completed=True, contact_percent=.8, source_floor_support_fraction=.8,
+        foot_sliding=.1, active_hand_samples=20, source_hand_contact_retention=1.,
+        active_hand_mean_drift_cm=0., root_local_body_mean_drift_cm=0.,
+        nonroot_rotation_mean_change_deg=0., seam_speed_mean_cm_s=10.,
+        trajectory_acceleration_mean_cm_s2=20., initial_body_max_error_m=0.,
+        initial_object_max_error_m=0., initial_object_rotation_max_error=0.,
+        scene_human_penetration_s_mean=1., scene_obj_penetration_s_mean=1.)
+    for task in range(2):
+        folder = tmp_path/'lanes'/'lane-00'/f'task-{task:03d}'
+        folder.mkdir(parents=True)
+        means = {arm:dict(baseline) for arm in ('DDPM_reference', 'source', 'G', 'C', 'W')}
+        means['C']['completed'] = task == 1
+        (folder/'metrics.json').write_text(json.dumps(dict(task=task, scene=f'scene{task}',
+            means=means, windows=1, native_frames=48, hoi_calls=2, hsi_calls=2,
+            seconds=1., peak_memory_gib=.1, source_replay_exact=True)))
+    manifest = tmp_path/'tasks.json'
+    manifest.write_text(json.dumps(dict(tasks=[dict(canonical_ordinal=i) for i in range(2)])))
+    result = summarize_hoi_dno(tmp_path, manifest, 'cpu')
+    completed = result['contrasts']['C__minus__source']['task']['completed']
+    assert completed == dict(delta=-.5, ci=[-1., 0.], n=2)
+    assert result['aggregate_protection']['completed_vs_source'] is False
+
+
 def test_ddim_oracle_inversion_and_reverse_recover_clean_and_gradient():
     clean = torch.tensor([.4, -.3], dtype=torch.double)
     noise = torch.tensor([-.7, .2], dtype=torch.double, requires_grad=True)
