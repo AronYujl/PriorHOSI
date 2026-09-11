@@ -544,7 +544,7 @@ def optimize_hoi_latent(decoder, objective, initial, view, settings, destination
 
 def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, baseline,
                  task, ordinal, protocol, destination, commit, resume=False,
-                 object_sdf=None, object_info=None, previous_inputs=None):
+                 object_sdf=None, object_info=None, previous_inputs=None, replay_from=None):
     from utils import run_smplx_model, SMPLX_JOINTS_28
     started = time.perf_counter()
     decoder = HOIDDIM(teacher, windows, ddpm_source, model, task, ordinal, protocol['method'])
@@ -664,8 +664,14 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
             torch.save(dict(correct=c, wrong=w, fk_target_difference_rms_m=float((correct-wrong).square().mean().sqrt())), handle)
     settings = dict(repository=protocol['dno_repository'], path=destination, commit=commit,
                     memory_limit=protocol['execution']['peak_memory_gib'])
-    for name, view in [('G', None), ('C', 'correct'), ('W', 'wrong')]:
-        value = optimize_hoi_latent(decoder, objective, initial, view, protocol['method'], settings, name, resume)
+    for name in protocol['method']['arms']:
+        view = {'G': None, 'C': 'correct', 'W': 'wrong'}[name]
+        if replay_from is None:
+            value = optimize_hoi_latent(decoder, objective, initial, view, protocol['method'], settings, name, resume)
+        else:
+            saved = torch.load(replay_from/(name+'-step0300.pt'), map_location=decoder.device, weights_only=False)
+            assert saved['step'] == protocol['method']['editing_steps'] and torch.equal(saved['initial'], initial)
+            value = saved['latent']
         with torch.no_grad():
             predicted = decoder.sample(value)
             motion = dict(source, **dict(zip(('pose', 'translation', 'object_translation', 'object_rotation'), decoder.native(predicted))))
@@ -682,9 +688,12 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
             write_json(path, audits[name])
             with (destination/(name+'-gradients.pt')).open('xb') as handle:
                 torch.save({k:v.cpu() for k,v in gradients.items()}, handle)
+    cache_replay = None
+    if replay_from is not None:
+        cache_replay = compare_hoi_dno_replay(destination, replay_from, metrics)
     torch.cuda.synchronize(decoder.device)
     return dict(task=ordinal, scene=task['scene_name'], object=task['object_name'],
-        means=metrics, gradients=audits, postprocess=postprocess,
+        means=metrics, gradients=audits, postprocess=postprocess, cache_replay=cache_replay,
         windows=len(windows), native_frames=len(source['pose']),
         source_replay_exact=True, coarse_fk_native_max_error_m=coarse_fk_error,
         source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
@@ -692,6 +701,29 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
         source_replay_seconds=replay_seconds, seconds=time.perf_counter()-started,
         hoi_calls=decoder.hoi_calls, hsi_calls=teacher.calls,
         peak_memory_gib=torch.cuda.max_memory_allocated(decoder.device)/1024**3)
+
+
+def compare_hoi_dno_replay(destination, previous, metrics):
+    """Compare the current decoder/chain with the immutable cached outputs."""
+    cached = json.loads((previous/'metrics.json').read_text())
+    metric_abs, metric_normalized, tensor_max = 0., 0., 0.
+    tensor_exact = True
+    for arm, values in metrics.items():
+        for key, value in values.items():
+            reference = cached['means'][arm][key]
+            difference = abs(float(value)-float(reference))
+            metric_abs = max(metric_abs, difference)
+            metric_normalized = max(metric_normalized, difference/max(abs(reference), 1.))
+        old = torch.load(previous/(arm+'.pt'), map_location='cpu', weights_only=False)
+        new = torch.load(destination/(arm+'.pt'), map_location='cpu', weights_only=False)
+        for key in ('pose', 'translation', 'joints', 'object_translation', 'object_rotation'):
+            tensor_max = max(tensor_max, float((old[key]-new[key]).abs().max()))
+            tensor_exact = tensor_exact and torch.equal(old[key], new[key])
+    assert tensor_max <= 1e-5 and metric_normalized <= 1e-5, (tensor_max, metric_abs, metric_normalized)
+    return dict(previous=str(previous), previous_commit=cached['commit'], stages=len(metrics),
+                tensor_max_abs=tensor_max, tensor_exact=tensor_exact,
+                metric_max_abs=metric_abs, metric_max_normalized=metric_normalized,
+                optimization_steps=0, passed=True)
 
 
 def postprocess_hoi_motion(name, source, before, model, object_vertices, sdf, info,
@@ -754,13 +786,69 @@ def edit_protections(current, source):
                     current['initial_object_rotation_max_error']) <= 1e-5)
 
 
-def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
+def collect_hoi_dno_records(run_root, task_manifest, protocol=None):
+    """Include each task once, retaining the old run identity for cached tasks."""
+    tasks = json.loads(Path(task_manifest).read_text())['tasks']
+    records = [json.loads(p.read_text()) for p in sorted(Path(run_root).glob('lanes/*/task-*/metrics.json'))]
+    if protocol is not None and 'reuse_completed_run' in protocol:
+        root = Path(task_manifest).resolve().parents[2]
+        cached_ids = {t['canonical_ordinal'] for t in json.loads((root/protocol['reuse_task_manifest']).read_text())['tasks']}
+        for p in sorted((root/protocol['reuse_completed_run']).glob('lanes/*/task-*/metrics.json')):
+            row = json.loads(p.read_text())
+            if row['task'] in cached_ids:
+                row['reused_from'] = str(p)
+                records.append(row)
+        base_arms = ['DDPM_reference', 'source']+protocol['method']['arms']
+        stages = {a+suffix for a in base_arms for suffix in ('', '_relation', '_final')}
+        for row in records:
+            row['means'] = {k:v for k,v in row['means'].items() if k in stages}
+            row['postprocess'] = {k:v for k,v in row['postprocess'].items() if k in base_arms}
+    assert len(records) == len(tasks) and {r['task'] for r in records} == {t['canonical_ordinal'] for t in tasks}
+    return tasks, records if protocol is None else sorted(records, key=lambda r:r['task'])
+
+
+def compare_released_hosi(records, tasks, reference_path, device):
+    """Match the released system by task identity and report all12 table metrics."""
+    from .scene_calibration import paired_local_metrics
+    keys = ('xy_points_err', 'end_obj_trans_err', 'completed', 'foot_sliding',
+            'contact_percent', 'human_pen_loss_infbagel', 'scene_human_penetration_s_mean',
+            'scene_human_penetration_s_max', 'scene_human_penetration_frame_ratio',
+            'scene_obj_penetration_s_mean', 'scene_obj_penetration_s_max', 'scene_obj_penetration_frame_ratio')
+    old = json.loads(Path(reference_path).read_text())['individual_metrics']
+    index = {(r['scene_name'], r['test_idx'], r['object_name']):r for r in old}
+    assert len(index) == len(old)
+    by_task = {'July_released': {str(t['canonical_ordinal']):
+        {k:float(index[t['scene_name'], t['test_idx'], t['object_name']][k]) for k in keys} for t in tasks}}
+    for arm in ('G_final', 'C_final'):
+        by_task[arm] = {str(r['task']):{k:float(r['means'][arm][k]) for k in keys} for r in records}
+    names = {str(t['canonical_ordinal']):t['scene_name'] for t in tasks}
+    def average(rows):
+        return {k:sum(r[k] for r in rows)/len(rows) for k in keys}
+    by_scene = {a:{scene:average([v for tid,v in data.items() if names[tid] == scene])
+        for scene in sorted(set(names.values()))} for a,data in by_task.items()}
+    means = {a:average(list(data.values())) for a,data in by_task.items()}
+    comparisons = {}
+    for arm in ('G_final', 'C_final'):
+        comparisons[arm] = {}
+        for key in keys:
+            delta = means[arm][key]-means['July_released'][key]
+            gain = delta if key in ('completed', 'contact_percent') else -delta
+            comparisons[arm][key] = 'better' if gain > 0 else 'worse' if gain < 0 else 'equal'
+    return dict(tasks=len(tasks), scenes=len(by_scene['July_released']), source=str(reference_path),
+        identity_keys=['scene_name', 'test_idx', 'object_name'], means=means, point_comparison=comparisons,
+        all12_better=all(v == 'better' for v in comparisons['C_final'].values()),
+        contrasts={a:{unit:paired_local_metrics(data['July_released'], data[a], device)
+            for unit,data in [('task', by_task), ('scene', by_scene)]} for a in ('G_final', 'C_final')},
+        comparison_scope='Historical system-level comparison with different model representation, sampling and compute; fixed task identities, all historical development use retained.')
+
+
+def summarize_hoi_dno(run_root, task_manifest, device='cuda:0', protocol=None):
     from .scene_calibration import paired_local_metrics
     run_root = Path(run_root)
-    tasks = json.loads(Path(task_manifest).read_text())['tasks']
-    records = [json.loads(p.read_text()) for p in sorted(run_root.glob('lanes/*/task-*/metrics.json'))]
-    assert len(records) == len(tasks) and {r['task'] for r in records} == {t['canonical_ordinal'] for t in tasks}
+    tasks, records = collect_hoi_dno_records(run_root, task_manifest, protocol)
     arms = tuple(records[0]['means'])
+    edits = tuple(a for a in ('G', 'C', 'W') if a in arms)
+    timed_records = [r for r in records if 'reused_from' not in r]
     keys = tuple(records[0]['means']['source'])
     scenes = sorted({r['scene'] for r in records})
     def mean(rows):
@@ -769,20 +857,23 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
     by_task = {a:{str(r['task']):{k:float(r['means'][a][k]) for k in keys} for r in records} for a in arms}
     by_scene = {a:{s:mean([r['means'][a] for r in records if r['scene'] == s]) for s in scenes} for a in arms}
     means = {a:mean([r['means'][a] for r in records]) for a in arms}
-    pairs = [('source', 'DDPM_reference')] + [(a, 'source') for a in ('G', 'C', 'W')] + [('C', 'G'), ('C', 'W'), ('C', 'DDPM_reference')]
+    pairs = [('source', 'DDPM_reference')] + [(a, 'source') for a in edits] + [('C', 'G'), ('C', 'DDPM_reference')]
+    if 'W' in edits:
+        pairs.append(('C', 'W'))
     if 'C_final' in arms:
         for stage in ('relation', 'final'):
-            pairs += [(a+'_'+stage, 'source_'+stage) for a in ('G', 'C', 'W')]
-            pairs += [('C_'+stage, b+'_'+stage) for b in ('G', 'W', 'DDPM_reference')]
-        pairs += [(a+'_final', a) for a in ('DDPM_reference', 'source', 'G', 'C', 'W')]
+            pairs += [(a+'_'+stage, 'source_'+stage) for a in edits]
+            pairs += [('C_'+stage, b+'_'+stage) for b in ('G', 'W', 'DDPM_reference') if b in arms]
+        pairs += [(a+'_final', a) for a in ('DDPM_reference', 'source')+edits]
     contrasts = {a+'__minus__'+b:{unit:paired_local_metrics(values[b], values[a], device)
         for unit, values in [('task', by_task), ('scene', by_scene)]} for a,b in pairs}
     protections = {a:{str(r['task']):edit_protections(r['means'][a], r['means']['source']) for r in records}
-                   for a in ('G', 'C', 'W')}
+                   for a in edits}
     hand_tasks = [str(r['task']) for r in records if r['means']['source']['active_hand_samples'] > 0]
     conditional_hands = {a:{key:sum(by_task[a][t][key] for t in hand_tasks)/len(hand_tasks)
         if hand_tasks else None for key in ('active_hand_mean_drift_cm', 'source_hand_contact_retention')} for a in arms}
-    c, b, g, w, old = [means[a] for a in ('C', 'source', 'G', 'W', 'DDPM_reference')]
+    c, b, g, old = [means[a] for a in ('C', 'source', 'G', 'DDPM_reference')]
+    w = means.get('W')
     hs, os = 'scene_human_penetration_s_mean', 'scene_obj_penetration_s_mean'
     aggregate = edit_protections(c, b)
     aggregate['initial'] = all(row['initial'] for row in protections['C'].values())
@@ -791,7 +882,7 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
         contact_vs_ddpm=c['contact_percent'] >= old['contact_percent']-.02,
         completed_vs_source=c['completed'] >= b['completed'], completed_vs_ddpm=c['completed'] >= old['completed'])
     conditions = dict(source_hs_gain=c[hs] <= .9*b[hs], extra_hsi_hs=c[hs] <= .99*g[hs],
-        correct_scene=c[hs]-w[hs] <= -.005*b[hs], object_scene_source=c[os] <= 1.01*b[os],
+        correct_scene=(c[hs]-w[hs] <= -.005*b[hs]) if w is not None else None, object_scene_source=c[os] <= 1.01*b[os],
         object_scene_geometry=c[os] <= 1.01*g[os], protection=all(aggregate.values()))
     directions = {a+'__minus__'+b:dict(
         improved=sum(r['means'][a][hs] < r['means'][b][hs] for r in records),
@@ -800,15 +891,16 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
     summary = dict(tasks=len(records), scenes=len(scenes), windows=sum(r['windows'] for r in records),
         native_frames=sum(r['native_frames'] for r in records), means=means, contrasts=contrasts,
         aggregate_protection=aggregate, protections=protections, conditional_hand_means=conditional_hands,
-        active_hand_task_count=len(hand_tasks), conditions=conditions, utility=all(conditions.values()),
+        active_hand_task_count=len(hand_tasks), conditions=conditions, utility=all(conditions.values()) if w is not None else None,
         hs_directions=directions, protection_pass_counts={a:sum(all(v for v in row.values() if v is not None)
             for row in values.values()) for a,values in protections.items()},
-        hoi_calls=sum(r['hoi_calls'] for r in records), hsi_calls=sum(r['hsi_calls'] for r in records),
-        task_seconds_sum=sum(r['seconds'] for r in records), peak_memory_gib=max(r['peak_memory_gib'] for r in records),
+        hoi_calls=sum(r['hoi_calls'] for r in timed_records), hsi_calls=sum(r['hsi_calls'] for r in timed_records),
+        task_seconds_sum=sum(r['seconds'] for r in timed_records), peak_memory_gib=max(r['peak_memory_gib'] for r in records),
         source_replay_exact=all(r['source_replay_exact'] for r in records),
         test_set_development=True, timing_comparison_valid=False)
     if 'C_final' in arms:
-        c, b, g, w, old = [means[a+'_final'] for a in ('C', 'source', 'G', 'W', 'DDPM_reference')]
+        c, b, g, old = [means[a+'_final'] for a in ('C', 'source', 'G', 'DDPM_reference')]
+        w = means.get('W_final')
         def metric_protection(current, reference):
             result = edit_protections(current, reference)
             del result['hand_drift']
@@ -818,26 +910,36 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
                 os_frames=current['scene_obj_penetration_frame_ratio'] <= reference['scene_obj_penetration_frame_ratio']+.002)
             return result
         final_protections = {a:{str(r['task']):metric_protection(r['means'][a+'_final'], r['means']['source_final'])
-            for r in records} for a in ('G', 'C', 'W')}
+            for r in records} for a in edits}
         final_aggregate = metric_protection(c, b)
         final_aggregate['completion_ddpm'] = c['completed'] >= old['completed']
         final_aggregate['initial'] = all(r['initial'] for r in final_protections['C'].values())
+        final_aggregate['hand_retention'] = (conditional_hands['C_final']['source_hand_contact_retention'] >= .95) if hand_tasks else None
         progress = dict(contact=c['contact_percent'] >= b['contact_percent']+.02,
             human_object=c['human_pen_loss_infbagel'] <= .9*b['human_pen_loss_infbagel'],
             foot_sliding=c['foot_sliding'] <= .9*b['foot_sliding'],
             protection=all(v for v in final_aggregate.values() if v is not None))
         scene_conditions = dict(extra_hsi_hs=c[hs] <= .99*g[hs],
-                                correct_scene=c[hs]-w[hs] <= -.005*b[hs])
+                                correct_scene=(c[hs]-w[hs] <= -.005*b[hs]) if w is not None else None)
         objects = sorted({r['object'] for r in records})
         summary.update(raw_conditions=summary['conditions'], raw_utility=summary['utility'],
             conditions=progress, utility=all(progress.values()), hsi_conditions=scene_conditions,
-            hsi_scene_utility=all(scene_conditions.values()), final_aggregate_protection=final_aggregate,
+            hsi_scene_utility=all(scene_conditions.values()) if w is not None else None,
+            correct_wrong_trajectory_comparison_available=w is not None,
+            final_aggregate_protection=final_aggregate,
             final_protections=final_protections,
             final_protection_pass_counts={a:sum(all(v for v in r.values() if v is not None)
                 for r in rows.values()) for a,rows in final_protections.items()},
             object_means={obj:{a:mean([r['means'][a] for r in records if r['object']==obj]) for a in arms} for obj in objects},
-            relation_seconds_sum=sum(v['relation_seconds_including_evaluation'] for r in records for v in r['postprocess'].values()),
-            terminal_seconds_sum=sum(v['terminal']['solver']['arm_seconds_including_evaluation'] for r in records for v in r['postprocess'].values()))
+            relation_seconds_sum=sum(v['relation_seconds_including_evaluation'] for r in timed_records for v in r['postprocess'].values()),
+            terminal_seconds_sum=sum(v['terminal']['solver']['arm_seconds_including_evaluation'] for r in timed_records for v in r['postprocess'].values()))
+    if protocol is not None and 'reuse_completed_run' in protocol:
+        summary.update(reused_tasks=len(records)-len(timed_records), newly_executed_tasks=len(timed_records),
+            resource_accounting='Execution counters exclude cached28 historical work and separately recorded replay validation.',
+            strata={name:dict(tasks=len(group), means={a:mean([r['means'][a] for r in group]) for a in arms})
+                    for name,group in [('reused', [r for r in records if 'reused_from' in r]), ('new', timed_records)]})
+        if 'released_reference' in protocol:
+            summary['released_comparison'] = compare_released_hosi(records, tasks, protocol['released_reference'], device)
     output = run_root/'analysis'; output.mkdir()
     write_json(output/'summary.json', summary); write_json(output/'records.json', records)
     for arm in arms:

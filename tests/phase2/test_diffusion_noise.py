@@ -676,7 +676,9 @@ def test_metric_object_sdf_matches_native_frame_and_value(monkeypatch):
     assert all(torch.isfinite(g).all() and g.abs().sum() > 0 for g in gradients)
 
 
-def test_metric_chain_summary_uses_matched_final_reference_and_separate_hsi_gate(tmp_path):
+@pytest.mark.parametrize('with_wrong', [True, False])
+@pytest.mark.parametrize('empty_source_hand', [False, True])
+def test_metric_chain_summary_uses_matched_final_reference_and_separate_hsi_gate(tmp_path, with_wrong, empty_source_hand):
     import json
     from mixer.hoi_diffusion_noise import summarize_hoi_dno
     baseline = dict(completed=True, contact_percent=.6, source_floor_support_fraction=.8,
@@ -688,15 +690,19 @@ def test_metric_chain_summary_uses_matched_final_reference_and_separate_hsi_gate
         scene_human_penetration_s_mean=1., scene_obj_penetration_s_mean=1.,
         scene_human_penetration_frame_ratio=.3, scene_obj_penetration_frame_ratio=.3,
         human_pen_loss_infbagel=10.)
-    raw = ('DDPM_reference', 'source', 'G', 'C', 'W')
+    edits = ('G', 'C', 'W') if with_wrong else ('G', 'C')
+    raw = ('DDPM_reference', 'source')+edits
     for task in range(2):
         folder = tmp_path/'lanes'/'lane-00'/f'task-{task:03d}'
         folder.mkdir(parents=True)
         means = {a+stage:dict(baseline) for a in raw for stage in ('', '_relation', '_final')}
+        if empty_source_hand and task == 0:
+            for values in means.values():
+                values.update(active_hand_samples=0, source_hand_contact_retention=0.)
         # A misleading raw reference cannot grant progress: only matched final
         # outputs enter the registered metric decision.
         means['source']['foot_sliding'] = .1
-        for a in ('G', 'C', 'W'):
+        for a in edits:
             means[a+'_final'].update(contact_percent=.7, human_pen_loss_infbagel=8., foot_sliding=.17)
         post = {a:dict(relation_seconds_including_evaluation=1.,
                       terminal=dict(solver=dict(arm_seconds_including_evaluation=1.))) for a in raw}
@@ -706,9 +712,75 @@ def test_metric_chain_summary_uses_matched_final_reference_and_separate_hsi_gate
     manifest = tmp_path/'tasks.json'
     manifest.write_text(json.dumps(dict(tasks=[dict(canonical_ordinal=i) for i in range(2)])))
     result = summarize_hoi_dno(tmp_path, manifest, 'cpu')
-    assert result['utility'] and not result['hsi_scene_utility']
+    assert result['utility']
+    assert result['hsi_scene_utility'] is (False if with_wrong else None)
+    assert result['correct_wrong_trajectory_comparison_available'] == with_wrong
     assert result['final_protection_pass_counts']['C'] == 2
     assert 'hand_drift' not in result['final_aggregate_protection']
     difference = result['contrasts']['C_final__minus__source_final']['task']['foot_sliding']
     assert abs(difference['delta']+.03) < 1e-12
-    assert result['contrasts']['C_final__minus__W_final']['task']['completed']['ci'] == [0., 0.]
+    if with_wrong:
+        assert result['contrasts']['C_final__minus__W_final']['task']['completed']['ci'] == [0., 0.]
+    else:
+        assert 'C_final__minus__W_final' not in result['contrasts']
+
+
+def test_cached_task_collection_retains_identity_and_rejects_double_counting(tmp_path):
+    import json
+    from mixer.hoi_diffusion_noise import collect_hoi_dno_records
+    tasks = tmp_path/'tasks.json';tasks.write_text(json.dumps(dict(tasks=[dict(canonical_ordinal=i) for i in (0, 1)])))
+    cached_tasks = tmp_path/'cached_tasks.json';cached_tasks.write_text(json.dumps(dict(tasks=[dict(canonical_ordinal=0)])))
+    current, cached = tmp_path/'current', tmp_path/'cached'
+    for parent,task,commit in [(cached, 0, 'old'), (current, 1, 'new')]:
+        p=parent/'lanes/lane-00'/f'task-{task:03d}';p.mkdir(parents=True)
+        (p/'metrics.json').write_text(json.dumps(dict(task=task,commit=commit,
+            means={a:dict(completed=1.) for a in ('source','G','C','W')},
+            postprocess={a:{} for a in ('source','G','C','W')})))
+    protocol=dict(reuse_completed_run=str(cached),reuse_task_manifest=str(cached_tasks),method=dict(arms=['G','C']))
+    _,rows=collect_hoi_dno_records(current,tasks,protocol)
+    assert [r['task'] for r in rows]==[0,1] and rows[0]['commit']=='old'
+    assert 'reused_from' in rows[0] and 'reused_from' not in rows[1]
+    assert all('W' not in r['means'] and 'W' not in r['postprocess'] for r in rows)
+    # The cached object on disk retains its complete original result.
+    original=json.loads((cached/'lanes/lane-00/task-000/metrics.json').read_text())
+    assert 'W' in original['means']
+    p=current/'lanes/lane-00/task-000';p.mkdir()
+    (p/'metrics.json').write_text(json.dumps(original))
+    with pytest.raises(AssertionError):collect_hoi_dno_records(current,tasks,protocol)
+
+
+def test_cached_decoder_comparison_detects_motion_drift(tmp_path):
+    import json
+    from mixer.hoi_diffusion_noise import compare_hoi_dno_replay
+    old,new=tmp_path/'old',tmp_path/'new';old.mkdir();new.mkdir()
+    metrics=dict(C_final=dict(foot_sliding=.12,completed=True))
+    motion={k:torch.zeros(6,3) for k in ('pose','translation','joints','object_translation','object_rotation')}
+    (old/'metrics.json').write_text(json.dumps(dict(commit='source',means=metrics)))
+    for p in [old,new]:torch.save(motion,p/'C_final.pt')
+    result=compare_hoi_dno_replay(new,old,metrics)
+    assert result['tensor_exact'] and result['passed'] and result['optimization_steps']==0
+    motion['translation']=motion['translation']+.001;torch.save(motion,new/'C_final.pt')
+    with pytest.raises(AssertionError):compare_hoi_dno_replay(new,old,metrics)
+
+
+def test_released_comparison_uses_task_identity_and_fixed_target_arm(tmp_path):
+    import json
+    from mixer.hoi_diffusion_noise import compare_released_hosi
+    keys=('xy_points_err','end_obj_trans_err','completed','foot_sliding','contact_percent',
+          'human_pen_loss_infbagel','scene_human_penetration_s_mean','scene_human_penetration_s_max',
+          'scene_human_penetration_frame_ratio','scene_obj_penetration_s_mean',
+          'scene_obj_penetration_s_max','scene_obj_penetration_frame_ratio')
+    tasks=[dict(canonical_ordinal=i,scene_name='s'+str(i),test_idx=i,object_name='chair') for i in (7,3)]
+    baseline=[dict({k:1. for k in keys},completed=False,contact_percent=.5,**{k:t[k] for k in ('scene_name','test_idx','object_name')}) for t in tasks]
+    rows=[]
+    for task in tasks:
+        correct=dict({k:.5 for k in keys},completed=True,contact_percent=.75)
+        correct['scene_human_penetration_frame_ratio']=1.1
+        geometry=dict(correct,scene_human_penetration_frame_ratio=.5)
+        rows.append(dict(task=task['canonical_ordinal'],means=dict(C_final=correct,G_final=geometry)))
+    path=tmp_path/'baseline.json';path.write_text(json.dumps(dict(individual_metrics=baseline[::-1])))
+    result=compare_released_hosi(rows,tasks,path,'cpu')
+    assert not result['all12_better']
+    assert list(result['point_comparison']['C_final'].values()).count('better')==11
+    assert all(v=='better' for v in result['point_comparison']['G_final'].values())
+    assert result['contrasts']['C_final']['task']['completed']['delta']==1.

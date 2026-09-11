@@ -483,6 +483,10 @@ def run_hoi_dno(cfg):
     tasks = json.loads((root/protocol['task_manifest']).read_text())['tasks']
     if cfg.hoi_dno.task_ids is not None:
         tasks = [t for t in tasks if t['canonical_ordinal'] in cfg.hoi_dno.task_ids]
+    replay_only = bool(cfg.hoi_dno.get('replay_only', False))
+    if 'reuse_completed_run' in protocol:
+        cached_ids = {t['canonical_ordinal'] for t in json.loads((root/protocol['reuse_task_manifest']).read_text())['tasks']}
+        tasks = [t for t in tasks if (t['canonical_ordinal'] in cached_ids) == replay_only]
     out = Path(cfg.hosi_output_dir)
     resume = bool(cfg.hoi_dno.resume)
     out.mkdir(parents=True, exist_ok=resume)
@@ -556,8 +560,15 @@ def run_hoi_dno(cfg):
         teacher.calls = 0
         metric_inputs = {}
         if 'metric_targets' in protocol['method']:
-            previous_inputs, = (root/protocol['previous_dno_run']).glob(f'lanes/*/task-{ordinal:03d}/inputs.pt')
-            metric_inputs = dict(object_sdf=obj_sdf, object_info=obj_info, previous_inputs=previous_inputs)
+            previous_inputs, replay_from = None, None
+            if 'reuse_completed_run' in protocol:
+                if replay_only:
+                    replay_from, = (root/protocol['reuse_completed_run']).glob(f'lanes/*/task-{ordinal:03d}')
+                    previous_inputs = replay_from/'inputs.pt'
+            else:
+                previous_inputs, = (root/protocol['previous_dno_run']).glob(f'lanes/*/task-{ordinal:03d}/inputs.pt')
+            metric_inputs = dict(object_sdf=obj_sdf, object_info=obj_info,
+                                 previous_inputs=previous_inputs, replay_from=replay_from)
         result = hoi_dno_task(teacher, windows, source, model, sdf, info, evaluate, baseline,
                               task, ordinal, protocol, dest, commit, resume, **metric_inputs)
         result.update(source_joint_error_m=joint_error, source_metric_error=metric_error,
