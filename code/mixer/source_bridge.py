@@ -94,6 +94,8 @@ def rotation_seam_measures(motion):
         result[label+'_rotation_jump_max_deg'] = float(angles.max())
         result[label+'_rotation_jump_mean_deg'] = float(angles.mean())
         result[label+'_root_rotation_jump_deg'] = float(angles[0])
+    steps = transforms.matrix_to_axis_angle(rotations[10:52] @ rotations[9:51].transpose(-1, -2))
+    result['free_rotation_step_max_deg'] = float(steps.norm(dim=-1).max()*180/torch.pi)
     return result
 
 
@@ -399,8 +401,19 @@ def run_dataset_bridges(cfg):
         np.savez(inputs/'conditions.npz', **{k:np.stack(v) for k,v in arrays.items()})
         generation_cfg = OmegaConf.merge(cfg, dict(hosi_output_dir=str(group),
             inbetween=dict(input_dir=str(inputs), models=['kimodo'])))
-        dispatch(generation_cfg, root)
-        raw = dict(np.load(group/'kimodo/prediction.npz'))
+        if settings.reuse_bridge_roots:
+            previous = Path(settings.reuse_bridge_roots[settings.lane_index])/group.name
+            previous_inputs = np.load(previous/'inputs/conditions.npz')
+            for key,value in arrays.items():
+                if not np.array_equal(previous_inputs[key], np.stack(value)):
+                    raise ValueError(f'cached Kimodo input changed: {group.name}/{key}')
+            prediction_path = previous/'kimodo/prediction.npz'
+            write_json(group/'generation_reuse.json', dict(prediction=str(prediction_path),
+                input=str(previous/'inputs/conditions.npz'), complete_input_arrays_equal=True, new_model_samples=0))
+        else:
+            dispatch(generation_cfg, root)
+            prediction_path = group/'kimodo/prediction.npz'
+        raw = dict(np.load(prediction_path))
         for index,(episode, first, second, condition, canonical, origin) in enumerate(prepared):
             dest = output/episode['episode_id']
             dest.mkdir()
@@ -424,7 +437,8 @@ def run_dataset_bridges(cfg):
                 for key in ('pose', 'translation', 'object_translation', 'object_rotation'))
             gates = dict(bridge=bridge['bridge_gate'], full_motion_geometry=metrics['geometry']['passes'],
                 bridge_foot_support=bridge_support['passes'], source_preserved=source_preserved,
-                contexts_preserved=contexts, frame_count=len(full['pose']) == episode['frame_count'])
+                contexts_preserved=contexts, frame_count=len(full['pose']) == episode['frame_count'],
+                angular_continuity=bridge['after']['free_rotation_step_max_deg'] <= settings.rotation_step_max_deg)
             row = dict(episode_id=episode['episode_id'], accepted=all(gates.values()), gates=gates,
                 bridge_metrics=str(dest/'metrics.json'), bridge_support=bridge_support,
                 complete_motion_metrics=metrics, motion=str(dest/'source_composition.npz'),
@@ -436,7 +450,9 @@ def run_dataset_bridges(cfg):
     torch.cuda.synchronize(cfg.device)
     summary = dict(status='completed', subphase='5.6.1', git_commit=commit,
         seed=int(cfg.seed), lane_index=int(settings.lane_index), source_candidates=len(episodes),
-        accepted=sum(r['accepted'] for r in rows), records=rows, expert_samples=0, kimodo_samples=len(rows),
+        accepted=sum(r['accepted'] for r in rows), records=rows, expert_samples=0,
+        kimodo_samples=0 if settings.reuse_bridge_roots else len(rows),
+        reused_kimodo_samples=len(rows) if settings.reuse_bridge_roots else 0,
         elapsed_seconds=time.perf_counter()-started, device=str(cfg.device),
         git_commit_at_completion=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip())
     write_json(output/'summary.json', summary)

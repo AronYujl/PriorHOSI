@@ -82,11 +82,23 @@ def contact_measures(vertices, patches, mask):
         free_ground_depth_mean_m=float((-vertices[10:51, :, 1].amin(-1)).clamp_min(0).mean()))
 
 
+def rotation_continuity_terms(pose, reference_rotations):
+    """Constrain angular motion as well as joint positions on SO(3)."""
+    rotations = transforms.axis_angle_to_matrix(pose)
+    difference = transforms.matrix_to_axis_angle(
+        rotations[10:51] @ reference_rotations[10:51].transpose(-1, -2))
+    steps = transforms.matrix_to_axis_angle(rotations[1:] @ rotations[:-1].transpose(-1, -2))
+    return dict(rotation=.1*(difference/.15).square().mean(),
+        angular_acceleration=((steps[1:]-steps[:-1])/(3*np.pi/180)).square().mean(),
+        angular_seam=((steps[[9, 50]]-steps[[8, 51]])/(np.pi/180)).square().mean())
+
+
 def correct_motion(source, model, patches, mask, sdf, info, object_sdf, object_info, cfg, dest):
     """One fixed-budget optimization; evaluate the final iterate."""
     settings = cfg.inbetween.contact
     with torch.no_grad():
         reference_vertices, reference_joints = decode_body(source, model)
+        reference_rotations = transforms.axis_angle_to_matrix(source['pose'])
     pose = source['pose'][10:51].clone().requires_grad_(True)
     translation = source['translation'][10:51].clone().requires_grad_(True)
     optimizer = torch.optim.Adam([pose, translation], lr=settings.learning_rate)
@@ -110,7 +122,6 @@ def correct_motion(source, model, patches, mask, sdf, info, object_sdf, object_i
         object_depth = (-object_distances(free, source, object_sdf, object_info).amin(-1)-.005).clamp_min(0)
         terms = dict(
             joint=((joints[10:51]-reference_joints[10:51])/.05).square().mean(),
-            rotation=.1*((pose-source['pose'][10:51])/.15).square().mean(),
             acceleration=((acceleration-reference_acceleration)/.002).square().mean(),
             seam=5*(acceleration[[8, 50]]/.001).square().mean(),
             floor=20*(floor_depth/.002).square().mean(),
@@ -119,6 +130,7 @@ def correct_motion(source, model, patches, mask, sdf, info, object_sdf, object_i
             contact_height=2*((height[10:51]/.01).square()*selected).sum()/point_count if point_count else height.sum()*0,
             contact_velocity=5*(((horizontal[10:52]-horizontal[9:51])/.001).square().sum(-1)*pairs).sum()/(2*pair_count)
                 if pair_count else horizontal.sum()*0)
+        terms.update(rotation_continuity_terms(motion['pose'], reference_rotations))
         loss = sum(terms.values())
         optimizer.zero_grad()
         loss.backward()

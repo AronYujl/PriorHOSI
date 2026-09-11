@@ -49,6 +49,13 @@ pair is considered. Failure describes this construction procedure's outcome and
 does not prove intrinsic incompatibility. Coverage order is fixed before
 interpolation outputs are available.
 
+Native correction constrains both joint positions and SO(3) angular motion.
+Every local-rotation step across the free bridge and its two boundaries must
+be at most 15°. The earlier geometry-only construction is retained separately;
+its contact correction produced large angular steps and is superseded by this
+continuity requirement. Existing Kimodo outputs can be reused after complete
+input-array equality checks; their model sample count remains unchanged.
+
 Explicit geometry tolerances: scene mean/max penetration ≤1/10 mm, floor
 ≤10 mm and native body/object penetration ≤50 mm. Report these tolerances with
 the measurements. Geometric acceptance establishes no dynamics guarantee.

@@ -37,3 +37,5 @@ multitask:
     lane_index: 0
     render_limit: 16
     bridge_roots: []
+    reuse_bridge_roots: []
+    rotation_step_max_deg: 15.0

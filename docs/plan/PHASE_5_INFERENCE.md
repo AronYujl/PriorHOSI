@@ -1165,3 +1165,35 @@ bounded coverage correction before any bridge output. Run it under a fresh
 source run ID, preserve the first run, and use the corrected table for the
 same one-sample Kimodo protocol. No interpolation or expert sample has yet been
 drawn in this subphase.
+
+### 2026-09-11 — angular continuity correction before final acceptance
+
+All 153 fixed Kimodo draws passed source preservation and the implemented
+position/geometry checks. The provisional 128-entry table is retained as a
+geometry-only construction result. Its final rotation audit exposes an omitted
+quality condition: maximum entry/exit local-rotation steps reach 85.273/67.772°.
+Mean per-case maximum entry steps increase from 3.393° before contact correction
+to 23.460° after it, while positional seams improve. These motions do not yet
+satisfy the intended smooth-transition requirement.
+
+Root cause: the existing native correction optimizes joint acceleration and
+positional boundary continuity while leaving rotation continuity unconstrained.
+Replace its axis-angle-coordinate prior with a geodesic SO(3) prior and include
+angular acceleration plus agreement with the incoming/outgoing source angular
+steps in the same correction objective. Use unit weights, a 3° per-step change
+scale for angular acceleration, and a 1° per-step change scale at the two seams.
+Keep the same 240 fitting steps, 400 correction steps, optimizer/rate, source
+contexts, scene/object geometry limits and all 153 candidate identities.
+
+Final construction acceptance additionally requires every local-rotation step
+between frames 9 and 51 of the bridge to be ≤15°. This includes both seams and
+all free frames. Any failed combination is excluded; use the next pair in the
+previously fixed order. Report the achieved count if fewer than 128 pass.
+
+Reuse each existing Kimodo prediction after verifying its complete input arrays
+against the newly prepared batch. Draw zero new model samples. Perform one
+corrected native fit/contact pass from the original prediction, retaining the
+old corrected motions and the provisional publication. This fixes the original
+correction objective; no second repair is applied to its previous output.
+Use fresh bridge and publication run IDs. Add gradient/continuity regression
+tests and rerun the authority suite. All work remains inside 5.6.1.

@@ -201,6 +201,35 @@ def test_acquisition_requires_each_source_contacting_hand_at_the_suffix():
     assert complete['first_matching_contact_frame'] == 51
 
 
+def test_native_angular_objective_preserves_constant_rotation_speed_and_short_arc():
+    from mixer.inbetween_contact import rotation_continuity_terms
+    from pytorch3d import transforms
+    pose=torch.zeros(61,22,3,dtype=torch.float64)
+    pose[:,0,1]=torch.arange(61,dtype=torch.float64)*.01
+    reference=transforms.axis_angle_to_matrix(pose)
+    terms=rotation_continuity_terms(pose,reference)
+    assert max(float(value) for value in terms.values())<1e-10
+    equivalent=pose.clone();equivalent[10:51,0,1]+=2*torch.pi
+    terms=rotation_continuity_terms(equivalent,reference)
+    assert max(float(value) for value in terms.values())<1e-10
+
+
+def test_native_angular_objective_penalizes_and_differentiates_wrist_jump():
+    from mixer.inbetween_contact import rotation_continuity_terms
+    from mixer.source_bridge import rotation_seam_measures
+    from pytorch3d import transforms
+    original=torch.zeros(61,22,3,dtype=torch.float64)
+    pose=original.clone();pose[10,20,2]=1.2;pose.requires_grad_(True)
+    terms=rotation_continuity_terms(pose,transforms.axis_angle_to_matrix(original))
+    assert terms['angular_seam']>1
+    sum(terms.values()).backward()
+    assert torch.isfinite(pose.grad).all() and pose.grad[10,20,2]>0
+    interior=original.clone();interior[30,20,2]=20*torch.pi/180
+    measured=rotation_seam_measures(dict(pose=interior))
+    assert measured['entry_rotation_jump_max_deg']==measured['exit_rotation_jump_max_deg']==0
+    assert measured['free_rotation_step_max_deg']==pytest.approx(20)
+
+
 def test_bridge_rotation_seam_uses_short_arc_at_both_boundaries():
     from mixer.source_bridge import rotation_seam_measures
     pose = torch.zeros(61, 22, 3)
