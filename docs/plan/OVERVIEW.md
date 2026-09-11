@@ -1,5 +1,11 @@
 # 状态条件 HOI/HSI Prior 组合：总览、接口与跨阶段约定
 
+2026-09-11：Phase 5.6.1 数据集动作 benchmark 已交付 128 条（正向 72、反向 56），
+99 条使用内部截点；正式表来自 132 个完整通过的构建，21 个旋转失败被剔除、
+4 个合格备用。模型只读取独立推理条件。全部源帧/桥段已验证，1200 tests passed、
+4 historical skips；当前为 locomotion＋OMOMO，静态交互覆盖为 0。
+先读 [阶段总结](../phase_summaries/PHASE_5I_DATASET_BENCHMARK.md) 与其中的数据入口。
+
 2026-09-11：用户将当前任务明确为数据集动作 benchmark 构建。当前入口为
 Phase 5.6.1：完整 OMOMO/LINGO 源片段、可截取的站立接点和 Kimodo 过渡见证；
 推理条件独立导出。此前 5.5 专家实际生成链的结果保留，其质量门槛用于该历史

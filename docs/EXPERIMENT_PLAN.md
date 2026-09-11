@@ -1,5 +1,8 @@
 # 状态条件 HOI/HSI Prior 组合的 HOSI 实验计划（导航页）
 
+2026-09-11 已完成：[Phase 5.6.1 数据集动作 benchmark](phase_summaries/PHASE_5I_DATASET_BENCHMARK.md)，
+128 条独立推理条件、99 个内部截点、16 个预览；全部源动作与过渡通过最终验收。
+
 2026-09-11 当前入口：[Phase 5.6.1 数据集动作 benchmark](plan/PHASE_5_INFERENCE.md)。
 按用户澄清重新筛选双向 OMOMO/LINGO 片段和站立接点，构造过渡并导出推理条件。
 

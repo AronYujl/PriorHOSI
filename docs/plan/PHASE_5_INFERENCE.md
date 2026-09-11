@@ -1197,3 +1197,25 @@ old corrected motions and the provisional publication. This fixes the original
 correction objective; no second repair is applied to its previous output.
 Use fresh bridge and publication run IDs. Add gradient/continuity regression
 tests and rerun the authority suite. All work remains inside 5.6.1.
+
+### Phase 5.6.1 completion
+
+Completed: 153 source candidates, one Kimodo draw each, followed by the corrected
+native pass using the same complete input arrays. 132 constructions pass every
+gate; 21 fail the 15° angular-step bound and remain recorded. The fixed order
+publishes 128 tasks (72 OMOMO→LINGO, 56 LINGO→OMOMO) with four passing reserves.
+99 use interior LINGO cuts. Source actions are intact, original 469 rows are
+unchanged, and model input contains only initial state, geometry, text/goals and
+timing. Expert forward passes and training runs are zero.
+
+The final table covers 128 LINGO spans, 18 source scene families, 17 OMOMO
+motions, 23 original task anchors and 17 target scenes. Static coverage remains
+zero after 1,536 explicit attempts; support, standing and scene failures remain
+visible. Maximum final body/scene penetration is 9.683 mm; maximum free-bridge
+rotation step is 14.756°. All 153 motions/58,043 frames and 128 condition records
+passed artifact checks, and 16 videos passed frame/fps checks. Full tests:
+1200 passed, 4 historical skips. Read the
+[completion summary](../phase_summaries/PHASE_5I_DATASET_BENCHMARK.md) for the
+two retained failed construction stages, limits and exact data entry points.
+This construction subphase is closed; further static coverage or model
+evaluation receives its own registered protocol.

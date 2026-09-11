@@ -1,5 +1,12 @@
 # Multi-task HOSI dataset benchmark
 
+Released 2026-09-11: [128 inference tasks](../experiments/tasks/p5_dataset_benchmark_s42_20260911.json),
+[videos](../results/experiments/p5-benchmark-dataset-release-r1-s42-20260911/benchmark/review.md),
+and [construction summary](phase_summaries/PHASE_5I_DATASET_BENCHMARK.md).
+There are 72 OMOMO→LINGO and 56 LINGO→OMOMO episodes; 99 use interior cuts.
+All released LINGO intervals contain locomotion. Static interaction coverage is
+zero under this search recipe. The earlier geometry-only release is superseded.
+
 Current contract: Phase 5.6.1, clarified by the user on 2026-09-11. An episode
 combines **dataset OMOMO + dataset LINGO**, in either order, with a short Kimodo
 inbetween construction witness. Model inference later consumes initial state,
@@ -77,6 +84,10 @@ Kimodo trajectory. Each episode includes `initial_context`, `body_identity`,
 `frame_count` and `duration_s`. Segments supply human goals and, for OMOMO,
 object position/orientation goals. LINGO seated actions have support targets.
 Goals and durations describe the selected interval, including its internal cut.
+
+World coordinates are Y-up metres. Object PLY files use the original InfBaGel
+rest-mesh convention; apply its `zup_to_yup` conversion before the supplied
+world object rotation and translation, as in the native evaluation code.
 
 A model carries achieved state continuously across segments. LINGO's object
 policy is `stationary_at_achieved_boundary_transform`; scene and task goals
