@@ -139,6 +139,11 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 直接位置通道的FID与FK身体的物理指标。R2+CG继续作为基线；后继先隔离学生采样与表示差异。
 交接：[CM1 教师轨迹诊断](../phase_summaries/PHASE_1C_CM1_DDIM.md)。
 
+2026-09-11：R4教师GT身体FK配方联合验收失败，保留修正后的R2+CG。随后CM2.1固定
+同状态终点诊断完成：2184状态、8项主比较同时区间均显示学生body/边界误差更大；
+优先提出低噪声身体终点保真蒸馏。新目标有效性尚待实验，下一训练未启动。
+交接：[CM2同状态终点诊断](../phase_summaries/PHASE_1C_CM2_ALIGNMENT.md)。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
