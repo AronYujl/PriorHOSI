@@ -13937,3 +13937,34 @@ latency任务；其已解析配置及取消记录保留于setup，无manifest、
 Table3和最终表示诊断。指标、样本、统计判据和80GPU-h上限保持原注册值。
 首个最终权重身份由final-unguided manifest登记，后续任务引用；单卡teacher-forced
 与Table3仍是质量诊断，执行耗时仅记录资源成本。本轮不测教师单卡时延或宣称其速度。
+
+### 2026-09-11 R4.2完成：GT身体FK配方未通过教师验收
+
+七项GPU全部exit0：epoch19单步352/364窗、60条364窗rollout及表示，最终U/G各375条
+2271窗、固定Table3和最终表示。19份paired bootstrap及family10/family6同时区间完成。
+原统计脚本在导入Diversity同级模块时失败；按生产loader补齐sys.path后复用17份已完成
+报告，补齐2份语义配对和全部汇总。原失败日志、pipeline exit1及恢复exit0全部保留。
+
+R2→R4 U/G body21分歧(cm)：0.79425/0.88703→0.93482/1.03561；pen_ratio
+0.030818/0.021884→0.034900/0.025702；FS0.286728/0.272221→0.310904/0.330189；
+boundary jerk108.045/142.686→119.348/137.586。十主量7项同时区间明确退化、0项改善、
+3项不确定。G boundary jerk下降区间跨0，U/G exterior contact保持≥95%R2，接触守卫通过。
+
+FID U38.41515→47.33550、G40.04968→58.21284；G差值+18.16316同时CI
+[5.64912,32.19248]。MM U9.23861→9.78619、G8.90005→9.76487；R@3
+U0.41518→0.36161、G0.43304→0.39732。R@3差值区间均跨0，但两组FID/MM/R@3
+均值均越过预注册5%保真界限。U交互到达改善、G总接触增加等次级正结果完整保留。
+
+holdout355低骨盆walk U8/G14条，上限2条，安全门均失败；>5g U2条3帧、G3条4帧
+在上限8/38内。G最差045-new_loco:009708最低pelvis0.127153m。最终750条轨迹均有限。
+epoch19 EMA开发60条body分歧61.0207cm，描述较小预算快照；最终按完整预算独立验收。
+
+最终EMA214参数与终点状态一致，所有训练loss/grad有限，update79梯度峰91848576
+保留且不做因果归因。R2/R4的FID IDs及GT embeddings逐值一致，主量/MM/R@3
+CI与paired_bootstrap一致。运行代码保持，沿用authority476/3及定向56；本次只做归档
+及registry校验。评估60.994722GPU-h<80，R4全部成本含原中止运行157.776749GPU-h。
+
+报告/compact：experiments/results/p1_hsi_r4_fk_acceptance_s42_20260911.{md,json}；
+交接docs/phase_summaries/PHASE_1C_R4_FK.md。R4表示、物理、FID/语义、安全联合门失败，
+保留修正后的R2+CG。R4实验完成并封存负结果，Phase1C保持开放；后继仅审阅，具体新实验
+需另行批准。本轮没有新增训练、蒸馏或单卡教师时延实验。

@@ -82,3 +82,13 @@ rollout/body readouts, finalU/G single-card latency/full375 quality, frozenTable
 representation. Read the dated R4.2 section for exact pairings, uncertainty, input reuse
 and cost. Training audit: experiments/results/p1_hsi_r4_fk_training_s42_20260911.json.
 No additional training or checkpoint selection is authorized by this handoff.
+
+## Final acceptance handoff
+
+R4 acceptance completed with a failed gate. The authoritative final summary is
+docs/phase_summaries/PHASE_1C_R4_FK.md and the report is
+experiments/results/p1_hsi_r4_fk_acceptance_s42_20260911.md. Seven GPU workloads and
+19 paired reports are complete; the initial statistics import failure was recovered.
+The user canceled teacher single-card latency. Use final_completion.json in the
+evaluation setup directory to distinguish recovered completion from the retained
+first-attempt pipeline exit1. Preserve corrected R2+CG as baseline.
