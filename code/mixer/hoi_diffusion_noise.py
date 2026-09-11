@@ -291,6 +291,102 @@ class JointMotionObjective:
         return dict(zip(self.term_names, self.last_terms))
 
 
+def manipulation_contact_mask(distances, object_position, targets):
+    """Fix a main hand and fill its manipulation interval from source geometry."""
+    contact = distances < .05
+    counts = contact.sum(0)
+    tied = counts == counts.max()
+    main = int(distances.mean(0).masked_fill(~tied, float('inf')).argmin())
+    moving = torch.zeros(len(distances), dtype=torch.bool, device=distances.device)
+    moving[1:] = (object_position[1:]-object_position[:-1]).norm(dim=-1)*30 > targets['object_motion_speed_m_s']
+    active = torch.where(contact.any(-1) | moving)[0]
+    mask = contact.clone()
+    interval = None
+    if len(active):
+        interval = (int(active[0]), int(active[-1])+1)
+        mask[interval[0]:interval[1], main] = True
+    mask[:3] = False
+    return mask, main, interval
+
+
+class MetricMotionObjective(JointMotionObjective):
+    """Repair grasp, collision and stance quality on the generated native motion."""
+    term_names = ('body', 'contact', 'grasp_velocity', 'stance_height', 'stance_speed',
+                  'local_velocity', 'trajectory_acceleration', 'goal', 'human_scene',
+                  'object_scene', 'human_object', 'human_clearance', 'object_clearance', 'domain')
+
+    @torch.no_grad()
+    def __init__(self, source, model, object_vertices, sdf, info, task, baseline, scales,
+                 targets, object_sdf, object_info):
+        super().__init__(source, model, object_vertices, sdf, info, task, baseline, scales)
+        self.targets = targets
+        device = source['pose'].device
+        self.object_sdf = torch.as_tensor(object_sdf, dtype=torch.float32, device=device)[None]
+        self.object_centroid = torch.as_tensor(object_info['centroid'], dtype=torch.float32, device=device)[None]
+        self.object_extent = torch.as_tensor(object_info['extents'], dtype=torch.float32, device=device)[None]
+        self.distances = torch.cat([native_hand_distances(source['joints'][lo:lo+24], self.objects(
+            source['object_translation'][lo:lo+24], source['object_rotation'][lo:lo+24], object_vertices))
+            for lo in range(0, self.length, 24)])
+        self.contact_mask, self.main_hand, self.contact_interval = manipulation_contact_mask(
+            self.distances, source['object_translation'], targets)
+        self.contact_pairs = self.contact_mask[1:] & self.contact_mask[:-1]
+        self.contact_count, self.contact_pair_count = int(self.contact_mask.sum()), int(self.contact_pairs.sum())
+
+    def object_signed(self, vertices, position, rotation):
+        from eval_metrics import compute_signed_distances
+        from utils import yup_to_zup, yup_to_zup_rotation_matrix
+        local = yup_to_zup(vertices)-yup_to_zup(position)[:, None]
+        local = (yup_to_zup_rotation_matrix(rotation).transpose(1, 2) @ local.transpose(1, 2)).transpose(1, 2)
+        return compute_signed_distances(self.object_sdf, self.object_centroid, self.object_extent, local)
+
+    def scene_signed(self, points):
+        normalized = (points.float()-self.scene.centroid.reshape(1, 1, 3))/(self.scene.extent/2)
+        values = torch.nn.functional.grid_sample(self.scene.sdf,
+            normalized[:, :, [2, 1, 0]].reshape(1, -1, 1, 1, 3), padding_mode='border', align_corners=True)
+        return values.reshape(points.shape[:2])*self.scene.extent/2
+
+    def chunk_terms(self, pose, joints, vertices, object_position, object_rotation, start, lo, stop):
+        source, scales, targets, length = self.source, self.scales, self.targets, self.length
+        offset = lo-start
+        reference_vertices, reference_joints = self.reference_chunks[start, stop]
+        local = root_local_body(pose, joints)
+        local_delta = local-root_local_body(source['pose'][start:stop], reference_joints)
+        body = local_delta[offset:].square().sum()/(length*28*3*scales['body_m']**2)
+        objects_full = self.objects(object_position[offset:], object_rotation[offset:], self.object_vertices)
+        distance = native_hand_distances(joints[offset:], objects_full)
+        contact = ((distance-targets['contact_distance_m']).clamp_min(0).square()*
+                   self.contact_mask[lo:stop]).sum()/(max(self.contact_count, 1)*targets['contact_scale_m']**2)
+        first_link = max(lo, 1)-start-1
+        hands = object_frame_hands(joints, object_position, object_rotation)
+        grasp_velocity = (((hands[1:]-hands[:-1])*30)[first_link:].square().sum(-1)*
+            self.contact_pairs[max(lo, 1)-1:stop-1]).sum()/(max(self.contact_pair_count, 1)*3*targets['grasp_speed_m_s']**2)
+        feet, ref_feet = joints[:, FEET], reference_joints[:, FEET]
+        height = ((feet[offset:, :, 1]-ref_feet[offset:, :, 1]).square()*self.stance[lo:stop]).sum()/(max(self.counts['stance'], 1)*scales['stance_height_m']**2)
+        velocity = (feet[1:, :, (0, 2)]-feet[:-1, :, (0, 2)])*30
+        slip = (velocity[first_link:].square().sum(-1)*self.stance_pairs[max(lo, 1)-1:stop-1]).sum()/(max(self.counts['pairs'], 1)*scales['stance_speed_m_s']**2)
+        local_velocity = ((local_delta[1:]-local_delta[:-1])*30)[first_link:].square().sum()/((length-1)*28*3*scales['local_velocity_m_s']**2)
+        route = torch.stack((joints[:, 0]-reference_joints[:, 0], object_position-source['object_translation'][start:stop]), 1)
+        first_second = max(lo, 2)-start-2
+        acceleration = ((route[2:]-2*route[1:-1]+route[:-2])*900)[first_second:].square().sum()/((length-2)*2*3*scales['trajectory_acceleration_m_s2']**2)
+        goal = body.new_zeros(())
+        if stop == length:
+            human_error = joints[-1, 0, (0, 2)]-joints.new_tensor(self.task['pelvis_goal'])[[0, 2]]
+            object_error = object_position[-1]-object_position.new_tensor(self.task['object_goal'])
+            goal = (human_error.square().sum()+object_error.square().sum())/(5*scales['goal_m']**2)
+        objects = self.objects(object_position[offset:], object_rotation[offset:], self.scene_object_vertices)
+        ref_objects = self.objects(source['object_translation'][lo:stop], source['object_rotation'][lo:stop], self.scene_object_vertices)
+        signed_h, signed_o = self.scene_signed(vertices[offset:]), self.scene_signed(objects)
+        hs = (-signed_h).clamp_min(0).sum()/(length*self.hs_scale)
+        os = (-signed_o).clamp_min(0).sum()/(length*self.os_scale)
+        human_object = (-self.object_signed(vertices[offset:], object_position[offset:], object_rotation[offset:])).clamp_min(0).sum()/(length*targets['human_object_sum_m'])
+        clearance = [targets['clearance_weight']*(targets['clearance_margin_m']-signed.amin(-1)).clamp_min(0).square().sum()/(length*targets['clearance_scale_m']**2) for signed in (signed_h, signed_o)]
+        outside_h = (self.outside(vertices[offset:])-self.outside(reference_vertices[offset:])).clamp_min(0).square().sum()/(length*vertices.shape[1])
+        outside_o = (self.outside(objects)-self.outside(ref_objects)).clamp_min(0).square().sum()/(length*objects.shape[1])
+        return torch.stack((body, contact, grasp_velocity, height, slip, local_velocity,
+                            acceleration, goal, hs, os, human_object, *clearance,
+                            (outside_h+outside_o)/scales['domain_m']**2))
+
+
 @torch.no_grad()
 def motion_measures(objective, motion):
     source = objective.source
@@ -447,7 +543,8 @@ def optimize_hoi_latent(decoder, objective, initial, view, settings, destination
 
 
 def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, baseline,
-                 task, ordinal, protocol, destination, commit, resume=False):
+                 task, ordinal, protocol, destination, commit, resume=False,
+                 object_sdf=None, object_info=None, previous_inputs=None):
     from utils import run_smplx_model, SMPLX_JOINTS_28
     started = time.perf_counter()
     decoder = HOIDDIM(teacher, windows, ddpm_source, model, task, ordinal, protocol['method'])
@@ -455,6 +552,10 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
     with torch.no_grad():
         torch.cuda.synchronize(decoder.device); began = time.perf_counter()
         prediction = decoder.sample(initial)
+        if previous_inputs is not None:
+            previous = torch.load(previous_inputs, map_location=decoder.device, weights_only=False)
+            assert torch.equal(initial, previous['initial'])
+            assert torch.equal(prediction, previous['source_prediction']), 'previous DDIM source differs'
         torch.cuda.synchronize(decoder.device); generation_seconds = time.perf_counter()-began
         source = dict(ddpm_source, **dict(zip(('pose', 'translation', 'object_translation', 'object_rotation'), decoder.native(prediction))))
         source['verts'], source['joints'] = decode_body(source, model)
@@ -473,8 +574,11 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
         coarse_fk_error = float((torch.cat(native_coarse).reshape(-1, 16, 24, 3)-decoder.coarse_body(prediction)).abs().max())
         assert coarse_fk_error <= 1e-5, coarse_fk_error
     object_vertices = teacher.dataset.obj_rest_verts[task['object_name']]
-    objective = JointMotionObjective(source, model, object_vertices, sdf, info, task, source_metrics,
-                                    protocol['method']['physical_scales'])
+    targets = protocol['method'].get('metric_targets')
+    arguments = (source, model, object_vertices, sdf, info, task, source_metrics,
+                 protocol['method']['physical_scales'])
+    objective = (JointMotionObjective(*arguments) if targets is None else
+                 MetricMotionObjective(*arguments, targets, object_sdf, object_info))
     metrics = {}
 
     @torch.no_grad()
@@ -492,9 +596,23 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
         print(json.dumps(dict(task=ordinal, stage=name, hs=row['scene_human_penetration_s_mean'],
             os=row['scene_obj_penetration_s_mean'], contact=row['contact_percent'],
             hand_cm=row['active_hand_mean_drift_cm'])), flush=True)
+        return row
 
     record('DDPM_reference', ddpm_source, baseline)
     record('source', source, source_metrics, prediction)
+    postprocess = {}
+    if targets is not None:
+        mask_path = destination/'contact-targets.pt'
+        if not mask_path.exists():
+            with mask_path.open('xb') as handle:
+                torch.save(dict(mask=objective.contact_mask.cpu(), pairs=objective.contact_pairs.cpu(),
+                    source_distances_m=objective.distances.cpu(), source_contact=objective.hand_mask.cpu(),
+                    source_stance=objective.stance.cpu(), main_hand=objective.main_hand,
+                    interval=objective.contact_interval, count=objective.contact_count,
+                    pair_count=objective.contact_pair_count, targets=targets), handle)
+        for name, motion in [('DDPM_reference', ddpm_source), ('source', source)]:
+            postprocess[name] = postprocess_hoi_motion(name, motion, metrics[name], model,
+                object_vertices, sdf, info, task, evaluate, destination, record, resume)
     inputs_path = destination/'inputs.pt'
     if inputs_path.exists():
         old_inputs = torch.load(inputs_path, map_location='cpu', weights_only=False)
@@ -517,6 +635,10 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
             human=abs(terms['human_scene']-source_metrics['scene_human_penetration_s_mean']/objective.hs_scale),
             object=abs(terms['object_scene']-source_metrics['scene_obj_penetration_s_mean']/objective.os_scale))
         assert max(normalized_error.values()) <= 1e-5, normalized_error
+        if targets is not None:
+            human_object = terms['human_object']*targets['human_object_sum_m']
+            normalized_error['human_object'] = abs(human_object-source_metrics['human_pen_loss_infbagel'])/max(source_metrics['human_pen_loss_infbagel'], 1.)
+            assert normalized_error['human_object'] <= 1e-5, normalized_error
         write_json(physical_path, dict(terms=terms, counts=objective.counts, native_hs_error=source_hs_error,
             native_os_error=source_os_error, normalized_scene_error=normalized_error,
             source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
@@ -549,6 +671,9 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
             motion = dict(source, **dict(zip(('pose', 'translation', 'object_translation', 'object_rotation'), decoder.native(predicted))))
             motion['verts'], motion['joints'] = decode_body(motion, model)
         record(name, motion, predicted=predicted)
+        if targets is not None:
+            postprocess[name] = postprocess_hoi_motion(name, motion, metrics[name], model,
+                object_vertices, sdf, info, task, evaluate, destination, record, resume)
         path = destination/(name+'-gradient.json')
         if path.exists():
             audits[name] = json.loads(path.read_text())
@@ -559,13 +684,59 @@ def hoi_dno_task(teacher, windows, ddpm_source, model, sdf, info, evaluate, base
                 torch.save({k:v.cpu() for k,v in gradients.items()}, handle)
     torch.cuda.synchronize(decoder.device)
     return dict(task=ordinal, scene=task['scene_name'], object=task['object_name'],
-        means=metrics, gradients=audits, windows=len(windows), native_frames=len(source['pose']),
+        means=metrics, gradients=audits, postprocess=postprocess,
+        windows=len(windows), native_frames=len(source['pose']),
         source_replay_exact=True, coarse_fk_native_max_error_m=coarse_fk_error,
         source_fk_reference_max_error_m=objective.source_fk_reference_max_error_m,
         source_generation_seconds=generation_seconds,
         source_replay_seconds=replay_seconds, seconds=time.perf_counter()-started,
         hoi_calls=decoder.hoi_calls, hsi_calls=teacher.calls,
         peak_memory_gib=torch.cuda.max_memory_allocated(decoder.device)/1024**3)
+
+
+def postprocess_hoi_motion(name, source, before, model, object_vertices, sdf, info,
+                           task, evaluate, destination, record, resume):
+    """Apply the frozen relation20 and terminal rule to each complete raw arm."""
+    from .surface_edit import SurfaceProblem, apply_terminal_repair
+    device = source['pose'].device
+    torch.cuda.synchronize(device); began = time.perf_counter()
+    relation_name, final_name = name+'_relation', name+'_final'
+    relation_path = destination/(relation_name+'.pt')
+    solver_path = destination/(relation_name+'-solver.pt')
+    if resume and solver_path.exists() and relation_path.exists():
+        relation = torch.load(relation_path, map_location=device, weights_only=False)
+        relation['verts'], _ = decode_body(relation, model)
+        solve = torch.load(solver_path, map_location='cpu', weights_only=False)
+    else:
+        problem = SurfaceProblem(source, model, object_vertices, sdf, info,
+                                 before['feet_height']/100, task, 'relation_20', .2, 20)
+        with torch.no_grad():
+            risk = 0.
+            for lo in range(0, len(source['joints']), 24):
+                hi = min(lo+24, len(source['joints']))
+                for vertices in (source['verts'][lo:hi], problem.objects(
+                        source['object_translation'][lo:hi], source['object_rotation'][lo:hi])):
+                    risk += float((-problem.signed(vertices)).clamp_min(0).sum()/(len(source['joints'])*vertices.shape[1]))
+        if risk == 0:
+            relation, solve = source, dict(trace=[], steps=0, optimization_seconds=0., best_iteration=0, parameters=None)
+        else:
+            relation, solve = problem.solve(20 if risk <= .005 else 40)
+        solve['source_mean_depth_m'] = risk
+    row = record(relation_name, relation)
+    if not solver_path.exists():
+        with solver_path.open('xb') as handle: torch.save(solve, handle)
+    torch.cuda.synchronize(device); relation_seconds = time.perf_counter()-began
+    final, terminal, candidate, parameters = apply_terminal_repair(
+        relation, row, model, object_vertices, sdf, info, task, evaluate)
+    record(final_name, final, terminal['metrics'])
+    candidate_path = destination/(name+'-terminal-candidate.pt')
+    if not candidate_path.exists():
+        with candidate_path.open('xb') as handle:
+            torch.save(dict(motion={k:v.detach().cpu() if torch.is_tensor(v) else v
+                                   for k,v in candidate.items() if k != 'verts'},
+                            parameters=parameters, **terminal), handle)
+    return dict(relation={k:v for k,v in solve.items() if k != 'parameters'},
+                relation_seconds_including_evaluation=relation_seconds, terminal=terminal)
 
 
 def edit_protections(current, source):
@@ -589,7 +760,7 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
     tasks = json.loads(Path(task_manifest).read_text())['tasks']
     records = [json.loads(p.read_text()) for p in sorted(run_root.glob('lanes/*/task-*/metrics.json'))]
     assert len(records) == len(tasks) and {r['task'] for r in records} == {t['canonical_ordinal'] for t in tasks}
-    arms = ('DDPM_reference', 'source', 'G', 'C', 'W')
+    arms = tuple(records[0]['means'])
     keys = tuple(records[0]['means']['source'])
     scenes = sorted({r['scene'] for r in records})
     def mean(rows):
@@ -599,6 +770,11 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
     by_scene = {a:{s:mean([r['means'][a] for r in records if r['scene'] == s]) for s in scenes} for a in arms}
     means = {a:mean([r['means'][a] for r in records]) for a in arms}
     pairs = [('source', 'DDPM_reference')] + [(a, 'source') for a in ('G', 'C', 'W')] + [('C', 'G'), ('C', 'W'), ('C', 'DDPM_reference')]
+    if 'C_final' in arms:
+        for stage in ('relation', 'final'):
+            pairs += [(a+'_'+stage, 'source_'+stage) for a in ('G', 'C', 'W')]
+            pairs += [('C_'+stage, b+'_'+stage) for b in ('G', 'W', 'DDPM_reference')]
+        pairs += [(a+'_final', a) for a in ('DDPM_reference', 'source', 'G', 'C', 'W')]
     contrasts = {a+'__minus__'+b:{unit:paired_local_metrics(values[b], values[a], device)
         for unit, values in [('task', by_task), ('scene', by_scene)]} for a,b in pairs}
     protections = {a:{str(r['task']):edit_protections(r['means'][a], r['means']['source']) for r in records}
@@ -631,6 +807,37 @@ def summarize_hoi_dno(run_root, task_manifest, device='cuda:0'):
         task_seconds_sum=sum(r['seconds'] for r in records), peak_memory_gib=max(r['peak_memory_gib'] for r in records),
         source_replay_exact=all(r['source_replay_exact'] for r in records),
         test_set_development=True, timing_comparison_valid=False)
+    if 'C_final' in arms:
+        c, b, g, w, old = [means[a+'_final'] for a in ('C', 'source', 'G', 'W', 'DDPM_reference')]
+        def metric_protection(current, reference):
+            result = edit_protections(current, reference)
+            del result['hand_drift']
+            result.update(completion=current['completed'] >= reference['completed'],
+                hs=current[hs] <= 1.01*reference[hs], os=current[os] <= 1.01*reference[os],
+                hs_frames=current['scene_human_penetration_frame_ratio'] <= reference['scene_human_penetration_frame_ratio']+.002,
+                os_frames=current['scene_obj_penetration_frame_ratio'] <= reference['scene_obj_penetration_frame_ratio']+.002)
+            return result
+        final_protections = {a:{str(r['task']):metric_protection(r['means'][a+'_final'], r['means']['source_final'])
+            for r in records} for a in ('G', 'C', 'W')}
+        final_aggregate = metric_protection(c, b)
+        final_aggregate['completion_ddpm'] = c['completed'] >= old['completed']
+        final_aggregate['initial'] = all(r['initial'] for r in final_protections['C'].values())
+        progress = dict(contact=c['contact_percent'] >= b['contact_percent']+.02,
+            human_object=c['human_pen_loss_infbagel'] <= .9*b['human_pen_loss_infbagel'],
+            foot_sliding=c['foot_sliding'] <= .9*b['foot_sliding'],
+            protection=all(v for v in final_aggregate.values() if v is not None))
+        scene_conditions = dict(extra_hsi_hs=c[hs] <= .99*g[hs],
+                                correct_scene=c[hs]-w[hs] <= -.005*b[hs])
+        objects = sorted({r['object'] for r in records})
+        summary.update(raw_conditions=summary['conditions'], raw_utility=summary['utility'],
+            conditions=progress, utility=all(progress.values()), hsi_conditions=scene_conditions,
+            hsi_scene_utility=all(scene_conditions.values()), final_aggregate_protection=final_aggregate,
+            final_protections=final_protections,
+            final_protection_pass_counts={a:sum(all(v for v in r.values() if v is not None)
+                for r in rows.values()) for a,rows in final_protections.items()},
+            object_means={obj:{a:mean([r['means'][a] for r in records if r['object']==obj]) for a in arms} for obj in objects},
+            relation_seconds_sum=sum(v['relation_seconds_including_evaluation'] for r in records for v in r['postprocess'].values()),
+            terminal_seconds_sum=sum(v['terminal']['solver']['arm_seconds_including_evaluation'] for r in records for v in r['postprocess'].values()))
     output = run_root/'analysis'; output.mkdir()
     write_json(output/'summary.json', summary); write_json(output/'records.json', records)
     for arm in arms:

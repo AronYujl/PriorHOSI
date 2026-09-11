@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import torch
+import pytest
 from pytorch3d import transforms
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'code'))
@@ -235,7 +236,8 @@ def test_hoi_teacher_targets_use_paired_noise_and_only_change_scene_arguments(mo
     assert (gradient[..., 216:] == 0).all()
 
 
-def test_hoi_dno_optimizer_resume_reproduces_uninterrupted_edit(tmp_path, monkeypatch):
+@pytest.mark.parametrize('diff_penalty_scale', [0., .01])
+def test_hoi_dno_optimizer_resume_reproduces_uninterrupted_edit(tmp_path, monkeypatch, diff_penalty_scale):
     import pytest
     import mixer.hoi_diffusion_noise as module
     monkeypatch.setattr(module.torch.cuda, 'synchronize', lambda *a: None)
@@ -261,7 +263,7 @@ def test_hoi_dno_optimizer_resume_reproduces_uninterrupted_edit(tmp_path, monkey
         def term_record(self):
             return dict(body=self.value)
     initial = torch.tensor([[[[.8, 1.1, .4, -.2]]]])
-    settings = dict(editing_steps=6, checkpoint_every=2, lr=.05, warmup=0, diff_penalty_scale=.01, hsi_weight=.25)
+    settings = dict(editing_steps=6, checkpoint_every=2, lr=.05, warmup=0, diff_penalty_scale=diff_penalty_scale, hsi_weight=.25)
     def destination(name):
         path = tmp_path/name; path.mkdir()
         return dict(repository='/data/yujinlun/Diffusion-Noise-Optimization', path=path, commit='fixture', memory_limit=8.)
@@ -571,3 +573,142 @@ def test_empty_contact_stance_and_boundary_sets_have_zero_physical_contribution(
     assert terms['body']>0
     assert all(terms[k]==0 for k in ['hand','stance','boundary','seam_velocity'])
     assert torch.isfinite(pose.grad).all() and torch.isfinite(translation.grad).all()
+
+
+def test_manipulation_target_fills_contact_gaps_and_preserves_initial_history():
+    from mixer.hoi_diffusion_noise import manipulation_contact_mask
+    distance = torch.tensor([[.09, .1], [.09, .1], [.04, .1], [.04, .1],
+                             [.08, .1], [.09, .04], [.08, .1], [.04, .1], [.09, .1]])
+    position = torch.zeros(9, 3)
+    mask, hand, interval = manipulation_contact_mask(distance, position, dict(object_motion_speed_m_s=.01))
+    assert hand == 0 and interval == (2, 8)
+    assert not mask[:3].any() and mask[3:8, 0].all() and not mask[8].any()
+    assert mask[:, 1].nonzero().flatten().tolist() == [5]
+    # Translation establishes manipulation even when the source never engages.
+    position[:, 0] = torch.arange(9)*.01
+    mask, hand, interval = manipulation_contact_mask(torch.ones(9, 2)*.2, position,
+                                                     dict(object_motion_speed_m_s=.01))
+    assert hand == 0 and interval == (1, 9) and mask[3:, 0].all()
+
+
+def _metric_motion_fixture(monkeypatch):
+    import json
+    import utils
+    from mixer.hoi_diffusion_noise import MetricMotionObjective
+    length = 53
+    offsets = torch.linspace(-.02, .02, 28, dtype=torch.double)[:, None].expand(-1, 3).clone()
+    offsets[24] = torch.tensor([.12, .02, .01])
+    offsets[26] = torch.tensor([-.14, .01, .02])
+    def body(pose, translation, *args, **kwargs):
+        joints = pose[:, :1]+translation[:, None]+offsets
+        return joints, joints
+    monkeypatch.setattr(utils, 'run_smplx_model', body)
+    p = torch.zeros(length, 22, 3, dtype=torch.double)
+    t = torch.zeros(length, 3, dtype=torch.double)
+    t[:, 0] = torch.linspace(0, .1, length)
+    op = torch.zeros_like(t); op[:, 0] = torch.linspace(0, .02, length)
+    rotation = transforms.axis_angle_to_matrix(torch.ones(length, 3, dtype=torch.double)*.02)
+    vertices, joints = body(p, t)
+    source = dict(pose=p, translation=t, object_translation=op, object_rotation=rotation,
+                  joints=joints, verts=vertices, betas=None, gender=None)
+    protocol = json.loads((Path(__file__).resolve().parents[2]/
+        'experiments/protocols/p2_hoi_dno_metrics_s42_20260911.json').read_text())['method']
+    grid = torch.linspace(-1, 1, 9)[:, None, None].expand(9, 9, 9).clone()-.1
+    obj = torch.tensor([[.01, .01, .01], [-.01, -.01, -.01], [.01, -.01, .01]], dtype=torch.double)
+    objective = MetricMotionObjective(source, None, obj, grid,
+        dict(centroid=[0., 0., 0.], extents=[2., 2., 2.]),
+        dict(scene_name='fixture', test_idx=0, pelvis_goal=[.2, 0., .1], object_goal=[.1, .1, .1]),
+        dict(feet_height=0., scene_human_penetration_s_mean=1., scene_obj_penetration_s_mean=1.),
+        protocol['physical_scales'], protocol['metric_targets'], grid,
+        dict(centroid=[0., 0., 0.], extents=[2., 2., 2.]))
+    objective.reference_chunks[0, length] = (vertices, joints)
+    return source, objective, body
+
+
+def test_metric_objective_repairs_source_contact_slip_and_collision(monkeypatch):
+    source, objective, body = _metric_motion_fixture(monkeypatch)
+    values = [source[k].clone().requires_grad_(True) for k in
+              ('pose', 'translation', 'object_translation', 'object_rotation')]
+    for term in ('contact', 'stance_speed', 'human_object'):
+        objective.weights = [float(name == term) for name in objective.term_names]
+        loss = objective(*values)
+        gradients = torch.autograd.grad(loss, values)
+        assert float(loss) > 0
+        assert sum(float(g.square().sum()) for g in gradients) > 0
+        # A small actual motion step in the computed direction must repair it.
+        scale = 1e-6/max(float(g.abs().max()) for g in gradients)
+        stepped = [v.detach()-scale*g for v,g in zip(values, gradients)]
+        assert float(objective(*stepped)) < float(loss)
+
+
+def test_metric_objective_overlap_matches_full_derivatives(monkeypatch):
+    source, objective, body = _metric_motion_fixture(monkeypatch)
+    torch.manual_seed(42)
+    values = [(source[k]+torch.randn_like(source[k])*.0003).requires_grad_(True) for k in
+              ('pose', 'translation', 'object_translation', 'object_rotation')]
+    objective.weights = [1.+i*.07 for i in range(len(objective.term_names))]
+    actual = objective(*values)
+    gradients = torch.autograd.grad(actual, values)
+    p, t, op, rotation = values
+    vertices, joints = body(p, t)
+    terms = objective.chunk_terms(p, joints, vertices, op, rotation, 0, 0, len(p))
+    expected = (terms*terms.new_tensor(objective.weights)).sum()
+    expected_gradients = torch.autograd.grad(expected, values)
+    torch.testing.assert_close(actual, expected, atol=1e-6, rtol=1e-7)
+    for a,b in zip(gradients, expected_gradients):
+        torch.testing.assert_close(a, b, atol=1e-6, rtol=1e-6)
+
+
+def test_metric_object_sdf_matches_native_frame_and_value(monkeypatch):
+    import numpy as np
+    from eval_metrics import compute_collision
+    from utils import yup_to_zup, yup_to_zup_rotation_matrix
+    source, objective, _ = _metric_motion_fixture(monkeypatch)
+    vertices = source['verts'].float().requires_grad_(True)
+    position = source['object_translation'].float().requires_grad_(True)
+    rotation = source['object_rotation'].float().requires_grad_(True)
+    actual = (-objective.object_signed(vertices, position, rotation)).clamp_min(0).mean()*100
+    expected, _ = compute_collision(yup_to_zup(vertices), objective.object_sdf[0].numpy(),
+        dict(centroid=[0., 0., 0.], extents=[2., 2., 2.]),
+        yup_to_zup_rotation_matrix(rotation), yup_to_zup(position))
+    np.testing.assert_allclose(float(actual), expected, rtol=1e-7, atol=1e-7)
+    gradients = torch.autograd.grad(actual, (vertices, position, rotation))
+    assert all(torch.isfinite(g).all() and g.abs().sum() > 0 for g in gradients)
+
+
+def test_metric_chain_summary_uses_matched_final_reference_and_separate_hsi_gate(tmp_path):
+    import json
+    from mixer.hoi_diffusion_noise import summarize_hoi_dno
+    baseline = dict(completed=True, contact_percent=.6, source_floor_support_fraction=.8,
+        foot_sliding=.2, active_hand_samples=20, source_hand_contact_retention=1.,
+        active_hand_mean_drift_cm=2., root_local_body_mean_drift_cm=1.,
+        nonroot_rotation_mean_change_deg=1., seam_speed_mean_cm_s=10.,
+        trajectory_acceleration_mean_cm_s2=20., initial_body_max_error_m=0.,
+        initial_object_max_error_m=0., initial_object_rotation_max_error=0.,
+        scene_human_penetration_s_mean=1., scene_obj_penetration_s_mean=1.,
+        scene_human_penetration_frame_ratio=.3, scene_obj_penetration_frame_ratio=.3,
+        human_pen_loss_infbagel=10.)
+    raw = ('DDPM_reference', 'source', 'G', 'C', 'W')
+    for task in range(2):
+        folder = tmp_path/'lanes'/'lane-00'/f'task-{task:03d}'
+        folder.mkdir(parents=True)
+        means = {a+stage:dict(baseline) for a in raw for stage in ('', '_relation', '_final')}
+        # A misleading raw reference cannot grant progress: only matched final
+        # outputs enter the registered metric decision.
+        means['source']['foot_sliding'] = .1
+        for a in ('G', 'C', 'W'):
+            means[a+'_final'].update(contact_percent=.7, human_pen_loss_infbagel=8., foot_sliding=.17)
+        post = {a:dict(relation_seconds_including_evaluation=1.,
+                      terminal=dict(solver=dict(arm_seconds_including_evaluation=1.))) for a in raw}
+        (folder/'metrics.json').write_text(json.dumps(dict(task=task, scene=f'scene{task}',
+            object='fixture', means=means, postprocess=post, windows=1, native_frames=48,
+            hoi_calls=2, hsi_calls=2, seconds=1., peak_memory_gib=.1, source_replay_exact=True)))
+    manifest = tmp_path/'tasks.json'
+    manifest.write_text(json.dumps(dict(tasks=[dict(canonical_ordinal=i) for i in range(2)])))
+    result = summarize_hoi_dno(tmp_path, manifest, 'cpu')
+    assert result['utility'] and not result['hsi_scene_utility']
+    assert result['final_protection_pass_counts']['C'] == 2
+    assert 'hand_drift' not in result['final_aggregate_protection']
+    difference = result['contrasts']['C_final__minus__source_final']['task']['foot_sliding']
+    assert abs(difference['delta']+.03) < 1e-12
+    assert result['contrasts']['C_final__minus__W_final']['task']['completed']['ci'] == [0., 0.]

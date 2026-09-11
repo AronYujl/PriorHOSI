@@ -5194,3 +5194,11 @@ DDPM_reference、同源DDIM source和G/C/W均执行相同relation20及terminal�
 进展条件为最终C接触至少+2pp、Pbody至少−10%、FS至少−10%同时满足；保护最终完成数、HS/OS深度与帧率、源地面支撑、局部动作和连续性，完整逐任务违反保留。HSI增量及正确场景条件单独报告，禁止用单项HSI失败覆盖指标改进结论。任务/场景10000次seed42配对区间；完整469留作另一session入口。
 
 实现限mixer、既有Hydra入口、一个配置片段及组件测试，core/专家保持。全套authority与registry通过后从干净提交启动；首先GPU0完整375验证新增目标/真实导数/原生链及可恢复50步检查点，再按窗口数在8×3090执行余27。峰值8GiB/卡并保留2GiB实际余量。无新增smoke、哈希机制或tools脚本；正式运行提供功能及性能数据。一次预登记、一次逻辑实现、运行完成后一次封存提交；所有实际失败保留。
+
+### Phase2.40a implementation verification
+
+新增目标进入MetricMotionObjective，复用原生分块反传及HOIDDIM；sourceprediction/噪声须与2.39a逐张量精确一致。接触完整物体网格、人体—物体完整人体网格，HS/OS及间隔沿原生seed42最多10475物体点；后续relation/terminal仍完整物体网格。保留原源手接触95%条件，28源均有接触；1cm源手位置误差仅描述，允许修复抓握。
+
+30项DNO组件检查包含新增掩码补接触、源零编辑的接触/滑动/穿透修复方向、53帧分块四输入导数、原生物体SDF坐标/数值/导数及raw/final基准隔离；官方优化器恢复分别覆盖latent保持0/.01。完整authority1147 passed/4历史skips/298既有warnings，188.81s，434条registry有效，9份正式配置完全解析。首次组件29项通过（4.28s）后补齐保持0的恢复覆盖，由最终全套执行。
+
+日志results/hoi-dno-metrics-implementation-20260911/authority.log。运行路径涉及新增SDF、接触和后处理计算，正式全长375承担真实功能与性能验证，并记录同步耗时、显存和50步可恢复检查点；未添加独立smoke。实现只改mixer/组件测试/本阶段文档和协议，core与两个专家保持。

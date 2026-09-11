@@ -554,8 +554,12 @@ def run_hoi_dno(cfg):
                 windows.append(dict(clean=clean, context=context, arguments=args, local_bps=local_bps,
                                     audit=dict(audit, context_world_error_m=error)))
         teacher.calls = 0
+        metric_inputs = {}
+        if 'metric_targets' in protocol['method']:
+            previous_inputs, = (root/protocol['previous_dno_run']).glob(f'lanes/*/task-{ordinal:03d}/inputs.pt')
+            metric_inputs = dict(object_sdf=obj_sdf, object_info=obj_info, previous_inputs=previous_inputs)
         result = hoi_dno_task(teacher, windows, source, model, sdf, info, evaluate, baseline,
-                              task, ordinal, protocol, dest, commit, resume)
+                              task, ordinal, protocol, dest, commit, resume, **metric_inputs)
         result.update(source_joint_error_m=joint_error, source_metric_error=metric_error,
                       context_audits=[w['audit'] for w in windows], commit=commit)
         write_json(dest/'metrics.json', result)
