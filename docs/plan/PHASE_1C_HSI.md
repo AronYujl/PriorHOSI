@@ -14064,3 +14064,77 @@ PHASE_1C_CM2_ALIGNMENT.md。报告中给出一个待批准候选：保留CM1配�
 梯度校准固定系数，预算120172544窗口及完整原生/FID/语义/学生时延验收保持CM1。
 该目标有效性未证明；train/generated-history分布迁移、目标梯度耦合及外部CG压缩仍是
 风险。没有注册/实现/启动下一学生训练，R4负结果保留，R2+CG继续为质量基线。
+
+
+## 2026-09-11（CM2.2/2.3：低噪声身体终点保真蒸馏；用户已批准）
+
+用户批准CM2.1报告中的具体学生实验。分支phase/01c-cm2-body；CM2.2交付目标实现、
+单次校准、满批资源测量及正式训练稳定启动，CM2.3交付固定内部诊断与终点完整验收。
+本授权覆盖一个新学生训练及其验收，教师固定R2，Phase1C保持开放。
+
+### 唯一目标及数值定义
+
+保留CM1所有目标和训练路径，只增加lambda*L_endpoint。原有25格随机抽样保持；仅
+start_timestep在19/39/59且为HSI的行参与。对该行，从同一x_t、两历史帧和学生实际
+首步occupancy/条件出发，冻结eval-mode R2沿剩余1/2/3步DDIM构造stop-gradient终点。
+首步严格复用对应行的occ/occ_list/occ_pos，后续按原生_compute_occ_sample更新future
+occupancy；逐步clamp历史，复用DDIMSolver.ddim_step。没有额外CG。教师前向为fp32，
+沿用正式训练TF32设置；身体几何始终fp32。该精度与bf16的原CM1随机teacher路径分开。
+
+L_endpoint = 全batch平均的 I[t<=59,HSI] * mean_{future14,body22,xyz}
+(FK(student_boundary_scaled_clean)-FK(frozen_teacher_endpoint))²，单位m²；body22含root。
+以相同mat和rest_offsets重建绝对位置，覆盖未来14帧。没有低噪声行时该项为零，不额外
+抽样或修改batch；masked行不回传几何梯度。手足GT FK(weight1)、consistency MSE、
+object/contact mask、teacher/target train-mode dropout和EMA0.95保持CM1原值。
+额外教师为独立冻结副本，额外采样器独立维护batch/grid状态，局部CPU/CUDA RNG隔离，
+不增加学生前向或改变原CM随机流。此目标不是把R4的GT身体目标或其系数搬到学生。
+
+### 校准、资源、训练与恢复
+
+只读取seed42正式8×256布局的第一批真实数据、零更新。具名probe
+endpoint_fk_gradient_calibration放在hsi/diagnostics.py，由既有trainer分发。
+记录原consistency、手足FK、CM1 total及新项的原始量、trunk/rotation-head梯度范数和
+cosine、低噪声各格行数。各rank范数取中位数G，固定
+lambda=min(0.10*G_CM1_total_trunk/G_endpoint_trunk,
+0.25*G_consistency_rotation_head/G_endpoint_rotation_head)。只按此一次规则定系数，
+不按rollout结果调权或扫时间阈值。校准后配置数值落地需要一个实际执行source转换提交。
+
+沿用CM1：R2初始化student/teacher/EMA target，optimizer/RNG冷启动；8×RTX3090，
+micro256、accum1、effective2048、seed42、lr2e-4、warmup2000、Adam、clip1、
+bf16_tf32主路径、相同可训练模块、58,678更新=120,172,544窗口、90epoch上限、EMA0.95。
+checkpoint每epoch保留完整滚动恢复状态；只把epoch004作为固定诊断，epoch089为最终
+质量权重。新系数、阈值和教师路径加入已有恢复契约，旧配置缺省继续按None解释。
+ROOT_DIR在trainer内解析为本checkout绝对根，精确配置通过实际Hydra入口解析并归档。
+
+正式前执行相同路径160更新性能测量（前32预热、后128 CUDA同步计时），测量权重不用于
+正式初始化。实测全部loss/梯度有限、必需模块梯度存在；每卡峰值及当前外部占用归档，
+最低实际余量max(2GiB,10%显存)。当前GPU0有约4GiB推理占用，8卡布局保持并记录竞争。
+总上限160GPU-h含校准、测量、正式训练及固定评估；校准+测量上限4GPU-h。
+若实测资源准入或总成本预测失败，保留结果并报告，不擅改batch或科学预算。
+
+正式训练走clean Git、完全解析配置、实时机器preflight、experiment.py start，主机持久
+进程运行。稳定区间至少160更新，首个可恢复epoch checkpoint后报告速度、显存、ETA，
+按现有长跑规则交回用户；进程可自动finish manifest，后续质量读取等待用户继续。
+组件测试覆盖低噪声门、全batch归一化、绝对root/身体梯度、teacher stop-gradient、时间
+网格及首步条件对齐、终点与原生DDIM一致、原CM损失/RNG保持和恢复契约。首次GPU前
+完整authority一次；真实满批测量承担功能验证，不另加smoke或教师单卡时延。
+
+### CM2.3 固定内部和最终验收
+
+epoch004保留一次固定60开发episode、U/G generated-history内部读出，不选择checkpoint、
+不早停、不改变训练预算。最终仅epoch089学生，CM16/w1、CG scale1/现有clean系数，
+U/G各375条2271窗口；修正插值fixed_rate_endpoint_hold_v1，复用修正后R2/CM1对照。
+完整原生物理、接触/有效接触、goal与安全、body21直接位置/FK及边界/内部、FID、Diversity、
+MM-Dist、R@1/2/3与样本数全部保留。序列配对10000次seed42，FID2000，R@3沿用冻结
+query-occurrence/gallery单位。各模型同预算采样，没有单方best-of-N。
+
+晋级沿用CM1：学生G相对R2+CG的pen/FS/jerk/FID/MM/goal比值95%区间上界<=1.05；
+R@3/成功率/有效接触参与量下界>=0.95；保持holdout355绝对安全阈值（>5g<=8条/38帧、
+低骨盆walk<=2条）；固定单3090学生latency70的guided generation>=20FPS，报告warm
+生成及端到端。教师时延复用既有记录。相对原CM1的全部差值也报告，不删失败/不确定项。
+训练目标改善不能替代这些联合守卫；train/generated-history迁移、语义梯度耦合以及
+有限CG修正仍是未解决风险。失败只保留已注册诊断，后继新方向另行提案。
+
+一个配置片段、一个HSI目标组件，复用trainer/diagnostics，不增加tools脚本或core改动。
+一个preregistration、一个logical implementation、一个stable-launch completion提交，
+另允许校准实数落地所需source转换。后续完整验收单独completion和交接总结。
