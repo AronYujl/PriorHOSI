@@ -2,6 +2,6 @@
 defaults: [config_train_hsi_c_r2_fixed_w, _self_]
 
 exp_name: hsi_c_body_endpoint
-cm_endpoint_loss_weight: 1.0  # Replaced by the preregistered one-batch calibration.
+cm_endpoint_loss_weight: 1.2518757249916617  # Frozen by the rotation-head25% calibration limit.
 cm_endpoint_max_timestep: 59
 cm_endpoint_calibration: false

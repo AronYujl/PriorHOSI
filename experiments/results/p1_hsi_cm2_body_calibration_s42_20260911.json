@@ -1,0 +1,336 @@
+{
+  "calibration": {
+    "cm_endpoint_loss_weight": 1.2518757249916617,
+    "trunk_10_percent_weight": 1.3739437403729367,
+    "rotation_head_25_percent_weight": 1.2518757249916617,
+    "ranks": [
+      {
+        "endpoint": {
+          "raw_loss": 1.3810411473968998e-05,
+          "trunk_gradient_norm": 0.0004506769182626158,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0003995171282440424,
+          "rotation_head_cosine_with_endpoint": 1.0000001192092896
+        },
+        "consistency": {
+          "raw_loss": 0.0006349908071570098,
+          "trunk_gradient_norm": 0.002777439309284091,
+          "trunk_cosine_with_endpoint": -0.2212696373462677,
+          "rotation_head_gradient_norm": 0.0023971388582140207,
+          "rotation_head_cosine_with_endpoint": 0.006056266371160746
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0004691857611760497,
+          "trunk_gradient_norm": 0.005271445028483868,
+          "trunk_cosine_with_endpoint": 0.3314779996871948,
+          "rotation_head_gradient_norm": 0.011211728677153587,
+          "rotation_head_cosine_with_endpoint": 0.5143731236457825
+        },
+        "cm1_total": {
+          "raw_loss": 0.0011041765101253986,
+          "trunk_gradient_norm": 0.006345650181174278,
+          "trunk_cosine_with_endpoint": 0.17855340242385864,
+          "rotation_head_gradient_norm": 0.011994829401373863,
+          "rotation_head_cosine_with_endpoint": 0.4821806252002716
+        },
+        "low_noise_counts": [
+          15,
+          10,
+          10
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 1.1917775736947078e-05,
+          "trunk_gradient_norm": 0.0004704532620962709,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0004850535187870264,
+          "rotation_head_cosine_with_endpoint": 1.0
+        },
+        "consistency": {
+          "raw_loss": 0.0007197532104328275,
+          "trunk_gradient_norm": 0.003504429943859577,
+          "trunk_cosine_with_endpoint": -0.18815778195858002,
+          "rotation_head_gradient_norm": 0.002696164883673191,
+          "rotation_head_cosine_with_endpoint": -0.10254441946744919
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005727795651182532,
+          "trunk_gradient_norm": 0.005483652930706739,
+          "trunk_cosine_with_endpoint": 0.10300363600254059,
+          "rotation_head_gradient_norm": 0.00974170584231615,
+          "rotation_head_cosine_with_endpoint": -0.08107064664363861
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012925327755510807,
+          "trunk_gradient_norm": 0.007103425916284323,
+          "trunk_cosine_with_endpoint": -0.013296551071107388,
+          "rotation_head_gradient_norm": 0.010731372982263565,
+          "rotation_head_cosine_with_endpoint": -0.09936033189296722
+        },
+        "low_noise_counts": [
+          8,
+          9,
+          7
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 1.538700053060893e-05,
+          "trunk_gradient_norm": 0.0005880341050215065,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0005009755259379745,
+          "rotation_head_cosine_with_endpoint": 1.0
+        },
+        "consistency": {
+          "raw_loss": 0.0007392924162559211,
+          "trunk_gradient_norm": 0.0035634133964776993,
+          "trunk_cosine_with_endpoint": -0.295673131942749,
+          "rotation_head_gradient_norm": 0.0028044204227626324,
+          "rotation_head_cosine_with_endpoint": -0.00861964002251625
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005451047909446061,
+          "trunk_gradient_norm": 0.004507424309849739,
+          "trunk_cosine_with_endpoint": 0.15176086127758026,
+          "rotation_head_gradient_norm": 0.008058984763920307,
+          "rotation_head_cosine_with_endpoint": 0.180917426943779
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012843972072005272,
+          "trunk_gradient_norm": 0.005839172750711441,
+          "trunk_cosine_with_endpoint": -0.0632588118314743,
+          "rotation_head_gradient_norm": 0.008210870437324047,
+          "rotation_head_cosine_with_endpoint": 0.17487385869026184
+        },
+        "low_noise_counts": [
+          7,
+          14,
+          10
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 1.185010842164047e-05,
+          "trunk_gradient_norm": 0.0005253442795947194,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0006685161497443914,
+          "rotation_head_cosine_with_endpoint": 1.0
+        },
+        "consistency": {
+          "raw_loss": 0.0006824650336056948,
+          "trunk_gradient_norm": 0.0027983251493424177,
+          "trunk_cosine_with_endpoint": -0.13521575927734375,
+          "rotation_head_gradient_norm": 0.002078303135931492,
+          "rotation_head_cosine_with_endpoint": 0.002776620676741004
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.00055376609088853,
+          "trunk_gradient_norm": 0.004194783978164196,
+          "trunk_cosine_with_endpoint": -0.032150182873010635,
+          "rotation_head_gradient_norm": 0.007355212699621916,
+          "rotation_head_cosine_with_endpoint": -0.2266424596309662
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012362310662865639,
+          "trunk_gradient_norm": 0.00525284931063652,
+          "trunk_cosine_with_endpoint": -0.09765833616256714,
+          "rotation_head_gradient_norm": 0.007821177132427692,
+          "rotation_head_cosine_with_endpoint": -0.2122935801744461
+        },
+        "low_noise_counts": [
+          9,
+          9,
+          6
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 1.098459142667707e-05,
+          "trunk_gradient_norm": 0.00031226075952872634,
+          "trunk_cosine_with_endpoint": 0.9999998807907104,
+          "rotation_head_gradient_norm": 0.0003085097123403102,
+          "rotation_head_cosine_with_endpoint": 0.9999999403953552
+        },
+        "consistency": {
+          "raw_loss": 0.0007123682298697531,
+          "trunk_gradient_norm": 0.004016199614852667,
+          "trunk_cosine_with_endpoint": -0.22538939118385315,
+          "rotation_head_gradient_norm": 0.002869660733267665,
+          "rotation_head_cosine_with_endpoint": -0.11965016275644302
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005322505021467805,
+          "trunk_gradient_norm": 0.004460179712623358,
+          "trunk_cosine_with_endpoint": 0.3295956254005432,
+          "rotation_head_gradient_norm": 0.006827902980148792,
+          "rotation_head_cosine_with_endpoint": 0.35212069749832153
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012446187902241945,
+          "trunk_gradient_norm": 0.0067515140399336815,
+          "trunk_cosine_with_endpoint": 0.08374682068824768,
+          "rotation_head_gradient_norm": 0.007522825617343187,
+          "rotation_head_cosine_with_endpoint": 0.27389928698539734
+        },
+        "low_noise_counts": [
+          9,
+          10,
+          13
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 9.51016500039259e-06,
+          "trunk_gradient_norm": 0.00038802166818641126,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0005706825759261847,
+          "rotation_head_cosine_with_endpoint": 1.000000238418579
+        },
+        "consistency": {
+          "raw_loss": 0.000702186138369143,
+          "trunk_gradient_norm": 0.0032735420390963554,
+          "trunk_cosine_with_endpoint": -0.1864558756351471,
+          "rotation_head_gradient_norm": 0.0023522130213677883,
+          "rotation_head_cosine_with_endpoint": -0.07927189767360687
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005336710019037127,
+          "trunk_gradient_norm": 0.0055840653367340565,
+          "trunk_cosine_with_endpoint": 0.505203902721405,
+          "rotation_head_gradient_norm": 0.010491998866200447,
+          "rotation_head_cosine_with_endpoint": 0.688170850276947
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012358571402728558,
+          "trunk_gradient_norm": 0.006956698372960091,
+          "trunk_cosine_with_endpoint": 0.3178239166736603,
+          "rotation_head_gradient_norm": 0.01078860554844141,
+          "rotation_head_cosine_with_endpoint": 0.6521191000938416
+        },
+        "low_noise_counts": [
+          14,
+          10,
+          4
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 1.0080621905217413e-05,
+          "trunk_gradient_norm": 0.00044390399125404656,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0003871057415381074,
+          "rotation_head_cosine_with_endpoint": 0.9999998211860657
+        },
+        "consistency": {
+          "raw_loss": 0.0007296435069292784,
+          "trunk_gradient_norm": 0.003177168546244502,
+          "trunk_cosine_with_endpoint": -0.14867499470710754,
+          "rotation_head_gradient_norm": 0.0024617973249405622,
+          "rotation_head_cosine_with_endpoint": 0.037630897015333176
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005635180859826505,
+          "trunk_gradient_norm": 0.004531799349933863,
+          "trunk_cosine_with_endpoint": 0.39042869210243225,
+          "rotation_head_gradient_norm": 0.007256809156388044,
+          "rotation_head_cosine_with_endpoint": 0.6658079624176025
+        },
+        "cm1_total": {
+          "raw_loss": 0.0012931616511195898,
+          "trunk_gradient_norm": 0.005788557231426239,
+          "trunk_cosine_with_endpoint": 0.22417645156383514,
+          "rotation_head_gradient_norm": 0.0076307146809995174,
+          "rotation_head_cosine_with_endpoint": 0.6454823613166809
+        },
+        "low_noise_counts": [
+          8,
+          5,
+          14
+        ]
+      },
+      {
+        "endpoint": {
+          "raw_loss": 8.431545211351477e-06,
+          "trunk_gradient_norm": 0.00034074895665980875,
+          "trunk_cosine_with_endpoint": 1.0,
+          "rotation_head_gradient_norm": 0.0005320650525391102,
+          "rotation_head_cosine_with_endpoint": 0.9999998807907104
+        },
+        "consistency": {
+          "raw_loss": 0.0006621008506044745,
+          "trunk_gradient_norm": 0.0026821992360055447,
+          "trunk_cosine_with_endpoint": -0.08164796233177185,
+          "rotation_head_gradient_norm": 0.002475745975971222,
+          "rotation_head_cosine_with_endpoint": 0.0512375682592392
+        },
+        "hand_foot_fk": {
+          "raw_loss": 0.0005027605220675468,
+          "trunk_gradient_norm": 0.004953751806169748,
+          "trunk_cosine_with_endpoint": 0.5634210109710693,
+          "rotation_head_gradient_norm": 0.010350583121180534,
+          "rotation_head_cosine_with_endpoint": 0.6576691269874573
+        },
+        "cm1_total": {
+          "raw_loss": 0.0011648613726720214,
+          "trunk_gradient_norm": 0.005945388227701187,
+          "trunk_cosine_with_endpoint": 0.43238067626953125,
+          "rotation_head_gradient_norm": 0.010925902985036373,
+          "rotation_head_cosine_with_endpoint": 0.6344975233078003
+        },
+        "low_noise_counts": [
+          8,
+          8,
+          11
+        ]
+      }
+    ],
+    "seed": 42,
+    "world_size": 8,
+    "micro_batch_per_gpu": 256,
+    "optimizer_updates": 0
+  },
+  "median_table": [
+    {
+      "raw_loss": 1.141734992415877e-05,
+      "trunk_gradient_norm": 0.0004472904547583312,
+      "trunk_cosine_with_endpoint": 1.0,
+      "rotation_head_gradient_norm": 0.0004930145223625004,
+      "rotation_head_cosine_with_endpoint": 1.0,
+      "term": "endpoint",
+      "weight": 1.2518757249916617,
+      "weighted_loss": 1.4293103213789754e-05
+    },
+    {
+      "raw_loss": 0.0007072771841194481,
+      "trunk_gradient_norm": 0.0032253552926704288,
+      "trunk_cosine_with_endpoint": -0.18730682879686356,
+      "rotation_head_gradient_norm": 0.002468771650455892,
+      "rotation_head_cosine_with_endpoint": -0.0029215096728876233,
+      "term": "consistency",
+      "weight": 1.0,
+      "weighted_loss": 0.0007072771841194481
+    },
+    {
+      "raw_loss": 0.0005393878964241594,
+      "trunk_gradient_norm": 0.0047427755780518055,
+      "trunk_cosine_with_endpoint": 0.330536812543869,
+      "rotation_head_gradient_norm": 0.008900345303118229,
+      "rotation_head_cosine_with_endpoint": 0.433246910572052,
+      "term": "hand_foot_fk",
+      "weight": 1.0,
+      "weighted_loss": 0.0005393878964241594
+    },
+    {
+      "raw_loss": 0.0012404249282553792,
+      "trunk_gradient_norm": 0.006145519204437733,
+      "trunk_cosine_with_endpoint": 0.13115011155605316,
+      "rotation_head_gradient_norm": 0.009471121709793806,
+      "rotation_head_cosine_with_endpoint": 0.3780399560928345,
+      "term": "cm1_total",
+      "weight": 1.0,
+      "weighted_loss": 0.0012404249282553792
+    }
+  ],
+  "source_manifest": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm2-body-calibration-s42-20260911/manifest.json"
+}
