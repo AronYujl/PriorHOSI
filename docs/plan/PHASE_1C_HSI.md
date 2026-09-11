@@ -14159,3 +14159,31 @@ trunk10%规则给1.373943740373，rotation-head25%规则给1.251875724992，
 校准成本0.161269GPU-h，最小实测显存余量5402MiB，GPU0外部占用保留；退出时CUDA
 context shutdown warnings随原日志保留，exit0与完整JSON已核对。后继160更新满批测量
 采用实测系数，前32预热；本配置提交由校准实数落地和实际执行source转换触发。
+
+### CM2.2稳定启动门完成：正式学生训练在固定工作树后台运行
+
+160更新实测通过：1280条同步梯度有限且各rank一致，trunk/cfg梯度为正；128条新项loss
+记录有限。32预热后128次CUDA同步为1.125550秒/更新，1819.56窗口/秒，峰值
+allocated6.0820GiB/reserved6.9551GiB，外部占用计入后最小实测余量9301MiB。
+校准+测量0.735828GPU-h，预测正式训练146.766697GPU-h，另预留8GPU-h评估，总预测
+155.502525GPU-h<160；启动段wall速度口径当前约156.861GPU-h，IO/竞争单列解释。
+
+正式run p1-hsi-cm2-body-train-s42-20260911 从R2冷启动学生/optimizer/RNG，在8卡8×256、
+seed42及58,678更新/120,172,544窗口固定预算运行。前160更新1280条诊断与独立测量
+逐值一致，最大差0。epoch0在656更新保存完整恢复状态：student/EMA target各218张量、
+optimizer102组状态和8个rank RNG；严格模型/target/optimizer载入、契约检查以及epoch000
+导出逐值比对均通过。稳定审计前640更新的5120条梯度、5120条cfg记录及512条新loss
+记录有限，梯度min/median/max=0.00725411/0.14420460/0.43926346，未触发clip。
+
+执行固定在/data/yujinlun/InfBaGel-hsi-cm2-training（e6185a1），数据/结果/kinematic
+资产用本机链接，工作树保持干净，权威主树的总结提交不改变训练源。ROOT_DIR与各执行
+checkout一致；配置通过实际入口解析。GPU0竞争在preflight和逐次显存采样中保留。
+快照预计剩余18.23小时、完成时间2026-09-12T06:17:28+08:00；
+这只是当前速度估计。训练继续，manifest由持久launcher在结束时从固定source自动finish。
+
+定向66、authority487/3、registry423验证通过。calibration/benchmark均exit0，校准退出
+上下文warning保留，正式任务仍running。没有另加smoke、教师时延或中途checkpoint选择。
+下一次用户要求继续时，按本节已批准的CM2.3读取固定epoch004和final epoch089，执行
+60条内部U/G和全375 U/G、完整原生/表示/FID/语义/安全/学生时延及配对验收。
+交接PHASE_1C_CM2_BODY_LAUNCH.md，报告p1_hsi_cm2_body_launch_s42_20260911。
+本次只完成稳定启动门；教师/学生质量尚未晋级，Phase1C保持开放，R2+CG继续作质量对照。

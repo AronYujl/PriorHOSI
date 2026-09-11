@@ -144,6 +144,11 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 优先提出低噪声身体终点保真蒸馏。新目标有效性尚待实验，下一训练未启动。
 交接：[CM2同状态终点诊断](../phase_summaries/PHASE_1C_CM2_ALIGNMENT.md)。
 
+2026-09-11：用户批准CM2身体终点学生实验。一次校准固定lambda1.251875725，满批资源
+测量通过；CM2.2已从R2启动8卡正式学生训练并验证首epoch完整恢复点。训练预算保持
+120172544窗口，质量待已批准CM2.3验收。交接：
+[CM2身体终点稳定启动](../phase_summaries/PHASE_1C_CM2_BODY_LAUNCH.md)。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
