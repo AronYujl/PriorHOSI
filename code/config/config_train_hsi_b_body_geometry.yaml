@@ -5,7 +5,8 @@ exp_name: hsi_b_body_geometry_probe
 sample_type: diffusion
 run_id: null
 body_geometry_enabled: true
-body_geometry_loss_weight: 0.0  # Fixed by the registered zero-update gradient probe.
+# One registered batch: min(10% trunk, 25% rotation-head gradient ratios).
+body_geometry_loss_weight: 0.25590593335809264
 body_geometry_permutation: identity
 body_geometry_calibration: false
 pen_sdf_cache: /data/yujinlun/InfBaGel-hsi/.cache/hsi_sdf

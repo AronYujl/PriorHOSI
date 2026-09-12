@@ -14409,3 +14409,9 @@ authority最终524 passed/5 skipped（88.29s）；首次检查的1项旧AST调�
 64个seed42训练窗口、24576个FK24点均在完整stencil支持范围内。9823个距表面0.25m以内的点中，4095个在旧crop高度范围外；3957个低于0.1m，138个高于1.2m。该样本的新增近表面信息主要来自近地区域，不能用它宣称高处几何是主要误差来源。观测为GT FK，不是模型生成；坐标等变仍是解析组件验证。coverage作业0更新/0模型调用，68.099s=0.018916GPU-h，结果与manifest已封存。缓存最终通过显式配置/INFBAGEL_SDF_CACHE复用，删除了不被git忽略的工作树cache链接。
 
 审查另发现旧teacher_forced_boundary/predictor_decomp绕过共享预测入口，已将4处调用改为predict_clean并传geometry上下文；新增2个执行式测试验证修正输出、CFG及扰动历史的传递。相关23 tests通过，沿用已通过的authority524/5；本提交是实际诊断接口修复，随后探针记录新的source。
+
+### BG1 gradient完成：一次校准固定关系权重
+
+8×256真实训练batch，零optimizer更新。新refiner末层8rank梯度均有限非零；新关系目标与原R2总目标trunk余弦0.149832..0.427913，rotation-head余弦0.048435..0.313594。近表面可监督点占比0.328392..0.348400，中心OOB排除率均0。按预注册min规则得到trunk上限0.25590593335809264、rotation上限1.254932664657329，取前者并固定到唯一训练fragment。
+
+作业exit0，161.838s=0.359639GPU-h，采样最小实际余量7949MiB。DataLoader共享CUDA张量的既有退出告警随rank结束出现，输出与8rank校准齐全，无运行失败。累计coverage+gradient0.378555GPU-h；不据梯度门宣称质量提高。下面严格按固定256更新、同初始化/预算/噪声顺序运行control与bodygeo两臂，随后读取final online。
