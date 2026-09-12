@@ -1,0 +1,7 @@
+# CM2.4: retain the CM2.1 source trajectories and observe the final CM2 student.
+defaults: [config_sample_hsi_distillation_alignment, _self_]
+
+alignment_student_checkpoint: ${oc.env:ROOT_DIR}/results/p1-hsi-cm2-body-train-s42-20260911/checkpoints/p1-hsi-cm2-body-train-s42-20260911_epoch089.pth
+alignment_output: ${oc.env:ROOT_DIR}/results/hsi_cm2_post_alignment_s42_20260912
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_post_alignment_r2_ddim25_s42_20260912
+model_name: cm2_post_alignment_r2_ddim25

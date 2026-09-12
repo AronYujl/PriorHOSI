@@ -14332,3 +14332,12 @@ CM2.3的authority487 passed/3 skipped；跳过重复全套、训练benchmark和�
 一个preregistration提交、一个配置实现提交、一个completion提交。完整2184状态配对、
 原生120条粗帧复现、全部误差/分层/首窗后续窗及统计齐备后，封存报告/compact和
 PHASE_1C_CM2_POST_ALIGNMENT.md。Phase1C保持开放，本轮完成不触发合并或expert标签。
+
+### CM2.4 配置与执行前验证
+
+新增config_sample_hsi_cm2_post_alignment.yaml，仅覆盖观察端checkpoint及新输出位置；
+两个源的ckpt_path分别保持R2和CM1，source名cm16明确指CM1。现有探针、采样器和
+evaluator源码保持原值。26项consistency组件测试通过；18份实际Hydra shard/merge
+配置完全解析，确认CFGw1、CG关闭和CM2观察端。registry437行验证通过。
+完整authority沿用487 passed/3 skipped；runtime与张量路径保持原值，因此跳过重复
+authority及训练性能benchmark。准备与测试日志位于results/cm2_post_alignment_setup_20260912/。
