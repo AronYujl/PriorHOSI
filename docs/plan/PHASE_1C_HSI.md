@@ -14214,3 +14214,32 @@ Diversity及sample/occurrence口径保持。训练loss下降不作晋级证据�
 及定向66，执行config/registry校验即可。所有GPU任务clean source+experiment.py start，
 持久pipeline归档preflight/配置/日志并逐一finish，失败保留。全部固定统计和报告完成后
 封存CM2.3结果；Phase1C保持开放。
+
+### CM2.3质量读出完成；单卡时延与组合gate等待资源确认
+
+内部U/G各60条364窗、最终U/G各375条2271窗、固定Table3完成。首个表示任务因caller
+遗漏GT cohort在重建前失败（八进程exit1），失败保留；r1补齐GT，按组件logical cuda:0
+约定每个shard只暴露对应物理GPU。原有runtime代码保持，9份恢复配置完全解析；新U/G
+及GT各375重建完成，GT与封存375条指标逐值一致。没有重跑已完成的生成任务。
+
+G的R2/CM1/CM2：pen0.0218843/0.0281318/0.0293217，FS0.272221/0.288150/0.291540，
+boundary jerk142.68556/145.74579/153.99359，exterior365.63099/319.96180/318.06604。
+CM2−CM1 G的pen和boundary jerk逐项95%CI均为正，FS及exterior差异不确定。
+body21分歧CM1→CM2 U1.648938→1.675643cm、G1.656058→1.692449cm，两差CI为正。
+G holdout355有9条/18帧>5g，超过8条门槛；低骨盆walk2条满足上限。full375有10条/27帧，
+两低walk；U均零。安全失败已排除晋级，完整验收还需要按协议完成速度和组合gate。
+
+FID U/G17.44221/17.45352。相对CM1，G FID差−5.45028 CI[−9.45485,−2.03714]，
+MM-Dist差−0.72365 CI[−1.22294,−0.21507]明确改善；R@3提升不确定。U FID的改进区间
+也跨0。完整U/G、分组、固定中途/终点、Diversity/MultiModality、37份配对及4份缓存FID差
+全部保留。R@3仍224 occurrences/148序列；特征改善与FK身体退化分别解释。
+
+已完成评估（含入口失败）2.793511GPU-h，加准备/训练累计160.017709，已启动任务的
+实耗使原160上限超0.017709。资源偏差原样记录，没有擅自提高上限。此前发出的168上限
+异步确认仍待用户答复；目前只剩学生U/G latency70及组合gate，预计追加约0.1GPU-h，
+总上限161即可覆盖预计开销。新GPU任务暂缓，CPU统计已完成，速度不以旧学生替代。
+
+报告/compact p1_hsi_cm2_acceptance_partial_s42_20260912；交接PHASE_1C_CM2_EVAL_PENDING.md。
+6个成功和1个失败manifest已登记，49初始+9恢复配置保留，沿用authority487/3和定向66。
+待资源确认后只运行jobs.json中的latency-unguided、latency-guided、gate，复用所有现有
+输出；这三项尚未创建manifest。保留R2+CG，Phase1C开放，当前不宣称完整验收完成。
