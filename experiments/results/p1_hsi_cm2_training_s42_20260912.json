@@ -1,0 +1,291 @@
+{
+  "run_id": "p1-hsi-cm2-body-train-s42-20260911",
+  "process_exit_code": 0,
+  "manifest_status": "completed",
+  "epoch": 89,
+  "updates": 58678,
+  "processed_windows": 120172544,
+  "student_tensors": 218,
+  "target_tensors": 218,
+  "final_student_exact_match": true,
+  "final_is_student_not_ema_target": true,
+  "all_recorded_losses_gradients_finite": true,
+  "rank_gradients_equal": true,
+  "gradient_records": 469424,
+  "cfg_records": 469424,
+  "endpoint_records": 46512,
+  "endpoint_records_by_rank": [
+    5814,
+    5814,
+    5814,
+    5814,
+    5814,
+    5814,
+    5814,
+    5814
+  ],
+  "gradient_min_median_p99_max": [
+    0.0072541129775345325,
+    0.18948053568601608,
+    0.7303549331426614,
+    1.3949693441390991
+  ],
+  "clipped_update_count": 40,
+  "clipped_updates_rank0": [
+    2001,
+    2141,
+    2143,
+    2144,
+    2147,
+    2150,
+    2152,
+    2170,
+    2877,
+    5425,
+    6203,
+    6205,
+    6208,
+    6211,
+    6213,
+    6221,
+    8474,
+    8479,
+    8488,
+    8552,
+    8666,
+    8667,
+    13537,
+    14343,
+    14346,
+    15501,
+    15503,
+    15505,
+    15537,
+    17616,
+    28492,
+    34857,
+    34862,
+    46809,
+    46814,
+    53133,
+    53140,
+    53141,
+    53143,
+    53146
+  ],
+  "rank0_summaries": {
+    "loss": {
+      "min": 0.0007457949104718864,
+      "median": 0.0009520853636786342,
+      "max": 0.0034202078823000193,
+      "last": 0.0008684416534379125
+    },
+    "loss_consistency": {
+      "min": 0.00032046885462477803,
+      "median": 0.0004297553969081491,
+      "max": 0.001214569783769548,
+      "last": 0.0003810528723988682
+    },
+    "loss_fk": {
+      "min": 0.00037740322295576334,
+      "median": 0.0005022254481445998,
+      "max": 0.0022311073262244463,
+      "last": 0.00047254105447791517
+    },
+    "grad_norm_preclip": {
+      "min": 0.0072541129775345325,
+      "median": 0.18948053568601608,
+      "max": 1.3949693441390991,
+      "last": 0.11285905539989471
+    },
+    "grad_norm_trunk": {
+      "min": 0.007251088507473469,
+      "median": 0.18948030471801758,
+      "max": 1.3949675559997559,
+      "last": 0.11285880208015442
+    },
+    "grad_norm_cfg": {
+      "min": 0.00015488133067265153,
+      "median": 0.00032201169233303517,
+      "max": 0.0666462853550911,
+      "last": 0.00023972037888597697
+    }
+  },
+  "last_endpoint_records": [
+    {
+      "loss_consistency": 0.0003890436782967299,
+      "loss_fk": 0.0004505809338297695,
+      "loss_body_endpoint": 1.3547651178669184e-05,
+      "update": 58673,
+      "rank": 0,
+      "total": 0.0008565845782868564,
+      "weighted_endpoint": 1.6959975641230624e-05,
+      "low_noise_counts": [
+        8,
+        14,
+        10
+      ]
+    },
+    {
+      "loss_consistency": 0.0003994760336354375,
+      "loss_fk": 0.00041598081588745117,
+      "loss_body_endpoint": 1.3781409506918862e-05,
+      "update": 58673,
+      "rank": 1,
+      "total": 0.0008327094838023186,
+      "weighted_endpoint": 1.725261201788103e-05,
+      "low_noise_counts": [
+        11,
+        8,
+        9
+      ]
+    },
+    {
+      "loss_consistency": 0.00037625469849444926,
+      "loss_fk": 0.0004481811774894595,
+      "loss_body_endpoint": 1.647757744649425e-05,
+      "update": 58673,
+      "rank": 2,
+      "total": 0.0008450637105852365,
+      "weighted_endpoint": 2.0627879211936245e-05,
+      "low_noise_counts": [
+        8,
+        6,
+        19
+      ]
+    },
+    {
+      "loss_consistency": 0.0004053521843161434,
+      "loss_fk": 0.0004918671911582351,
+      "loss_body_endpoint": 1.2112843251088634e-05,
+      "update": 58673,
+      "rank": 3,
+      "total": 0.0009123831987380981,
+      "weighted_endpoint": 1.516377442666694e-05,
+      "low_noise_counts": [
+        8,
+        6,
+        9
+      ]
+    },
+    {
+      "loss_consistency": 0.0003981859772466123,
+      "loss_fk": 0.0004192472551949322,
+      "loss_body_endpoint": 1.80079550773371e-05,
+      "update": 58673,
+      "rank": 4,
+      "total": 0.0008399769430980086,
+      "weighted_endpoint": 2.2543721818058657e-05,
+      "low_noise_counts": [
+        8,
+        11,
+        16
+      ]
+    },
+    {
+      "loss_consistency": 0.000489708676468581,
+      "loss_fk": 0.0004643915453925729,
+      "loss_body_endpoint": 2.166079866583459e-05,
+      "update": 58673,
+      "rank": 5,
+      "total": 0.0009812169009819627,
+      "weighted_endpoint": 2.7116628033690096e-05,
+      "low_noise_counts": [
+        13,
+        10,
+        18
+      ]
+    },
+    {
+      "loss_consistency": 0.0004604591231327504,
+      "loss_fk": 0.0005233160918578506,
+      "loss_body_endpoint": 1.531946509203408e-05,
+      "update": 58673,
+      "rank": 6,
+      "total": 0.001002953271381557,
+      "weighted_endpoint": 1.9178066468574617e-05,
+      "low_noise_counts": [
+        11,
+        12,
+        10
+      ]
+    },
+    {
+      "loss_consistency": 0.00041904396493919194,
+      "loss_fk": 0.0004600438114721328,
+      "loss_body_endpoint": 1.23268964671297e-05,
+      "update": 58673,
+      "rank": 7,
+      "total": 0.0008945195004343987,
+      "weighted_endpoint": 1.5431742451685145e-05,
+      "low_noise_counts": [
+        9,
+        9,
+        9
+      ]
+    }
+  ],
+  "training": {
+    "status": "completed",
+    "process_exit_code": 0,
+    "started_at": "2026-09-11T03:45:29+00:00",
+    "ended_at": "2026-09-11T23:19:09+00:00",
+    "wall_seconds": 70419.76634082757,
+    "reserved_gpu_hours": 156.48836964628347,
+    "peak_sampled_used_mib": [
+      15657,
+      12341,
+      12945,
+      12663,
+      12291,
+      12215,
+      12749,
+      12741
+    ],
+    "minimum_sampled_headroom_mib": 8919,
+    "exp_dir": "/data/yujinlun/InfBaGel-hsi-cm2-training/results/p1-hsi-cm2-body-train-s42-20260911",
+    "readout": {
+      "benchmark_warmup_updates": 2000,
+      "effective_batch_size": 2048,
+      "gradient_accumulation_steps": 1,
+      "last_loss": 0.0008684416534379125,
+      "max_peak_memory_allocated_bytes": 6541841408,
+      "max_peak_memory_reserved_bytes": 7472152576,
+      "measured_optimizer_updates": 56678,
+      "micro_batch_per_gpu": 256,
+      "micro_steps": 58678,
+      "optimizer_updates": 58678,
+      "peak_memory_allocated_bytes_by_rank": [
+        6541480960,
+        6541841408,
+        6537499648,
+        6538236928,
+        6539383808,
+        6538269696,
+        6537565184,
+        6535992320
+      ],
+      "peak_memory_reserved_bytes_by_rank": [
+        7472152576,
+        7470055424,
+        7470055424,
+        7470055424,
+        7470055424,
+        7470055424,
+        7470055424,
+        7470055424
+      ],
+      "schema_version": 1,
+      "seed": 42,
+      "status": "stable",
+      "synchronized_training_seconds": 68052.24056668393,
+      "world_size": 8
+    },
+    "readout_path": "/data/yujinlun/InfBaGel-hsi/results/experiments/p1-hsi-cm2-body-train-s42-20260911/training_metrics.json"
+  },
+  "preparation_gpu_hours": 0.7358278765612178,
+  "spent_gpu_hours": 157.2241975228447,
+  "remaining_under_160": 2.7758024771553087,
+  "fixed_internal_checkpoint": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-cm2-body-train-s42-20260911/checkpoints/p1-hsi-cm2-body-train-s42-20260911_epoch004.pth",
+  "final_checkpoint": "/data/yujinlun/InfBaGel-hsi/results/p1-hsi-cm2-body-train-s42-20260911/checkpoints/p1-hsi-cm2-body-train-s42-20260911_epoch089.pth"
+}

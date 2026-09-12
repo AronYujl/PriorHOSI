@@ -1,0 +1,30 @@
+# CM2.3: the approved fixed student acceptance, corrected deployment protocol.
+defaults: [config_sample_hsi_c_r2_fixed_w, _self_]
+
+ckpt_path: ${oc.env:ROOT_DIR}/results/p1-hsi-cm2-body-train-s42-20260911/checkpoints/p1-hsi-cm2-body-train-s42-20260911_epoch089.pth
+model_name: cm2_final_guided
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_final_guided_s42_20260912
+table3_output: ${oc.env:ROOT_DIR}/results/hsi_cm2_table3_s42_20260912
+table3_truth_metrics: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_gt_r1_s42_20260909/evaluation/per_sequence_metrics.json
+table3_inputs:
+  unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_final_unguided_s42_20260912/p1-hsi-cm2-body-train-s42-20260911_epoch089-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_final_guided_s42_20260912/p1-hsi-cm2-body-train-s42-20260911_epoch089-merged08/evaluation/per_sequence_metrics.json
+
+cm1_reference_readout: ${oc.env:ROOT_DIR}/results/cm2_evaluation_setup_20260912/r2_reference
+cm1_reference_inputs:
+  unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_r2_unguided_s42_20260909/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+  guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/interpolation_r2_guided_s42_20260909/hsi_b_r2_fullbody_seam_epoch222-merged08/evaluation/per_sequence_metrics.json
+cm1_gate_output: ${oc.env:ROOT_DIR}/results/hsi_cm2_gate_s42_20260912
+cm1_latency_inputs:
+  student_unguided: ${oc.env:ROOT_DIR}/results/cm2_evaluation_setup_20260912/latency_unguided.json
+  student_guided: ${oc.env:ROOT_DIR}/results/cm2_evaluation_setup_20260912/latency_guided.json
+  teacher_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_r2_latency_unguided/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json
+  teacher_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm1_r2_latency_guided/hsi_b_r2_fullbody_seam_epoch222-7a81a0a26279/evaluation/per_sequence_metrics.json
+
+representation_output: ${oc.env:ROOT_DIR}/results/hsi_cm2_position_fk_s42_20260912
+representation_shard_index: 0
+representation_shard_count: 8
+representation_batch_size: 128
+representation_inputs:
+  cm2_unguided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_final_unguided_s42_20260912
+  cm2_guided: ${oc.env:ROOT_DIR}/results/lingo_hsi/cm2_final_guided_s42_20260912

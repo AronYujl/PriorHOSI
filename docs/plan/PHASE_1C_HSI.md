@@ -14187,3 +14187,30 @@ checkout一致；配置通过实际入口解析。GPU0竞争在preflight和逐�
 60条内部U/G和全375 U/G、完整原生/表示/FID/语义/安全/学生时延及配对验收。
 交接PHASE_1C_CM2_BODY_LAUNCH.md，报告p1_hsi_cm2_body_launch_s42_20260911。
 本次只完成稳定启动门；教师/学生质量尚未晋级，Phase1C保持开放，R2+CG继续作质量对照。
+
+
+## 2026-09-12（CM2.3：训练完成，执行已批准的固定验收）
+
+正式CM2完成58678更新/120172544窗口，epoch089 final student与终点恢复model的218张量
+逐值一致，epoch004固定权重保留。469424条grad和cfg记录均有限，rank梯度一致，trunk/cfg
+梯度为正；46512条新项日志有限。梯度min/median/p99/max=[0.0072541129775345325, 0.18948053568601608, 0.7303549331426614, 1.3949693441390991]；
+40次既有clip触发，全部更新位置保留。训练耗时70419.766秒/156.488370GPU-h，含此前
+准备总157.224198GPU-h，160上限剩余2.775802；历史同类完整学生验收约2.4GPU-h。
+先依原额度执行固定任务，逐项记录成本，资源约束不会改变数据/指标/统计或删除任务。
+
+本轮沿用已批准的epoch004 U/G各60条364窗、final U/G各375条2271窗、学生U/G latency70、
+一次原生Table3、最终U/G位置/FK及既有ratio gate。9个GPU任务，共49份shard/job/merge配置
+在各任务启动前完全解析。只有student参与新latency，教师历史时延复用。当前8卡各有
+约3.8–4.6GiB其它推理占用，质量任务8卡执行，latency独立串行并保留前后竞争快照；
+竞争环境下的时延只描述当次运行，独占速度证据须按实际硬件状态解释。
+
+原生部署统一fixed_rate_endpoint_hold_v1。R2和CM1构建只读引用视图：复用原Table3
+embeddings/检索/特征分数，把物理分组从修正后native记录重建，避免旧插值物理数混入
+locomotion/interactive gate；GT物理也用修正版。参考视图的物理CI不复制旧值，gate重新
+计算配对ratio区间。额外报告CM2−CM1全部差值、完整失败/不确定项；原生R@1/2/3、
+Diversity及sample/occurrence口径保持。训练loss下降不作晋级证据。
+
+运行代码保持e6185a1对应实现（仅增加评估配置与治理记录），沿用487 passed/3 skipped
+及定向66，执行config/registry校验即可。所有GPU任务clean source+experiment.py start，
+持久pipeline归档preflight/配置/日志并逐一finish，失败保留。全部固定统计和报告完成后
+封存CM2.3结果；Phase1C保持开放。
