@@ -14453,3 +14453,9 @@ seed-42、10,000 次 sequence bootstrap 的完整结果保存在 `results/body_g
 现有Table3入口硬编码375条及guided/unguided，故在现有text_motion.py添加通用cohort reader和evaluator mode，复用现成encoder/预处理/统计，不新增脚本、模型或训练方向。reader使用真实control/enhanced/permuted标签与guidance状态。本补充发生在首次原生读出前，不改变两臂训练或采样配置。
 
 BG1 cohort reader实现完成；再次完整authority为528 passed/5 skipped（95.94s），registry442行通过。新增读出仅消费固定native输出与既有GT/encoder，不改变两个已完成训练臂的runtime。首次native评价使用本提交统一执行三臂。
+
+### BG2：正式 body-group temporal diffusion continuation（2026-09-12，已批准）
+
+BG1-R1 的结构臂在固定开发队列上同时改善 FS、penetration 和终帧距离，并显著优于左右置换，因此正式继续训练固定采用 `body_group_tokens_temporal`。训练从 sealed R2 final EMA checkpoint warm-start，仅新增几何 refiner 参数随机初始化；不加入 jerk loss、不修改 `core/`、HOI 或蒸馏路径。
+
+正式配置为 LINGO train split、seed 42、8×RTX3090、micro-batch 128、accumulation 2、effective batch 2048、LR `2e-4`、warmup 2000、总 146255 optimizer updates、EMA `0.9999`。固定输出最终 EMA 与周期性 resume state。训练完成后使用独立的 fixed v3 test split native HSI 评测，并在相同编辑协议下评估 PriorHOSI；checkpoint 选择、FID/MM、penetration、engagement、FS、goal 和 jerk 均按预注册口径报告。
