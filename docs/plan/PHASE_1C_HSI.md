@@ -14432,6 +14432,22 @@ BG1 的首轮结果显示几何分支可训练，但 `24×5` 条件直接 flatte
 
 受控真实数据功能探针先完成了 fallback：原注册的 8×256 arm 在 GPU 5 仅剩 34.62 MiB 时因外部竞争 OOM，失败 run 保留在 `p1-hsi-bodygeo-bg1-r1-smoke-s42-20260912`；按本阶段预注册规则未复用该 run id。随后 8×128、accumulation 2、effective batch 2048 的新结构 arm 成功完成 1 个 optimizer update：loss `0.0227566324` finite，8 个 rank 的 peak allocated/reserved 分别为 `7.645/7.709 GB`，同步耗时 `67.101 s`。该结果只证明运行稳定，不证明质量提升；匹配的 256-update 三臂比较仍是进入 BG2 前的下一步。
 
+### BG1-R1 三臂训练与 native 结构读出（2026-09-12）
+
+在同一 seed 42、LINGO train split、effective batch 2048 和 256 optimizer updates 下，8×128、accumulation 2 的三臂均稳定完成。control/structured/permuted 的同步训练时间分别为 `181.269/242.510/245.372 s`，最后 loss 为 `0.027043/0.027351/0.027390`；结构臂和置换臂 peak reserved 均为 `8.043 GB/rank`。训练 loss 没有区分正确部位对应关系，因此不作为质量证据。
+
+固定 60 条开发队列（364 windows，DDIM25，CFG=1）完成 8-shard native 读出并 merge。control、structured、left/right permutation 的均值为：
+
+| metric | control | structured | permutation |
+|---|---:|---:|---:|
+| FS NEMF ↓ | 0.30265 | **0.29471** | 0.30332 |
+| pen_value ↓ | 0.04304 | **0.04234** | 0.04313 |
+| pene_pct_scene ↓ | 0.07578 | **0.07493** | 0.07657 |
+| last_dist ↓ | 0.02642 | **0.02433** | 0.02870 |
+| boundary jerk ↓ | 118.36 | 116.28 | 116.22 |
+
+seed-42、10,000 次 sequence bootstrap 的完整结果保存在 `results/body_geometry/analysis/bg1_r1_structure.json`。结构臂相对 control 的 FS 差为 `-0.00794`（95% CI `[-0.01497,-0.00092]`），相对 permutation 的差为 `-0.00862`（CI `[-0.01391,-0.00312]`）；pen_value、scene penetration 和终帧距离也均朝改善方向。boundary jerk 的区间跨零，按用户决定只作次要读出。该结果首次提供了“正确部位条件优于左右错配”的结构性证据，但仍属于开发队列筛选，尚不足以启动 BG2 长训练；下一步应封存三臂 native payload 后再决定正式预算。
+
 原生三臂结果尚未生成。为满足几何与分布质量并列的既有要求，读出固定all60及其中43条non-walk的FID/MM-Dist，沿用冻结内部LINGO encoder、GT目录和既有GPU frechet_samples。FID沿用2000次seed42配对重采样，所有臂共享GT和draw；MM连同全部原生scalar用paired_bootstrap.py的10000次序列等权读出。该队列只有21种caption（non-walk20），现成gallery32不适用，明确标记不可计算，不改gallery定义。所有指标均为已暴露开发队列/内部encoder，不直接与公开FID比较。
 
 现有Table3入口硬编码375条及guided/unguided，故在现有text_motion.py添加通用cohort reader和evaluator mode，复用现成encoder/预处理/统计，不新增脚本、模型或训练方向。reader使用真实control/enhanced/permuted标签与guidance状态。本补充发生在首次原生读出前，不改变两臂训练或采样配置。
