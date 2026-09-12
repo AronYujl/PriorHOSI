@@ -159,6 +159,12 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 最终资源上限按用户最新批准为168GPU-h，实耗160.084340。交接：
 [CM2完整验收总结](../phase_summaries/PHASE_1C_CM2_EVAL.md)。
 
+2026-09-12：CM2.4训练后同状态诊断完成。2184状态及教师终点逐值复现；CM2身体误差
+4项主比较均改善，边界速度1项退化/3项不确定。固定历史使该速度误差等价于首个未来帧
+绝对FK误差；据此形成首帧软教师终点约束提案。零训练更新，实耗0.815017GPU-h。
+CM2.3联合门失败保留，R2+CG继续为基线。交接：
+[CM2训练后同状态诊断](../phase_summaries/PHASE_1C_CM2_POST_ALIGNMENT.md)。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
