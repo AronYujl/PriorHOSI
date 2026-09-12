@@ -233,3 +233,78 @@ def test_ddpm_and_ddim_route_both_cfg_queries_through_predict_clean(ddim_index):
     assert torch.equal(clean, torch.full_like(x, 3.0))
     assert state.shape == x.shape
     assert torch.isfinite(state).all()
+
+
+@pytest.mark.parametrize("mode", ["teacher_forced_boundary", "predictor_decomp"])
+def test_diagnostic_records_use_complete_prediction_and_supply_geometry_frame(mode):
+    from types import SimpleNamespace
+    import numpy as np
+    import test_infbagel_lingo_hsi as evaluator
+
+    item = dict(
+        joints=torch.arange(16).float()[:, None].expand(16, 84).clone(),
+        global_rot_6d=torch.zeros(16, 22, 6), object_trans=torch.zeros(16, 3),
+        object_rot_mat=torch.zeros(16, 3, 3), contact_label=torch.zeros(16, 4),
+        mat=torch.eye(4), scene_flag=torch.tensor(7),
+        text_clip_embedding=torch.zeros(768), pelvis_goal=torch.zeros(3),
+        scene_goal=torch.zeros(3), object_goal=torch.zeros(3),
+        need_scene=torch.tensor(True), need_pelvis_dir=torch.tensor(True),
+        pi=torch.tensor(0), end_pi=torch.tensor(48), seg_len=torch.tensor(48),
+        need_pi=torch.tensor(False), is_loco=torch.tensor(True), is_object=torch.tensor(False),
+        obj_bps_data=torch.zeros(1024, 3), object_points=torch.zeros(5, 3),
+        obj_rot_mat_ref=torch.eye(3), rest_human_offsets=torch.ones(24, 3),
+        betas=torch.zeros(16), gender="male", seq_name="test_window",
+    )
+    dataset = SimpleNamespace(
+        lingo_dataset=SimpleNamespace(
+            start_ind=[0], transl=np.zeros((1, 3)), joints=np.zeros((1, 28, 3)), step=3,
+        ),
+        denormalize_torch=lambda value: value,
+    )
+    calls, rebuilt = [], []
+
+    def direct_model(*args, **kwargs):
+        raise AssertionError("diagnostics must use the shared clean prediction")
+
+    def predict_clean(model, noisy, occ, timestep, *args, **kwargs):
+        assert model is direct_model
+        torch.testing.assert_close(kwargs["mat"], item["mat"][None])
+        torch.testing.assert_close(kwargs["scene_flag"], item["scene_flag"][None])
+        torch.testing.assert_close(kwargs["rest_human_offsets"], item["rest_human_offsets"][None])
+        calls.append((noisy.clone(), kwargs))
+        return torch.full_like(noisy, 10.0 * len(calls))
+
+    def reconstruct(value, *args, **kwargs):
+        rebuilt.append(value.clone())
+        count = kwargs.get("frame_count", 16)
+        return value[:, :count, :72].reshape(1, count, 24, 3)
+
+    engine = SimpleNamespace(
+        student_model=direct_model, predict_clean=predict_clean,
+        q_sample=lambda x_start, t, noise: x_start.clone(),
+        _compute_occ=lambda *args: (None, None, None),
+    )
+    cfg = SimpleNamespace(device="cpu", seed=42, smplx_batch_size=1,
+                          fps=30, predictor_decomp_timestep=259)
+    selection = dict(data_idx=0, episode_id="example", stratum="walk", window_index=0)
+    with patch.object(evaluator, "_lingo_item", return_value=item), patch.object(
+        evaluator, "_teacher_forced_smplx_joints", side_effect=reconstruct
+    ):
+        if mode == "teacher_forced_boundary":
+            record = evaluator._teacher_forced_window_record(
+                cfg, dataset, engine, selection, [259], {},
+            )
+            assert len(calls) == 1
+            assert set(record["metrics"]) == {"259"}
+            assert torch.equal(rebuilt[-1], torch.full((1, 16, 232), 10.0))
+        else:
+            _, arrays = evaluator._predictor_decomp_window_record(
+                cfg, dataset, engine, selection, {},
+            )
+            assert len(calls) == 3
+            assert calls[0][1]["is_sample"]
+            assert calls[1][1]["is_uncondition"]
+            assert torch.equal(calls[2][0][:, 1, :84], calls[2][0][:, 0, :84])
+            assert np.array_equal(arrays["conditional"], np.full((16, 232), 10.0))
+            assert np.array_equal(arrays["unconditional"], np.full((16, 232), 20.0))
+            assert np.array_equal(arrays["zero_velocity_history"], np.full((16, 232), 30.0))

@@ -2217,6 +2217,7 @@ def _teacher_forced_window_record(
     object_bps = tensor("obj_bps_data", torch.float32)
     object_points = tensor("object_points", torch.float32).reshape(1, -1, 3)
     object_rotation_ref = tensor("obj_rot_mat_ref", torch.float32).reshape(1, 3, 3)
+    rest_offsets = tensor("rest_human_offsets", torch.float32).reshape(1, 24, 3)
     betas = tensor("betas", torch.float32).reshape(-1)
     gender = str(batch["gender"][0])
 
@@ -2264,7 +2265,8 @@ def _teacher_forced_window_record(
                 need_pelvis_dir,
                 object_rotation_ref,
             )
-            predicted = sampler.student_model(
+            predicted = sampler.predict_clean(
+                sampler.student_model,
                 x_noisy,
                 occ,
                 t,
@@ -2283,6 +2285,9 @@ def _teacher_forced_window_record(
                 object_bps,
                 occ_list,
                 occ_pos,
+                mat=mat,
+                scene_flag=scene_flag,
+                rest_human_offsets=rest_offsets,
             )
             predicted_joints = _teacher_forced_smplx_joints(
                 predicted,
@@ -2469,10 +2474,13 @@ def _predictor_decomp_window_record(
     )
     model_args = _diagnostic_model_args(inputs)
     with torch.no_grad():
-        conditional = sampler.student_model(
-            x_noisy, occ, t, *model_args, occ_list, occ_pos, is_sample=True
+        conditional = sampler.predict_clean(
+            sampler.student_model, x_noisy, occ, t, *model_args, occ_list, occ_pos,
+            is_sample=True, mat=inputs["mat"], scene_flag=inputs["scene_flag"],
+            rest_human_offsets=inputs["rest_offsets"],
         )
-        unconditional = sampler.student_model(
+        unconditional = sampler.predict_clean(
+            sampler.student_model,
             x_noisy,
             occ,
             t,
@@ -2481,10 +2489,14 @@ def _predictor_decomp_window_record(
             occ_pos,
             is_sample=True,
             is_uncondition=True,
+            mat=inputs["mat"],
+            scene_flag=inputs["scene_flag"],
+            rest_human_offsets=inputs["rest_offsets"],
         )
         zero_velocity_input = x_noisy.clone()
         zero_velocity_input[:, 1, :84] = zero_velocity_input[:, 0, :84]
-        zero_velocity = sampler.student_model(
+        zero_velocity = sampler.predict_clean(
+            sampler.student_model,
             zero_velocity_input,
             occ,
             t,
@@ -2492,6 +2504,9 @@ def _predictor_decomp_window_record(
             occ_list,
             occ_pos,
             is_sample=True,
+            mat=inputs["mat"],
+            scene_flag=inputs["scene_flag"],
+            rest_human_offsets=inputs["rest_offsets"],
         )
 
     predictions = {

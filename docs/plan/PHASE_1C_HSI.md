@@ -14403,3 +14403,9 @@ CM2.3原生联合门失败保留，R2+CG继续为质量基线，Phase1C保持开
 完整diffusion采用一次backbone、217560参数的零末层几何修正器，仅更新216人体输出。Sampler.predict_clean为训练/DDPM/DDIM和外部可微编辑共同入口；query使用coarse clean未来和已知两帧历史，FP32 FK24、现成SDF、同次scene dropout。参数与RNG初始保持、梯度、OOB、对齐、checkpoint warmstart/strict、dirty预检与启动commit、恢复配置均有组件验证。原模型/表示/已有场景条件保持。
 
 authority最终524 passed/5 skipped（88.29s）；首次检查的1项旧AST调用名断言和2项未导出解释器环境错误均已修正，日志保留。训练与coverage Hydra配置完全解析，registry验证441行。原有完整SDF缓存在/data/yujinlun/InfBaGel-hsi/.cache/hsi_sdf，通过显式配置及工作树cache链接复用。接下来在clean实现提交运行登记探针，所有质量结论尚未形成。
+
+### BG1 coverage完成与旧diffusion探针接入
+
+64个seed42训练窗口、24576个FK24点均在完整stencil支持范围内。9823个距表面0.25m以内的点中，4095个在旧crop高度范围外；3957个低于0.1m，138个高于1.2m。该样本的新增近表面信息主要来自近地区域，不能用它宣称高处几何是主要误差来源。观测为GT FK，不是模型生成；坐标等变仍是解析组件验证。coverage作业0更新/0模型调用，68.099s=0.018916GPU-h，结果与manifest已封存。缓存最终通过显式配置/INFBAGEL_SDF_CACHE复用，删除了不被git忽略的工作树cache链接。
+
+审查另发现旧teacher_forced_boundary/predictor_decomp绕过共享预测入口，已将4处调用改为predict_clean并传geometry上下文；新增2个执行式测试验证修正输出、CFG及扰动历史的传递。相关23 tests通过，沿用已通过的authority524/5；本提交是实际诊断接口修复，随后探针记录新的source。
