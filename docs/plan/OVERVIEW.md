@@ -154,6 +154,11 @@ A/B，每任务至少 10 个判断，并设注意力检查。
 160.017709GPU-h。保留R2+CG。交接：
 [CM2质量读出及资源停点](../phase_summaries/PHASE_1C_CM2_EVAL_PENDING.md)。
 
+2026-09-12：CM2.3完整验收结束。G相对质量界限13通过/5失败/7不确定，安全门失败；
+竞争下学生G为19.04FPS。FID/MM改善与物理/表示退化分别保留，继续使用R2+CG。
+最终资源上限按用户最新批准为168GPU-h，实耗160.084340。交接：
+[CM2完整验收总结](../phase_summaries/PHASE_1C_CM2_EVAL.md)。
+
 两专家分别蒸馏，比较 16/8/4 steps；纯域状态只调用单专家，混合状态才双专家。缓存 scene
 encoding、裁剪/量化 mixer、Fast 模式减少 refinement。必要时以 Quality teacher pseudo
 supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS，同时报告 Quality 的
