@@ -12,3 +12,8 @@ lingo_episode_subset: /data/yujinlun/InfBaGel-hsi/.claude/scratch/hetero_2026082
 model_name: body_geometry_probe
 lingo_output_dir: ${oc.env:ROOT_DIR}/results/body_geometry/native
 table3_output: ${oc.env:ROOT_DIR}/results/body_geometry/table3
+table3_encoder_source: /data/yujinlun/InfBaGel-hsi/.claude/scratch/round3_fid/run_lingo_t2m_evaluator.py
+table3_glove_root: /data/yujinlun/InfBaGel-hsi/.claude/scratch/p1c_t2m_evaluator/bundle/glove_lingo
+cohort_truth_dir: /data/yujinlun/InfBaGel-hsi/.claude/scratch/round3_fid/gt/all
+cohort_output: ${oc.env:ROOT_DIR}/results/body_geometry/text_motion
+cohort_inputs: {}

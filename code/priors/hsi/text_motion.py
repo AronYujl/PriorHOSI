@@ -231,6 +231,131 @@ def table3_readout(cfg):
 
 
 
+
+def cohort_text_motion_readout(cfg):
+    """Read fixed native cohorts with the frozen encoder and paired FID draws."""
+    from itertools import combinations
+
+    output = Path(cfg.cohort_output)
+    output.mkdir(parents=True, exist_ok=False)
+    device = torch.device(str(cfg.device))
+    torch.backends.cuda.matmul.allow_tf32 = False
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    started = time.perf_counter()
+    legacy, args, modules, models = _legacy_encoder(cfg, device)
+    payloads = {str(label): json.loads(Path(source).read_text())
+                for label, source in cfg.cohort_inputs.items()}
+    sequence_ids = sorted(next(iter(payloads.values()))["metrics"])
+    truth_by_id = {item.sequence_id: item for item in
+                   legacy.load_directory(Path(cfg.cohort_truth_dir), 800)}
+    truth_items = [truth_by_id[name] for name in sequence_ids]
+    captions = [item.caption for item in truth_items]
+    groups = {"all": np.arange(len(sequence_ids))}
+    interactive = np.asarray([index for index, caption in enumerate(captions)
+                              if caption != "walk"], dtype=np.int64)
+    if len(interactive) > 1:
+        groups["interactive"] = interactive
+    truth_text, truth_motion = legacy.embed(truth_items, modules, models, args, device)
+    truth_tensor = torch.as_tensor(truth_motion, dtype=torch.float64, device=device)
+    rng = np.random.RandomState(42)
+    group_indices = {name: torch.as_tensor(indices, device=device) for name, indices in groups.items()}
+    bootstrap = {name: torch.as_tensor(rng.randint(0, len(indices), size=(2000, len(indices))),
+                                       device=device) for name, indices in groups.items()}
+    summary = {
+        "schema_version": 1, "seed": 42, "optimizer_updates": 0, "generated_windows": 0,
+        "metric_scope": "fixed development cohort; internal frozen LINGO encoder, not published FID",
+        "sequence_ids": sequence_ids, "truth_motion_source": str(cfg.cohort_truth_dir),
+        "encoder_checkpoint": str(cfg.table3_encoder_checkpoint),
+        "normalization": {"mean": str(cfg.table3_mean), "std": str(cfg.table3_std)},
+        "protocol": {"fid_replicates": 2000, "bootstrap_seed": 42,
+                     "pairing": "same sequence IDs, GT and resample indices across all arms",
+                     "weighting": "equal sequence weights within each named group",
+                     "motion_preprocessing": "existing load_directory; 10 fps, canonicalized 28 joints",
+                     "MM-Dist": "paired text-motion embedding distance; per-sequence values exported",
+                     "generation": {}},
+        "groups": {}, "arms": {}, "fid_pairwise": [],
+    }
+    for name, indices in groups.items():
+        distinct = len({captions[index] for index in indices})
+        summary["groups"][name] = {
+            "sequence_count": len(indices),
+            "sequence_ids": [sequence_ids[index] for index in indices],
+            "retrieval_gallery32": {
+                "status": "unavailable" if distinct < 32 else "not_computed",
+                "distinct_caption_count": distinct, "required_distinct_captions": 32,
+                "reason": ("insufficient distinct captions for the fixed gallery32"
+                           if distinct < 32 else "this cohort readout reports FID and MM-Dist"),
+            },
+        }
+    fid_draws = {}
+    for label, payload in payloads.items():
+        assert sorted(payload["metrics"]) == sequence_ids
+        items = []
+        for shard in payload["merged_from"]:
+            items.extend(legacy.load_directory(Path(shard).parent.parent / "motion", 800))
+        items.sort(key=lambda item: item.sequence_id)
+        assert [item.sequence_id for item in items] == sequence_ids
+        assert [item.caption for item in items] == captions
+        text, motion = legacy.embed(items, modules, models, args, device)
+        prediction = torch.as_tensor(motion, dtype=torch.float64, device=device)
+        matching = torch.linalg.vector_norm(
+            torch.as_tensor(text, device=device) - torch.as_tensor(motion, device=device), dim=-1)
+        arm = {"source": str(cfg.cohort_inputs[label]), "groups": {}}
+        summary["protocol"]["generation"][label] = generation_protocol(payload)
+        fid_draws[label] = {}
+        for group, indices in group_indices.items():
+            truth = truth_tensor[indices]
+            generated = prediction[indices]
+            fid = float(frechet_samples(truth, generated))
+            samples = []
+            for begin in range(0, 2000, int(cfg.table3_bootstrap_batch)):
+                selection = bootstrap[group][begin:begin + int(cfg.table3_bootstrap_batch)]
+                samples.append(frechet_samples(truth[selection], generated[selection]))
+            draws = torch.cat(samples)
+            fid_draws[label][group] = draws
+            interval = torch.quantile(draws, draws.new_tensor([0.025, 0.975])).cpu().tolist()
+            arm["groups"][group] = {
+                "sequence_count": len(indices), "FID": {"mean": fid, "ci95": interval},
+                "MM-Dist": {"mean": float(matching[indices].mean())},
+            }
+        arm_dir = output / label
+        arm_dir.mkdir()
+        values = matching.cpu().tolist()
+        metrics = {name: dict(
+            {key: value for key, value in payload["metrics"][name].items()
+             if value is None or isinstance(value, (int, float))},
+            **{"MM-Dist": values[index]},
+        ) for index, name in enumerate(sequence_ids)}
+        _write(arm_dir / "per_sequence_metrics.json", {
+            "schema_version": 1, "sequence_count": len(sequence_ids), "seed": 42,
+            "sample_type": payload["sample_type"], "guided": payload["guided"],
+            "source": str(cfg.cohort_inputs[label]), "metrics": metrics,
+        })
+        np.savez_compressed(
+            arm_dir / "embeddings.npz", sequence_ids=np.asarray(sequence_ids), captions=np.asarray(captions),
+            text=text, motion=motion, truth_text=truth_text, truth_motion=truth_motion,
+            **{"fid_bootstrap_" + group: samples.cpu().numpy()
+               for group, samples in fid_draws[label].items()},
+        )
+        summary["arms"][label] = arm
+        _write(arm_dir / "summary.json", arm)
+    for first, second in combinations(payloads, 2):
+        for group in groups:
+            delta = fid_draws[second][group] - fid_draws[first][group]
+            summary["fid_pairwise"].append({
+                "a": first, "b": second, "group": group, "direction": "b - a",
+                "mean_delta": (summary["arms"][second]["groups"][group]["FID"]["mean"]
+                               - summary["arms"][first]["groups"][group]["FID"]["mean"]),
+                "ci95": torch.quantile(delta, delta.new_tensor([0.025, 0.975])).cpu().tolist(),
+            })
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    summary["seconds"] = time.perf_counter() - started
+    _write(output / "summary.json", summary)
+    return output / "summary.json"
+
+
 def paired_mean_ratios(reference, student, replicates=10000, seed=42):
     """Paired ratios of cohort means, sharing resampled rows across all metrics."""
     generator = torch.Generator(device=reference.device).manual_seed(seed)

@@ -14415,3 +14415,13 @@ authority最终524 passed/5 skipped（88.29s）；首次检查的1项旧AST调�
 8×256真实训练batch，零optimizer更新。新refiner末层8rank梯度均有限非零；新关系目标与原R2总目标trunk余弦0.149832..0.427913，rotation-head余弦0.048435..0.313594。近表面可监督点占比0.328392..0.348400，中心OOB排除率均0。按预注册min规则得到trunk上限0.25590593335809264、rotation上限1.254932664657329，取前者并固定到唯一训练fragment。
 
 作业exit0，161.838s=0.359639GPU-h，采样最小实际余量7949MiB。DataLoader共享CUDA张量的既有退出告警随rank结束出现，输出与8rank校准齐全，无运行失败。累计coverage+gradient0.378555GPU-h；不据梯度门宣称质量提高。下面严格按固定256更新、同初始化/预算/噪声顺序运行control与bodygeo两臂，随后读取final online。
+
+### BG1短学习完成；原生读出前固定分布指标口径
+
+两臂均在同一a34c14e source完成256更新/524288窗口，并保存final online与完整恢复状态；没有按中途loss选权重。control/bodygeo在32次预热后的224更新耗时106.349/137.179s，即0.474771/0.612404s每更新；增强约增加29%步骤时间。增强峰值reserved10.408GB、外部竞争下最小采样余量7821MiB。增强日志loss均有限；不同batch的首末关系loss不是配对学习证据。累计四项探针1.379997GPU-h，长训练未启动。
+
+原生三臂结果尚未生成。为满足几何与分布质量并列的既有要求，读出固定all60及其中43条non-walk的FID/MM-Dist，沿用冻结内部LINGO encoder、GT目录和既有GPU frechet_samples。FID沿用2000次seed42配对重采样，所有臂共享GT和draw；MM连同全部原生scalar用paired_bootstrap.py的10000次序列等权读出。该队列只有21种caption（non-walk20），现成gallery32不适用，明确标记不可计算，不改gallery定义。所有指标均为已暴露开发队列/内部encoder，不直接与公开FID比较。
+
+现有Table3入口硬编码375条及guided/unguided，故在现有text_motion.py添加通用cohort reader和evaluator mode，复用现成encoder/预处理/统计，不新增脚本、模型或训练方向。reader使用真实control/enhanced/permuted标签与guidance状态。本补充发生在首次原生读出前，不改变两臂训练或采样配置。
+
+BG1 cohort reader实现完成；再次完整authority为528 passed/5 skipped（95.94s），registry442行通过。新增读出仅消费固定native输出与既有GT/encoder，不改变两个已完成训练臂的runtime。首次native评价使用本提交统一执行三臂。

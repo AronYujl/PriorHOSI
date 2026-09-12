@@ -3747,6 +3747,9 @@ def main(cfg: DictConfig) -> None:
     elif mode == "table3":
         from priors.hsi.text_motion import table3_readout
         path = table3_readout(cfg)
+    elif mode == "cohort_text_motion":
+        from priors.hsi.text_motion import cohort_text_motion_readout
+        path = cohort_text_motion_readout(cfg)
     elif mode == "cm_distillation_readout":
         from priors.hsi.text_motion import cm_distillation_readout
         path = cm_distillation_readout(cfg)
@@ -3771,7 +3774,7 @@ def main(cfg: DictConfig) -> None:
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
             "d4_offline_decomp, chain_rebase, rebase_numerics, table3, position_fk, "
-            "merge_position_fk, qualitative_cache, qualitative_finalize or body_scene_geometry, got %s"
+            "merge_position_fk, qualitative_cache, qualitative_finalize, body_scene_geometry or cohort_text_motion, got %s"
             % mode
         )
     print("Wrote %s" % path)
