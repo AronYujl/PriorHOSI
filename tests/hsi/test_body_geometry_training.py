@@ -151,6 +151,7 @@ def test_training_cli_still_exposes_hydra_config_without_starting_workers():
 @pytest.mark.parametrize('field,value', [
     ('body_geometry_enabled', True), ('body_geometry_loss_weight', 0.5),
     ('body_geometry_permutation', 'left_right'),
+    ('body_geometry_encoder', 'legacy_flatten'),
 ])
 def test_resume_refuses_changed_body_geometry_contract(field, value):
     geometry = {key: None for key in trainer.RESUME_GEOMETRY_FIELDS}

@@ -88,6 +88,7 @@ RESUME_GEOMETRY_FIELDS = (
     'body_geometry_enabled',
     'body_geometry_loss_weight',
     'body_geometry_permutation',
+    'body_geometry_encoder',
 )
 
 
@@ -349,6 +350,7 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'body_geometry_enabled': cfg.get('body_geometry_enabled', None),
         'body_geometry_loss_weight': cfg.get('body_geometry_loss_weight', None),
         'body_geometry_permutation': cfg.get('body_geometry_permutation', None),
+        'body_geometry_encoder': cfg.get('body_geometry_encoder', None),
     }
 
 

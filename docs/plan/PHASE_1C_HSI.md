@@ -14420,6 +14420,16 @@ authority最终524 passed/5 skipped（88.29s）；首次检查的1项旧AST调�
 
 两臂均在同一a34c14e source完成256更新/524288窗口，并保存final online与完整恢复状态；没有按中途loss选权重。control/bodygeo在32次预热后的224更新耗时106.349/137.179s，即0.474771/0.612404s每更新；增强约增加29%步骤时间。增强峰值reserved10.408GB、外部竞争下最小采样余量7821MiB。增强日志loss均有限；不同batch的首末关系loss不是配对学习证据。累计四项探针1.379997GPU-h，长训练未启动。
 
+### 2026-09-12：BG1-R1 部位-时间绑定结构探针（已批准）
+
+BG1 的首轮结果显示几何分支可训练，但 `24×5` 条件直接 flatten 后由单个 residual MLP 读取，尚不能证明模型使用了身体部位对应关系；`left_right` 置换在 256 updates 后也没有显著破坏结果。因此先做一个小范围结构修正，再决定是否进入 BG2 长训练：
+
+- 将 24 个 FK joints 固定分为 torso、left/right leg、left/right arm 五组，分别编码为 group tokens，并保留 joint identity embedding；
+- 输入当前几何 token 与相邻帧 token 差分，再加入归一化窗口时间编码，使修正同时绑定身体部位和时间位置；
+- 保持零初始化输出层、216 个人体通道修正、物体通道和场景 dropout 语义不变；
+- 使用与 BG1 完全相同的 seed、数据队列、256 optimizer updates、effective batch 2048 和 native DDIM25 读出，比较 control、结构增强和 left/right permutation；
+- 本轮不加入 jerk loss；jerk 只作为已注册的质量读出。进入 BG2 的门槛为正确条件相对 permutation 产生稳定结构差异，且 FID/MM 不出现一致性恶化，scene/penetration 至少有一个方向明确改善。
+
 原生三臂结果尚未生成。为满足几何与分布质量并列的既有要求，读出固定all60及其中43条non-walk的FID/MM-Dist，沿用冻结内部LINGO encoder、GT目录和既有GPU frechet_samples。FID沿用2000次seed42配对重采样，所有臂共享GT和draw；MM连同全部原生scalar用paired_bootstrap.py的10000次序列等权读出。该队列只有21种caption（non-walk20），现成gallery32不适用，明确标记不可计算，不改gallery定义。所有指标均为已暴露开发队列/内部encoder，不直接与公开FID比较。
 
 现有Table3入口硬编码375条及guided/unguided，故在现有text_motion.py添加通用cohort reader和evaluator mode，复用现成encoder/预处理/统计，不新增脚本、模型或训练方向。reader使用真实control/enhanced/permuted标签与guidance状态。本补充发生在首次原生读出前，不改变两臂训练或采样配置。

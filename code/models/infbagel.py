@@ -1965,6 +1965,9 @@ class Unet(nn.Module):
             torch.arange(0, dim_model//2, 2).float() * (-math.log(10000.0)) / (dim_model//2))  # 1000^(2i/dim_model)
         # self.register_buffer("division_term", division_term)
         self.body_geometry_enabled = bool(kwargs.get('body_geometry_enabled', False))
+        self.body_geometry_encoder = str(kwargs.get('body_geometry_encoder', 'body_group_tokens_temporal'))
+        if self.body_geometry_enabled and self.body_geometry_encoder != 'body_group_tokens_temporal':
+            raise ValueError(f'unknown body geometry encoder: {self.body_geometry_encoder}')
         self.checkpoint_load_mode = str(kwargs.get('checkpoint_load_mode', 'legacy'))
         if self.body_geometry_enabled:
             # Creating the new branch leaves the pretrained path's RNG sequence intact.

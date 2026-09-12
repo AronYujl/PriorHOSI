@@ -12,6 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "code"))
 
 from priors.hsi.body_geometry import (
+    BODY_GROUPS,
     BodyGeometryRefiner,
     body_geometry_relation_loss,
     query_body_geometry,
@@ -139,6 +140,25 @@ def test_zero_initialized_refiner_preserves_backbone_and_learns_last_layer():
     assert refiner.output.bias.grad.norm() > 0
     assert torch.equal(refiner.input.weight.grad, torch.zeros_like(refiner.input.weight))
     assert not any(isinstance(module, torch.nn.Dropout) for module in refiner.modules())
+
+
+def test_refiner_exposes_fixed_body_groups_and_temporal_difference():
+    torch.manual_seed(42)
+    refiner = BodyGeometryRefiner(hidden_dim=12, hidden_width=16)
+    hidden = torch.zeros(1, 3, 12)
+    features = torch.zeros(1, 3, 24, 5)
+    features[:, 0, BODY_GROUPS[1], 0] = 1.0
+    features[:, 1, BODY_GROUPS[1], 0] = 0.5
+    features[:, 2, BODY_GROUPS[4], 0] = -1.0
+    encoded = refiner.joint_encoder(features) + refiner.joint_identity
+    groups = refiner._group_tokens(encoded)
+    assert groups.shape == (1, 3, len(BODY_GROUPS), refiner.geometry_dim)
+    # A change in one leg is localized to that group's temporal token; a right
+    # arm change at the next frame must not be mistaken for the leg change.
+    delta = torch.cat([torch.zeros_like(groups[:, :1]), groups[:, 1:] - groups[:, :-1]], dim=1)
+    assert delta[:, 1, 1].abs().sum() > 0
+    assert torch.equal(delta[:, 1, 2], torch.zeros_like(delta[:, 1, 2]))
+    assert delta[:, 2, 4].abs().sum() > 0
 
 
 def test_relation_loss_masks_history_range_and_both_out_of_bounds():

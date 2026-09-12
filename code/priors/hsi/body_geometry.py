@@ -7,6 +7,17 @@ from torch.nn import functional as F
 
 BODY_GEOMETRY_RANGE_M = 0.25
 
+# The FK ordering is the 24-joint ordering used by the HSI denoiser.  Keeping
+# this partition explicit makes a left/right permutation a meaningful causal
+# diagnostic: the same geometry is then presented to the wrong body group.
+BODY_GROUPS = (
+    (0, 3, 6, 9, 12, 15),       # pelvis, spine, neck, head
+    (1, 4, 7, 10),               # left leg
+    (2, 5, 8, 11),               # right leg
+    (16, 18, 20, 22),             # left arm
+    (17, 19, 21, 23),             # right arm
+)
+
 
 def query_body_geometry(joints_world, scene_flag, window_rotation, sdf_bank):
     """Query ordered body joints, retaining frame and joint correspondence.
@@ -55,18 +66,72 @@ def query_body_geometry(joints_world, scene_flag, window_rotation, sdf_bank):
 
 
 class BodyGeometryRefiner(nn.Module):
-    """Predict a human-state residual from motion and ordered local geometry."""
+    """Predict a human-state residual from body-group and temporal geometry.
 
-    def __init__(self, hidden_dim=512, hidden_width=256):
+    A flattened ``24x5`` vector lets the correction behave like an unstructured
+    scene residual.  We first encode each FK joint, add a joint identity, pool
+    into five fixed kinematic groups, and append the one-step temporal change
+    of those group tokens.  The output remains per-frame, so the surrounding
+    diffusion contract and zero-initialized warm start are unchanged.
+    """
+
+    def __init__(self, hidden_dim=512, hidden_width=256, geometry_dim=48,
+                 temporal_dim=16):
         super().__init__()
-        self.input = nn.Linear(hidden_dim + 24 * 5, hidden_width)
+        self.geometry_dim = int(geometry_dim)
+        self.temporal_dim = int(temporal_dim)
+        self.body_groups = BODY_GROUPS
+        self.joint_encoder = nn.Linear(5, self.geometry_dim)
+        self.joint_identity = nn.Parameter(torch.zeros(24, self.geometry_dim))
+        self.group_encoder = nn.Sequential(
+            nn.LayerNorm(self.geometry_dim),
+            nn.Linear(self.geometry_dim, self.geometry_dim),
+            nn.SiLU(),
+        )
+        nn.init.zeros_(self.group_encoder[1].bias)
+        group_count = len(self.body_groups)
+        # Keep the first geometry coordinate equal to the mean signed distance
+        # so the existing branch diagnostic remains an interpretable probe.
+        geometry_width = 1 + group_count * self.geometry_dim * 2 + self.temporal_dim
+        self.input = nn.Linear(hidden_dim + geometry_width, hidden_width)
         self.activation = nn.SiLU()
         self.output = nn.Linear(hidden_width, 216)
         nn.init.zeros_(self.output.weight)
         nn.init.zeros_(self.output.bias)
 
+    def _group_tokens(self, encoded):
+        groups = []
+        for indices in self.body_groups:
+            group = encoded[..., list(indices), :].mean(dim=-2)
+            groups.append(self.group_encoder(group))
+        return torch.stack(groups, dim=-2)
+
+    def _temporal_encoding(self, batch, frames, device, dtype):
+        position = torch.linspace(0.0, 1.0, frames, device=device, dtype=dtype)
+        half = self.temporal_dim // 2
+        frequencies = torch.arange(half, device=device, dtype=dtype)
+        frequencies = torch.pow(10000.0, -frequencies / max(half - 1, 1))
+        angles = position[:, None] * frequencies[None, :]
+        encoding = torch.cat([angles.sin(), angles.cos()], dim=-1)
+        if encoding.shape[-1] < self.temporal_dim:
+            encoding = F.pad(encoding, (0, self.temporal_dim - encoding.shape[-1]))
+        return encoding[:, :self.temporal_dim].unsqueeze(0).expand(batch, -1, -1)
+
     def forward(self, motion_hidden, body_features):
-        joined = torch.cat([motion_hidden, body_features.flatten(-2)], dim=-1)
+        if body_features.ndim != 4 or body_features.shape[-2:] != (24, 5):
+            raise ValueError(
+                f"body geometry must have shape [B,T,24,5], got {tuple(body_features.shape)}"
+            )
+        batch, frames = body_features.shape[:2]
+        encoded = self.joint_encoder(body_features) + self.joint_identity
+        groups = self._group_tokens(encoded)
+        delta = torch.cat([torch.zeros_like(groups[:, :1]), groups[:, 1:] - groups[:, :-1]], dim=1)
+        temporal = self._temporal_encoding(batch, frames, groups.device, groups.dtype)
+        distance_anchor = body_features[..., 0, 0:1]
+        joined = torch.cat([
+            motion_hidden, distance_anchor, groups.flatten(-2),
+            delta.flatten(-2), temporal,
+        ], dim=-1)
         return self.output(self.activation(self.input(joined)))
 
 

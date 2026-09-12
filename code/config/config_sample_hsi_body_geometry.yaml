@@ -2,6 +2,7 @@
 defaults: [config_sample_hsi_r2_ddim25, _self_]
 
 body_geometry_enabled: true
+body_geometry_encoder: body_group_tokens_temporal
 body_geometry_loss_weight: 0.0
 body_geometry_permutation: identity
 checkpoint_load_mode: strict
