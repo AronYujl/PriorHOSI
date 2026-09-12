@@ -281,6 +281,179 @@ def body_fk_calibrated_weight(rank_records):
             "rotation_head_25_percent_weight": float(rotation), "ranks": rank_records}
 
 
+BODY_GEOMETRY_JOINT_NAMES = (
+    "pelvis", "left_hip", "right_hip", "spine1", "left_knee", "right_knee",
+    "spine2", "left_ankle", "right_ankle", "spine3", "left_foot", "right_foot",
+    "neck", "left_collar", "right_collar", "head", "left_shoulder",
+    "right_shoulder", "left_elbow", "right_elbow", "left_wrist", "right_wrist",
+    "left_hand", "right_hand",
+)
+
+
+def body_geometry_coverage_metrics(joints_world, query, *, surface_band=0.25):
+    """Count observed geometry by FK joint; missing geometry has its own count."""
+    heights = joints_world[..., 1]
+    valid = query["valid"].bool()
+    distance = query["signed_distance"]
+    near = valid & (distance.abs() <= float(surface_band))
+    below_crop = heights < 0.1
+    above_crop = heights > 1.2
+
+    def describe(height, sdf, gradient, mask, center_oob, close, below, above):
+        count = int(mask.numel())
+        selected = sdf[mask]
+        gradient_norm = gradient[mask].norm(dim=-1)
+        return {
+            "query_count": count,
+            "valid_count": int(mask.sum()),
+            "invalid_count": int((~mask).sum()),
+            "center_out_of_bounds_count": int(center_oob.sum()),
+            "center_in_bounds_stencil_invalid_count": int((~mask & ~center_oob).sum()),
+            "valid_fraction": float(mask.float().mean()),
+            "height_min_m": float(height.min()),
+            "height_mean_m": float(height.mean()),
+            "height_max_m": float(height.max()),
+            "below_old_crop_count": int(below.sum()),
+            "above_old_crop_count": int(above.sum()),
+            "valid_near_surface_count": int(close.sum()),
+            "valid_near_surface_below_old_crop_count": int((close & below).sum()),
+            "valid_near_surface_above_old_crop_count": int((close & above).sum()),
+            "valid_near_surface_outside_old_crop_count": int((close & (below | above)).sum()),
+            "valid_signed_distance_mean_m": float(selected.mean()) if selected.numel() else None,
+            "valid_absolute_distance_mean_m": float(selected.abs().mean()) if selected.numel() else None,
+            "valid_gradient_norm_mean": float(gradient_norm.mean()) if gradient_norm.numel() else None,
+        }
+
+    args = (heights, distance, query["gradient_world"], valid,
+            query["center_out_of_bounds"], near, below_crop, above_crop)
+    result = describe(*args)
+    result["near_surface_band_m"] = float(surface_band)
+    result["old_crop_world_height_m"] = [0.1, 1.2]
+    result["per_joint"] = [
+        dict(joint_index=index, joint_name=name, **describe(
+            heights[..., index], distance[..., index], query["gradient_world"][..., index, :],
+            valid[..., index], query["center_out_of_bounds"][..., index],
+            near[..., index], below_crop[..., index], above_crop[..., index],
+        ))
+        for index, name in enumerate(BODY_GEOMETRY_JOINT_NAMES)
+    ]
+    return result
+
+
+@torch.no_grad()
+def body_scene_geometry(cfg):
+    """Observe FK24 coverage on 64 seed-42 LINGO training windows, without a model."""
+    import json
+    import random
+    from pathlib import Path
+
+    import hydra
+    from omegaconf import OmegaConf
+    from priors.hsi.body_geometry import query_body_geometry
+    from test_infbagel_lingo_hsi import (
+        _diagnostic_window_inputs, _scene_only_dataset, _teacher_forced_train_windows,
+    )
+
+    random.seed(42)
+    np.random.seed(42)
+    torch.manual_seed(42)
+    train_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+    train_cfg.dataset.split_partition = "train"
+    dataset = _scene_only_dataset(train_cfg)
+    sampler = hydra.utils.instantiate(train_cfg.sampler.pelvis)
+    sampler.set_dataset_and_model(dataset, None)
+    bank = sampler._get_pen_sdf_bank()
+    selections = _teacher_forced_train_windows(dataset, 64, 42)
+    names = {int(flag): str(name) for name, flag in dataset.unified_scene_dict.items()}
+    joint_rows, query_rows, records = [], [], []
+    keys = ("signed_distance", "gradient_world", "valid", "center_out_of_bounds")
+    for selection in selections:
+        inputs = _diagnostic_window_inputs(train_cfg, dataset, selection)
+        _, joints = sampler._compute_human_joints(
+            inputs["x_start"], inputs["joints"], inputs["mat"], inputs["rest_offsets"]
+        )
+        query = query_body_geometry(joints, inputs["scene_flag"], inputs["mat"][:, :3, :3], bank)
+        joint_rows.append(joints)
+        query_rows.append({key: query[key] for key in keys})
+        records.append({
+            "data_idx": int(selection["data_idx"]),
+            "scene_name": names[int(inputs["scene_flag"].item())],
+            "need_scene": bool(inputs["need_scene"].item()),
+            "query_count": int(query["valid"].numel()),
+            "valid_count": int(query["valid"].sum()),
+            "center_out_of_bounds_count": int(query["center_out_of_bounds"].sum()),
+        })
+    joints = torch.cat(joint_rows)
+    query = {key: torch.cat([row[key] for row in query_rows]) for key in keys}
+    summary = body_geometry_coverage_metrics(joints, query)
+    scene_names = sorted({row["scene_name"] for row in records})
+    per_scene = {}
+    for scene_name in scene_names:
+        indices = [index for index, row in enumerate(records) if row["scene_name"] == scene_name]
+        per_scene[scene_name] = body_geometry_coverage_metrics(
+            joints[indices], {key: value[indices] for key, value in query.items()}
+        )
+    output = Path(str(cfg.body_geometry_probe_output))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("x") as handle:
+        json.dump({
+            "mode": "body_scene_geometry", "seed": 42, "optimizer_updates": 0,
+            "model_forward_calls": 0, "split_partition": "train", "window_count": 64,
+            "selection_rule": "default_rng(42).choice(sorted_valid_underlying_indices, replace=False)",
+            "motion_source": "ground-truth representation through existing FP32 FK24",
+            "geometry_source": "mesh-derived SceneSDFBank",
+            "validity_rule": "center and six +/- one-voxel stencil queries are in bounds",
+            "conclusion_scope": "geometric observation coverage, not motion generation quality",
+            "summary": summary, "per_scene": per_scene, "windows": records,
+        }, handle, indent=2, allow_nan=False)
+        handle.write("\n")
+    return output
+
+
+def body_geometry_gradient_calibration(model, losses, fk_weight, *, geometry_weight=0.0):
+    """Measure the new relation objective against the existing R2 objective."""
+    geometry = losses["loss_body_geometry"]
+    base = losses["loss"] + float(fk_weight) * losses["loss_fk"] - float(geometry_weight) * geometry
+    terms = {"body_geometry": geometry, "r2_total": base,
+             "jpos": losses["loss_jpos"], "jrot": losses["loss_jrot"],
+             "hand_foot_fk": losses["loss_fk"], "fullbody_seam": losses["loss_fullbody_seam"]}
+    trunk = tuple(model.transformer.parameters())
+    parameters = trunk + (model.out.weight, model.body_geometry_refiner.output.weight)
+    records = {}
+    for name, term in terms.items():
+        gradients = torch.autograd.grad(term, parameters, retain_graph=True)
+        vectors = (torch.cat([gradient.float().flatten() for gradient in gradients[:-2]]),
+                   gradients[-2][84:216].float().flatten(), gradients[-1].float().flatten())
+        if name == "body_geometry":
+            geometry_vectors = vectors
+        record = {"raw_loss": float(term.detach())}
+        for region, vector, reference in zip(
+            ("trunk", "rotation_head", "refiner_output"), vectors, geometry_vectors
+        ):
+            record[region + "_gradient_norm"] = float(vector.norm())
+            record[region + "_cosine_with_body_geometry"] = float(
+                torch.nn.functional.cosine_similarity(vector, reference, dim=0)
+            )
+        records[name] = record
+    records["body_geometry"].update(
+        active_fraction=float(losses["body_geometry_active_fraction"]),
+        invalid_fraction=float(losses["body_geometry_invalid_fraction"]),
+    )
+    return records
+
+
+def body_geometry_calibrated_weight(rank_records):
+    """One fixed ratio calibration; both limits use the original total objective."""
+    def median(term, region):
+        return np.median([row[term][region + "_gradient_norm"] for row in rank_records])
+
+    trunk = 0.10 * median("r2_total", "trunk") / median("body_geometry", "trunk")
+    rotation = 0.25 * median("r2_total", "rotation_head") / median("body_geometry", "rotation_head")
+    return {"body_geometry_loss_weight": float(min(trunk, rotation)),
+            "trunk_10_percent_weight": float(trunk),
+            "rotation_head_25_percent_weight": float(rotation), "ranks": rank_records}
+
+
 def rebase_numerics_batch(cfg, sampler, model, batch, noise, timestep, precision, zero_bias):
     """Measure a fixed denoiser through production p_losses, without updates."""
     from models.infbagel import rebase_model_output

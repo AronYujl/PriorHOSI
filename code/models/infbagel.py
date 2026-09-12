@@ -19,6 +19,11 @@ from priors.hsi.diagnostics import (
     select_future_occ_centers,
     validate_future_occ_mode,
 )
+from priors.hsi.body_geometry import (
+    BodyGeometryRefiner,
+    body_geometry_relation_loss,
+    query_body_geometry,
+)
 
 @torch.no_grad()
 def update_ema(target_params, source_params, rate=0.99):
@@ -255,6 +260,9 @@ class Sampler:
             kwargs.get('fullbody_seam_loss_weight', 0.0) or 0.0
         )
         self.body_fk_loss_weight = float(kwargs.get('body_fk_loss_weight', 0.0))
+        self.body_geometry_enabled = bool(kwargs.get('body_geometry_enabled', False))
+        self.body_geometry_loss_weight = float(kwargs.get('body_geometry_loss_weight', 0.0))
+        self.body_geometry_permutation = str(kwargs.get('body_geometry_permutation', 'identity'))
         _w = kwargs.get('loss_w_jpos', 1.0)
         self.loss_w_jpos = 1.0 if _w is None else float(_w)
         _pen_weight = kwargs.get('pen_loss_weight', 0.0)
@@ -399,6 +407,47 @@ class Sampler:
             + target_seam[:, :-2]
         )
         return F.mse_loss(predicted_acceleration, target_acceleration)
+
+    def body_geometry_query(self, known_motion, mat, scene_flag, rest_human_offsets):
+        """Build a differentiable query in the candidate's physical FK frame."""
+        bank = self._get_pen_sdf_bank()
+
+        def query(clean_prediction):
+            with torch.autocast(device_type=clean_prediction.device.type, enabled=False):
+                candidate = torch.cat((
+                    known_motion[:, :self.auto_regre_num].float(),
+                    clean_prediction[:, self.auto_regre_num:].float(),
+                ), dim=1)
+                _, candidate_joints = self._compute_human_joints(
+                    candidate, candidate[..., :84], mat.float(),
+                    rest_human_offsets.float(),
+                )
+                result = query_body_geometry(
+                    candidate_joints, scene_flag, mat[:, :3, :3].float(), bank
+                )
+                features = result['features']
+                if self.body_geometry_permutation == 'left_right':
+                    order = [0, 2, 1, 3, 5, 4, 6, 8, 7, 9, 11, 10,
+                             12, 14, 13, 15, 17, 16, 19, 18, 21, 20, 23, 22]
+                    features = features[:, :, order]
+                elif self.body_geometry_permutation != 'identity':
+                    raise ValueError('unknown body geometry permutation')
+                return features
+
+        return query
+
+    def predict_clean(self, model, x, occ, t, *conditions, mat=None,
+                      scene_flag=None, rest_human_offsets=None, **kwargs):
+        """Shared full-diffusion prediction for training, sampling and editing.
+
+        Autograd belongs to the caller: native sampling runs under no_grad,
+        while an editor can differentiate through FK and geometry sampling.
+        """
+        if self.body_geometry_enabled:
+            kwargs['body_geometry_query'] = self.body_geometry_query(
+                x, mat, scene_flag, rest_human_offsets
+            )
+        return model(x, occ, t, *conditions, **kwargs)
 
     def _compute_body_fk_loss(self, predicted_joints, target_positions):
         n = int(self.auto_regre_num)
@@ -1286,7 +1335,12 @@ class Sampler:
             occ = None
 
         # use the model to predict noise
-        predicted_noise = self.student_model(x_noisy, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos)
+        predicted_noise = self.predict_clean(
+            self.student_model, x_noisy, occ, t, text_emb, pelvis_goal, scene_goal,
+            is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi,
+            object_goal, is_object, obj_bps_data, occ_list, occ_pos,
+            mat=mat, scene_flag=scene_flag, rest_human_offsets=rest_human_offsets,
+        )
         predicted_noise = rebase_model_output(
             predicted_noise, x_noisy, self.hsi_chain_rebase_mode
         )
@@ -1470,6 +1524,28 @@ class Sampler:
                 loss_pen = predicted_noise.new_zeros(())
             loss = loss + self.pen_loss_weight * loss_pen
 
+        loss_body_geometry = None
+        body_geometry_active_fraction = None
+        body_geometry_invalid_fraction = None
+        if self.body_geometry_enabled:
+            with torch.autocast(device_type=predicted_noise.device.type, enabled=False):
+                if human_jnts is None:
+                    _, human_jnts = self._compute_human_joints(
+                        predicted_noise.float(), joints.float(), mat.float(),
+                        rest_human_offsets.float(),
+                    )
+                _, geometry_target_joints = self._compute_human_joints(
+                    x_start.float(), joints.float(), mat.float(), rest_human_offsets.float()
+                )
+                relation = body_geometry_relation_loss(
+                    human_jnts, geometry_target_joints, scene_flag,
+                    self._get_pen_sdf_bank(), history_frames=self.auto_regre_num,
+                )
+                loss_body_geometry = relation['loss']
+                loss = loss + self.body_geometry_loss_weight * loss_body_geometry
+                body_geometry_active_fraction = relation['active_fraction']
+                body_geometry_invalid_fraction = relation['invalid_fraction']
+
         if occ_list is not None:
             del occ_list
         if occ is not None:
@@ -1485,6 +1561,9 @@ class Sampler:
             loss_pen=loss_pen,
             loss_jpos=loss_jpos,
             loss_jrot=loss_jrot,
+            loss_body_geometry=loss_body_geometry,
+            body_geometry_active_fraction=body_geometry_active_fraction,
+            body_geometry_invalid_fraction=body_geometry_invalid_fraction,
         )
 
     @torch.no_grad()
@@ -1528,9 +1607,21 @@ class Sampler:
                  need_pelvis_dir, pi, end_pi, seq_length, need_pi, is_loco, is_object, obj_bps_data, object_points, obj_rot_mat_ref, obj_rest_verts, obj_vert_normals, seq_name_dict, human_dict, guidance_fn, guidance_scale, obj_rot_mat_prefix=None, object_only=False, ddim_index=None):
         occ, occ_list, occ_pos = self._compute_occ_sample(x, x0, mat, scene_flag, object_points, pelvis_goal, scene_goal, object_goal, is_loco, is_object, need_pelvis_dir, obj_rot_mat_ref, object_only, obj_rest_verts, seq_name_dict, obj_rot_mat_prefix, t_index)
 
-        cond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True)
+        geometry_offsets = human_dict['rest_human_offsets'][:, 0] if self.body_geometry_enabled else None
+        cond_model_output = self.predict_clean(
+            model, x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco,
+            need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi,
+            object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True,
+            mat=mat, scene_flag=scene_flag, rest_human_offsets=geometry_offsets,
+        )
 
-        uncond_model_output = model(x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=True, is_uncondition=True)
+        uncond_model_output = self.predict_clean(
+            model, x, occ, t, text_emb, pelvis_goal, scene_goal, is_loco,
+            need_scene, need_pelvis_dir, pi, end_pi, seq_length, need_pi,
+            object_goal, is_object, obj_bps_data, occ_list, occ_pos,
+            is_sample=True, is_uncondition=True, mat=mat, scene_flag=scene_flag,
+            rest_human_offsets=geometry_offsets,
+        )
 
         model_output = cond_model_output + self.w * (cond_model_output - uncond_model_output)
 
@@ -1873,6 +1964,12 @@ class Unet(nn.Module):
         self.division_term = torch.exp(
             torch.arange(0, dim_model//2, 2).float() * (-math.log(10000.0)) / (dim_model//2))  # 1000^(2i/dim_model)
         # self.register_buffer("division_term", division_term)
+        self.body_geometry_enabled = bool(kwargs.get('body_geometry_enabled', False))
+        self.checkpoint_load_mode = str(kwargs.get('checkpoint_load_mode', 'legacy'))
+        if self.body_geometry_enabled:
+            # Creating the new branch leaves the pretrained path's RNG sequence intact.
+            with torch.random.fork_rng(devices=[]):
+                self.body_geometry_refiner = BodyGeometryRefiner(hidden_dim=dim_model)
 
     def encode_2d_coordinate(self, pos, dim_model=512):
         # pos: [b, 2]
@@ -1889,7 +1986,7 @@ class Unet(nn.Module):
         return torch.cat((pe_x, pe_y), dim=1)[:, None, :] / math.sqrt(dim_model // 2)
 
     def forward(self, x, cond, timesteps, text_emb, pelvis_goal, scene_goal, is_loco, need_scene, need_pelvis_dir, \
-                pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=False, is_uncondition=False, mask_timestep=10, cfg_scale=None):
+                pi, end_pi, seq_length, need_pi, object_goal, is_object, obj_bps_data, occ_list, occ_pos, is_sample=False, is_uncondition=False, mask_timestep=10, cfg_scale=None, body_geometry_query=None):
         """
         Forward function, ensures all inputs have the correct type and device
         
@@ -1915,6 +2012,7 @@ class Unet(nn.Module):
         # ensure all inputs are float type
         x = x.to(dtype=torch.float32)
         self.batch_size = x.shape[0]
+        geometry_active = need_scene.reshape(-1).bool() & self.load_scene
         
         if cond is not None:
             cond = cond.to(dtype=torch.float32)
@@ -1992,10 +2090,12 @@ class Unet(nn.Module):
                     if cfg_scale is not None:
                         is_uncond = is_uncond | (cfg_scale == -1).squeeze(1)
                     mask = is_uncond[:, None, None]
+                    geometry_active = geometry_active & ~is_uncond
                     for i in range(1, len(scene_embs)):
                         scene_embs[i] = torch.where(mask, torch.zeros_like(scene_embs[i]), scene_embs[i])
                 else:
                     prob_mask = (torch.rand(scene_embs[0].size(0), 1, 1, device=scene_embs[0].device) < 0.1)
+                    geometry_active = geometry_active & ~prob_mask.reshape(-1)
                     for i in range(1, len(scene_embs)):
                         scene_embs[i] = torch.where(prob_mask, torch.zeros_like(scene_embs[i]), scene_embs[i])
                 
@@ -2160,6 +2260,15 @@ class Unet(nn.Module):
         else:
             output = self.out(x)[6:]
         output = output.permute(1, 0, 2)
+
+        if self.body_geometry_enabled:
+            motion_hidden = x[x_index] if self.scene_type == 'occ_temp' else x[6:]
+            features = body_geometry_query(output)
+            residual = self.body_geometry_refiner(
+                motion_hidden.permute(1, 0, 2), features.to(motion_hidden.dtype)
+            )
+            residual = residual * geometry_active[:, None, None]
+            output = torch.cat((output[..., :216] + residual, output[..., 216:]), dim=-1)
 
         return output
 

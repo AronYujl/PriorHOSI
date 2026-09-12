@@ -240,6 +240,38 @@ def linear_beta_schedule(timesteps):
     return torch.linspace(beta_start, beta_end, timesteps)
 
 
+def load_checkpoint_parameters(model, checkpoint, *, evaluation=False):
+    """Load the complete model or the explicitly registered R2 warm start."""
+    mode = (getattr(model, 'checkpoint_load_mode', 'legacy')
+            if getattr(model, 'body_geometry_enabled', False) else 'legacy')
+    if mode == 'body_geometry_warm_start':
+        model_keys = set(model.state_dict())
+        checkpoint_keys = set(checkpoint)
+        expected_missing = {key for key in model_keys
+                            if key.startswith('body_geometry_refiner.')}
+        missing = model_keys - checkpoint_keys
+        unexpected = checkpoint_keys - model_keys
+        if missing != expected_missing or unexpected:
+            raise RuntimeError(
+                'body geometry warm start requires the complete R2 backbone and '
+                'exactly the new body_geometry_refiner keys; '
+                f'missing={sorted(missing)}, unexpected={sorted(unexpected)}, '
+                f'expected_missing={sorted(expected_missing)}'
+            )
+        model.load_state_dict(checkpoint, strict=False)
+    elif mode == 'strict':
+        model.load_state_dict(checkpoint, strict=True)
+    elif mode == 'legacy':
+        missing, unexpected = model.load_state_dict(checkpoint, strict=False)
+        prefix = '[Eval] ' if evaluation else ''
+        if missing:
+            print(f'{prefix}Missing keys in checkpoint (will use initialized values): {missing}')
+        if unexpected:
+            print(f'{prefix}Unexpected keys in checkpoint (will be ignored): {unexpected}')
+    else:
+        raise ValueError(f'unknown checkpoint_load_mode: {mode!r}')
+
+
 def init_model(model_cfg, device, eval, load_state_dict=False, need_ddp=True):
     model = hydra.utils.instantiate(model_cfg)
     if eval:
@@ -250,15 +282,12 @@ def init_model(model_cfg, device, eval, load_state_dict=False, need_ddp=True):
             model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device], broadcast_buffers=False,
                                                               find_unused_parameters=True)
         if load_state_dict:
-            # Use strict=False to allow partial loading while recording missing keys
-            checkpoint = torch.load(model_cfg.ckpt)
-            missing_keys, unexpected_keys = model.module.load_state_dict(checkpoint, strict=False)
-
-            if missing_keys:
-                print(f"Missing keys in checkpoint (will use initialized values): {missing_keys}")
-            if unexpected_keys:
-                print(f"Unexpected keys in checkpoint (will be ignored): {unexpected_keys}")
-
+            target = model.module if need_ddp else model
+            if getattr(target, 'body_geometry_enabled', False):
+                checkpoint = torch.load(model_cfg.ckpt, map_location='cpu')
+            else:
+                checkpoint = torch.load(model_cfg.ckpt)
+            load_checkpoint_parameters(target, checkpoint)
             model.train()
 
     return model
@@ -271,14 +300,7 @@ def load_state_dict_eval(model, state_dict_path, map_location='cuda:0', device='
         new_key = old_key.replace('module.', '')
         state_dict[new_key] = state_dict.pop(old_key)
 
-    # Use strict=False to allow partial loading
-    missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-
-    if missing_keys:
-        print(f"[Eval] Missing keys in checkpoint (will use initialized values): {missing_keys}")
-    if unexpected_keys:
-        print(f"[Eval] Unexpected keys in checkpoint (will be ignored): {unexpected_keys}")
-
+    load_checkpoint_parameters(model, state_dict, evaluation=True)
     model.to(device)
     model.eval()
 

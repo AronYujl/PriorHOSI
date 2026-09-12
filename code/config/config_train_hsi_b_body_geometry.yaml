@@ -1,0 +1,31 @@
+# BG1: short, paired continuation from the final R2 diffusion weights.
+defaults: [config_train_hsi_b_r2_fullbody_seam, _self_]
+
+exp_name: hsi_b_body_geometry_probe
+sample_type: diffusion
+run_id: null
+body_geometry_enabled: true
+body_geometry_loss_weight: 0.0  # Fixed by the registered zero-update gradient probe.
+body_geometry_permutation: identity
+body_geometry_calibration: false
+pen_sdf_cache: /data/yujinlun/InfBaGel-hsi/.cache/hsi_sdf
+checkpoint_load_mode: body_geometry_warm_start
+load_state_dict: true
+ckpt_path: /data/yujinlun/InfBaGel-hsi-r2/results/hsi_b_r2_fullbody_seam/checkpoints/hsi_b_r2_fullbody_seam_epoch222.pth
+resume_from: ""
+start_epoch: 0
+epochs: 1
+max_optimizer_updates: 256
+num_gpus: 8
+batch_size: 256
+effective_batch_size: 2048
+gradient_accumulation_steps: 1
+lr: 0.0001
+warmup_updates: 16
+lr_decay_start_update: null
+diffusion_ema_decay: null
+export_final_checkpoint_only: true
+ckpt_interval: 1
+benchmark_warmup_updates: 32
+benchmark_metrics_path: ${exp_dir}/training_resources.json
+use_tensorboard: false

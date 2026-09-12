@@ -14397,3 +14397,9 @@ CM2.3原生联合门失败保留，R2+CG继续为质量基线，Phase1C保持开
 全套authority在首GPU负载前执行，随后按实际修改运行组件检查。用户禁止新增smoke、哈希/SHA与防御性编程：本轮使用上述科学探针，不增加额外smoke或自定义hash逻辑；输入身份复用既有manifest引用。新增代码放priors/hsi/body_geometry.py，诊断写入现有diagnostics.py，经现有trainer/evaluator入口调用，不新增tools脚本。新增组件tests覆盖上述真实契约。
 
 探针资源上限8 GPU-h，记录现有全部GPU的外部推理竞争；满批显存至少保留2GiB。若micro256不满足资源门，本轮记录失败与实测，先评估受控的8×128/累积2同effective2048方案，不启动长训练。所有reportable workload通过experiment.py start且trainer自己拒绝dirty，并在启动固定commit传给各rank。失败结果不覆盖。最终交付BG1 phase summary及compact结果，原R2继续作为质量基线。
+
+### BG1 实现与执行前验证
+
+完整diffusion采用一次backbone、217560参数的零末层几何修正器，仅更新216人体输出。Sampler.predict_clean为训练/DDPM/DDIM和外部可微编辑共同入口；query使用coarse clean未来和已知两帧历史，FP32 FK24、现成SDF、同次scene dropout。参数与RNG初始保持、梯度、OOB、对齐、checkpoint warmstart/strict、dirty预检与启动commit、恢复配置均有组件验证。原模型/表示/已有场景条件保持。
+
+authority最终524 passed/5 skipped（88.29s）；首次检查的1项旧AST调用名断言和2项未导出解释器环境错误均已修正，日志保留。训练与coverage Hydra配置完全解析，registry验证441行。原有完整SDF缓存在/data/yujinlun/InfBaGel-hsi/.cache/hsi_sdf，通过显式配置及工作树cache链接复用。接下来在clean实现提交运行登记探针，所有质量结论尚未形成。

@@ -753,7 +753,7 @@ def merge_shard_payloads(
     # guidance settings would fabricate a result that no run ever produced.
     agreement_keys = (
         "seed", "sample_type", "guided", "fps", "sampling_body", "model_name",
-        "episode_subset", "future_occ_diagnostic",
+        "episode_subset", "future_occ_diagnostic", "body_geometry",
         "schema_version", "interpolation_version",
     )
     reference = by_index[0]
@@ -3653,6 +3653,12 @@ def evaluate_model(cfg: DictConfig, prediction_probe=None) -> Path:
         "seed": int(cfg.seed),
         "sample_type": str(cfg.sample_type),
         "guided": guided,
+        "body_geometry": {
+            "enabled": bool(cfg.get("body_geometry_enabled", False)),
+            "permutation": str(cfg.get("body_geometry_permutation", "identity")),
+            "query_source": "current coarse clean prediction; fixed two-frame history",
+            "representation": "24 FK joints; signed distance and window-frame gradient",
+        },
         "future_occ_diagnostic": {
             "mode": str(cfg.get("hsi_future_occ_mode", "predicted")),
             "offsets": list(hsi_diagnostics.FUTURE_OCC_OFFSETS),
@@ -3731,6 +3737,8 @@ def main(cfg: DictConfig) -> None:
         path = cm_distillation_readout(cfg)
     elif mode == "distillation_alignment":
         path = hsi_diagnostics.distillation_alignment(cfg)
+    elif mode == "body_scene_geometry":
+        path = hsi_diagnostics.body_scene_geometry(cfg)
     elif mode == "qualitative_cache":
         from priors.hsi.visualization import prepare_paired_review
         path = prepare_paired_review(cfg)
@@ -3748,7 +3756,7 @@ def main(cfg: DictConfig) -> None:
             "lingo_hsi_mode must be ground_truth, sample, merge_shards or "
             "teacher_forced_boundary, predictor_decomp, single_window_chain or "
             "d4_offline_decomp, chain_rebase, rebase_numerics, table3, position_fk, "
-            "merge_position_fk, qualitative_cache or qualitative_finalize, got %s"
+            "merge_position_fk, qualitative_cache, qualitative_finalize or body_scene_geometry, got %s"
             % mode
         )
     print("Wrote %s" % path)

@@ -130,7 +130,7 @@ class ChainRebaseCallSiteTests(unittest.TestCase):
             )
             and isinstance(node.value, ast.Call)
             and isinstance(node.value.func, ast.Attribute)
-            and node.value.func.attr == "student_model"
+            and node.value.func.attr == "predict_clean"
         ]
         first_loss = [
             node.lineno for node in ast.walk(p_losses)

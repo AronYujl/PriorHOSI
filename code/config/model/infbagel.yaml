@@ -18,3 +18,5 @@ infbagel:
   ckpt: ${ckpt_path}
   temp_voxel_num: ${temp_voxel_num}
   is_mix: false
+  body_geometry_enabled: ${oc.select:body_geometry_enabled,false}
+  checkpoint_load_mode: ${oc.select:checkpoint_load_mode,legacy}

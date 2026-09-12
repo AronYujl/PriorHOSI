@@ -1,0 +1,14 @@
+# BG1 readout: full-diffusion weights with the existing deterministic DDIM25.
+defaults: [config_sample_hsi_r2_ddim25, _self_]
+
+body_geometry_enabled: true
+body_geometry_loss_weight: 0.0
+body_geometry_permutation: identity
+checkpoint_load_mode: strict
+pen_sdf_cache: /data/yujinlun/InfBaGel-hsi/.cache/hsi_sdf
+body_geometry_probe_windows: 64
+body_geometry_probe_output: ${oc.env:ROOT_DIR}/results/body_geometry/coverage.json
+lingo_episode_subset: /data/yujinlun/InfBaGel-hsi/.claude/scratch/hetero_20260823/smoke60.json
+model_name: body_geometry_probe
+lingo_output_dir: ${oc.env:ROOT_DIR}/results/body_geometry/native
+table3_output: ${oc.env:ROOT_DIR}/results/body_geometry/table3

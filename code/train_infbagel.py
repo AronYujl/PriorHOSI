@@ -14,6 +14,7 @@ import math
 import random
 import time
 import copy
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -84,6 +85,9 @@ RESUME_GEOMETRY_FIELDS = (
     'cm_endpoint_loss_weight',
     'cm_endpoint_max_timestep',
     'cm_endpoint_teacher_checkpoint',
+    'body_geometry_enabled',
+    'body_geometry_loss_weight',
+    'body_geometry_permutation',
 )
 
 
@@ -342,6 +346,9 @@ def resume_geometry(cfg, world_size, steps_per_epoch, warmup_updates):
         'cm_endpoint_teacher_checkpoint': (
             str(cfg.ckpt_path) if cfg.get('cm_endpoint_loss_weight', 0.0) else None
         ),
+        'body_geometry_enabled': cfg.get('body_geometry_enabled', None),
+        'body_geometry_loss_weight': cfg.get('body_geometry_loss_weight', None),
+        'body_geometry_permutation': cfg.get('body_geometry_permutation', None),
     }
 
 
@@ -417,19 +424,46 @@ def build_resume_state(geometry, epoch, epoch_completed, micro_steps, optimizer_
     }
 
 
+def require_clean_worktree(repo):
+    status = subprocess.check_output(
+        ['git', 'status', '--porcelain=v1', '--untracked-files=all'],
+        cwd=repo, text=True,
+    ).strip()
+    if status:
+        raise RuntimeError(f'reportable training requires a clean worktree:\n{status}')
+
+
+def capture_training_start(cfg, repo):
+    """Fix run provenance before creating GPU workers."""
+    if cfg.get('run_id'):
+        require_clean_worktree(repo)
+    commit = subprocess.check_output(
+        ['git', 'rev-parse', 'HEAD'], cwd=repo, text=True,
+    ).strip()
+    return {'run_id': cfg.get('run_id'), 'git_commit': commit}
+
+
+def completed_training_provenance(provenance, repo):
+    completion_head = subprocess.check_output(
+        ['git', 'rev-parse', 'HEAD'], cwd=repo, text=True,
+    ).strip()
+    return {**provenance, 'completion_head': completion_head}
+
+
 @hydra.main(version_base=None, config_path="config", config_name="config_train_infbagel")
 def train(cfg: DictConfig) -> None:
+    provenance = capture_training_start(cfg, Path(__file__).resolve().parents[1])
     print(OmegaConf.to_yaml(cfg))
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = find_free_port()
     world_size = cfg.num_gpus
     print('Usable GPUS: ', torch.cuda.device_count(), flush=True)
     torch.multiprocessing.spawn(train_ddp,
-                                args=(world_size, cfg),
+                                args=(world_size, cfg, provenance),
                                 nprocs=world_size,
                                 join=True)
 
-def train_ddp(rank, world_size, cfg):
+def train_ddp(rank, world_size, cfg, provenance):
 
     OmegaConf.register_new_resolver("times", lambda x, y: int(x) * int(y))
 
@@ -649,7 +683,8 @@ def train_ddp(rank, world_size, cfg):
     else:
         # Calibration measures rank-local autograd.grad values after DDP's
         # initialization broadcast; training uses DDP's normal backward path.
-        calibration_model = model.module if cfg.get('body_fk_calibration', False) else model
+        calibration = cfg.get('body_fk_calibration', False) or cfg.get('body_geometry_calibration', False)
+        calibration_model = model.module if calibration else model
         trainer.set_dataset_and_model(infbagel_dataset, calibration_model)
 
     if cfg.use_tensorboard and rank == 0:
@@ -763,6 +798,26 @@ def train_ddp(rank, world_size, cfg):
                 torch.distributed.destroy_process_group()
                 return
 
+            if bool(cfg.get('body_geometry_calibration', False)):
+                from priors.hsi.diagnostics import body_geometry_gradient_calibration, body_geometry_calibrated_weight
+                record = body_geometry_gradient_calibration(
+                    model.module, loss_dict, float(cfg.loss_w_fk),
+                    geometry_weight=trainer.body_geometry_loss_weight,
+                )
+                records = [None] * world_size
+                torch.distributed.all_gather_object(records, record)
+                if rank == 0:
+                    result = body_geometry_calibrated_weight(records)
+                    result.update(seed=int(cfg.seed), world_size=world_size,
+                                  micro_batch_per_gpu=int(cfg.batch_size), optimizer_updates=0)
+                    result.update(completed_training_provenance(
+                        provenance, Path(__file__).resolve().parents[1]))
+                    Path(cfg.exp_dir, 'calibration.json').write_text(json.dumps(result, indent=2) + '\n')
+                if cfg.use_tensorboard and rank == 0:
+                    writer.close()
+                torch.distributed.destroy_process_group()
+                return
+
             if step % 10 == 0:
                 current_lr = optimizer.param_groups[0]['lr']
                 print(f"Epoch: {epoch}, Step: {step} / {len(dataloader)}   Loss: {loss.item()}, LR: {current_lr:.6f}", flush=True)
@@ -779,6 +834,14 @@ def train_ddp(rank, world_size, cfg):
                               ('loss_jpos', 'loss_jrot', 'loss_fk', 'loss_fullbody_seam', 'loss_body_fk')}
                     values.update(update=optimizer_updates, rank=rank, total=float(loss.detach()))
                     with open(Path(cfg.exp_dir, f'body_fk_losses_rank{rank}.jsonl'), 'a') as handle:
+                        handle.write(json.dumps(values) + '\n')
+                if loss_dict.get('loss_body_geometry') is not None:
+                    values = {name: float(loss_dict[name].detach()) for name in
+                              ('loss_jpos', 'loss_jrot', 'loss_fk', 'loss_fullbody_seam', 'loss_body_geometry')}
+                    values.update(update=optimizer_updates, rank=rank, total=float(loss.detach()))
+                    values.update({name: loss_dict[name].detach().tolist() for name in
+                                   ('body_geometry_active_fraction', 'body_geometry_invalid_fraction')})
+                    with open(Path(cfg.exp_dir, f'body_geometry_losses_rank{rank}.jsonl'), 'a') as handle:
                         handle.write(json.dumps(values) + '\n')
                 if cfg.use_tensorboard and rank == 0:
                     writer.add_scalar('Loss', loss.item(), epoch * len(dataloader) + step)
@@ -1036,6 +1099,8 @@ def train_ddp(rank, world_size, cfg):
             'max_peak_memory_allocated_bytes': int(max(value[0] for value in peak_values)),
             'max_peak_memory_reserved_bytes': int(max(value[1] for value in peak_values)),
         }
+        metrics.update(completed_training_provenance(
+            provenance, Path(__file__).resolve().parents[1]))
         temporary_path = metrics_path.with_suffix(metrics_path.suffix + '.tmp')
         temporary_path.write_text(json.dumps(metrics, indent=2, sort_keys=True) + '\n', encoding='utf-8')
         os.replace(temporary_path, metrics_path)
