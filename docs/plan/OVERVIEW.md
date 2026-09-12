@@ -306,3 +306,6 @@ supervision 蒸馏单学生。单 RTX 3090、batch=1 的 Fast 目标 ≥20 FPS�
   1024/3072，最多允许一次不改变专家接口的几何 contact fallback。正式重训仍只用 seed 42、
   scene-free OMOMO 和随机初始化，官方 native/CHOIS 仅在配置锁定后各评测一次。Phase 1C/1D/2
   同步约束为复用同一状态 codec 与接口，不允许靠专家特有坐标修补增加组合复杂度。
+
+
+2026-09-12：用户批准BG1完整diffusion候选身体几何实现与训练前探针，分支phase/01c-bodygeo-01-probes。R2权重、LINGO-only，身体FK24局部SDF关系用于学习修正；BG2正式继续训练与蒸馏后置。范围、探针和8GPU-h上限见PHASE_1C_HSI.md BG1。

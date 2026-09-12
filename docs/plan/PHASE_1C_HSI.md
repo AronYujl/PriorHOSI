@@ -14369,3 +14369,31 @@ CM1source0.372014、统计0.003920，总0.815017GPU-h<4；最小实测余量1083
 报告/compact：experiments/results/p1_hsi_cm2_post_alignment_s42_20260912.{md,json}；
 交接PHASE_1C_CM2_POST_ALIGNMENT.md；全部工件位于results/cm2_post_alignment_setup_20260912/。
 CM2.3原生联合门失败保留，R2+CG继续为质量基线，Phase1C保持开放。本次只封存CM2.4。
+
+
+## 2026-09-12 BG1：候选身体局部几何的完整 diffusion 实现与训练前探针（用户已批准）
+
+用户接受将 InfBaGel 的轨迹驱动场景条件扩展为候选运动上的身体部位几何条件，明确批准实现完整 diffusion 并先执行训练前探针。沿用已训练 R2 权重，HSI 仅使用现有 LINGO 训练划分。本方向不开展蒸馏，不修改 core，也不导入 HOI 分支实验结论。
+
+### 子阶段与范围
+
+- BG1（本轮）：phase/01c-bodygeo-01-probes，实现、组件验证、真实数据几何/梯度探针及有限继续训练诊断，形成长训练是否值得启动的证据。
+- BG2（后续）：phase/01c-bodygeo-02-train，依据 BG1 结果固定正式继续训练预算、配置、原生与编辑读出。本轮不启动该长训练阶段。
+- 蒸馏留待完整 diffusion 增强得到验证后另行安排。
+
+### 唯一机制
+
+每次 Unet forward 先输出现有主干的 coarse clean x0，候选前两帧使用已知历史。通过现有 FP32 FK 读出24个关节，查询 mesh-derived SceneSDFBank。每点采用中心及世界三轴正负一个体素的7点 stencil；输出有序的 signed distance、转回当前窗口坐标的梯度xyz、几何有效标记，共[B,T,24,5]。扫描范围外的几何不解释为自由空间，单独记录覆盖。已有轨迹crop及条件语义保留；新查询不读取GT未来位置。
+
+新增小型残差修正器结合原主干的 motion hidden 与有序几何，只修正216个人体通道；末层零初始化，保持旧R2的初始eval输出。几何查询及共同predict_clean接口允许外部求导；DDPM500和DDIM25调用同一增强路径，consistency不在本轮范围。原未来scene dropout触发时同步屏蔽新增几何条件；无scene数据标志也屏蔽新增分支。新增关系目标使用预测/GT有效交集内、GT距场景0.25m以内的24关节SDF误差（0.25m归一化、smooth-L1），排除已知历史，报告每个部位的有效/排除比例。原R2生成和seam/FK目标保持。
+
+### 固定探针与晋级
+
+1. 零训练geometry probe：64个seed42训练窗口，解析平面/镜像/窗口坐标、多scene、部位与时间对应、全身覆盖和原0.1–1.2m高度外近表面信息；不以其声称生成提升。
+2. 零更新gradient probe：真实训练batch，核初始R2等价、新末层非零有限梯度、原目标与新关系目标的trunk/rotation-head范数和夹角。几何权重一次定为min(原目标trunk梯度10%, rotation-head梯度25%)的比例，不扫描。零初始化时前层梯度为零是预期。
+3. 有限学习probe：旧R2等预算继续训练对照与增强臂，8×3090、micro256、effective2048、累积1、seed42、bf16_tf32、fresh Adam、LR1e-4、warmup16、256更新=524288窗口，固定最终online、不使用EMA和中途挑选。前32更新后进行同步性能统计。新增结构初始化保持原RNG序列，两个臂的数据与噪声对应。该预算属于短端诊断，不是正式SOTA训练。
+4. 生成历史读出：固定已暴露B_n60开发队列，DDIM25/CFGw1/无外部CG，旧R2继续训练、增强正确条件、增强固定左右部位置换；相同seed/初态/顺序。保留penetration、非穿透接触、FS、goal、边界jerk、OOB、各窗口与全部失败。机械门和梯度门通过后，短端原生质量没有明确恶化且正确部位关系提供积极证据，才建议BG2；仅监督loss下降不足晋级。
+
+全套authority在首GPU负载前执行，随后按实际修改运行组件检查。用户禁止新增smoke、哈希/SHA与防御性编程：本轮使用上述科学探针，不增加额外smoke或自定义hash逻辑；输入身份复用既有manifest引用。新增代码放priors/hsi/body_geometry.py，诊断写入现有diagnostics.py，经现有trainer/evaluator入口调用，不新增tools脚本。新增组件tests覆盖上述真实契约。
+
+探针资源上限8 GPU-h，记录现有全部GPU的外部推理竞争；满批显存至少保留2GiB。若micro256不满足资源门，本轮记录失败与实测，先评估受控的8×128/累积2同effective2048方案，不启动长训练。所有reportable workload通过experiment.py start且trainer自己拒绝dirty，并在启动固定commit传给各rank。失败结果不覆盖。最终交付BG1 phase summary及compact结果，原R2继续作为质量基线。
