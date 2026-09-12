@@ -14278,3 +14278,57 @@ U/G平均generation FPS=94.518030/19.039375，生成秒/episode=1.591602/7.85153
 最终报告/compact p1_hsi_cm2_acceptance_s42_20260912，交接PHASE_1C_CM2_EVAL.md。
 本次授权实验完成并保留负结果；Phase1C仍开放，不作合并或expert标签。后继先审阅本次
 结果，具体新方向另行批准；本轮没有新增训练、调权或开始mixer。
+
+
+## 2026-09-12（CM2.4：训练后同状态教师终点保真；用户已批准）
+
+用户在CM2完整验收审阅后批准优先补同状态终点诊断。分支phase/01c-cm2-postalign，
+component hsi-cm2.4；零训练更新。R2+CG继续为质量基线，CM2.3完整负结果保留。
+本轮交付固定权重的机制读数及一个据证据形成的后继提案，后继训练和CG改动另行审阅。
+
+### 固定比较与可识别范围
+
+复用CM2.1的distillation_alignment探针及B_n60已暴露开发队列60条/364窗（含12个
+terminal padded窗）。源轨迹仍为R2 DDIM25 U及CM1 final CM16 U，保持CFGw1、seed42、
+相同occupancy/progress/history、修正插值及无外部CG。各源在499/279/59观测1092状态，
+共2184状态。源模型与冻结eval R2终点教师保持原值，仅观察端student换为CM2 final
+student epoch089；CM1原始观察结果复用CM2.1封存工件。全部模型eval/冻结。
+
+逐状态核对x_t、previous_clean、history、条件、teacher_local和teacher_endpoint与旧工件
+逐值相同；原生粗帧与封存轨迹逐值相同。由此CM2−CM1只比较同状态、同目标的学生差异。
+保留两源原生物理、接触和安全读数，作为源轨迹复现证据；这些轨迹属于R2/CM1，不能
+标成CM2原生rollout。CM2自身的375条U/G物理及安全只引用CM2.3完整验收。
+本诊断衡量生成历史下的同状态保真，不直接识别训练态学习、CM2自身历史分布、dropout、
+EMA或CG的因果作用，不把直接位置/FK自分歧当作教师终点误差。
+
+### 统计与预先判据
+
+保存全部root、root-relative body21、全局FK、直接位置、旋转角、边界速度/加速度/jerk、
+内部jerk及自身位置/FK分歧。先在episode内平均窗口，再按60个episode配对重采样。
+主比较是CM2−CM1到同一R2终点的误差，body_cm及boundary_velocity，279/59两时刻、
+两源共8项；10000次seed42，保留逐项95%及family8 Bonferroni同时区间。499、root和
+其他指标全部报告逐项区间，作为次要描述。CM2−R2单步的残余终点差亦给完整逐项区间。
+首窗/后续生成历史、原分层及B_n60人口加权描述并列；结论限定已暴露开发队列和seed42。
+
+两源t59身体误差主区间均<0，支持CM2在共同状态上学得身体终点保真；若速度未明确
+改善，优先形成跨窗动态目标提案。身体及速度均明确改善而CM2.3物理仍退化，优先形成
+自身轨迹/引导迁移诊断提案。若身体改善不成立，保留不确定或退化，先定位目标覆盖及
+训练/部署差异。任何分支均不自动加权、重训、增加采样步数或启动CG实验。
+
+### 执行、验证及资源
+
+一个config override片段复用现有探针/采样器/evaluator；runtime、core与数据均保持原值。
+两个8卡episode分片负载及各自merge，经完全解析配置、机器preflight和
+experiment.py start/finish完成。输入身份复用封存manifest引用，保留本轮原生配置/日志、
+失败与全部逐状态输出。源与观察端checkpoint分别记录，避免CM1源被误换成CM2源。
+
+定向执行tests/hsi/test_consistency.py及registry/config验证。执行路径保持原值，复用
+CM2.3的authority487 passed/3 skipped；跳过重复全套、训练benchmark和额外功能负载。
+两组正式诊断自身提供实际路径复现证据。统计沿用paired_bootstrap.py，GPU计算8项
+同时区间并核对逐项区间。8×RTX3090，至少2GiB实际余量，记录现有推理竞争；总上限
+4GPU-h包含两源诊断/merge与统计。既往同型诊断实耗约0.863GPU-h作为成本参考，
+本轮以实际计时为准，不报告仪器化诊断的部署FPS。
+
+一个preregistration提交、一个配置实现提交、一个completion提交。完整2184状态配对、
+原生120条粗帧复现、全部误差/分层/首窗后续窗及统计齐备后，封存报告/compact和
+PHASE_1C_CM2_POST_ALIGNMENT.md。Phase1C保持开放，本轮完成不触发合并或expert标签。
