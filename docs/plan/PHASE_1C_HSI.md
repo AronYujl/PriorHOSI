@@ -14430,6 +14430,8 @@ BG1 的首轮结果显示几何分支可训练，但 `24×5` 条件直接 flatte
 - 使用与 BG1 完全相同的 seed、数据队列、256 optimizer updates、effective batch 2048 和 native DDIM25 读出，比较 control、结构增强和 left/right permutation；
 - 本轮不加入 jerk loss；jerk 只作为已注册的质量读出。进入 BG2 的门槛为正确条件相对 permutation 产生稳定结构差异，且 FID/MM 不出现一致性恶化，scene/penetration 至少有一个方向明确改善。
 
+受控真实数据功能探针先完成了 fallback：原注册的 8×256 arm 在 GPU 5 仅剩 34.62 MiB 时因外部竞争 OOM，失败 run 保留在 `p1-hsi-bodygeo-bg1-r1-smoke-s42-20260912`；按本阶段预注册规则未复用该 run id。随后 8×128、accumulation 2、effective batch 2048 的新结构 arm 成功完成 1 个 optimizer update：loss `0.0227566324` finite，8 个 rank 的 peak allocated/reserved 分别为 `7.645/7.709 GB`，同步耗时 `67.101 s`。该结果只证明运行稳定，不证明质量提升；匹配的 256-update 三臂比较仍是进入 BG2 前的下一步。
+
 原生三臂结果尚未生成。为满足几何与分布质量并列的既有要求，读出固定all60及其中43条non-walk的FID/MM-Dist，沿用冻结内部LINGO encoder、GT目录和既有GPU frechet_samples。FID沿用2000次seed42配对重采样，所有臂共享GT和draw；MM连同全部原生scalar用paired_bootstrap.py的10000次序列等权读出。该队列只有21种caption（non-walk20），现成gallery32不适用，明确标记不可计算，不改gallery定义。所有指标均为已暴露开发队列/内部encoder，不直接与公开FID比较。
 
 现有Table3入口硬编码375条及guided/unguided，故在现有text_motion.py添加通用cohort reader和evaluator mode，复用现成encoder/预处理/统计，不新增脚本、模型或训练方向。reader使用真实control/enhanced/permuted标签与guidance状态。本补充发生在首次原生读出前，不改变两臂训练或采样配置。
